@@ -14,6 +14,7 @@ import { fetchTheaterPage, fetchFilmPage, delay } from './allocine-client.js';
 import { parseTheaterPage } from './theater-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import type { CinemaConfig } from './types.js';
+import { getTodayDate, getWeekDates } from '../utils/date.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,37 +24,6 @@ async function loadCinemaConfig(): Promise<CinemaConfig[]> {
   const configPath = join(__dirname, '../../config/cinemas.json');
   const content = await readFile(configPath, 'utf-8');
   return JSON.parse(content);
-}
-
-// Obtenir la date d'aujourd'hui au format YYYY-MM-DD
-function getTodayDate(): string {
-  const today = new Date();
-  return today.toISOString().split('T')[0];
-}
-
-// Obtenir toutes les dates de la semaine (mercredi → mardi)
-function getWeekDates(): string[] {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0 = dimanche, 3 = mercredi
-  
-  // Calculer le décalage vers le mercredi précédent ou actuel
-  let offset = dayOfWeek - 3;
-  if (offset < 0) {
-    offset += 7;
-  }
-  
-  const wednesday = new Date(today);
-  wednesday.setDate(today.getDate() - offset);
-  
-  // Générer les 7 jours de la semaine (mercredi → mardi)
-  const dates: string[] = [];
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(wednesday);
-    date.setDate(wednesday.getDate() + i);
-    dates.push(date.toISOString().split('T')[0]);
-  }
-  
-  return dates;
 }
 
 // Scraper un cinéma pour une date donnée
