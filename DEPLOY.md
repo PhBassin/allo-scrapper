@@ -50,7 +50,6 @@ Pour déclencher un scraping manuellement depuis GitHub :
 ### Scraping automatique
 
 Le workflow s'exécute automatiquement :
-- **Tous les jours à 6h UTC** : scraping quotidien des séances du jour
 - **Mercredi à 8h UTC** : scraping complet de la semaine (mer→mar)
 
 ### Ajouter des cinémas

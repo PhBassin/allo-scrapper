@@ -2,8 +2,6 @@ name: Scrape & Deploy
 
 on:
   schedule:
-    # Tous les jours à 6h UTC (7h Paris en hiver, 8h en été)
-    - cron: '0 6 * * *'
     # Mercredi à 8h UTC pour le scraping complet de la semaine
     - cron: '0 8 * * 3'
   workflow_dispatch: # Permet un déclenchement manuel
@@ -36,13 +34,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run daily scrape
-        if: github.event.schedule != '0 8 * * 3'
-        run: npm run scrape
-
       - name: Run weekly scrape
-        if: github.event.schedule == '0 8 * * 3'
-        run: npm run scrape:week
+        run: npm run scrape
 
       - name: Build Astro site
         run: npm run build

@@ -14,7 +14,7 @@ import { fetchTheaterPage, fetchFilmPage, delay } from './allocine-client.js';
 import { parseTheaterPage } from './theater-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import type { CinemaConfig } from './types.js';
-import { getTodayDate, getWeekDates } from '../utils/date.js';
+import { getWeekDates } from '../utils/date.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -102,9 +102,6 @@ async function scrapeTheater(
 
 // Script principal
 async function main() {
-  const args = process.argv.slice(2);
-  const isWeekMode = args.includes('--week');
-
   console.log('🚀 Starting Allo-Scrapper...\n');
 
   // Initialiser la base de données
@@ -116,7 +113,7 @@ async function main() {
   console.log(`📋 Loaded ${cinemas.length} cinema(s) from config\n`);
 
   // Déterminer les dates à scraper
-  const dates = isWeekMode ? getWeekDates() : [getTodayDate()];
+  const dates = getWeekDates();
   console.log(
     `📅 Scraping ${dates.length} date(s): ${dates.join(', ')}\n`
   );
