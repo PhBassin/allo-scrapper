@@ -2,8 +2,8 @@ name: Scrape & Deploy
 
 on:
   schedule:
-    # Mercredi à 8h UTC pour le scraping complet de la semaine
-    - cron: '0 8 * * 3'
+    # Tous les jours à 8h UTC
+    - cron: '0 8 * * *'
   workflow_dispatch: # Permet un déclenchement manuel
   push:
     branches:
