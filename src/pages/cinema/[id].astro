@@ -1,0 +1,126 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import FilmCard from '../../components/FilmCard.astro';
+import ShowtimeList from '../../components/ShowtimeList.astro';
+import { getDatabase } from '../../db/schema';
+import { getShowtimesByCinema, getCinemas } from '../../db/queries';
+
+export async function getStaticPaths() {
+  const db = getDatabase();
+  try {
+    const cinemas = getCinemas(db);
+    return cinemas.map((cinema) => ({
+      params: { id: cinema.id },
+    }));
+  } finally {
+    db.close();
+  }
+}
+
+const { id } = Astro.params;
+
+// Date du jour
+const today = new Date().toISOString().split('T')[0];
+
+const db = getDatabase();
+try {
+  var cinemas = getCinemas(db);
+  var cinema = cinemas.find((c) => c.id === id);
+  
+  if (!cinema) {
+    throw new Error(`Cinema ${id} not found`);
+  }
+
+  var showtimesData = getShowtimesByCinema(db, id, today);
+} finally {
+  db.close();
+}
+
+// Grouper par film
+const filmMap = new Map();
+showtimesData.forEach((st) => {
+  if (!filmMap.has(st.film.id)) {
+    filmMap.set(st.film.id, {
+      film: st.film,
+      showtimes: [],
+    });
+  }
+  filmMap.get(st.film.id).showtimes.push(st);
+});
+
+const films = Array.from(filmMap.values());
+---
+
+<Layout 
+  title={cinema.name}
+  description={`Séances du jour au cinéma ${cinema.name}`}
+>
+  <div class="mb-8">
+    <h1 class="text-4xl font-bold mb-2">{cinema.name}</h1>
+    
+    {cinema.address && (
+      <p class="text-gray-600 mb-1">📍 {cinema.address}, {cinema.postal_code} {cinema.city}</p>
+    )}
+    
+    {cinema.screen_count && (
+      <p class="text-gray-600 mb-4">🎬 {cinema.screen_count} salle{cinema.screen_count > 1 ? 's' : ''}</p>
+    )}
+
+    <p class="text-sm text-gray-500 mb-6">
+      Séances du {new Date(today).toLocaleDateString('fr-FR', { 
+        weekday: 'long',
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      })}
+    </p>
+
+    <a href="/" class="text-primary hover:underline">← Retour à l'accueil</a>
+  </div>
+
+  {films.length > 0 ? (
+    <div class="space-y-8">
+      {films.map(({ film, showtimes }) => (
+        <div class="card p-6">
+          <div class="mb-4">
+            <h2 class="text-2xl font-bold mb-2">
+              <a href={`/film/${film.id}`} class="hover:text-primary transition">
+                {film.title}
+              </a>
+            </h2>
+            
+            {film.original_title && film.original_title !== film.title && (
+              <p class="text-sm text-gray-600 italic mb-2">{film.original_title}</p>
+            )}
+
+            <div class="flex flex-wrap gap-2 mb-3">
+              {film.genres.map((genre) => (
+                <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                  {genre}
+                </span>
+              ))}
+            </div>
+
+            <div class="text-sm text-gray-600 space-y-1">
+              {film.director && (
+                <p><strong>Réalisateur:</strong> {film.director}</p>
+              )}
+              {film.duration_minutes && (
+                <p><strong>Durée:</strong> {Math.floor(film.duration_minutes / 60)}h{film.duration_minutes % 60 > 0 ? ` ${film.duration_minutes % 60}min` : ''}</p>
+              )}
+            </div>
+          </div>
+
+          <div class="border-t pt-4">
+            <h3 class="text-lg font-semibold mb-3">Horaires</h3>
+            <ShowtimeList showtimes={showtimes} />
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div class="card p-8 text-center">
+      <p class="text-gray-600">Aucune séance programmée pour aujourd'hui</p>
+    </div>
+  )}
+</Layout>

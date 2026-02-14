@@ -1,0 +1,76 @@
+name: Scrape & Deploy
+
+on:
+  schedule:
+    # Tous les jours à 6h UTC (7h Paris en hiver, 8h en été)
+    - cron: '0 6 * * *'
+    # Mercredi à 8h UTC pour le scraping complet de la semaine
+    - cron: '0 8 * * 3'
+  workflow_dispatch: # Permet un déclenchement manuel
+  push:
+    branches:
+      - main # Build après chaque push sur main
+
+jobs:
+  scrape-and-build:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run daily scrape
+        if: github.event.schedule != '0 8 * * 3'
+        run: npm run scrape
+
+      - name: Run weekly scrape
+        if: github.event.schedule == '0 8 * * 3'
+        run: npm run scrape:week
+
+      - name: Build Astro site
+        run: npm run build
+
+      - name: Commit updated database
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/allo-scrapper.db
+          git diff --staged --quiet || git commit -m "Update database - $(date +'%Y-%m-%d %H:%M')"
+          git push
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
+  deploy:
+    needs: scrape-and-build
+    runs-on: ubuntu-latest
+    
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
