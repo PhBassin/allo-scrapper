@@ -1,19 +1,16 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import FilmCard from '../components/FilmCard.astro';
-import { getDatabase } from '../db/schema';
+import { db } from '../db/client';
 import { getWeeklyFilms, getCinemas } from '../db/queries';
 import { getCurrentWeekStart } from '../utils/date';
 
 const weekStart = getCurrentWeekStart();
-const db = getDatabase();
 
-try {
-  var films = getWeeklyFilms(db, weekStart);
-  var cinemas = getCinemas(db);
-} finally {
-  db.close();
-}
+const [films, cinemas] = await Promise.all([
+  getWeeklyFilms(db, weekStart),
+  getCinemas(db)
+]);
 
 // Formatter la date du mercredi
 const weekDate = new Date(weekStart);

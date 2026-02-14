@@ -2,7 +2,8 @@
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { getDatabase, initializeDatabase } from '../db/schema.js';
+import { db, type DB } from '../db/client.js';
+import { initializeDatabase } from '../db/schema.js';
 import {
   upsertCinema,
   upsertFilm,
@@ -28,7 +29,7 @@ async function loadCinemaConfig(): Promise<CinemaConfig[]> {
 
 // Scraper un cinéma pour une date donnée
 async function scrapeTheater(
-  db: ReturnType<typeof getDatabase>,
+  db: DB,
   cinema: CinemaConfig,
   date: string
 ): Promise<void> {
@@ -42,7 +43,7 @@ async function scrapeTheater(
     const pageData = parseTheaterPage(html, cinema.id);
     
     // Insérer/mettre à jour le cinéma
-    upsertCinema(db, pageData.cinema);
+    await upsertCinema(db, pageData.cinema);
     console.log(`✅ Cinema ${pageData.cinema.name} updated`);
 
     // Traiter chaque film
@@ -50,7 +51,7 @@ async function scrapeTheater(
       const film = filmData.film;
       
       // Vérifier si le film existe déjà et a une durée
-      const existingFilm = getFilm(db, film.id);
+      const existingFilm = await getFilm(db, film.id);
       
       // Si le film n'a pas de durée ou n'existe pas, scraper la fiche film
       if (!existingFilm || !existingFilm.duration_minutes) {
@@ -75,17 +76,17 @@ async function scrapeTheater(
       }
 
       // Insérer/mettre à jour le film
-      upsertFilm(db, film);
+      await upsertFilm(db, film);
       console.log(`  ✅ Film "${film.title}" updated`);
 
       // Insérer/mettre à jour les séances
       for (const showtime of filmData.showtimes) {
-        upsertShowtime(db, showtime);
+        await upsertShowtime(db, showtime);
       }
       console.log(`  ✅ ${filmData.showtimes.length} showtimes updated`);
 
       // Insérer/mettre à jour le programme hebdomadaire
-      upsertWeeklyProgram(db, {
+      await upsertWeeklyProgram(db, {
         cinema_id: cinema.id,
         film_id: film.id,
         week_start: filmData.showtimes[0]?.week_start || date,
@@ -105,9 +106,8 @@ async function main() {
   console.log('🚀 Starting Allo-Scrapper...\n');
 
   // Initialiser la base de données
-  initializeDatabase();
-  const db = getDatabase();
-
+  await initializeDatabase();
+  
   // Charger la configuration des cinémas
   const cinemas = await loadCinemaConfig();
   console.log(`📋 Loaded ${cinemas.length} cinema(s) from config\n`);
@@ -126,7 +126,7 @@ async function main() {
     }
   }
 
-  db.close();
+  // db.close() n'existe pas sur @libsql/client, la connexion est gérée automatiquement ou via close() si nécessaire, mais ce n'est pas typique pour les scripts one-off comme ici
   console.log('\n✨ Scraping completed!');
 }
 
