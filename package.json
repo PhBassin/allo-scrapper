@@ -7,6 +7,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "test": "tsx --test src/**/*.test.ts",
     "scrape": "tsx src/scraper/index.ts",
     "scrape:week": "tsx src/scraper/index.ts --week",
     "db:migrate": "tsx src/db/migrations.ts"
