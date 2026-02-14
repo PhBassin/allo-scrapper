@@ -5,6 +5,9 @@ interface Props {
 }
 
 const { title, description = 'Agrégateur de séances de cinéma' } = Astro.props;
+const baseUrl = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
 ---
 
 <!doctype html>
@@ -21,13 +24,13 @@ const { title, description = 'Agrégateur de séances de cinéma' } = Astro.prop
     <header class="bg-secondary text-white shadow-lg">
       <div class="container mx-auto px-4 py-4">
         <div class="flex items-center justify-between">
-          <a href="/" class="text-2xl font-bold flex items-center gap-2">
+          <a href={baseUrl} class="text-2xl font-bold flex items-center gap-2">
             <span class="text-primary">🎬</span>
             <span>Allo-Scrapper</span>
           </a>
           <nav class="flex gap-4">
-            <a href="/" class="hover:text-primary transition">Accueil</a>
-            <a href="/cinemas" class="hover:text-primary transition">Cinémas</a>
+            <a href={baseUrl} class="hover:text-primary transition">Accueil</a>
+            <a href={`${baseUrl}cinemas`} class="hover:text-primary transition">Cinémas</a>
           </nav>
         </div>
       </div>
