@@ -3,17 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import FilmCard from '../components/FilmCard.astro';
 import { getDatabase } from '../db/schema';
 import { getWeeklyFilms, getCinemas } from '../db/queries';
-
-// Obtenir le mercredi de la semaine en cours
-function getCurrentWeekStart(): string {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  let offset = dayOfWeek - 3;
-  if (offset < 0) offset += 7;
-  const wednesday = new Date(today);
-  wednesday.setDate(today.getDate() - offset);
-  return wednesday.toISOString().split('T')[0];
-}
+import { getCurrentWeekStart } from '../utils/date';
 
 const weekStart = getCurrentWeekStart();
 const db = getDatabase();

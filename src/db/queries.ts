@@ -206,6 +206,71 @@ export function getShowtimesByCinema(
   }));
 }
 
+// Récupérer les séances d'un cinéma pour une semaine donnée
+export function getShowtimesByCinemaAndWeek(
+  db: Database.Database,
+  cinemaId: string,
+  weekStart: string
+): Array<Showtime & { film: Film }> {
+  const stmt = db.prepare(`
+    SELECT 
+      s.*,
+      f.id as film_id,
+      f.title as film_title,
+      f.original_title,
+      f.poster_url,
+      f.duration_minutes,
+      f.release_date,
+      f.rerelease_date,
+      f.genres,
+      f.nationality,
+      f.director,
+      f.actors,
+      f.synopsis,
+      f.certificate,
+      f.press_rating,
+      f.audience_rating,
+      f.allocine_url
+    FROM showtimes s
+    JOIN films f ON s.film_id = f.id
+    WHERE s.cinema_id = ? AND s.week_start = ?
+    ORDER BY s.date, f.title, s.time
+  `);
+
+  const rows = stmt.all(cinemaId, weekStart) as any[];
+
+  return rows.map((row) => ({
+    id: row.id,
+    film_id: row.film_id,
+    cinema_id: row.cinema_id,
+    date: row.date,
+    time: row.time,
+    datetime_iso: row.datetime_iso,
+    version: row.version,
+    format: row.format,
+    experiences: JSON.parse(row.experiences || '[]'),
+    week_start: row.week_start,
+    film: {
+      id: row.film_id,
+      title: row.film_title,
+      original_title: row.original_title,
+      poster_url: row.poster_url,
+      duration_minutes: row.duration_minutes,
+      release_date: row.release_date,
+      rerelease_date: row.rerelease_date,
+      genres: JSON.parse(row.genres || '[]'),
+      nationality: row.nationality,
+      director: row.director,
+      actors: JSON.parse(row.actors || '[]'),
+      synopsis: row.synopsis,
+      certificate: row.certificate,
+      press_rating: row.press_rating,
+      audience_rating: row.audience_rating,
+      allocine_url: row.allocine_url,
+    },
+  }));
+}
+
 // Récupérer les films programmés dans la semaine en cours
 export function getWeeklyFilms(
   db: Database.Database,
