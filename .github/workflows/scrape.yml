@@ -34,10 +34,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run weekly scrape
-        run: npm run scrape
-
-      - name: Build Astro site
+      - name: Build Astro site (includes scraping)
         run: npm run build
 
       - name: Commit updated database

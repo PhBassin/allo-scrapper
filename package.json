@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "npm run scrape && astro build",
     "preview": "astro preview",
     "test": "tsx --test src/**/*.test.ts",
     "scrape": "tsx src/scraper/index.ts",
