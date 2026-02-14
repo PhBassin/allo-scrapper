@@ -221,7 +221,7 @@ npm install
 # Scraping complet de la semaine (mercredi → mardi)
 npm run scrape
 
-# Alias de compatibilité
+# Alias de compatibilité (conservé pour les anciens usages)
 npm run scrape:week
 
 # Build du site statique
