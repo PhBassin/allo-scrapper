@@ -229,7 +229,7 @@ npm run scrape:week
 # Build du site statique
 npm run build
 
-# Tests de non-régression (base TDD)
+# Tests de régression (base TDD)
 npm run test
 
 # Développement local
@@ -241,8 +241,8 @@ npm run preview
 
 ## Consigne TDD (ajout futur de cinémas)
 
-- Avant d'ajouter un nouveau cinéma dans `config/cinemas.json`, commencer par ajouter/adapter un test de non-régression qui valide le comportement attendu.
-- Conserver les tests de parsing (`src/scraper/*.test.ts`) comme garde-fou du fonctionnement actuel du site.
+- Avant d'ajouter un nouveau cinéma dans `config/cinemas.json`, commencer par ajouter/adapter un test de régression qui valide le comportement attendu.
+- Conserver les tests de parsing (`src/scraper/*.test.ts`) comme garde-fou du fonctionnement actuel du scraper.
 
 ## GitHub Actions
 
