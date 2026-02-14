@@ -57,6 +57,7 @@ test('parseTheaterPage extrait le cinéma, les films et les séances', () => {
   assert.equal(result.films[0].is_new_this_week, true);
   assert.equal(result.films[0].showtimes.length, 1);
   assert.equal(result.films[0].showtimes[0].id, 'st1');
+  assert.equal(result.films[0].showtimes[0].date, '2025-01-15');
   assert.equal(result.films[0].showtimes[0].version, 'VO');
   assert.equal(result.films[0].showtimes[0].format, 'Projection Digital');
 });
@@ -72,4 +73,29 @@ test('parseTheaterPage ignore les cartes sans id film', () => {
   const result = parseTheaterPage(html, 'W7504');
 
   assert.equal(result.films.length, 0);
+});
+
+test("parseTheaterPage utilise la date ISO de la séance pour les jours suivants", () => {
+  const html = `
+    <section id="theaterpage-showtimes-index-ui" data-selected-date="2025-01-15"></section>
+    <div class="movie-card-theater">
+      <a class="meta-title-link" href="/film/fichefilm_gen_cfilm=12345.html">Film Test</a>
+      <div class="showtimes-version">
+        <span class="text">VF</span>
+        <a
+          class="showtimes-hour-item"
+          data-showtime-id="st-next-day"
+          data-showtime-time="2025-01-16T10:00:00+01:00"
+        >
+          <span class="showtimes-hour-item-value">10:00</span>
+        </a>
+      </div>
+    </div>
+  `;
+
+  const result = parseTheaterPage(html, 'W7504');
+
+  assert.equal(result.films.length, 1);
+  assert.equal(result.films[0].showtimes.length, 1);
+  assert.equal(result.films[0].showtimes[0].date, '2025-01-16');
 });
