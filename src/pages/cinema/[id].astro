@@ -110,10 +110,10 @@ const activeDateIndex = weekDates.indexOf(today) !== -1 ? weekDates.indexOf(toda
   <div class="mb-8 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
     <div class="flex gap-2 min-w-max" role="tablist">
       {weekDates.map((date, index) => {
-        const isToday = date === today;
-        const hasShowtimes = showtimesByDate.get(date)?.length ?? 0 > 0;
-        const formattedDate = formatDate(date);
-        const [weekday, dayMonth] = formattedDate.split(' ', 2); // "mer. 14" approx
+        const len = showtimesByDate.get(date)?.length;
+        const hasShowtimes = (len ?? 0) > 0;
+        
+        
         
         return (
           <button
