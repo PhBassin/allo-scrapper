@@ -39,3 +39,11 @@ export function getTodayDate(): string {
   const today = new Date();
   return today.toISOString().split('T')[0];
 }
+
+/**
+ * Parse a YYYY-MM-DD string as a local date (not UTC).
+ * This prevents timezone issues where dates can be off by one day.
+ */
+export function parseLocalDate(dateStr: string): Date {
+  return new Date(dateStr + 'T00:00:00');
+}
