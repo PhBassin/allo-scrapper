@@ -3,7 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import ShowtimeList from '../../components/ShowtimeList.astro';
 import { getDatabase } from '../../db/schema';
 import { getShowtimesByCinemaAndWeek, getCinemas } from '../../db/queries';
-import { getCurrentWeekStart, getWeekDates, formatDate, getTodayDate } from '../../utils/date';
+import { getCurrentWeekStart, getWeekDates, formatDate, getTodayDate, parseLocalDate } from '../../utils/date';
 import type { Film, Showtime } from '../../scraper/types';
 
 export async function getStaticPaths() {
@@ -131,13 +131,13 @@ const activeDateIndex = weekDates.indexOf(today) !== -1 ? weekDates.indexOf(toda
             data-date={date}
           >
             <div class={`text-xs uppercase font-bold mb-0.5 ${index === activeDateIndex ? 'text-primary-dark' : 'text-gray-400 group-hover:text-gray-600'}`}>
-              {new Date(date).toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}
+              {parseLocalDate(date).toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}
             </div>
             <div class="text-lg font-bold leading-none">
-              {new Date(date).getDate()}
+              {parseLocalDate(date).getDate()}
             </div>
             <div class="text-[10px] text-gray-400 mt-1">
-              {new Date(date).toLocaleDateString('fr-FR', { month: 'short' })}
+              {parseLocalDate(date).toLocaleDateString('fr-FR', { month: 'short' })}
             </div>
           </button>
         );
