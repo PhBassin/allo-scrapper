@@ -207,9 +207,6 @@ function parseShowtimes(
 ): Showtime[] {
   const showtimes: Showtime[] = [];
 
-  // Déterminer le mercredi de la semaine pour week_start
-  const weekStart = getWeekStart(defaultDate);
-
   $card.find('.showtimes-version').each((_, versionBlock) => {
     const $version = $(versionBlock);
     
@@ -242,6 +239,12 @@ function parseShowtimes(
       // Extraire l'heure
       const time = $hour.find('.showtimes-hour-item-value').text().trim();
 
+      // Déduire la date depuis l'ISO si possible (plus fiable que la date sélectionnée)
+      const isoDate = datetimeIso.split('T')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+        showtimeDate = isoDate;
+      }
+
       // Parser les expériences
       let experiences: string[] = [];
       if (experiencesStr) {
@@ -271,7 +274,7 @@ function parseShowtimes(
         version,
         format,
         experiences,
-        week_start: weekStart,
+        week_start: getWeekStart(showtimeDate),
       });
     });
   });
