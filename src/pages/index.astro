@@ -1,29 +1,16 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import FilmCard from '../components/FilmCard.astro';
-import { getDatabase } from '../db/schema';
+import { db } from '../db/client';
 import { getWeeklyFilms, getCinemas } from '../db/queries';
-
-// Obtenir le mercredi de la semaine en cours
-function getCurrentWeekStart(): string {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  let offset = dayOfWeek - 3;
-  if (offset < 0) offset += 7;
-  const wednesday = new Date(today);
-  wednesday.setDate(today.getDate() - offset);
-  return wednesday.toISOString().split('T')[0];
-}
+import { getCurrentWeekStart } from '../utils/date';
 
 const weekStart = getCurrentWeekStart();
-const db = getDatabase();
 
-try {
-  var films = getWeeklyFilms(db, weekStart);
-  var cinemas = getCinemas(db);
-} finally {
-  db.close();
-}
+const [films, cinemas] = await Promise.all([
+  getWeeklyFilms(db, weekStart),
+  getCinemas(db)
+]);
 
 // Formatter la date du mercredi
 const weekDate = new Date(weekStart);
@@ -37,6 +24,9 @@ const formatDate = (date: Date) => {
     year: 'numeric' 
   });
 };
+const baseUrl = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
 ---
 
 <Layout title="Accueil" description="Découvrez les films de la semaine dans nos cinémas partenaires">
@@ -49,7 +39,7 @@ const formatDate = (date: Date) => {
     <div class="mt-4 flex flex-wrap gap-3">
       {cinemas.map((cinema) => (
         <a 
-          href={`/cinema/${cinema.id}`}
+          href={`${baseUrl}cinema/${cinema.id}`}
           class="px-4 py-2 bg-white border-2 border-gray-200 rounded-lg hover:border-primary hover:bg-yellow-50 transition font-medium"
         >
           {cinema.name}
@@ -68,7 +58,7 @@ const formatDate = (date: Date) => {
             {film.cinemas.map((cinema, idx) => (
               <span>
                 {idx > 0 && ', '}
-                <a href={`/cinema/${cinema.id}`} class="text-primary hover:underline">
+                <a href={`${baseUrl}cinema/${cinema.id}`} class="text-primary hover:underline">
                   {cinema.name}
                 </a>
               </span>

@@ -10,7 +10,7 @@ export async function fetchTheaterPage(
   let url = `https://www.allocine.fr/seance/salle_gen_csalle=${cinemaId}.html`;
   
   if (date) {
-    url += `#shwt_date=${date}`;
+    url += `?date=${date}#shwt_date=${date}`;
   }
 
   console.log(`🔍 Fetching theater page: ${url}`);

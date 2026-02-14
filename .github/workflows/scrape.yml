@@ -2,10 +2,8 @@ name: Scrape & Deploy
 
 on:
   schedule:
-    # Tous les jours à 6h UTC (7h Paris en hiver, 8h en été)
-    - cron: '0 6 * * *'
-    # Mercredi à 8h UTC pour le scraping complet de la semaine
-    - cron: '0 8 * * 3'
+    # Tous les jours à 8h UTC
+    - cron: '0 8 * * *'
   workflow_dispatch: # Permet un déclenchement manuel
   push:
     branches:
@@ -23,6 +21,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -36,15 +37,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run daily scrape
-        if: github.event.schedule != '0 8 * * 3'
-        run: npm run scrape
-
-      - name: Run weekly scrape
-        if: github.event.schedule == '0 8 * * 3'
-        run: npm run scrape:week
-
-      - name: Build Astro site
+      - name: Build Astro site (includes scraping)
         run: npm run build
 
       - name: Commit updated database
@@ -53,8 +46,10 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add data/allo-scrapper.db
-          git diff --staged --quiet || git commit -m "Update database - $(date +'%Y-%m-%d %H:%M')"
-          git push
+          if ! git diff --staged --quiet; then
+            git commit -m "Update database - $(date +'%Y-%m-%d %H:%M')"
+            git push origin HEAD:main
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

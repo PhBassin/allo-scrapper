@@ -1,0 +1,70 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { db } from '../../db/client';
+import { getFilm } from '../../db/queries';
+
+export async function getStaticPaths() {
+  const result = await db.execute('SELECT id FROM films ORDER BY id');
+  const films = result.rows as unknown as Array<{ id: number }>;
+  
+  return films.map((film) => ({
+    params: { id: String(film.id) },
+  }));
+}
+
+const { id } = Astro.params;
+const filmId = Number(id);
+
+if (Number.isNaN(filmId)) {
+  throw new Error(`Invalid film ID: ${id}`);
+}
+
+const film = await getFilm(db, filmId);
+
+if (!film) {
+  throw new Error(`Film ${id} not found`);
+}
+
+const baseUrl = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+---
+
+<Layout title={film.title} description={film.synopsis || `Informations du film ${film.title}`}>
+  <div class="mb-6">
+    <div class="flex items-center gap-2 text-sm text-gray-500 mb-4">
+      <a href={baseUrl} class="hover:text-primary hover:underline">← Accueil</a>
+      <span>/</span>
+      <span>{film.title}</span>
+    </div>
+
+    <h1 class="text-3xl md:text-4xl font-bold">{film.title}</h1>
+    {film.original_title && film.original_title !== film.title && (
+      <p class="text-gray-600 mt-2 italic">{film.original_title}</p>
+    )}
+  </div>
+
+  <div class="card p-6">
+    <div class="flex flex-col md:flex-row gap-6">
+      {film.poster_url && (
+        <img
+          src={film.poster_url}
+          alt={`Affiche de ${film.title}`}
+          class="w-48 h-72 object-cover rounded"
+          loading="lazy"
+        />
+      )}
+
+      <div class="space-y-2">
+        {film.duration_minutes && (
+          <p><strong>Durée:</strong> {Math.floor(film.duration_minutes / 60)}h{film.duration_minutes % 60 > 0 ? `${film.duration_minutes % 60}`.padStart(2, '0') : ''}</p>
+        )}
+        {film.director && <p><strong>Réalisateur:</strong> {film.director}</p>}
+        {film.genres.length > 0 && <p><strong>Genres:</strong> {film.genres.join(', ')}</p>}
+        {film.nationality && <p><strong>Nationalité:</strong> {film.nationality}</p>}
+        {film.certificate && <p><strong>Classification:</strong> {film.certificate}</p>}
+        {film.synopsis && <p class="mt-4 text-gray-700">{film.synopsis}</p>}
+      </div>
+    </div>
+  </div>
+</Layout>

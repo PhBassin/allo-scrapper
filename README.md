@@ -8,10 +8,10 @@ Agrégateur de séances de cinéma basé sur les données Allociné. Le site aff
 |-----------|------------|---------------|
 | **Langage** | TypeScript (Node.js) | Typage fort, écosystème riche, même langage front/back |
 | **Scraping** | Cheerio | Parsing HTML léger et rapide, pas besoin de headless browser (les données sont dans le HTML statique) |
-| **Base de données** | SQLite via `better-sqlite3` | Fichier unique, pas de serveur DB, idéal pour site statique avec historique |
+| **Base de données** | LibSQL via `@libsql/client` (Turso) | Base de données compatible SQLite hébergée, accessible via HTTP pour le scraper et le build |
 | **Frontend** | Astro | Générateur de site statique performant, adapté au contenu |
 | **Style** | Tailwind CSS | Design responsive, utilitaire, rapide à itérer |
-| **Automatisation** | GitHub Actions | Cron jobs gratuits pour le scraping quotidien |
+| **Automatisation** | GitHub Actions | Cron jobs gratuits pour le scraping hebdomadaire |
 | **Hébergement** | GitHub Pages | Gratuit, déploiement automatique depuis GitHub Actions |
 | **HTTP Client** | undici / fetch natif | Client HTTP performant intégré à Node.js |
 
@@ -192,8 +192,7 @@ Données complémentaires extraites :
 ## Logique de scraping
 
 ### Fréquence
-- **Quotidien** (via GitHub Actions cron) : scraping de chaque cinéma pour la date du jour → mise à jour des séances
-- **Hebdomadaire** (mercredi) : scraping complet de la semaine (mercredi à mardi) pour capturer tous les nouveaux films
+- **Hebdomadaire** (mercredi, via GitHub Actions cron) : scraping complet de la semaine (mercredi à mardi) pour capturer tous les nouveaux films
 
 ### Processus de scraping
 1. Pour chaque cinéma dans `config/cinemas.json` :
@@ -208,8 +207,7 @@ Données complémentaires extraites :
 
 ### Gestion des dates
 - Chaque page cinéma contient un attribut `data-showtimes-dates` avec la liste des dates disponibles
-- Le mercredi, on scrape toutes les dates de la semaine (mercredi à mardi suivant)
-- Les autres jours, on ne scrape que la date du jour (mise à jour des séances)
+- Quand le scraper est lancé, il scrape toutes les dates de la semaine (mercredi à mardi suivant)
 
 ## Installation
 
@@ -220,14 +218,17 @@ npm install
 ## Scripts disponibles
 
 ```bash
-# Scraping quotidien (date du jour)
+# Scraping complet de la semaine (mercredi → mardi)
 npm run scrape
 
-# Scraping hebdomadaire complet (mercredi → mardi)
+# Alias de compatibilité (conservé pour les anciens usages)
 npm run scrape:week
 
 # Build du site statique
 npm run build
+
+# Tests de régression (base TDD)
+npm run test
 
 # Développement local
 npm run dev
@@ -236,6 +237,11 @@ npm run dev
 npm run preview
 ```
 
+## Consigne TDD (ajout futur de cinémas)
+
+- Avant d'ajouter un nouveau cinéma dans `config/cinemas.json`, commencer par ajouter/adapter un test de régression qui valide le comportement attendu.
+- Conserver les tests de parsing (`src/scraper/*.test.ts`) comme garde-fou du fonctionnement actuel du scraper.
+
 ## GitHub Actions
 
 ### Workflow `scrape.yml`
@@ -243,7 +249,6 @@ npm run preview
 name: Scrape & Build
 on:
   schedule:
-    - cron: '0 6 * * *'      # Tous les jours à 6h UTC
     - cron: '0 8 * * 3'      # Mercredi à 8h UTC (scrape complet semaine)
   workflow_dispatch: {}        # Déclenchement manuel
 
@@ -256,9 +261,7 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      - run: npm run scrape        # Scraping quotidien
-      - run: npm run scrape:week   # Scraping semaine (uniquement le mercredi)
-        if: github.event.schedule == '0 8 * * 3'
+      - run: npm run scrape        # Scraping semaine
       - run: npm run build         # Build Astro
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -318,4 +321,38 @@ jobs:
     "tsx": "^4.x"
   }
 }
+```
+
+## Docker
+
+L'application peut être containerisée pour un déploiement facile. Le build est multi-stage :
+1.  **Builder** : Compile le site statique avec Astro (nécessite les variables d'environnement de la DB).
+2.  **Runner** : Sert les fichiers statiques avec Nginx.
+
+### Prérequis
+-   Variables d'environnement `TURSO_DATABASE_URL` et `TURSO_AUTH_TOKEN` définies dans un fichier `.env`.
+
+### Build et Run avec Docker Compose
+
+```bash
+# 1. Créer le fichier .env
+echo "TURSO_DATABASE_URL=libsql://..." > .env
+echo "TURSO_AUTH_TOKEN=..." >> .env
+
+# 2. Builder et lancer le conteneur
+docker-compose up -d --build
+
+# 3. Accéder au site
+# http://localhost:8080
+```
+
+### Build manuel
+
+```bash
+docker build \
+  --build-arg TURSO_DATABASE_URL=... \
+  --build-arg TURSO_AUTH_TOKEN=... \
+  -t allo-scrapper .
+
+docker run -p 8080:80 allo-scrapper
 ```

@@ -1,0 +1,16 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        TURSO_DATABASE_URL: ${TURSO_DATABASE_URL}
+        TURSO_AUTH_TOKEN: ${TURSO_AUTH_TOKEN}
+    ports:
+      - "8080:80"
+    env_file:
+      - .env
+
+# To run:
+# 1. Ensure .env file exists with TURSO_DATABASE_URL and TURSO_AUTH_TOKEN
+# 2. docker-compose build --no-cache
+# 3. docker-compose up -d
