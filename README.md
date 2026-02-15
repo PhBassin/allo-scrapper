@@ -1061,6 +1061,8 @@ docker images | grep allo-scrapper
 - `develop` - Latest commit on develop branch
 - `main-abc1234` - Specific commit SHA
 
+**Registry cleanup policy:** untagged images and images older than 15 days are automatically deleted daily by the `GHCR Cleanup` workflow.
+
 **Browse all available images:**
 https://github.com/PhBassin/allo-scrapper/pkgs/container/allo-scrapper
 
