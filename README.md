@@ -117,23 +117,25 @@
 
 ## 🚀 Quick Start
 
-### For End Users (Docker)
+### Option A: Using Pre-built Images (Recommended)
+
+The easiest way to deploy is using pre-built Docker images from GitHub Container Registry.
 
 **Prerequisites:**
 - Docker and Docker Compose installed
 - Port 3000 and 5432 available
 
-**One-command deployment:**
+**Deployment steps:**
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/allo-scrapper.git
+# Clone the repository (for configuration files)
+git clone https://github.com/PhBassin/allo-scrapper.git
 cd allo-scrapper
 
 # Copy environment file
 cp .env.example .env
 
-# Start the application
+# Pull the latest image and start services
 docker compose up -d
 
 # Initialize database
@@ -148,12 +150,40 @@ curl -X POST http://localhost:3000/api/scraper/trigger
 - API: http://localhost:3000/api
 - Health check: http://localhost:3000/api/health
 
+**Update to latest version:**
+```bash
+docker compose pull web
+docker compose up -d
+```
+
 **Stop the application:**
 ```bash
 docker compose down
 ```
 
-For production deployment with GitHub Container Registry, see [DEPLOYMENT.md](./DEPLOYMENT.md).
+### Option B: Building Locally
+
+If you want to build the Docker image from source:
+
+```bash
+# Clone the repository
+git clone https://github.com/PhBassin/allo-scrapper.git
+cd allo-scrapper
+
+# Copy environment file
+cp .env.example .env
+
+# Build and start services
+docker compose -f docker-compose.build.yml up --build -d
+
+# Initialize database
+docker compose exec web npm run db:migrate
+
+# Trigger first scrape
+curl -X POST http://localhost:3000/api/scraper/trigger
+```
+
+For production deployment and advanced configuration, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ---
 
@@ -868,6 +898,50 @@ Cinema list is configured in `server/src/config/cinemas.json`:
 
 ## 🐳 Docker Deployment
 
+### Using Pre-built Images from GitHub Container Registry
+
+The application is automatically built and published to GitHub Container Registry on every release.
+
+**Available images:**
+- `ghcr.io/phbassin/allo-scrapper:latest` - Latest stable release
+- `ghcr.io/phbassin/allo-scrapper:v1.0.0` - Specific version
+- `ghcr.io/phbassin/allo-scrapper:main` - Latest from main branch
+- `ghcr.io/phbassin/allo-scrapper:develop` - Latest from develop branch
+
+#### Quick Deployment
+
+```bash
+# Pull and start services (uses docker-compose.yml)
+docker compose pull
+docker compose up -d
+
+# View available image tags
+docker images | grep allo-scrapper
+```
+
+#### Using Specific Versions
+
+Edit your `.env` file or `docker-compose.yml` to specify a version:
+
+```yaml
+services:
+  web:
+    image: ghcr.io/phbassin/allo-scrapper:v1.0.0  # Pin to specific version
+```
+
+#### Authentication for Private Repositories
+
+If the repository is private, authenticate with GitHub Container Registry:
+
+```bash
+# Create a Personal Access Token (PAT) with read:packages scope
+# Then login:
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+
+# Pull the image
+docker pull ghcr.io/phbassin/allo-scrapper:latest
+```
+
 ### Development Mode
 
 Uses `docker-compose.dev.yml` with hot-reload and separate frontend dev server:
@@ -883,7 +957,7 @@ npm run dev
 
 ### Production Mode
 
-Uses `docker-compose.yml` with multi-stage build and Nginx:
+Uses `docker-compose.yml` with pre-built images from GitHub Container Registry:
 
 ```bash
 docker compose up -d
@@ -893,10 +967,15 @@ docker compose up -d
 - `db`: PostgreSQL 15 with volume persistence
 - `web`: Combined API + static frontend (port 3000)
 
-### Building the Docker Image
+### Building Docker Images Locally
+
+If you prefer to build from source instead of using pre-built images:
 
 ```bash
-# Build locally
+# Build locally using docker-compose.build.yml
+docker compose -f docker-compose.build.yml up --build -d
+
+# Or build manually
 npm run docker:build
 
 # Build with custom tag
@@ -957,13 +1036,33 @@ The repository includes a GitHub Actions workflow (`.github/workflows/docker-bui
 
 ### Using Pre-built Images
 
+Pre-built Docker images are automatically published to GitHub Container Registry on every release.
+
+**Pull and use images:**
+
 ```bash
 # Pull from GitHub Container Registry
-docker pull ghcr.io/yourusername/allo-scrapper:latest
+docker pull ghcr.io/phbassin/allo-scrapper:latest
 
-# Run with docker compose
+# Or pull a specific version
+docker pull ghcr.io/phbassin/allo-scrapper:v1.0.0
+
+# Run with docker compose (automatically pulls if not present)
 docker compose up -d
+
+# List available local images
+docker images | grep allo-scrapper
 ```
+
+**Available tags:**
+- `latest` - Latest stable release (main branch)
+- `v1.0.0`, `v1.0`, etc. - Specific version tags
+- `main` - Latest commit on main branch
+- `develop` - Latest commit on develop branch
+- `main-abc1234` - Specific commit SHA
+
+**Browse all available images:**
+https://github.com/PhBassin/allo-scrapper/pkgs/container/allo-scrapper
 
 ### Setting Up CI/CD
 
@@ -984,8 +1083,10 @@ docker compose up -d
 | `npm run dev:down` | Stop development stack |
 | `npm run dev:logs` | View development logs |
 | `npm run build` | Build server and client |
-| `npm run docker:build` | Build production Docker image |
-| `npm run docker:up` | Start production stack |
+| `npm run docker:build` | Build and start using docker-compose.build.yml |
+| `npm run docker:build:local` | Build Docker image locally with tag |
+| `npm run docker:pull` | Pull latest images from GitHub Container Registry |
+| `npm run docker:up` | Start production stack (uses pre-built images) |
 | `npm run docker:down` | Stop production stack |
 | `npm run docker:logs` | View production logs |
 | `npm run docker:restart` | Restart web service |
