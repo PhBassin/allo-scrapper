@@ -113,6 +113,7 @@ TZ=Europe/Paris                   # Your timezone
 ### Pull and Run
 
 The application is automatically built and pushed to GitHub Container Registry on every release.
+An automated GitHub Actions cleanup job also runs daily to delete untagged images and images older than 15 days.
 
 ```bash
 # Pull the latest image
