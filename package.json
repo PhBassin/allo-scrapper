@@ -1,0 +1,50 @@
+{
+  "name": "allo-scrapper",
+  "version": "2.0.0",
+  "description": "Cinema showtimes aggregator - Full-stack Express.js + React application with PostgreSQL backend",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "docker compose -f docker-compose.dev.yml up --build",
+    "dev:down": "docker compose -f docker-compose.dev.yml down",
+    "dev:logs": "docker compose -f docker-compose.dev.yml logs -f",
+    "build": "npm run server:build && npm run client:build",
+    "docker:build": "docker compose -f docker-compose.build.yml up --build -d",
+    "docker:build:local": "docker build -t allo-scrapper:latest .",
+    "docker:pull": "docker compose pull",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f web",
+    "docker:restart": "docker compose restart web",
+    "docker:clean": "docker compose down -v && docker system prune -f",
+    "deploy": "./scripts/pull-and-deploy.sh",
+    "backup": "./scripts/backup-db.sh",
+    "server:dev": "cd server && npm run dev",
+    "server:build": "cd server && npm run build",
+    "server:start": "cd server && npm start",
+    "server:db:migrate": "cd server && npm run db:migrate",
+    "server:scrape": "cd server && npm run scrape",
+    "client:dev": "cd client && npm run dev",
+    "client:build": "cd client && npm run build",
+    "client:preview": "cd client && npm run preview",
+    "install:all": "npm ci && cd server && npm ci && cd ../client && npm ci",
+    "clean": "rm -rf server/dist client/dist server/node_modules client/node_modules node_modules",
+    "test": "cd server && npm test"
+  },
+  "keywords": [
+    "cinema",
+    "showtimes",
+    "scraper",
+    "aggregator",
+    "express",
+    "react",
+    "postgresql",
+    "docker"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
