@@ -1,38 +1,25 @@
-# Stage 1: Build the Astro site
-FROM node:22-alpine AS builder
+# Use Node Alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
 # Install dependencies
+COPY package*.json ./
 RUN npm ci
 
-# Copy source code
+# Copy source
 COPY . .
 
-# Build arguments for database connection
-ARG TURSO_DATABASE_URL
-ARG TURSO_AUTH_TOKEN
+# Environment variables will be passed by Docker Compose at runtime
+# We don't need ARG here for runtime execution
 
-# Set environment variables for the build process
-ENV TURSO_DATABASE_URL=$TURSO_DATABASE_URL
-ENV TURSO_AUTH_TOKEN=$TURSO_AUTH_TOKEN
+# Expose port
+EXPOSE 8080
 
-# Run the scraper and build the static site
-# Note: This requires the database credentials to be available at build time
-RUN npm run build
-
-# Stage 2: Serve with Nginx
-FROM nginx:alpine
-
-# Copy the built assets from the builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy custom Nginx configuration (optional, using default for now but good to have ready)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+# The command to run when the container starts
+# We use a shell command to chain operations:
+# 1. Initialize DB (schema)
+# 2. Scrape data
+# 3. Build the site
+# 4. Serve the site (using host 0.0.0.0 to be accessible outside container)
+CMD ["sh", "-c", "npm run db:migrate && npm run scrape && npm run build && npm run preview -- --host 0.0.0.0 --port 8080"]

@@ -1,7 +1,7 @@
 import { db } from './client.js';
 
 export async function initializeDatabase() {
-  console.log('🔄 Initialisation de la base de données...');
+  console.log('🔄 Initialisation de la base de données PostgreSQL...');
 
   const schema = [
     // Table: cinemas
@@ -57,8 +57,9 @@ export async function initializeDatabase() {
     `CREATE INDEX IF NOT EXISTS idx_showtimes_week ON showtimes(week_start)`,
 
     // Table: weekly_programs
+    // Note: AUTOINCREMENT is replaced by SERIAL in Postgres
     `CREATE TABLE IF NOT EXISTS weekly_programs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       cinema_id TEXT NOT NULL,
       film_id INTEGER NOT NULL,
       week_start TEXT NOT NULL,
@@ -74,20 +75,22 @@ export async function initializeDatabase() {
   ];
 
   try {
-    // Execute all schema creation statements in parallel or sequentially
-    // LibSQL batch execution is transaction-safe but might have limits on statement types in some environments
-    // For schema creation, sequential execution is safer
     for (const statement of schema) {
-      await db.execute(statement);
+      await db.query(statement);
     }
     console.log('✅ Base de données initialisée avec succès');
   } catch (error) {
     console.error('❌ Erreur lors de l\'initialisation de la base de données:', error);
     throw error;
+  } finally {
+      // In a real application, we might keep the pool open, but for initialization scripts
+      // intended to run once, closing it is sometimes desired. However, if this is imported
+      // by the app, we shouldn't close it here.
+      // We'll leave it open as db is a shared pool.
   }
 }
 
 // Script d'exécution si appelé directement
 if (import.meta.url === `file://${process.argv[1]}`) {
-  initializeDatabase();
+  initializeDatabase().then(() => db.end());
 }

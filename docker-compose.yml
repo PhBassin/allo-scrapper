@@ -3,14 +3,27 @@ services:
     build:
       context: .
       args:
-        TURSO_DATABASE_URL: ${TURSO_DATABASE_URL}
-        TURSO_AUTH_TOKEN: ${TURSO_AUTH_TOKEN}
+        # Use database URL for build process (if needed)
+        DATABASE_URL: postgres://postgres:password@db:5432/allocine
     ports:
       - "8080:80"
-    env_file:
-      - .env
+    environment:
+      - DATABASE_URL=postgres://postgres:password@db:5432/allocine
+    depends_on:
+      - db
+    restart: always
 
-# To run:
-# 1. Ensure .env file exists with TURSO_DATABASE_URL and TURSO_AUTH_TOKEN
-# 2. docker-compose build --no-cache
-# 3. docker-compose up -d
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: allocine
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:

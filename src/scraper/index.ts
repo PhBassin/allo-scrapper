@@ -126,7 +126,8 @@ async function main() {
     }
   }
 
-  // db.close() n'existe pas sur @libsql/client, la connexion est gérée automatiquement ou via close() si nécessaire, mais ce n'est pas typique pour les scripts one-off comme ici
+  // Close database connection
+  await db.end();
   console.log('\n✨ Scraping completed!');
 }
 

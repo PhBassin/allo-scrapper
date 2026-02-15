@@ -1,14 +1,29 @@
-import { createClient } from '@libsql/client';
+import pg from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const url = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL || 'file:local.db';
-const authToken = process.env.TURSO_AUTH_TOKEN;
+// Configuration de la connexion PostgreSQL
+const config = {
+  user: process.env.POSTGRES_USER || 'postgres',
+  password: process.env.POSTGRES_PASSWORD || 'password',
+  host: process.env.POSTGRES_HOST || 'localhost',
+  port: parseInt(process.env.POSTGRES_PORT || '5432'),
+  database: process.env.POSTGRES_DB || 'allocine',
+};
 
-export const db = createClient({
-  url,
-  authToken,
-});
+// Si une URL de base de données est fournie (ex: format Heroku ou Docker interne), elle est prioritaire
+const connectionString = process.env.DATABASE_URL;
+
+export const pool = new pg.Pool(
+  connectionString ? { connectionString } : config
+);
+
+// Wrapper pour garder une API similaire si nécessaire, ou on utilise directement pool
+export const db = {
+  query: (text: string, params?: any[]) => pool.query(text, params),
+  // Méthode utilitaire pour fermer la connexion (utile pour les scripts one-off)
+  end: () => pool.end()
+};
 
 export type DB = typeof db;

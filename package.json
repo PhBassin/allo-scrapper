@@ -10,7 +10,7 @@
     "test": "tsx --test src/**/*.test.ts",
     "scrape": "tsx src/scraper/index.ts",
     "scrape:week": "tsx src/scraper/index.ts --week",
-    "db:migrate": "tsx src/db/migrations.ts"
+    "db:migrate": "tsx src/db/schema.ts"
   },
   "keywords": [
     "allocine",
@@ -22,14 +22,15 @@
   "license": "MIT",
   "dependencies": {
     "@astrojs/tailwind": "^6.0.1",
-    "@libsql/client": "^0.17.0",
     "astro": "^5.1.3",
     "cheerio": "^1.0.0",
     "dotenv": "^17.3.1",
+    "pg": "^8.18.0",
     "tailwindcss": "^3.4.17"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "@types/pg": "^8.16.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
