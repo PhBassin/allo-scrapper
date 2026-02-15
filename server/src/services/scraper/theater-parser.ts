@@ -184,7 +184,7 @@ function parseFilmCard(
     audience_rating: audienceRating,
     release_date: releaseDate,
     rerelease_date: rereleaseDate,
-    allocine_url: `https://www.allocine.fr${href}`,
+    source_url: `https://www.allocine.fr${href}`,
   };
 
   // Parser les séances

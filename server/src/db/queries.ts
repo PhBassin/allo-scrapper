@@ -37,7 +37,7 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
       INSERT INTO films (
         id, title, original_title, poster_url, duration_minutes,
         release_date, rerelease_date, genres, nationality, director,
-        actors, synopsis, certificate, press_rating, audience_rating, allocine_url
+        actors, synopsis, certificate, press_rating, audience_rating, source_url
       )
       VALUES (
         $1, $2, $3, $4, $5,
@@ -59,7 +59,7 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
         certificate = $13,
         press_rating = $14,
         audience_rating = $15,
-        allocine_url = $16
+        source_url = $16
     `,
     [
       film.id,
@@ -77,7 +77,7 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
       film.certificate || null,
       film.press_rating || null,
       film.audience_rating || null,
-      film.allocine_url,
+      film.source_url,
     ]
   );
 }
@@ -186,7 +186,7 @@ export async function getShowtimesByCinema(
         f.certificate,
         f.press_rating,
         f.audience_rating,
-        f.allocine_url
+        f.source_url
       FROM showtimes s
       JOIN films f ON s.film_id = f.id
       WHERE s.cinema_id = $1 AND s.date = $2
@@ -222,7 +222,7 @@ export async function getShowtimesByCinema(
       certificate: row.certificate,
       press_rating: row.press_rating,
       audience_rating: row.audience_rating,
-      allocine_url: row.allocine_url,
+      source_url: row.source_url,
     },
   }));
 }
@@ -252,7 +252,7 @@ export async function getShowtimesByCinemaAndWeek(
         f.certificate,
         f.press_rating,
         f.audience_rating,
-        f.allocine_url
+        f.source_url
       FROM showtimes s
       JOIN films f ON s.film_id = f.id
       WHERE s.cinema_id = $1 AND s.week_start = $2
@@ -288,7 +288,7 @@ export async function getShowtimesByCinemaAndWeek(
       certificate: row.certificate,
       press_rating: row.press_rating,
       audience_rating: row.audience_rating,
-      allocine_url: row.allocine_url,
+      source_url: row.source_url,
     },
   }));
 }
@@ -339,7 +339,7 @@ export async function getWeeklyFilms(
         certificate: row.certificate,
         press_rating: row.press_rating,
         audience_rating: row.audience_rating,
-        allocine_url: row.allocine_url,
+        source_url: row.source_url,
         cinemas: [],
       });
     }

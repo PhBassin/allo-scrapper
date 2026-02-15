@@ -9,7 +9,7 @@ import {
   upsertWeeklyProgram,
   getFilm,
 } from '../../db/queries.js';
-import { fetchTheaterPage, fetchFilmPage, delay } from './allocine-client.js';
+import { fetchTheaterPage, fetchFilmPage, delay } from './http-client.js';
 import { parseTheaterPage } from './theater-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import type { CinemaConfig } from '../../types/scraper.js';

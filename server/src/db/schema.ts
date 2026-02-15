@@ -32,7 +32,7 @@ export async function initializeDatabase() {
       certificate TEXT,
       press_rating REAL,
       audience_rating REAL,
-      allocine_url TEXT NOT NULL
+      source_url TEXT NOT NULL
     )`,
 
     // Table: showtimes

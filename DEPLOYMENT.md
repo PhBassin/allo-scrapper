@@ -92,7 +92,7 @@ nano .env
 # Database Configuration
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
-POSTGRES_DB=allocine
+POSTGRES_DB=cinema_showtimes
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_secure_password_here  # ⚠️ CHANGE THIS!
 
@@ -190,12 +190,12 @@ The database is exposed on port 5432 for external tools:
 
 ```bash
 # Connect with psql
-psql -h localhost -U postgres -d allocine
+psql -h localhost -U postgres -d cinema_showtimes
 
 # Connect with GUI tools
 Host: localhost
 Port: 5432
-Database: allocine
+Database: cinema_showtimes
 User: postgres
 Password: [from .env]
 ```
@@ -231,7 +231,7 @@ docker compose exec web node dist/db/schema.js
 
 ```bash
 # Access PostgreSQL shell
-docker compose exec db psql -U postgres -d allocine
+docker compose exec db psql -U postgres -d cinema_showtimes
 
 # List tables
 \dt
@@ -250,11 +250,11 @@ docker compose exec db psql -U postgres -d allocine
 
 ```bash
 # Count records
-docker compose exec db psql -U postgres -d allocine -c "SELECT COUNT(*) FROM films;"
-docker compose exec db psql -U postgres -d allocine -c "SELECT COUNT(*) FROM showtimes;"
+docker compose exec db psql -U postgres -d cinema_showtimes -c "SELECT COUNT(*) FROM films;"
+docker compose exec db psql -U postgres -d cinema_showtimes -c "SELECT COUNT(*) FROM showtimes;"
 
 # View recent scrape reports
-docker compose exec db psql -U postgres -d allocine -c "
+docker compose exec db psql -U postgres -d cinema_showtimes -c "
   SELECT id, status, started_at, completed_at, total_films_scraped 
   FROM scrape_reports 
   ORDER BY started_at DESC 
@@ -393,13 +393,13 @@ set -e
 
 BACKUP_DIR="$HOME/allo-scrapper/backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="${BACKUP_DIR}/allocine_${TIMESTAMP}.sql"
+BACKUP_FILE="${BACKUP_DIR}/cinema_showtimes_${TIMESTAMP}.sql"
 
 echo "🔄 Creating database backup..."
 mkdir -p "$BACKUP_DIR"
 
 # Backup database
-docker compose exec -T db pg_dump -U postgres allocine > "$BACKUP_FILE"
+docker compose exec -T db pg_dump -U postgres cinema_showtimes > "$BACKUP_FILE"
 
 # Compress backup
 gzip "$BACKUP_FILE"
@@ -432,10 +432,10 @@ crontab -e
 
 ```bash
 # Backup database
-docker compose exec -T db pg_dump -U postgres allocine > backup_$(date +%Y%m%d).sql
+docker compose exec -T db pg_dump -U postgres cinema_showtimes > backup_$(date +%Y%m%d).sql
 
 # Backup with compression
-docker compose exec -T db pg_dump -U postgres allocine | gzip > backup_$(date +%Y%m%d).sql.gz
+docker compose exec -T db pg_dump -U postgres cinema_showtimes | gzip > backup_$(date +%Y%m%d).sql.gz
 ```
 
 ### Restore from Backup
@@ -445,7 +445,7 @@ docker compose exec -T db pg_dump -U postgres allocine | gzip > backup_$(date +%
 docker compose stop web
 
 # Restore database
-gunzip -c backup_20260215.sql.gz | docker compose exec -T db psql -U postgres allocine
+gunzip -c backup_20260215.sql.gz | docker compose exec -T db psql -U postgres cinema_showtimes
 
 # Restart application
 docker compose start web
@@ -542,7 +542,7 @@ curl http://localhost:3000/api/scraper/status | jq
 curl http://localhost:3000/api/reports | jq
 
 # Check for network issues
-docker compose exec web ping -c 3 www.allocine.fr
+docker compose exec web ping -c 3 www.cinema_showtimes.fr
 
 # Increase scrape delay (in .env)
 SCRAPE_DELAY_MS=2000
@@ -567,7 +567,7 @@ docker system prune -a --volumes
 docker image prune -a
 
 # Limit database size (manual cleanup)
-docker compose exec db psql -U postgres allocine -c "
+docker compose exec db psql -U postgres cinema_showtimes -c "
   DELETE FROM showtimes WHERE date < NOW() - INTERVAL '30 days';
 "
 ```
@@ -691,7 +691,7 @@ docker compose logs -f web
 docker compose exec web [command]
 
 # Database backup
-docker compose exec -T db pg_dump -U postgres allocine > backup.sql
+docker compose exec -T db pg_dump -U postgres cinema_showtimes > backup.sql
 
 # Trigger manual scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
