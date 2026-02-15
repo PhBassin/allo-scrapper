@@ -22,4 +22,4 @@ EXPOSE 8080
 # 2. Scrape data
 # 3. Build the site
 # 4. Serve the site (using host 0.0.0.0 to be accessible outside container)
-CMD ["sh", "-c", "npm run db:migrate && npm run scrape && npm run build && npm run preview -- --host 0.0.0.0 --port 8080"]
+CMD ["sh", "-c", "npm run db:migrate && npm run build && npm run preview -- --host 0.0.0.0 --port 8080"]
