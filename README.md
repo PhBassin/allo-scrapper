@@ -1,358 +1,135 @@
 # Allo-Scrapper
 
-Agrégateur de séances de cinéma basé sur les données Allociné. Le site affiche les films disponibles chaque semaine dans un ensemble configurable de cinémas, avec les séances quotidiennes détaillées.
+Cinema showtimes aggregator based on Allociné data.
 
-## Stack technique
+> **Important (current state):** this repository now contains both a **new full-stack app** (`server` + `client`) and the **legacy Astro scraper/static site** at repository root (`src`, root `package.json`).
 
-| Composant | Technologie | Justification |
-|-----------|------------|---------------|
-| **Langage** | TypeScript (Node.js) | Typage fort, écosystème riche, même langage front/back |
-| **Scraping** | Cheerio | Parsing HTML léger et rapide, pas besoin de headless browser (les données sont dans le HTML statique) |
-| **Base de données** | LibSQL via `@libsql/client` (Turso) | Base de données compatible SQLite hébergée, accessible via HTTP pour le scraper et le build |
-| **Frontend** | Astro | Générateur de site statique performant, adapté au contenu |
-| **Style** | Tailwind CSS | Design responsive, utilitaire, rapide à itérer |
-| **Automatisation** | GitHub Actions | Cron jobs gratuits pour le scraping hebdomadaire |
-| **Hébergement** | GitHub Pages | Gratuit, déploiement automatique depuis GitHub Actions |
-| **HTTP Client** | undici / fetch natif | Client HTTP performant intégré à Node.js |
+## Project structure (for developers and AI agents)
 
-## Architecture
-
-```
+```text
 allo-scrapper/
-├── README.md
-├── package.json
-├── tsconfig.json
-├── astro.config.mjs
-├── tailwind.config.mjs
-│
-├── config/
-│   └── cinemas.json              # Liste des cinémas à scraper
-│
-├── src/
-│   ├── scraper/
-│   │   ├── index.ts              # Point d'entrée du scraper
-│   │   ├── allocine-client.ts    # Récupération des pages HTML
-│   │   ├── theater-parser.ts     # Parsing de la page cinéma (séances)
-│   │   ├── film-parser.ts        # Parsing de la fiche film (durée, détails)
-│   │   └── types.ts              # Types TypeScript partagés
-│   │
-│   ├── db/
-│   │   ├── schema.ts             # Définition du schéma SQLite
-│   │   ├── migrations.ts         # Migrations de la base
-│   │   └── queries.ts            # Requêtes d'accès aux données
-│   │
-│   ├── pages/                    # Pages Astro (site statique)
-│   │   ├── index.astro           # Accueil : films de la semaine, tous cinémas
-│   │   ├── cinema/
-│   │   │   └── [id].astro        # Page par cinéma avec séances du jour
-│   │   ├── film/
-│   │   │   └── [id].astro        # Page détail d'un film
-│   │   └── jour/
-│   │       └── [date].astro      # Vue par jour (toutes séances)
-│   │
-│   ├── components/               # Composants Astro
-│   │   ├── FilmCard.astro        # Carte film (affiche, titre, infos)
-│   │   ├── ShowtimeList.astro    # Liste des séances
-│   │   ├── CinemaSelector.astro  # Sélecteur de cinéma
-│   │   ├── DatePicker.astro      # Navigation par date
-│   │   ├── Header.astro
-│   │   └── Footer.astro
-│   │
-│   ├── layouts/
-│   │   └── Layout.astro          # Layout principal
-│   │
-│   └── styles/
-│       └── global.css            # Styles globaux + Tailwind
-│
-├── data/
-│   └── allo-scrapper.db          # Base SQLite (versionnée dans git)
-│
-├── .github/
-│   └── workflows/
-│       ├── scrape.yml            # Cron: scraping quotidien + build
-│       └── deploy.yml            # Déploiement GitHub Pages
-│
-└── scripts/
-    └── seed-cinemas.ts           # Script d'initialisation des cinémas
+├── server/                    # Express + TypeScript API + scraper + cron
+│   ├── src/routes             # /api/films, /api/cinemas, /api/reports, /api/scraper
+│   ├── src/services/scraper   # Allociné scraping logic
+│   ├── src/db                 # PostgreSQL schema and queries
+│   └── src/config/cinemas.json
+├── client/                    # React + Vite frontend
+│   └── src/
+├── src/                       # Legacy Astro scraper/static site code (root package)
+├── config/cinemas.json        # Legacy cinema config (root flow)
+├── docker-compose.dev.yml     # Dev stack: postgres + server + client
+├── docker-compose.yml         # Production-like stack
+└── .github/workflows/scrape.yml
 ```
 
-## Modèle de données (SQLite)
+## Which app should I run?
 
-### Table `cinemas`
-| Colonne | Type | Description |
-|---------|------|-------------|
-| `id` | TEXT PK | Identifiant Allociné (ex: `W7504`, `C0072`) |
-| `name` | TEXT | Nom du cinéma |
-| `address` | TEXT | Adresse complète |
-| `postal_code` | TEXT | Code postal |
-| `city` | TEXT | Ville |
-| `screen_count` | INTEGER | Nombre de salles |
-| `image_url` | TEXT | URL du logo/image |
+- **Main full-stack app (recommended for development):** `server/` + `client/`
+- **Legacy flow (kept in root):** Astro + scraper from root package
 
-### Table `films`
-| Colonne | Type | Description |
-|---------|------|-------------|
-| `id` | INTEGER PK | ID Allociné du film (extrait de `cfilm=XXXXX`) |
-| `title` | TEXT | Titre du film |
-| `original_title` | TEXT | Titre original (si différent) |
-| `poster_url` | TEXT | URL de l'affiche |
-| `duration_minutes` | INTEGER | Durée en minutes (scrapée depuis la fiche film) |
-| `release_date` | TEXT | Date de sortie |
-| `rerelease_date` | TEXT | Date de reprise (si applicable) |
-| `genres` | TEXT | Genres (JSON array) |
-| `nationality` | TEXT | Nationalité |
-| `director` | TEXT | Réalisateur(s) |
-| `actors` | TEXT | Acteurs principaux (JSON array) |
-| `synopsis` | TEXT | Synopsis |
-| `certificate` | TEXT | Classification (tout public, -16 ans, etc.) |
-| `press_rating` | REAL | Note presse (sur 5) |
-| `audience_rating` | REAL | Note spectateurs (sur 5) |
-| `allocine_url` | TEXT | Lien vers la fiche Allociné |
+## Prerequisites
 
-### Table `showtimes`
-| Colonne | Type | Description |
-|---------|------|-------------|
-| `id` | TEXT PK | ID de la séance Allociné (`data-showtime-id`) |
-| `film_id` | INTEGER FK | Référence vers `films.id` |
-| `cinema_id` | TEXT FK | Référence vers `cinemas.id` |
-| `date` | TEXT | Date de la séance (YYYY-MM-DD) |
-| `time` | TEXT | Heure de la séance (HH:MM) |
-| `datetime_iso` | TEXT | Date/heure ISO 8601 complète |
-| `version` | TEXT | Version (VF, VO, VOST) |
-| `format` | TEXT | Format (Numérique, Dolby, etc.) |
-| `experiences` | TEXT | Expériences JSON (données `data-experiences`) |
-| `week_start` | TEXT | Date du mercredi de la semaine |
+- Node.js 20+
+- npm
+- PostgreSQL 15+ (or Docker Compose)
 
-### Table `weekly_programs`
-| Colonne | Type | Description |
-|---------|------|-------------|
-| `id` | INTEGER PK AUTOINCREMENT | |
-| `cinema_id` | TEXT FK | Référence vers `cinemas.id` |
-| `film_id` | INTEGER FK | Référence vers `films.id` |
-| `week_start` | TEXT | Date du mercredi de début de semaine |
-| `is_new_this_week` | INTEGER | 1 si le film est sorti cette semaine |
-| `scraped_at` | TEXT | Date/heure du scraping |
+## Environment variables
 
-## Configuration des cinémas
-
-Fichier `config/cinemas.json` :
-
-```json
-[
-  {
-    "id": "W7504",
-    "name": "Épée de Bois",
-    "url": "https://www.allocine.fr/seance/salle_gen_csalle=W7504.html"
-  },
-  {
-    "id": "C0072",
-    "name": "Le Grand Action",
-    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0072.html"
-  }
-]
-```
-
-Pour ajouter un cinéma, il suffit d'ajouter une entrée avec son identifiant Allociné (visible dans l'URL de la page séances).
-
-## Données scrapées depuis Allociné
-
-### Page cinéma (`/seance/salle_gen_csalle=XXXXX.html`)
-Données extraites du HTML (sélecteurs CSS identifiés) :
-
-| Donnée | Sélecteur CSS / Attribut |
-|--------|--------------------------|
-| Titre du film | `.meta-title-link` |
-| ID du film | `href` de `.meta-title-link` → `cfilm=XXXXX` |
-| Affiche | `.thumbnail-img[data-src]` |
-| Genre | `.meta-body-info .dark-grey-link` |
-| Nationalité | `.meta-body-info .nationality` |
-| Réalisateur | `.meta-body-direction` (après "De") |
-| Acteurs | `.meta-body-actor` (après "Avec") |
-| Synopsis | `.synopsis .content-txt` |
-| Note presse | `.rating-item .stareval-note` (1er) |
-| Note spectateurs | `.rating-item .stareval-note` (2ème) |
-| Classification | `.certificate-text` |
-| Sorti cette semaine | `.label-status` contenant "sorti cette semaine" |
-| Horaires de séance | `.showtimes-hour-item[data-showtime-time]` |
-| ID de séance | `.showtimes-hour-item[data-showtime-id]` |
-| Version (VF/VO) | `.showtimes-version .text` |
-| Expériences | `.showtimes-hour-item[data-experiences]` |
-| Dates disponibles | `data-showtimes-dates` sur la section principale |
-| Date sélectionnée | `data-selected-date` |
-| Info cinéma | `data-theater` (JSON avec nom, adresse, etc.) |
-
-### Fiche film (`/film/fichefilm_gen_cfilm=XXXXX.html`)
-Données complémentaires extraites :
-
-| Donnée | Localisation |
-|--------|-------------|
-| Durée | Texte format "Xh YYmin" dans l'en-tête du film |
-| Bande-annonce | Lien vidéo dans la section BA |
-
-## Logique de scraping
-
-### Fréquence
-- **Hebdomadaire** (mercredi, via GitHub Actions cron) : scraping complet de la semaine (mercredi à mardi) pour capturer tous les nouveaux films
-
-### Processus de scraping
-1. Pour chaque cinéma dans `config/cinemas.json` :
-   - Récupérer la page du cinéma pour la date cible (`#shwt_date=YYYY-MM-DD`)
-   - Parser les films et leurs séances pour cette date
-   - Pour chaque nouveau film non encore en base :
-     - Récupérer la fiche film (`/film/fichefilm_gen_cfilm=XXXXX.html`)
-     - Extraire la durée et les métadonnées complémentaires
-   - Insérer/mettre à jour les données en base SQLite
-2. Déclencher le build Astro pour régénérer le site statique
-3. Déployer sur GitHub Pages
-
-### Gestion des dates
-- Chaque page cinéma contient un attribut `data-showtimes-dates` avec la liste des dates disponibles
-- Quand le scraper est lancé, il scrape toutes les dates de la semaine (mercredi à mardi suivant)
-
-## Installation
+Copy and adjust:
 
 ```bash
-npm install
+cp .env.example .env
 ```
 
-## Scripts disponibles
+Main variables:
+
+- `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+- `PORT` (API server port, default `3000`)
+- `VITE_API_BASE_URL` (client API URL, default `http://localhost:3000/api`)
+- `SCRAPE_CRON_SCHEDULE`, `SCRAPE_DELAY_MS`
+
+## Local development
+
+### Option A: Docker Compose (recommended)
 
 ```bash
-# Scraping complet de la semaine (mercredi → mardi)
-npm run scrape
+cd allo-scrapper
+docker compose -f docker-compose.dev.yml up --build
+```
 
-# Alias de compatibilité (conservé pour les anciens usages)
-npm run scrape:week
+- API: `http://localhost:3000/api`
+- Client: `http://localhost:5173`
 
-# Build du site statique
-npm run build
+### Option B: Run services manually
 
-# Tests de régression (base TDD)
-npm run test
-
-# Développement local
+```bash
+# terminal 1
+cd allo-scrapper/server
+npm ci
 npm run dev
 
-# Preview du site statique
+# terminal 2
+cd allo-scrapper/client
+npm ci
+npm run dev
+```
+
+## Commands by package
+
+### `server/`
+
+```bash
+cd allo-scrapper/server
+npm ci
+npm run dev         # start API in watch mode
+npm run build       # compile TypeScript
+npm run start       # run compiled server
+npm run db:migrate  # initialize/update DB schema
+npm run scrape      # run scraper once
+```
+
+### `client/`
+
+```bash
+cd allo-scrapper/client
+npm ci
+npm run dev
+npm run build
+npm run lint
 npm run preview
 ```
 
-## Consigne TDD (ajout futur de cinémas)
-
-- Avant d'ajouter un nouveau cinéma dans `config/cinemas.json`, commencer par ajouter/adapter un test de régression qui valide le comportement attendu.
-- Conserver les tests de parsing (`src/scraper/*.test.ts`) comme garde-fou du fonctionnement actuel du scraper.
-
-## GitHub Actions
-
-### Workflow `scrape.yml`
-```yaml
-name: Scrape & Build
-on:
-  schedule:
-    - cron: '0 8 * * 3'      # Mercredi à 8h UTC (scrape complet semaine)
-  workflow_dispatch: {}        # Déclenchement manuel
-
-jobs:
-  scrape:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm ci
-      - run: npm run scrape        # Scraping semaine
-      - run: npm run build         # Build Astro
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist/
-
-  deploy:
-    needs: scrape
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-    steps:
-      - uses: actions/deploy-pages@v4
-```
-
-## Pages du site
-
-### 1. Accueil (`/`)
-- Vue d'ensemble de la semaine en cours (mercredi → mardi)
-- Liste des films disponibles, groupés par cinéma ou par film
-- Filtres : cinéma, genre, version (VF/VO), date
-- Badge "Nouveau cette semaine" sur les films sortis le mercredi
-
-### 2. Page cinéma (`/cinema/[id]`)
-- Informations du cinéma (nom, adresse, nombre de salles)
-- Films programmés cette semaine
-- Séances du jour sélectionné
-- Navigation par date
-
-### 3. Page film (`/film/[id]`)
-- Fiche complète : affiche, synopsis, durée, genre, réalisateur, acteurs
-- Notes presse et spectateurs
-- Liste des cinémas qui projettent ce film avec leurs séances
-- Historique des semaines de programmation
-
-### 4. Vue par jour (`/jour/[date]`)
-- Toutes les séances de tous les cinémas pour une date donnée
-- Regroupement par film ou par cinéma
-
-## Dépendances principales
-
-```json
-{
-  "dependencies": {
-    "astro": "^5.x",
-    "@astrojs/tailwind": "^6.x",
-    "tailwindcss": "^4.x",
-    "better-sqlite3": "^11.x",
-    "cheerio": "^1.x"
-  },
-  "devDependencies": {
-    "typescript": "^5.x",
-    "@types/better-sqlite3": "^7.x",
-    "@types/node": "^22.x",
-    "tsx": "^4.x"
-  }
-}
-```
-
-## Docker
-
-L'application peut être containerisée pour un déploiement facile. Le build est multi-stage :
-1.  **Builder** : Compile le site statique avec Astro (nécessite les variables d'environnement de la DB).
-2.  **Runner** : Sert les fichiers statiques avec Nginx.
-
-### Prérequis
--   Variables d'environnement `TURSO_DATABASE_URL` et `TURSO_AUTH_TOKEN` définies dans un fichier `.env`.
-
-### Build et Run avec Docker Compose
+### Root (legacy Astro flow)
 
 ```bash
-# 1. Créer le fichier .env
-echo "TURSO_DATABASE_URL=libsql://..." > .env
-echo "TURSO_AUTH_TOKEN=..." >> .env
-
-# 2. Builder et lancer le conteneur
-docker-compose up -d --build
-
-# 3. Accéder au site
-# http://localhost:8080
+cd allo-scrapper
+npm ci
+npm run test
+npm run scrape
+npm run build       # runs scrape first, so requires DB access
+npm run dev
 ```
 
-### Build manuel
+## API quick reference
 
-```bash
-docker build \
-  --build-arg TURSO_DATABASE_URL=... \
-  --build-arg TURSO_AUTH_TOKEN=... \
-  -t allo-scrapper .
+- `GET /api/health`
+- `GET /api/films`
+- `GET /api/films/:id`
+- `GET /api/cinemas`
+- `GET /api/cinemas/:id`
+- `GET /api/reports`
+- `POST /api/scraper/trigger`
+- `GET /api/scraper/status`
+- `GET /api/scraper/progress` (SSE)
 
-docker run -p 8080:80 allo-scrapper
-```
+## CI / automation
+
+- Workflow: `.github/workflows/scrape.yml`
+- Runs scheduled/manual scraping + build/deploy flow for the root pipeline.
+
+## Notes for AI coding agents
+
+- Treat this repository as a **multi-project repo** (`server`, `client`, and root legacy app).
+- Run commands from the correct directory.
+- For backend/frontend changes, validate only the relevant package commands.
+- Root `npm run build` requires a reachable PostgreSQL instance because it runs scraping first.
