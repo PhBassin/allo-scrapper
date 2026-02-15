@@ -1,37 +1,48 @@
 {
   "name": "allo-scrapper",
-  "version": "1.0.0",
-  "description": "Agrégateur de séances de cinéma basé sur les données Allociné",
+  "version": "2.0.0",
+  "description": "Cinema showtimes aggregator - Full-stack Express.js + React application with PostgreSQL backend",
   "type": "module",
+  "private": true,
   "scripts": {
-    "dev": "astro dev",
-    "build": "npm run scrape && astro build",
-    "preview": "astro preview",
-    "test": "tsx --test src/**/*.test.ts",
-    "scrape": "tsx src/scraper/index.ts",
-    "scrape:week": "tsx src/scraper/index.ts --week",
-    "db:migrate": "tsx src/db/schema.ts"
+    "dev": "docker compose -f docker-compose.dev.yml up --build",
+    "dev:down": "docker compose -f docker-compose.dev.yml down",
+    "dev:logs": "docker compose -f docker-compose.dev.yml logs -f",
+    "build": "npm run server:build && npm run client:build",
+    "docker:build": "docker build -t allo-scrapper:latest .",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f web",
+    "docker:restart": "docker compose restart web",
+    "docker:clean": "docker compose down -v && docker system prune -f",
+    "deploy": "./scripts/pull-and-deploy.sh",
+    "backup": "./scripts/backup-db.sh",
+    "server:dev": "cd server && npm run dev",
+    "server:build": "cd server && npm run build",
+    "server:start": "cd server && npm start",
+    "server:db:migrate": "cd server && npm run db:migrate",
+    "server:scrape": "cd server && npm run scrape",
+    "client:dev": "cd client && npm run dev",
+    "client:build": "cd client && npm run build",
+    "client:preview": "cd client && npm run preview",
+    "install:all": "npm ci && cd server && npm ci && cd ../client && npm ci",
+    "clean": "rm -rf server/dist client/dist server/node_modules client/node_modules node_modules",
+    "test": "cd server && npm test"
   },
   "keywords": [
     "allocine",
     "cinema",
     "scraper",
-    "showtimes"
+    "showtimes",
+    "express",
+    "react",
+    "postgresql",
+    "docker"
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
-    "@astrojs/tailwind": "^6.0.1",
-    "astro": "^5.1.3",
-    "cheerio": "^1.0.0",
-    "dotenv": "^17.3.1",
-    "pg": "^8.18.0",
-    "tailwindcss": "^3.4.17"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.5",
-    "@types/pg": "^8.16.0",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
   }
 }
