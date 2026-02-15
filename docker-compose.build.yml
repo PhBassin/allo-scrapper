@@ -1,3 +1,8 @@
+# Docker Compose configuration for local builds
+# Use this file if you want to build the Docker image locally instead of pulling from GitHub Container Registry
+#
+# Usage: docker compose -f docker-compose.build.yml up --build
+
 version: '3.8'
 
 services:
@@ -21,11 +26,12 @@ services:
     networks:
       - allo-network
 
-  # Production web server (serves both API and frontend)
+  # Production web server (built locally from source)
   web:
-    image: ghcr.io/phbassin/allo-scrapper:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: allo-scrapper-web
-    pull_policy: always
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
