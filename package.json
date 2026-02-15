@@ -32,10 +32,10 @@
     "test": "cd server && npm test"
   },
   "keywords": [
-    "allocine",
     "cinema",
-    "scraper",
     "showtimes",
+    "scraper",
+    "aggregator",
     "express",
     "react",
     "postgresql",

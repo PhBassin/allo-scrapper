@@ -7,7 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
-**Cinema showtimes aggregator** that scrapes and centralizes movie screening schedules from Allociné cinema pages. Built with Express.js, React, and PostgreSQL, fully containerized with Docker.
+**Cinema showtimes aggregator** that scrapes and centralizes movie screening schedules from the source website cinema pages. Built with Express.js, React, and PostgreSQL, fully containerized with Docker.
 
 ---
 
@@ -34,7 +34,7 @@
 
 ## ✨ Features
 
-- **Automated Scraping**: Scheduled scraping of cinema showtimes from Allociné
+- **Automated Scraping**: Scheduled scraping of cinema showtimes from the source website
 - **RESTful API**: Complete Express.js backend with TypeScript
 - **Modern UI**: React SPA with Vite for fast development
 - **Real-time Progress**: Server-Sent Events (SSE) for live scraping updates
@@ -85,7 +85,7 @@
 **Data Flow:**
 1. Client makes HTTP requests to Express API (`/api/*`)
 2. API routes handle business logic and validate requests
-3. Scraper service periodically fetches data from Allociné
+3. Scraper service periodically fetches data from the source website
 4. PostgreSQL stores structured cinema, film, and showtime data
 5. Client receives JSON responses and renders UI
 
@@ -337,7 +337,7 @@ allo-scrapper/
 │   │   │   └── scraper.ts           # POST /api/scraper/trigger, etc.
 │   │   ├── services/
 │   │   │   └── scraper/
-│   │   │       ├── allocineClient.ts    # HTTP client for Allociné
+│   │   │       ├── httpClient.ts    # HTTP client for the source website
 │   │   │       ├── index.ts             # Main scraper orchestrator
 │   │   │       ├── parser.ts            # HTML parsing logic
 │   │   │       └── scheduler.ts         # Cron job manager
@@ -508,7 +508,7 @@ GET /api/films
     "certificate": "TP",
     "press_rating": 4.2,
     "audience_rating": 3.8,
-    "allocine_url": "https://www.allocine.fr/film/fichefilm_gen_cfilm=123456.html"
+    "source_url": "https://www.example-cinema-site.com/film/fichefilm_gen_cfilm=123456.html"
   }
 ]
 ```
@@ -527,7 +527,7 @@ GET /api/films/:id
 ```
 
 **Parameters:**
-- `id` (integer): Film ID from Allociné
+- `id` (integer): Film ID from the source website
 
 **Response:**
 ```json
@@ -548,7 +548,7 @@ GET /api/films/:id
     "certificate": "TP",
     "press_rating": 4.2,
     "audience_rating": 3.8,
-    "allocine_url": "https://www.allocine.fr/film/fichefilm_gen_cfilm=123456.html"
+    "source_url": "https://www.example-cinema-site.com/film/fichefilm_gen_cfilm=123456.html"
   },
   "showtimes": [
     {
@@ -749,7 +749,7 @@ Stores cinema venue information.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `id` | TEXT | Primary key (Allociné cinema ID) |
+| `id` | TEXT | Primary key (the source website cinema ID) |
 | `name` | TEXT | Cinema name |
 | `address` | TEXT | Street address |
 | `postal_code` | TEXT | Postal code |
@@ -762,7 +762,7 @@ Stores film metadata.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `id` | INTEGER | Primary key (Allociné film ID) |
+| `id` | INTEGER | Primary key (the source website film ID) |
 | `title` | TEXT | French title |
 | `original_title` | TEXT | Original title |
 | `poster_url` | TEXT | Poster image URL |
@@ -777,7 +777,7 @@ Stores film metadata.
 | `certificate` | TEXT | Age rating (TP, -12, -16, etc.) |
 | `press_rating` | REAL | Press rating (0-5) |
 | `audience_rating` | REAL | Audience rating (0-5) |
-| `allocine_url` | TEXT | Allociné film page URL |
+| `source_url` | TEXT | the source website film page URL |
 
 #### `showtimes`
 Stores individual screening times.
@@ -861,26 +861,26 @@ Cinema list is configured in `server/src/config/cinemas.json`:
   {
     "id": "W7504",
     "name": "Épée de Bois",
-    "url": "https://www.allocine.fr/seance/salle_gen_csalle=W7504.html"
+    "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=W7504.html"
   },
   {
     "id": "C0072",
     "name": "Le Grand Action",
-    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0072.html"
+    "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0072.html"
   }
 ]
 ```
 
 ### Adding New Cinemas
 
-1. Find the cinema on Allociné (e.g., https://www.allocine.fr/seance/salle_gen_csalle=W7504.html)
+1. Find the cinema on the source website (e.g., https://www.example-cinema-site.com/seance/salle_gen_csalle=W7504.html)
 2. Extract the cinema ID from the URL (e.g., `W7504`)
 3. Add entry to `cinemas.json`:
    ```json
    {
      "id": "W7504",
      "name": "Cinema Name",
-     "url": "https://www.allocine.fr/seance/salle_gen_csalle=W7504.html"
+     "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=W7504.html"
    }
    ```
 4. Restart the server
@@ -1344,7 +1344,7 @@ This project is licensed under the **MIT License**. See [LICENSE](./LICENSE) fil
 
 ## 🙏 Acknowledgments
 
-- **Allociné** for cinema and film data
+- **the source website** for cinema and film data
 - **Express.js** community for excellent backend framework
 - **React** and **Vite** teams for modern frontend tooling
 - All contributors and users of this project
