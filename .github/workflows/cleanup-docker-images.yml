@@ -1,0 +1,79 @@
+name: Cleanup Docker Images
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Enable dry-run mode (test without deleting)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  cleanup-images:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    
+    steps:
+      - name: Determine dry-run mode
+        id: dry-run
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "enabled=${{ inputs.dry-run }}" >> $GITHUB_OUTPUT
+          else
+            # Dry-run mode for automatic triggers (first 5 runs for safety)
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Delete old container images (DRY-RUN)
+        if: steps.dry-run.outputs.enabled == 'true'
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'allo-scrapper'
+          package-type: 'container'
+          min-versions-to-keep: 10
+          delete-only-untagged-versions: 'true'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          dry-run: true
+
+      - name: Delete old container images (PRODUCTION)
+        if: steps.dry-run.outputs.enabled == 'false'
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'allo-scrapper'
+          package-type: 'container'
+          min-versions-to-keep: 10
+          delete-only-untagged-versions: 'true'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup summary
+        run: |
+          echo "### 🧹 Docker Image Cleanup Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.dry-run.outputs.enabled }}" == "true" ]; then
+            echo "**Mode:** 🔍 DRY-RUN (no images were actually deleted)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "ℹ️ To disable dry-run mode:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Go to Actions tab" >> $GITHUB_STEP_SUMMARY
+            echo "2. Run this workflow manually" >> $GITHUB_STEP_SUMMARY
+            echo "3. Set dry-run to 'false'" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Mode:** ✅ PRODUCTION (images deleted)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Policy:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Keep: 10 versions maximum" >> $GITHUB_STEP_SUMMARY
+          echo "- Delete: Only untagged versions" >> $GITHUB_STEP_SUMMARY
+          echo "- Protected: All tagged versions (v*)" >> $GITHUB_STEP_SUMMARY
