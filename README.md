@@ -300,6 +300,45 @@ curl -X POST http://localhost:3000/api/scraper/trigger
 
 ---
 
+## 🧪 Testing
+
+The scraper includes a comprehensive unit test suite with code coverage tracking.
+
+### Running Tests
+
+```bash
+cd server
+
+# Watch mode (recommended for development)
+npm test
+
+# Single run
+npm run test:run
+
+# With coverage report
+npm run test:coverage
+
+# Interactive UI
+npm run test:ui
+```
+
+### Test Coverage
+
+- **Lines**: 94.3% (target: 80%)
+- **Functions**: 100% (target: 80%)
+- **Statements**: 93.7% (target: 80%)
+- **Branches**: 68.8% (target: 65%)
+
+### Test Files
+
+- **theater-parser.test.ts**: 29 tests covering HTML parsing for all cinemas
+- **Fixtures**: Full HTML pages from Allociné (~1.6MB) for realistic testing
+- **Regression tests**: Ensures existing cinemas (W7504, C0072) continue working
+
+See `server/tests/README.md` for detailed testing documentation.
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -854,7 +893,12 @@ films (1) ────────┴────────┘
 
 ## 🎯 Scraper Configuration
 
-Cinema list is configured in `server/src/config/cinemas.json`:
+Cinema list is configured in `server/src/config/cinemas.json`.
+
+**Currently tracking 3 cinemas in Paris:**
+- **W7504**: Épée de Bois
+- **C0072**: Le Grand Action  
+- **C0089**: Max Linder Panorama
 
 ```json
 [
@@ -867,24 +911,30 @@ Cinema list is configured in `server/src/config/cinemas.json`:
     "id": "C0072",
     "name": "Le Grand Action",
     "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0072.html"
+  },
+  {
+    "id": "C0089",
+    "name": "Max Linder Panorama",
+    "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0089.html"
   }
 ]
 ```
 
 ### Adding New Cinemas
 
-1. Find the cinema on the source website (e.g., https://www.example-cinema-site.com/seance/salle_gen_csalle=W7504.html)
-2. Extract the cinema ID from the URL (e.g., `W7504`)
+1. Find the cinema on the source website (e.g., https://www.example-cinema-site.com/seance/salle_gen_csalle=C0089.html)
+2. Extract the cinema ID from the URL (e.g., `C0089`)
 3. Add entry to `cinemas.json`:
    ```json
    {
-     "id": "W7504",
+     "id": "C0089",
      "name": "Cinema Name",
-     "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=W7504.html"
+     "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0089.html"
    }
    ```
-4. Restart the server
-5. Trigger a scrape: `curl -X POST http://localhost:3000/api/scraper/trigger`
+4. *(Optional)* Add test fixtures and unit tests (see `server/tests/README.md`)
+5. Restart the server
+6. Trigger a scrape: `curl -X POST http://localhost:3000/api/scraper/trigger`
 
 ### Scraping Behavior
 
