@@ -132,4 +132,4 @@ npm run dev
 - Treat this repository as a **multi-project repo** (`server`, `client`, and root legacy app).
 - Run commands from the correct directory.
 - For backend/frontend changes, validate only the relevant package commands.
-- Root `npm run build` requires a reachable PostgreSQL instance because it runs scraping first.
+- Root `npm run build` (current implementation) also requires a reachable PostgreSQL instance because it runs scraping first.
