@@ -8,7 +8,7 @@ Agrégateur de séances de cinéma basé sur les données Allociné. Le site aff
 |-----------|------------|---------------|
 | **Langage** | TypeScript (Node.js) | Typage fort, écosystème riche, même langage front/back |
 | **Scraping** | Cheerio | Parsing HTML léger et rapide, pas besoin de headless browser (les données sont dans le HTML statique) |
-| **Base de données** | SQLite via `better-sqlite3` | Fichier unique, pas de serveur DB, idéal pour site statique avec historique |
+| **Base de données** | LibSQL via `@libsql/client` (Turso) | Base de données compatible SQLite hébergée, accessible via HTTP pour le scraper et le build |
 | **Frontend** | Astro | Générateur de site statique performant, adapté au contenu |
 | **Style** | Tailwind CSS | Design responsive, utilitaire, rapide à itérer |
 | **Automatisation** | GitHub Actions | Cron jobs gratuits pour le scraping hebdomadaire |
@@ -321,4 +321,38 @@ jobs:
     "tsx": "^4.x"
   }
 }
+```
+
+## Docker
+
+L'application peut être containerisée pour un déploiement facile. Le build est multi-stage :
+1.  **Builder** : Compile le site statique avec Astro (nécessite les variables d'environnement de la DB).
+2.  **Runner** : Sert les fichiers statiques avec Nginx.
+
+### Prérequis
+-   Variables d'environnement `TURSO_DATABASE_URL` et `TURSO_AUTH_TOKEN` définies dans un fichier `.env`.
+
+### Build et Run avec Docker Compose
+
+```bash
+# 1. Créer le fichier .env
+echo "TURSO_DATABASE_URL=libsql://..." > .env
+echo "TURSO_AUTH_TOKEN=..." >> .env
+
+# 2. Builder et lancer le conteneur
+docker-compose up -d --build
+
+# 3. Accéder au site
+# http://localhost:8080
+```
+
+### Build manuel
+
+```bash
+docker build \
+  --build-arg TURSO_DATABASE_URL=... \
+  --build-arg TURSO_AUTH_TOKEN=... \
+  -t allo-scrapper .
+
+docker run -p 8080:80 allo-scrapper
 ```

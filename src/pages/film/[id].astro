@@ -1,37 +1,28 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { getDatabase } from '../../db/schema';
+import { db } from '../../db/client';
 import { getFilm } from '../../db/queries';
 
 export async function getStaticPaths() {
-  const db = getDatabase();
-  try {
-    const films = db.prepare('SELECT id FROM films ORDER BY id').all() as Array<{ id: number }>;
-    return films.map((film) => ({
-      params: { id: String(film.id) },
-    }));
-  } finally {
-    db.close();
-  }
+  const result = await db.query('SELECT id FROM films ORDER BY id');
+  const films = result.rows as unknown as Array<{ id: number }>;
+
+  return films.map((film) => ({
+    params: { id: String(film.id) },
+  }));
 }
 
 const { id } = Astro.params;
 const filmId = Number(id);
 
 if (Number.isNaN(filmId)) {
-  throw new Error(`Film ${id} not found`);
+  throw new Error(`Invalid film ID: ${id}`);
 }
 
-const db = getDatabase();
-let film;
+const film = await getFilm(db, filmId);
 
-try {
-  film = getFilm(db, filmId);
-  if (!film) {
-    throw new Error(`Film ${id} not found`);
-  }
-} finally {
-  db.close();
+if (!film) {
+  throw new Error(`Film ${id} not found`);
 }
 
 const baseUrl = import.meta.env.BASE_URL.endsWith('/')

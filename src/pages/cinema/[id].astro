@@ -1,21 +1,16 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import ShowtimeList from '../../components/ShowtimeList.astro';
-import { getDatabase } from '../../db/schema';
+import { db } from '../../db/client';
 import { getShowtimesByCinemaAndWeek, getCinemas } from '../../db/queries';
 import { getCurrentWeekStart, getWeekDates, formatDate, getTodayDate, parseLocalDate } from '../../utils/date';
 import type { Film, Showtime } from '../../scraper/types';
 
 export async function getStaticPaths() {
-  const db = getDatabase();
-  try {
-    const cinemas = getCinemas(db);
-    return cinemas.map((cinema) => ({
-      params: { id: cinema.id },
-    }));
-  } finally {
-    db.close();
-  }
+  const cinemas = await getCinemas(db);
+  return cinemas.map((cinema) => ({
+    params: { id: cinema.id },
+  }));
 }
 
 const { id } = Astro.params;
@@ -25,56 +20,50 @@ const today = getTodayDate();
 const currentWeekStart = getCurrentWeekStart();
 const weekDates = getWeekDates(currentWeekStart);
 
-const db = getDatabase();
 let cinema;
 let showtimesByDate = new Map<string, Array<{ film: Film; showtimes: Showtime[] }>>();
 
-try {
-  const cinemas = getCinemas(db);
-  cinema = cinemas.find((c) => c.id === id);
-  
-  if (!cinema) {
-    throw new Error(`Cinema ${id} not found`);
-  }
+const cinemas = await getCinemas(db);
+cinema = cinemas.find((c) => c.id === id);
 
-  // Récupérer toutes les séances de la semaine
-  const allShowtimes = getShowtimesByCinemaAndWeek(db, id!, currentWeekStart);
-
-  // Initialiser la Map pour chaque jour de la semaine (même vide)
-  weekDates.forEach(date => {
-    showtimesByDate.set(date, []);
-  });
-
-  // Grouper les séances par Date puis par Film
-  const showtimesByDateAndFilm = new Map<string, Map<number, { film: Film; showtimes: Showtime[] }>>();
-
-  allShowtimes.forEach((st) => {
-    if (!showtimesByDateAndFilm.has(st.date)) {
-      showtimesByDateAndFilm.set(st.date, new Map());
-    }
-    
-    const dateMap = showtimesByDateAndFilm.get(st.date)!;
-    
-    if (!dateMap.has(st.film.id)) {
-      dateMap.set(st.film.id, {
-        film: st.film,
-        showtimes: [],
-      });
-    }
-    
-    dateMap.get(st.film.id)!.showtimes.push(st);
-  });
-
-  // Convertir les Maps internes en Arrays et les stocker dans la Map principale
-  showtimesByDateAndFilm.forEach((filmMap, date) => {
-    if (showtimesByDate.has(date)) {
-      showtimesByDate.set(date, Array.from(filmMap.values()));
-    }
-  });
-
-} finally {
-  db.close();
+if (!cinema) {
+  throw new Error(`Cinema ${id} not found`);
 }
+
+// Récupérer toutes les séances de la semaine
+const allShowtimes = await getShowtimesByCinemaAndWeek(db, id!, currentWeekStart);
+
+// Initialiser la Map pour chaque jour de la semaine (même vide)
+weekDates.forEach(date => {
+  showtimesByDate.set(date, []);
+});
+
+// Grouper les séances par Date puis par Film
+const showtimesByDateAndFilm = new Map<string, Map<number, { film: Film; showtimes: Showtime[] }>>();
+
+allShowtimes.forEach((st) => {
+  if (!showtimesByDateAndFilm.has(st.date)) {
+    showtimesByDateAndFilm.set(st.date, new Map());
+  }
+  
+  const dateMap = showtimesByDateAndFilm.get(st.date)!;
+  
+  if (!dateMap.has(st.film.id)) {
+    dateMap.set(st.film.id, {
+      film: st.film,
+      showtimes: [],
+    });
+  }
+  
+  dateMap.get(st.film.id)!.showtimes.push(st);
+});
+
+// Convertir les Maps internes en Arrays et les stocker dans la Map principale
+showtimesByDateAndFilm.forEach((filmMap, date) => {
+  if (showtimesByDate.has(date)) {
+    showtimesByDate.set(date, Array.from(filmMap.values()));
+  }
+});
 
 const baseUrl = import.meta.env.BASE_URL.endsWith('/')
   ? import.meta.env.BASE_URL
@@ -112,8 +101,6 @@ const activeDateIndex = weekDates.indexOf(today) !== -1 ? weekDates.indexOf(toda
       {weekDates.map((date, index) => {
         const len = showtimesByDate.get(date)?.length;
         const hasShowtimes = (len ?? 0) > 0;
-        
-        
         
         return (
           <button
@@ -249,16 +236,22 @@ const activeDateIndex = weekDates.indexOf(today) !== -1 ? weekDates.indexOf(toda
         const isSelected = t === tab;
         t.setAttribute('aria-selected', isSelected ? 'true' : 'false');
         
+        const label = t.querySelector('.text-xs');
+
         if (isSelected) {
           t.classList.add('border-primary', 'bg-yellow-50', 'text-black', 'shadow-sm');
           t.classList.remove('border-transparent', 'bg-white', 'text-gray-600');
-          t.querySelector('.text-xs').classList.add('text-primary-dark');
-          t.querySelector('.text-xs').classList.remove('text-gray-400');
+          if (label) {
+            label.classList.add('text-primary-dark');
+            label.classList.remove('text-gray-400');
+          }
         } else {
           t.classList.remove('border-primary', 'bg-yellow-50', 'text-black', 'shadow-sm');
           t.classList.add('border-transparent', 'bg-white', 'text-gray-600');
-          t.querySelector('.text-xs').classList.remove('text-primary-dark');
-          t.querySelector('.text-xs').classList.add('text-gray-400');
+          if (label) {
+            label.classList.remove('text-primary-dark');
+            label.classList.add('text-gray-400');
+          }
         }
       });
 
