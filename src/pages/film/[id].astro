@@ -4,9 +4,9 @@ import { db } from '../../db/client';
 import { getFilm } from '../../db/queries';
 
 export async function getStaticPaths() {
-  const result = await db.execute('SELECT id FROM films ORDER BY id');
+  const result = await db.query('SELECT id FROM films ORDER BY id');
   const films = result.rows as unknown as Array<{ id: number }>;
-  
+
   return films.map((film) => ({
     params: { id: String(film.id) },
   }));
