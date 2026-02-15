@@ -23,7 +23,8 @@ jobs:
         image: postgres:15-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
+          # Service de CI éphémère: auth "trust" pour éviter de stocker des secrets
+          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: allocine
         ports:
           - 5432:5432
