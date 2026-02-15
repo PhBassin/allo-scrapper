@@ -1,0 +1,41 @@
+name: Sync main to develop
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  sync-main-to-develop:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge main into develop
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if ! git ls-remote --exit-code --heads origin develop; then
+            echo "::error::Branch 'develop' does not exist on origin."
+            exit 1
+          fi
+
+          git checkout -B develop origin/develop
+          if ! git merge --no-ff main -m "chore: sync main into develop"; then
+            echo "::error::Automatic sync failed due to merge conflicts. Resolve conflicts manually."
+            git merge --abort || true
+            exit 1
+          fi
+
+          if ! git push origin develop; then
+            echo "::error::Push to origin/develop failed. Check branch protection rules and workflow permissions."
+            exit 1
+          fi
