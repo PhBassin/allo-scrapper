@@ -59,7 +59,7 @@ mkdir -p data/postgres backups logs
 
 ### 2. Download Configuration Files
 
-Download `docker-compose.yml` and `.env.example` from the repository:
+Download the required files from the repository:
 
 ```bash
 # Download docker-compose.yml
@@ -67,9 +67,13 @@ curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/docker-com
 
 # Download .env.example
 curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/.env.example
+
+# Download database initialization script
+mkdir -p docker
+curl -o docker/init.sql https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/docker/init.sql
 ```
 
-Or clone the repository:
+Or clone the repository (recommended):
 
 ```bash
 git clone https://github.com/PhBassin/allo-scrapper.git
@@ -143,19 +147,29 @@ curl http://localhost:3000/api/health
 # Expected: {"status":"ok","timestamp":"2026-02-15T..."}
 ```
 
-### Initialize Database
+### Database Initialization
 
-On first deployment, initialize the database schema:
+The database schema is **automatically initialized** on first startup via the `docker/init.sql` script mounted in PostgreSQL's `docker-entrypoint-initdb.d` directory.
+
+No manual action is required. You can verify the tables were created:
 
 ```bash
-docker compose exec web node dist/db/schema.js
+docker compose exec db psql -U postgres -d cinema_showtimes -c "\dt"
 ```
 
 Expected output:
 ```
-🔄 Initialisation de la base de données PostgreSQL...
-✅ Base de données initialisée avec succès
+              List of relations
+ Schema |      Name       | Type  |  Owner
+--------+-----------------+-------+----------
+ public | cinemas         | table | postgres
+ public | films           | table | postgres
+ public | scrape_reports  | table | postgres
+ public | showtimes       | table | postgres
+ public | weekly_programs | table | postgres
 ```
+
+> **Note:** If you previously had a database volume and changed `POSTGRES_PASSWORD`, you must delete the volume first: `docker compose down -v` then `docker compose up -d`.
 
 ---
 
@@ -511,6 +525,21 @@ docker compose ps
 # Verify network
 docker network ls
 docker network inspect allo-scrapper_allo-network
+```
+
+### Password Authentication Failed
+
+**Problem:** `password authentication failed for user "postgres"`
+
+This happens when you change `POSTGRES_PASSWORD` but the database volume already exists with the old password. PostgreSQL ignores environment variables when data already exists.
+
+```bash
+# Option 1: Delete volume and reinitialize (data loss)
+docker compose down -v
+docker compose up -d
+
+# Option 2: Use the original password
+# Set POSTGRES_PASSWORD to the value used when the volume was first created
 ```
 
 ### Out of Memory
