@@ -412,6 +412,17 @@ allo-scrapper/
 - **Development**: `http://localhost:3000/api`
 - **Production**: `https://your-domain.com/api`
 
+### Response Format
+
+All endpoints except `GET /api/health` return:
+
+```json
+{
+  "success": true,
+  "data": {}
+}
+```
+
 ### Endpoints
 
 #### Health Check
@@ -424,9 +435,7 @@ GET /api/health
 ```json
 {
   "status": "ok",
-  "timestamp": "2026-02-15T10:30:00.000Z",
-  "uptime": 3600.5,
-  "database": "connected"
+  "timestamp": "2026-02-15T10:30:00.000Z"
 }
 ```
 
@@ -440,17 +449,20 @@ GET /api/cinemas
 
 **Response:**
 ```json
-[
-  {
-    "id": "W7504",
-    "name": "Épée de Bois",
-    "address": "100 Rue Mouffetard",
-    "postal_code": "75005",
-    "city": "Paris",
-    "screen_count": 1,
-    "image_url": "https://..."
-  }
-]
+{
+  "success": true,
+  "data": [
+    {
+      "id": "W7504",
+      "name": "Épée de Bois",
+      "address": "100 Rue Mouffetard",
+      "postal_code": "75005",
+      "city": "Paris",
+      "screen_count": 1,
+      "image_url": "https://..."
+    }
+  ]
+}
 ```
 
 **Example:**
@@ -469,55 +481,35 @@ GET /api/cinemas/:id
 **Parameters:**
 - `id` (string): Cinema ID (e.g., `W7504`)
 
-**Query Parameters:**
-- `week_start` (optional, string): Week start date in `YYYY-MM-DD` format (defaults to current week)
-
 **Response:**
 ```json
 {
-  "cinema": {
-    "id": "W7504",
-    "name": "Épée de Bois",
-    "address": "100 Rue Mouffetard",
-    "postal_code": "75005",
-    "city": "Paris",
-    "screen_count": 1
-  },
-  "films": [
-    {
-      "id": 123456,
-      "title": "Film Title",
-      "original_title": "Original Title",
-      "poster_url": "https://...",
-      "duration_minutes": 120,
-      "release_date": "2024-01-15",
-      "genres": ["Drama", "Thriller"],
-      "nationality": "France",
-      "director": "Director Name",
-      "synopsis": "...",
-      "certificate": "TP",
-      "press_rating": 4.2,
-      "audience_rating": 3.8,
-      "is_new_this_week": true,
-      "showtimes": [
-        {
-          "id": "W7504-123456-2024-02-15-14:00",
-          "date": "2024-02-15",
-          "time": "14:00",
-          "datetime_iso": "2024-02-15T14:00:00+01:00",
-          "version": "VF",
-          "format": "2D",
-          "experiences": ["Dolby Atmos"]
+  "success": true,
+  "data": {
+    "showtimes": [
+      {
+        "id": "W7504-123456-2024-02-15-14:00",
+        "date": "2024-02-15",
+        "time": "14:00",
+        "datetime_iso": "2024-02-15T14:00:00+01:00",
+        "version": "VF",
+        "format": "2D",
+        "experiences": ["Dolby Atmos"],
+        "film": {
+          "id": 123456,
+          "title": "Film Title",
+          "original_title": "Original Title"
         }
-      ]
-    }
-  ]
+      }
+    ],
+    "weekStart": "2024-02-12"
+  }
 }
 ```
 
 **Example:**
 ```bash
-curl "http://localhost:3000/api/cinemas/W7504?week_start=2024-02-12"
+curl "http://localhost:3000/api/cinemas/W7504"
 ```
 
 ---
@@ -528,28 +520,27 @@ curl "http://localhost:3000/api/cinemas/W7504?week_start=2024-02-12"
 GET /api/films
 ```
 
-**Query Parameters:**
-- `week_start` (optional, string): Filter by week start date (`YYYY-MM-DD`)
-
 **Response:**
 ```json
-[
-  {
-    "id": 123456,
-    "title": "Film Title",
-    "original_title": "Original Title",
-    "poster_url": "https://...",
-    "duration_minutes": 120,
-    "release_date": "2024-01-15",
-    "genres": ["Drama"],
-    "nationality": "France",
-    "director": "Director Name",
-    "certificate": "TP",
-    "press_rating": 4.2,
-    "audience_rating": 3.8,
-    "source_url": "https://www.example-cinema-site.com/film/fichefilm_gen_cfilm=123456.html"
+{
+  "success": true,
+  "data": {
+    "films": [
+      {
+        "id": 123456,
+        "title": "Film Title",
+        "original_title": "Original Title",
+        "poster_url": "https://...",
+        "duration_minutes": 120,
+        "release_date": "2024-01-15",
+        "genres": ["Drama"],
+        "nationality": "France",
+        "director": "Director Name"
+      }
+    ],
+    "weekStart": "2024-02-12"
   }
-]
+}
 ```
 
 **Example:**
@@ -571,7 +562,8 @@ GET /api/films/:id
 **Response:**
 ```json
 {
-  "film": {
+  "success": true,
+  "data": {
     "id": 123456,
     "title": "Film Title",
     "original_title": "Original Title",
@@ -587,20 +579,25 @@ GET /api/films/:id
     "certificate": "TP",
     "press_rating": 4.2,
     "audience_rating": 3.8,
-    "source_url": "https://www.example-cinema-site.com/film/fichefilm_gen_cfilm=123456.html"
-  },
-  "showtimes": [
-    {
-      "cinema_id": "W7504",
-      "cinema_name": "Épée de Bois",
-      "date": "2024-02-15",
-      "time": "14:00",
-      "datetime_iso": "2024-02-15T14:00:00+01:00",
-      "version": "VF",
-      "format": "2D",
-      "experiences": []
-    }
-  ]
+    "source_url": "https://www.example-cinema-site.com/film/fichefilm_gen_cfilm=123456.html",
+    "cinemas": [
+      {
+        "id": "W7504",
+        "name": "Épée de Bois",
+        "showtimes": [
+          {
+            "id": "W7504-123456-2024-02-15-14:00",
+            "date": "2024-02-15",
+            "time": "14:00",
+            "datetime_iso": "2024-02-15T14:00:00+01:00",
+            "version": "VF",
+            "format": "2D",
+            "experiences": []
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
 
@@ -618,30 +615,71 @@ GET /api/reports
 ```
 
 **Query Parameters:**
-- `limit` (optional, integer): Number of reports to return (default: 50)
+- `page` (optional, integer): Page number (default: `1`)
+- `pageSize` (optional, integer): Reports per page (default: `20`)
+- `status` (optional): `running`, `success`, `partial_success`, `failed`
+- `triggerType` (optional): `manual` or `cron`
 
 **Response:**
 ```json
-[
-  {
-    "id": 42,
-    "started_at": "2024-02-15T10:00:00.000Z",
-    "completed_at": "2024-02-15T10:15:23.000Z",
-    "status": "success",
-    "trigger_type": "cron",
-    "total_cinemas": 2,
-    "successful_cinemas": 2,
-    "failed_cinemas": 0,
-    "total_films_scraped": 45,
-    "total_showtimes_scraped": 234,
-    "errors": []
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": 42,
+        "started_at": "2024-02-15T10:00:00.000Z",
+        "completed_at": "2024-02-15T10:15:23.000Z",
+        "status": "success",
+        "trigger_type": "cron",
+        "total_cinemas": 2,
+        "successful_cinemas": 2,
+        "failed_cinemas": 0,
+        "total_films_scraped": 45,
+        "total_showtimes_scraped": 234,
+        "errors": []
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "pageSize": 20,
+    "totalPages": 1
   }
-]
+}
 ```
 
 **Example:**
 ```bash
-curl "http://localhost:3000/api/reports?limit=10"
+curl "http://localhost:3000/api/reports?page=1&pageSize=10"
+```
+
+---
+
+#### Get Scrape Report
+
+```http
+GET /api/reports/:id
+```
+
+**Parameters:**
+- `id` (integer): Report ID
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 42,
+    "status": "success",
+    "trigger_type": "manual",
+    "total_cinemas": 3
+  }
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:3000/api/reports/42"
 ```
 
 ---
@@ -655,8 +693,11 @@ POST /api/scraper/trigger
 **Response:**
 ```json
 {
-  "message": "Scraping démarré",
-  "reportId": 43
+  "success": true,
+  "data": {
+    "reportId": 43,
+    "message": "Scrape started successfully"
+  }
 }
 ```
 
@@ -676,14 +717,19 @@ GET /api/scraper/status
 **Response:**
 ```json
 {
-  "isRunning": true,
-  "currentReportId": 43,
-  "lastCompletedRun": {
-    "id": 42,
-    "completed_at": "2024-02-15T10:15:23.000Z",
-    "status": "success",
-    "total_cinemas": 2,
-    "total_films_scraped": 45
+  "success": true,
+  "data": {
+    "isRunning": true,
+    "currentSession": {
+      "reportId": 43,
+      "triggerType": "manual",
+      "startedAt": "2024-02-15T10:00:00.000Z"
+    },
+    "latestReport": {
+      "id": 42,
+      "completed_at": "2024-02-15T10:15:23.000Z",
+      "status": "success"
+    }
   }
 }
 ```
@@ -1163,12 +1209,14 @@ https://github.com/PhBassin/allo-scrapper/pkgs/container/allo-scrapper
 
 ```bash
 cd server
-npm run dev           # Start with nodemon (hot-reload)
+npm run dev           # Start with tsx watch (hot-reload)
 npm run build         # Compile TypeScript to dist/
 npm start             # Run compiled server
 npm run db:migrate    # Initialize database schema
 npm run scrape        # Run scraper once
-npm test              # Run tests (if configured)
+npm test              # Run tests in watch mode
+npm run test:run      # Run tests once
+npm run test:coverage # Run tests with coverage
 ```
 
 ### Client Scripts
