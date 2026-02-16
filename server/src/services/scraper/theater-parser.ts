@@ -265,7 +265,7 @@ function parseShowtimes(
       }
 
       showtimes.push({
-        id: showtimeId,
+        id: `${showtimeId}-${showtimeDate}`,
         film_id: filmId,
         cinema_id: cinemaId,
         date: showtimeDate,
