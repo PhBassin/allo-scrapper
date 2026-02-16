@@ -138,6 +138,7 @@ export async function runScraper(progress?: ProgressTracker): Promise<ScrapeSumm
     failed_cinemas: 0,
     total_films: 0,
     total_showtimes: 0,
+    total_dates: 0,
     duration_ms: 0,
     errors: [],
   };
@@ -148,10 +149,12 @@ export async function runScraper(progress?: ProgressTracker): Promise<ScrapeSumm
     console.log(`📋 Loaded ${cinemas.length} cinema(s) from config\n`);
 
     // Déterminer les dates à scraper
-    const dates = getWeekDates();
-    console.log(`📅 Scraping ${dates.length} date(s): ${dates.join(', ')}\n`);
+    const scrapeDays = parseInt(process.env.SCRAPE_DAYS || '7', 10);
+    const dates = getWeekDates(undefined, scrapeDays);
+    console.log(`📅 Scraping ${dates.length} date(s) (SCRAPE_DAYS=${scrapeDays}): ${dates.join(', ')}\n`);
 
     summary.total_cinemas = cinemas.length;
+    summary.total_dates = dates.length;
 
     // Emit started event
     progress?.emit({
@@ -173,23 +176,43 @@ export async function runScraper(progress?: ProgressTracker): Promise<ScrapeSumm
 
       let cinemaFilmsCount = 0;
       let cinemaShowtimesCount = 0;
-      let cinemaFailed = false;
+      let successfulDates = 0;
+
+      console.log(`\n🎬 Processing ${cinema.name} (${cinema.id})...`);
+      console.log(`   Target: ${dates.length} dates (${dates[0]} to ${dates[dates.length - 1]})`);
 
       for (const date of dates) {
+        console.log(`\n   📅 Attempting date: ${date}`);
         try {
           const { filmsCount, showtimesCount } = await scrapeTheater(db, cinema, date, progress);
           cinemaFilmsCount += filmsCount;
           cinemaShowtimesCount += showtimesCount;
+          successfulDates++;
+          console.log(`   ✅ Date ${date} completed: ${filmsCount} films, ${showtimesCount} showtimes`);
           await delay(1000); // Délai entre chaque requête
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error(`❌ Failed to scrape ${cinema.name} for ${date}:`, error);
-          summary.errors.push({ cinema_name: cinema.name, error: errorMessage });
-          cinemaFailed = true;
-          progress?.emit({ type: 'cinema_failed', cinema_name: cinema.name, error: errorMessage });
-          break; // Skip remaining dates for this cinema
+          console.error(`   ❌ Date ${date} failed:`, errorMessage);
+          summary.errors.push({ 
+            cinema_name: cinema.name, 
+            date: date,
+            error: errorMessage 
+          });
+          
+          progress?.emit({ 
+            type: 'date_failed',
+            cinema_name: cinema.name, 
+            date: date,
+            error: errorMessage 
+          });
+          
+          continue; // Skip to next date for this cinema
         }
       }
+
+      const cinemaFailed = successfulDates === 0;
+
+      console.log(`\n📊 ${cinema.name} summary: ${successfulDates}/${dates.length} dates successful, ${cinemaFilmsCount} films, ${cinemaShowtimesCount} showtimes`);
 
       if (!cinemaFailed) {
         summary.successful_cinemas++;
@@ -202,6 +225,7 @@ export async function runScraper(progress?: ProgressTracker): Promise<ScrapeSumm
         });
       } else {
         summary.failed_cinemas++;
+        console.error(`❌ ${cinema.name} failed completely (0/${dates.length} dates successful)`);
       }
     }
 
