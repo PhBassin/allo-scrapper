@@ -5,6 +5,7 @@ export type ProgressEvent =
   | { type: 'started'; total_cinemas: number; total_dates: number }
   | { type: 'cinema_started'; cinema_name: string; cinema_id: string; index: number }
   | { type: 'date_started'; date: string; cinema_name: string }
+  | { type: 'date_failed'; date: string; cinema_name: string; error: string }
   | { type: 'film_started'; film_title: string; film_id: number }
   | { type: 'film_completed'; film_title: string; showtimes_count: number }
   | { type: 'film_failed'; film_title: string; error: string }
@@ -20,8 +21,13 @@ export interface ScrapeSummary {
   failed_cinemas: number;
   total_films: number;
   total_showtimes: number;
+  total_dates: number;
   duration_ms: number;
-  errors: Array<{ cinema_name: string; error: string }>;
+  errors: Array<{ 
+    cinema_name: string; 
+    date?: string;
+    error: string;
+  }>;
 }
 
 // Progress tracker class
