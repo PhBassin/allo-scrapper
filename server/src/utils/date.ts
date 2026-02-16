@@ -16,11 +16,18 @@ export function getCurrentWeekStart(): string {
 // Alias for getCurrentWeekStart
 export const getWeekStart = getCurrentWeekStart;
 
-export function getWeekDates(weekStart?: string): string[] {
+export function getWeekDates(weekStart?: string, numDays: number = 7): string[] {
   const start = weekStart ? new Date(weekStart) : new Date(getCurrentWeekStart());
   
+  // Validation: numDays doit être entre 1 et 14
+  const validatedDays = Math.max(1, Math.min(14, numDays));
+  
+  if (validatedDays !== numDays) {
+    console.warn(`⚠️  SCRAPE_DAYS value ${numDays} out of range. Using ${validatedDays} instead (valid range: 1-14)`);
+  }
+  
   const dates: string[] = [];
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < validatedDays; i++) {
     const date = new Date(start);
     date.setDate(start.getDate() + i);
     dates.push(date.toISOString().split('T')[0]);
