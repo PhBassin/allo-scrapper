@@ -32,7 +32,31 @@ describe('getScrapeDates', () => {
   });
 
   describe('from_today_limited mode', () => {
-    it('should return 7 days when today is Wednesday', () => {
+    it('should return 7 days when today is Sunday (targeting next Tuesday, capped)', () => {
+      vi.setSystemTime(new Date('2026-02-15T10:00:00')); // Sunday
+      const dates = getScrapeDates('from_today_limited');
+      expect(dates).toHaveLength(7);
+      expect(dates[0]).toBe('2026-02-15');
+      expect(dates[6]).toBe('2026-02-21');
+    });
+
+    it('should return 7 days when today is Monday (targeting next Tuesday, capped)', () => {
+      vi.setSystemTime(new Date('2026-02-16T10:00:00')); // Monday
+      const dates = getScrapeDates('from_today_limited');
+      expect(dates).toHaveLength(7);
+      expect(dates[0]).toBe('2026-02-16');
+      expect(dates[6]).toBe('2026-02-22');
+    });
+
+    it('should return 7 days when today is Tuesday (targeting next Tuesday, capped)', () => {
+      vi.setSystemTime(new Date('2026-02-17T10:00:00')); // Tuesday
+      const dates = getScrapeDates('from_today_limited');
+      expect(dates).toHaveLength(7);
+      expect(dates[0]).toBe('2026-02-17');
+      expect(dates[6]).toBe('2026-02-23');
+    });
+
+    it('should return 7 days when today is Wednesday (targeting this week Tuesday)', () => {
       vi.setSystemTime(new Date('2026-02-18T10:00:00')); // Wednesday
       const dates = getScrapeDates('from_today_limited');
       expect(dates).toHaveLength(7);
@@ -46,13 +70,6 @@ describe('getScrapeDates', () => {
       expect(dates).toHaveLength(4);
       expect(dates[0]).toBe('2026-02-21');
       expect(dates[3]).toBe('2026-02-24'); // Tuesday
-    });
-
-    it('should return 1 day when today is Tuesday', () => {
-      vi.setSystemTime(new Date('2026-02-24T10:00:00')); // Tuesday
-      const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(1);
-      expect(dates[0]).toBe('2026-02-24');
     });
 
     it('should respect numDays if it is smaller than days until Tuesday', () => {

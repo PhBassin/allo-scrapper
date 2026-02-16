@@ -73,11 +73,13 @@ export function getScrapeDates(
     // Wednesday (3) -> 6 days (next Tue)
     // Saturday (6) -> 3 days (next Tue)
     
-    // Logic: distance to 2 (Tuesday), if negative add 7
-    let daysUntilTuesday = 2 - dayOfWeek;
-    if (daysUntilTuesday < 0) {
-      daysUntilTuesday += 7;
-    }
+    // Logic: 9 - dayOfWeek finds the Tuesday that ends the cinema week
+    // If Wed(3): 9-3=6 days difference -> 7 days total
+    // If Sat(6): 9-6=3 days difference -> 4 days total
+    // If Sun(0): 9-0=9 days difference -> 10 days total (capped to 7)
+    // If Mon(1): 9-1=8 days difference -> 9 days total (capped to 7)
+    // If Tue(2): 9-2=7 days difference -> 8 days total (capped to 7)
+    const daysUntilTuesday = 9 - dayOfWeek;
     
     const actualDays = Math.min(numDays, daysUntilTuesday + 1);
     return getWeekDates(getTodayDate(), actualDays);
