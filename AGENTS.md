@@ -20,12 +20,14 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 
 ```
 1. ISSUE     → Verify or create a GitHub issue
-2. PLAN      → Break down into atomic tasks
-3. TDD       → Write tests BEFORE code
-4. IMPLEMENT → Minimal code to pass tests
-5. COMMIT    → Atomic commits with Conventional Commits format
-6. DOCS      → Update README if API/features change
-7. PR        → Open Pull Request referencing the issue
+2. BRANCH    → Create a new feature branch from develop
+3. PLAN      → Break down into atomic tasks
+4. TDD       → Write tests BEFORE code
+5. IMPLEMENT → Minimal code to pass tests
+6. COMMIT    → Atomic commits with Conventional Commits format
+7. DOCS      → Update README if API/features change
+8. PR        → Open Pull Request referencing the issue
+9. REVIEW    → Wait for review/approval before merging
 ```
 
 ---
@@ -366,6 +368,7 @@ gh pr checks
 3. **ALWAYS reference issues** in commits/PRs
 4. **ALWAYS update docs** when changing public APIs
 5. **ALWAYS run tests** before committing
+6. **NEVER push directly to develop** - Always create a feature branch, create a PR, and ask for review
 
 ---
 
