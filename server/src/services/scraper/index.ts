@@ -13,7 +13,7 @@ import { fetchTheaterPage, fetchFilmPage, delay } from './http-client.js';
 import { parseTheaterPage } from './theater-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import type { CinemaConfig } from '../../types/scraper.js';
-import { getWeekDates } from '../../utils/date.js';
+import { getScrapeDates, type ScrapeMode } from '../../utils/date.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -128,8 +128,16 @@ async function scrapeTheater(
   }
 }
 
+export interface ScrapeOptions {
+  mode?: ScrapeMode;
+  days?: number;
+}
+
 // Run the full scraper with progress tracking
-export async function runScraper(progress?: ProgressTracker): Promise<ScrapeSummary> {
+export async function runScraper(
+  progress?: ProgressTracker,
+  options?: ScrapeOptions
+): Promise<ScrapeSummary> {
   console.log('🚀 Starting Allo-Scrapper...\n');
 
   const summary: ScrapeSummary = {
@@ -149,9 +157,10 @@ export async function runScraper(progress?: ProgressTracker): Promise<ScrapeSumm
     console.log(`📋 Loaded ${cinemas.length} cinema(s) from config\n`);
 
     // Déterminer les dates à scraper
-    const scrapeDays = parseInt(process.env.SCRAPE_DAYS || '7', 10);
-    const dates = getWeekDates(undefined, scrapeDays);
-    console.log(`📅 Scraping ${dates.length} date(s) (SCRAPE_DAYS=${scrapeDays}): ${dates.join(', ')}\n`);
+    const scrapeMode = options?.mode || (process.env.SCRAPE_MODE as ScrapeMode) || 'weekly';
+    const scrapeDays = options?.days || parseInt(process.env.SCRAPE_DAYS || '7', 10);
+    const dates = getScrapeDates(scrapeMode, scrapeDays);
+    console.log(`📅 Mode: ${scrapeMode}, Scraping ${dates.length} date(s) (SCRAPE_DAYS=${scrapeDays}): ${dates.join(', ')}\n`);
 
     summary.total_cinemas = cinemas.length;
     summary.total_dates = dates.length;
