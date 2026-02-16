@@ -2,6 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { getWeekDates, getCurrentWeekStart, getTodayDate, getScrapeDates } from './date.js';
 
 describe('getScrapeDates', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('should return 7 dates starting from Wednesday in weekly mode', () => {
     const dates = getScrapeDates('weekly', 7);
     expect(dates).toHaveLength(7);
@@ -21,6 +29,43 @@ describe('getScrapeDates', () => {
     expect(dates).toHaveLength(7);
     const firstDate = new Date(dates[0] + 'T00:00:00');
     expect(firstDate.getDay()).toBe(3); // Wednesday
+  });
+
+  describe('from_today_limited mode', () => {
+    it('should return 7 days when today is Wednesday', () => {
+      vi.setSystemTime(new Date('2026-02-18T10:00:00')); // Wednesday
+      const dates = getScrapeDates('from_today_limited');
+      expect(dates).toHaveLength(7);
+      expect(dates[0]).toBe('2026-02-18');
+      expect(dates[6]).toBe('2026-02-24'); // Tuesday
+    });
+
+    it('should return 4 days when today is Saturday', () => {
+      vi.setSystemTime(new Date('2026-02-21T10:00:00')); // Saturday
+      const dates = getScrapeDates('from_today_limited');
+      expect(dates).toHaveLength(4);
+      expect(dates[0]).toBe('2026-02-21');
+      expect(dates[3]).toBe('2026-02-24'); // Tuesday
+    });
+
+    it('should return 1 day when today is Tuesday', () => {
+      vi.setSystemTime(new Date('2026-02-24T10:00:00')); // Tuesday
+      const dates = getScrapeDates('from_today_limited');
+      expect(dates).toHaveLength(1);
+      expect(dates[0]).toBe('2026-02-24');
+    });
+
+    it('should respect numDays if it is smaller than days until Tuesday', () => {
+      vi.setSystemTime(new Date('2026-02-18T10:00:00')); // Wednesday
+      const dates = getScrapeDates('from_today_limited', 3);
+      expect(dates).toHaveLength(3);
+      expect(dates[0]).toBe('2026-02-18');
+      expect(dates[2]).toBe('2026-02-20');
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
   });
 });
 

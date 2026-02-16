@@ -766,7 +766,7 @@ cp .env.example .env
 | `SCRAPE_CRON_SCHEDULE` | Cron expression for scheduled scraping | `0 6 * * 1` | `0 3 * * *` |
 | `SCRAPE_DELAY_MS` | Delay between cinema scrapes (ms) | `2000` | `3000` |
 | `SCRAPE_DAYS` | Number of days to scrape (1-14) | `7` | `14` |
-| `SCRAPE_MODE` | Start date: `weekly` (Wed) or `from_today` | `weekly` | `from_today` |
+| `SCRAPE_MODE` | Start date: `weekly` (Wed), `from_today`, or `from_today_limited` | `weekly` | `from_today_limited` |
 | `NODE_ENV` | Environment mode | `development` | `production` |
 | `LOG_LEVEL` | Logging level | `info` | `debug` |
 
