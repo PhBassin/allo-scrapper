@@ -359,6 +359,101 @@ export async function getWeeklyFilms(
   return Array.from(filmsMap.values());
 }
 
+// Récupérer les séances d'un film pour une semaine donnée, groupées par cinéma
+export async function getShowtimesByFilmAndWeek(
+  db: DB,
+  filmId: number,
+  weekStart: string
+): Promise<Array<Showtime & { cinema: Cinema }>> {
+  const result = await db.query(
+    `
+      SELECT 
+        s.*,
+        c.id as cinema_id,
+        c.name as cinema_name,
+        c.address as cinema_address,
+        c.postal_code,
+        c.city,
+        c.screen_count,
+        c.image_url as cinema_image_url
+      FROM showtimes s
+      JOIN cinemas c ON s.cinema_id = c.id
+      WHERE s.film_id = $1 AND s.week_start = $2
+      ORDER BY s.date, s.time, c.name
+    `,
+    [filmId, weekStart]
+  );
+
+  return result.rows.map((row: any) => ({
+    id: row.id,
+    film_id: row.film_id,
+    cinema_id: row.cinema_id,
+    date: row.date,
+    time: row.time,
+    datetime_iso: row.datetime_iso,
+    version: row.version,
+    format: row.format,
+    experiences: JSON.parse(row.experiences || '[]'),
+    week_start: row.week_start,
+    cinema: {
+      id: row.cinema_id,
+      name: row.cinema_name,
+      address: row.cinema_address,
+      postal_code: row.postal_code,
+      city: row.city,
+      screen_count: row.screen_count,
+      image_url: row.cinema_image_url,
+    },
+  }));
+}
+
+// Récupérer toutes les séances de la semaine pour tous les films
+export async function getWeeklyShowtimes(
+  db: DB,
+  weekStart: string
+): Promise<Array<Showtime & { cinema: Cinema }>> {
+  const result = await db.query(
+    `
+      SELECT 
+        s.*,
+        c.id as cinema_id,
+        c.name as cinema_name,
+        c.address as cinema_address,
+        c.postal_code,
+        c.city,
+        c.screen_count,
+        c.image_url as cinema_image_url
+      FROM showtimes s
+      JOIN cinemas c ON s.cinema_id = c.id
+      WHERE s.week_start = $1
+      ORDER BY s.date, s.time, c.name
+    `,
+    [weekStart]
+  );
+
+  return result.rows.map((row: any) => ({
+    id: row.id,
+    film_id: row.film_id,
+    cinema_id: row.cinema_id,
+    date: row.date,
+    time: row.time,
+    datetime_iso: row.datetime_iso,
+    version: row.version,
+    format: row.format,
+    experiences: JSON.parse(row.experiences || '[]'),
+    week_start: row.week_start,
+    cinema: {
+      id: row.cinema_id,
+      name: row.cinema_name,
+      address: row.cinema_address,
+      postal_code: row.postal_code,
+      city: row.city,
+      screen_count: row.screen_count,
+      image_url: row.cinema_image_url,
+    },
+  }));
+}
+
 // Supprimer les séances passées (optionnel, pour cleanup)
 export async function deleteOldShowtimes(db: DB, beforeDate: string): Promise<void> {
   const result = await db.query(

@@ -73,6 +73,14 @@ export interface FilmShowtimeData {
   is_new_this_week: boolean;
 }
 
+export interface CinemaWithShowtimes extends Cinema {
+  showtimes: Showtime[];
+}
+
+export interface FilmWithShowtimes extends Film {
+  cinemas: CinemaWithShowtimes[];
+}
+
 // Data parsed from film details page
 export interface FilmPageData {
   duration_minutes?: number;

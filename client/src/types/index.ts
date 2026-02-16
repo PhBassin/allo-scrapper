@@ -66,6 +66,14 @@ export interface FilmWithCinemas extends Film {
   cinemas: Cinema[];
 }
 
+export interface CinemaWithShowtimes extends Cinema {
+  showtimes: Showtime[];
+}
+
+export interface FilmWithShowtimes extends Film {
+  cinemas: CinemaWithShowtimes[];
+}
+
 // Scrape Report types
 export interface ScrapeReport {
   id: number;
