@@ -1342,50 +1342,36 @@ docker compose exec web npm run db:migrate
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please follow these guidelines:
+Contributions are welcome! Please read our **[Contributing Guide](./CONTRIBUTING.md)** for detailed instructions.
 
-### Development Workflow
+### Quick Start
 
-1. **Fork the repository**
-2. **Create a feature branch:**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-3. **Make your changes**
-4. **Test your changes:**
-   ```bash
-   npm run dev
-   # Verify functionality in browser
-   ```
-5. **Commit with clear messages:**
-   ```bash
-   git commit -m "feat: add new cinema filtering feature"
-   ```
-6. **Push to your fork:**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-7. **Open a Pull Request**
+1. **Create an issue** before starting work
+2. **Write tests first** (TDD is mandatory)
+3. **Use atomic commits** with [Conventional Commits](https://www.conventionalcommits.org/) format
+4. **Update documentation** if changing APIs
+5. **Open a Pull Request** referencing the issue
 
-### Commit Message Convention
+### Commit Format
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
+```
+<type>(<scope>): <description>
+```
 
-- `feat:` New feature
-- `fix:` Bug fix
-- `docs:` Documentation changes
-- `style:` Code style changes (formatting, no logic change)
-- `refactor:` Code refactoring
-- `test:` Adding or updating tests
-- `chore:` Maintenance tasks
+**Types:** `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `style`, `perf`, `ci`, `build`
 
-### Code Style
+**Examples:**
+```bash
+feat(scraper): add support for new cinema chain
+fix(api): handle missing film data gracefully
+test(parser): add edge cases for empty HTML
+```
 
-- Use TypeScript strict mode
-- Follow existing code formatting (Prettier/ESLint)
-- Write meaningful variable and function names
-- Add comments for complex logic
-- Update documentation for API changes
+### Resources
+
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Full contributor guidelines
+- **[AGENTS.md](./AGENTS.md)** - Instructions for AI coding agents
+- **[server/tests/README.md](./server/tests/README.md)** - Testing documentation
 
 ---
 
