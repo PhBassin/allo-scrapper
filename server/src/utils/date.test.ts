@@ -1,5 +1,28 @@
-import { describe, it, expect } from 'vitest';
-import { getWeekDates, getCurrentWeekStart, getTodayDate } from './date.js';
+import { describe, it, expect, vi } from 'vitest';
+import { getWeekDates, getCurrentWeekStart, getTodayDate, getScrapeDates } from './date.js';
+
+describe('getScrapeDates', () => {
+  it('should return 7 dates starting from Wednesday in weekly mode', () => {
+    const dates = getScrapeDates('weekly', 7);
+    expect(dates).toHaveLength(7);
+    const firstDate = new Date(dates[0] + 'T00:00:00');
+    expect(firstDate.getDay()).toBe(3); // Wednesday
+  });
+
+  it('should return 3 dates starting from today in from_today mode', () => {
+    const today = getTodayDate();
+    const dates = getScrapeDates('from_today', 3);
+    expect(dates).toHaveLength(3);
+    expect(dates[0]).toBe(today);
+  });
+
+  it('should default to weekly mode and 7 days', () => {
+    const dates = getScrapeDates();
+    expect(dates).toHaveLength(7);
+    const firstDate = new Date(dates[0] + 'T00:00:00');
+    expect(firstDate.getDay()).toBe(3); // Wednesday
+  });
+});
 
 describe('getWeekDates', () => {
   it('should return exactly 7 dates by default', () => {

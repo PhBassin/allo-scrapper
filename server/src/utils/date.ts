@@ -50,6 +50,24 @@ export function getTodayDate(): string {
   return today.toISOString().split('T')[0];
 }
 
+export type ScrapeMode = 'weekly' | 'from_today';
+
+/**
+ * Get dates to scrape based on mode and number of days.
+ * - 'weekly': Start from current Wednesday
+ * - 'from_today': Start from today's date
+ */
+export function getScrapeDates(
+  mode: ScrapeMode = 'weekly',
+  numDays: number = 7
+): string[] {
+  const startDate = mode === 'from_today'
+    ? getTodayDate()
+    : getCurrentWeekStart();
+
+  return getWeekDates(startDate, numDays);
+}
+
 /**
  * Parse a YYYY-MM-DD string as a local date (not UTC).
  * This prevents timezone issues where dates can be off by one day.
