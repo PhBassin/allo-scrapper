@@ -50,17 +50,39 @@ export function getTodayDate(): string {
   return today.toISOString().split('T')[0];
 }
 
-export type ScrapeMode = 'weekly' | 'from_today';
+export type ScrapeMode = 'weekly' | 'from_today' | 'from_today_limited';
 
 /**
  * Get dates to scrape based on mode and number of days.
- * - 'weekly': Start from current Wednesday
- * - 'from_today': Start from today's date
+ * - 'weekly': Start from current Wednesday, 7 days
+ * - 'from_today': Start from today's date, n days
+ * - 'from_today_limited': Start from today until Tuesday, max 7 days
  */
 export function getScrapeDates(
   mode: ScrapeMode = 'weekly',
   numDays: number = 7
 ): string[] {
+  if (mode === 'from_today_limited') {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday...
+    
+    // Calculate days until next Tuesday (end of cinema week)
+    // Sunday (0) -> 2 days (Tue)
+    // Monday (1) -> 1 day (Tue)
+    // Tuesday (2) -> 0 days (wait, if today is Tuesday, we want today, so 1 day total)
+    // Wednesday (3) -> 6 days (next Tue)
+    // Saturday (6) -> 3 days (next Tue)
+    
+    // Logic: distance to 2 (Tuesday), if negative add 7
+    let daysUntilTuesday = 2 - dayOfWeek;
+    if (daysUntilTuesday < 0) {
+      daysUntilTuesday += 7;
+    }
+    
+    const actualDays = Math.min(numDays, daysUntilTuesday + 1);
+    return getWeekDates(getTodayDate(), actualDays);
+  }
+
   const startDate = mode === 'from_today'
     ? getTodayDate()
     : getCurrentWeekStart();
