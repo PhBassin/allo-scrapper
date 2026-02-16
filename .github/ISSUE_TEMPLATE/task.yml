@@ -1,0 +1,97 @@
+name: Task
+description: Technical task, chore, or refactoring work
+title: "[Task]: "
+labels: ["chore"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for technical tasks, maintenance work, refactoring, or other chores that aren't bugs or new features.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Task Description
+      description: Describe what needs to be done.
+      placeholder: We need to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this task needed?
+      placeholder: This is needed because...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Task Type
+      description: What kind of task is this?
+      options:
+        - Refactoring
+        - Dependency Update
+        - Configuration Change
+        - Documentation
+        - Performance Optimization
+        - Code Cleanup
+        - CI/CD
+        - Infrastructure
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the application is affected?
+      options:
+        - Scraper
+        - API
+        - Frontend (React)
+        - Database
+        - Docker/Deployment
+        - CI/CD
+        - Multiple Components
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How will we know this task is complete?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] All tests pass
+
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Requirements
+      description: Check all that apply
+      options:
+        - label: Tests need to be added/updated
+        - label: Documentation needs to be updated
+        - label: This is a breaking change
+        - label: This requires database migration
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Implementation Notes
+      description: Any technical notes or considerations for implementation.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched for existing issues related to this task
+          required: true
