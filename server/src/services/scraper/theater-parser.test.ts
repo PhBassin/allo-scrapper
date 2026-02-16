@@ -297,4 +297,19 @@ describe('parseTheaterPage - Data Validation', () => {
       });
     });
   });
+
+  it('should generate unique showtime IDs that include the date', () => {
+    // Showtime IDs must include the date to be unique per day
+    // Format: <allocine_showtime_id>-<YYYY-MM-DD>
+    [c0089Result, w7504Result, c0072Result].forEach((result) => {
+      result.films.forEach((filmData) => {
+        filmData.showtimes.forEach((showtime) => {
+          // ID should contain the date to ensure uniqueness across days
+          expect(showtime.id).toContain(showtime.date);
+          // ID format: <numeric_id>-<date>
+          expect(showtime.id).toMatch(/^\d+-\d{4}-\d{2}-\d{2}$/);
+        });
+      });
+    });
+  });
 });
