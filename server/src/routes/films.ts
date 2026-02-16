@@ -4,7 +4,7 @@ import { getWeeklyFilms, getFilm, getShowtimesByFilmAndWeek, getWeeklyShowtimes 
 import { getWeekStart } from '../utils/date.js';
 import { groupShowtimesByCinema } from '../utils/showtimes.js';
 import type { ApiResponse } from '../types/api.js';
-import type { FilmWithShowtimes, CinemaWithShowtimes, Showtime, Cinema } from '../types/scraper.js';
+import type { FilmWithShowtimes, Showtime, Cinema } from '../types/scraper.js';
 
 const router = express.Router();
 
