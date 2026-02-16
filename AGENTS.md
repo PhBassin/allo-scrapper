@@ -32,24 +32,37 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 
 ## Step 1: Issue First
 
+**CRITICAL: Every PR MUST be linked to an issue. No exceptions.**
+
 Before writing any code:
 
-1. **Check for existing issue** related to the task
+1. **Search for existing issues** related to the task
 2. **Create an issue** if none exists using the appropriate template:
    - `bug_report` - For bugs
    - `feature_request` - For new features
    - `task` - For technical tasks/chores
+3. **Note the issue number** - you will need it for commits and the PR
 
-**Command to check issues:**
+**Command to search issues:**
 ```bash
 gh issue list --state open
+gh issue list --state all --search "keyword"
 gh issue view <number>
 ```
 
 **Command to create issue:**
 ```bash
+# Bug
+gh issue create --title "fix: description" --body "Details..." --label bug
+
+# Feature
 gh issue create --title "feat: description" --body "Details..." --label enhancement
+
+# Task
+gh issue create --title "chore: description" --body "Details..." --label task
 ```
+
+**Important:** Always verify the issue exists before creating a PR. If you reference a non-existent issue, the PR will not be properly linked.
 
 ---
 
