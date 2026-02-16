@@ -2,7 +2,6 @@ import axios from 'axios';
 import type {
   ApiResponse,
   FilmWithShowtimes,
-  Film,
   Cinema,
   ShowtimeWithFilm,
   ScrapeReport,
@@ -10,7 +9,15 @@ import type {
   ScrapeStatus,
 } from '../types';
 
-// ...
+// Create axios instance
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 // ============================================================================
 // FILMS API
@@ -26,16 +33,6 @@ export async function getWeeklyFilms(): Promise<{ films: FilmWithShowtimes[]; we
 
 export async function getFilmById(id: number): Promise<FilmWithShowtimes> {
   const response = await api.get<ApiResponse<FilmWithShowtimes>>(`/films/${id}`);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch film');
-  }
-  return response.data.data;
-}
-  return response.data.data;
-}
-
-export async function getFilmById(id: number): Promise<Film> {
-  const response = await api.get<ApiResponse<Film>>(`/films/${id}`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch film');
   }
