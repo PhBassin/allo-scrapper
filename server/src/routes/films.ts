@@ -2,28 +2,11 @@ import express from 'express';
 import { db } from '../db/client.js';
 import { getWeeklyFilms, getFilm, getShowtimesByFilmAndWeek, getWeeklyShowtimes } from '../db/queries.js';
 import { getWeekStart } from '../utils/date.js';
+import { groupShowtimesByCinema } from '../utils/showtimes.js';
 import type { ApiResponse } from '../types/api.js';
 import type { FilmWithShowtimes, CinemaWithShowtimes, Showtime, Cinema } from '../types/scraper.js';
 
 const router = express.Router();
-
-// Helper to group showtimes by cinema
-function groupShowtimesByCinema(showtimes: Array<Showtime & { cinema: Cinema }>): CinemaWithShowtimes[] {
-  const cinemaMap = new Map<string, CinemaWithShowtimes>();
-
-  for (const s of showtimes) {
-    if (!cinemaMap.has(s.cinema_id)) {
-      cinemaMap.set(s.cinema_id, {
-        ...s.cinema,
-        showtimes: []
-      });
-    }
-    const { cinema: _cinema, ...showtimeOnly } = s;
-    cinemaMap.get(s.cinema_id)!.showtimes.push(showtimeOnly as Showtime);
-  }
-
-  return Array.from(cinemaMap.values());
-}
 
 // GET /api/films - Get weekly films
 router.get('/', async (_req, res) => {
