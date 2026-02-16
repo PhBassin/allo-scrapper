@@ -22,7 +22,7 @@ services:
 
   # Production web server (serves both API and frontend)
   web:
-    image: ghcr.io/phbassin/allo-scrapper:latest
+    build: .
     container_name: allo-scrapper-web
     pull_policy: always
     restart: unless-stopped
@@ -39,6 +39,8 @@ services:
       TZ: ${TZ:-Europe/Paris}
       SCRAPE_CRON_SCHEDULE: ${SCRAPE_CRON_SCHEDULE:-0 8 * * 3}
       SCRAPE_DELAY_MS: ${SCRAPE_DELAY_MS:-1000}
+      SCRAPE_MODE: ${SCRAPE_MODE:-weekly}
+      SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
     depends_on:
       db:
         condition: service_healthy
