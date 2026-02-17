@@ -99,7 +99,7 @@ export default function CinemaShowtimes({ cinemas, initialDate }: CinemaShowtime
               </div>
               
               <div className="pt-3 border-t border-gray-50">
-                <ShowtimeList showtimes={dailyShowtimes} />
+                <ShowtimeList showtimes={dailyShowtimes} cinemaId={cinema.id} />
               </div>
             </div>
           );
