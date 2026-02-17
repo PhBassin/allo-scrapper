@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { subscribeToProgress } from '../api/client';
 import type { ProgressEvent } from '../types';
 
@@ -15,6 +15,13 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void) {
     isConnected: false,
   });
 
+  // Use ref to keep stable callback reference and avoid re-subscribing
+  const onCompleteRef = useRef(onComplete);
+  
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
   useEffect(() => {
     // Subscribe to progress events
     const unsubscribe = subscribeToProgress(
@@ -28,9 +35,9 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void) {
         }));
 
         if (event.type === 'completed') {
-          onComplete?.(true);
+          onCompleteRef.current?.(true);
         } else if (event.type === 'failed') {
-          onComplete?.(false);
+          onCompleteRef.current?.(false);
         }
       },
       (error: Error) => {

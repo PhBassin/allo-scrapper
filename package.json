@@ -29,7 +29,11 @@
     "client:preview": "cd client && npm run preview",
     "install:all": "npm ci && cd server && npm ci && cd ../client && npm ci",
     "clean": "rm -rf server/dist client/dist server/node_modules client/node_modules node_modules",
-    "test": "cd server && npm test"
+    "test": "cd server && npm test",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
+    "e2e:ui": "playwright test --ui",
+    "integration-test": "./scripts/integration-test.sh"
   },
   "keywords": [
     "cinema",
@@ -46,5 +50,8 @@
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
   }
 }

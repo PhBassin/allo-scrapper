@@ -25,9 +25,10 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 4. TDD       → Write tests BEFORE code
 5. IMPLEMENT → Minimal code to pass tests
 6. COMMIT    → Atomic commits with Conventional Commits format
-7. DOCS      → Update README if API/features change
-8. PR        → Open Pull Request referencing the issue
-9. REVIEW    → Wait for review/approval before merging
+7. E2E       → Run integration tests (E2E) if frontend changes
+8. DOCS      → Update README if API/features change
+9. PR        → Open Pull Request referencing the issue
+10. REVIEW   → Wait for review/approval before merging
 ```
 
 ---
@@ -211,7 +212,66 @@ For a typical feature:
 
 ---
 
-## Step 6: Documentation
+## Step 7: Integration Testing (E2E)
+
+**When frontend changes are made, run E2E tests to verify end-to-end functionality.**
+
+### What Requires E2E Testing
+
+Run Playwright E2E tests when you modify:
+- React components that interact with the backend API
+- User workflows (button clicks, form submissions, navigation)
+- Real-time features (SSE, WebSockets, live updates)
+- Critical user paths (scraping, viewing schedules, reports)
+
+### E2E Test Commands
+
+```bash
+# Full integration test (starts Docker, runs tests, cleans up)
+./scripts/integration-test.sh
+
+# Or manually:
+# 1. Ensure Docker is running
+docker compose up --build -d
+
+# 2. Wait for services to be ready
+sleep 10
+
+# 3. Run Playwright tests
+npx playwright test
+
+# 4. View test report (if failures)
+npx playwright show-report
+```
+
+### E2E Test Guidelines
+
+1. **Use real scrapes, not mocks** - Integration tests verify actual backend behavior
+2. **Run tests sequentially** - Config already set to `workers: 1` to avoid scrape conflicts
+3. **Use data-testid selectors** - More stable than text-based selectors
+4. **Handle timing** - Scrapes may complete quickly; use appropriate timeouts
+5. **Clean state** - Restart Docker between test sessions if needed: `docker compose restart web`
+
+### Known Limitations
+
+- Scrapes complete quickly in Docker, so some timing-sensitive tests may need adjustments
+- Tests work best when run individually or after a clean Docker restart
+- If tests interfere with each other, restart services: `docker compose restart web`
+
+### Test Locations
+
+```
+e2e/                        # Playwright E2E tests
+├── scrape-progress.spec.ts # Progress window tests
+└── ...                     # Future E2E tests
+
+playwright.config.ts        # Playwright configuration
+scripts/integration-test.sh # Automated full-stack test script
+```
+
+---
+
+## Step 8: Documentation
 
 ### Update README.md When:
 
@@ -227,7 +287,7 @@ For a typical feature:
 
 ---
 
-## Step 7: Pull Request
+## Step 9: Pull Request
 
 ### Create PR
 
