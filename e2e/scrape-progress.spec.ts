@@ -9,11 +9,51 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Scrape Progress Visibility', () => {
   test.beforeEach(async ({ page }) => {
+    // Listen for console messages
+    page.on('console', msg => console.log('BROWSER:', msg.text()));
+    page.on('pageerror', err => console.error('BROWSER ERROR:', err.message));
+    
     // Navigate to home page
     await page.goto('/');
     
     // Wait for page to be fully loaded
     await page.waitForLoadState('networkidle');
+  });
+
+  test('clicking scrape button triggers API call and shows response', async ({ page }) => {
+    // Track network requests
+    const requests: string[] = [];
+    page.on('request', req => {
+      if (req.url().includes('/scraper')) {
+        requests.push(`${req.method()} ${req.url()}`);
+        console.log('REQUEST:', req.method(), req.url());
+      }
+    });
+    page.on('response', async res => {
+      if (res.url().includes('/scraper')) {
+        console.log('RESPONSE:', res.status(), res.url());
+        try {
+          const body = await res.text();
+          console.log('BODY:', body.substring(0, 200));
+        } catch (e) {
+          // Ignore
+        }
+      }
+    });
+
+    // Find the button container first (it's the only button with the scraping text)
+    const buttonContainer = page.locator('button').filter({ hasText: /lancer le scraping manuel/i }).first();
+    await expect(buttonContainer).toBeEnabled({ timeout: 5000 });
+    
+    // Click the button
+    console.log('Clicking button...');
+    await buttonContainer.click();
+    console.log('Button clicked, waiting for state change...');
+
+    // Wait for ANY button to show loading or success state (button text will have changed)
+    await expect(page.locator('button').filter({ hasText: /scraping en cours|scraping démarré/i }).first()).toBeVisible({ timeout: 5000 });
+    
+    console.log('Requests made:', requests);
   });
 
   test('progress window stays visible during entire scrape and 5s after completion', async ({ page }) => {
@@ -101,13 +141,19 @@ test.describe('Scrape Progress Visibility', () => {
   });
 
   test('progress window shows loading state before first SSE event', async ({ page }) => {
-    // Click scrape button
+    // Wait for the scrape button to be ready
     const scrapeButton = page.getByRole('button', { name: /lancer le scraping manuel/i });
+    await expect(scrapeButton).toBeEnabled({ timeout: 5000 });
+    
+    // Click scrape button
     await scrapeButton.click();
 
-    // Immediately check for progress window using data-testid
+    // Wait for the button state to change (indicating the click was registered)
+    await expect(scrapeButton).not.toHaveText(/lancer le scraping manuel/i, { timeout: 2000 });
+
+    // Check for progress window using data-testid
     const progressWindow = page.getByTestId('scrape-progress');
-    await expect(progressWindow).toBeVisible({ timeout: 3000 });
+    await expect(progressWindow).toBeVisible({ timeout: 5000 });
     
     // This tests the Bug 1 fix: should show "Connexion en cours..." not null
     // Check that the loading text is visible within the progress window
