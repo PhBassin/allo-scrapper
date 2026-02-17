@@ -11,7 +11,7 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
   // Show loading state while connecting or waiting for first event
   if (!isConnected || events.length === 0) {
     return (
-      <div className="border-2 rounded-lg p-6 shadow-lg bg-white border-primary">
+      <div className="border-2 rounded-lg p-6 shadow-lg bg-white border-primary" data-testid="scrape-progress">
         <div className="flex items-center gap-3">
           <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
           <h3 className="text-lg font-bold text-gray-900">Connexion en cours...</h3>
@@ -48,7 +48,7 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
   const hasFailed = latestEvent?.type === 'failed';
 
   return (
-    <div className={`border-2 rounded-lg p-6 shadow-lg ${isCompleted ? 'bg-green-50 border-green-500' : hasFailed ? 'bg-red-50 border-red-500' : 'bg-white border-primary'}`}>
+    <div className={`border-2 rounded-lg p-6 shadow-lg ${isCompleted ? 'bg-green-50 border-green-500' : hasFailed ? 'bg-red-50 border-red-500' : 'bg-white border-primary'}`} data-testid="scrape-progress">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         {isCompleted ? (

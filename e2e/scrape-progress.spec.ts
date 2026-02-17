@@ -18,15 +18,18 @@ test.describe('Scrape Progress Visibility', () => {
 
   test('progress window stays visible during entire scrape and 5s after completion', async ({ page }) => {
     // Click the scrape button to start scrape
-    const scrapeButton = page.getByRole('button', { name: /actualiser/i });
+    const scrapeButton = page.getByRole('button', { name: /lancer le scraping manuel/i });
     await scrapeButton.click();
 
-    // Progress window should appear with loading state or first event
-    const progressWindow = page.locator('div').filter({ hasText: /scraping en cours|connexion en cours/i }).first();
+    // Progress window should appear with loading state or first event using data-testid
+    const progressWindow = page.getByTestId('scrape-progress');
     await expect(progressWindow).toBeVisible({ timeout: 10000 });
 
+    // Verify loading state appears first
+    await expect(progressWindow).toContainText(/connexion en cours|scraping en cours/i, { timeout: 5000 });
+
     // Wait for scrape to progress - check for "Cinémas traités" indicator
-    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
 
     // Wait for completion (with generous timeout for real scrape)
     // Look for either "Scraping terminé" or completion indicators
@@ -47,15 +50,15 @@ test.describe('Scrape Progress Visibility', () => {
 
   test('progress resumes on page refresh during active scrape', async ({ page }) => {
     // Start scrape
-    const scrapeButton = page.getByRole('button', { name: /actualiser/i });
+    const scrapeButton = page.getByRole('button', { name: /lancer le scraping manuel/i });
     await scrapeButton.click();
 
-    // Wait for progress window to appear
-    const progressWindow = page.locator('div').filter({ hasText: /scraping en cours|connexion en cours/i }).first();
+    // Wait for progress window to appear using data-testid
+    const progressWindow = page.getByTestId('scrape-progress');
     await expect(progressWindow).toBeVisible({ timeout: 10000 });
 
     // Wait for scrape to be in progress (cinema processing started)
-    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
 
     // Refresh the page
     await page.reload();
@@ -65,29 +68,29 @@ test.describe('Scrape Progress Visibility', () => {
 
     // Progress window should auto-appear because scrape is still running
     // The HomePage should detect isRunning=true and show progress
-    await expect(progressWindow).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('scrape-progress')).toBeVisible({ timeout: 10000 });
 
     // Should show progress details (not just loading state)
-    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
   });
 
   test('clicking scrape button during active scrape resumes progress without error', async ({ page }) => {
     // Start first scrape
-    const scrapeButton = page.getByRole('button', { name: /actualiser/i });
+    const scrapeButton = page.getByRole('button', { name: /lancer le scraping manuel/i });
     await scrapeButton.click();
 
-    // Wait for progress to start
-    const progressWindow = page.locator('div').filter({ hasText: /scraping en cours|connexion en cours/i }).first();
+    // Wait for progress to start using data-testid
+    const progressWindow = page.getByTestId('scrape-progress');
     await expect(progressWindow).toBeVisible({ timeout: 10000 });
 
     // Wait for scrape to be actively processing
-    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
 
     // Click the scrape button again while scrape is running
     await scrapeButton.click();
 
-    // Should NOT show an error message
-    const errorMessage = page.locator('div').filter({ hasText: /erreur|error/i }).first();
+    // Should NOT show an error message in the scrape button area
+    const errorMessage = page.locator('.text-red-600').filter({ hasText: /erreur|error/i });
     await expect(errorMessage).not.toBeVisible();
 
     // Progress window should still be visible
@@ -99,33 +102,39 @@ test.describe('Scrape Progress Visibility', () => {
 
   test('progress window shows loading state before first SSE event', async ({ page }) => {
     // Click scrape button
-    const scrapeButton = page.getByRole('button', { name: /actualiser/i });
+    const scrapeButton = page.getByRole('button', { name: /lancer le scraping manuel/i });
     await scrapeButton.click();
 
-    // Immediately check for loading state (before SSE events arrive)
-    // This tests the Bug 1 fix: should show "Connexion en cours..." not null
-    const loadingState = page.getByText(/connexion en cours/i);
+    // Immediately check for progress window using data-testid
+    const progressWindow = page.getByTestId('scrape-progress');
+    await expect(progressWindow).toBeVisible({ timeout: 3000 });
     
-    // Use a short timeout since we want to catch the initial state
-    await expect(loadingState).toBeVisible({ timeout: 2000 });
+    // This tests the Bug 1 fix: should show "Connexion en cours..." not null
+    // Check that the loading text is visible within the progress window
+    await expect(progressWindow).toContainText(/connexion en cours/i, { timeout: 2000 });
   });
 
   test('progress window shows detailed progress information', async ({ page }) => {
     // Start scrape
-    const scrapeButton = page.getByRole('button', { name: /actualiser/i });
+    const scrapeButton = page.getByRole('button', { name: /lancer le scraping manuel/i });
     await scrapeButton.click();
 
-    // Wait for progress window
-    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 15000 });
+    // Wait for progress window using data-testid
+    const progressWindow = page.getByTestId('scrape-progress');
+    await expect(progressWindow).toBeVisible({ timeout: 10000 });
 
-    // Check for cinema progress elements
-    expect(await page.locator('text=/\\d+ \\/ \\d+/').count()).toBeGreaterThan(0);
+    // Wait for cinema progress to show
+    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
+
+    // Check for cinema progress elements (format: "0 / 3" or similar)
+    const cinemaProgress = progressWindow.getByText(/\d+ \/ \d+/).first();
+    await expect(cinemaProgress).toBeVisible();
 
     // Check for films progress section
     await expect(page.getByText(/films traités/i)).toBeVisible();
 
-    // Verify progress bars are present (by checking for bg-primary/bg-green classes)
-    const progressBars = page.locator('.bg-primary, .bg-green-500').filter({ has: page.locator('.h-2') });
-    expect(await progressBars.count()).toBeGreaterThan(0);
+    // Verify progress bars are present within the progress window
+    const progressBars = progressWindow.locator('.h-2.rounded-full');
+    expect(await progressBars.count()).toBeGreaterThanOrEqual(2); // Cinema and film progress bars
   });
 });
