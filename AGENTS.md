@@ -29,6 +29,7 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 8. DOCS      → Update README if API/features change
 9. PR        → Open Pull Request referencing the issue
 10. REVIEW   → Wait for review/approval before merging
+11. CLEANUP  → Switch back to develop and pull latest changes after PR is merged
 ```
 
 ---
