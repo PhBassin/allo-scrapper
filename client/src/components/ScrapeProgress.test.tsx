@@ -56,9 +56,9 @@ describe('ScrapeProgress', () => {
       isConnected: true,
       events: [
         { type: 'started', total_cinemas: 3, total_dates: 7 },
-        { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois' },
+        { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois', index: 0 },
       ],
-      latestEvent: { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois' },
+      latestEvent: { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois', index: 0 },
       error: undefined,
     };
     mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
@@ -76,11 +76,27 @@ describe('ScrapeProgress', () => {
       isConnected: true,
       events: [
         { type: 'started', total_cinemas: 2, total_dates: 7 },
-        { type: 'cinema_completed', cinema_id: 'W7504', cinema_name: 'Épée de Bois', films_count: 10, showtimes_count: 50 },
-        { type: 'cinema_completed', cinema_id: 'C0072', cinema_name: 'Grand Action', films_count: 15, showtimes_count: 75 },
-        { type: 'completed', summary: { total_films: 25, total_showtimes: 125 } },
+        { type: 'cinema_completed', cinema_name: 'Épée de Bois', total_films: 10 },
+        { type: 'cinema_completed', cinema_name: 'Grand Action', total_films: 15 },
+        { type: 'completed', summary: { 
+          total_cinemas: 2, 
+          successful_cinemas: 2, 
+          failed_cinemas: 0, 
+          total_films: 25, 
+          total_showtimes: 125, 
+          duration_ms: 30000, 
+          errors: [] 
+        }},
       ],
-      latestEvent: { type: 'completed', summary: { total_films: 25, total_showtimes: 125 } },
+      latestEvent: { type: 'completed', summary: { 
+        total_cinemas: 2, 
+        successful_cinemas: 2, 
+        failed_cinemas: 0, 
+        total_films: 25, 
+        total_showtimes: 125, 
+        duration_ms: 30000, 
+        errors: [] 
+      }},
       error: undefined,
     };
     mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
@@ -143,9 +159,9 @@ describe('ScrapeProgress', () => {
       isConnected: true,
       events: [
         { type: 'started', total_cinemas: 3, total_dates: 7 },
-        { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois' },
+        { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois', index: 0 },
       ],
-      latestEvent: { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois' },
+      latestEvent: { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois', index: 0 },
       error: undefined,
     };
     mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
