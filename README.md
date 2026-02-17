@@ -26,6 +26,7 @@
 - [Docker Deployment](#-docker-deployment)
 - [CI/CD Pipeline](#-cicd-pipeline)
 - [Available Scripts](#-available-scripts)
+- [Testing](#-testing)
 - [Troubleshooting](#-troubleshooting)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -1228,6 +1229,70 @@ npm run build         # Build for production (outputs to dist/)
 npm run lint          # Run ESLint
 npm run preview       # Preview production build
 ```
+
+---
+
+## 🧪 Testing
+
+### Unit Tests
+
+The server includes comprehensive unit tests using Vitest.
+
+```bash
+# Run unit tests in watch mode
+cd server && npm test
+
+# Run tests once
+npm run test:run
+
+# Generate coverage report
+npm run test:coverage
+```
+
+**Coverage targets:**
+- Lines: ≥ 80%
+- Functions: ≥ 80%
+- Statements: ≥ 80%
+- Branches: ≥ 65%
+
+### Integration Tests (E2E)
+
+End-to-end tests verify full-stack functionality using Playwright.
+
+```bash
+# Run full integration test (recommended)
+./scripts/integration-test.sh
+
+# Or run manually:
+docker compose up --build -d
+sleep 10
+npx playwright test
+
+# View test report
+npx playwright show-report
+
+# Run specific test
+npx playwright test --grep "test name"
+
+# Debug mode
+npx playwright test --headed --debug
+```
+
+**What E2E tests cover:**
+- User interactions (button clicks, form submissions)
+- API integration between frontend and backend
+- Real-time features (Server-Sent Events for scrape progress)
+- Critical user workflows (scraping, viewing showtimes)
+
+**Test locations:**
+- `e2e/` - Playwright E2E test specs
+- `playwright.config.ts` - Playwright configuration
+- `scripts/integration-test.sh` - Automated full-stack test script
+
+**Known limitations:**
+- Tests run sequentially (`workers: 1`) to avoid scrape conflicts
+- Scrapes complete quickly in Docker; timing-sensitive tests may need adjustments
+- For best results, restart Docker between test sessions if issues occur
 
 ---
 
