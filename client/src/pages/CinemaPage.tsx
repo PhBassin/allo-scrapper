@@ -243,7 +243,7 @@ export default function CinemaPage() {
                     </div>
 
                     <div className="pt-2 border-t border-gray-100">
-                      <ShowtimeList showtimes={showtimes} />
+                      <ShowtimeList showtimes={showtimes} cinemaId={id!} />
                     </div>
                   </div>
                 </div>
