@@ -8,8 +8,16 @@ export interface ScrapeProgressProps {
 export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {}) {
   const { isConnected, events, latestEvent, error } = useScrapeProgress(onComplete);
 
+  // Show loading state while connecting or waiting for first event
   if (!isConnected || events.length === 0) {
-    return null;
+    return (
+      <div className="border-2 rounded-lg p-6 shadow-lg bg-white border-primary">
+        <div className="flex items-center gap-3">
+          <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
+          <h3 className="text-lg font-bold text-gray-900">Connexion en cours...</h3>
+        </div>
+      </div>
+    );
   }
 
   // Derive state from events
