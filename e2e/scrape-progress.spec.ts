@@ -21,44 +21,38 @@ test.describe('Scrape Progress Visibility', () => {
   });
 
   test('clicking scrape button triggers API call and shows response', async ({ page }) => {
-    // Track network requests
-    const requests: string[] = [];
-    page.on('request', req => {
-      if (req.url().includes('/scraper')) {
-        requests.push(`${req.method()} ${req.url()}`);
-        console.log('REQUEST:', req.method(), req.url());
-      }
-    });
-    page.on('response', async res => {
-      if (res.url().includes('/scraper')) {
-        console.log('RESPONSE:', res.status(), res.url());
-        try {
-          const body = await res.text();
-          console.log('BODY:', body.substring(0, 200));
-        } catch (e) {
-          // Ignore
-        }
-      }
-    });
-
-    // Find the button container first (it's the only button with the scraping text)
+    // Find the button
     const buttonContainer = page.locator('button').filter({ hasText: /lancer le scraping manuel/i }).first();
     await expect(buttonContainer).toBeEnabled({ timeout: 5000 });
     
     // Click the button
-    console.log('Clicking button...');
     await buttonContainer.click();
-    console.log('Button clicked, waiting for state change...');
 
-    // Wait for ANY button to show loading or success state (button text will have changed)
-    await expect(page.locator('button').filter({ hasText: /scraping en cours|scraping démarré/i }).first()).toBeVisible({ timeout: 5000 });
+    // Wait for button to show success state (confirms API call succeeded)
+    await expect(page.locator('button').filter({ hasText: /scraping démarré/i }).first()).toBeVisible({ timeout: 5000 });
+  });
+
+  test('progress window appears after clicking scrape button', async ({ page }) => {
+    // Find and click the button
+    const buttonContainer = page.locator('button').filter({ hasText: /lancer le scraping manuel/i }).first();
+    await expect(buttonContainer).toBeEnabled({ timeout: 5000 });
+    await buttonContainer.click();
+
+    // Wait for button to show success state
+    await expect(page.locator('button').filter({ hasText: /scraping démarré/i }).first()).toBeVisible({ timeout: 5000 });
+
+    // Now check for progress window using data-testid
+    const progressWindow = page.getByTestId('scrape-progress');
+    await expect(progressWindow).toBeVisible({ timeout: 5000 });
     
-    console.log('Requests made:', requests);
+    // Verify it shows loading state initially
+    await expect(progressWindow).toContainText(/connexion en cours|scraping en cours/i);
   });
 
   test('progress window stays visible during entire scrape and 5s after completion', async ({ page }) => {
     // Click the scrape button to start scrape
-    const scrapeButton = page.getByRole('button', { name: /lancer le scraping manuel/i });
+    const scrapeButton = page.locator('button').filter({ hasText: /lancer le scraping manuel/i }).first();
+    await expect(scrapeButton).toBeEnabled({ timeout: 5000 });
     await scrapeButton.click();
 
     // Progress window should appear with loading state or first event using data-testid
@@ -90,7 +84,8 @@ test.describe('Scrape Progress Visibility', () => {
 
   test('progress resumes on page refresh during active scrape', async ({ page }) => {
     // Start scrape
-    const scrapeButton = page.getByRole('button', { name: /lancer le scraping manuel/i });
+    const scrapeButton = page.locator('button').filter({ hasText: /lancer le scraping manuel/i }).first();
+    await expect(scrapeButton).toBeEnabled({ timeout: 5000 });
     await scrapeButton.click();
 
     // Wait for progress window to appear using data-testid
@@ -116,7 +111,8 @@ test.describe('Scrape Progress Visibility', () => {
 
   test('clicking scrape button during active scrape resumes progress without error', async ({ page }) => {
     // Start first scrape
-    const scrapeButton = page.getByRole('button', { name: /lancer le scraping manuel/i });
+    const scrapeButton = page.locator('button').filter({ hasText: /lancer le scraping manuel/i }).first();
+    await expect(scrapeButton).toBeEnabled({ timeout: 5000 });
     await scrapeButton.click();
 
     // Wait for progress to start using data-testid
@@ -126,8 +122,9 @@ test.describe('Scrape Progress Visibility', () => {
     // Wait for scrape to be actively processing
     await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
 
-    // Click the scrape button again while scrape is running
-    await scrapeButton.click();
+    // Click the scrape button again while scrape is running (find by success text now)
+    const activeButton = page.locator('button').filter({ hasText: /scraping/i }).first();
+    await activeButton.click();
 
     // Should NOT show an error message in the scrape button area
     const errorMessage = page.locator('.text-red-600').filter({ hasText: /erreur|error/i });
@@ -142,16 +139,13 @@ test.describe('Scrape Progress Visibility', () => {
 
   test('progress window shows loading state before first SSE event', async ({ page }) => {
     // Wait for the scrape button to be ready
-    const scrapeButton = page.getByRole('button', { name: /lancer le scraping manuel/i });
+    const scrapeButton = page.locator('button').filter({ hasText: /lancer le scraping manuel/i }).first();
     await expect(scrapeButton).toBeEnabled({ timeout: 5000 });
     
     // Click scrape button
     await scrapeButton.click();
 
-    // Wait for the button state to change (indicating the click was registered)
-    await expect(scrapeButton).not.toHaveText(/lancer le scraping manuel/i, { timeout: 2000 });
-
-    // Check for progress window using data-testid
+    // Check for progress window using data-testid (should appear quickly)
     const progressWindow = page.getByTestId('scrape-progress');
     await expect(progressWindow).toBeVisible({ timeout: 5000 });
     
@@ -162,7 +156,8 @@ test.describe('Scrape Progress Visibility', () => {
 
   test('progress window shows detailed progress information', async ({ page }) => {
     // Start scrape
-    const scrapeButton = page.getByRole('button', { name: /lancer le scraping manuel/i });
+    const scrapeButton = page.locator('button').filter({ hasText: /lancer le scraping manuel/i }).first();
+    await expect(scrapeButton).toBeEnabled({ timeout: 5000 });
     await scrapeButton.click();
 
     // Wait for progress window using data-testid
