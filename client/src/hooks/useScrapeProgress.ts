@@ -9,7 +9,7 @@ export interface ProgressState {
   error?: string;
 }
 
-export function useScrapeProgress() {
+export function useScrapeProgress(onComplete?: (success: boolean) => void) {
   const [state, setState] = useState<ProgressState>({
     events: [],
     isConnected: false,
@@ -26,6 +26,12 @@ export function useScrapeProgress() {
           isConnected: true,
           error: undefined,
         }));
+
+        if (event.type === 'completed') {
+          onComplete?.(true);
+        } else if (event.type === 'failed') {
+          onComplete?.(false);
+        }
       },
       (error: Error) => {
         setState((prev) => ({

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getWeeklyFilms, getCinemas } from '../api/client';
+import { getWeeklyFilms, getCinemas, getScrapeStatus } from '../api/client';
 import type { FilmWithShowtimes, Cinema } from '../types';
 import FilmCard from '../components/FilmCard';
 import ScrapeButton from '../components/ScrapeButton';
@@ -19,14 +19,20 @@ export default function HomePage() {
       setIsLoading(true);
       setError(null);
       
-      const [filmsData, cinemasData] = await Promise.all([
+      const [filmsData, cinemasData, scrapeStatus] = await Promise.all([
         getWeeklyFilms(),
-        getCinemas()
+        getCinemas(),
+        getScrapeStatus()
       ]);
       
       setFilms(filmsData.films);
       setWeekStart(filmsData.weekStart);
       setCinemas(cinemasData);
+
+      // Check if scrape is running
+      if (scrapeStatus.isRunning) {
+        setShowProgress(true);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load data');
     } finally {
@@ -58,9 +64,14 @@ export default function HomePage() {
 
   const handleScrapeStart = () => {
     setShowProgress(true);
-    // Optionally reload data after some time
+  };
+
+  const handleScrapeComplete = () => {
+    // Reload data immediately to show new results
+    loadData();
+    
+    // Hide progress after 5 seconds
     setTimeout(() => {
-      loadData();
       setShowProgress(false);
     }, 5000);
   };
@@ -104,7 +115,7 @@ export default function HomePage() {
         {/* Scrape Progress */}
         {showProgress && (
           <div className="mb-8">
-            <ScrapeProgress />
+            <ScrapeProgress onComplete={handleScrapeComplete} />
           </div>
         )}
 

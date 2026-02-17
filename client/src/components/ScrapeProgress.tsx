@@ -1,8 +1,12 @@
 import { useScrapeProgress } from '../hooks/useScrapeProgress';
 import type { ProgressEvent } from '../types';
 
-export default function ScrapeProgress() {
-  const { isConnected, events, latestEvent, error } = useScrapeProgress();
+export interface ScrapeProgressProps {
+  onComplete?: (success: boolean) => void;
+}
+
+export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {}) {
+  const { isConnected, events, latestEvent, error } = useScrapeProgress(onComplete);
 
   if (!isConnected || events.length === 0) {
     return null;
