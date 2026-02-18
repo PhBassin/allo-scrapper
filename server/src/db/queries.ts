@@ -8,15 +8,16 @@ import type { Cinema, Film, Showtime, WeeklyProgram } from '../types/scraper.js'
 export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
   await db.query(
     `
-      INSERT INTO cinemas (id, name, address, postal_code, city, screen_count, image_url)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO cinemas (id, name, address, postal_code, city, screen_count, image_url, url)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT(id) DO UPDATE SET
         name = $2,
         address = $3,
         postal_code = $4,
         city = $5,
         screen_count = $6,
-        image_url = $7
+        image_url = $7,
+        url = COALESCE($8, cinemas.url)
     `,
     [
       cinema.id,
@@ -26,8 +27,62 @@ export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
       cinema.city || null,
       cinema.screen_count || null,
       cinema.image_url || null,
+      cinema.url || null,
     ]
   );
+}
+
+// Récupérer les cinémas configurés pour le scraping (ceux avec une URL)
+export async function getCinemaConfigs(db: DB): Promise<Array<{ id: string; name: string; url: string }>> {
+  const result = await db.query(
+    'SELECT id, name, url FROM cinemas WHERE url IS NOT NULL ORDER BY name'
+  );
+  return result.rows as Array<{ id: string; name: string; url: string }>;
+}
+
+// Ajouter un nouveau cinéma
+export async function addCinema(
+  db: DB,
+  cinema: { id: string; name: string; url: string }
+): Promise<{ id: string; name: string; url: string }> {
+  const result = await db.query(
+    `INSERT INTO cinemas (id, name, url) VALUES ($1, $2, $3) RETURNING id, name, url`,
+    [cinema.id, cinema.name, cinema.url]
+  );
+  return result.rows[0] as { id: string; name: string; url: string };
+}
+
+// Mettre à jour la configuration d'un cinéma (nom et/ou URL)
+export async function updateCinemaConfig(
+  db: DB,
+  id: string,
+  updates: { name?: string; url?: string }
+): Promise<{ id: string; name: string; url: string } | undefined> {
+  const fields: string[] = [];
+  const values: any[] = [];
+  let paramIndex = 1;
+
+  if (updates.name !== undefined) {
+    fields.push(`name = $${paramIndex++}`);
+    values.push(updates.name);
+  }
+  if (updates.url !== undefined) {
+    fields.push(`url = $${paramIndex++}`);
+    values.push(updates.url);
+  }
+
+  values.push(id);
+  const result = await db.query(
+    `UPDATE cinemas SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING id, name, url`,
+    values
+  );
+  return result.rows[0] as { id: string; name: string; url: string } | undefined;
+}
+
+// Supprimer un cinéma (et ses séances via CASCADE)
+export async function deleteCinema(db: DB, id: string): Promise<boolean> {
+  const result = await db.query('DELETE FROM cinemas WHERE id = $1', [id]);
+  return (result.rowCount ?? 0) > 0;
 }
 
 // Insertion ou mise à jour d'un film
