@@ -62,12 +62,6 @@
 │  │  Scraper  │  │  Cron-based scraping
 │  │  Service  │◄─┼─ (configurable schedule)
 │  └─────┬─────┘  │
-│        │        │
-│        ▼        │
-│  ┌───────────┐  │
-│  │   Pool    │  │
-│  │  Manager  │  │
-│  └─────┬─────┘  │
 └────────┼────────┘
          │ SQL
          ▼
@@ -78,7 +72,8 @@
 │  │  cinemas  │  │
 │  │  films    │  │
 │  │ showtimes │  │
-│  │  reports  │  │
+│  │scrape_    │  │
+│  │ reports   │  │
 │  └───────────┘  │
 └─────────────────┘
 ```
@@ -332,9 +327,19 @@ npm run test:ui
 
 ### Test Files
 
-- **theater-parser.test.ts**: 29 tests covering HTML parsing for all cinemas
+| File | Tests | What it covers |
+|------|-------|----------------|
+| `theater-parser.test.ts` | 30 | HTML parsing for all cinemas |
+| `date.test.ts` | 22 | Date utility functions |
+| `showtimes.test.ts` | 2 | Showtime utility functions |
+| `queries.test.ts` | 4 | Database query functions |
+| `films.test.ts` | 5 | Films API route handler |
+
+> **Note:** Coverage numbers above reflect `theater-parser.ts` only (the configured coverage scope).
+
 - **Fixtures**: Full HTML pages from Allociné (~1.6MB) for realistic testing
-- **Regression tests**: Ensures existing cinemas (W7504, C0072) continue working
+- **Regression tests**: Ensures existing cinemas (C0089, W7504, C0072) continue working
+- **Total**: 107 tests across 8 test files (4 source `.ts` + 4 compiled `.js` dist files)
 
 See `server/tests/README.md` for detailed testing documentation.
 
@@ -346,7 +351,10 @@ See `server/tests/README.md` for detailed testing documentation.
 allo-scrapper/
 ├── .github/
 │   └── workflows/
-│       └── docker-build-push.yml    # CI/CD: Docker image build & push
+│       ├── docker-build-push.yml    # CI/CD: Docker image build & push
+│       ├── cleanup-docker-images.yml# Docker image cleanup
+│       ├── ghcr-cleanup.yml         # Daily GHCR image cleanup
+│       └── sync-main-to-develop.yml # Auto-sync main → develop
 ├── client/                          # React frontend (Vite + TypeScript)
 │   ├── public/                      # Static assets
 │   ├── src/
@@ -355,6 +363,7 @@ allo-scrapper/
 │   │   ├── hooks/                   # Custom React hooks
 │   │   ├── pages/                   # Route components
 │   │   ├── types/                   # TypeScript interfaces
+│   │   ├── utils/                   # Client utility functions
 │   │   ├── App.tsx                  # Root component with routing
 │   │   └── main.tsx                 # Application entry point
 │   ├── index.html
@@ -372,35 +381,44 @@ allo-scrapper/
 │   │   ├── routes/
 │   │   │   ├── cinemas.ts           # GET /api/cinemas, /api/cinemas/:id
 │   │   │   ├── films.ts             # GET /api/films, /api/films/:id
-│   │   │   ├── health.ts            # GET /api/health
-│   │   │   ├── reports.ts           # GET /api/reports
-│   │   │   └── scraper.ts           # POST /api/scraper/trigger, etc.
+│   │   │   ├── reports.ts           # GET /api/reports, /api/reports/:id
+│   │   │   └── scraper.ts           # POST /api/scraper/trigger, GET /api/scraper/status|progress
 │   │   ├── services/
-│   │   │   └── scraper/
-│   │   │       ├── httpClient.ts    # HTTP client for the source website
-│   │   │       ├── index.ts             # Main scraper orchestrator
-│   │   │       ├── parser.ts            # HTML parsing logic
-│   │   │       └── scheduler.ts         # Cron job manager
+│   │   │   ├── scraper/
+│   │   │   │   ├── http-client.ts   # HTTP client for the source website
+│   │   │   │   ├── index.ts         # Main scraper orchestrator
+│   │   │   │   ├── theater-parser.ts# Cinema page HTML parsing
+│   │   │   │   └── film-parser.ts   # Film detail page HTML parsing
+│   │   │   ├── cron.ts              # Cron job manager
+│   │   │   ├── progress-tracker.ts  # SSE progress event system
+│   │   │   └── scrape-manager.ts    # Scrape session management
 │   │   ├── types/
-│   │   │   └── index.ts             # TypeScript type definitions
+│   │   │   ├── scraper.ts           # Domain type definitions
+│   │   │   └── api.ts               # API response type definitions
 │   │   ├── utils/
-│   │   │   ├── date.ts              # Date formatting utilities
-│   │   │   └── logger.ts            # Logging utilities
-│   │   ├── app.ts                   # Express app configuration
+│   │   │   ├── date.ts              # Date calculation utilities
+│   │   │   └── showtimes.ts         # Showtime grouping utilities
+│   │   ├── app.ts                   # Express app configuration (incl. GET /api/health)
 │   │   └── index.ts                 # Server entry point
+│   ├── tests/
+│   │   └── fixtures/                # HTML fixtures for parser tests
 │   ├── package.json
 │   └── tsconfig.json
+├── e2e/                             # Playwright end-to-end tests
 ├── scripts/
 │   ├── backup-db.sh                 # Database backup script
+│   ├── integration-test.sh          # Full-stack integration test runner
 │   ├── pull-and-deploy.sh           # Pull latest Docker image & restart
 │   └── restore-db.sh                # Database restore script
 ├── .dockerignore
 ├── .env.example                     # Environment variables template
 ├── .gitignore
 ├── DEPLOYMENT.md                    # Comprehensive deployment guide
+├── docker-compose.build.yml         # Local build stack
 ├── docker-compose.dev.yml           # Development stack
 ├── docker-compose.yml               # Production stack
 ├── Dockerfile                       # Multi-stage production build
+├── playwright.config.ts             # Playwright E2E configuration
 ├── package.json                     # Root convenience scripts
 └── README.md                        # This file
 ```
@@ -585,6 +603,11 @@ GET /api/films/:id
       {
         "id": "W7504",
         "name": "Épée de Bois",
+        "address": "100 Rue Mouffetard",
+        "postal_code": "75005",
+        "city": "Paris",
+        "screen_count": 1,
+        "image_url": "https://...",
         "showtimes": [
           {
             "id": "W7504-123456-2024-02-15-14:00",
@@ -691,13 +714,27 @@ curl "http://localhost:3000/api/reports/42"
 POST /api/scraper/trigger
 ```
 
-**Response:**
+**Response (200 — started):**
 ```json
 {
   "success": true,
   "data": {
     "reportId": 43,
     "message": "Scrape started successfully"
+  }
+}
+```
+
+**Response (409 — already running):**
+```json
+{
+  "success": false,
+  "error": "A scrape is already in progress",
+  "data": {
+    "current_scrape": {
+      "started_at": "2024-02-15T10:00:00.000Z",
+      "trigger_type": "manual"
+    }
   }
 }
 ```
@@ -724,7 +761,8 @@ GET /api/scraper/status
     "currentSession": {
       "reportId": 43,
       "triggerType": "manual",
-      "startedAt": "2024-02-15T10:00:00.000Z"
+      "startedAt": "2024-02-15T10:00:00.000Z",
+      "status": "running"
     },
     "latestReport": {
       "id": 42,
@@ -748,40 +786,86 @@ curl http://localhost:3000/api/scraper/status
 GET /api/scraper/progress
 ```
 
-**Headers:**
-- `Accept: text/event-stream`
+Opens a persistent Server-Sent Events connection. All previously accumulated events are replayed to new clients, then new events are streamed in real time. A heartbeat (`: heartbeat`) is sent every 15 seconds to keep the connection alive.
 
-**Event Stream:**
+**Response Headers:**
+- `Content-Type: text/event-stream`
+- `Cache-Control: no-cache`
+- `Connection: keep-alive`
+- `X-Accel-Buffering: no`
+
+**Event Format:**
+
+All events are sent as plain `data:` lines (no named `event:` field). Each line is a JSON object with a `type` discriminator:
+
 ```
-event: progress
-data: {"type":"cinema_start","cinema":"W7504","name":"Épée de Bois"}
+data: {"type":"started","total_cinemas":3,"total_dates":7}
 
-event: progress
-data: {"type":"cinema_complete","cinema":"W7504","filmsCount":15}
+data: {"type":"cinema_started","cinema_name":"Épée de Bois","cinema_id":"W7504","index":1}
 
-event: complete
-data: {"reportId":43,"status":"success"}
+data: {"type":"date_started","date":"2026-02-19","cinema_name":"Épée de Bois"}
+
+data: {"type":"film_started","film_title":"Mon Film","film_id":123456}
+
+data: {"type":"film_completed","film_title":"Mon Film","showtimes_count":5}
+
+data: {"type":"film_failed","film_title":"Mon Film","error":"HTTP 404"}
+
+data: {"type":"date_completed","date":"2026-02-19","films_count":12}
+
+data: {"type":"date_failed","date":"2026-02-19","cinema_name":"Épée de Bois","error":"HTTP 503"}
+
+data: {"type":"cinema_completed","cinema_name":"Épée de Bois","total_films":42}
+
+data: {"type":"completed","summary":{"total_cinemas":3,"successful_cinemas":3,"failed_cinemas":0,"total_films":87,"total_showtimes":412,"total_dates":7,"duration_ms":34210,"errors":[]}}
+
+data: {"type":"failed","error":"Fatal error message"}
 ```
+
+**Event Types:**
+
+| Type | Emitted | Payload fields |
+|------|---------|----------------|
+| `started` | Once at start | `total_cinemas`, `total_dates` |
+| `cinema_started` | Per cinema | `cinema_name`, `cinema_id`, `index` |
+| `date_started` | Per cinema × date | `date`, `cinema_name` |
+| `film_started` | Per film | `film_title`, `film_id` |
+| `film_completed` | Per film (success) | `film_title`, `showtimes_count` |
+| `film_failed` | Per film (error) | `film_title`, `error` |
+| `date_completed` | Per date (success) | `date`, `films_count` |
+| `date_failed` | Per date (error) | `date`, `cinema_name`, `error` |
+| `cinema_completed` | Per cinema (≥1 date ok) | `cinema_name`, `total_films` |
+| `completed` | Once on success | `summary` (ScrapeSummary object) |
+| `failed` | Once on fatal error | `error` |
 
 **Example:**
 ```bash
-curl -N -H "Accept: text/event-stream" http://localhost:3000/api/scraper/progress
+curl -N http://localhost:3000/api/scraper/progress
 ```
 
 **JavaScript Example:**
 ```javascript
 const eventSource = new EventSource('http://localhost:3000/api/scraper/progress');
 
-eventSource.addEventListener('progress', (e) => {
+// All events arrive via onmessage (no named event: field)
+eventSource.onmessage = (e) => {
   const data = JSON.parse(e.data);
-  console.log('Progress:', data);
-});
+  console.log('Event:', data.type, data);
 
-eventSource.addEventListener('complete', (e) => {
-  const data = JSON.parse(e.data);
-  console.log('Scraping complete:', data);
+  if (data.type === 'completed') {
+    console.log('Scraping complete:', data.summary);
+    eventSource.close();
+  }
+  if (data.type === 'failed') {
+    console.error('Scraping failed:', data.error);
+    eventSource.close();
+  }
+};
+
+eventSource.onerror = (err) => {
+  console.error('SSE connection error:', err);
   eventSource.close();
-});
+};
 ```
 
 ---
@@ -798,11 +882,11 @@ cp .env.example .env
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
-| `POSTGRES_HOST` | PostgreSQL server hostname | `db` | `localhost` |
+| `POSTGRES_HOST` | PostgreSQL server hostname | `localhost` | `db` |
 | `POSTGRES_PORT` | PostgreSQL server port | `5432` | `5432` |
-| `POSTGRES_DB` | Database name | `allo_scrapper` | `allo_scrapper` |
+| `POSTGRES_DB` | Database name | `cinema_showtimes` | `cinema_showtimes` |
 | `POSTGRES_USER` | Database username | `postgres` | `myuser` |
-| `POSTGRES_PASSWORD` | Database password | `postgres` | `securepass123` |
+| `POSTGRES_PASSWORD` | Database password | `password` | `securepass123` |
 | `PORT` | API server port | `3000` | `8080` |
 | `VITE_API_BASE_URL` | Client API base URL | `http://localhost:3000/api` | `https://api.example.com/api` |
 
@@ -810,16 +894,17 @@ cp .env.example .env
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
-| `SCRAPE_CRON_SCHEDULE` | Cron expression for scheduled scraping | `0 6 * * 1` | `0 3 * * *` |
-| `SCRAPE_DELAY_MS` | Delay between cinema scrapes (ms) | `2000` | `3000` |
+| `DATABASE_URL` | Full PostgreSQL connection string (overrides individual settings above) | — | `postgresql://postgres:password@localhost:5432/cinema_showtimes` |
+| `TZ` | Timezone for cron jobs (IANA format) | `Europe/Paris` | `America/New_York` |
+| `SCRAPE_CRON_SCHEDULE` | Cron expression for scheduled scraping | `0 8 * * 3` | `0 3 * * *` |
+| `SCRAPE_DELAY_MS` | Delay between HTTP requests to avoid rate limiting (ms) | `1000` | `2000` |
 | `SCRAPE_DAYS` | Number of days to scrape (1-14) | `7` | `14` |
 | `SCRAPE_MODE` | Start date: `weekly` (Wed), `from_today`, or `from_today_limited` | `weekly` | `from_today_limited` |
 | `NODE_ENV` | Environment mode | `development` | `production` |
-| `LOG_LEVEL` | Logging level | `info` | `debug` |
 
 ### Cron Schedule Examples
 
-- `0 6 * * 1` - Every Monday at 6:00 AM
+- `0 8 * * 3` - Every Wednesday at 8:00 AM (default)
 - `0 3 * * *` - Every day at 3:00 AM
 - `0 */6 * * *` - Every 6 hours
 - `*/30 * * * *` - Every 30 minutes
@@ -987,11 +1072,15 @@ Cinema list is configured in `server/src/config/cinemas.json`.
 
 ### Scraping Behavior
 
-- **Automatic**: Runs on schedule defined by `SCRAPE_CRON_SCHEDULE` (default: Mondays at 6 AM)
-- **Manual**: Trigger via `POST /api/scraper/trigger`
-- **Delay**: Waits `SCRAPE_DELAY_MS` milliseconds between cinemas (default: 2 seconds)
-- **Error Handling**: Continues on individual cinema failures; logs errors in `scrape_reports`
-- **Data Cleaning**: Old showtimes for the current week are deleted before inserting new data
+- **Automatic**: Runs on schedule defined by `SCRAPE_CRON_SCHEDULE` (default: Wednesdays at 8 AM Paris time). Cron jobs always use `weekly` mode for 7 days.
+- **Manual**: Trigger via `POST /api/scraper/trigger`. Uses `SCRAPE_MODE` and `SCRAPE_DAYS` env var defaults.
+- **Multi-day loop**: For each cinema, the scraper iterates over the configured number of days (`SCRAPE_DAYS`, default 7), fetching one page per date.
+- **Rate limiting**: 500ms delay after each film detail page fetch; 1000ms delay between date requests per cinema.
+- **Film detail fetching**: If a film's duration is not yet in the database, the scraper fetches its individual Allocine page to retrieve it. Already-known films skip this extra request.
+- **Error handling (date-level)**: If scraping fails for a specific date, the error is logged and the scraper continues to the next date — it does not abort the entire cinema.
+- **Error handling (cinema-level)**: A cinema is only counted as failed if *all* of its dates fail. A cinema where at least one date succeeds is counted as successful.
+- **Data upsert**: Showtimes are inserted or updated via upsert (`INSERT … ON CONFLICT DO UPDATE`). Existing records are overwritten, not deleted and re-inserted.
+- **Final status**: `success` (0 failed cinemas), `partial_success` (some failed), or `failed` (all failed / fatal error).
 
 ---
 
@@ -1205,6 +1294,10 @@ https://github.com/PhBassin/allo-scrapper/pkgs/container/allo-scrapper
 | `npm run install:all` | Install dependencies for all packages |
 | `npm run clean` | Remove all build artifacts and node_modules |
 | `npm test` | Run server tests |
+| `npm run e2e` | Run Playwright E2E tests |
+| `npm run e2e:headed` | Run E2E tests in headed (visible) browser |
+| `npm run e2e:ui` | Open Playwright interactive UI |
+| `npm run integration-test` | Run full-stack integration test (Docker + E2E) |
 
 ### Server Scripts
 
