@@ -12,7 +12,27 @@ import { parseTheaterPage } from './theater-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import { getScrapeDates, type ScrapeMode } from '../../utils/date.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
-import type { CinemaConfig } from '../../types/scraper.js';
+import type { CinemaConfig, Showtime } from '../../types/scraper.js';
+
+/**
+ * Determines whether a scraped page is a stale/fallback response.
+ *
+ * The source cinema site returns the closest published date's data when
+ * the requested date has no showtimes yet (e.g. future dates not yet
+ * published). We detect this by checking whether *all* showtimes on the
+ * page have a date that differs from the requested date.
+ *
+ * Returns false when there are no showtimes — an empty schedule is a
+ * legitimate result, not a fallback.
+ */
+export function isStaleResponse(
+  requestedDate: string,
+  selectedDate: string,
+  showtimes: Showtime[]
+): boolean {
+  if (showtimes.length === 0) return false;
+  return showtimes.every((s) => s.date !== requestedDate);
+}
 
 // Scraper un cinéma pour une date donnée
 async function scrapeTheater(
@@ -20,7 +40,7 @@ async function scrapeTheater(
   cinema: CinemaConfig,
   date: string,
   progress?: ProgressTracker
-): Promise<{ filmsCount: number; showtimesCount: number }> {
+): Promise<{ filmsCount: number; showtimesCount: number; stale: boolean }> {
   console.log(`\n📍 Scraping ${cinema.name} (${cinema.id}) for ${date}...`);
 
   progress?.emit({ type: 'date_started', date, cinema_name: cinema.name });
@@ -34,6 +54,25 @@ async function scrapeTheater(
 
     // Parser la page
     const pageData = parseTheaterPage(html, cinema.id);
+
+    // Collect all showtimes from all films for stale detection
+    const allShowtimes = pageData.films.flatMap((f) => f.showtimes);
+
+    // Detect stale/fallback response: the site returned data for a different
+    // date than the one we requested (future dates not yet published).
+    if (isStaleResponse(date, pageData.selected_date, allShowtimes)) {
+      const actualDate = pageData.selected_date || allShowtimes[0]?.date || 'unknown';
+      console.warn(
+        `⚠️  Date ${date} [${cinema.name}]: site returned data for ${actualDate} (stale/fallback) — skipping`
+      );
+      progress?.emit({
+        type: 'date_stale',
+        date,
+        cinema_name: cinema.name,
+        actual_date: actualDate,
+      });
+      return { filmsCount: 0, showtimesCount: 0, stale: true };
+    }
 
     // Insérer/mettre à jour le cinéma
     await upsertCinema(db, pageData.cinema);
@@ -108,7 +147,7 @@ async function scrapeTheater(
     console.log(`✅ Scraped ${pageData.films.length} films from ${cinema.name}`);
     progress?.emit({ type: 'date_completed', date, films_count: filmsCount });
 
-    return { filmsCount, showtimesCount };
+    return { filmsCount, showtimesCount, stale: false };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`❌ Error scraping ${cinema.name}:`, error);
@@ -174,6 +213,7 @@ export async function runScraper(
       let cinemaFilmsCount = 0;
       let cinemaShowtimesCount = 0;
       let successfulDates = 0;
+      let staleDates = 0;
 
       console.log(`\n🎬 Processing ${cinema.name} (${cinema.id})...`);
       console.log(`   Target: ${dates.length} dates (${dates[0]} to ${dates[dates.length - 1]})`);
@@ -181,11 +221,15 @@ export async function runScraper(
       for (const date of dates) {
         console.log(`\n   📅 Attempting date: ${date}`);
         try {
-          const { filmsCount, showtimesCount } = await scrapeTheater(db, cinema, date, progress);
-          cinemaFilmsCount += filmsCount;
-          cinemaShowtimesCount += showtimesCount;
-          successfulDates++;
-          console.log(`   ✅ Date ${date} completed: ${filmsCount} films, ${showtimesCount} showtimes`);
+          const { filmsCount, showtimesCount, stale } = await scrapeTheater(db, cinema, date, progress);
+          if (stale) {
+            staleDates++;
+          } else {
+            cinemaFilmsCount += filmsCount;
+            cinemaShowtimesCount += showtimesCount;
+            successfulDates++;
+            console.log(`   ✅ Date ${date} completed: ${filmsCount} films, ${showtimesCount} showtimes`);
+          }
           await delay(1000); // Délai entre chaque requête
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
@@ -207,9 +251,12 @@ export async function runScraper(
         }
       }
 
-      const cinemaFailed = successfulDates === 0;
+      // A cinema is considered failed only if it had zero successes AND zero stale dates
+      // (meaning actual errors occurred for all dates). All-stale is expected for future dates.
+      const cinemaFailed = successfulDates === 0 && staleDates === 0;
 
-      console.log(`\n📊 ${cinema.name} summary: ${successfulDates}/${dates.length} dates successful, ${cinemaFilmsCount} films, ${cinemaShowtimesCount} showtimes`);
+      const staleSuffix = staleDates > 0 ? `, ${staleDates} stale (not yet published)` : '';
+      console.log(`\n📊 ${cinema.name} summary: ${successfulDates}/${dates.length} dates successful${staleSuffix}, ${cinemaFilmsCount} films, ${cinemaShowtimesCount} showtimes`);
 
       if (!cinemaFailed) {
         summary.successful_cinemas++;
