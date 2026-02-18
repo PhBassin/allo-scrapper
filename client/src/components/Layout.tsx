@@ -36,7 +36,7 @@ export default function Layout({ children, title }: LayoutProps) {
       <footer className="bg-secondary text-white mt-16">
         <div className="container mx-auto px-4 py-6 text-center">
           <p className="text-sm">
-            Données fournies par Allociné - Mise à jour hebdomadaire
+            Données fournies par le site source - Mise à jour hebdomadaire
           </p>
           <p className="text-xs text-gray-400 mt-2">
             Allo-Scrapper &copy; {new Date().getFullYear()}

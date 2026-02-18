@@ -332,12 +332,13 @@ npm run test:ui
 | `theater-parser.test.ts` | 30 | HTML parsing for all cinemas |
 | `date.test.ts` | 22 | Date utility functions |
 | `showtimes.test.ts` | 2 | Showtime utility functions |
-| `queries.test.ts` | 4 | Database query functions |
+| `queries.test.ts` | 15 | Database query functions |
 | `films.test.ts` | 5 | Films API route handler |
+| `cinemas.test.ts` | 13 | Cinemas API route handler (CRUD) |
 
 > **Note:** Coverage numbers above reflect `theater-parser.ts` only (the configured coverage scope).
 
-- **Fixtures**: Full HTML pages from Allociné (~1.6MB) for realistic testing
+- **Fixtures**: Full HTML pages from the source website (~1.6MB) for realistic testing
 - **Regression tests**: Ensures existing cinemas (C0089, W7504, C0072) continue working
 - **Total**: 107 tests across 8 test files (4 source `.ts` + 4 compiled `.js` dist files)
 
@@ -529,6 +530,114 @@ GET /api/cinemas/:id
 **Example:**
 ```bash
 curl "http://localhost:3000/api/cinemas/W7504"
+```
+
+---
+
+#### Add Cinema
+
+```http
+POST /api/cinemas
+```
+
+**Body (JSON):**
+```json
+{
+  "id": "C0099",
+  "name": "New Cinema",
+  "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html"
+}
+```
+
+**Response (201 — created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "C0099",
+    "name": "New Cinema",
+    "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html"
+  }
+}
+```
+
+**Error Responses:**
+- `400` — Missing required fields (`id`, `name`, `url`)
+- `409` — Cinema with this ID already exists
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/api/cinemas \
+  -H "Content-Type: application/json" \
+  -d '{"id":"C0099","name":"New Cinema","url":"https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html"}'
+```
+
+---
+
+#### Update Cinema
+
+```http
+PUT /api/cinemas/:id
+```
+
+**Parameters:**
+- `id` (string): Cinema ID (e.g., `W7504`)
+
+**Body (JSON):** At least one field required.
+```json
+{
+  "name": "Updated Name",
+  "url": "https://new-url.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "W7504",
+    "name": "Updated Name",
+    "url": "https://new-url.com"
+  }
+}
+```
+
+**Error Responses:**
+- `400` — No fields provided
+- `404` — Cinema not found
+
+**Example:**
+```bash
+curl -X PUT http://localhost:3000/api/cinemas/W7504 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Épée de Bois (updated)"}'
+```
+
+---
+
+#### Delete Cinema
+
+```http
+DELETE /api/cinemas/:id
+```
+
+Deletes the cinema and cascades to all its showtimes and weekly programs.
+
+**Parameters:**
+- `id` (string): Cinema ID (e.g., `W7504`)
+
+**Response (204):**
+```json
+{ "success": true }
+```
+
+**Error Responses:**
+- `404` — Cinema not found
+
+**Example:**
+```bash
+curl -X DELETE http://localhost:3000/api/cinemas/C0099
 ```
 
 ---
@@ -929,6 +1038,7 @@ Stores cinema venue information.
 | `city` | TEXT | City name |
 | `screen_count` | INTEGER | Number of screens |
 | `image_url` | TEXT | Cinema image URL |
+| `url` | TEXT | Source website page URL for scraping (null = not scraped) |
 
 #### `films`
 Stores film metadata.
@@ -1027,48 +1137,38 @@ films (1) ────────┴────────┘
 
 ## 🎯 Scraper Configuration
 
-Cinema list is configured in `server/src/config/cinemas.json`.
+Cinema list is managed in the **database**, not a static file. On first startup, `server/src/config/cinemas.json` is automatically seeded into the database. After that, use the REST API to add, update, or remove cinemas.
 
-**Currently tracking 3 cinemas in Paris:**
+**Currently tracking 3 cinemas in Paris (default seed):**
 - **W7504**: Épée de Bois
 - **C0072**: Le Grand Action  
 - **C0089**: Max Linder Panorama
 
-```json
-[
-  {
-    "id": "W7504",
-    "name": "Épée de Bois",
-    "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=W7504.html"
-  },
-  {
-    "id": "C0072",
-    "name": "Le Grand Action",
-    "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0072.html"
-  },
-  {
-    "id": "C0089",
-    "name": "Max Linder Panorama",
-    "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0089.html"
-  }
-]
-```
+The seed file (`cinemas.json`) is kept as the source of truth for initial setup — it is read **once** when the database has no configured cinemas, and never again.
 
 ### Adding New Cinemas
 
-1. Find the cinema on the source website (e.g., https://www.example-cinema-site.com/seance/salle_gen_csalle=C0089.html)
-2. Extract the cinema ID from the URL (e.g., `C0089`)
-3. Add entry to `cinemas.json`:
-   ```json
-   {
-     "id": "C0089",
-     "name": "Cinema Name",
-     "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0089.html"
-   }
-   ```
-4. *(Optional)* Add test fixtures and unit tests (see `server/tests/README.md`)
-5. Restart the server
-6. Trigger a scrape: `curl -X POST http://localhost:3000/api/scraper/trigger`
+Use the API to add a cinema at runtime:
+
+```bash
+# Find the cinema ID in the source website URL, e.g. C0089
+# Then add it via the API:
+curl -X POST http://localhost:3000/api/cinemas \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "C0089",
+    "name": "Max Linder Panorama",
+    "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0089.html"
+  }'
+
+# Trigger a scrape to populate its showtimes:
+curl -X POST http://localhost:3000/api/scraper/trigger
+```
+
+To remove a cinema (and all its showtimes):
+```bash
+curl -X DELETE http://localhost:3000/api/cinemas/C0089
+```
 
 ### Scraping Behavior
 
@@ -1076,7 +1176,7 @@ Cinema list is configured in `server/src/config/cinemas.json`.
 - **Manual**: Trigger via `POST /api/scraper/trigger`. Uses `SCRAPE_MODE` and `SCRAPE_DAYS` env var defaults.
 - **Multi-day loop**: For each cinema, the scraper iterates over the configured number of days (`SCRAPE_DAYS`, default 7), fetching one page per date.
 - **Rate limiting**: 500ms delay after each film detail page fetch; 1000ms delay between date requests per cinema.
-- **Film detail fetching**: If a film's duration is not yet in the database, the scraper fetches its individual Allocine page to retrieve it. Already-known films skip this extra request.
+- **Film detail fetching**: If a film's duration is not yet in the database, the scraper fetches its individual source website page to retrieve it. Already-known films skip this extra request.
 - **Error handling (date-level)**: If scraping fails for a specific date, the error is logged and the scraper continues to the next date — it does not abort the entire cinema.
 - **Error handling (cinema-level)**: A cinema is only counted as failed if *all* of its dates fail. A cinema where at least one date succeeds is counted as successful.
 - **Data upsert**: Showtimes are inserted or updated via upsert (`INSERT … ON CONFLICT DO UPDATE`). Existing records are overwritten, not deleted and re-inserted.

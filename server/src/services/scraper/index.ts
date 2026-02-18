@@ -1,6 +1,3 @@
-import { readFile } from 'fs/promises';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import { db, type DB } from '../../db/client.js';
 import {
   upsertCinema,
@@ -8,23 +5,14 @@ import {
   upsertShowtime,
   upsertWeeklyProgram,
   getFilm,
+  getCinemaConfigs,
 } from '../../db/queries.js';
 import { fetchTheaterPage, fetchFilmPage, delay } from './http-client.js';
 import { parseTheaterPage } from './theater-parser.js';
 import { parseFilmPage } from './film-parser.js';
-import type { CinemaConfig } from '../../types/scraper.js';
 import { getScrapeDates, type ScrapeMode } from '../../utils/date.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Charger la configuration des cinémas
-async function loadCinemaConfig(): Promise<CinemaConfig[]> {
-  const configPath = join(__dirname, '../../config/cinemas.json');
-  const content = await readFile(configPath, 'utf-8');
-  return JSON.parse(content);
-}
+import type { CinemaConfig } from '../../types/scraper.js';
 
 // Scraper un cinéma pour une date donnée
 async function scrapeTheater(
@@ -152,9 +140,9 @@ export async function runScraper(
   };
 
   try {
-    // Charger la configuration des cinémas
-    const cinemas = await loadCinemaConfig();
-    console.log(`📋 Loaded ${cinemas.length} cinema(s) from config\n`);
+    // Charger la configuration des cinémas depuis la base de données
+    const cinemas = await getCinemaConfigs(db);
+    console.log(`📋 Loaded ${cinemas.length} cinema(s) from database\n`);
 
     // Déterminer les dates à scraper
     const scrapeMode = options?.mode || (process.env.SCRAPE_MODE as ScrapeMode) || 'weekly';

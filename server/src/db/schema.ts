@@ -1,4 +1,11 @@
+import { readFile } from 'fs/promises';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { db } from './client.js';
+import type { CinemaConfig } from '../types/scraper.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export async function initializeDatabase() {
   console.log('🔄 Initialisation de la base de données PostgreSQL...');
@@ -12,8 +19,12 @@ export async function initializeDatabase() {
       postal_code TEXT,
       city TEXT,
       screen_count INTEGER,
-      image_url TEXT
+      image_url TEXT,
+      url TEXT
     )`,
+
+    // Migration: add url column to existing databases
+    `ALTER TABLE cinemas ADD COLUMN IF NOT EXISTS url TEXT`,
 
     // Table: films
     `CREATE TABLE IF NOT EXISTS films (
@@ -48,7 +59,7 @@ export async function initializeDatabase() {
       experiences TEXT, -- JSON array
       week_start TEXT NOT NULL,
       FOREIGN KEY (film_id) REFERENCES films(id),
-      FOREIGN KEY (cinema_id) REFERENCES cinemas(id)
+      FOREIGN KEY (cinema_id) REFERENCES cinemas(id) ON DELETE CASCADE
     )`,
 
     // Indexes for showtimes
@@ -64,7 +75,7 @@ export async function initializeDatabase() {
       week_start TEXT NOT NULL,
       is_new_this_week INTEGER NOT NULL DEFAULT 0,
       scraped_at TEXT NOT NULL,
-      FOREIGN KEY (cinema_id) REFERENCES cinemas(id),
+      FOREIGN KEY (cinema_id) REFERENCES cinemas(id) ON DELETE CASCADE,
       FOREIGN KEY (film_id) REFERENCES films(id),
       UNIQUE(cinema_id, film_id, week_start)
     )`,
@@ -101,6 +112,39 @@ export async function initializeDatabase() {
   } catch (error) {
     console.error('❌ Erreur lors de l\'initialisation de la base de données:', error);
     throw error;
+  }
+
+  // Seed cinemas from cinemas.json if DB is empty
+  await seedCinemasIfEmpty();
+}
+
+async function seedCinemasIfEmpty(): Promise<void> {
+  try {
+    const countResult = await db.query('SELECT COUNT(*) as count FROM cinemas WHERE url IS NOT NULL');
+    const count = parseInt(countResult.rows[0].count, 10);
+
+    if (count > 0) {
+      console.log(`ℹ️  Cinemas already seeded (${count} with URL). Skipping seed.`);
+      return;
+    }
+
+    const configPath = join(__dirname, '../config/cinemas.json');
+    const content = await readFile(configPath, 'utf-8');
+    const cinemas: CinemaConfig[] = JSON.parse(content);
+
+    for (const cinema of cinemas) {
+      await db.query(
+        `INSERT INTO cinemas (id, name, url)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (id) DO NOTHING`,
+        [cinema.id, cinema.name, cinema.url]
+      );
+    }
+
+    console.log(`🌱 Seeded ${cinemas.length} cinema(s) from cinemas.json`);
+  } catch (error) {
+    console.error('⚠️  Warning: Could not seed cinemas:', error);
+    // Non-fatal: continue without seeding
   }
 }
 

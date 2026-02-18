@@ -131,7 +131,7 @@ server/tests/fixtures/                              # HTML fixtures
 For scraper tests, use real HTML fixtures:
 ```bash
 # Fetch HTML for a cinema
-curl "https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html" \
+curl "https://www.example-cinema-site.com/seance/salle_gen_csalle=CXXXX.html" \
   -o server/tests/fixtures/cinema-cxxxx-page.html
 ```
 

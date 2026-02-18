@@ -6,7 +6,7 @@ set -e
 
 BACKUP_DIR="./backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="${BACKUP_DIR}/allocine_${TIMESTAMP}.sql"
+BACKUP_FILE="${BACKUP_DIR}/its_${TIMESTAMP}.sql"
 
 echo "🔄 Creating database backup..."
 
@@ -22,7 +22,7 @@ fi
 
 # Backup database
 echo "📦 Dumping database to ${BACKUP_FILE}..."
-docker compose exec -T db pg_dump -U postgres allocine > "$BACKUP_FILE"
+docker compose exec -T db pg_dump -U postgres its > "$BACKUP_FILE"
 
 # Compress backup
 echo "🗜️  Compressing backup..."

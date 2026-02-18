@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 import type { TheaterPageData, Cinema, FilmShowtimeData, Film, Showtime } from '../../types/scraper';
 
-// Parser la page cinéma d'Allociné
+// Parse the cinema page from the source website
 export function parseTheaterPage(html: string, cinemaId: string): TheaterPageData {
   const $ = cheerio.load(html);
 
@@ -184,7 +184,7 @@ function parseFilmCard(
     audience_rating: audienceRating,
     release_date: releaseDate,
     rerelease_date: rereleaseDate,
-    source_url: `https://www.allocine.fr${href}`,
+    source_url: `https://www.example-cinema-site.com${href}`,
   };
 
   // Parser les séances

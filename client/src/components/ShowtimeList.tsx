@@ -1,5 +1,5 @@
 import type { Showtime } from '../types';
-import { getAllocineCinemaUrl } from '../utils/allocine';
+import { getCinemaUrl } from '../utils/cinema-url';
 
 interface ShowtimeListProps {
   showtimes: Showtime[];
@@ -32,7 +32,7 @@ export default function ShowtimeList({ showtimes, cinemaId }: ShowtimeListProps)
             {versionShowtimes.map((showtime, index) => (
               <a
                 key={`${showtime.time}-${index}`}
-                href={getAllocineCinemaUrl(cinemaId)}
+                href={getCinemaUrl(cinemaId)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-3 py-1 bg-gray-100 text-gray-800 rounded hover:bg-primary hover:text-black transition cursor-pointer text-sm font-medium"

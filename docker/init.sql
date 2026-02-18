@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS cinemas (
   postal_code TEXT,
   city TEXT,
   screen_count INTEGER,
-  image_url TEXT
+  image_url TEXT,
+  url TEXT
 );
 
 -- Table: films
@@ -45,7 +46,7 @@ CREATE TABLE IF NOT EXISTS showtimes (
   experiences TEXT, -- JSON array
   week_start TEXT NOT NULL,
   FOREIGN KEY (film_id) REFERENCES films(id),
-  FOREIGN KEY (cinema_id) REFERENCES cinemas(id)
+  FOREIGN KEY (cinema_id) REFERENCES cinemas(id) ON DELETE CASCADE
 );
 
 -- Indexes for showtimes
@@ -61,7 +62,7 @@ CREATE TABLE IF NOT EXISTS weekly_programs (
   week_start TEXT NOT NULL,
   is_new_this_week INTEGER NOT NULL DEFAULT 0,
   scraped_at TEXT NOT NULL,
-  FOREIGN KEY (cinema_id) REFERENCES cinemas(id),
+  FOREIGN KEY (cinema_id) REFERENCES cinemas(id) ON DELETE CASCADE,
   FOREIGN KEY (film_id) REFERENCES films(id),
   UNIQUE(cinema_id, film_id, week_start)
 );

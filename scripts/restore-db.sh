@@ -46,9 +46,9 @@ docker compose stop web
 # Restore database
 echo "🔄 Restoring database..."
 if [[ "$BACKUP_FILE" == *.gz ]]; then
-    gunzip -c "$BACKUP_FILE" | docker compose exec -T db psql -U postgres allocine
+    gunzip -c "$BACKUP_FILE" | docker compose exec -T db psql -U postgres its
 else
-    docker compose exec -T db psql -U postgres allocine < "$BACKUP_FILE"
+    docker compose exec -T db psql -U postgres its < "$BACKUP_FILE"
 fi
 
 # Restart web service
@@ -59,4 +59,4 @@ echo ""
 echo "✅ Database restored successfully!"
 echo ""
 echo "🔍 Verify with:"
-echo "   docker compose exec db psql -U postgres allocine -c 'SELECT COUNT(*) FROM films;'"
+echo "   docker compose exec db psql -U postgres its -c 'SELECT COUNT(*) FROM films;'"

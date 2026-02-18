@@ -30,7 +30,7 @@ export interface Film {
   certificate?: string;
   press_rating?: number;
   audience_rating?: number;
-  allocine_url: string;
+  source_url: string;
 }
 
 // Cinema types
