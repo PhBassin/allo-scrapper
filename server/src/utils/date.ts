@@ -60,28 +60,27 @@ export type ScrapeMode = 'weekly' | 'from_today' | 'from_today_limited';
  */
 export function getScrapeDates(
   mode: ScrapeMode = 'weekly',
-  numDays: number = 7
+  numDays?: number
 ): string[] {
   if (mode === 'from_today_limited') {
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday...
     
-    // Calculate days until next Tuesday (end of cinema week)
-    // Sunday (0) -> 2 days (Tue)
-    // Monday (1) -> 1 day (Tue)
-    // Tuesday (2) -> 0 days (wait, if today is Tuesday, we want today, so 1 day total)
-    // Wednesday (3) -> 6 days (next Tue)
-    // Saturday (6) -> 3 days (next Tue)
+    // Calculate days until next Wednesday (start of next cinema week)
+    // Wednesday (3) -> 7 days until next Wednesday -> 8 days total (includes both Wednesdays)
+    // Thursday  (4) -> 6 days until next Wednesday -> 7 days total
+    // Friday    (5) -> 5 days until next Wednesday -> 6 days total
+    // Saturday  (6) -> 4 days until next Wednesday -> 5 days total
+    // Sunday    (0) -> 3 days until next Wednesday -> 4 days total
+    // Monday    (1) -> 2 days until next Wednesday -> 3 days total
+    // Tuesday   (2) -> 1 day  until next Wednesday -> 2 days total
+    //
+    // Formula: ((3 - dayOfWeek + 7) % 7) gives 0 when today is Wednesday,
+    // so we use || 7 to map Wednesday to 7 (next Wednesday, not today).
+    const daysUntilNextWednesday = ((3 - dayOfWeek + 7) % 7) || 7;
+    const naturalDays = daysUntilNextWednesday + 1;
     
-    // Logic: 9 - dayOfWeek finds the Tuesday that ends the cinema week
-    // If Wed(3): 9-3=6 days difference -> 7 days total
-    // If Sat(6): 9-6=3 days difference -> 4 days total
-    // If Sun(0): 9-0=9 days difference -> 10 days total (capped to 7)
-    // If Mon(1): 9-1=8 days difference -> 9 days total (capped to 7)
-    // If Tue(2): 9-2=7 days difference -> 8 days total (capped to 7)
-    const daysUntilTuesday = 9 - dayOfWeek;
-    
-    const actualDays = Math.min(numDays, daysUntilTuesday + 1);
+    const actualDays = numDays !== undefined ? Math.min(numDays, naturalDays) : naturalDays;
     return getWeekDates(getTodayDate(), actualDays);
   }
 
