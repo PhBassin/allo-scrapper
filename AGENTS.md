@@ -343,6 +343,13 @@ allo-scrapper/
 
 ## Useful Commands
 
+### Setup (run once after cloning)
+
+```bash
+# Install git hooks (pre-push: tsc + tests)
+./scripts/install-hooks.sh
+```
+
 ### Development
 
 ```bash
@@ -357,6 +364,9 @@ cd server && npx vitest run src/services/scraper/theater-parser.test.ts
 
 # Check test coverage
 cd server && npm run test:coverage
+
+# Manual pre-push check (same as the hook)
+cd server && npx tsc --noEmit && npm run test:run
 ```
 
 ### Git
