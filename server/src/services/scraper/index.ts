@@ -27,7 +27,7 @@ import type { CinemaConfig, Showtime } from '../../types/scraper.js';
  */
 export function isStaleResponse(
   requestedDate: string,
-  selectedDate: string,
+  _selectedDate: string,
   showtimes: Showtime[]
 ): boolean {
   if (showtimes.length === 0) return false;
