@@ -96,7 +96,7 @@ nano .env
 # Database Configuration
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
-POSTGRES_DB=cinema_showtimes
+POSTGRES_DB=its
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_secure_password_here  # ⚠️ CHANGE THIS!
 

@@ -9,7 +9,7 @@ const config = {
   password: process.env.POSTGRES_PASSWORD || 'password',
   host: process.env.POSTGRES_HOST || 'localhost',
   port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'allocine',
+  database: process.env.POSTGRES_DB || 'its',
 };
 
 // Si une URL de base de données est fournie (ex: format Heroku ou Docker interne), elle est prioritaire

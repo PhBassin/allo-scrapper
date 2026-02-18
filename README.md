@@ -236,7 +236,7 @@ brew install postgresql@15
 brew services start postgresql@15
 
 # Create database
-createdb allo_scrapper
+createdb its
 ```
 
 #### 2. Configure Environment
@@ -884,7 +884,7 @@ cp .env.example .env
 |----------|-------------|---------|---------|
 | `POSTGRES_HOST` | PostgreSQL server hostname | `localhost` | `db` |
 | `POSTGRES_PORT` | PostgreSQL server port | `5432` | `5432` |
-| `POSTGRES_DB` | Database name | `cinema_showtimes` | `cinema_showtimes` |
+| `POSTGRES_DB` | Database name (`its` = Independent Theater Showtime) | `its` | `its` |
 | `POSTGRES_USER` | Database username | `postgres` | `myuser` |
 | `POSTGRES_PASSWORD` | Database password | `password` | `securepass123` |
 | `PORT` | API server port | `3000` | `8080` |
@@ -894,7 +894,7 @@ cp .env.example .env
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
-| `DATABASE_URL` | Full PostgreSQL connection string (overrides individual settings above) | — | `postgresql://postgres:password@localhost:5432/cinema_showtimes` |
+| `DATABASE_URL` | Full PostgreSQL connection string (overrides individual settings above) | — | `postgresql://postgres:password@localhost:5432/its` |
 | `TZ` | Timezone for cron jobs (IANA format) | `Europe/Paris` | `America/New_York` |
 | `SCRAPE_CRON_SCHEDULE` | Cron expression for scheduled scraping | `0 8 * * 3` | `0 3 * * *` |
 | `SCRAPE_DELAY_MS` | Delay between HTTP requests to avoid rate limiting (ms) | `1000` | `2000` |
@@ -1486,7 +1486,7 @@ docker compose up -d
 docker compose exec web npm run db:migrate
 
 # Or connect to database and run schema manually
-docker compose exec db psql -U postgres -d allo_scrapper
+docker compose exec db psql -U postgres -d its
 
 # In psql:
 \i /path/to/schema.sql
