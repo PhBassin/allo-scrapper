@@ -32,47 +32,63 @@ describe('getScrapeDates', () => {
   });
 
   describe('from_today_limited mode', () => {
-    it('should return 7 days when today is Sunday (targeting next Tuesday, capped)', () => {
+    it('should return 4 days when today is Sunday (until next Wednesday)', () => {
       vi.setSystemTime(new Date('2026-02-15T10:00:00')); // Sunday
       const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(7);
-      expect(dates[0]).toBe('2026-02-15');
-      expect(dates[6]).toBe('2026-02-21');
+      expect(dates).toHaveLength(4);
+      expect(dates[0]).toBe('2026-02-15'); // Sunday
+      expect(dates[3]).toBe('2026-02-18'); // next Wednesday
     });
 
-    it('should return 7 days when today is Monday (targeting next Tuesday, capped)', () => {
+    it('should return 3 days when today is Monday (until next Wednesday)', () => {
       vi.setSystemTime(new Date('2026-02-16T10:00:00')); // Monday
       const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(7);
-      expect(dates[0]).toBe('2026-02-16');
-      expect(dates[6]).toBe('2026-02-22');
+      expect(dates).toHaveLength(3);
+      expect(dates[0]).toBe('2026-02-16'); // Monday
+      expect(dates[2]).toBe('2026-02-18'); // next Wednesday
     });
 
-    it('should return 7 days when today is Tuesday (targeting next Tuesday, capped)', () => {
+    it('should return 2 days when today is Tuesday (until next Wednesday)', () => {
       vi.setSystemTime(new Date('2026-02-17T10:00:00')); // Tuesday
       const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(7);
-      expect(dates[0]).toBe('2026-02-17');
-      expect(dates[6]).toBe('2026-02-23');
+      expect(dates).toHaveLength(2);
+      expect(dates[0]).toBe('2026-02-17'); // Tuesday
+      expect(dates[1]).toBe('2026-02-18'); // next Wednesday
     });
 
-    it('should return 7 days when today is Wednesday (targeting this week Tuesday)', () => {
+    it('should return 8 days when today is Wednesday (until next Wednesday)', () => {
       vi.setSystemTime(new Date('2026-02-18T10:00:00')); // Wednesday
       const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(7);
-      expect(dates[0]).toBe('2026-02-18');
-      expect(dates[6]).toBe('2026-02-24'); // Tuesday
+      expect(dates).toHaveLength(8);
+      expect(dates[0]).toBe('2026-02-18'); // this Wednesday
+      expect(dates[7]).toBe('2026-02-25'); // next Wednesday
     });
 
-    it('should return 4 days when today is Saturday', () => {
+    it('should return 7 days when today is Thursday (until next Wednesday)', () => {
+      vi.setSystemTime(new Date('2026-02-19T10:00:00')); // Thursday
+      const dates = getScrapeDates('from_today_limited');
+      expect(dates).toHaveLength(7);
+      expect(dates[0]).toBe('2026-02-19'); // Thursday
+      expect(dates[6]).toBe('2026-02-25'); // next Wednesday
+    });
+
+    it('should return 6 days when today is Friday (until next Wednesday)', () => {
+      vi.setSystemTime(new Date('2026-02-20T10:00:00')); // Friday
+      const dates = getScrapeDates('from_today_limited');
+      expect(dates).toHaveLength(6);
+      expect(dates[0]).toBe('2026-02-20'); // Friday
+      expect(dates[5]).toBe('2026-02-25'); // next Wednesday
+    });
+
+    it('should return 5 days when today is Saturday (until next Wednesday)', () => {
       vi.setSystemTime(new Date('2026-02-21T10:00:00')); // Saturday
       const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(4);
-      expect(dates[0]).toBe('2026-02-21');
-      expect(dates[3]).toBe('2026-02-24'); // Tuesday
+      expect(dates).toHaveLength(5);
+      expect(dates[0]).toBe('2026-02-21'); // Saturday
+      expect(dates[4]).toBe('2026-02-25'); // next Wednesday
     });
 
-    it('should respect numDays if it is smaller than days until Tuesday', () => {
+    it('should respect numDays if it is smaller than days until next Wednesday', () => {
       vi.setSystemTime(new Date('2026-02-18T10:00:00')); // Wednesday
       const dates = getScrapeDates('from_today_limited', 3);
       expect(dates).toHaveLength(3);
