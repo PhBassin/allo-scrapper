@@ -884,7 +884,7 @@ cp .env.example .env
 |----------|-------------|---------|---------|
 | `POSTGRES_HOST` | PostgreSQL server hostname | `localhost` | `db` |
 | `POSTGRES_PORT` | PostgreSQL server port | `5432` | `5432` |
-| `POSTGRES_DB` | Database name (`its` = Independent Theater Showtime) | `its` | `its` |
+| `POSTGRES_DB` | Database name (`its` = Independant Theater Showtime) | `its` | `its` |
 | `POSTGRES_USER` | Database username | `postgres` | `myuser` |
 | `POSTGRES_PASSWORD` | Database password | `password` | `securepass123` |
 | `PORT` | API server port | `3000` | `8080` |
