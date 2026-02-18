@@ -3,11 +3,12 @@
 export interface Cinema {
   id: string; // Unique cinema identifier (e.g., "W7504", "C0072")
   name: string;
-  address: string;
-  postal_code: string;
-  city: string;
-  screen_count: number;
+  address?: string;
+  postal_code?: string;
+  city?: string;
+  screen_count?: number;
   image_url?: string;
+  url?: string; // AlloCiné page URL for scraping
 }
 
 export interface Film {
