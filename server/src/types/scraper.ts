@@ -8,7 +8,7 @@ export interface Cinema {
   city?: string;
   screen_count?: number;
   image_url?: string;
-  url?: string; // AlloCiné page URL for scraping
+  url?: string; // Source website page URL for scraping
 }
 
 export interface Film {

@@ -6,10 +6,10 @@
 -- to use neutral terminology throughout the database schema.
 --
 -- IMPORTANT: Backup your database before running this migration!
---   docker compose exec -T db pg_dump -U postgres allocine > backup_before_neutralize.sql
+--   docker compose exec -T db pg_dump -U postgres its > backup_before_neutralize.sql
 --
 -- Apply this migration:
---   docker compose exec -T db psql -U postgres -d allocine -f migrations/001_neutralize_references.sql
+--   docker compose exec -T db psql -U postgres -d its -f migrations/001_neutralize_references.sql
 
 BEGIN;
 

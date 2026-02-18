@@ -87,9 +87,9 @@ server/
 
 ### For New Cinemas
 
-1. **Fetch full HTML page from Allociné**:
+1. **Fetch full HTML page from the source website**:
    ```bash
-   curl "https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html" \
+   curl "https://www.example-cinema-site.com/seance/salle_gen_csalle=CXXXX.html" \
      -o tests/fixtures/cinema-cxxxx-page.html
    ```
 
@@ -138,8 +138,8 @@ server/
 
 ## Troubleshooting
 
-### Tests Fail After Allociné HTML Changes
-If Allociné modifies their website structure:
+### Tests Fail After Source Website HTML Changes
+If the source website modifies their website structure:
 1. Update fixtures with fresh HTML
 2. Review parser logic in `theater-parser.ts`
 3. Adjust test expectations if needed

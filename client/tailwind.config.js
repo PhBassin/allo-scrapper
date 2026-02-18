@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#FECC00', // Couleur Allociné
+        primary: '#FECC00', // Brand primary color
         secondary: '#1F2937',
       },
     },

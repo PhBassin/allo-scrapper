@@ -113,8 +113,8 @@ describe('Queries - Cinemas', () => {
       const mockDb = {
         query: vi.fn().mockResolvedValue({
           rows: [
-            { id: 'W7504', name: 'Épée de Bois', url: 'https://www.allocine.fr/seance/salle_gen_csalle=W7504.html' },
-            { id: 'C0072', name: 'Le Grand Action', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html' },
+            { id: 'W7504', name: 'Épée de Bois', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=W7504.html' },
+            { id: 'C0072', name: 'Le Grand Action', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0072.html' },
           ]
         })
       } as unknown as DB;
@@ -123,7 +123,7 @@ describe('Queries - Cinemas', () => {
 
       expect(result).toHaveLength(2);
       expect(result[0].id).toBe('W7504');
-      expect(result[0].url).toBe('https://www.allocine.fr/seance/salle_gen_csalle=W7504.html');
+      expect(result[0].url).toBe('https://www.example-cinema-site.com/seance/salle_gen_csalle=W7504.html');
     });
 
     it('should return empty array when no cinemas with url exist', async () => {
@@ -242,12 +242,12 @@ describe('Queries - Cinemas', () => {
         postal_code: '75002',
         city: 'Paris',
         screen_count: 2,
-        url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html',
+        url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html',
       });
 
       expect(mockDb.query).toHaveBeenCalledOnce();
       const params: any[] = mockDb.query.mock.calls[0][1];
-      expect(params).toContain('https://www.allocine.fr/seance/salle_gen_csalle=C0099.html');
+      expect(params).toContain('https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html');
     });
   });
 });

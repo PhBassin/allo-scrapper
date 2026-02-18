@@ -1,5 +1,5 @@
 # ============================================================================
-# Multi-Stage Dockerfile for Allociné Scraper
+# Multi-Stage Dockerfile for Cinema Scraper
 # ============================================================================
 # Stage 1: Build Frontend (React + Vite)
 # Stage 2: Build Backend (TypeScript)

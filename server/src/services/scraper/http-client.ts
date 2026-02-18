@@ -7,7 +7,7 @@ export async function fetchTheaterPage(
   cinemaId: string,
   date?: string
 ): Promise<string> {
-  let url = `https://www.allocine.fr/seance/salle_gen_csalle=${cinemaId}.html`;
+  let url = `https://www.example-cinema-site.com/seance/salle_gen_csalle=${cinemaId}.html`;
   
   if (date) {
     url += `?date=${date}#shwt_date=${date}`;
@@ -34,7 +34,7 @@ export async function fetchTheaterPage(
 }
 
 export async function fetchFilmPage(filmId: number): Promise<string> {
-  const url = `https://www.allocine.fr/film/fichefilm_gen_cfilm=${filmId}.html`;
+  const url = `https://www.example-cinema-site.com/film/fichefilm_gen_cfilm=${filmId}.html`;
 
   console.log(`🎬 Fetching film page: ${url}`);
 

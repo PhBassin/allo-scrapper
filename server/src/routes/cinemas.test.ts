@@ -36,15 +36,15 @@ describe('Routes - Cinemas', () => {
   describe('POST /', () => {
     it('should create a new cinema and return 201', async () => {
       mockReq = {
-        body: { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' }
+        body: { id: 'C0099', name: 'New Cinema', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html' }
       };
-      const created = { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' };
+      const created = { id: 'C0099', name: 'New Cinema', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html' };
       (queries.addCinema as any).mockResolvedValue(created);
 
       const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
       await handler(mockReq, mockRes);
 
-      expect(queries.addCinema).toHaveBeenCalledWith(expect.anything(), { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' });
+      expect(queries.addCinema).toHaveBeenCalledWith(expect.anything(), { id: 'C0099', name: 'New Cinema', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html' });
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: created }));
     });
