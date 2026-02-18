@@ -24,12 +24,13 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 3. PLAN      → Break down into atomic tasks
 4. TDD       → Write tests BEFORE code
 5. IMPLEMENT → Minimal code to pass tests
-6. COMMIT    → Atomic commits with Conventional Commits format
-7. E2E       → Run integration tests (E2E) if frontend changes
-8. DOCS      → Update README if API/features change
-9. PR        → Open Pull Request referencing the issue
-10. REVIEW   → Wait for review/approval before merging
-11. CLEANUP  → Switch back to develop and pull latest changes after PR is merged
+6. DOCKER    → Verify Docker build succeeds
+7. COMMIT    → Atomic commits with Conventional Commits format
+8. E2E       → Run integration tests (E2E) if frontend changes
+9. DOCS      → Update README if API/features change
+10. PR       → Open Pull Request referencing the issue
+11. REVIEW   → Wait for review/approval before merging
+12. CLEANUP  → Switch back to develop and pull latest changes after PR is merged
 ```
 
 ---
@@ -147,7 +148,19 @@ After tests are written:
 
 ---
 
-## Step 5: Atomic Commits
+## Step 5: Verify Docker Build
+
+**Before committing, verify the Docker build succeeds.**
+
+```bash
+docker compose build
+```
+
+If the build fails, fix the issue before proceeding to commit.
+
+---
+
+## Step 7: Atomic Commits
 
 **Each commit = one logical, self-contained change.**
 
@@ -213,7 +226,7 @@ For a typical feature:
 
 ---
 
-## Step 7: Integration Testing (E2E)
+## Step 8: Integration Testing (E2E)
 
 **When frontend changes are made, run E2E tests to verify end-to-end functionality.**
 
@@ -272,7 +285,7 @@ scripts/integration-test.sh # Automated full-stack test script
 
 ---
 
-## Step 8: Documentation
+## Step 9: Documentation
 
 ### Update README.md When:
 
@@ -288,7 +301,7 @@ scripts/integration-test.sh # Automated full-stack test script
 
 ---
 
-## Step 9: Pull Request
+## Step 10: Pull Request
 
 ### Create PR
 
