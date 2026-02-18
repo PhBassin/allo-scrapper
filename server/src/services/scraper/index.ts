@@ -12,6 +12,7 @@ import { parseTheaterPage } from './theater-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import { getScrapeDates, type ScrapeMode } from '../../utils/date.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
+import type { CinemaConfig } from '../../types/scraper.js';
 
 // Scraper un cinéma pour une date donnée
 async function scrapeTheater(
