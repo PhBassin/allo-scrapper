@@ -3,12 +3,14 @@
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+const ALLOCINE_BASE_URL = 'https://www.allocine.fr';
+
 export async function fetchTheaterPage(
-  cinemaId: string,
+  cinemaBaseUrl: string,
   date?: string
 ): Promise<string> {
-  let url = `https://www.example-cinema-site.com/seance/salle_gen_csalle=${cinemaId}.html`;
-  
+  let url = cinemaBaseUrl;
+
   if (date) {
     url += `?date=${date}#shwt_date=${date}`;
   }
@@ -26,7 +28,7 @@ export async function fetchTheaterPage(
 
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch theater page ${cinemaId}: ${response.status} ${response.statusText}`
+      `Failed to fetch theater page ${cinemaBaseUrl}: ${response.status} ${response.statusText}`
     );
   }
 
@@ -34,7 +36,7 @@ export async function fetchTheaterPage(
 }
 
 export async function fetchFilmPage(filmId: number): Promise<string> {
-  const url = `https://www.example-cinema-site.com/film/fichefilm_gen_cfilm=${filmId}.html`;
+  const url = `${ALLOCINE_BASE_URL}/film/fichefilm_gen_cfilm=${filmId}.html`;
 
   console.log(`🎬 Fetching film page: ${url}`);
 
