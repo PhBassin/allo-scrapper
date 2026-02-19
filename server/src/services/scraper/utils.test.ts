@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isStaleResponse } from './utils.js';
+import { isStaleResponse, extractCinemaIdFromUrl } from './utils.js';
 import type { Showtime } from '../../types/scraper.js';
 
 // Helper to build a minimal Showtime object for testing
@@ -80,5 +80,20 @@ describe('isStaleResponse', () => {
     it('returns false for empty inputs', () => {
       expect(isStaleResponse('', '', [])).toBe(false);
     });
+  });
+});
+
+describe('extractCinemaIdFromUrl', () => {
+  it('extracts ID from standard Allociné URL', () => {
+    expect(extractCinemaIdFromUrl('https://www.allocine.fr/seance/salle_affich-salle=C0013.html')).toBe('C0013');
+  });
+
+  it('extracts ID from URL with csalle parameter', () => {
+    expect(extractCinemaIdFromUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0013.html')).toBe('C0013');
+  });
+
+  it('returns null for invalid URLs', () => {
+    expect(extractCinemaIdFromUrl('https://www.google.com')).toBeNull();
+    expect(extractCinemaIdFromUrl('https://www.allocine.fr/film/fichefilm_gen_cfilm=12345.html')).toBeNull();
   });
 });

@@ -64,6 +64,14 @@ export async function getCinemaSchedule(
   return response.data.data;
 }
 
+export async function addCinema(url: string): Promise<Cinema> {
+  const response = await api.post<ApiResponse<Cinema>>('/cinemas', { url });
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to add cinema');
+  }
+  return response.data.data;
+}
+
 // ============================================================================
 // SCRAPER API
 // ============================================================================
