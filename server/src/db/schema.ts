@@ -66,6 +66,7 @@ export async function initializeDatabase() {
     `CREATE INDEX IF NOT EXISTS idx_showtimes_cinema_date ON showtimes(cinema_id, date)`,
     `CREATE INDEX IF NOT EXISTS idx_showtimes_film_date ON showtimes(film_id, date)`,
     `CREATE INDEX IF NOT EXISTS idx_showtimes_week ON showtimes(week_start)`,
+    `CREATE INDEX IF NOT EXISTS idx_showtimes_cinema_week ON showtimes(cinema_id, week_start)`,
 
     // Table: weekly_programs
     `CREATE TABLE IF NOT EXISTS weekly_programs (
