@@ -2,16 +2,16 @@
   {
     "id": "W7504",
     "name": "Épée de Bois",
-    "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=W7504.html"
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=W7504.html"
   },
   {
     "id": "C0072",
     "name": "Le Grand Action",
-    "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0072.html"
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0072.html"
   },
   {
     "id": "C0089",
     "name": "Max Linder Panorama",
-    "url": "https://www.example-cinema-site.com/seance/salle_gen_csalle=C0089.html"
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0089.html"
   }
 ]
