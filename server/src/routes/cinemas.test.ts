@@ -30,7 +30,8 @@ describe('Routes - Cinemas', () => {
     vi.clearAllMocks();
     mockRes = {
       json: vi.fn().mockReturnThis(),
-      status: vi.fn().mockReturnThis()
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn().mockReturnThis(),
     };
     mockNext = vi.fn();
   });
@@ -157,7 +158,7 @@ describe('Routes - Cinemas', () => {
 
       expect(queries.deleteCinema).toHaveBeenCalledWith(expect.anything(), 'W7504');
       expect(mockRes.status).toHaveBeenCalledWith(204);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+      expect(mockRes.send).toHaveBeenCalledWith();
     });
 
     it('should return 404 when cinema not found', async () => {

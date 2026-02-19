@@ -108,8 +108,7 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(404).json(response);
     }
 
-    const response: ApiResponse = { success: true };
-    return res.status(204).json(response);
+    return res.status(204).send();
   } catch (error) {
     return next(error);
   }

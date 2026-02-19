@@ -98,3 +98,26 @@ export function getScrapeDates(
 export function parseLocalDate(dateStr: string): Date {
   return new Date(dateStr + 'T00:00:00');
 }
+
+/**
+ * Return the Wednesday (week start) for a given YYYY-MM-DD date string.
+ * Uses local time parsing to avoid timezone off-by-one issues.
+ */
+export function getWeekStartForDate(dateStr: string): string {
+  const date = parseLocalDate(dateStr);
+  const dayOfWeek = date.getDay(); // 0 = Sunday, 3 = Wednesday
+
+  let offset = dayOfWeek - 3;
+  if (offset < 0) {
+    offset += 7;
+  }
+
+  const wednesday = new Date(date);
+  wednesday.setDate(date.getDate() - offset);
+
+  // Format as YYYY-MM-DD in local time
+  const year = wednesday.getFullYear();
+  const month = String(wednesday.getMonth() + 1).padStart(2, '0');
+  const day = String(wednesday.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}

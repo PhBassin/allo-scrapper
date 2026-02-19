@@ -11,29 +11,9 @@ import { fetchTheaterPage, fetchFilmPage, delay } from './http-client.js';
 import { parseTheaterPage } from './theater-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import { isStaleResponse } from './utils.js';
-import { getScrapeDates, type ScrapeMode } from '../../utils/date.js';
+import { getScrapeDates, getWeekStartForDate, type ScrapeMode } from '../../utils/date.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
-import type { CinemaConfig, Showtime, WeeklyProgram } from '../../types/scraper.js';
-
-/**
- * Determines whether a scraped page is a stale/fallback response.
- *
- * The source cinema site returns the closest published date's data when
- * the requested date has no showtimes yet (e.g. future dates not yet
- * published). We detect this by checking whether *all* showtimes on the
- * page have a date that differs from the requested date.
- *
- * Returns false when there are no showtimes — an empty schedule is a
- * legitimate result, not a fallback.
- */
-export function isStaleResponse(
-  requestedDate: string,
-  _selectedDate: string,
-  showtimes: Showtime[]
-): boolean {
-  if (showtimes.length === 0) return false;
-  return showtimes.every((s) => s.date !== requestedDate);
-}
+import type { CinemaConfig, WeeklyProgram } from '../../types/scraper.js';
 
 // Scraper un cinéma pour une date donnée
 async function scrapeTheater(
@@ -127,7 +107,7 @@ async function scrapeTheater(
         weeklyPrograms.push({
           cinema_id: cinema.id,
           film_id: film.id,
-          week_start: filmData.showtimes[0]?.week_start || date,
+          week_start: filmData.showtimes[0]?.week_start ?? getWeekStartForDate(date),
           is_new_this_week: filmData.is_new_this_week,
           scraped_at: new Date().toISOString(),
         });
