@@ -1,6 +1,88 @@
 import { type DB } from './client.js';
 import type { Cinema, Film, Showtime, WeeklyProgram } from '../types/scraper.js';
 
+// --- Database Row Interfaces ---
+
+export interface CinemaRow {
+  id: string;
+  name: string;
+  address: string | null;
+  postal_code: string | null;
+  city: string | null;
+  screen_count: number | null;
+  image_url: string | null;
+  url: string | null;
+}
+
+export interface FilmRow {
+  id: number;
+  title: string;
+  original_title: string | null;
+  poster_url: string | null;
+  duration_minutes: number | null;
+  release_date: string | null;
+  rerelease_date: string | null;
+  genres: string | null; // JSON string
+  nationality: string | null;
+  director: string | null;
+  actors: string | null; // JSON string
+  synopsis: string | null;
+  certificate: string | null;
+  press_rating: number | null;
+  audience_rating: number | null;
+  source_url: string;
+}
+
+export interface ShowtimeRow {
+  id: string;
+  film_id: number;
+  cinema_id: string;
+  date: string;
+  time: string;
+  datetime_iso: string;
+  version: string | null;
+  format: string | null;
+  experiences: string | null; // JSON string
+  week_start: string;
+}
+
+export interface ShowtimeWithFilmRow extends ShowtimeRow {
+  film_title: string;
+  original_title: string | null;
+  poster_url: string | null;
+  duration_minutes: number | null;
+  release_date: string | null;
+  rerelease_date: string | null;
+  genres: string | null;
+  nationality: string | null;
+  director: string | null;
+  actors: string | null;
+  synopsis: string | null;
+  certificate: string | null;
+  press_rating: number | null;
+  audience_rating: number | null;
+  source_url: string;
+}
+
+export interface WeeklyFilmRow extends FilmRow {
+  cinema_id: string;
+  cinema_name: string;
+  cinema_address: string | null;
+  postal_code: string | null;
+  city: string | null;
+  screen_count: number | null;
+  cinema_image_url: string | null;
+}
+
+export interface ShowtimeWithCinemaRow extends ShowtimeRow {
+  cinema_name: string;
+  cinema_address: string | null;
+  postal_code: string | null;
+  city: string | null;
+  screen_count: number | null;
+  cinema_image_url: string | null;
+}
+
 // Helper to handle parameter syntax for PostgreSQL
 // We convert from named parameters (conceptually) to numbered parameters ($1, $2, etc.)
 
@@ -34,10 +116,10 @@ export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
 
 // Récupérer les cinémas configurés pour le scraping (ceux avec une URL)
 export async function getCinemaConfigs(db: DB): Promise<Array<{ id: string; name: string; url: string }>> {
-  const result = await db.query(
+  const result = await db.query<{ id: string; name: string; url: string }>(
     'SELECT id, name, url FROM cinemas WHERE url IS NOT NULL ORDER BY name'
   );
-  return result.rows as Array<{ id: string; name: string; url: string }>;
+  return result.rows;
 }
 
 // Ajouter un nouveau cinéma
@@ -45,11 +127,11 @@ export async function addCinema(
   db: DB,
   cinema: { id: string; name: string; url: string }
 ): Promise<{ id: string; name: string; url: string }> {
-  const result = await db.query(
+  const result = await db.query<{ id: string; name: string; url: string }>(
     `INSERT INTO cinemas (id, name, url) VALUES ($1, $2, $3) RETURNING id, name, url`,
     [cinema.id, cinema.name, cinema.url]
   );
-  return result.rows[0] as { id: string; name: string; url: string };
+  return result.rows[0];
 }
 
 // Mettre à jour la configuration d'un cinéma (nom et/ou URL)
@@ -59,7 +141,7 @@ export async function updateCinemaConfig(
   updates: { name?: string; url?: string }
 ): Promise<{ id: string; name: string; url: string } | undefined> {
   const fields: string[] = [];
-  const values: any[] = [];
+  const values: unknown[] = [];
   let paramIndex = 1;
 
   if (updates.name !== undefined) {
@@ -72,11 +154,11 @@ export async function updateCinemaConfig(
   }
 
   values.push(id);
-  const result = await db.query(
+  const result = await db.query<{ id: string; name: string; url: string }>(
     `UPDATE cinemas SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING id, name, url`,
     values
   );
-  return result.rows[0] as { id: string; name: string; url: string } | undefined;
+  return result.rows[0];
 }
 
 // Supprimer un cinéma (et ses séances via CASCADE)
@@ -227,24 +309,46 @@ export async function upsertWeeklyPrograms(db: DB, programs: WeeklyProgram[]): P
 
 // Récupérer tous les cinémas
 export async function getCinemas(db: DB): Promise<Cinema[]> {
-  const result = await db.query('SELECT * FROM cinemas ORDER BY name');
-  return result.rows as unknown as Cinema[];
+  const result = await db.query<CinemaRow>('SELECT * FROM cinemas ORDER BY name');
+  return result.rows.map(row => ({
+    id: row.id,
+    name: row.name,
+    address: row.address ?? undefined,
+    postal_code: row.postal_code ?? undefined,
+    city: row.city ?? undefined,
+    screen_count: row.screen_count ?? undefined,
+    image_url: row.image_url ?? undefined,
+    url: row.url ?? undefined,
+  }));
 }
 
 // Récupérer un film par son ID
 export async function getFilm(db: DB, filmId: number): Promise<Film | undefined> {
-  const result = await db.query(
+  const result = await db.query<FilmRow>(
     'SELECT * FROM films WHERE id = $1',
     [filmId]
   );
   
-  const row = result.rows[0] as any;
+  const row = result.rows[0];
   if (!row) return undefined;
 
   return {
-    ...row,
-    genres: JSON.parse(row.genres || '[]'),
-    actors: JSON.parse(row.actors || '[]'),
+    id: row.id,
+    title: row.title,
+    original_title: row.original_title ?? undefined,
+    poster_url: row.poster_url ?? undefined,
+    duration_minutes: row.duration_minutes ?? undefined,
+    release_date: row.release_date ?? undefined,
+    rerelease_date: row.rerelease_date ?? undefined,
+    genres: JSON.parse(row.genres ?? '[]'),
+    nationality: row.nationality ?? undefined,
+    director: row.director ?? undefined,
+    actors: JSON.parse(row.actors ?? '[]'),
+    synopsis: row.synopsis ?? undefined,
+    certificate: row.certificate ?? undefined,
+    press_rating: row.press_rating ?? undefined,
+    audience_rating: row.audience_rating ?? undefined,
+    source_url: row.source_url,
   };
 }
 
@@ -254,7 +358,7 @@ export async function getShowtimesByCinema(
   cinemaId: string,
   date: string
 ): Promise<Array<Showtime & { film: Film }>> {
-  const result = await db.query(
+  const result = await db.query<ShowtimeWithFilmRow>(
     `
       SELECT 
         s.*,
@@ -282,33 +386,33 @@ export async function getShowtimesByCinema(
     [cinemaId, date]
   );
 
-  return result.rows.map((row: any) => ({
+  return result.rows.map((row) => ({
     id: row.id,
     film_id: row.film_id,
     cinema_id: row.cinema_id,
     date: row.date,
     time: row.time,
     datetime_iso: row.datetime_iso,
-    version: row.version,
-    format: row.format,
-    experiences: JSON.parse(row.experiences || '[]'),
+    version: row.version ?? '',
+    format: row.format ?? undefined,
+    experiences: JSON.parse(row.experiences ?? '[]'),
     week_start: row.week_start,
     film: {
       id: row.film_id,
       title: row.film_title,
-      original_title: row.original_title,
-      poster_url: row.poster_url,
-      duration_minutes: row.duration_minutes,
-      release_date: row.release_date,
-      rerelease_date: row.rerelease_date,
-      genres: JSON.parse(row.genres || '[]'),
-      nationality: row.nationality,
-      director: row.director,
-      actors: JSON.parse(row.actors || '[]'),
-      synopsis: row.synopsis,
-      certificate: row.certificate,
-      press_rating: row.press_rating,
-      audience_rating: row.audience_rating,
+      original_title: row.original_title ?? undefined,
+      poster_url: row.poster_url ?? undefined,
+      duration_minutes: row.duration_minutes ?? undefined,
+      release_date: row.release_date ?? undefined,
+      rerelease_date: row.rerelease_date ?? undefined,
+      genres: JSON.parse(row.genres ?? '[]'),
+      nationality: row.nationality ?? undefined,
+      director: row.director ?? undefined,
+      actors: JSON.parse(row.actors ?? '[]'),
+      synopsis: row.synopsis ?? undefined,
+      certificate: row.certificate ?? undefined,
+      press_rating: row.press_rating ?? undefined,
+      audience_rating: row.audience_rating ?? undefined,
       source_url: row.source_url,
     },
   }));
@@ -320,7 +424,7 @@ export async function getShowtimesByCinemaAndWeek(
   cinemaId: string,
   weekStart: string
 ): Promise<Array<Showtime & { film: Film }>> {
-  const result = await db.query(
+  const result = await db.query<ShowtimeWithFilmRow>(
     `
       SELECT 
         s.*,
@@ -348,33 +452,33 @@ export async function getShowtimesByCinemaAndWeek(
     [cinemaId, weekStart]
   );
 
-  return result.rows.map((row: any) => ({
+  return result.rows.map((row) => ({
     id: row.id,
     film_id: row.film_id,
     cinema_id: row.cinema_id,
     date: row.date,
     time: row.time,
     datetime_iso: row.datetime_iso,
-    version: row.version,
-    format: row.format,
-    experiences: JSON.parse(row.experiences || '[]'),
+    version: row.version ?? '',
+    format: row.format ?? undefined,
+    experiences: JSON.parse(row.experiences ?? '[]'),
     week_start: row.week_start,
     film: {
       id: row.film_id,
       title: row.film_title,
-      original_title: row.original_title,
-      poster_url: row.poster_url,
-      duration_minutes: row.duration_minutes,
-      release_date: row.release_date,
-      rerelease_date: row.rerelease_date,
-      genres: JSON.parse(row.genres || '[]'),
-      nationality: row.nationality,
-      director: row.director,
-      actors: JSON.parse(row.actors || '[]'),
-      synopsis: row.synopsis,
-      certificate: row.certificate,
-      press_rating: row.press_rating,
-      audience_rating: row.audience_rating,
+      original_title: row.original_title ?? undefined,
+      poster_url: row.poster_url ?? undefined,
+      duration_minutes: row.duration_minutes ?? undefined,
+      release_date: row.release_date ?? undefined,
+      rerelease_date: row.rerelease_date ?? undefined,
+      genres: JSON.parse(row.genres ?? '[]'),
+      nationality: row.nationality ?? undefined,
+      director: row.director ?? undefined,
+      actors: JSON.parse(row.actors ?? '[]'),
+      synopsis: row.synopsis ?? undefined,
+      certificate: row.certificate ?? undefined,
+      press_rating: row.press_rating ?? undefined,
+      audience_rating: row.audience_rating ?? undefined,
       source_url: row.source_url,
     },
   }));
@@ -385,7 +489,7 @@ export async function getWeeklyFilms(
   db: DB,
   weekStart: string
 ): Promise<Array<Film & { cinemas: Cinema[] }>> {
-  const result = await db.query(
+  const result = await db.query<WeeklyFilmRow>(
     `
       SELECT DISTINCT
         f.*,
@@ -408,24 +512,24 @@ export async function getWeeklyFilms(
   // Regrouper par film
   const filmsMap = new Map<number, Film & { cinemas: Cinema[] }>();
 
-  for (const row of (result.rows as any[])) {
+  for (const row of result.rows) {
     if (!filmsMap.has(row.id)) {
       filmsMap.set(row.id, {
         id: row.id,
         title: row.title,
-        original_title: row.original_title,
-        poster_url: row.poster_url,
-        duration_minutes: row.duration_minutes,
-        release_date: row.release_date,
-        rerelease_date: row.rerelease_date,
-        genres: JSON.parse(row.genres || '[]'),
-        nationality: row.nationality,
-        director: row.director,
-        actors: JSON.parse(row.actors || '[]'),
-        synopsis: row.synopsis,
-        certificate: row.certificate,
-        press_rating: row.press_rating,
-        audience_rating: row.audience_rating,
+        original_title: row.original_title ?? undefined,
+        poster_url: row.poster_url ?? undefined,
+        duration_minutes: row.duration_minutes ?? undefined,
+        release_date: row.release_date ?? undefined,
+        rerelease_date: row.rerelease_date ?? undefined,
+        genres: JSON.parse(row.genres ?? '[]'),
+        nationality: row.nationality ?? undefined,
+        director: row.director ?? undefined,
+        actors: JSON.parse(row.actors ?? '[]'),
+        synopsis: row.synopsis ?? undefined,
+        certificate: row.certificate ?? undefined,
+        press_rating: row.press_rating ?? undefined,
+        audience_rating: row.audience_rating ?? undefined,
         source_url: row.source_url,
         cinemas: [],
       });
@@ -435,11 +539,11 @@ export async function getWeeklyFilms(
     film.cinemas.push({
       id: row.cinema_id,
       name: row.cinema_name,
-      address: row.cinema_address,
-      postal_code: row.postal_code,
-      city: row.city,
-      screen_count: row.screen_count,
-      image_url: row.cinema_image_url,
+      address: row.cinema_address ?? undefined,
+      postal_code: row.postal_code ?? undefined,
+      city: row.city ?? undefined,
+      screen_count: row.screen_count ?? undefined,
+      image_url: row.cinema_image_url ?? undefined,
     });
   }
 
@@ -452,7 +556,7 @@ export async function getShowtimesByFilmAndWeek(
   filmId: number,
   weekStart: string
 ): Promise<Array<Showtime & { cinema: Cinema }>> {
-  const result = await db.query(
+  const result = await db.query<ShowtimeWithCinemaRow>(
     `
       SELECT 
         s.*,
@@ -471,25 +575,25 @@ export async function getShowtimesByFilmAndWeek(
     [filmId, weekStart]
   );
 
-  return result.rows.map((row: any) => ({
+  return result.rows.map((row) => ({
     id: row.id,
     film_id: row.film_id,
     cinema_id: row.cinema_id,
     date: row.date,
     time: row.time,
     datetime_iso: row.datetime_iso,
-    version: row.version,
-    format: row.format,
-    experiences: JSON.parse(row.experiences || '[]'),
+    version: row.version ?? '',
+    format: row.format ?? undefined,
+    experiences: JSON.parse(row.experiences ?? '[]'),
     week_start: row.week_start,
     cinema: {
       id: row.cinema_id,
       name: row.cinema_name,
-      address: row.cinema_address,
-      postal_code: row.postal_code,
-      city: row.city,
-      screen_count: row.screen_count,
-      image_url: row.cinema_image_url,
+      address: row.cinema_address ?? undefined,
+      postal_code: row.postal_code ?? undefined,
+      city: row.city ?? undefined,
+      screen_count: row.screen_count ?? undefined,
+      image_url: row.cinema_image_url ?? undefined,
     },
   }));
 }
@@ -499,7 +603,7 @@ export async function getWeeklyShowtimes(
   db: DB,
   weekStart: string
 ): Promise<Array<Showtime & { cinema: Cinema }>> {
-  const result = await db.query(
+  const result = await db.query<ShowtimeWithCinemaRow>(
     `
       SELECT 
         s.*,
@@ -518,25 +622,25 @@ export async function getWeeklyShowtimes(
     [weekStart]
   );
 
-  return result.rows.map((row: any) => ({
+  return result.rows.map((row) => ({
     id: row.id,
     film_id: row.film_id,
     cinema_id: row.cinema_id,
     date: row.date,
     time: row.time,
     datetime_iso: row.datetime_iso,
-    version: row.version,
-    format: row.format,
-    experiences: JSON.parse(row.experiences || '[]'),
+    version: row.version ?? '',
+    format: row.format ?? undefined,
+    experiences: JSON.parse(row.experiences ?? '[]'),
     week_start: row.week_start,
     cinema: {
       id: row.cinema_id,
       name: row.cinema_name,
-      address: row.cinema_address,
-      postal_code: row.postal_code,
-      city: row.city,
-      screen_count: row.screen_count,
-      image_url: row.cinema_image_url,
+      address: row.cinema_address ?? undefined,
+      postal_code: row.postal_code ?? undefined,
+      city: row.city ?? undefined,
+      screen_count: row.screen_count ?? undefined,
+      image_url: row.cinema_image_url ?? undefined,
     },
   }));
 }
@@ -565,8 +669,8 @@ export interface ScrapeReport {
   failed_cinemas?: number;
   total_films_scraped?: number;
   total_showtimes_scraped?: number;
-  errors?: any[];
-  progress_log?: any[];
+  errors?: unknown[];
+  progress_log?: unknown[];
 }
 
 // Create a new scrape report
@@ -574,7 +678,7 @@ export async function createScrapeReport(
   db: DB,
   triggerType: 'manual' | 'cron'
 ): Promise<number> {
-  const result = await db.query(
+  const result = await db.query<{ id: number }>(
     `INSERT INTO scrape_reports (started_at, status, trigger_type)
      VALUES (NOW(), 'running', $1)
      RETURNING id`,
@@ -590,7 +694,7 @@ export async function updateScrapeReport(
   data: Partial<Omit<ScrapeReport, 'id' | 'started_at'>>
 ): Promise<void> {
   const fields: string[] = [];
-  const values: any[] = [];
+  const values: unknown[] = [];
   let paramIndex = 1;
 
   if (data.completed_at !== undefined) {
@@ -641,11 +745,11 @@ export async function updateScrapeReport(
 
 // Get a scrape report by ID
 export async function getScrapeReport(db: DB, reportId: number): Promise<ScrapeReport | undefined> {
-  const result = await db.query(
+  const result = await db.query<ScrapeReport>(
     'SELECT * FROM scrape_reports WHERE id = $1',
     [reportId]
   );
-  return result.rows[0] as ScrapeReport | undefined;
+  return result.rows[0];
 }
 
 // Get all scrape reports (paginated)
@@ -661,7 +765,7 @@ export async function getScrapeReports(
   const { limit = 20, offset = 0, status, triggerType } = options;
 
   const conditions: string[] = [];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   if (status) {
@@ -676,7 +780,7 @@ export async function getScrapeReports(
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   // Get total count
-  const countResult = await db.query(
+  const countResult = await db.query<{ count: string }>(
     `SELECT COUNT(*) as count FROM scrape_reports ${whereClause}`,
     params
   );
@@ -684,7 +788,7 @@ export async function getScrapeReports(
 
   // Get paginated results
   params.push(limit, offset);
-  const result = await db.query(
+  const result = await db.query<ScrapeReport>(
     `SELECT * FROM scrape_reports 
      ${whereClause}
      ORDER BY started_at DESC 
@@ -693,15 +797,15 @@ export async function getScrapeReports(
   );
 
   return {
-    reports: result.rows as ScrapeReport[],
+    reports: result.rows,
     total
   };
 }
 
 // Get the most recent scrape report
 export async function getLatestScrapeReport(db: DB): Promise<ScrapeReport | undefined> {
-  const result = await db.query(
+  const result = await db.query<ScrapeReport>(
     'SELECT * FROM scrape_reports ORDER BY started_at DESC LIMIT 1'
   );
-  return result.rows[0] as ScrapeReport | undefined;
+  return result.rows[0];
 }

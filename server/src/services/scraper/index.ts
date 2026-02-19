@@ -10,6 +10,7 @@ import {
 import { fetchTheaterPage, fetchFilmPage, delay } from './http-client.js';
 import { parseTheaterPage } from './theater-parser.js';
 import { parseFilmPage } from './film-parser.js';
+import { isStaleResponse } from './utils.js';
 import { getScrapeDates, type ScrapeMode } from '../../utils/date.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
 import type { CinemaConfig, Showtime, WeeklyProgram } from '../../types/scraper.js';

@@ -72,28 +72,6 @@ COPY server/src/config ./dist/config
 # Copy built frontend from builder
 COPY --from=frontend-builder /app/client/dist ./public
 
-# Create a simple server.js that starts the Express app
-RUN cat > server.js << 'EOF'
-import { createApp } from './dist/app.js';
-
-const PORT = process.env.PORT || 3000;
-const app = createApp();
-
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 API: http://0.0.0.0:${PORT}/api`);
-  console.log(`🌐 Frontend: http://0.0.0.0:${PORT}`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    console.log('HTTP server closed');
-  });
-});
-EOF
-
 # Change ownership to nodejs user
 RUN chown -R nodejs:nodejs /app
 
@@ -110,5 +88,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the application
-CMD ["node", "server.js"]
+# Start the application using the built index file which handles DB init and cron
+CMD ["node", "dist/index.js"]
