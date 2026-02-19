@@ -1,60 +1,51 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-// We test that fetchTheaterPage and fetchFilmPage use the correct URLs,
-// not the hardcoded placeholder www.example-cinema-site.com
+// fetchTheaterPage now uses Playwright (headless browser) internally and cannot
+// be easily unit-tested with a fetch mock. We test the simpler HTTP functions.
 
-describe('fetchTheaterPage', () => {
+describe('fetchShowtimesJson', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('should fetch using the provided cinema base URL, not the placeholder domain', async () => {
+  it('should call the correct Allociné internal API URL', async () => {
     const capturedUrls: string[] = [];
 
-    // Mock global fetch to capture URLs
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
         capturedUrls.push(url);
         return {
           ok: true,
-          text: async () => '<html></html>',
+          json: async () => ({ error: false, results: [] }),
         } as unknown as Response;
       })
     );
 
-    const { fetchTheaterPage } = await import('./http-client.js');
+    const { fetchShowtimesJson } = await import('./http-client.js');
 
-    const cinemaBaseUrl = 'https://www.allocine.fr/seance/salle_gen_csalle=W7504.html';
-    await fetchTheaterPage(cinemaBaseUrl, '2026-02-19');
+    await fetchShowtimesJson('C0072', '2026-02-22');
 
     expect(capturedUrls).toHaveLength(1);
-    expect(capturedUrls[0]).not.toContain('example-cinema-site.com');
     expect(capturedUrls[0]).toContain('allocine.fr');
-    expect(capturedUrls[0]).toContain('W7504');
-    expect(capturedUrls[0]).toContain('2026-02-19');
+    expect(capturedUrls[0]).toContain('C0072');
+    expect(capturedUrls[0]).toContain('2026-02-22');
+    expect(capturedUrls[0]).not.toContain('example-cinema-site.com');
   });
 
-  it('should work without a date parameter', async () => {
-    const capturedUrls: string[] = [];
-
+  it('should throw on non-OK response', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string) => {
-        capturedUrls.push(url);
-        return {
-          ok: true,
-          text: async () => '<html></html>',
-        } as unknown as Response;
-      })
+      vi.fn(async () => ({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+      }) as unknown as Response)
     );
 
-    const { fetchTheaterPage } = await import('./http-client.js');
+    const { fetchShowtimesJson } = await import('./http-client.js');
 
-    const cinemaBaseUrl = 'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html';
-    await fetchTheaterPage(cinemaBaseUrl);
-
-    expect(capturedUrls[0]).toBe(cinemaBaseUrl);
+    await expect(fetchShowtimesJson('C9999', '2026-02-22')).rejects.toThrow('404');
   });
 });
 
