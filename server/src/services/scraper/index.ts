@@ -173,7 +173,7 @@ export async function runScraper(
     console.log(`📋 Loaded ${cinemas.length} cinema(s) from database\n`);
 
     // Déterminer les dates à scraper
-    const scrapeMode = options?.mode || (process.env.SCRAPE_MODE as ScrapeMode) || 'weekly';
+    const scrapeMode = options?.mode ?? (process.env.SCRAPE_MODE as ScrapeMode) ?? 'from_today_limited';
     const scrapeDays = options?.days || parseInt(process.env.SCRAPE_DAYS || '7', 10);
     const dates = getScrapeDates(scrapeMode, scrapeDays);
     console.log(`📅 Mode: ${scrapeMode}, Scraping ${dates.length} date(s) (SCRAPE_DAYS=${scrapeDays}): ${dates.join(', ')}\n`);
