@@ -65,22 +65,23 @@ export function getScrapeDates(
   if (mode === 'from_today_limited') {
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday...
-    
-    // Calculate days until next Wednesday (start of next cinema week)
-    // Wednesday (3) -> 7 days until next Wednesday -> 8 days total (includes both Wednesdays)
-    // Thursday  (4) -> 6 days until next Wednesday -> 7 days total
-    // Friday    (5) -> 5 days until next Wednesday -> 6 days total
-    // Saturday  (6) -> 4 days until next Wednesday -> 5 days total
-    // Sunday    (0) -> 3 days until next Wednesday -> 4 days total
-    // Monday    (1) -> 2 days until next Wednesday -> 3 days total
-    // Tuesday   (2) -> 1 day  until next Wednesday -> 2 days total
+
+    // Calculate days remaining until end of cinema week (Tuesday inclusive).
+    // A cinema week runs Wednesday → Tuesday.
+    // Tuesday   (2) -> 0 days left -> 1 day  total (today only)
+    // Wednesday (3) -> 6 days left -> 7 days total (wed → tue)
+    // Thursday  (4) -> 5 days left -> 6 days total
+    // Friday    (5) -> 4 days left -> 5 days total
+    // Saturday  (6) -> 3 days left -> 4 days total
+    // Sunday    (0) -> 2 days left -> 3 days total
+    // Monday    (1) -> 1 day  left -> 2 days total
     //
-    // Formula: ((3 - dayOfWeek + 7) % 7) gives 0 when today is Wednesday,
-    // so we use || 7 to map Wednesday to 7 (next Wednesday, not today).
-    const daysUntilNextWednesday = ((3 - dayOfWeek + 7) % 7) || 7;
-    const naturalDays = daysUntilNextWednesday + 1;
-    
-    const actualDays = numDays !== undefined ? Math.min(numDays, naturalDays) : naturalDays;
+    // Formula: (2 - dayOfWeek + 7) % 7 gives days until next Tuesday.
+    // On Tuesday itself it gives 0, so total is 1 (today only).
+    const daysUntilTuesday = (2 - dayOfWeek + 7) % 7;
+    const totalDays = daysUntilTuesday === 0 ? 1 : daysUntilTuesday + 1;
+
+    const actualDays = numDays !== undefined ? Math.min(numDays, totalDays) : totalDays;
     return getWeekDates(getTodayDate(), actualDays);
   }
 
