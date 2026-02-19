@@ -22,7 +22,7 @@ export default function AddCinemaModal({ onClose, onSuccess }: AddCinemaModalPro
       await addCinema({ id: id.trim(), name: name.trim(), url: url.trim() });
       onSuccess(id.trim());
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Erreur lors de l\'ajout du cinéma');
+      setError(err.response?.data?.error || err.message || `Erreur lors de l'ajout du cinéma`);
     } finally {
       setIsLoading(false);
     }
