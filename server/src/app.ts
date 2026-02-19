@@ -18,9 +18,7 @@ export function createApp() {
   const app = express();
 
   // Middleware
-  app.use(helmet({
-    contentSecurityPolicy: false, // Allow inline scripts for SSE
-  }));
+  app.use(helmet());
   app.use(cors());
   app.use(morgan('combined'));
   app.use(express.json());
