@@ -48,20 +48,23 @@ RUN npm run build
 # ----------------------------------------------------------------------------
 # Stage 3: Production Runtime
 # ----------------------------------------------------------------------------
-FROM node:20-alpine AS production
+# Use the official Playwright image which bundles Chromium + all system deps
+FROM mcr.microsoft.com/playwright:v1.50.1-noble AS production
 
 # Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+RUN apt-get update && apt-get install -y dumb-init && rm -rf /var/lib/apt/lists/*
 
-# Create app user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# The Playwright base image already provides 'pwuser' (UID/GID 1001).
+# We reuse that user instead of creating a new one.
 
 WORKDIR /app
 
 # Copy backend package files and install production dependencies only
 COPY server/package*.json ./
 RUN npm ci --only=production && npm cache clean --force
+
+# Install Playwright's Chromium browser in the known location
+RUN npx playwright install chromium
 
 # Copy built backend from builder
 COPY --from=backend-builder /app/server/dist ./dist
@@ -72,11 +75,11 @@ COPY server/src/config ./dist/config
 # Copy built frontend from builder
 COPY --from=frontend-builder /app/client/dist ./public
 
-# Change ownership to nodejs user
-RUN chown -R nodejs:nodejs /app
+# Change ownership to pwuser
+RUN chown -R pwuser:pwuser /app
 
 # Switch to non-root user
-USER nodejs
+USER pwuser
 
 # Expose port
 EXPOSE 3000

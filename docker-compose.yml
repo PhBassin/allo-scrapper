@@ -1,14 +1,12 @@
 services:
-  db:
+  ics-db:
     image: postgres:15-alpine
-    container_name: allo-scrapper-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-its}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -16,19 +14,18 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - allo-network
+      - ics-network
 
   # Production web server (serves both API and frontend)
-  web:
+  ics-web:
     build: .
-    container_name: allo-scrapper-web
     pull_policy: always
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
     environment:
       NODE_ENV: production
-      POSTGRES_HOST: db
+      POSTGRES_HOST: ics-db
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-its}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -40,10 +37,10 @@ services:
       SCRAPE_MODE: ${SCRAPE_MODE:-weekly}
       SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
     depends_on:
-      db:
+      ics-db:
         condition: service_healthy
     networks:
-      - allo-network
+      - ics-network
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
       interval: 30s
@@ -52,9 +49,5 @@ services:
       start_period: 40s
 
 networks:
-  allo-network:
+  ics-network:
     driver: bridge
-
-volumes:
-  postgres_data:
-    driver: local

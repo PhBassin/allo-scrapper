@@ -40,7 +40,7 @@ echo "⏳ Waiting for services to be healthy..."
 DB_MAX_WAIT=30
 DB_WAIT=0
 while [ $DB_WAIT -lt $DB_MAX_WAIT ]; do
-  if docker compose exec -T db pg_isready -U postgres > /dev/null 2>&1; then
+  if docker compose exec -T ics-db pg_isready -U postgres > /dev/null 2>&1; then
     echo -e "${GREEN}✅ Database is healthy${NC}"
     break
   fi
@@ -50,7 +50,7 @@ done
 
 if [ $DB_WAIT -ge $DB_MAX_WAIT ]; then
   echo -e "${RED}❌ Database health check timeout${NC}"
-  docker compose logs db
+  docker compose logs ics-db
   exit 1
 fi
 
@@ -69,7 +69,7 @@ done
 
 if [ $WEB_WAIT -ge $WEB_MAX_WAIT ]; then
   echo -e "${RED}❌ Web service health check timeout${NC}"
-  docker compose logs web
+  docker compose logs ics-web
   exit 1
 fi
 
@@ -103,10 +103,10 @@ else
   echo "📋 Capturing logs for debugging..."
   echo ""
   echo "=== Web Service Logs ==="
-  docker compose logs web | tail -100
+  docker compose logs ics-web | tail -100
   echo ""
   echo "=== Database Logs ==="
-  docker compose logs db | tail -50
+  docker compose logs ics-db | tail -50
   exit 1
 fi
 
