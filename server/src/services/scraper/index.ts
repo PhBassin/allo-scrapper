@@ -31,7 +31,7 @@ async function scrapeTheater(
 
   try {
     // Récupérer la page HTML
-    const html = await fetchTheaterPage(cinema.id, date);
+    const html = await fetchTheaterPage(cinema.url, date);
 
     // Parser la page
     const pageData = parseTheaterPage(html, cinema.id);
