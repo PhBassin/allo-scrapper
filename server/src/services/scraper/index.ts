@@ -138,6 +138,7 @@ async function scrapeTheater(
 export interface ScrapeOptions {
   mode?: ScrapeMode;
   days?: number;
+  cinemaIds?: string[];
 }
 
 // Run the full scraper with progress tracking
@@ -160,8 +161,14 @@ export async function runScraper(
 
   try {
     // Charger la configuration des cinémas depuis la base de données
-    const cinemas = await getCinemaConfigs(db);
+    let cinemas = await getCinemaConfigs(db);
     console.log(`📋 Loaded ${cinemas.length} cinema(s) from database\n`);
+
+    // Filtrer les cinémas si des IDs sont spécifiés
+    if (options?.cinemaIds && options.cinemaIds.length > 0) {
+      cinemas = cinemas.filter(c => options.cinemaIds!.includes(c.id));
+      console.log(`🔍 Filtered to ${cinemas.length} cinema(s): ${options.cinemaIds.join(', ')}\n`);
+    }
 
     // Déterminer les dates à scraper
     const scrapeMode = options?.mode ?? (process.env.SCRAPE_MODE as ScrapeMode) ?? 'from_today_limited';

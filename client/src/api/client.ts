@@ -52,6 +52,14 @@ export async function getCinemas(): Promise<Cinema[]> {
   return response.data.data;
 }
 
+export async function addCinema(cinema: { id: string; name: string; url: string }): Promise<Cinema> {
+  const response = await api.post<ApiResponse<Cinema>>('/cinemas', cinema);
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to add cinema');
+  }
+  return response.data.data;
+}
+
 export async function getCinemaSchedule(
   cinemaId: string
 ): Promise<{ showtimes: ShowtimeWithFilm[]; weekStart: string }> {
@@ -68,8 +76,11 @@ export async function getCinemaSchedule(
 // SCRAPER API
 // ============================================================================
 
-export async function triggerScrape(): Promise<{ reportId: number; message: string }> {
-  const response = await api.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger');
+export async function triggerScrape(cinemaIds?: string[]): Promise<{ reportId: number; message: string }> {
+  const response = await api.post<ApiResponse<{ reportId: number; message: string }>>(
+    '/scraper/trigger',
+    cinemaIds ? { cinemaIds } : {}
+  );
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to trigger scrape');
   }

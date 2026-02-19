@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getWeeklyFilms, getCinemas, getScrapeStatus } from '../api/client';
+import { getWeeklyFilms, getCinemas, getScrapeStatus, triggerScrape } from '../api/client';
 import type { FilmWithShowtimes, Cinema } from '../types';
 import FilmCard from '../components/FilmCard';
 import ScrapeButton from '../components/ScrapeButton';
 import ScrapeProgress from '../components/ScrapeProgress';
+import AddCinemaModal from '../components/AddCinemaModal';
 
 export default function HomePage() {
   const [films, setFilms] = useState<FilmWithShowtimes[]>([]);
@@ -13,6 +14,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showProgress, setShowProgress] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const loadData = async () => {
     try {
@@ -76,6 +78,20 @@ export default function HomePage() {
     }, 5000);
   };
 
+  const handleAddCinemaSuccess = async (cinemaId: string) => {
+    setShowAddModal(false);
+    setShowProgress(true);
+    try {
+      await triggerScrape([cinemaId]);
+    } catch (err: any) {
+      // If a scrape is already running (409), the progress is still shown
+      if (err.response?.status !== 409) {
+        console.error('Failed to trigger scrape:', err);
+      }
+    }
+    loadData();
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -96,6 +112,12 @@ export default function HomePage() {
 
   return (
     <div className="max-w-5xl mx-auto">
+      {showAddModal && (
+        <AddCinemaModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={handleAddCinemaSuccess}
+        />
+      )}
       {/* Header Section */}
       <div className="mb-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
@@ -108,7 +130,13 @@ export default function HomePage() {
               </div>
             )}
           </div>
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex gap-3">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-6 py-3 rounded-lg font-semibold text-black bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all duration-200"
+            >
+              + Ajouter un cinéma
+            </button>
             <ScrapeButton onScrapeStart={handleScrapeStart} />
           </div>
         </div>

@@ -6,7 +6,7 @@ import type { ApiResponse } from '../types/api.js';
 const router = express.Router();
 
 // POST /api/scraper/trigger - Start a manual scrape
-router.post('/trigger', async (_req, res) => {
+router.post('/trigger', async (req, res) => {
   try {
     // Check if scrape is already running
     if (scrapeManager.isRunning()) {
@@ -24,8 +24,12 @@ router.post('/trigger', async (_req, res) => {
       return res.status(409).json(response);
     }
 
+    const cinemaIds: string[] | undefined = Array.isArray(req.body?.cinemaIds)
+      ? req.body.cinemaIds
+      : undefined;
+
     // Start the scrape
-    const reportId = await scrapeManager.startScrape('manual');
+    const reportId = await scrapeManager.startScrape('manual', cinemaIds ? { cinemaIds } : undefined);
 
     const response: ApiResponse = {
       success: true,
