@@ -7,7 +7,7 @@ import type { ApiResponse } from '../types/api.js';
 const router = express.Router();
 
 // GET /api/cinemas - Get all cinemas
-router.get('/', async (_req, res) => {
+router.get('/', async (_req, res, next) => {
   try {
     const cinemas = await getCinemas(db);
 
@@ -18,17 +18,12 @@ router.get('/', async (_req, res) => {
 
     res.json(response);
   } catch (error) {
-    console.error('Error fetching cinemas:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch cinemas',
-    };
-    res.status(500).json(response);
+    next(error);
   }
 });
 
 // POST /api/cinemas - Add a new cinema
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
     const { id, name, url } = req.body;
 
@@ -49,8 +44,6 @@ router.post('/', async (req, res) => {
 
     return res.status(201).json(response);
   } catch (error) {
-    console.error('Error adding cinema:', error);
-
     if (error instanceof Error && error.message.includes('duplicate key')) {
       const response: ApiResponse = {
         success: false,
@@ -58,17 +51,12 @@ router.post('/', async (req, res) => {
       };
       return res.status(409).json(response);
     }
-
-    const response: ApiResponse = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to add cinema',
-    };
-    return res.status(500).json(response);
+    return next(error);
   }
 });
 
 // PUT /api/cinemas/:id - Update a cinema's name and/or URL
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req, res, next) => {
   try {
     const cinemaId = req.params.id;
     const { name, url } = req.body;
@@ -102,17 +90,12 @@ router.put('/:id', async (req, res) => {
 
     return res.json(response);
   } catch (error) {
-    console.error('Error updating cinema:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to update cinema',
-    };
-    return res.status(500).json(response);
+    return next(error);
   }
 });
 
 // DELETE /api/cinemas/:id - Delete a cinema (cascades to showtimes and weekly_programs)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req, res, next) => {
   try {
     const cinemaId = req.params.id;
     const deleted = await deleteCinema(db, cinemaId);
@@ -128,17 +111,12 @@ router.delete('/:id', async (req, res) => {
     const response: ApiResponse = { success: true };
     return res.status(204).json(response);
   } catch (error) {
-    console.error('Error deleting cinema:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to delete cinema',
-    };
-    return res.status(500).json(response);
+    return next(error);
   }
 });
 
 // GET /api/cinemas/:id - Get cinema schedule
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const cinemaId = req.params.id;
     const weekStart = getWeekStart();
@@ -152,12 +130,7 @@ router.get('/:id', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    console.error('Error fetching cinema schedule:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch cinema schedule',
-    };
-    res.status(500).json(response);
+    next(error);
   }
 });
 
