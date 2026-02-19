@@ -275,6 +275,38 @@ export async function upsertWeeklyProgram(db: DB, program: WeeklyProgram): Promi
   );
 }
 
+// Insertion ou mise à jour de plusieurs programmes hebdomadaires
+export async function upsertWeeklyPrograms(db: DB, programs: WeeklyProgram[]): Promise<void> {
+  if (programs.length === 0) return;
+
+  const values: any[] = [];
+  const valueSets: string[] = [];
+  let paramIndex = 1;
+
+  for (const program of programs) {
+    valueSets.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4})`);
+    values.push(
+      program.cinema_id,
+      program.film_id,
+      program.week_start,
+      program.is_new_this_week ? 1 : 0,
+      program.scraped_at
+    );
+    paramIndex += 5;
+  }
+
+  await db.query(
+    `
+      INSERT INTO weekly_programs (cinema_id, film_id, week_start, is_new_this_week, scraped_at)
+      VALUES ${valueSets.join(', ')}
+      ON CONFLICT(cinema_id, film_id, week_start) DO UPDATE SET
+        is_new_this_week = EXCLUDED.is_new_this_week,
+        scraped_at = EXCLUDED.scraped_at
+    `,
+    values
+  );
+}
+
 // Récupérer tous les cinémas
 export async function getCinemas(db: DB): Promise<Cinema[]> {
   const result = await db.query<CinemaRow>('SELECT * FROM cinemas ORDER BY name');
