@@ -51,7 +51,7 @@ router.post('/', async (req, res, next) => {
       };
       return res.status(409).json(response);
     }
-    next(error);
+    return next(error);
   }
 });
 
@@ -90,7 +90,7 @@ router.put('/:id', async (req, res, next) => {
 
     return res.json(response);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -111,7 +111,7 @@ router.delete('/:id', async (req, res, next) => {
     const response: ApiResponse = { success: true };
     return res.status(204).json(response);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
