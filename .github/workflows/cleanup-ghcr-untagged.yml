@@ -2,7 +2,7 @@ name: Nettoyage Images Untagged GHCR
 
 on:
   schedule:
-    - cron: '0 2 * * *' # S'exécute toutes les nuits à 2h du matin
+    - cron: '0 2 */5 * *' # 
   workflow_dispatch:     # Permet de le lancer manuellement pour tester
 
 env:
