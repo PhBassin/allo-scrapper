@@ -2,6 +2,8 @@
 node_modules/
 server/node_modules/
 client/node_modules/
+package-lock.json
+**/package-lock.json
 
 # Build outputs
 dist/
@@ -48,6 +50,8 @@ Thumbs.db
 # Testing
 coverage/
 .nyc_output/
+playwright-report/
+test-results/
 
 # Temporary files
 tmp/

@@ -3,11 +3,12 @@
 export interface Cinema {
   id: string; // Unique cinema identifier (e.g., "W7504", "C0072")
   name: string;
-  address: string;
-  postal_code: string;
-  city: string;
-  screen_count: number;
+  address?: string;
+  postal_code?: string;
+  city?: string;
+  screen_count?: number;
   image_url?: string;
+  url?: string; // Source website page URL for scraping
 }
 
 export interface Film {
@@ -71,6 +72,14 @@ export interface FilmShowtimeData {
   film: Film;
   showtimes: Showtime[];
   is_new_this_week: boolean;
+}
+
+export interface CinemaWithShowtimes extends Cinema {
+  showtimes: Showtime[];
+}
+
+export interface FilmWithShowtimes extends Film {
+  cinemas: CinemaWithShowtimes[];
 }
 
 // Data parsed from film details page

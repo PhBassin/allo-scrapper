@@ -30,7 +30,8 @@ class CronService {
             return;
           }
 
-          await scrapeManager.startScrape('cron');
+          // Automatic cron jobs always use 'weekly' mode with 7 days
+          await scrapeManager.startScrape('cron', { mode: 'weekly', days: 7 });
         } catch (error) {
           console.error('❌ Error in cron job:', error);
         }

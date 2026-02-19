@@ -1,8 +1,7 @@
 import axios from 'axios';
 import type {
   ApiResponse,
-  FilmWithCinemas,
-  Film,
+  FilmWithShowtimes,
   Cinema,
   ShowtimeWithFilm,
   ScrapeReport,
@@ -11,7 +10,8 @@ import type {
 } from '../types';
 
 // Create axios instance
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+// Use relative path by default to work with proxy in dev and same-origin in prod
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -24,16 +24,16 @@ const api = axios.create({
 // FILMS API
 // ============================================================================
 
-export async function getWeeklyFilms(): Promise<{ films: FilmWithCinemas[]; weekStart: string }> {
-  const response = await api.get<ApiResponse<{ films: FilmWithCinemas[]; weekStart: string }>>('/films');
+export async function getWeeklyFilms(): Promise<{ films: FilmWithShowtimes[]; weekStart: string }> {
+  const response = await api.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string }>>('/films');
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch films');
   }
   return response.data.data;
 }
 
-export async function getFilmById(id: number): Promise<Film> {
-  const response = await api.get<ApiResponse<Film>>(`/films/${id}`);
+export async function getFilmById(id: number): Promise<FilmWithShowtimes> {
+  const response = await api.get<ApiResponse<FilmWithShowtimes>>(`/films/${id}`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch film');
   }

@@ -1,10 +1,12 @@
 import type { Showtime } from '../types';
+import { getCinemaUrl } from '../utils/cinema-url';
 
 interface ShowtimeListProps {
   showtimes: Showtime[];
+  cinemaId: string;
 }
 
-export default function ShowtimeList({ showtimes }: ShowtimeListProps) {
+export default function ShowtimeList({ showtimes, cinemaId }: ShowtimeListProps) {
   // Group showtimes by version (VF/VO)
   const showtimesByVersion = showtimes.reduce((acc, showtime) => {
     const version = showtime.version || 'VF';
@@ -28,12 +30,15 @@ export default function ShowtimeList({ showtimes }: ShowtimeListProps) {
           <p className="text-sm font-semibold text-gray-700 mb-2">{version}</p>
           <div className="flex flex-wrap gap-2">
             {versionShowtimes.map((showtime, index) => (
-              <span
+              <a
                 key={`${showtime.time}-${index}`}
+                href={getCinemaUrl(cinemaId)}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-3 py-1 bg-gray-100 text-gray-800 rounded hover:bg-primary hover:text-black transition cursor-pointer text-sm font-medium"
               >
                 {showtime.time}
-              </span>
+              </a>
             ))}
           </div>
         </div>

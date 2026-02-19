@@ -1,50 +1,46 @@
-version: '3.8'
-
 services:
-  db:
+  ics-db:
     image: postgres:15-alpine
-    container_name: allo-scrapper-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-cinema_showtimes}
+      POSTGRES_DB: ${POSTGRES_DB:-its}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - allo-network
+      - ics-network
 
   # Production web server (serves both API and frontend)
-  web:
-    image: ghcr.io/phbassin/allo-scrapper:latest
-    container_name: allo-scrapper-web
+  ics-web:
+    build: .
     pull_policy: always
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
     environment:
       NODE_ENV: production
-      POSTGRES_HOST: db
+      POSTGRES_HOST: ics-db
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-cinema_showtimes}
+      POSTGRES_DB: ${POSTGRES_DB:-its}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       PORT: 3000
       TZ: ${TZ:-Europe/Paris}
       SCRAPE_CRON_SCHEDULE: ${SCRAPE_CRON_SCHEDULE:-0 8 * * 3}
       SCRAPE_DELAY_MS: ${SCRAPE_DELAY_MS:-1000}
+      SCRAPE_MODE: ${SCRAPE_MODE:-weekly}
+      SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
     depends_on:
-      db:
+      ics-db:
         condition: service_healthy
     networks:
-      - allo-network
+      - ics-network
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
       interval: 30s
@@ -53,9 +49,5 @@ services:
       start_period: 40s
 
 networks:
-  allo-network:
+  ics-network:
     driver: bridge
-
-volumes:
-  postgres_data:
-    driver: local

@@ -11,7 +11,7 @@ Migrations are numbered sequentially and should be applied in order. Each migrat
 ### 001_neutralize_references.sql
 **Version:** 2.0.1  
 **Date:** 2026-02-15  
-**Description:** Renames `allocine_url` column to `source_url` in the `films` table to use neutral terminology.
+**Description:** Renames the old `allocine_url` column to `source_url` in the `films` table to use neutral terminology.
 
 **Breaking Change:** Yes - affects database schema
 
@@ -38,10 +38,10 @@ docker compose exec db psql -U postgres -d cinema_showtimes -f /tmp/001_neutrali
 
 ```bash
 # 1. Backup database
-docker compose exec -T db pg_dump -U postgres allocine > backup_before_migration.sql
+docker compose exec -T db pg_dump -U postgres its > backup_before_migration.sql
 
 # 2. Apply migration
-docker compose exec -T db psql -U postgres -d allocine < migrations/001_neutralize_references.sql
+docker compose exec -T db psql -U postgres -d its < migrations/001_neutralize_references.sql
 ```
 
 ### Method 3: From inside the container

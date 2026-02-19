@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getFilmById } from '../api/client';
-import type { Film } from '../types';
+import type { FilmWithShowtimes } from '../types';
+import CinemaShowtimes from '../components/CinemaShowtimes';
 
 export default function FilmPage() {
   const { id } = useParams<{ id: string }>();
-  const [film, setFilm] = useState<Film | null>(null);
+  const [film, setFilm] = useState<FilmWithShowtimes | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +55,7 @@ export default function FilmPage() {
   }
 
   return (
-    <div>
+    <div className="max-w-5xl mx-auto">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <Link to="/" className="hover:text-primary hover:underline">← Accueil</Link>
@@ -62,79 +63,88 @@ export default function FilmPage() {
         <span>{film.title}</span>
       </div>
 
-      {/* Film Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl md:text-4xl font-bold">{film.title}</h1>
-        {film.original_title && film.original_title !== film.title && (
-          <p className="text-gray-600 mt-2 italic">{film.original_title}</p>
-        )}
-      </div>
-
-      {/* Film Details Card */}
-      <div className="card p-6">
-        <div className="flex flex-col md:flex-row gap-6">
-          {film.poster_url && (
-            <img
-              src={film.poster_url}
-              alt={`Affiche de ${film.title}`}
-              className="w-48 h-72 object-cover rounded shadow-lg"
-              loading="lazy"
-            />
-          )}
-
-          <div className="space-y-3">
-            {film.duration_minutes && (
-              <p>
-                <strong>Durée:</strong> {Math.floor(film.duration_minutes / 60)}h
-                {film.duration_minutes % 60 > 0 ? String(film.duration_minutes % 60).padStart(2, '0') : ''}
-              </p>
-            )}
-            
-            {film.director && (
-              <p><strong>Réalisateur:</strong> {film.director}</p>
-            )}
-            
-            {film.genres && film.genres.length > 0 && (
-              <p><strong>Genres:</strong> {film.genres.join(', ')}</p>
-            )}
-            
-            {film.nationality && (
-              <p><strong>Nationalité:</strong> {film.nationality}</p>
-            )}
-            
-            {film.certificate && (
-              <p><strong>Classification:</strong> {film.certificate}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: Film Details */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-24">
+            {film.poster_url && (
+              <img
+                src={film.poster_url}
+                alt={`Affiche de ${film.title}`}
+                className="w-full h-auto object-cover rounded-xl shadow-lg mb-6"
+                loading="lazy"
+              />
             )}
 
-            {/* Ratings */}
-            {(film.press_rating || film.audience_rating) && (
-              <div className="flex gap-4 pt-2">
-                {film.press_rating && (
-                  <div>
-                    <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                      Presse
-                    </span>
-                    <span className="ml-2 font-bold text-lg">★ {film.press_rating.toFixed(1)}</span>
-                  </div>
+            <div className="card p-6 space-y-4">
+              <h1 className="text-2xl font-bold leading-tight">{film.title}</h1>
+              
+              <div className="space-y-2 text-sm">
+                {film.duration_minutes && (
+                  <p>
+                    <span className="text-gray-500">Durée:</span> {Math.floor(film.duration_minutes / 60)}h
+                    {film.duration_minutes % 60 > 0 ? String(film.duration_minutes % 60).padStart(2, '0') : ''}
+                  </p>
                 )}
-                {film.audience_rating && (
-                  <div>
-                    <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                      Spectateurs
-                    </span>
-                    <span className="ml-2 font-bold text-lg">★ {film.audience_rating.toFixed(1)}</span>
+                
+                {film.director && (
+                  <p><span className="text-gray-500">Réalisateur:</span> {film.director}</p>
+                )}
+                
+                {film.genres && film.genres.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {film.genres.map(g => (
+                      <span key={g} className="px-2 py-0.5 bg-gray-100 rounded text-xs">{g}</span>
+                    ))}
                   </div>
                 )}
               </div>
-            )}
-            
-            {film.synopsis && (
-              <div className="pt-4">
-                <strong className="block mb-2">Synopsis:</strong>
-                <p className="text-gray-700 leading-relaxed">{film.synopsis}</p>
-              </div>
-            )}
+
+              {/* Ratings */}
+              {(film.press_rating || film.audience_rating) && (
+                <div className="flex gap-4 pt-2 border-t border-gray-100">
+                  {film.press_rating && (
+                    <div className="text-center">
+                      <div className="text-[10px] font-bold text-gray-400 uppercase">Presse</div>
+                      <div className="font-bold text-lg">★ {film.press_rating.toFixed(1)}</div>
+                    </div>
+                  )}
+                  {film.audience_rating && (
+                    <div className="text-center">
+                      <div className="text-[10px] font-bold text-gray-400 uppercase">Public</div>
+                      <div className="font-bold text-lg">★ {film.audience_rating.toFixed(1)}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+        </div>
+
+        {/* Right Column: Showtimes & Synopsis */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Showtimes Section */}
+          <section>
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              <span>📅 Horaires et Cinémas</span>
+            </h2>
+            <CinemaShowtimes cinemas={film.cinemas} />
+          </section>
+
+          {/* Synopsis Section */}
+          {film.synopsis && (
+            <section className="bg-white rounded-xl border border-gray-100 p-6">
+              <h2 className="text-xl font-bold mb-3">Synopsis</h2>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-line">{film.synopsis}</p>
+              
+              {film.actors && film.actors.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-gray-50">
+                  <h3 className="text-sm font-bold text-gray-500 uppercase mb-2">Avec</h3>
+                  <p className="text-sm text-gray-700">{film.actors.join(', ')}</p>
+                </div>
+              )}
+            </section>
+          )}
         </div>
       </div>
     </div>

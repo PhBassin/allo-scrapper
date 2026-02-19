@@ -3,8 +3,6 @@
 #
 # Usage: docker compose -f docker-compose.build.yml up --build
 
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
@@ -13,9 +11,10 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-cinema_showtimes}
+      POSTGRES_DB: ${POSTGRES_DB:-its}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
@@ -39,7 +38,7 @@ services:
       NODE_ENV: production
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-cinema_showtimes}
+      POSTGRES_DB: ${POSTGRES_DB:-its}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       PORT: 3000

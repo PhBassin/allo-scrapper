@@ -6,7 +6,7 @@ import {
   type ScrapeReport,
 } from '../db/queries.js';
 import { progressTracker } from './progress-tracker.js';
-import { runScraper } from './scraper/index.js';
+import { runScraper, type ScrapeOptions } from './scraper/index.js';
 
 // Scrape session state
 export interface ScrapeSession {
@@ -31,7 +31,7 @@ class ScrapeManager {
   }
 
   // Start a new scrape
-  async startScrape(triggerType: 'manual' | 'cron'): Promise<number> {
+  async startScrape(triggerType: 'manual' | 'cron', options?: ScrapeOptions): Promise<number> {
     if (this.currentSession) {
       throw new Error('A scrape is already in progress');
     }
@@ -53,18 +53,18 @@ class ScrapeManager {
     progressTracker.reset();
 
     // Run the scrape asynchronously
-    this.runScrapeAsync(reportId);
+    this.runScrapeAsync(reportId, options);
 
     return reportId;
   }
 
   // Run the scraper and handle completion
-  private async runScrapeAsync(reportId: number): Promise<void> {
+  private async runScrapeAsync(reportId: number, options?: ScrapeOptions): Promise<void> {
     const startTime = Date.now();
 
     try {
       // Run the scraper with progress tracking
-      const summary = await runScraper(progressTracker);
+      const summary = await runScraper(progressTracker, options);
 
       // Calculate duration
       const durationMs = Date.now() - startTime;

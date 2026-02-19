@@ -28,7 +28,10 @@ export default function ScrapeButton({ onScrapeStart, className = '' }: ScrapeBu
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
       if (err.response?.status === 409) {
-        setError('Un scraping est déjà en cours');
+        // Scrape already running, just show progress
+        if (onScrapeStart) {
+          onScrapeStart();
+        }
       } else {
         setError(err.response?.data?.error || 'Erreur lors du démarrage du scraping');
       }

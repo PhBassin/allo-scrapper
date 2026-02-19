@@ -30,7 +30,7 @@ export interface Film {
   certificate?: string;
   press_rating?: number;
   audience_rating?: number;
-  allocine_url: string;
+  source_url: string;
 }
 
 // Cinema types
@@ -64,6 +64,14 @@ export interface ShowtimeWithFilm extends Showtime {
 
 export interface FilmWithCinemas extends Film {
   cinemas: Cinema[];
+}
+
+export interface CinemaWithShowtimes extends Cinema {
+  showtimes: Showtime[];
+}
+
+export interface FilmWithShowtimes extends Film {
+  cinemas: CinemaWithShowtimes[];
 }
 
 // Scrape Report types

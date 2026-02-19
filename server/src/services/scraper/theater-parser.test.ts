@@ -104,7 +104,7 @@ describe('parseTheaterPage - Regression: Cinema W7504 (Épée de Bois)', () => {
 
   it('should parse cinema W7504 correctly', () => {
     expect(result.cinema.id).toBe('W7504');
-    // Cinema name from Allocine may vary in capitalization and accents
+    // Cinema name from the source website may vary in capitalization and accents
     const nameLower = result.cinema.name.toLowerCase();
     expect(nameLower).toMatch(/ep[eé]e/); // Matches "epee" or "épée"
     expect(nameLower).toContain('bois');
@@ -280,7 +280,7 @@ describe('parseTheaterPage - Data Validation', () => {
   it('should parse valid source URLs for films', () => {
     [c0089Result, w7504Result, c0072Result].forEach((result) => {
       result.films.forEach((filmData) => {
-        expect(filmData.film.source_url).toMatch(/^https:\/\/www\.allocine\.fr/);
+        expect(filmData.film.source_url).toMatch(/^https:\/\/www\.example-cinema-site\.com/);
         expect(filmData.film.source_url).toContain('cfilm=');
       });
     });
@@ -293,6 +293,21 @@ describe('parseTheaterPage - Data Validation', () => {
           expect(showtime.week_start).toMatch(/^\d{4}-\d{2}-\d{2}$/);
           const weekStart = new Date(showtime.week_start);
           expect(weekStart.getDay()).toBe(3); // Wednesday = 3
+        });
+      });
+    });
+  });
+
+  it('should generate unique showtime IDs that include the date', () => {
+    // Showtime IDs must include the date to be unique per day
+    // Format: <source_showtime_id>-<YYYY-MM-DD>
+    [c0089Result, w7504Result, c0072Result].forEach((result) => {
+      result.films.forEach((filmData) => {
+        filmData.showtimes.forEach((showtime) => {
+          // ID should contain the date to ensure uniqueness across days
+          expect(showtime.id).toContain(showtime.date);
+          // ID format: <numeric_id>-<date>
+          expect(showtime.id).toMatch(/^\d+-\d{4}-\d{2}-\d{2}$/);
         });
       });
     });

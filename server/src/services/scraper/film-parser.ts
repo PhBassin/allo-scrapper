@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 import type { FilmPageData } from '../../types/scraper';
 
-// Parser la fiche film d'Allociné pour extraire la durée et autres infos complémentaires
+// Parse the film details page from the source website to extract duration and other supplementary info
 export function parseFilmPage(html: string): FilmPageData {
   const $ = cheerio.load(html);
 
@@ -30,7 +30,7 @@ export function parseFilmPage(html: string): FilmPageData {
   if (trailerLink.length) {
     const href = trailerLink.attr('href');
     if (href) {
-      trailerUrl = `https://www.allocine.fr${href}`;
+      trailerUrl = `https://www.example-cinema-site.com${href}`;
     }
   }
 
