@@ -18,7 +18,21 @@ export function createApp() {
   const app = express();
 
   // Middleware
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "https://*.acsta.net", "https://*.allocine.fr"],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'", "data:"],
+          upgradeInsecureRequests: null,
+        },
+      },
+    })
+  );
   app.use(cors());
   app.use(morgan('combined'));
   app.use(express.json());
