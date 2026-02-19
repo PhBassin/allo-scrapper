@@ -3,7 +3,7 @@ import {
   upsertCinema,
   upsertFilm,
   upsertShowtime,
-  upsertWeeklyProgram,
+  upsertWeeklyPrograms,
   getFilm,
   getCinemaConfigs,
 } from '../../db/queries.js';
@@ -12,7 +12,7 @@ import { parseTheaterPage } from './theater-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import { getScrapeDates, type ScrapeMode } from '../../utils/date.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
-import type { CinemaConfig, Showtime } from '../../types/scraper.js';
+import type { CinemaConfig, Showtime, WeeklyProgram } from '../../types/scraper.js';
 
 /**
  * Determines whether a scraped page is a stale/fallback response.
@@ -78,6 +78,8 @@ async function scrapeTheater(
     await upsertCinema(db, pageData.cinema);
     console.log(`✅ Cinema ${pageData.cinema.name} updated`);
 
+    const weeklyPrograms: WeeklyProgram[] = [];
+
     // Traiter chaque film
     for (const filmData of pageData.films) {
       const film = filmData.film;
@@ -120,8 +122,8 @@ async function scrapeTheater(
         }
         console.log(`  ✅ ${filmData.showtimes.length} showtimes updated`);
 
-        // Insérer/mettre à jour le programme hebdomadaire
-        await upsertWeeklyProgram(db, {
+        // Ajouter le programme hebdomadaire à la liste pour insertion groupée
+        weeklyPrograms.push({
           cinema_id: cinema.id,
           film_id: film.id,
           week_start: filmData.showtimes[0]?.week_start || date,
@@ -142,6 +144,12 @@ async function scrapeTheater(
         console.error(`  ❌ Error processing film "${film.title}":`, error);
         progress?.emit({ type: 'film_failed', film_title: film.title, error: errorMessage });
       }
+    }
+
+    // Insérer/mettre à jour les programmes hebdomadaires en lot
+    if (weeklyPrograms.length > 0) {
+      await upsertWeeklyPrograms(db, weeklyPrograms);
+      console.log(`  ✅ Weekly programs updated for ${weeklyPrograms.length} films`);
     }
 
     console.log(`✅ Scraped ${pageData.films.length} films from ${cinema.name}`);
