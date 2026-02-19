@@ -32,63 +32,64 @@ describe('getScrapeDates', () => {
   });
 
   describe('from_today_limited mode', () => {
-    it('should return 4 days when today is Sunday (until next Wednesday)', () => {
-      vi.setSystemTime(new Date('2026-02-15T10:00:00')); // Sunday
-      const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(4);
-      expect(dates[0]).toBe('2026-02-15'); // Sunday
-      expect(dates[3]).toBe('2026-02-18'); // next Wednesday
-    });
+    // La semaine cinéma va de mercredi à mardi : le scrape s'arrête au mardi inclus.
 
-    it('should return 3 days when today is Monday (until next Wednesday)', () => {
-      vi.setSystemTime(new Date('2026-02-16T10:00:00')); // Monday
-      const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(3);
-      expect(dates[0]).toBe('2026-02-16'); // Monday
-      expect(dates[2]).toBe('2026-02-18'); // next Wednesday
-    });
-
-    it('should return 2 days when today is Tuesday (until next Wednesday)', () => {
+    it('should return 1 day when today is Tuesday (only today)', () => {
       vi.setSystemTime(new Date('2026-02-17T10:00:00')); // Tuesday
       const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(2);
-      expect(dates[0]).toBe('2026-02-17'); // Tuesday
-      expect(dates[1]).toBe('2026-02-18'); // next Wednesday
+      expect(dates).toHaveLength(1);
+      expect(dates[0]).toBe('2026-02-17'); // Tuesday (last day of cinema week)
     });
 
-    it('should return 8 days when today is Wednesday (until next Wednesday)', () => {
+    it('should return 7 days when today is Wednesday (wed → next tuesday)', () => {
       vi.setSystemTime(new Date('2026-02-18T10:00:00')); // Wednesday
       const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(8);
-      expect(dates[0]).toBe('2026-02-18'); // this Wednesday
-      expect(dates[7]).toBe('2026-02-25'); // next Wednesday
+      expect(dates).toHaveLength(7);
+      expect(dates[0]).toBe('2026-02-18'); // Wednesday
+      expect(dates[6]).toBe('2026-02-24'); // next Tuesday
     });
 
-    it('should return 7 days when today is Thursday (until next Wednesday)', () => {
+    it('should return 6 days when today is Thursday (thu → next tuesday)', () => {
       vi.setSystemTime(new Date('2026-02-19T10:00:00')); // Thursday
       const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(7);
+      expect(dates).toHaveLength(6);
       expect(dates[0]).toBe('2026-02-19'); // Thursday
-      expect(dates[6]).toBe('2026-02-25'); // next Wednesday
+      expect(dates[5]).toBe('2026-02-24'); // next Tuesday
     });
 
-    it('should return 6 days when today is Friday (until next Wednesday)', () => {
+    it('should return 5 days when today is Friday (fri → next tuesday)', () => {
       vi.setSystemTime(new Date('2026-02-20T10:00:00')); // Friday
       const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(6);
+      expect(dates).toHaveLength(5);
       expect(dates[0]).toBe('2026-02-20'); // Friday
-      expect(dates[5]).toBe('2026-02-25'); // next Wednesday
+      expect(dates[4]).toBe('2026-02-24'); // next Tuesday
     });
 
-    it('should return 5 days when today is Saturday (until next Wednesday)', () => {
+    it('should return 4 days when today is Saturday (sat → next tuesday)', () => {
       vi.setSystemTime(new Date('2026-02-21T10:00:00')); // Saturday
       const dates = getScrapeDates('from_today_limited');
-      expect(dates).toHaveLength(5);
+      expect(dates).toHaveLength(4);
       expect(dates[0]).toBe('2026-02-21'); // Saturday
-      expect(dates[4]).toBe('2026-02-25'); // next Wednesday
+      expect(dates[3]).toBe('2026-02-24'); // next Tuesday
     });
 
-    it('should respect numDays if it is smaller than days until next Wednesday', () => {
+    it('should return 3 days when today is Sunday (sun → next tuesday)', () => {
+      vi.setSystemTime(new Date('2026-02-22T10:00:00')); // Sunday
+      const dates = getScrapeDates('from_today_limited');
+      expect(dates).toHaveLength(3);
+      expect(dates[0]).toBe('2026-02-22'); // Sunday
+      expect(dates[2]).toBe('2026-02-24'); // next Tuesday
+    });
+
+    it('should return 2 days when today is Monday (mon → next tuesday)', () => {
+      vi.setSystemTime(new Date('2026-02-23T10:00:00')); // Monday
+      const dates = getScrapeDates('from_today_limited');
+      expect(dates).toHaveLength(2);
+      expect(dates[0]).toBe('2026-02-23'); // Monday
+      expect(dates[1]).toBe('2026-02-24'); // next Tuesday
+    });
+
+    it('should respect numDays if it is smaller than days until next Tuesday', () => {
       vi.setSystemTime(new Date('2026-02-18T10:00:00')); // Wednesday
       const dates = getScrapeDates('from_today_limited', 3);
       expect(dates).toHaveLength(3);
