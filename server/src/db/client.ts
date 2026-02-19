@@ -21,7 +21,7 @@ export const pool = new pg.Pool(
 
 // Wrapper pour garder une API similaire si nécessaire, ou on utilise directement pool
 export const db = {
-  query: (text: string, params?: any[]) => pool.query(text, params),
+  query: <T extends pg.QueryResultRow = any>(text: string, params?: any[]) => pool.query<T>(text, params),
   // Méthode utilitaire pour fermer la connexion (utile pour les scripts one-off)
   end: () => pool.end()
 };
