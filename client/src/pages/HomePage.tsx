@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getWeeklyFilms, getCinemas, getScrapeStatus } from '../api/client';
+import { getWeeklyFilms, getCinemas, getScrapeStatus, addCinema } from '../api/client';
 import type { FilmWithShowtimes, Cinema } from '../types';
 import FilmCard from '../components/FilmCard';
 import ScrapeButton from '../components/ScrapeButton';
@@ -76,6 +76,21 @@ export default function HomePage() {
     }, 5000);
   };
 
+  const handleAddCinema = async () => {
+    const url = window.prompt("Entrez l'URL Allociné du cinéma à ajouter (ex: https://www.allocine.fr/seance/salle_affich-salle=C0013.html):");
+    if (!url) return;
+
+    try {
+      setIsLoading(true);
+      await addCinema(url);
+      await loadData();
+      alert("Cinéma ajouté avec succès !");
+    } catch (err: any) {
+      alert("Erreur lors de l'ajout du cinéma: " + (err.message || 'Erreur inconnue'));
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -133,6 +148,12 @@ export default function HomePage() {
                 {cinema.name}
               </Link>
             ))}
+            <button
+              onClick={handleAddCinema}
+              className="px-3 py-1.5 bg-white border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-primary hover:text-primary transition font-semibold"
+            >
+              + Ajouter un cinéma
+            </button>
           </div>
         </div>
       </div>

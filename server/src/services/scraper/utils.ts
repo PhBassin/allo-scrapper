@@ -33,3 +33,11 @@ export function isStaleResponse(
   // If all showtimes are for a different date than requested, it's stale
   return showtimes.every((s) => s.date !== requestedDate);
 }
+
+/**
+ * Extracts the Allocine cinema ID (e.g., C0013) from a URL.
+ */
+export function extractCinemaIdFromUrl(url: string): string | null {
+  const match = url.match(/(?:-salle=|_csalle=)([A-Z0-9]+)/);
+  return match ? match[1] : null;
+}

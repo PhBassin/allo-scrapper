@@ -12,8 +12,9 @@ import { parseTheaterPage } from './theater-parser.js';
 import { parseShowtimesJson } from './theater-json-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import { getScrapeDates, getWeekStartForDate, type ScrapeMode } from '../../utils/date.js';
+import { extractCinemaIdFromUrl } from './utils.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
-import type { CinemaConfig, WeeklyProgram } from '../../types/scraper.js';
+import type { CinemaConfig, WeeklyProgram, Cinema } from '../../types/scraper.js';
 
 /**
  * Load the theater page once to extract metadata (cinema name, city, etc.)
@@ -22,7 +23,7 @@ import type { CinemaConfig, WeeklyProgram } from '../../types/scraper.js';
 async function loadTheaterMetadata(
   db: DB,
   cinema: CinemaConfig
-): Promise<{ availableDates: string[] }> {
+): Promise<{ availableDates: string[]; cinema: Cinema }> {
   const { html, availableDates } = await fetchTheaterPage(cinema.url);
 
   // Parse cinema metadata from the initial HTML and upsert into DB
@@ -30,7 +31,7 @@ async function loadTheaterMetadata(
   await upsertCinema(db, pageData.cinema);
   console.log(`✅ Cinema ${pageData.cinema.name} metadata upserted`);
 
-  return { availableDates };
+  return { availableDates, cinema: pageData.cinema };
 }
 
 // Scraper un cinéma pour une date donnée
@@ -141,6 +142,45 @@ export interface ScrapeOptions {
 }
 
 // Run the full scraper with progress tracking
+export async function addCinemaAndScrape(
+  url: string,
+  progress?: ProgressTracker
+): Promise<Cinema> {
+  // 1. Extract ID
+  const cinemaId = extractCinemaIdFromUrl(url);
+  if (!cinemaId) {
+    throw new Error(
+      'Could not extract cinema ID from URL. URL format should be like https://www.allocine.fr/seance/salle_affich-salle=C0013.html'
+    );
+  }
+
+  // 2. Prepare temp config
+  const tempConfig: CinemaConfig = {
+    id: cinemaId,
+    url,
+    name: 'New Cinema', // Will be updated by loadTheaterMetadata
+  };
+
+  // 3. Load metadata (fetches page, parses it, and upserts cinema)
+  console.log(`\n🆕 Adding new cinema from ${url}...`);
+  const { availableDates, cinema } = await loadTheaterMetadata(db, tempConfig);
+
+  // 4. Scrape available dates
+  console.log(`   📅 Scraping ${availableDates.length} available date(s)...`);
+  for (const date of availableDates) {
+    try {
+      await scrapeTheater(db, tempConfig, date, progress);
+    } catch (error) {
+      console.error(`   ❌ Failed to scrape date ${date}:`, error);
+      // Continue with other dates
+    }
+  }
+
+  await closeBrowser();
+
+  return cinema;
+}
+
 export async function runScraper(
   progress?: ProgressTracker,
   options?: ScrapeOptions

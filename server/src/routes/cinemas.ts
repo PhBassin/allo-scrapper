@@ -2,6 +2,7 @@ import express from 'express';
 import { db } from '../db/client.js';
 import { getCinemas, getShowtimesByCinemaAndWeek, addCinema, updateCinemaConfig, deleteCinema } from '../db/queries.js';
 import { getWeekStart } from '../utils/date.js';
+import { addCinemaAndScrape } from '../services/scraper/index.js';
 import type { ApiResponse } from '../types/api.js';
 
 const router = express.Router();
@@ -26,6 +27,16 @@ router.get('/', async (_req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const { id, name, url } = req.body;
+
+    // Smart add via URL only
+    if (url && !id && !name) {
+      const cinema = await addCinemaAndScrape(url);
+      const response: ApiResponse = {
+        success: true,
+        data: cinema,
+      };
+      return res.status(201).json(response);
+    }
 
     if (!id || !name || !url) {
       const response: ApiResponse = {
