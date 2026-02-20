@@ -235,7 +235,34 @@ networks:
     profiles:
       - monitoring
 
+  # Grafana – dashboards for metrics (Prometheus), logs (Loki) and traces (Tempo)
+  ics-grafana:
+    image: grafana/grafana:10.4.0
+    restart: unless-stopped
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+    volumes:
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - ics-prometheus
+      - ics-loki
+      - ics-tempo
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
 volumes:
   loki-data:
   prometheus-data:
   tempo-data:
+  grafana-data:

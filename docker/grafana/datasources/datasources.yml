@@ -1,0 +1,33 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    url: http://ics-prometheus:9090
+    access: proxy
+    isDefault: true
+    jsonData:
+      timeInterval: "15s"
+
+  - name: Loki
+    type: loki
+    uid: loki
+    url: http://ics-loki:3100
+    access: proxy
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    url: http://ics-tempo:3200
+    access: proxy
+    jsonData:
+      tracesToLogs:
+        datasourceUid: loki
+        tags: ['service']
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
