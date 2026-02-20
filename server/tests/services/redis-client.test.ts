@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi, it } from 'vitest';
 
 /**
  * Tests for RedisClient service.
@@ -26,7 +26,7 @@ vi.mock('ioredis', () => ({
 // ---------------------------------------------------------------------------
 // Import AFTER mock is declared
 // ---------------------------------------------------------------------------
-import { RedisClient } from '../../src/services/redis-client.js';
+import { RedisClient, getRedisClient, resetRedisClient } from '../../src/services/redis-client.js';
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -146,6 +146,18 @@ describe('RedisClient', () => {
 
       expect(handler).not.toHaveBeenCalled();
     });
+
+    test('should log error and not throw when message JSON is invalid', async () => {
+      const handler = vi.fn();
+      await client.subscribeToProgress(handler);
+
+      const onCall = mockMethods.on.mock.calls.find(([event]: [string]) => event === 'message');
+      const messageCallback = onCall![1] as (channel: string, msg: string) => void;
+
+      // Pass malformed JSON on the correct channel — should catch and log, not throw
+      expect(() => messageCallback('scrape:progress', 'not-valid-json')).not.toThrow();
+      expect(handler).not.toHaveBeenCalled();
+    });
   });
 
   // ---- disconnect ----------------------------------------------------------
@@ -160,5 +172,44 @@ describe('RedisClient', () => {
       // so quit is called twice (once per connection)
       expect(mockMethods.quit).toHaveBeenCalledTimes(2);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Singleton helpers
+// ---------------------------------------------------------------------------
+
+describe('getRedisClient / resetRedisClient', () => {
+  beforeEach(() => {
+    resetRedisClient();
+  });
+
+  afterEach(() => {
+    resetRedisClient();
+  });
+
+  it('should return a RedisClient instance', () => {
+    const c = getRedisClient();
+    expect(c).toBeInstanceOf(RedisClient);
+  });
+
+  it('should return the same instance on repeated calls (singleton)', () => {
+    const a = getRedisClient();
+    const b = getRedisClient();
+    expect(a).toBe(b);
+  });
+
+  it('resetRedisClient should allow a fresh instance to be created', () => {
+    const a = getRedisClient();
+    resetRedisClient();
+    const b = getRedisClient();
+    expect(a).not.toBe(b);
+  });
+
+  it('should use REDIS_URL env var when set', () => {
+    process.env.REDIS_URL = 'redis://custom-host:6380';
+    const c = getRedisClient();
+    expect(c).toBeInstanceOf(RedisClient);
+    delete process.env.REDIS_URL;
   });
 });
