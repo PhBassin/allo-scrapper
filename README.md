@@ -53,37 +53,47 @@
 │   React SPA     │  Port 80 (production) / 5173 (dev)
 │   (Vite + TS)   │
 └────────┬────────┘
-         │ HTTP API
+         │ HTTP API / SSE
          ▼
-┌─────────────────┐
-│  Express.js API │  Port 3000
-│  (TypeScript)   │
-│  ┌───────────┐  │
-│  │  Scraper  │  │  Cron-based scraping
-│  │  Service  │◄─┼─ (configurable schedule)
-│  └─────┬─────┘  │
-└────────┼────────┘
-         │ SQL
-         ▼
-┌─────────────────┐
-│   PostgreSQL    │  Port 5432
-│   Database      │
-│  ┌───────────┐  │
-│  │  cinemas  │  │
-│  │  films    │  │
-│  │ showtimes │  │
-│  │scrape_    │  │
-│  │ reports   │  │
-│  └───────────┘  │
-└─────────────────┘
+┌─────────────────┐    Redis pub/sub    ┌───────────────────┐
+│  Express.js API │◄───────────────────►│ Scraper           │
+│  (TypeScript)   │   scrape:jobs queue │ Microservice      │
+│                 │───────────────────►│ (ics-scraper)     │
+│  feature flag:  │                    │                   │
+│  USE_REDIS_     │    (legacy mode)   │  ┌─────────────┐  │
+│  SCRAPER=false  │◄───in-process──────┤  │ Cron        │  │
+│  → in-process   │                    │  │ (ics-scraper│  │
+│  SCRAPER=true   │                    │  │  -cron)     │  │
+│  → Redis queue  │                    │  └─────────────┘  │
+└────────┬────────┘                    └────────┬──────────┘
+         │ SQL                                  │ SQL
+         └──────────────────┬───────────────────┘
+                            ▼
+              ┌─────────────────────────┐
+              │   PostgreSQL  Port 5432 │
+              │  cinemas / films /      │
+              │  showtimes / reports    │
+              └─────────────────────────┘
+
+              ┌─────────────────────────┐
+              │   Redis  (in-memory)    │  Message queue + pub/sub
+              └─────────────────────────┘
+
+  Monitoring (--profile monitoring):
+  Prometheus :9090 → Grafana :3001
+  Loki + Promtail (logs) → Grafana
+  Tempo :3200 (traces, OTLP :4317) → Grafana
 ```
 
 **Data Flow:**
 1. Client makes HTTP requests to Express API (`/api/*`)
 2. API routes handle business logic and validate requests
-3. Scraper service periodically fetches data from the source website
+3. Scraper fetches data from the source website — either in-process (default) or via a Redis job queue (`USE_REDIS_SCRAPER=true`)
+4. Progress events flow back to the API via Redis pub/sub → SSE → client
 4. PostgreSQL stores structured cinema, film, and showtime data
 5. Client receives JSON responses and renders UI
+
+> See [MONITORING.md](./MONITORING.md) for the full observability stack documentation.
 
 ---
 
@@ -1039,6 +1049,13 @@ cp .env.example .env
 | `SCRAPE_DAYS` | Number of days to scrape (1-14) | `7` | `14` |
 | `SCRAPE_MODE` | Start date: `weekly` (Wed), `from_today`, or `from_today_limited` | `weekly` | `from_today_limited` |
 | `NODE_ENV` | Environment mode | `development` | `production` |
+| `REDIS_URL` | Redis connection URL (required for scraper microservice) | `redis://localhost:6379` | `redis://ics-redis:6379` |
+| `USE_REDIS_SCRAPER` | Delegate scraping to the Redis microservice | `false` | `true` |
+| `LOG_LEVEL` | Log verbosity (`error`, `warn`, `info`, `debug`) | `info` | `debug` |
+| `OTEL_ENABLED` | Enable OpenTelemetry distributed tracing | `false` | `true` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP gRPC endpoint for Tempo | `http://ics-tempo:4317` | `http://ics-tempo:4317` |
+| `GRAFANA_ADMIN_USER` | Grafana admin username | `admin` | `admin` |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana admin password | `admin` | `securepass` |
 
 ### Cron Schedule Examples
 

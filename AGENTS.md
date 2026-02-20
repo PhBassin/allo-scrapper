@@ -199,6 +199,7 @@ If the build fails, fix the issue before proceeding to commit.
 | `parser` | HTML parsing |
 | `client` | React frontend |
 | `docker` | Docker/deployment |
+| `observability` | Logging, metrics, tracing |
 
 ### Commit Examples
 
@@ -338,16 +339,42 @@ allo-scrapper/
 │   │   ├── db/                 # Database queries and schema
 │   │   ├── routes/             # API route handlers
 │   │   ├── services/
-│   │   │   └── scraper/        # Core scraping logic
-│   │   │       ├── index.ts        # Orchestrator
-│   │   │       ├── theater-parser.ts   # HTML parsing
-│   │   │       └── http-client.ts      # HTTP requests
+│   │   │   ├── scraper/        # In-process scraping logic (legacy mode)
+│   │   │   │   ├── index.ts        # Orchestrator
+│   │   │   │   ├── theater-parser.ts   # HTML parsing
+│   │   │   │   └── http-client.ts      # HTTP requests
+│   │   │   ├── redis-client.ts  # Redis job publisher (USE_REDIS_SCRAPER mode)
+│   │   │   ├── scrape-manager.ts# Scrape session management
+│   │   │   └── progress-tracker.ts  # SSE event system
 │   │   ├── types/              # TypeScript definitions
-│   │   └── utils/              # Utility functions
+│   │   └── utils/
+│   │       ├── logger.ts       # Winston structured logger (service=ics-web)
+│   │       └── date.ts         # Date utilities
 │   └── tests/
 │       └── fixtures/           # Test HTML files
+├── scraper/                    # Standalone scraper microservice
+│   ├── src/
+│   │   ├── db/                 # Direct DB access (same schema)
+│   │   ├── redis/              # RedisJobConsumer + RedisProgressPublisher
+│   │   ├── scraper/            # Scraping logic (mirrors server/services/scraper)
+│   │   ├── types/
+│   │   └── utils/
+│   │       ├── logger.ts       # Winston logger (service=ics-scraper)
+│   │       ├── metrics.ts      # prom-client metrics (port 9091)
+│   │       └── tracer.ts       # OpenTelemetry OTLP tracer
+│   └── tests/unit/
 ├── client/                     # React frontend
+├── docker/                     # Docker/monitoring configuration
+│   ├── grafana/
+│   │   ├── datasources/        # Auto-provisioned datasources (Prometheus, Loki, Tempo)
+│   │   └── dashboards/         # Auto-provisioned dashboards
+│   ├── loki-config.yml
+│   ├── promtail-config.yml
+│   ├── prometheus.yml
+│   └── tempo.yml
+├── e2e/                        # Playwright E2E tests
 ├── .github/                    # GitHub config (issues, workflows)
+├── MONITORING.md               # Observability stack documentation
 ├── CONTRIBUTING.md             # Human contributor guide
 └── AGENTS.md                   # This file
 ```
@@ -380,6 +407,28 @@ cd server && npm run test:coverage
 
 # Manual pre-push check (same as the hook)
 cd server && npx tsc --noEmit && npm run test:run
+
+# Run scraper microservice tests
+cd scraper && npm test
+```
+
+### Docker
+
+```bash
+# Build all images
+docker compose build
+
+# Start base stack (app + DB + Redis)
+docker compose up -d
+
+# Start with scraper microservice
+docker compose --profile scraper up -d
+
+# Start with full monitoring (Prometheus, Grafana, Loki, Tempo)
+docker compose --profile monitoring up -d
+
+# Start everything
+docker compose --profile monitoring --profile scraper up -d
 ```
 
 ### Git

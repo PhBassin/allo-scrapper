@@ -281,6 +281,35 @@ docker compose exec db psql -U postgres -d cinema_showtimes -c "
 
 ## Monitoring & Maintenance
 
+### Observability Stack (Optional)
+
+A full observability stack (Prometheus, Grafana, Loki, Tempo) is available via the `monitoring` Docker Compose profile. See [MONITORING.md](./MONITORING.md) for full documentation.
+
+```bash
+# Start monitoring services (Grafana on :3001, Prometheus on :9090)
+docker compose --profile monitoring up -d
+
+# Start monitoring + scraper microservice together
+docker compose --profile monitoring --profile scraper up -d
+```
+
+### Scraper Microservice (Optional)
+
+By default the scraper runs in-process inside `ics-web`. To use the standalone scraper microservice (communicates via Redis):
+
+```bash
+# 1. Enable the feature flag in .env
+USE_REDIS_SCRAPER=true
+
+# 2. Start the scraper service
+docker compose --profile scraper up -d
+
+# 3. Restart the web service to pick up the flag
+docker compose restart ics-web
+```
+
+The `ics-scraper-cron` service handles scheduled automatic scraping; `ics-scraper` processes on-demand jobs from the Redis queue.
+
 ### Health Checks
 
 ```bash
