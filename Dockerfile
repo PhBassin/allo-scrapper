@@ -17,7 +17,7 @@ WORKDIR /app/client
 COPY client/package*.json ./
 
 # Install dependencies with aggressive cleanup
-RUN npm ci --only=production=false && \
+RUN npm ci && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/* /var/tmp/*
 
