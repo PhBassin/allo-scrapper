@@ -2,11 +2,37 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { logger } from './utils/logger.js';
+import { registry, scrapeJobsTotal, scrapeDurationSeconds, filmsScrapedTotal, showtimesScrapedTotal } from './utils/metrics.js';
 
 import { runScraper } from './scraper/index.js';
 import { getRedisPublisher, getRedisConsumer, disconnectRedis, type ScrapeJob } from './redis/client.js';
 import { db } from './db/client.js';
 import { createScrapeReport, updateScrapeReport } from './db/queries.js';
+
+// ---------------------------------------------------------------------------
+// Metrics HTTP server (always-on, port 9091)
+// ---------------------------------------------------------------------------
+
+const METRICS_PORT = parseInt(process.env.METRICS_PORT ?? '9091', 10);
+
+async function startMetricsServer(): Promise<void> {
+  const { default: express } = await import('express');
+  const metricsApp = express();
+
+  metricsApp.get('/metrics', async (_req, res) => {
+    try {
+      res.set('Content-Type', registry.contentType);
+      res.end(await registry.metrics());
+    } catch (err) {
+      res.status(500).end(String(err));
+    }
+  });
+
+  metricsApp.listen(METRICS_PORT, () => {
+    logger.info(`Metrics server listening on port ${METRICS_PORT}`);
+  });
+}
+
 
 // ---------------------------------------------------------------------------
 // Mode detection
@@ -38,6 +64,7 @@ async function executeJob(job: ScrapeJob): Promise<void> {
   }
 
   const startTime = Date.now();
+  const durationTimer = scrapeDurationSeconds.startTimer({ cinema: 'all' });
 
   try {
     const summary = await runScraper(publisher, job.options);
@@ -47,6 +74,11 @@ async function executeJob(job: ScrapeJob): Promise<void> {
       : summary.successful_cinemas > 0
         ? 'partial_success'
         : 'failed';
+
+    durationTimer();
+    scrapeJobsTotal.inc({ status, trigger: job.triggerType });
+    filmsScrapedTotal.inc({ cinema: 'all' }, summary.total_films);
+    showtimesScrapedTotal.inc({ cinema: 'all' }, summary.total_showtimes);
 
     await updateScrapeReport(db, job.reportId, {
       status,
@@ -63,6 +95,7 @@ async function executeJob(job: ScrapeJob): Promise<void> {
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     logger.error(`[scraper] Job ${job.reportId} failed:`, err);
+    scrapeJobsTotal.inc({ status: 'failed', trigger: job.triggerType });
 
     await updateScrapeReport(db, job.reportId, {
       status: 'failed',
@@ -261,6 +294,9 @@ async function runDirect(): Promise<void> {
 
 async function main(): Promise<void> {
   logger.info(`[scraper] Starting in ${RUN_MODE} mode...`);
+
+  // Start metrics HTTP endpoint (non-blocking)
+  await startMetricsServer();
 
   switch (RUN_MODE) {
     case 'oneshot':

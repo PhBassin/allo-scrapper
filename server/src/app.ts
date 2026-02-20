@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Registry, collectDefaultMetrics } from 'prom-client';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
@@ -16,6 +17,12 @@ import reportsRouter from './routes/reports.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ---------------------------------------------------------------------------
+// Prometheus registry for the backend
+// ---------------------------------------------------------------------------
+const serverRegistry = new Registry();
+collectDefaultMetrics({ register: serverRegistry, prefix: 'ics_web_' });
 
 export function createApp() {
   const app = express();
@@ -50,6 +57,16 @@ export function createApp() {
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // Prometheus metrics endpoint
+  app.get('/metrics', async (_req, res) => {
+    try {
+      res.set('Content-Type', serverRegistry.contentType);
+      res.end(await serverRegistry.metrics());
+    } catch (err) {
+      res.status(500).end(String(err));
+    }
   });
 
   // Serve React static files in production

@@ -165,5 +165,53 @@ networks:
     profiles:
       - monitoring
 
+  # Prometheus – metrics scraping and storage
+  ics-prometheus:
+    image: prom/prometheus:v2.51.0
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
+  # PostgreSQL exporter – exposes pg metrics for Prometheus
+  ics-postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@ics-db:5432/${POSTGRES_DB:-its}?sslmode=disable"
+    depends_on:
+      ics-db:
+        condition: service_healthy
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
+  # Redis exporter – exposes Redis metrics for Prometheus
+  ics-redis-exporter:
+    image: oliver006/redis_exporter:v1.60.0
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://ics-redis:6379
+    depends_on:
+      ics-redis:
+        condition: service_healthy
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
 volumes:
   loki-data:
+  prometheus-data:
