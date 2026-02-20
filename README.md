@@ -1186,6 +1186,39 @@ curl -X DELETE http://localhost:3000/api/cinemas/C0089
 
 ## 🐳 Docker Deployment
 
+### Docker Image Optimization
+
+**Current image size:** 1.19 GB (optimized from 1.58 GB - **24.6% reduction, -390 MB**)
+
+The Docker image has been aggressively optimized for production deployment:
+
+| Technique | Savings | Description |
+|-----------|---------|-------------|
+| Playwright install as user | -271 MB | Install browsers as nodejs user to avoid chown duplicate layer |
+| npm cache cleanup | -2-5 MB | Aggressive cache cleaning in all stages |
+| Source maps disabled | -1-2 MB | No .map files in production build |
+| Playwright cleanup | -5-10 MB | Clean /tmp and caches after browser install |
+| Build artifacts removal | -1-2 MB | Remove .d.ts, .map, test files |
+
+**Build Optimizations:**
+- **Frontend Builder**: npm cache cleaned, Vite build without source maps, node_modules cache removed
+- **Backend Builder**: npm cache cleaned, source maps removed in builder stage, reduced data transfer
+- **Production Stage**: Playwright system deps installed as root, then browsers installed as nodejs user (eliminates chown duplicate), --only-shell chromium for minimal browser footprint
+
+**Key Innovation:** The largest optimization comes from installing Playwright browsers AS the nodejs user instead of as root and then using `chown -R`. The chown command would create a 271 MB duplicate layer containing copies of all the browser files.
+
+**Image Analysis:**
+```bash
+# View layer sizes
+docker history allo-scrapper-ics-web:latest --human | head -20
+
+# Verify no source maps in production
+docker run --rm allo-scrapper-ics-web find /app -name "*.map"
+# (should return nothing)
+```
+
+---
+
 ### Using Pre-built Images from GitHub Container Registry
 
 The application is automatically built and published to GitHub Container Registry on every release.
