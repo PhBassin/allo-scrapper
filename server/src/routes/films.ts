@@ -5,6 +5,7 @@ import { getWeekStart } from '../utils/date.js';
 import { groupShowtimesByCinema } from '../utils/showtimes.js';
 import type { ApiResponse } from '../types/api.js';
 import type { FilmWithShowtimes, Showtime, Cinema } from '../types/scraper.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -37,7 +38,7 @@ router.get('/', async (_req, res) => {
 
     res.json(response);
   } catch (error) {
-    console.error('Error fetching films:', error);
+    logger.error('Error fetching films:', error);
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch films',
@@ -85,7 +86,7 @@ router.get('/:id', async (req, res) => {
 
     return res.json(response);
   } catch (error) {
-    console.error('Error fetching film:', error);
+    logger.error('Error fetching film:', error);
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch film',

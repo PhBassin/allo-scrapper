@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import type { TheaterPageData, Cinema, FilmShowtimeData, Film, Showtime } from '../../types/scraper';
+import { logger } from '../../utils/logger.js';
 
 // Parse the cinema page from the source website
 export function parseTheaterPage(html: string, cinemaId: string): TheaterPageData {
@@ -31,7 +32,7 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
         image_url: theaterData.image,
       };
     } catch (e) {
-      console.warn('⚠️  Could not parse theater data JSON');
+      logger.warn('⚠️  Could not parse theater data JSON');
     }
   }
 
@@ -42,7 +43,7 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
     try {
       dates = JSON.parse(datesDataStr);
     } catch (e) {
-      console.warn('⚠️  Could not parse showtimes dates');
+      logger.warn('⚠️  Could not parse showtimes dates');
     }
   }
 
@@ -58,7 +59,7 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
         films.push(filmData);
       }
     } catch (error) {
-      console.error('Error parsing film card:', error);
+      logger.error('Error parsing film card:', error);
     }
   });
 
@@ -84,7 +85,7 @@ function parseFilmCard(
   const href = titleLink.attr('href') || '';
   const filmIdMatch = href.match(/cfilm=(\d+)/);
   if (!filmIdMatch) {
-    console.warn('⚠️  Could not extract film ID from:', href);
+    logger.warn('⚠️  Could not extract film ID from:', href);
     return null;
   }
   const filmId = parseInt(filmIdMatch[1], 10);

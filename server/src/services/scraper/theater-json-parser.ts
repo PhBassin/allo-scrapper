@@ -1,4 +1,5 @@
 import type { FilmShowtimeData, Film, Showtime } from '../../types/scraper.js';
+import { logger } from '../../utils/logger.js';
 
 // ── Allociné internal API response types ──────────────────────────────────────
 
@@ -209,7 +210,7 @@ export function parseShowtimesJson(
   const response = json as AllocineApiResponse;
 
   if (response.error) {
-    console.warn(`⚠️  Showtimes API returned error for ${cinemaId} on ${date}`);
+    logger.warn(`⚠️  Showtimes API returned error for ${cinemaId} on ${date}`);
     return [];
   }
 
@@ -222,7 +223,7 @@ export function parseShowtimesJson(
 
     const filmId = extractMovieId(movie);
     if (!filmId) {
-      console.warn(`⚠️  Could not extract film ID from movie:`, JSON.stringify(movie).substring(0, 100));
+      logger.warn(`⚠️  Could not extract film ID from movie:`, JSON.stringify(movie).substring(0, 100));
       continue;
     }
 

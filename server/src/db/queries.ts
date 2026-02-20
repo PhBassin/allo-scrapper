@@ -1,5 +1,6 @@
 import { type DB } from './client.js';
 import type { Cinema, Film, Showtime, WeeklyProgram } from '../types/scraper.js';
+import { logger } from '../utils/logger.js';
 
 // --- Database Row Interfaces ---
 
@@ -651,7 +652,7 @@ export async function deleteOldShowtimes(db: DB, beforeDate: string): Promise<vo
     'DELETE FROM showtimes WHERE date < $1',
     [beforeDate]
   );
-  console.log(`🗑️  Supprimé ${result.rowCount} séances avant ${beforeDate}`);
+  logger.info(`🗑️  Supprimé ${result.rowCount} séances avant ${beforeDate}`);
 }
 
 // ============================================================================

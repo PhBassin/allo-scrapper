@@ -1,0 +1,80 @@
+# ============================================================================
+# Dockerfile for the Scraper Microservice
+# ============================================================================
+# Stage 1: Build TypeScript
+# Stage 2: Production Runtime (Node.js + Playwright Chromium)
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Stage 1: Build
+# ----------------------------------------------------------------------------
+FROM node:20-alpine AS builder
+
+WORKDIR /app/scraper
+
+# Copy package files
+COPY scraper/package*.json ./
+COPY scraper/tsconfig.json ./
+
+# Install all dependencies (including dev for build)
+RUN npm ci && \
+    npm cache clean --force && \
+    rm -rf ~/.npm /tmp/* /var/tmp/*
+
+# Copy source
+COPY scraper/src ./src
+
+# Build TypeScript
+RUN npm run build && \
+    rm -rf node_modules/.cache
+
+# Remove source maps from dist
+RUN find ./dist -name "*.map" -delete 2>/dev/null || true
+
+# ----------------------------------------------------------------------------
+# Stage 2: Production Runtime
+# ----------------------------------------------------------------------------
+# Use Debian-based slim for Playwright compatibility
+FROM node:20-slim AS production
+
+# Install dumb-init for proper signal handling
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends dumb-init && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd -r -g 1001 nodejs && \
+    useradd -r -g nodejs -u 1001 -m nodejs
+
+WORKDIR /app
+RUN chown nodejs:nodejs /app
+
+USER nodejs
+
+# Install production dependencies only
+COPY --chown=nodejs:nodejs scraper/package*.json ./
+RUN npm ci --only=production && \
+    npm cache clean --force && \
+    rm -rf ~/.npm /tmp/*
+
+# Copy built application
+COPY --from=builder --chown=nodejs:nodejs /app/scraper/dist ./dist
+
+# Install Playwright browser (system deps need root)
+USER root
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
+
+RUN npx playwright install-deps chromium && \
+    rm -rf /tmp/* /var/tmp/* /root/.npm /root/.cache ~/.cache
+
+USER nodejs
+
+RUN npx playwright install --only-shell chromium && \
+    rm -rf ~/.npm ~/.cache /tmp/* 2>/dev/null || true
+
+USER nodejs
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+CMD ["node", "dist/index.js"]

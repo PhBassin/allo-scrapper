@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js';
+
 export function getCurrentWeekStart(): string {
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0 = Sunday, 3 = Wednesday
@@ -23,7 +25,7 @@ export function getWeekDates(weekStart?: string, numDays: number = 7): string[] 
   const validatedDays = Math.max(1, Math.min(14, numDays));
   
   if (validatedDays !== numDays) {
-    console.warn(`⚠️  SCRAPE_DAYS value ${numDays} out of range. Using ${validatedDays} instead (valid range: 1-14)`);
+    logger.warn(`SCRAPE_DAYS value ${numDays} out of range. Using ${validatedDays} instead (valid range: 1-14)`);
   }
   
   const dates: string[] = [];
@@ -66,18 +68,6 @@ export function getScrapeDates(
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday...
 
-    // Calculate days remaining until end of cinema week (Tuesday inclusive).
-    // A cinema week runs Wednesday → Tuesday.
-    // Tuesday   (2) -> 0 days left -> 1 day  total (today only)
-    // Wednesday (3) -> 6 days left -> 7 days total (wed → tue)
-    // Thursday  (4) -> 5 days left -> 6 days total
-    // Friday    (5) -> 4 days left -> 5 days total
-    // Saturday  (6) -> 3 days left -> 4 days total
-    // Sunday    (0) -> 2 days left -> 3 days total
-    // Monday    (1) -> 1 day  left -> 2 days total
-    //
-    // Formula: (2 - dayOfWeek + 7) % 7 gives days until next Tuesday.
-    // On Tuesday itself it gives 0, so total is 1 (today only).
     const daysUntilTuesday = (2 - dayOfWeek + 7) % 7;
     const totalDays = daysUntilTuesday === 0 ? 1 : daysUntilTuesday + 1;
 
