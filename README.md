@@ -1235,12 +1235,44 @@ Cinema list is managed in the **database**, not a static file. On first startup,
 
 ### Cinema Configuration Synchronization
 
-**Automatic Sync**: When cinemas are added, updated, or deleted via the API, both the PostgreSQL database AND the `server/src/config/cinemas.json` file are automatically synchronized. This ensures cinema configurations persist across container restarts and remain consistent between the database and JSON file.
+**Automatic Sync**: When cinemas are added, updated, or deleted via the API, both the PostgreSQL database AND the `server/src/config/cinemas.json` file are automatically synchronized.
+
+**Volume Mount for Git Persistence**: The `server/src/config/` directory is mounted as a Docker volume (`./server/src/config:/app/server/src/config`), which means:
+- Changes to `cinemas.json` inside the container are **immediately visible** on your host filesystem
+- You can commit and push these changes to git using the standard workflow below
+- The file persists across container restarts and rebuilds
+- Works on both macOS and Linux hosts
 
 **How it works:**
 - All CRUD operations (`POST /api/cinemas`, `PUT /api/cinemas/:id`, `DELETE /api/cinemas/:id`) update both the database and JSON file atomically using transactions
 - If the JSON write fails, the database changes are automatically rolled back to maintain consistency
 - File locking prevents concurrent write corruption
+- The volume mount ensures changes are immediately visible to git on the host
+
+**Git Workflow for Cinema Changes:**
+
+After adding, updating, or deleting cinemas via the API, commit the changes to the repository:
+
+```bash
+# 1. Check what changed
+git status
+# → modified: server/src/config/cinemas.json
+
+git diff server/src/config/cinemas.json
+
+# 2. Commit using Conventional Commits format
+git add server/src/config/cinemas.json
+
+# Adding a cinema:
+git commit -m "feat(cinema): add Le Champo (C0042)"
+# Removing a cinema:
+git commit -m "chore(cinema): remove Épée de Bois (W7504)"
+# Updating cinema details:
+git commit -m "fix(cinema): update Grand Action URL"
+
+# 3. Push to remote
+git push
+```
 
 **Manual Sync**: If the JSON file becomes out of sync with the database (e.g., after manual database edits), you can manually trigger synchronization:
 
@@ -1250,7 +1282,7 @@ curl http://localhost:3000/api/cinemas/sync
 
 This endpoint reads all cinemas from the database and overwrites `cinemas.json`.
 
-**Note**: The JSON file is stored inside the Docker container at `/app/server/src/config/cinemas.json`. The PostgreSQL database (in a Docker volume) is the source of truth for persistence.
+**Note**: Both the PostgreSQL database (in a Docker volume) and `cinemas.json` (on host filesystem via volume mount) are kept in sync automatically. Either can be used as a reference.
 
 ### Adding New Cinemas
 
@@ -1804,16 +1836,20 @@ docker build -t test .
 
 **Solution:**
 ```bash
-# Restart server to reload config
+# The config directory is volume-mounted, so API changes are visible on host immediately.
+
+# If you manually edited cinemas.json on the host, restart the server to pick up changes:
 docker compose restart ics-web
 
-# Trigger new scrape
+# Trigger a new scrape to fetch data for updated cinemas:
 curl -X POST http://localhost:3000/api/scraper/trigger
 
-# If needed, clear database
+# If the JSON file and database diverged (e.g. after manual DB edits), resync:
+curl http://localhost:3000/api/cinemas/sync
+
+# Full reset (clears all data):
 docker compose down -v
 docker compose up -d
-docker compose exec ics-web npm run db:migrate
 ```
 
 ---

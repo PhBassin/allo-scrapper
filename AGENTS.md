@@ -472,11 +472,46 @@ gh pr checks
 
 ### Adding a New Cinema
 
-1. Add cinema to `server/src/config/cinemas.json`
-2. Fetch HTML fixture for tests
-3. Write parser tests
-4. Verify existing tests still pass
-5. Commit: `feat(scraper): add support for <cinema>`
+**Recommended workflow: API-first, then git commit.**
+
+The `server/src/config/` directory is volume-mounted in Docker, so changes made via the API are immediately visible on the host filesystem and can be committed to git.
+
+**Step 1 — Add via API** (smart URL-based add with auto-scrape):
+```bash
+curl -X POST http://localhost:3000/api/cinemas \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html"}'
+```
+This extracts the cinema ID, scrapes metadata and showtimes, and updates both the database and `server/src/config/cinemas.json`.
+
+**Step 2 — Verify the change is visible on host:**
+```bash
+cat server/src/config/cinemas.json
+git status
+# → modified: server/src/config/cinemas.json
+git diff server/src/config/cinemas.json
+```
+
+**Step 3 — Commit and push** (Conventional Commits format):
+```bash
+git add server/src/config/cinemas.json
+git commit -m "feat(cinema): add <cinema name> (CXXXX)"
+git push
+```
+
+**Alternative — Manual edit** (development/testing only):
+1. Edit `server/src/config/cinemas.json` directly on the host
+2. Restart: `docker compose restart ics-web`
+3. Resync DB from JSON: `curl http://localhost:3000/api/cinemas/sync`
+4. Commit: `git add server/src/config/cinemas.json && git commit -m "feat(cinema): add <cinema>"`
+
+**For parser changes** (write tests before adding the cinema):
+1. Fetch HTML fixture for tests
+2. Write parser tests with the fixture
+3. Verify existing tests still pass
+4. Then add cinema via API and follow the git workflow above
+5. Test commit: `test(parser): add tests for <cinema> (CXXXX)`
+6. Cinema commit: `feat(cinema): add <cinema> (CXXXX)`
 
 ### Fixing a Parser Bug
 
