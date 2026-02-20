@@ -16,6 +16,19 @@ services:
     networks:
       - ics-network
 
+  # Redis – message queue between backend and scraper microservice
+  ics-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ics-network
+
   # Production web server (serves both API and frontend)
   ics-web:
     build: .
@@ -36,8 +49,14 @@ services:
       SCRAPE_DELAY_MS: ${SCRAPE_DELAY_MS:-1000}
       SCRAPE_MODE: ${SCRAPE_MODE:-weekly}
       SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
+      # Feature flag: set to "true" to delegate scraping to scraper microservice via Redis
+      USE_REDIS_SCRAPER: ${USE_REDIS_SCRAPER:-false}
+      REDIS_URL: redis://ics-redis:6379
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       ics-db:
+        condition: service_healthy
+      ics-redis:
         condition: service_healthy
     networks:
       - ics-network
@@ -48,6 +67,103 @@ services:
       retries: 3
       start_period: 40s
 
+  # Scraper microservice – long-running consumer (processes jobs from Redis queue)
+  ics-scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      POSTGRES_HOST: ics-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-its}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      REDIS_URL: redis://ics-redis:6379
+      RUN_MODE: consumer
+      SCRAPE_MODE: ${SCRAPE_MODE:-from_today_limited}
+      SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
+      TZ: ${TZ:-Europe/Paris}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      ics-db:
+        condition: service_healthy
+      ics-redis:
+        condition: service_healthy
+    networks:
+      - ics-network
+    profiles:
+      - scraper
+
+  # Scraper cron – scheduled automatic scraping (no Redis job queue needed)
+  ics-scraper-cron:
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      POSTGRES_HOST: ics-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-its}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      REDIS_URL: redis://ics-redis:6379
+      RUN_MODE: cron
+      CRON_SCHEDULE: ${SCRAPE_CRON_SCHEDULE:-0 8 * * 3}
+      SCRAPE_MODE: ${SCRAPE_MODE:-weekly}
+      SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
+      TZ: ${TZ:-Europe/Paris}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      ics-db:
+        condition: service_healthy
+      ics-redis:
+        condition: service_healthy
+    networks:
+      - ics-network
+    profiles:
+      - scraper
+
 networks:
   ics-network:
     driver: bridge
+
+  # ---------------------------------------------------------------------------
+  # Monitoring stack (Loki + Promtail + Prometheus + Grafana)
+  # Start with: docker compose --profile monitoring up -d
+  # ---------------------------------------------------------------------------
+
+  # Loki – log aggregation backend
+  ics-loki:
+    image: grafana/loki:2.9.0
+    restart: unless-stopped
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./docker/loki-config.yml:/etc/loki/config.yml:ro
+      - loki-data:/tmp/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
+  # Promtail – log shipper (collects Docker container stdout/stderr → Loki)
+  ics-promtail:
+    image: grafana/promtail:2.9.0
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./docker/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - ics-loki
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
+volumes:
+  loki-data:
