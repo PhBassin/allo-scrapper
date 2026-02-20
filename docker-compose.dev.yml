@@ -27,7 +27,7 @@ services:
     working_dir: /app
     command: sh -c "npm install && npm run dev"
     volumes:
-      - ./server:/app
+      - ./server:/app          # Full server mount — includes src/config/cinemas.json (git-visible)
       - /app/node_modules
     ports:
       - "${SERVER_PORT:-3000}:3000"

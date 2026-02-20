@@ -36,6 +36,10 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
+    volumes:
+      # Mount cinema config so API changes to cinemas.json are visible on host
+      # This enables: git add server/src/config/cinemas.json && git commit && git push
+      - ./server/src/config:/app/server/src/config
     environment:
       NODE_ENV: production
       POSTGRES_HOST: ics-db
