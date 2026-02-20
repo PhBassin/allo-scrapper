@@ -1370,10 +1370,35 @@ docker build -t allo-scrapper .
 ```
 
 **Available images:**
-- `ghcr.io/phbassin/allo-scrapper:latest` - Latest stable release
-- `ghcr.io/phbassin/allo-scrapper:v1.0.0` - Specific version
-- `ghcr.io/phbassin/allo-scrapper:main` - Latest from main branch
-- `ghcr.io/phbassin/allo-scrapper:develop` - Latest from develop branch
+
+> **v1.1.0+ tag strategy:**
+> - **`:stable`** — production-ready builds from `main` branch and version tags. Use this in production.
+> - **`:latest`** — continuous development builds from `develop`. May be unstable.
+>
+> If you used `:latest` for production in v1.0.0, switch to `:stable`. See [Migration Guide](#migration-guide-v100--v110).
+
+- `ghcr.io/phbassin/allo-scrapper:stable` - Latest production-ready release (main branch) **[recommended for production]**
+- `ghcr.io/phbassin/allo-scrapper:latest` - Latest development build (develop branch)
+- `ghcr.io/phbassin/allo-scrapper:v1.1.0` - Specific version
+- `ghcr.io/phbassin/allo-scrapper:main` - Latest commit on main branch
+- `ghcr.io/phbassin/allo-scrapper:develop` - Latest commit on develop branch
+
+#### Migration Guide: v1.0.0 → v1.1.0
+
+The Docker tag `:latest` now explicitly tracks the `develop` branch (continuous development). For production deployments, use `:stable` instead:
+
+```yaml
+# Before (v1.0.0) — production
+image: ghcr.io/phbassin/allo-scrapper:latest
+
+# After (v1.1.0+) — production
+image: ghcr.io/phbassin/allo-scrapper:stable
+
+# After (v1.1.0+) — bleeding edge / development
+image: ghcr.io/phbassin/allo-scrapper:latest
+```
+
+No API, schema, or configuration changes are required. Only the Docker tag needs to be updated.
 
 #### Quick Deployment
 
@@ -1518,25 +1543,47 @@ The repository includes a GitHub Actions workflow (`.github/workflows/docker-bui
 
 3. **Publishes to:**
    - GitHub Container Registry (ghcr.io)
-   - Tags: `latest`, `main`, `develop`, version tags
+   - Tags: `stable` (main + version tags), `latest` (develop), `main`, `develop`, version tags
+
+4. **Tag strategy:**
+   - `:latest` tracks the `develop` branch (continuous development)
+   - `:stable` tracks the `main` branch and version tags (production-ready)
 
 4. **Outputs:**
    - Build attestation
    - Image digest
    - Build summary in Actions UI
 
-### Using Pre-built Images
+### Release Process
 
-Pre-built Docker images are automatically published to GitHub Container Registry on every release.
+To publish a new production release:
+
+1. Merge features from `develop` → `main` via PR
+2. Create a version tag on `main`:
+   ```bash
+   git checkout main && git pull
+   git tag v1.2.0
+   git push origin v1.2.0
+   ```
+3. The CI workflow automatically publishes:
+   - `:stable` tag (updated)
+   - `:v1.2.0` and `:v1.2` tags (new)
+   - `:main` tag (updated)
+4. Create a GitHub release using the tag and paste the relevant CHANGELOG.md section
+
+### Using Pre-built Images
 
 **Pull and use images:**
 
 ```bash
-# Pull from GitHub Container Registry
+# Pull stable (production-ready) image
+docker pull ghcr.io/phbassin/allo-scrapper:stable
+
+# Pull latest development build
 docker pull ghcr.io/phbassin/allo-scrapper:latest
 
 # Or pull a specific version
-docker pull ghcr.io/phbassin/allo-scrapper:v1.0.0
+docker pull ghcr.io/phbassin/allo-scrapper:v1.1.0
 
 # Run with docker compose (automatically pulls if not present)
 docker compose up -d
@@ -1546,11 +1593,12 @@ docker images | grep allo-scrapper
 ```
 
 **Available tags:**
-- `latest` - Latest stable release (main branch)
-- `v1.0.0`, `v1.0`, etc. - Specific version tags
+- `stable` - Production-ready release (main branch and version tags) **[recommended for production]**
+- `latest` - Latest development build (develop branch, may be unstable)
+- `v1.1.0`, `v1.1`, etc. - Specific version tags
 - `main` - Latest commit on main branch
 - `develop` - Latest commit on develop branch
-- `main-abc1234` - Specific commit SHA
+- `sha-abc1234` - Specific commit SHA
 
 **Registry cleanup policy:** untagged images and images older than 15 days are automatically deleted daily by the `GHCR Cleanup` workflow.
 
