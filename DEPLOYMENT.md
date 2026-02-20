@@ -122,11 +122,17 @@ TZ=Europe/Paris                   # Your timezone
 ### Pull and Run
 
 The application is automatically built and pushed to GitHub Container Registry on every release.
-An automated GitHub Actions cleanup job also runs daily to delete untagged images and images older than 15 days.
+An automated GitHub Actions cleanup job also runs on every push to `main` (and version tags) to delete untagged images.
+
+> **Tag strategy (v1.1.0+):**
+> - **`:stable`** — production-ready; built from `main` branch and version tags. **Use this in production.**
+> - **`:latest`** — development builds from `develop`; may be unstable.
+>
+> If you were using `:latest` for production in v1.0.0, switch to `:stable`.
 
 ```bash
-# Pull the latest image
-docker pull ghcr.io/phbassin/allo-scrapper:latest
+# Pull the stable (production-ready) image
+docker pull ghcr.io/phbassin/allo-scrapper:stable
 
 # Start the services
 docker compose up -d
@@ -382,7 +388,7 @@ docker compose exec web npm run scrape
 ### Standard Update Process
 
 ```bash
-# 1. Pull latest image
+# 1. Pull stable image (production-ready)
 docker compose pull
 
 # 2. Stop and remove old containers
@@ -420,6 +426,9 @@ docker compose down --remove-orphans
 ```bash
 # Pull specific version
 docker pull ghcr.io/phbassin/allo-scrapper:v1.0.0
+
+# Or use the stable tag (always points to latest production release)
+docker pull ghcr.io/phbassin/allo-scrapper:stable
 
 # Update docker-compose.yml to use specific tag
 # image: ghcr.io/phbassin/allo-scrapper:v1.0.0
