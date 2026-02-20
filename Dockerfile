@@ -16,14 +16,17 @@ WORKDIR /app/client
 # Copy frontend package files
 COPY client/package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production=false
+# Install dependencies with aggressive cleanup
+RUN npm ci --only=production=false && \
+    npm cache clean --force && \
+    rm -rf ~/.npm /tmp/* /var/tmp/*
 
 # Copy frontend source
 COPY client/ ./
 
-# Build frontend for production
-RUN npm run build
+# Build frontend for production (source maps disabled in vite.config.ts)
+RUN npm run build && \
+    rm -rf node_modules/.cache node_modules/.vite
 
 # ----------------------------------------------------------------------------
 # Stage 2: Build Backend
