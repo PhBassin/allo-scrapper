@@ -104,6 +104,11 @@ POSTGRES_PASSWORD=your_secure_password_here  # ⚠️ CHANGE THIS!
 PORT=3000
 NODE_ENV=production
 
+# CORS – must include the origin the browser uses to reach the app.
+# When served via Docker on port 3000, the frontend and API share the same origin.
+# Add http://localhost:5173 if also running the Vite dev server.
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+
 # Scraper Configuration
 SCRAPE_CRON_SCHEDULE=0 8 * * 3    # Wednesday at 8:00 AM
 SCRAPE_DELAY_MS=1000              # 1 second between requests

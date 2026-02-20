@@ -52,6 +52,7 @@ services:
       # Feature flag: set to "true" to delegate scraping to scraper microservice via Redis
       USE_REDIS_SCRAPER: ${USE_REDIS_SCRAPER:-false}
       REDIS_URL: redis://ics-redis:6379
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_ENABLED: ${OTEL_ENABLED:-false}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://ics-tempo:4317}
@@ -131,10 +132,6 @@ services:
       - ics-network
     profiles:
       - scraper
-
-networks:
-  ics-network:
-    driver: bridge
 
   # ---------------------------------------------------------------------------
   # Monitoring stack (Loki + Promtail + Prometheus + Grafana)
@@ -260,6 +257,10 @@ networks:
       - ics-network
     profiles:
       - monitoring
+
+networks:
+  ics-network:
+    driver: bridge
 
 volumes:
   loki-data:
