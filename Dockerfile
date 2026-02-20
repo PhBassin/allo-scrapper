@@ -48,14 +48,15 @@ RUN npm run build
 # ----------------------------------------------------------------------------
 # Stage 3: Production Runtime
 # ----------------------------------------------------------------------------
-# Use the official Playwright image which bundles Chromium + all system deps
-FROM mcr.microsoft.com/playwright:v1.50.1-noble AS production
+# Use node:20-slim (Debian Bookworm) instead of heavy Playwright base image
+FROM node:20-slim AS production
 
 # Install dumb-init for proper signal handling
-RUN apt-get update && apt-get install -y dumb-init && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init \
+    && rm -rf /var/lib/apt/lists/*
 
-# The Playwright base image already provides 'pwuser' (UID/GID 1001).
-# We reuse that user instead of creating a new one.
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 WORKDIR /app
 
@@ -63,8 +64,11 @@ WORKDIR /app
 COPY server/package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
-# Install Playwright's Chromium browser in the known location
-RUN npx playwright install chromium
+# Install Playwright's Chromium headless shell + system dependencies
+# --with-deps: Auto-installs all required system dependencies
+# --only-shell: Installs lightweight headless shell (smaller, headless-only)
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
+RUN npx playwright install --with-deps --only-shell chromium
 
 # Copy built backend from builder
 COPY --from=backend-builder /app/server/dist ./dist
@@ -75,11 +79,11 @@ COPY server/src/config ./dist/config
 # Copy built frontend from builder
 COPY --from=frontend-builder /app/client/dist ./public
 
-# Change ownership to pwuser
-RUN chown -R pwuser:pwuser /app
+# Change ownership to appuser
+RUN chown -R appuser:appuser /app
 
 # Switch to non-root user
-USER pwuser
+USER appuser
 
 # Expose port
 EXPOSE 3000
