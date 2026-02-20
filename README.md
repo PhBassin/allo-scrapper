@@ -42,6 +42,8 @@
 - **Weekly Reports**: Track cinema programs and identify new releases
 - **Docker Ready**: Full containerization with multi-stage builds
 - **CI/CD**: GitHub Actions workflow for automated Docker image builds
+- **Redis Job Queue**: Scraper microservice mode via Redis pub/sub (`USE_REDIS_SCRAPER=true`)
+- **Observability**: Prometheus metrics, Grafana dashboards, Loki log aggregation, Tempo distributed tracing
 - **Production Ready**: Health checks, error handling, and database migrations
 
 ---
@@ -144,8 +146,8 @@ cp .env.example .env
 # Pull the latest image and start services
 docker compose up -d
 
-# Initialize database
-docker compose exec web npm run db:migrate
+# Initialize database (runs automatically on first startup, but can be triggered manually)
+docker compose exec ics-web npm run db:migrate
 
 # Trigger first scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
@@ -158,7 +160,7 @@ curl -X POST http://localhost:3000/api/scraper/trigger
 
 **Update to latest version:**
 ```bash
-docker compose pull web
+docker compose pull ics-web
 docker compose up -d
 ```
 
@@ -180,10 +182,10 @@ cd allo-scrapper
 cp .env.example .env
 
 # Build and start services
-docker compose -f docker-compose.build.yml up --build -d
+docker compose up --build -d
 
-# Initialize database
-docker compose exec web npm run db:migrate
+# Initialize database (runs automatically on first startup)
+docker compose exec ics-web npm run db:migrate
 
 # Trigger first scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
@@ -217,7 +219,7 @@ cp .env.example .env
 # Start all services with hot-reload
 npm run dev
 
-# In another terminal, initialize the database
+# In another terminal, initialize the database (if not already migrated)
 docker compose -f docker-compose.dev.yml exec server npm run db:migrate
 
 # View logs
@@ -330,27 +332,37 @@ npm run test:ui
 
 ### Test Coverage
 
-- **Lines**: 94.3% (target: 80%)
-- **Functions**: 100% (target: 80%)
-- **Statements**: 93.7% (target: 80%)
-- **Branches**: 68.8% (target: 65%)
+Coverage is tracked on the configured source files (see `vitest.config.ts`). Current targets:
+
+- **Lines**: ≥ 80%
+- **Functions**: ≥ 80%
+- **Statements**: ≥ 80%
+- **Branches**: ≥ 65%
 
 ### Test Files
 
 | File | Tests | What it covers |
 |------|-------|----------------|
+| `theater-json-parser.test.ts` | 34 | JSON-based showtime parsing |
 | `theater-parser.test.ts` | 30 | HTML parsing for all cinemas |
-| `date.test.ts` | 22 | Date utility functions |
-| `showtimes.test.ts` | 2 | Showtime utility functions |
+| `date.test.ts` | 24 | Date utility functions |
+| `cinema-config.test.ts` | 17 | Cinema DB+JSON sync service |
 | `queries.test.ts` | 15 | Database query functions |
+| `cinemas.test.ts` | 15 | Cinemas API route handler (CRUD) |
+| `scraper/utils.test.ts` | 14 | Scraper utility functions |
+| `redis-client.test.ts` | 14 | Redis client singleton and pub/sub |
+| `film-parser.test.ts` | 6 | Film detail page HTML parsing |
+| `scraper.test.ts` | 5 | Scraper route (USE_REDIS_SCRAPER flag) |
 | `films.test.ts` | 5 | Films API route handler |
-| `cinemas.test.ts` | 13 | Cinemas API route handler (CRUD) |
-
-> **Note:** Coverage numbers above reflect `theater-parser.ts` only (the configured coverage scope).
+| `cors-config.test.ts` | 4 | CORS configuration |
+| `http-client.test.ts` | 3 | HTTP client for the source website |
+| `showtimes.test.ts` | 2 | Showtime grouping utilities |
+| `benchmark-weekly-programs.test.ts` | 2 | DB upsert performance benchmark |
+| `cinemas.security.test.ts` | 1 | Cinema route security/error handling |
 
 - **Fixtures**: Full HTML pages from the source website (~1.6MB) for realistic testing
 - **Regression tests**: Ensures existing cinemas (C0089, W7504, C0072) continue working
-- **Total**: 107 tests across 8 test files (4 source `.ts` + 4 compiled `.js` dist files)
+- **Total**: 191 tests across 16 test files
 
 See `server/tests/README.md` for detailed testing documentation.
 
@@ -381,10 +393,29 @@ allo-scrapper/
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── vite.config.ts
+├── docker/                          # Monitoring/observability config
+│   ├── grafana/
+│   │   ├── datasources/             # Auto-provisioned Prometheus/Loki/Tempo
+│   │   └── dashboards/              # Auto-provisioned Grafana dashboards
+│   ├── loki-config.yml
+│   ├── promtail-config.yml
+│   ├── prometheus.yml
+│   └── tempo.yml
+├── scraper/                         # Standalone scraper microservice
+│   ├── src/
+│   │   ├── db/                      # Direct DB access (same schema as server)
+│   │   ├── redis/                   # RedisJobConsumer + RedisProgressPublisher
+│   │   ├── scraper/                 # Scraping logic (mirrors server/services/scraper)
+│   │   ├── types/
+│   │   └── utils/
+│   │       ├── logger.ts            # Winston logger (service=ics-scraper)
+│   │       ├── metrics.ts           # prom-client metrics (port 9091)
+│   │       └── tracer.ts            # OpenTelemetry OTLP tracer
+│   └── tests/unit/
 ├── server/                          # Express.js backend (TypeScript)
 │   ├── src/
 │   │   ├── config/
-│   │   │   └── cinemas.json         # Cinema list configuration
+│   │   │   └── cinemas.json         # Cinema list configuration (seed)
 │   │   ├── db/
 │   │   │   ├── client.ts            # PostgreSQL connection pool
 │   │   │   ├── queries.ts           # Database query functions
@@ -399,37 +430,48 @@ allo-scrapper/
 │   │   │   │   ├── http-client.ts   # HTTP client for the source website
 │   │   │   │   ├── index.ts         # Main scraper orchestrator
 │   │   │   │   ├── theater-parser.ts# Cinema page HTML parsing
+│   │   │   │   ├── theater-json-parser.ts # JSON API showtime parsing
 │   │   │   │   └── film-parser.ts   # Film detail page HTML parsing
 │   │   │   ├── cinema-config.ts     # Cinema DB+JSON sync service
 │   │   │   ├── cron.ts              # Cron job manager
 │   │   │   ├── progress-tracker.ts  # SSE progress event system
+│   │   │   ├── redis-client.ts      # Redis job publisher (USE_REDIS_SCRAPER mode)
 │   │   │   └── scrape-manager.ts    # Scrape session management
 │   │   ├── types/
 │   │   │   ├── scraper.ts           # Domain type definitions
 │   │   │   └── api.ts               # API response type definitions
 │   │   ├── utils/
+│   │   │   ├── cors-config.ts       # CORS configuration (ALLOWED_ORIGINS)
 │   │   │   ├── date.ts              # Date calculation utilities
+│   │   │   ├── logger.ts            # Winston structured logger (service=ics-web)
 │   │   │   └── showtimes.ts         # Showtime grouping utilities
 │   │   ├── app.ts                   # Express app configuration (incl. GET /api/health)
 │   │   └── index.ts                 # Server entry point
 │   ├── tests/
-│   │   └── fixtures/                # HTML fixtures for parser tests
+│   │   ├── fixtures/                # HTML fixtures for parser tests
+│   │   └── services/
+│   │       └── redis-client.test.ts # Redis client integration tests
 │   ├── package.json
 │   └── tsconfig.json
 ├── e2e/                             # Playwright end-to-end tests
 ├── scripts/
 │   ├── backup-db.sh                 # Database backup script
+│   ├── install-hooks.sh             # Install git pre-push hooks
 │   ├── integration-test.sh          # Full-stack integration test runner
 │   ├── pull-and-deploy.sh           # Pull latest Docker image & restart
 │   └── restore-db.sh                # Database restore script
 ├── .dockerignore
 ├── .env.example                     # Environment variables template
 ├── .gitignore
+├── AGENTS.md                        # Instructions for AI coding agents
+├── CONTRIBUTING.md                  # Human contributor guide
 ├── DEPLOYMENT.md                    # Comprehensive deployment guide
+├── MONITORING.md                    # Observability stack documentation
 ├── docker-compose.build.yml         # Local build stack
 ├── docker-compose.dev.yml           # Development stack
-├── docker-compose.yml               # Production stack
-├── Dockerfile                       # Multi-stage production build
+├── docker-compose.yml               # Production stack (with monitoring/scraper profiles)
+├── Dockerfile                       # Multi-stage production build (ics-web)
+├── Dockerfile.scraper               # Scraper microservice build (ics-scraper)
 ├── playwright.config.ts             # Playwright E2E configuration
 ├── package.json                     # Root convenience scripts
 └── README.md                        # This file
@@ -1036,6 +1078,7 @@ cp .env.example .env
 | `POSTGRES_USER` | Database username | `postgres` | `myuser` |
 | `POSTGRES_PASSWORD` | Database password | `password` | `securepass123` |
 | `PORT` | API server port | `3000` | `8080` |
+| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins | `http://localhost:3000,http://localhost:5173` | `http://localhost:3000,https://example.com` |
 | `VITE_API_BASE_URL` | Client API base URL | `http://localhost:3000/api` | `https://api.example.com/api` |
 
 ### Optional Variables
@@ -1344,12 +1387,36 @@ npm run dev
 Uses `docker-compose.yml` with pre-built images from GitHub Container Registry:
 
 ```bash
+# Base stack (app + DB + Redis)
 docker compose up -d
+
+# With scraper microservice
+docker compose --profile scraper up -d
+
+# With full observability stack (Prometheus, Grafana, Loki, Tempo)
+docker compose --profile monitoring up -d
+
+# Everything
+docker compose --profile monitoring --profile scraper up -d
 ```
 
-**Services:**
-- `db`: PostgreSQL 15 with volume persistence
-- `web`: Combined API + static frontend (port 3000)
+**Base services (`docker compose up -d`):**
+- `ics-db`: PostgreSQL 15 with volume persistence
+- `ics-redis`: Redis 7 (message queue + pub/sub)
+- `ics-web`: Combined API + static frontend (port 3000)
+
+**`--profile scraper` adds:**
+- `ics-scraper`: Scraper microservice (job consumer)
+- `ics-scraper-cron`: Cron-triggered scraper
+
+**`--profile monitoring` adds:**
+- `ics-prometheus`: Metrics (port 9090)
+- `ics-grafana`: Dashboards (port 3001, default admin/admin)
+- `ics-loki` + `ics-promtail`: Log aggregation
+- `ics-tempo`: Distributed tracing (OTLP port 4317)
+- `ics-postgres-exporter`, `ics-redis-exporter`: DB/Redis metrics
+
+> See [MONITORING.md](./MONITORING.md) for full observability setup instructions.
 
 ### Building Docker Images Locally
 
@@ -1600,10 +1667,10 @@ docker compose ps
 cat .env | grep POSTGRES
 
 # Restart database
-docker compose restart db
+docker compose restart ics-db
 
 # View database logs
-docker compose logs db
+docker compose logs ics-db
 ```
 
 ---
@@ -1618,7 +1685,7 @@ docker compose logs db
 curl http://localhost:3000/api/scraper/status
 
 # View server logs
-docker compose logs web
+docker compose logs ics-web
 
 # Check scrape reports
 curl http://localhost:3000/api/reports
@@ -1645,7 +1712,7 @@ curl http://localhost:3000/api/health
 cat client/.env | grep VITE_API_BASE_URL
 
 # Check server logs for errors
-docker compose logs web -f
+docker compose logs ics-web -f
 
 # Restart services
 docker compose restart
@@ -1679,10 +1746,10 @@ docker compose up -d
 **Solution:**
 ```bash
 # Run migration manually
-docker compose exec web npm run db:migrate
+docker compose exec ics-web npm run db:migrate
 
 # Or connect to database and run schema manually
-docker compose exec db psql -U postgres -d its
+docker compose exec ics-db psql -U postgres -d its
 
 # In psql:
 \i /path/to/schema.sql
@@ -1697,7 +1764,7 @@ docker compose exec db psql -U postgres -d its
 **Solution:**
 1. Check `VITE_API_BASE_URL` in `.env`
 2. Verify API is accessible: `curl http://localhost:3000/api/health`
-3. Check CORS settings in `server/src/app.ts`
+3. Check CORS settings — `ALLOWED_ORIGINS` env var must include the browser origin (see `server/src/utils/cors-config.ts`)
 4. Rebuild client: `cd client && npm run build`
 
 ---
@@ -1730,7 +1797,7 @@ docker build -t test .
 **Solution:**
 ```bash
 # Restart server to reload config
-docker compose restart web
+docker compose restart ics-web
 
 # Trigger new scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
@@ -1738,7 +1805,7 @@ curl -X POST http://localhost:3000/api/scraper/trigger
 # If needed, clear database
 docker compose down -v
 docker compose up -d
-docker compose exec web npm run db:migrate
+docker compose exec ics-web npm run db:migrate
 ```
 
 ---
