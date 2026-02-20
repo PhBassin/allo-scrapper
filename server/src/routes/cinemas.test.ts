@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as queries from '../db/queries.js';
+import * as cinemaConfig from '../services/cinema-config.js';
 import router from './cinemas.js';
 
 // Mock the dependencies
@@ -12,9 +12,13 @@ vi.mock('../db/client.js', () => ({
 vi.mock('../db/queries.js', () => ({
   getCinemas: vi.fn(),
   getShowtimesByCinemaAndWeek: vi.fn(),
-  addCinema: vi.fn(),
-  updateCinemaConfig: vi.fn(),
-  deleteCinema: vi.fn(),
+}));
+
+vi.mock('../services/cinema-config.js', () => ({
+  addCinemaWithSync: vi.fn(),
+  updateCinemaWithSync: vi.fn(),
+  deleteCinemaWithSync: vi.fn(),
+  syncCinemasFromDatabase: vi.fn(),
 }));
 
 vi.mock('../utils/date.js', () => ({
@@ -42,12 +46,12 @@ describe('Routes - Cinemas', () => {
         body: { id: 'C0099', name: 'New Cinema', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html' }
       };
       const created = { id: 'C0099', name: 'New Cinema', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html' };
-      (queries.addCinema as any).mockResolvedValue(created);
+      (cinemaConfig.addCinemaWithSync as any).mockResolvedValue(created);
 
       const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.addCinema).toHaveBeenCalledWith(expect.anything(), { id: 'C0099', name: 'New Cinema', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html' });
+      expect(cinemaConfig.addCinemaWithSync).toHaveBeenCalledWith(expect.anything(), { id: 'C0099', name: 'New Cinema', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html' });
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: created }));
     });
@@ -82,7 +86,7 @@ describe('Routes - Cinemas', () => {
 
     it('should return 409 on duplicate cinema id', async () => {
       mockReq = { body: { id: 'W7504', name: 'Duplicate', url: 'https://example.com' } };
-      (queries.addCinema as any).mockRejectedValue(new Error('duplicate key value violates unique constraint'));
+      (cinemaConfig.addCinemaWithSync as any).mockRejectedValue(new Error('duplicate key value violates unique constraint'));
 
       const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
@@ -94,7 +98,7 @@ describe('Routes - Cinemas', () => {
     it('should call next(error) on unexpected error', async () => {
       mockReq = { body: { id: 'C0099', name: 'New Cinema', url: 'https://example.com' } };
       const error = new Error('Unexpected DB error');
-      (queries.addCinema as any).mockRejectedValue(error);
+      (cinemaConfig.addCinemaWithSync as any).mockRejectedValue(error);
 
       const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
@@ -107,12 +111,12 @@ describe('Routes - Cinemas', () => {
     it('should update a cinema and return the updated record', async () => {
       mockReq = { params: { id: 'W7504' }, body: { name: 'Updated Name', url: 'https://new-url.com' } };
       const updated = { id: 'W7504', name: 'Updated Name', url: 'https://new-url.com' };
-      (queries.updateCinemaConfig as any).mockResolvedValue(updated);
+      (cinemaConfig.updateCinemaWithSync as any).mockResolvedValue(updated);
 
       const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.put)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.updateCinemaConfig).toHaveBeenCalledWith(expect.anything(), 'W7504', { name: 'Updated Name', url: 'https://new-url.com' });
+      expect(cinemaConfig.updateCinemaWithSync).toHaveBeenCalledWith(expect.anything(), 'W7504', { name: 'Updated Name', url: 'https://new-url.com' });
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: updated }));
     });
 
@@ -127,7 +131,7 @@ describe('Routes - Cinemas', () => {
 
     it('should return 404 when cinema not found', async () => {
       mockReq = { params: { id: 'UNKNOWN' }, body: { name: 'X' } };
-      (queries.updateCinemaConfig as any).mockResolvedValue(undefined);
+      (cinemaConfig.updateCinemaWithSync as any).mockResolvedValue(undefined);
 
       const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.put)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
@@ -139,7 +143,7 @@ describe('Routes - Cinemas', () => {
     it('should call next(error) on unexpected error', async () => {
       mockReq = { params: { id: 'W7504' }, body: { name: 'X' } };
       const error = new Error('DB Error');
-      (queries.updateCinemaConfig as any).mockRejectedValue(error);
+      (cinemaConfig.updateCinemaWithSync as any).mockRejectedValue(error);
 
       const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.put)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
@@ -151,19 +155,19 @@ describe('Routes - Cinemas', () => {
   describe('DELETE /:id', () => {
     it('should delete a cinema and return 204', async () => {
       mockReq = { params: { id: 'W7504' } };
-      (queries.deleteCinema as any).mockResolvedValue(true);
+      (cinemaConfig.deleteCinemaWithSync as any).mockResolvedValue(true);
 
       const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.delete)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.deleteCinema).toHaveBeenCalledWith(expect.anything(), 'W7504');
+      expect(cinemaConfig.deleteCinemaWithSync).toHaveBeenCalledWith(expect.anything(), 'W7504');
       expect(mockRes.status).toHaveBeenCalledWith(204);
       expect(mockRes.send).toHaveBeenCalledWith();
     });
 
     it('should return 404 when cinema not found', async () => {
       mockReq = { params: { id: 'UNKNOWN' } };
-      (queries.deleteCinema as any).mockResolvedValue(false);
+      (cinemaConfig.deleteCinemaWithSync as any).mockResolvedValue(false);
 
       const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.delete)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
@@ -175,9 +179,39 @@ describe('Routes - Cinemas', () => {
     it('should call next(error) on unexpected error', async () => {
       mockReq = { params: { id: 'W7504' } };
       const error = new Error('DB Error');
-      (queries.deleteCinema as any).mockRejectedValue(error);
+      (cinemaConfig.deleteCinemaWithSync as any).mockRejectedValue(error);
 
       const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.delete)?.route.stack[0].handle;
+      await handler(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe('GET /sync', () => {
+    it('should sync cinemas from DB to JSON and return count', async () => {
+      mockReq = {};
+      (cinemaConfig.syncCinemasFromDatabase as any).mockResolvedValue(3);
+
+      const handler = router.stack.find(s => s.route?.path === '/sync' && s.route?.methods.get)?.route.stack[0].handle;
+      await handler(mockReq, mockRes, mockNext);
+
+      expect(cinemaConfig.syncCinemasFromDatabase).toHaveBeenCalledWith(expect.anything());
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({
+          count: 3,
+          message: 'Synced 3 cinema(s) to JSON file'
+        })
+      }));
+    });
+
+    it('should call next(error) on sync failure', async () => {
+      mockReq = {};
+      const error = new Error('Sync Error');
+      (cinemaConfig.syncCinemasFromDatabase as any).mockRejectedValue(error);
+
+      const handler = router.stack.find(s => s.route?.path === '/sync' && s.route?.methods.get)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(error);
