@@ -3,6 +3,7 @@ dotenv.config();
 
 import { logger } from './utils/logger.js';
 import { registry, scrapeJobsTotal, scrapeDurationSeconds, filmsScrapedTotal, showtimesScrapedTotal } from './utils/metrics.js';
+import { initTracing } from './utils/tracer.js';
 
 import { runScraper } from './scraper/index.js';
 import { getRedisPublisher, getRedisConsumer, disconnectRedis, type ScrapeJob } from './redis/client.js';
@@ -294,6 +295,9 @@ async function runDirect(): Promise<void> {
 
 async function main(): Promise<void> {
   logger.info(`[scraper] Starting in ${RUN_MODE} mode...`);
+
+  // Initialise distributed tracing (OTLP → Tempo)
+  initTracing();
 
   // Start metrics HTTP endpoint (non-blocking)
   await startMetricsServer();

@@ -53,6 +53,8 @@ services:
       USE_REDIS_SCRAPER: ${USE_REDIS_SCRAPER:-false}
       REDIS_URL: redis://ics-redis:6379
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://ics-tempo:4317}
     depends_on:
       ics-db:
         condition: service_healthy
@@ -86,6 +88,8 @@ services:
       SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
       TZ: ${TZ:-Europe/Paris}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://ics-tempo:4317}
     depends_on:
       ics-db:
         condition: service_healthy
@@ -116,6 +120,8 @@ services:
       SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
       TZ: ${TZ:-Europe/Paris}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://ics-tempo:4317}
     depends_on:
       ics-db:
         condition: service_healthy
@@ -212,6 +218,24 @@ networks:
     profiles:
       - monitoring
 
+  # Tempo – distributed tracing backend (receives OTLP from scraper and server)
+  ics-tempo:
+    image: grafana/tempo:2.3.0
+    restart: unless-stopped
+    command: -config.file=/etc/tempo/config.yml
+    volumes:
+      - ./docker/tempo.yml:/etc/tempo/config.yml:ro
+      - tempo-data:/tmp/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
 volumes:
   loki-data:
   prometheus-data:
+  tempo-data:
