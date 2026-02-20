@@ -58,42 +58,72 @@ RUN find ./dist -name "*.map" -delete && \
 # ----------------------------------------------------------------------------
 # Stage 3: Production Runtime
 # ----------------------------------------------------------------------------
-# Use node:20-slim (Debian Bookworm) instead of heavy Playwright base image
+# Use node:20-slim (Debian-based) for Playwright compatibility
 FROM node:20-slim AS production
 
 # Install dumb-init for proper signal handling
-RUN apt-get update && apt-get install -y --no-install-recommends dumb-init \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends dumb-init && \
+    rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Create non-root user BEFORE COPY operations (required for --chown)
+RUN groupadd -r -g 1001 nodejs && \
+    useradd -r -g nodejs -u 1001 -m nodejs
 
+# Create /app directory with correct ownership BEFORE switching user
 WORKDIR /app
+RUN chown nodejs:nodejs /app
+
+# Switch to nodejs user for npm install
+USER nodejs
 
 # Copy backend package files and install production dependencies only
-COPY server/package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+COPY --chown=nodejs:nodejs server/package*.json ./
+RUN npm ci --only=production && \
+    npm cache clean --force && \
+    rm -rf ~/.npm /tmp/*
+
+# Copy built backend from builder with correct ownership
+COPY --from=backend-builder --chown=nodejs:nodejs /app/server/dist ./dist
+
+# Copy backend config files (cinemas.json) with correct ownership
+COPY --chown=nodejs:nodejs server/src/config ./dist/config
+
+# Copy built frontend from builder with correct ownership
+COPY --from=frontend-builder --chown=nodejs:nodejs /app/client/dist ./public
 
 # Install Playwright's Chromium headless shell + system dependencies
-# --with-deps: Auto-installs all required system dependencies
-# --only-shell: Installs lightweight headless shell (smaller, headless-only)
+# STRATEGY: Install system deps as root, then install browser AS nodejs user
+# This avoids the 271MB duplicate layer from chown -R /app/.playwright
+# Switch to root temporarily for system dependencies
+USER root
 ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
-RUN npx playwright install --with-deps --only-shell chromium
 
-# Copy built backend from builder
-COPY --from=backend-builder /app/server/dist ./dist
+# Install system dependencies required by Playwright (must be done as root)
+# We use a dummy install --with-deps to let Playwright install what it needs
+RUN npx playwright install-deps chromium && \
+    rm -rf /tmp/* /var/tmp/* /root/.npm /root/.cache ~/.cache
 
-# Copy backend config files (cinemas.json)
-COPY server/src/config ./dist/config
+# Switch to nodejs user BEFORE installing the actual browser
+# This way, browser files are owned by nodejs from the start (no chown needed!)
+USER nodejs
 
-# Copy built frontend from builder
-COPY --from=frontend-builder /app/client/dist ./public
+# Install the actual Chromium headless shell AS nodejs user
+RUN npx playwright install --only-shell chromium && \
+    rm -rf ~/.npm ~/.cache /tmp/* 2>/dev/null || true
 
-# Change ownership to appuser
-RUN chown -R appuser:appuser /app
+# Switch back to root for final cleanup
+USER root
 
-# Switch to non-root user
-USER appuser
+# Aggressive final cleanup: remove ALL unnecessary files
+RUN find /app/dist -name "*.d.ts" -delete && \
+    find /app/public -name "*.map" -delete && \
+    find /app -name "*.test.js" -delete && \
+    find /app -name "*.spec.js" -delete && \
+    find /app -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+
+# Switch back to non-root user permanently
+USER nodejs
 
 # Expose port
 EXPOSE 3000
