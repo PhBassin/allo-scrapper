@@ -40,7 +40,7 @@
 - **Modern UI**: React SPA with Vite for fast development
 - **Real-time Progress**: Server-Sent Events (SSE) for live scraping updates
 - **Weekly Reports**: Track cinema programs and identify new releases
-- **Docker Ready**: Full containerization with multi-stage builds
+- **Docker Ready**: Full containerization with multi-stage builds (linux/amd64)
 - **CI/CD**: GitHub Actions workflow for automated Docker image builds
 - **Redis Job Queue**: Scraper microservice mode via Redis pub/sub (`USE_REDIS_SCRAPER=true`)
 - **Observability**: Prometheus metrics, Grafana dashboards, Loki log aggregation, Tempo distributed tracing
@@ -1329,6 +1329,14 @@ docker run --rm allo-scrapper-ics-web find /app -name "*.map"
 
 The application is automatically built and published to GitHub Container Registry on every release.
 
+### Platform Support
+
+Docker images are built for **linux/amd64** only. ARM64 (Apple Silicon, Raspberry Pi) is not supported via pre-built images due to QEMU emulation instability during `npm ci` on GitHub Actions runners. If you need to run on ARM64, build the image locally on your ARM64 machine:
+
+```bash
+docker build -t allo-scrapper .
+```
+
 **Available images:**
 - `ghcr.io/phbassin/allo-scrapper:latest` - Latest stable release
 - `ghcr.io/phbassin/allo-scrapper:v1.0.0` - Specific version
@@ -1472,7 +1480,7 @@ The repository includes a GitHub Actions workflow (`.github/workflows/docker-bui
    - Manual workflow dispatch
 
 2. **Builds:**
-   - Multi-platform Docker images (linux/amd64, linux/arm64)
+   - Multi-platform Docker images (linux/amd64)
    - Uses layer caching for faster builds
    - Runs automated tests (if configured)
 
