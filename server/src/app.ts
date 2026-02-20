@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { getCorsOptions } from './utils/cors-config.js';
+import { logger } from './utils/logger.js';
 
 // Import routes
 import filmsRouter from './routes/films.js';
@@ -72,7 +73,7 @@ export function createApp() {
 
   // Error handler
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error('Unhandled error:', err);
+    logger.error('Unhandled error', { error: err.message, stack: err.stack });
     res.status(500).json({
       success: false,
       error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,

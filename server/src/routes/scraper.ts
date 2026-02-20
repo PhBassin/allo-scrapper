@@ -2,13 +2,40 @@ import express from 'express';
 import { scrapeManager } from '../services/scrape-manager.js';
 import { progressTracker } from '../services/progress-tracker.js';
 import type { ApiResponse } from '../types/api.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
+
+const USE_REDIS_SCRAPER = process.env.USE_REDIS_SCRAPER === 'true';
 
 // POST /api/scraper/trigger - Start a manual scrape
 router.post('/trigger', async (_req, res) => {
   try {
-    // Check if scrape is already running
+    if (USE_REDIS_SCRAPER) {
+      // Delegate to Redis microservice
+      const { getRedisClient } = await import('../services/redis-client.js');
+      const { db } = await import('../db/client.js');
+      const { createScrapeReport } = await import('../db/queries.js');
+
+      const reportId = await createScrapeReport(db, 'manual');
+
+      const queueDepth = await getRedisClient().publishJob({
+        reportId,
+        triggerType: 'manual',
+      });
+
+      const response: ApiResponse = {
+        success: true,
+        data: {
+          reportId,
+          message: 'Scrape job queued for microservice',
+          queueDepth,
+        },
+      };
+      return res.json(response);
+    }
+
+    // Legacy in-process scraper
     if (scrapeManager.isRunning()) {
       const currentSession = scrapeManager.getCurrentSession();
       const response: ApiResponse = {
@@ -24,7 +51,6 @@ router.post('/trigger', async (_req, res) => {
       return res.status(409).json(response);
     }
 
-    // Start the scrape
     const reportId = await scrapeManager.startScrape('manual');
 
     const response: ApiResponse = {
@@ -34,7 +60,7 @@ router.post('/trigger', async (_req, res) => {
 
     return res.json(response);
   } catch (error) {
-    console.error('Error starting scrape:', error);
+    logger.error('Error starting scrape:', error);
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to start scrape',
@@ -52,15 +78,16 @@ router.get('/status', async (_req, res) => {
     const response: ApiResponse = {
       success: true,
       data: {
-        isRunning: scrapeManager.isRunning(),
-        currentSession: session,
+        isRunning: USE_REDIS_SCRAPER ? false : scrapeManager.isRunning(),
+        useRedisScraper: USE_REDIS_SCRAPER,
+        currentSession: USE_REDIS_SCRAPER ? null : session,
         latestReport,
       },
     };
 
     res.json(response);
   } catch (error) {
-    console.error('Error fetching scrape status:', error);
+    logger.error('Error fetching scrape status:', error);
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch scrape status',
@@ -78,14 +105,15 @@ router.get('/progress', (req, res) => {
   res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
 
   // Add listener to progress tracker
+  // In Redis mode, progressTracker.emit() is called from the Redis subscriber in index.ts
   progressTracker.addListener(res);
 
-  console.log(`📡 SSE client connected (${progressTracker.getListenerCount()} total)`);
+  logger.info(`📡 SSE client connected (${progressTracker.getListenerCount()} total)`);
 
   // Remove listener on client disconnect
   req.on('close', () => {
     progressTracker.removeListener(res);
-    console.log(`📡 SSE client disconnected (${progressTracker.getListenerCount()} remaining)`);
+    logger.info(`📡 SSE client disconnected (${progressTracker.getListenerCount()} remaining)`);
   });
 });
 

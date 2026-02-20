@@ -1,7 +1,7 @@
 // HTTP client for fetching cinema and film pages from source website
 
 import { chromium, type Browser } from 'playwright';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../utils/logger.js';
 
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -47,7 +47,7 @@ export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterIn
   const page = await context.newPage();
 
   try {
-    logger.info(`🔍 Loading theater page: ${cinemaBaseUrl}`);
+    logger.info('Loading theater page', { url: cinemaBaseUrl });
     await page.goto(cinemaBaseUrl, { waitUntil: 'networkidle', timeout: 60000 });
 
     const html = await page.content();
@@ -61,7 +61,7 @@ export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterIn
       try { return JSON.parse(raw) as string[]; } catch { return [] as string[]; }
     });
 
-    logger.info(`📅 Available dates on page: ${availableDates.join(', ')}`);
+    logger.info('Available dates on page', { dates: availableDates });
     return { html, availableDates };
   } finally {
     await context.close();
@@ -77,7 +77,7 @@ export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterIn
  */
 export async function fetchShowtimesJson(cinemaId: string, date: string): Promise<unknown> {
   const url = `${ALLOCINE_BASE_URL}/_/showtimes/theater-${cinemaId}/d-${date}/`;
-  logger.info(`📡 Fetching showtimes JSON: ${url}`);
+  logger.info('Fetching showtimes JSON', { url });
 
   const response = await fetch(url, {
     headers: {
@@ -98,7 +98,7 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
 export async function fetchFilmPage(filmId: number): Promise<string> {
   const url = `${ALLOCINE_BASE_URL}/film/fichefilm_gen_cfilm=${filmId}.html`;
 
-  logger.info(`🎬 Fetching film page: ${url}`);
+  logger.info('Fetching film page', { url });
 
   const response = await fetch(url, {
     headers: {

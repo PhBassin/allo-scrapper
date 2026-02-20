@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
-import type { TheaterPageData, Cinema, FilmShowtimeData, Film, Showtime } from '../../types/scraper';
-import { logger } from '../../utils/logger.js';
+import type { TheaterPageData, Cinema, FilmShowtimeData, Film, Showtime } from '../types/scraper.js';
+import { logger } from '../utils/logger.js';
 
 // Parse the cinema page from the source website
 export function parseTheaterPage(html: string, cinemaId: string): TheaterPageData {
@@ -9,7 +9,7 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
   // Extraire les données du cinéma depuis l'attribut data-theater
   const theaterSection = $('#theaterpage-showtimes-index-ui');
   const theaterDataStr = theaterSection.attr('data-theater');
-  
+
   let cinema: Cinema = {
     id: cinemaId,
     name: '',
@@ -32,7 +32,7 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
         image_url: theaterData.image,
       };
     } catch (e) {
-      logger.warn('⚠️  Could not parse theater data JSON');
+      logger.warn('Could not parse theater data JSON');
     }
   }
 
@@ -43,7 +43,7 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
     try {
       dates = JSON.parse(datesDataStr);
     } catch (e) {
-      logger.warn('⚠️  Could not parse showtimes dates');
+      logger.warn('Could not parse showtimes dates');
     }
   }
 
@@ -59,7 +59,7 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
         films.push(filmData);
       }
     } catch (error) {
-      logger.error('Error parsing film card:', error);
+      logger.error('Error parsing film card', { error });
     }
   });
 
@@ -85,7 +85,7 @@ function parseFilmCard(
   const href = titleLink.attr('href') || '';
   const filmIdMatch = href.match(/cfilm=(\d+)/);
   if (!filmIdMatch) {
-    logger.warn('⚠️  Could not extract film ID from:', href);
+    logger.warn('Could not extract film ID from href', { href });
     return null;
   }
   const filmId = parseInt(filmIdMatch[1], 10);
@@ -111,7 +111,6 @@ function parseFilmCard(
   let director = '';
   const directionDiv = $card.find('.meta-body-direction');
   if (directionDiv.length) {
-    // Enlever le "De " au début
     director = directionDiv.text().trim().replace(/^De\s+/, '');
   }
 
@@ -119,7 +118,6 @@ function parseFilmCard(
   const actors: string[] = [];
   const actorDiv = $card.find('.meta-body-actor');
   if (actorDiv.length) {
-    // Enlever le "Avec " au début et séparer par virgules
     const actorText = actorDiv.text().trim().replace(/^Avec\s+/, '');
     actorText.split(',').forEach((actor) => {
       const trimmed = actor.trim();
@@ -136,7 +134,7 @@ function parseFilmCard(
   // Notes
   let pressRating: number | undefined;
   let audienceRating: number | undefined;
-  
+
   const ratingItems = $card.find('.rating-item');
   if (ratingItems.length >= 1) {
     const pressNote = $(ratingItems[0]).find('.stareval-note').text().trim();
@@ -157,11 +155,11 @@ function parseFilmCard(
   // Date de sortie / reprise
   let releaseDate: string | undefined;
   let rereleaseDate: string | undefined;
-  
+
   $card.find('.meta-body-item').each((_, item) => {
     const $item = $(item);
     const label = $item.find('.light').text().trim();
-    
+
     if (label === 'Date de sortie') {
       const dateText = $item.find('.date').text().trim();
       releaseDate = parseDateText(dateText);
@@ -210,7 +208,7 @@ function parseShowtimes(
 
   $card.find('.showtimes-version').each((_, versionBlock) => {
     const $version = $(versionBlock);
-    
+
     // Version (VF/VO)
     const versionText = $version.find('.text').text().trim();
     let version = 'VF';
@@ -230,11 +228,11 @@ function parseShowtimes(
     // Parser chaque horaire
     $version.find('.showtimes-hour-item').each((_, hourItem) => {
       const $hour = $(hourItem);
-      
+
       const showtimeId = $hour.attr('data-showtime-id');
       const datetimeIso = $hour.attr('data-showtime-time');
       const experiencesStr = $hour.attr('data-experiences');
-      
+
       if (!showtimeId || !datetimeIso) return;
 
       // Extraire l'heure
@@ -287,7 +285,7 @@ function parseShowtimes(
 function parseDateText(dateText: string): string | undefined {
   const match = dateText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
   if (!match) return undefined;
-  
+
   return parseDateFromText(match[1], match[2], match[3]);
 }
 
@@ -317,16 +315,15 @@ function parseDateFromText(day: string, monthName: string, year: string): string
 // Utilitaire: obtenir le mercredi de la semaine d'une date
 function getWeekStart(dateStr: string): string {
   const date = new Date(dateStr);
-  const dayOfWeek = date.getDay(); // 0 = dimanche, 3 = mercredi
-  
-  // Calculer le décalage vers le mercredi précédent
-  let offset = dayOfWeek - 3; // mercredi = 3
+  const dayOfWeek = date.getDay();
+
+  let offset = dayOfWeek - 3;
   if (offset < 0) {
-    offset += 7; // Si on est lundi/mardi, aller au mercredi précédent
+    offset += 7;
   }
-  
+
   const wednesday = new Date(date);
   wednesday.setDate(date.getDate() - offset);
-  
+
   return wednesday.toISOString().split('T')[0];
 }

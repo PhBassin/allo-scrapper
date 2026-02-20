@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
 import type { ProgressEvent } from './progress-tracker.js';
+import { logger } from '../utils/logger.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,7 +63,7 @@ export class RedisClient {
         const event: ProgressEvent = JSON.parse(message);
         handler(event);
       } catch (err) {
-        console.error('[RedisClient] Failed to parse progress event:', err);
+        logger.error('[RedisClient] Failed to parse progress event:', err);
       }
     });
   }

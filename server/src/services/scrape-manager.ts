@@ -7,6 +7,7 @@ import {
 } from '../db/queries.js';
 import { progressTracker } from './progress-tracker.js';
 import { runScraper, type ScrapeOptions } from './scraper/index.js';
+import { logger } from '../utils/logger.js';
 
 // Scrape session state
 export interface ScrapeSession {
@@ -47,7 +48,7 @@ class ScrapeManager {
       status: 'running',
     };
 
-    console.log(`🚀 Starting scrape (ID: ${reportId}, Trigger: ${triggerType})`);
+    logger.info(`🚀 Starting scrape (ID: ${reportId}, Trigger: ${triggerType})`);
 
     // Reset progress tracker
     progressTracker.reset();
@@ -96,14 +97,14 @@ class ScrapeManager {
       // Emit completion event
       progressTracker.emit({ type: 'completed', summary });
 
-      console.log(`✅ Scrape completed (ID: ${reportId}, Status: ${status}, Duration: ${durationMs}ms)`);
+      logger.info(`✅ Scrape completed (ID: ${reportId}, Status: ${status}, Duration: ${durationMs}ms)`);
 
       // Clear session
       if (this.currentSession?.reportId === reportId) {
         this.currentSession = null;
       }
     } catch (error) {
-      console.error(`❌ Scrape failed (ID: ${reportId}):`, error);
+      logger.error(`❌ Scrape failed (ID: ${reportId}):`, error);
 
       const errorMessage = error instanceof Error ? error.message : String(error);
 

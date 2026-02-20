@@ -1,5 +1,5 @@
-import type { FilmShowtimeData, Film, Showtime } from '../../types/scraper.js';
-import { logger } from '../../utils/logger.js';
+import type { FilmShowtimeData, Film, Showtime } from '../types/scraper.js';
+import { logger } from '../utils/logger.js';
 
 // ── Allociné internal API response types ──────────────────────────────────────
 
@@ -85,10 +85,8 @@ const VERSION_MAP: Record<string, string> = {
 };
 
 function extractMovieId(movie: AllocineMovie): number | null {
-  // internalId is sometimes numeric
   if (typeof movie.internalId === 'number' && movie.internalId > 0) return movie.internalId;
 
-  // id is like "movie:movie:_:12345" or "entity:movie:1000007317"
   if (movie.id) {
     const match = movie.id.match(/:(\d+)$/);
     if (match) return parseInt(match[1], 10);
@@ -162,18 +160,14 @@ function mapShowtimes(
   for (const { showtime, version } of allEntries) {
     if (!showtime.startsAt || !showtime.internalId) continue;
 
-    // Derive actual date from the ISO timestamp (more reliable than the requested date)
     const actualDate = showtime.startsAt.split('T')[0] || date;
     const time = showtime.startsAt.split('T')[1]?.substring(0, 5) ?? '';
 
-    // Derive version from diffusionVersion if available
     const ver2 = showtime.diffusionVersion
       ? (VERSION_MAP[showtime.diffusionVersion] ?? version)
       : version;
 
-    // Format from projection
     const format = showtime.projection?.[0];
-
     const experiences: string[] = showtime.tags ?? [];
 
     showtimes.push({
@@ -197,10 +191,6 @@ function mapShowtimes(
 
 /**
  * Parse the Allociné internal showtimes API JSON response into FilmShowtimeData[].
- *
- * @param json     - Raw parsed JSON from /_/showtimes/theater-{id}/d-{date}/
- * @param cinemaId - Cinema ID (e.g. "C0072")
- * @param date     - Requested date (YYYY-MM-DD)
  */
 export function parseShowtimesJson(
   json: unknown,
@@ -210,7 +200,7 @@ export function parseShowtimesJson(
   const response = json as AllocineApiResponse;
 
   if (response.error) {
-    logger.warn(`⚠️  Showtimes API returned error for ${cinemaId} on ${date}`);
+    logger.warn('Showtimes API returned error', { cinemaId, date });
     return [];
   }
 
@@ -223,11 +213,10 @@ export function parseShowtimesJson(
 
     const filmId = extractMovieId(movie);
     if (!filmId) {
-      logger.warn(`⚠️  Could not extract film ID from movie:`, JSON.stringify(movie).substring(0, 100));
+      logger.warn('Could not extract film ID from movie', { preview: JSON.stringify(movie).substring(0, 100) });
       continue;
     }
 
-    // Extract director and actors from credits
     let director: string | undefined;
     const actors: string[] = [];
     for (const credit of movie.credits ?? []) {
@@ -241,17 +230,10 @@ export function parseShowtimesJson(
       }
     }
 
-    // Genres
     const genres = (movie.genres ?? []).map(g => g.translate ?? '').filter(Boolean);
-
-    // Nationality / countries
     const nationality = (movie.countries ?? []).map(c => c.localizedName ?? '').filter(Boolean).join(', ') || undefined;
-
-    // Ratings (out of 5)
     const press_rating = movie.stats?.pressReview?.score ?? undefined;
     const audience_rating = movie.stats?.userRating?.score ?? undefined;
-
-    // Release dates
     const { release_date, rerelease_date } = parseReleaseDate(movie.releases);
 
     const film: Film = {
@@ -273,7 +255,6 @@ export function parseShowtimesJson(
     };
 
     const showtimes = mapShowtimes(result.showtimes ?? {}, filmId, cinemaId, date);
-
     const isNewThisWeek = movie.flags?.isNewRelease ?? false;
 
     if (showtimes.length > 0) {
