@@ -193,6 +193,9 @@ describe('Cinema Config Service', () => {
         { id: 'C0002', name: 'Cinema 2', url: 'https://example.com/2' },
       ];
 
+      // Reset writeFile mock to resolve (previous tests may have set it to reject)
+      vi.mocked(writeFile).mockResolvedValue(undefined);
+
       // Mock DB operations
       vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
       vi.mocked(queries.updateCinemaConfig).mockResolvedValue(updatedCinema);
@@ -256,6 +259,9 @@ describe('Cinema Config Service', () => {
         { id: 'C0002', name: 'Cinema 2', url: 'https://example.com/2' },
       ];
 
+      // Reset writeFile mock to resolve (previous tests may have set it to reject)
+      vi.mocked(writeFile).mockResolvedValue(undefined);
+
       // Mock DB operations
       vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
       vi.mocked(queries.deleteCinema).mockResolvedValue(true);
@@ -316,6 +322,9 @@ describe('Cinema Config Service', () => {
         { id: 'C0003', name: 'Cinema 3', url: 'https://example.com/3' },
       ];
 
+      // Reset writeFile mock to resolve (previous tests may have set it to reject)
+      vi.mocked(writeFile).mockResolvedValue(undefined);
+
       vi.mocked(queries.getCinemaConfigs).mockResolvedValue(dbCinemas);
 
       const count = await syncCinemasFromDatabase(mockDb);
@@ -334,6 +343,9 @@ describe('Cinema Config Service', () => {
     });
 
     it('should handle empty database', async () => {
+      // Reset writeFile mock to resolve (previous tests may have set it to reject)
+      vi.mocked(writeFile).mockResolvedValue(undefined);
+
       vi.mocked(queries.getCinemaConfigs).mockResolvedValue([]);
 
       const count = await syncCinemasFromDatabase(mockDb);
