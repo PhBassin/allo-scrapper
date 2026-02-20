@@ -390,6 +390,7 @@ allo-scrapper/
 │   │   │   │   ├── index.ts         # Main scraper orchestrator
 │   │   │   │   ├── theater-parser.ts# Cinema page HTML parsing
 │   │   │   │   └── film-parser.ts   # Film detail page HTML parsing
+│   │   │   ├── cinema-config.ts     # Cinema DB+JSON sync service
 │   │   │   ├── cron.ts              # Cron job manager
 │   │   │   ├── progress-tracker.ts  # SSE progress event system
 │   │   │   └── scrape-manager.ts    # Scrape session management
@@ -638,6 +639,34 @@ Deletes the cinema and cascades to all its showtimes and weekly programs.
 **Example:**
 ```bash
 curl -X DELETE http://localhost:3000/api/cinemas/C0099
+```
+
+---
+
+#### Sync Cinemas to JSON
+
+```http
+GET /api/cinemas/sync
+```
+
+Manually synchronizes the database cinema configurations to the `cinemas.json` file. This endpoint reads all cinemas from the database and overwrites the JSON file.
+
+**Note:** Automatic synchronization occurs after all cinema CRUD operations (`POST`, `PUT`, `DELETE`), so manual sync is rarely needed unless the JSON file was modified externally or becomes out of sync.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "count": 3,
+    "message": "Synced 3 cinema(s) to JSON file"
+  }
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:3000/api/cinemas/sync
 ```
 
 ---
@@ -1144,7 +1173,24 @@ Cinema list is managed in the **database**, not a static file. On first startup,
 - **C0072**: Le Grand Action  
 - **C0089**: Max Linder Panorama
 
-The seed file (`cinemas.json`) is kept as the source of truth for initial setup — it is read **once** when the database has no configured cinemas, and never again.
+### Cinema Configuration Synchronization
+
+**Automatic Sync**: When cinemas are added, updated, or deleted via the API, both the PostgreSQL database AND the `server/src/config/cinemas.json` file are automatically synchronized. This ensures cinema configurations persist across container restarts and remain consistent between the database and JSON file.
+
+**How it works:**
+- All CRUD operations (`POST /api/cinemas`, `PUT /api/cinemas/:id`, `DELETE /api/cinemas/:id`) update both the database and JSON file atomically using transactions
+- If the JSON write fails, the database changes are automatically rolled back to maintain consistency
+- File locking prevents concurrent write corruption
+
+**Manual Sync**: If the JSON file becomes out of sync with the database (e.g., after manual database edits), you can manually trigger synchronization:
+
+```bash
+curl http://localhost:3000/api/cinemas/sync
+```
+
+This endpoint reads all cinemas from the database and overwrites `cinemas.json`.
+
+**Note**: The JSON file is stored inside the Docker container at `/app/server/src/config/cinemas.json`. The PostgreSQL database (in a Docker volume) is the source of truth for persistence.
 
 ### Adding New Cinemas
 
