@@ -5,6 +5,8 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { getCorsOptions } from './utils/cors-config.js';
+
 // Import routes
 import filmsRouter from './routes/films.js';
 import cinemasRouter from './routes/cinemas.js';
@@ -33,7 +35,7 @@ export function createApp() {
       },
     })
   );
-  app.use(cors());
+  app.use(cors(getCorsOptions()));
   app.use(morgan('combined'));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
