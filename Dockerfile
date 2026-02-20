@@ -39,14 +39,21 @@ WORKDIR /app/server
 COPY server/package*.json ./
 COPY server/tsconfig.json ./
 
-# Install dependencies (including dev dependencies for build)
-RUN npm ci
+# Install dependencies (including dev dependencies for build) with aggressive cleanup
+RUN npm ci && \
+    npm cache clean --force && \
+    rm -rf ~/.npm /tmp/* /var/tmp/*
 
 # Copy backend source
 COPY server/src ./src
 
 # Build backend TypeScript
-RUN npm run build
+RUN npm run build && \
+    rm -rf node_modules/.cache
+
+# Cleanup build artifacts in builder stage (source maps, declaration maps)
+RUN find ./dist -name "*.map" -delete && \
+    find ./dist -name "*.d.ts.map" -delete
 
 # ----------------------------------------------------------------------------
 # Stage 3: Production Runtime
