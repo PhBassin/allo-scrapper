@@ -32,6 +32,7 @@ services:
   # Production web server (serves both API and frontend)
   ics-web:
     build: .
+    user: root
     pull_policy: always
     restart: unless-stopped
     ports:
