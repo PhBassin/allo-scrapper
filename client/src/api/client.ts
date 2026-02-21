@@ -32,6 +32,16 @@ export async function getWeeklyFilms(): Promise<{ films: FilmWithShowtimes[]; we
   return response.data.data;
 }
 
+export async function getFilmsByDate(date: string): Promise<{ films: FilmWithShowtimes[]; weekStart: string; date: string }> {
+  const response = await api.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string; date: string }>>('/films', {
+    params: { date }
+  });
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to fetch films');
+  }
+  return response.data.data;
+}
+
 export async function getFilmById(id: number): Promise<FilmWithShowtimes> {
   const response = await api.get<ApiResponse<FilmWithShowtimes>>(`/films/${id}`);
   if (!response.data.success || !response.data.data) {
