@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getShowtimesByFilmAndWeek, getWeeklyShowtimes, getCinemaConfigs, addCinema, updateCinemaConfig, deleteCinema, upsertCinema } from './queries.js';
+import { getShowtimesByFilmAndWeek, getWeeklyShowtimes, getCinemaConfigs, addCinema, updateCinemaConfig, deleteCinema, upsertCinema, searchFilms } from './queries.js';
 import { type DB } from './client.js';
 
 describe('Queries - Showtimes', () => {
@@ -65,45 +65,160 @@ describe('Queries - Showtimes', () => {
       expect(result[0].experiences).toEqual([]);
     });
   });
+});
 
-  describe('getWeeklyShowtimes', () => {
-    it('should return all showtimes for a week', async () => {
+describe('Queries - Film Search', () => {
+  describe('searchFilms', () => {
+    it('should return films with exact match', async () => {
       const mockDb = {
         query: vi.fn().mockResolvedValue({
           rows: [
             {
-              id: 's1',
-              film_id: 123,
-              cinema_id: 'C0001',
-              date: '2026-02-18',
-              time: '14:00',
-              datetime_iso: '2026-02-18T14:00:00Z',
-              version: 'VF',
-              week_start: '2026-02-18',
-              cinema_name: 'Cinema 1'
-            },
-            {
-              id: 's2',
-              film_id: 456,
-              cinema_id: 'C0001',
-              date: '2026-02-18',
-              time: '16:00',
-              datetime_iso: '2026-02-18T16:00:00Z',
-              version: 'VOST',
-              week_start: '2026-02-18',
-              cinema_name: 'Cinema 1'
+              id: 19776,
+              title: 'Matrix',
+              original_title: 'The Matrix',
+              poster_url: 'matrix.jpg',
+              duration_minutes: 136,
+              release_date: '1999-06-23',
+              rerelease_date: null,
+              genres: '["Science Fiction","Action"]',
+              nationality: 'U.S.A.',
+              director: 'Lana Wachowski, Lilly Wachowski',
+              actors: '["Keanu Reeves","Laurence Fishburne"]',
+              synopsis: 'A computer hacker learns...',
+              certificate: 'Tous publics',
+              press_rating: 4.5,
+              audience_rating: 4.7,
+              source_url: 'https://www.allocine.fr/film/fichefilm_gen_cfilm=19776.html'
             }
           ]
         })
       } as unknown as DB;
 
-      const result = await getWeeklyShowtimes(mockDb, '2026-02-18');
+      const result = await searchFilms(mockDb, 'Matrix', 10);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].title).toBe('Matrix');
+      expect(result[0].genres).toEqual(['Science Fiction', 'Action']);
+      expect(result[0].actors).toEqual(['Keanu Reeves', 'Laurence Fishburne']);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('similarity'),
+        ['Matrix', 10]
+      );
+    });
+
+    it('should return films with typos using fuzzy matching', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({
+          rows: [
+            {
+              id: 19776,
+              title: 'Matrix',
+              genres: '["Science Fiction"]',
+              actors: '[]'
+            }
+          ]
+        })
+      } as unknown as DB;
+
+      const result = await searchFilms(mockDb, 'Matix', 10); // Typo: missing 'r'
+
+      expect(result).toHaveLength(1);
+      expect(result[0].title).toBe('Matrix');
+    });
+
+    it('should return films with partial match', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({
+          rows: [
+            {
+              id: 1,
+              title: 'Superman',
+              genres: '[]',
+              actors: '[]'
+            },
+            {
+              id: 2,
+              title: 'Super Mario Bros',
+              genres: '[]',
+              actors: '[]'
+            }
+          ]
+        })
+      } as unknown as DB;
+
+      const result = await searchFilms(mockDb, 'super', 10);
 
       expect(result).toHaveLength(2);
-      expect(result[0].film_id).toBe(123);
-      expect(result[1].film_id).toBe(456);
-      expect(result[0].cinema.name).toBe('Cinema 1');
+      expect(result.map(f => f.title)).toContain('Superman');
+      expect(result.map(f => f.title)).toContain('Super Mario Bros');
     });
+
+    it('should limit results to specified limit', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({
+          rows: Array.from({ length: 5 }, (_, i) => ({
+            id: i,
+            title: `Film ${i}`,
+            genres: '[]',
+            actors: '[]'
+          }))
+        })
+      } as unknown as DB;
+
+      const result = await searchFilms(mockDb, 'Film', 5);
+
+      expect(result).toHaveLength(5);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.any(String),
+        ['Film', 5]
+      );
+    });
+
+    it('should return empty array when no matches found', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({ rows: [] })
+      } as unknown as DB;
+
+      const result = await searchFilms(mockDb, 'xyz123notfound', 10);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should handle special characters in query', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({
+          rows: [
+            {
+              id: 123,
+              title: 'L\'Été',
+              genres: '[]',
+              actors: '[]'
+            }
+          ]
+        })
+      } as unknown as DB;
+
+      const result = await searchFilms(mockDb, "L'Été", 10);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].title).toBe('L\'Été');
+    });
+
+    it('should use default limit of 10 when not specified', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({ rows: [] })
+      } as unknown as DB;
+
+      await searchFilms(mockDb, 'test');
+
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.any(String),
+        ['test', 10]
+      );
+    });
+  });
+});
   });
 });
 
