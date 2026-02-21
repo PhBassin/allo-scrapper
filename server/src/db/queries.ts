@@ -930,10 +930,19 @@ export async function getLatestScrapeReport(db: DB): Promise<ScrapeReport | unde
 
 /**
  * Search films using fuzzy matching (trigram similarity + partial match)
+ * with multi-strategy scoring for permissive results.
+ * 
+ * Search strategies (ordered by priority):
+ * 1. Exact match on title or original_title (score: 1.0-0.95)
+ * 2. Prefix match - title starts with query (score: 0.9-0.85)
+ * 3. High trigram similarity > 0.3 (score: 0.6-0.8)
+ * 4. Low trigram similarity > 0.1 (score: 0.5-0.6) - very permissive!
+ * 5. Contains anywhere (ILIKE %query%) (score: 0.35-0.4)
+ * 
  * @param db Database connection
  * @param query Search query string
  * @param limit Maximum number of results (default: 10)
- * @returns Array of films matching the search query
+ * @returns Array of films matching the search query, ordered by relevance
  */
 export async function searchFilms(
   db: DB,
@@ -946,12 +955,36 @@ export async function searchFilms(
       release_date, rerelease_date, genres, nationality, director,
       actors, synopsis, certificate, press_rating, audience_rating,
       source_url,
-      similarity(title, $1) AS score
+      CASE
+        -- Exact match (highest priority)
+        WHEN LOWER(title) = LOWER($1) THEN 1.0
+        WHEN LOWER(COALESCE(original_title, '')) = LOWER($1) THEN 0.95
+        
+        -- Starts with query (very high priority)
+        WHEN LOWER(title) LIKE LOWER($1) || '%' THEN 0.9
+        WHEN LOWER(COALESCE(original_title, '')) LIKE LOWER($1) || '%' THEN 0.85
+        
+        -- Good trigram similarity (high priority)
+        WHEN similarity(title, $1) > 0.3 THEN similarity(title, $1) * 0.8
+        WHEN similarity(COALESCE(original_title, ''), $1) > 0.3 THEN similarity(COALESCE(original_title, ''), $1) * 0.75
+        
+        -- Moderate trigram similarity (permissive - medium priority)
+        WHEN similarity(title, $1) > 0.1 THEN similarity(title, $1) * 0.6
+        WHEN similarity(COALESCE(original_title, ''), $1) > 0.1 THEN similarity(COALESCE(original_title, ''), $1) * 0.55
+        
+        -- Contains anywhere in title (lower priority)
+        WHEN title ILIKE '%' || $1 || '%' THEN 0.4
+        WHEN COALESCE(original_title, '') ILIKE '%' || $1 || '%' THEN 0.35
+        
+        ELSE 0.1
+      END AS score
     FROM films
     WHERE 
-      similarity(title, $1) > 0.3
+      similarity(title, $1) > 0.1
+      OR similarity(COALESCE(original_title, ''), $1) > 0.1
       OR title ILIKE '%' || $1 || '%'
-    ORDER BY score DESC
+      OR COALESCE(original_title, '') ILIKE '%' || $1 || '%'
+    ORDER BY score DESC, title ASC
     LIMIT $2`,
     [query, limit]
   );
