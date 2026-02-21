@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '../db/client.js';
-import { getWeeklyFilms, getFilm, getShowtimesByFilmAndWeek, getWeeklyShowtimes } from '../db/queries.js';
+import { getWeeklyFilms, getFilmsByDate, getShowtimesByDate, getFilm, getShowtimesByFilmAndWeek, getWeeklyShowtimes } from '../db/queries.js';
 import { getWeekStart } from '../utils/date.js';
 import { groupShowtimesByCinema } from '../utils/showtimes.js';
 import type { ApiResponse } from '../types/api.js';
@@ -9,12 +9,36 @@ import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 
-// GET /api/films - Get weekly films
-router.get('/', async (_req, res) => {
+// GET /api/films - Get weekly films or films by date
+router.get('/', async (req, res) => {
   try {
     const weekStart = getWeekStart();
-    const films = await getWeeklyFilms(db, weekStart);
-    const allShowtimes = await getWeeklyShowtimes(db, weekStart);
+    const dateParam = req.query.date as string | undefined;
+
+    // Validate date format if provided
+    if (dateParam) {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(dateParam)) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Invalid date format. Use YYYY-MM-DD',
+        };
+        return res.status(400).json(response);
+      }
+    }
+
+    let films;
+    let allShowtimes;
+
+    if (dateParam) {
+      // Get films for specific date
+      films = await getFilmsByDate(db, dateParam, weekStart);
+      allShowtimes = await getShowtimesByDate(db, dateParam, weekStart);
+    } else {
+      // Get all films for the week
+      films = await getWeeklyFilms(db, weekStart);
+      allShowtimes = await getWeeklyShowtimes(db, weekStart);
+    }
 
     // Group showtimes by film_id
     const showtimesByFilm = new Map<number, Array<Showtime & { cinema: Cinema }>>();
@@ -33,17 +57,21 @@ router.get('/', async (_req, res) => {
 
     const response: ApiResponse = {
       success: true,
-      data: { films: filmsWithShowtimes, weekStart },
+      data: { 
+        films: filmsWithShowtimes, 
+        weekStart,
+        ...(dateParam && { date: dateParam })
+      },
     };
 
-    res.json(response);
+    return res.json(response);
   } catch (error) {
     logger.error('Error fetching films:', error);
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch films',
     };
-    res.status(500).json(response);
+    return res.status(500).json(response);
   }
 });
 

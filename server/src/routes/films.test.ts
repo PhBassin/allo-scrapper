@@ -13,6 +13,8 @@ vi.mock('../db/client.js', () => ({
 
 vi.mock('../db/queries.js', () => ({
   getWeeklyFilms: vi.fn(),
+  getFilmsByDate: vi.fn(),
+  getShowtimesByDate: vi.fn(),
   getFilm: vi.fn(),
   getShowtimesByFilmAndWeek: vi.fn(),
   getWeeklyShowtimes: vi.fn()
@@ -36,7 +38,7 @@ describe('Routes - Films', () => {
 
   describe('GET /', () => {
     it('should return weekly films with showtimes', async () => {
-      mockReq = {};
+      mockReq = { query: {} };
       const mockFilms = [{ id: 1, title: 'Film 1' }];
       const mockShowtimes = [
         { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
@@ -59,7 +61,7 @@ describe('Routes - Films', () => {
     });
 
     it('should handle errors', async () => {
-      mockReq = {};
+      mockReq = { query: {} };
       (queries.getWeeklyFilms as any).mockRejectedValue(new Error('DB Error'));
 
       const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get)?.route.stack[0].handle;
@@ -67,6 +69,41 @@ describe('Routes - Films', () => {
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+    });
+  });
+
+  describe('GET / with date filter', () => {
+    it('should return films for a specific date', async () => {
+      mockReq = { query: { date: '2026-02-20' } };
+      const mockFilms = [{ id: 1, title: 'Film 1' }];
+      const mockShowtimes = [
+        { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' }, date: '2026-02-20' }
+      ];
+
+      (queries.getFilmsByDate as any).mockResolvedValue(mockFilms);
+      (queries.getShowtimesByDate as any).mockResolvedValue(mockShowtimes);
+
+      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get)?.route.stack[0].handle;
+      await handler(mockReq, mockRes);
+
+      expect(queries.getFilmsByDate).toHaveBeenCalledWith(db, '2026-02-20', '2026-02-18');
+      expect(mockRes.json).toHaveBeenCalled();
+      const response = mockRes.json.mock.calls[0][0];
+      expect(response.success).toBe(true);
+      expect(response.data.films[0].cinemas).toHaveLength(1);
+      expect(response.data.date).toBe('2026-02-20');
+    });
+
+    it('should return 400 for invalid date format', async () => {
+      mockReq = { query: { date: 'invalid-date' } };
+      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get)?.route.stack[0].handle;
+      await handler(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.stringContaining('date')
+      }));
     });
   });
 

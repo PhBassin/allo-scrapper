@@ -19,7 +19,7 @@ export default function FilmCard({ film, isNew = false }: FilmCardProps) {
   const [showSchedule, setShowSchedule] = useState(false);
 
   return (
-    <div className="card hover:shadow-lg transition relative">
+    <div className="card hover:shadow-lg transition relative" data-testid="film-card">
       {isNew && (
         <div className="absolute top-2 right-2 bg-primary text-black text-xs font-bold px-2 py-1 rounded z-10">
           NOUVEAU
