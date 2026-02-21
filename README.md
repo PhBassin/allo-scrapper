@@ -834,11 +834,19 @@ Search for films using fuzzy matching with PostgreSQL trigram similarity. Return
 - `q` (string, required): Search query (minimum 2 characters)
 
 **Search Behavior:**
-- Uses hybrid search combining:
-  - **Trigram similarity** (fuzzy matching, similarity > 0.3)
-  - **Partial match** (case-insensitive ILIKE `%query%`)
-- Matches against film titles
-- Results ordered by relevance (similarity score + exact match priority)
+- Uses multi-strategy hybrid search combining:
+  1. **Exact match** (highest priority): `title = query` or `original_title = query`
+  2. **Prefix match**: Title starts with query (e.g., "Mar" → "Marty")
+  3. **Trigram similarity** (very permissive, similarity > 0.1): Handles typos and variations
+  4. **Partial match** (case-insensitive ILIKE `%query%`): Contains query anywhere
+  5. **Original title search**: All strategies applied to `original_title` as well
+- Results ordered by relevance using weighted scoring:
+  - Exact match: 1.0 (highest)
+  - Starts with query: 0.9
+  - High trigram similarity (>0.3): 0.6-0.8
+  - Low trigram similarity (>0.1): 0.5-0.6 (very permissive!)
+  - Contains anywhere: 0.35-0.4
+- **Very permissive**: Accepts false positives for maximum coverage (e.g., "mer" finds "Marty", "La Mer", "Merlin")
 - Returns up to 10 results
 
 **Response (200):**
@@ -875,8 +883,16 @@ curl "http://localhost:3000/api/films/search?q=Matirx"
 # Partial match
 curl "http://localhost:3000/api/films/search?q=Matr"
 
-# URL-encoded query (with spaces)
+# Very permissive search (accepts variations)
+curl "http://localhost:3000/api/films/search?q=mer"
+# → Finds "Marty", "La Mer", "Merlin", etc.
+
+# Original title search
 curl "http://localhost:3000/api/films/search?q=The%20Matrix"
+# → Finds films with original_title="The Matrix"
+
+# URL-encoded query (with spaces)
+curl "http://localhost:3000/api/films/search?q=The%20Dark%20Knight"
 ```
 
 ---
