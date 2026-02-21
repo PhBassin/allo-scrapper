@@ -12,7 +12,7 @@ import { parseTheaterPage } from './theater-parser.js';
 import { parseShowtimesJson } from './theater-json-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import { getScrapeDates, getWeekStartForDate, type ScrapeMode } from '../../utils/date.js';
-import { extractCinemaIdFromUrl } from './utils.js';
+import { extractCinemaIdFromUrl, cleanCinemaUrl } from './utils.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
 import type { CinemaConfig, WeeklyProgram, Cinema } from '../../types/scraper.js';
 import { logger } from '../../utils/logger.js';
@@ -21,18 +21,25 @@ import { logger } from '../../utils/logger.js';
  * Load the theater page once to extract metadata (cinema name, city, etc.)
  * and the list of dates that actually have published showtimes.
  */
-async function loadTheaterMetadata(
+export async function loadTheaterMetadata(
   db: DB,
-  cinema: CinemaConfig
+  cinemaConfig: CinemaConfig
 ): Promise<{ availableDates: string[]; cinema: Cinema }> {
-  const { html, availableDates } = await fetchTheaterPage(cinema.url);
+  const { html, availableDates } = await fetchTheaterPage(cinemaConfig.url);
 
   // Parse cinema metadata from the initial HTML and upsert into DB
-  const pageData = parseTheaterPage(html, cinema.id);
-  await upsertCinema(db, pageData.cinema);
-  logger.info(`✅ Cinema ${pageData.cinema.name} metadata upserted`);
+  const pageData = parseTheaterPage(html, cinemaConfig.id);
+  
+  // Ensure we keep the URL from the config, as it's not present in the HTML
+  const cinema = {
+    ...pageData.cinema,
+    url: cinemaConfig.url
+  };
+  
+  await upsertCinema(db, cinema);
+  logger.info(`✅ Cinema ${cinema.name} metadata upserted`);
 
-  return { availableDates, cinema: pageData.cinema };
+  return { availableDates, cinema };
 }
 
 // Scraper un cinéma pour une date donnée
@@ -147,7 +154,7 @@ export async function addCinemaAndScrape(
   url: string,
   progress?: ProgressTracker
 ): Promise<Cinema> {
-  // 1. Extract ID
+  // 1. Extract ID and clean URL
   const cinemaId = extractCinemaIdFromUrl(url);
   if (!cinemaId) {
     throw new Error(
@@ -155,10 +162,12 @@ export async function addCinemaAndScrape(
     );
   }
 
+  const cleanedUrl = cleanCinemaUrl(url);
+
   // 2. Prepare temp config
   const tempConfig: CinemaConfig = {
     id: cinemaId,
-    url,
+    url: cleanedUrl,
     name: 'New Cinema', // Will be updated by loadTheaterMetadata
   };
 

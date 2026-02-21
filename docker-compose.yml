@@ -39,7 +39,7 @@ services:
     volumes:
       # Mount cinema config so API changes to cinemas.json are visible on host
       # This enables: git add server/src/config/cinemas.json && git commit && git push
-      - ./server/src/config:/app/server/src/config
+      - ./server/src/config:/app/dist/config
     environment:
       NODE_ENV: production
       POSTGRES_HOST: ics-db
