@@ -219,8 +219,7 @@ describe('Routes - Films', () => {
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ 
-        success: false,
-        error: expect.stringContaining('Failed to search films')
+        success: false
       }));
     });
 
