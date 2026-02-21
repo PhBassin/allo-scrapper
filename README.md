@@ -822,6 +822,65 @@ curl http://localhost:3000/api/films/123456
 
 ---
 
+#### Search Films
+
+```http
+GET /api/films/search?q={query}
+```
+
+Search for films using fuzzy matching with PostgreSQL trigram similarity. Returns up to 10 results matching the query string.
+
+**Query Parameters:**
+- `q` (string, required): Search query (minimum 2 characters)
+
+**Search Behavior:**
+- Uses hybrid search combining:
+  - **Trigram similarity** (fuzzy matching, similarity > 0.3)
+  - **Partial match** (case-insensitive ILIKE `%query%`)
+- Matches against film titles
+- Results ordered by relevance (similarity score + exact match priority)
+- Returns up to 10 results
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 123456,
+      "title": "The Matrix",
+      "original_title": "The Matrix",
+      "poster_url": "https://...",
+      "duration_minutes": 136,
+      "release_date": "1999-06-23",
+      "genres": ["Sci-Fi", "Action"],
+      "nationality": "USA",
+      "director": "Wachowski Brothers"
+    }
+  ]
+}
+```
+
+**Error Responses:**
+- `400` — Missing or invalid query parameter (e.g., query too short)
+
+**Examples:**
+```bash
+# Exact match
+curl "http://localhost:3000/api/films/search?q=Matrix"
+
+# Fuzzy match (typo)
+curl "http://localhost:3000/api/films/search?q=Matirx"
+
+# Partial match
+curl "http://localhost:3000/api/films/search?q=Matr"
+
+# URL-encoded query (with spaces)
+curl "http://localhost:3000/api/films/search?q=The%20Matrix"
+```
+
+---
+
 #### List Scrape Reports
 
 ```http
