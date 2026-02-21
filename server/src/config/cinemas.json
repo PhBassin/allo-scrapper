@@ -1,8 +1,18 @@
 [
   {
+    "id": "W7517",
+    "name": "Club de l'Etoile",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=W7517.html#shwt_date=2026-02-21"
+  },
+  {
     "id": "W7504",
-    "name": "Épée de Bois",
+    "name": "Epée de bois",
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=W7504.html"
+  },
+  {
+    "id": "C0023",
+    "name": "Le Brady",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0023.html#shwt_date=2026-02-21"
   },
   {
     "id": "C0072",
