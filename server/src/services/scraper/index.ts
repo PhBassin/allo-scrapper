@@ -12,7 +12,7 @@ import { parseTheaterPage } from './theater-parser.js';
 import { parseShowtimesJson } from './theater-json-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import { getScrapeDates, getWeekStartForDate, type ScrapeMode } from '../../utils/date.js';
-import { extractCinemaIdFromUrl } from './utils.js';
+import { extractCinemaIdFromUrl, cleanCinemaUrl } from './utils.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
 import type { CinemaConfig, WeeklyProgram, Cinema } from '../../types/scraper.js';
 import { logger } from '../../utils/logger.js';
@@ -154,7 +154,7 @@ export async function addCinemaAndScrape(
   url: string,
   progress?: ProgressTracker
 ): Promise<Cinema> {
-  // 1. Extract ID
+  // 1. Extract ID and clean URL
   const cinemaId = extractCinemaIdFromUrl(url);
   if (!cinemaId) {
     throw new Error(
@@ -162,10 +162,12 @@ export async function addCinemaAndScrape(
     );
   }
 
+  const cleanedUrl = cleanCinemaUrl(url);
+
   // 2. Prepare temp config
   const tempConfig: CinemaConfig = {
     id: cinemaId,
-    url,
+    url: cleanedUrl,
     name: 'New Cinema', // Will be updated by loadTheaterMetadata
   };
 

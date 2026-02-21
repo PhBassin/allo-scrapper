@@ -41,3 +41,12 @@ export function extractCinemaIdFromUrl(url: string): string | null {
   const match = url.match(/(?:-salle=|_csalle=)([A-Z0-9]+)/);
   return match ? match[1] : null;
 }
+
+/**
+ * Cleans an Allocine cinema URL by stripping fragments (#) and query parameters (?).
+ * Returns a clean URL like https://www.allocine.fr/seance/salle_gen_csalle=W7517.html
+ */
+export function cleanCinemaUrl(url: string): string {
+  // Remove everything from the first ? or # onwards
+  return url.split(/[?#]/)[0];
+}
