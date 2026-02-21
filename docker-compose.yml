@@ -16,13 +16,31 @@ services:
     networks:
       - ics-network
 
+  # Redis – message queue between backend and scraper microservice
+  ics-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ics-network
+
   # Production web server (serves both API and frontend)
   ics-web:
     build: .
+    user: root
     pull_policy: always
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
+    volumes:
+      # Mount cinema config so API changes to cinemas.json are visible on host
+      # This enables: git add server/src/config/cinemas.json && git commit && git push
+      - ./server/src/config:/app/dist/config
     environment:
       NODE_ENV: production
       POSTGRES_HOST: ics-db
@@ -36,8 +54,17 @@ services:
       SCRAPE_DELAY_MS: ${SCRAPE_DELAY_MS:-1000}
       SCRAPE_MODE: ${SCRAPE_MODE:-weekly}
       SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
+      # Feature flag: set to "true" to delegate scraping to scraper microservice via Redis
+      USE_REDIS_SCRAPER: ${USE_REDIS_SCRAPER:-false}
+      REDIS_URL: redis://ics-redis:6379
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://ics-tempo:4317}
     depends_on:
       ics-db:
+        condition: service_healthy
+      ics-redis:
         condition: service_healthy
     networks:
       - ics-network
@@ -48,6 +75,200 @@ services:
       retries: 3
       start_period: 40s
 
+  # Scraper microservice – long-running consumer (processes jobs from Redis queue)
+  ics-scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      POSTGRES_HOST: ics-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-its}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      REDIS_URL: redis://ics-redis:6379
+      RUN_MODE: consumer
+      SCRAPE_MODE: ${SCRAPE_MODE:-from_today_limited}
+      SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
+      TZ: ${TZ:-Europe/Paris}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://ics-tempo:4317}
+    depends_on:
+      ics-db:
+        condition: service_healthy
+      ics-redis:
+        condition: service_healthy
+    networks:
+      - ics-network
+    profiles:
+      - scraper
+
+  # Scraper cron – scheduled automatic scraping (no Redis job queue needed)
+  ics-scraper-cron:
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      POSTGRES_HOST: ics-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-its}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      REDIS_URL: redis://ics-redis:6379
+      RUN_MODE: cron
+      CRON_SCHEDULE: ${SCRAPE_CRON_SCHEDULE:-0 8 * * 3}
+      SCRAPE_MODE: ${SCRAPE_MODE:-weekly}
+      SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
+      TZ: ${TZ:-Europe/Paris}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://ics-tempo:4317}
+    depends_on:
+      ics-db:
+        condition: service_healthy
+      ics-redis:
+        condition: service_healthy
+    networks:
+      - ics-network
+    profiles:
+      - scraper
+
+  # ---------------------------------------------------------------------------
+  # Monitoring stack (Loki + Promtail + Prometheus + Grafana)
+  # Start with: docker compose --profile monitoring up -d
+  # ---------------------------------------------------------------------------
+
+  # Loki – log aggregation backend
+  ics-loki:
+    image: grafana/loki:2.9.0
+    restart: unless-stopped
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./docker/loki-config.yml:/etc/loki/config.yml:ro
+      - loki-data:/tmp/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
+  # Promtail – log shipper (collects Docker container stdout/stderr → Loki)
+  ics-promtail:
+    image: grafana/promtail:2.9.0
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./docker/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - ics-loki
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
+  # Prometheus – metrics scraping and storage
+  ics-prometheus:
+    image: prom/prometheus:v2.51.0
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
+  # PostgreSQL exporter – exposes pg metrics for Prometheus
+  ics-postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@ics-db:5432/${POSTGRES_DB:-its}?sslmode=disable"
+    depends_on:
+      ics-db:
+        condition: service_healthy
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
+  # Redis exporter – exposes Redis metrics for Prometheus
+  ics-redis-exporter:
+    image: oliver006/redis_exporter:v1.60.0
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://ics-redis:6379
+    depends_on:
+      ics-redis:
+        condition: service_healthy
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
+  # Tempo – distributed tracing backend (receives OTLP from scraper and server)
+  ics-tempo:
+    image: grafana/tempo:2.3.0
+    restart: unless-stopped
+    command: -config.file=/etc/tempo/config.yml
+    volumes:
+      - ./docker/tempo.yml:/etc/tempo/config.yml:ro
+      - tempo-data:/tmp/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
+  # Grafana – dashboards for metrics (Prometheus), logs (Loki) and traces (Tempo)
+  ics-grafana:
+    image: grafana/grafana:10.4.0
+    restart: unless-stopped
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+    volumes:
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - ics-prometheus
+      - ics-loki
+      - ics-tempo
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
+
 networks:
   ics-network:
     driver: bridge
+
+volumes:
+  loki-data:
+  prometheus-data:
+  tempo-data:
+  grafana-data:

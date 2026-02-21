@@ -12,25 +12,34 @@ import { parseTheaterPage } from './theater-parser.js';
 import { parseShowtimesJson } from './theater-json-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import { getScrapeDates, getWeekStartForDate, type ScrapeMode } from '../../utils/date.js';
+import { extractCinemaIdFromUrl, cleanCinemaUrl } from './utils.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
-import type { CinemaConfig, WeeklyProgram } from '../../types/scraper.js';
+import type { CinemaConfig, WeeklyProgram, Cinema } from '../../types/scraper.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Load the theater page once to extract metadata (cinema name, city, etc.)
  * and the list of dates that actually have published showtimes.
  */
-async function loadTheaterMetadata(
+export async function loadTheaterMetadata(
   db: DB,
-  cinema: CinemaConfig
-): Promise<{ availableDates: string[] }> {
-  const { html, availableDates } = await fetchTheaterPage(cinema.url);
+  cinemaConfig: CinemaConfig
+): Promise<{ availableDates: string[]; cinema: Cinema }> {
+  const { html, availableDates } = await fetchTheaterPage(cinemaConfig.url);
 
   // Parse cinema metadata from the initial HTML and upsert into DB
-  const pageData = parseTheaterPage(html, cinema.id);
-  await upsertCinema(db, pageData.cinema);
-  console.log(`✅ Cinema ${pageData.cinema.name} metadata upserted`);
+  const pageData = parseTheaterPage(html, cinemaConfig.id);
+  
+  // Ensure we keep the URL from the config, as it's not present in the HTML
+  const cinema = {
+    ...pageData.cinema,
+    url: cinemaConfig.url
+  };
+  
+  await upsertCinema(db, cinema);
+  logger.info(`✅ Cinema ${cinema.name} metadata upserted`);
 
-  return { availableDates };
+  return { availableDates, cinema };
 }
 
 // Scraper un cinéma pour une date donnée
@@ -40,7 +49,7 @@ async function scrapeTheater(
   date: string,
   progress?: ProgressTracker
 ): Promise<{ filmsCount: number; showtimesCount: number }> {
-  console.log(`\n📍 Scraping ${cinema.name} (${cinema.id}) for ${date}...`);
+  logger.info(`\n📍 Scraping ${cinema.name} (${cinema.id}) for ${date}...`);
 
   progress?.emit({ type: 'date_started', date, cinema_name: cinema.name });
 
@@ -52,7 +61,7 @@ async function scrapeTheater(
     const json = await fetchShowtimesJson(cinema.id, date);
     const filmShowtimesData = parseShowtimesJson(json, cinema.id, date);
 
-    console.log(`  📊 Found ${filmShowtimesData.length} film(s) for ${date}`);
+    logger.info(`  📊 Found ${filmShowtimesData.length} film(s) for ${date}`);
 
     const weeklyPrograms: WeeklyProgram[] = [];
 
@@ -67,7 +76,7 @@ async function scrapeTheater(
         const existingFilm = await getFilm(db, film.id);
 
         if (!existingFilm || !existingFilm.duration_minutes) {
-          console.log(`  🎬 Fetching film details for "${film.title}" (${film.id})...`);
+          logger.info(`  🎬 Fetching film details for "${film.title}" (${film.id})...`);
 
           try {
             const filmHtml = await fetchFilmPage(film.id);
@@ -79,7 +88,7 @@ async function scrapeTheater(
 
             await delay(500); // Délai pour éviter le rate limiting
           } catch (error) {
-            console.error(`  ⚠️  Error fetching film page for ${film.id}:`, error);
+            logger.error(`  ⚠️  Error fetching film page for ${film.id}:`, error);
           }
         } else {
           film.duration_minutes = existingFilm.duration_minutes;
@@ -87,13 +96,13 @@ async function scrapeTheater(
 
         // Insérer/mettre à jour le film
         await upsertFilm(db, film);
-        console.log(`  ✅ Film "${film.title}" updated`);
+        logger.info(`  ✅ Film "${film.title}" updated`);
 
         // Insérer/mettre à jour les séances
         for (const showtime of filmData.showtimes) {
           await upsertShowtime(db, showtime);
         }
-        console.log(`  ✅ ${filmData.showtimes.length} showtimes updated`);
+        logger.info(`  ✅ ${filmData.showtimes.length} showtimes updated`);
 
         weeklyPrograms.push({
           cinema_id: cinema.id,
@@ -113,7 +122,7 @@ async function scrapeTheater(
         });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`  ❌ Error processing film "${film.title}":`, error);
+        logger.error(`  ❌ Error processing film "${film.title}":`, error);
         progress?.emit({ type: 'film_failed', film_title: film.title, error: errorMessage });
       }
     }
@@ -121,16 +130,16 @@ async function scrapeTheater(
     // Insérer/mettre à jour les programmes hebdomadaires en lot
     if (weeklyPrograms.length > 0) {
       await upsertWeeklyPrograms(db, weeklyPrograms);
-      console.log(`  ✅ Weekly programs updated for ${weeklyPrograms.length} films`);
+      logger.info(`  ✅ Weekly programs updated for ${weeklyPrograms.length} films`);
     }
 
-    console.log(`✅ Scraped ${filmShowtimesData.length} films from ${cinema.name} for ${date}`);
+    logger.info(`✅ Scraped ${filmShowtimesData.length} films from ${cinema.name} for ${date}`);
     progress?.emit({ type: 'date_completed', date, films_count: filmsCount });
 
     return { filmsCount, showtimesCount };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`❌ Error scraping ${cinema.name} for ${date}:`, error);
+    logger.error(`❌ Error scraping ${cinema.name} for ${date}:`, error);
     throw new Error(errorMessage);
   }
 }
@@ -141,11 +150,57 @@ export interface ScrapeOptions {
 }
 
 // Run the full scraper with progress tracking
+export async function addCinemaAndScrape(
+  url: string,
+  progress?: ProgressTracker
+): Promise<Cinema> {
+  // 1. Extract ID and clean URL
+  const cinemaId = extractCinemaIdFromUrl(url);
+  if (!cinemaId) {
+    throw new Error(
+      'Could not extract cinema ID from URL. URL format should be like https://www.allocine.fr/seance/salle_affich-salle=C0013.html'
+    );
+  }
+
+  const cleanedUrl = cleanCinemaUrl(url);
+
+  // 2. Prepare temp config
+  const tempConfig: CinemaConfig = {
+    id: cinemaId,
+    url: cleanedUrl,
+    name: 'New Cinema', // Will be updated by loadTheaterMetadata
+  };
+
+  // 3. Load metadata (fetches page, parses it, and upserts cinema)
+  logger.info(`\n🆕 Adding new cinema from ${url}...`);
+  const { availableDates, cinema } = await loadTheaterMetadata(db, tempConfig);
+
+  // 4. Scrape available dates
+  logger.info(`   📅 Scraping ${availableDates.length} available date(s)...`);
+  for (const date of availableDates) {
+    try {
+      await scrapeTheater(db, tempConfig, date, progress);
+    } catch (error) {
+      logger.error(`   ❌ Failed to scrape date ${date}:`, error);
+      // Continue with other dates
+    }
+  }
+
+  await closeBrowser();
+
+  // 5. Sync cinemas to JSON file after successful scrape
+  const { syncCinemasFromDatabase } = await import('../cinema-config.js');
+  await syncCinemasFromDatabase(db);
+  logger.info('✅ Cinema added and synced to JSON file');
+
+  return cinema;
+}
+
 export async function runScraper(
   progress?: ProgressTracker,
   options?: ScrapeOptions
 ): Promise<ScrapeSummary> {
-  console.log('🚀 Starting Allo-Scrapper...\n');
+  logger.info('🚀 Starting Allo-Scrapper...\n');
 
   const summary: ScrapeSummary = {
     total_cinemas: 0,
@@ -161,13 +216,13 @@ export async function runScraper(
   try {
     // Charger la configuration des cinémas depuis la base de données
     const cinemas = await getCinemaConfigs(db);
-    console.log(`📋 Loaded ${cinemas.length} cinema(s) from database\n`);
+    logger.info(`📋 Loaded ${cinemas.length} cinema(s) from database\n`);
 
     // Déterminer les dates à scraper
     const scrapeMode = options?.mode ?? (process.env.SCRAPE_MODE as ScrapeMode) ?? 'from_today_limited';
     const scrapeDays = options?.days || parseInt(process.env.SCRAPE_DAYS || '7', 10);
     const dates = getScrapeDates(scrapeMode, scrapeDays);
-    console.log(`📅 Mode: ${scrapeMode}, Scraping ${dates.length} date(s) (SCRAPE_DAYS=${scrapeDays}): ${dates.join(', ')}\n`);
+    logger.info(`📅 Mode: ${scrapeMode}, Scraping ${dates.length} date(s) (SCRAPE_DAYS=${scrapeDays}): ${dates.join(', ')}\n`);
 
     summary.total_cinemas = cinemas.length;
     summary.total_dates = dates.length;
@@ -194,7 +249,7 @@ export async function runScraper(
       let cinemaShowtimesCount = 0;
       let successfulDates = 0;
 
-      console.log(`\n🎬 Processing ${cinema.name} (${cinema.id})...`);
+      logger.info(`\n🎬 Processing ${cinema.name} (${cinema.id})...`);
 
       // Step 1: Load theater page once to get metadata + available dates
       let availableDates: string[] = [];
@@ -203,7 +258,7 @@ export async function runScraper(
         availableDates = meta.availableDates;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`❌ Failed to load theater metadata for ${cinema.name}:`, errorMessage);
+        logger.error(`❌ Failed to load theater metadata for ${cinema.name}:`, errorMessage);
         summary.errors.push({ cinema_name: cinema.name, error: errorMessage });
         summary.failed_cinemas++;
         continue;
@@ -214,23 +269,23 @@ export async function runScraper(
       const skippedDates = dates.filter(d => !availableDates.includes(d));
 
       if (skippedDates.length > 0) {
-        console.log(`   ⏭️  Skipping ${skippedDates.length} date(s) not yet published: ${skippedDates.join(', ')}`);
+        logger.info(`   ⏭️  Skipping ${skippedDates.length} date(s) not yet published: ${skippedDates.join(', ')}`);
       }
-      console.log(`   📅 Scraping ${datesToScrape.length} date(s): ${datesToScrape.join(', ')}`);
+      logger.info(`   📅 Scraping ${datesToScrape.length} date(s): ${datesToScrape.join(', ')}`);
 
       // Step 2: Fetch showtimes JSON for each available date
       for (const date of datesToScrape) {
-        console.log(`\n   📅 Attempting date: ${date}`);
+        logger.info(`\n   📅 Attempting date: ${date}`);
         try {
           const { filmsCount, showtimesCount } = await scrapeTheater(db, cinema, date, progress);
           cinemaFilmsCount += filmsCount;
           cinemaShowtimesCount += showtimesCount;
           successfulDates++;
-          console.log(`   ✅ Date ${date} completed: ${filmsCount} films, ${showtimesCount} showtimes`);
+          logger.info(`   ✅ Date ${date} completed: ${filmsCount} films, ${showtimesCount} showtimes`);
           await delay(500); // Délai entre chaque requête
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error(`   ❌ Date ${date} failed:`, errorMessage);
+          logger.error(`   ❌ Date ${date} failed:`, errorMessage);
           summary.errors.push({ 
             cinema_name: cinema.name, 
             date: date,
@@ -250,7 +305,7 @@ export async function runScraper(
 
       const cinemaFailed = successfulDates === 0 && datesToScrape.length > 0;
 
-      console.log(`\n📊 ${cinema.name} summary: ${successfulDates}/${datesToScrape.length} dates successful, ${cinemaFilmsCount} films, ${cinemaShowtimesCount} showtimes`);
+      logger.info(`\n📊 ${cinema.name} summary: ${successfulDates}/${datesToScrape.length} dates successful, ${cinemaFilmsCount} films, ${cinemaShowtimesCount} showtimes`);
 
       if (!cinemaFailed) {
         summary.successful_cinemas++;
@@ -263,16 +318,16 @@ export async function runScraper(
         });
       } else {
         summary.failed_cinemas++;
-        console.error(`❌ ${cinema.name} failed completely (0/${datesToScrape.length} dates successful)`);
+        logger.error(`❌ ${cinema.name} failed completely (0/${datesToScrape.length} dates successful)`);
       }
     }
 
-    console.log('\n✨ Scraping completed!');
+    logger.info('\n✨ Scraping completed!');
     await closeBrowser();
     return summary;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('Fatal error:', error);
+    logger.error('Fatal error:', error);
     await closeBrowser();
     summary.errors.push({ cinema_name: 'System', error: errorMessage });
     throw error;

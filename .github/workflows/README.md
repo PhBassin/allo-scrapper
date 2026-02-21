@@ -17,20 +17,32 @@ This directory contains automated workflows for CI/CD and maintenance tasks.
 **Jobs**:
 
 #### `build-and-push`
-- Builds multi-platform Docker images (linux/amd64, linux/arm64)
+- Builds multi-platform Docker images (linux/amd64)
 - Pushes to `ghcr.io/phbassin/allo-scrapper`
 - Generates image tags:
   - Branch name (e.g., `main`, `develop`)
   - PR number (e.g., `pr-29`)
-  - Semver versions (e.g., `1.0.0`, `1.0`)
+  - Semver versions (e.g., `1.1.0`, `1.1`)
   - Commit SHA (e.g., `sha-abc1234`)
-  - `latest` (only for main branch)
+  - `latest` — only for the default branch (`develop`); tracks continuous development
+  - `stable` — only for `main` branch pushes and version tags (`v*`); tracks production-ready releases
+
+#### Tag Strategy
+
+| Tag | Source | Use case |
+|-----|--------|----------|
+| `:stable` | `main` branch + `v*` tags | **Production** — tested, reviewed code |
+| `:latest` | `develop` branch (default) | Development / bleeding edge |
+| `:v1.1.0` | Version tags | Pinned release |
+| `:main`, `:develop` | Branch names | Branch-specific tracking |
+| `:sha-abc1234` | Commit SHA | Exact commit reference |
 
 #### `cleanup-after-production-build`
-- **Runs only after production builds** (tags v*)
+- **Runs after production builds** — triggered on push to `main` OR version tags (`v*`)
 - Cleans up old untagged Docker images
 - **Mode**: DRY-RUN (shows what would be deleted without actually deleting)
 - **Policy**: Keep 10 versions maximum, delete only untagged versions
+- **Protected**: All tagged versions (`v*`, `stable`, `latest`, branch names)
 
 ---
 
@@ -202,4 +214,4 @@ To re-enable:
 
 ---
 
-**Last Updated**: 2026-02-15
+**Last Updated**: 2026-02-20

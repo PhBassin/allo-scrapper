@@ -199,6 +199,7 @@ If the build fails, fix the issue before proceeding to commit.
 | `parser` | HTML parsing |
 | `client` | React frontend |
 | `docker` | Docker/deployment |
+| `observability` | Logging, metrics, tracing |
 
 ### Commit Examples
 
@@ -338,16 +339,42 @@ allo-scrapper/
 │   │   ├── db/                 # Database queries and schema
 │   │   ├── routes/             # API route handlers
 │   │   ├── services/
-│   │   │   └── scraper/        # Core scraping logic
-│   │   │       ├── index.ts        # Orchestrator
-│   │   │       ├── theater-parser.ts   # HTML parsing
-│   │   │       └── http-client.ts      # HTTP requests
+│   │   │   ├── scraper/        # In-process scraping logic (legacy mode)
+│   │   │   │   ├── index.ts        # Orchestrator
+│   │   │   │   ├── theater-parser.ts   # HTML parsing
+│   │   │   │   └── http-client.ts      # HTTP requests
+│   │   │   ├── redis-client.ts  # Redis job publisher (USE_REDIS_SCRAPER mode)
+│   │   │   ├── scrape-manager.ts# Scrape session management
+│   │   │   └── progress-tracker.ts  # SSE event system
 │   │   ├── types/              # TypeScript definitions
-│   │   └── utils/              # Utility functions
+│   │   └── utils/
+│   │       ├── logger.ts       # Winston structured logger (service=ics-web)
+│   │       └── date.ts         # Date utilities
 │   └── tests/
 │       └── fixtures/           # Test HTML files
+├── scraper/                    # Standalone scraper microservice
+│   ├── src/
+│   │   ├── db/                 # Direct DB access (same schema)
+│   │   ├── redis/              # RedisJobConsumer + RedisProgressPublisher
+│   │   ├── scraper/            # Scraping logic (mirrors server/services/scraper)
+│   │   ├── types/
+│   │   └── utils/
+│   │       ├── logger.ts       # Winston logger (service=ics-scraper)
+│   │       ├── metrics.ts      # prom-client metrics (port 9091)
+│   │       └── tracer.ts       # OpenTelemetry OTLP tracer
+│   └── tests/unit/
 ├── client/                     # React frontend
+├── docker/                     # Docker/monitoring configuration
+│   ├── grafana/
+│   │   ├── datasources/        # Auto-provisioned datasources (Prometheus, Loki, Tempo)
+│   │   └── dashboards/         # Auto-provisioned dashboards
+│   ├── loki-config.yml
+│   ├── promtail-config.yml
+│   ├── prometheus.yml
+│   └── tempo.yml
+├── e2e/                        # Playwright E2E tests
 ├── .github/                    # GitHub config (issues, workflows)
+├── MONITORING.md               # Observability stack documentation
 ├── CONTRIBUTING.md             # Human contributor guide
 └── AGENTS.md                   # This file
 ```
@@ -380,6 +407,28 @@ cd server && npm run test:coverage
 
 # Manual pre-push check (same as the hook)
 cd server && npx tsc --noEmit && npm run test:run
+
+# Run scraper microservice tests
+cd scraper && npm test
+```
+
+### Docker
+
+```bash
+# Build all images
+docker compose build
+
+# Start base stack (app + DB + Redis)
+docker compose up -d
+
+# Start with scraper microservice
+docker compose --profile scraper up -d
+
+# Start with full monitoring (Prometheus, Grafana, Loki, Tempo)
+docker compose --profile monitoring up -d
+
+# Start everything
+docker compose --profile monitoring --profile scraper up -d
 ```
 
 ### Git
@@ -423,11 +472,46 @@ gh pr checks
 
 ### Adding a New Cinema
 
-1. Add cinema to `server/src/config/cinemas.json`
-2. Fetch HTML fixture for tests
-3. Write parser tests
-4. Verify existing tests still pass
-5. Commit: `feat(scraper): add support for <cinema>`
+**Recommended workflow: API-first, then git commit.**
+
+The `server/src/config/` directory is volume-mounted in Docker, so changes made via the API are immediately visible on the host filesystem and can be committed to git.
+
+**Step 1 — Add via API** (smart URL-based add with auto-scrape):
+```bash
+curl -X POST http://localhost:3000/api/cinemas \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html"}'
+```
+This extracts the cinema ID, scrapes metadata and showtimes, and updates both the database and `server/src/config/cinemas.json`.
+
+**Step 2 — Verify the change is visible on host:**
+```bash
+cat server/src/config/cinemas.json
+git status
+# → modified: server/src/config/cinemas.json
+git diff server/src/config/cinemas.json
+```
+
+**Step 3 — Commit and push** (Conventional Commits format):
+```bash
+git add server/src/config/cinemas.json
+git commit -m "feat(cinema): add <cinema name> (CXXXX)"
+git push
+```
+
+**Alternative — Manual edit** (development/testing only):
+1. Edit `server/src/config/cinemas.json` directly on the host
+2. Restart: `docker compose restart ics-web`
+3. Resync DB from JSON: `curl http://localhost:3000/api/cinemas/sync`
+4. Commit: `git add server/src/config/cinemas.json && git commit -m "feat(cinema): add <cinema>"`
+
+**For parser changes** (write tests before adding the cinema):
+1. Fetch HTML fixture for tests
+2. Write parser tests with the fixture
+3. Verify existing tests still pass
+4. Then add cinema via API and follow the git workflow above
+5. Test commit: `test(parser): add tests for <cinema> (CXXXX)`
+6. Cinema commit: `feat(cinema): add <cinema> (CXXXX)`
 
 ### Fixing a Parser Bug
 

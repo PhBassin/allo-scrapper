@@ -3,6 +3,7 @@ import { db } from '../db/client.js';
 import { getScrapeReports, getScrapeReport } from '../db/queries.js';
 import type { ApiResponse, PaginatedResponse, GetReportsQuery } from '../types/api.js';
 import type { ScrapeReport } from '../db/queries.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -41,7 +42,7 @@ router.get('/', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    console.error('Error fetching reports:', error);
+    logger.error('Error fetching reports:', error);
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch reports',
@@ -80,7 +81,7 @@ router.get('/:id', async (req, res) => {
 
     return res.json(response);
   } catch (error) {
-    console.error('Error fetching report:', error);
+    logger.error('Error fetching report:', error);
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch report',

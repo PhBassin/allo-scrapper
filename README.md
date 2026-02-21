@@ -40,8 +40,10 @@
 - **Modern UI**: React SPA with Vite for fast development
 - **Real-time Progress**: Server-Sent Events (SSE) for live scraping updates
 - **Weekly Reports**: Track cinema programs and identify new releases
-- **Docker Ready**: Full containerization with multi-stage builds
+- **Docker Ready**: Full containerization with multi-stage builds (linux/amd64)
 - **CI/CD**: GitHub Actions workflow for automated Docker image builds
+- **Redis Job Queue**: Scraper microservice mode via Redis pub/sub (`USE_REDIS_SCRAPER=true`)
+- **Observability**: Prometheus metrics, Grafana dashboards, Loki log aggregation, Tempo distributed tracing
 - **Production Ready**: Health checks, error handling, and database migrations
 
 ---
@@ -53,37 +55,47 @@
 │   React SPA     │  Port 80 (production) / 5173 (dev)
 │   (Vite + TS)   │
 └────────┬────────┘
-         │ HTTP API
+         │ HTTP API / SSE
          ▼
-┌─────────────────┐
-│  Express.js API │  Port 3000
-│  (TypeScript)   │
-│  ┌───────────┐  │
-│  │  Scraper  │  │  Cron-based scraping
-│  │  Service  │◄─┼─ (configurable schedule)
-│  └─────┬─────┘  │
-└────────┼────────┘
-         │ SQL
-         ▼
-┌─────────────────┐
-│   PostgreSQL    │  Port 5432
-│   Database      │
-│  ┌───────────┐  │
-│  │  cinemas  │  │
-│  │  films    │  │
-│  │ showtimes │  │
-│  │scrape_    │  │
-│  │ reports   │  │
-│  └───────────┘  │
-└─────────────────┘
+┌─────────────────┐    Redis pub/sub    ┌───────────────────┐
+│  Express.js API │◄───────────────────►│ Scraper           │
+│  (TypeScript)   │   scrape:jobs queue │ Microservice      │
+│                 │───────────────────►│ (ics-scraper)     │
+│  feature flag:  │                    │                   │
+│  USE_REDIS_     │    (legacy mode)   │  ┌─────────────┐  │
+│  SCRAPER=false  │◄───in-process──────┤  │ Cron        │  │
+│  → in-process   │                    │  │ (ics-scraper│  │
+│  SCRAPER=true   │                    │  │  -cron)     │  │
+│  → Redis queue  │                    │  └─────────────┘  │
+└────────┬────────┘                    └────────┬──────────┘
+         │ SQL                                  │ SQL
+         └──────────────────┬───────────────────┘
+                            ▼
+              ┌─────────────────────────┐
+              │   PostgreSQL  Port 5432 │
+              │  cinemas / films /      │
+              │  showtimes / reports    │
+              └─────────────────────────┘
+
+              ┌─────────────────────────┐
+              │   Redis  (in-memory)    │  Message queue + pub/sub
+              └─────────────────────────┘
+
+  Monitoring (--profile monitoring):
+  Prometheus :9090 → Grafana :3001
+  Loki + Promtail (logs) → Grafana
+  Tempo :3200 (traces, OTLP :4317) → Grafana
 ```
 
 **Data Flow:**
 1. Client makes HTTP requests to Express API (`/api/*`)
 2. API routes handle business logic and validate requests
-3. Scraper service periodically fetches data from the source website
+3. Scraper fetches data from the source website — either in-process (default) or via a Redis job queue (`USE_REDIS_SCRAPER=true`)
+4. Progress events flow back to the API via Redis pub/sub → SSE → client
 4. PostgreSQL stores structured cinema, film, and showtime data
 5. Client receives JSON responses and renders UI
+
+> See [MONITORING.md](./MONITORING.md) for the full observability stack documentation.
 
 ---
 
@@ -134,8 +146,8 @@ cp .env.example .env
 # Pull the latest image and start services
 docker compose up -d
 
-# Initialize database
-docker compose exec web npm run db:migrate
+# Initialize database (runs automatically on first startup, but can be triggered manually)
+docker compose exec ics-web npm run db:migrate
 
 # Trigger first scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
@@ -148,7 +160,7 @@ curl -X POST http://localhost:3000/api/scraper/trigger
 
 **Update to latest version:**
 ```bash
-docker compose pull web
+docker compose pull ics-web
 docker compose up -d
 ```
 
@@ -170,10 +182,10 @@ cd allo-scrapper
 cp .env.example .env
 
 # Build and start services
-docker compose -f docker-compose.build.yml up --build -d
+docker compose up --build -d
 
-# Initialize database
-docker compose exec web npm run db:migrate
+# Initialize database (runs automatically on first startup)
+docker compose exec ics-web npm run db:migrate
 
 # Trigger first scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
@@ -207,7 +219,7 @@ cp .env.example .env
 # Start all services with hot-reload
 npm run dev
 
-# In another terminal, initialize the database
+# In another terminal, initialize the database (if not already migrated)
 docker compose -f docker-compose.dev.yml exec server npm run db:migrate
 
 # View logs
@@ -320,27 +332,37 @@ npm run test:ui
 
 ### Test Coverage
 
-- **Lines**: 94.3% (target: 80%)
-- **Functions**: 100% (target: 80%)
-- **Statements**: 93.7% (target: 80%)
-- **Branches**: 68.8% (target: 65%)
+Coverage is tracked on the configured source files (see `vitest.config.ts`). Current targets:
+
+- **Lines**: ≥ 80%
+- **Functions**: ≥ 80%
+- **Statements**: ≥ 80%
+- **Branches**: ≥ 65%
 
 ### Test Files
 
 | File | Tests | What it covers |
 |------|-------|----------------|
+| `theater-json-parser.test.ts` | 34 | JSON-based showtime parsing |
 | `theater-parser.test.ts` | 30 | HTML parsing for all cinemas |
-| `date.test.ts` | 22 | Date utility functions |
-| `showtimes.test.ts` | 2 | Showtime utility functions |
+| `date.test.ts` | 24 | Date utility functions |
+| `cinema-config.test.ts` | 17 | Cinema DB+JSON sync service |
 | `queries.test.ts` | 15 | Database query functions |
+| `cinemas.test.ts` | 15 | Cinemas API route handler (CRUD) |
+| `scraper/utils.test.ts` | 14 | Scraper utility functions |
+| `redis-client.test.ts` | 14 | Redis client singleton and pub/sub |
+| `film-parser.test.ts` | 6 | Film detail page HTML parsing |
+| `scraper.test.ts` | 5 | Scraper route (USE_REDIS_SCRAPER flag) |
 | `films.test.ts` | 5 | Films API route handler |
-| `cinemas.test.ts` | 13 | Cinemas API route handler (CRUD) |
-
-> **Note:** Coverage numbers above reflect `theater-parser.ts` only (the configured coverage scope).
+| `cors-config.test.ts` | 4 | CORS configuration |
+| `http-client.test.ts` | 3 | HTTP client for the source website |
+| `showtimes.test.ts` | 2 | Showtime grouping utilities |
+| `benchmark-weekly-programs.test.ts` | 2 | DB upsert performance benchmark |
+| `cinemas.security.test.ts` | 1 | Cinema route security/error handling |
 
 - **Fixtures**: Full HTML pages from the source website (~1.6MB) for realistic testing
 - **Regression tests**: Ensures existing cinemas (C0089, W7504, C0072) continue working
-- **Total**: 107 tests across 8 test files (4 source `.ts` + 4 compiled `.js` dist files)
+- **Total**: 191 tests across 16 test files
 
 See `server/tests/README.md` for detailed testing documentation.
 
@@ -371,10 +393,29 @@ allo-scrapper/
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── vite.config.ts
+├── docker/                          # Monitoring/observability config
+│   ├── grafana/
+│   │   ├── datasources/             # Auto-provisioned Prometheus/Loki/Tempo
+│   │   └── dashboards/              # Auto-provisioned Grafana dashboards
+│   ├── loki-config.yml
+│   ├── promtail-config.yml
+│   ├── prometheus.yml
+│   └── tempo.yml
+├── scraper/                         # Standalone scraper microservice
+│   ├── src/
+│   │   ├── db/                      # Direct DB access (same schema as server)
+│   │   ├── redis/                   # RedisJobConsumer + RedisProgressPublisher
+│   │   ├── scraper/                 # Scraping logic (mirrors server/services/scraper)
+│   │   ├── types/
+│   │   └── utils/
+│   │       ├── logger.ts            # Winston logger (service=ics-scraper)
+│   │       ├── metrics.ts           # prom-client metrics (port 9091)
+│   │       └── tracer.ts            # OpenTelemetry OTLP tracer
+│   └── tests/unit/
 ├── server/                          # Express.js backend (TypeScript)
 │   ├── src/
 │   │   ├── config/
-│   │   │   └── cinemas.json         # Cinema list configuration
+│   │   │   └── cinemas.json         # Cinema list configuration (seed)
 │   │   ├── db/
 │   │   │   ├── client.ts            # PostgreSQL connection pool
 │   │   │   ├── queries.ts           # Database query functions
@@ -389,36 +430,48 @@ allo-scrapper/
 │   │   │   │   ├── http-client.ts   # HTTP client for the source website
 │   │   │   │   ├── index.ts         # Main scraper orchestrator
 │   │   │   │   ├── theater-parser.ts# Cinema page HTML parsing
+│   │   │   │   ├── theater-json-parser.ts # JSON API showtime parsing
 │   │   │   │   └── film-parser.ts   # Film detail page HTML parsing
+│   │   │   ├── cinema-config.ts     # Cinema DB+JSON sync service
 │   │   │   ├── cron.ts              # Cron job manager
 │   │   │   ├── progress-tracker.ts  # SSE progress event system
+│   │   │   ├── redis-client.ts      # Redis job publisher (USE_REDIS_SCRAPER mode)
 │   │   │   └── scrape-manager.ts    # Scrape session management
 │   │   ├── types/
 │   │   │   ├── scraper.ts           # Domain type definitions
 │   │   │   └── api.ts               # API response type definitions
 │   │   ├── utils/
+│   │   │   ├── cors-config.ts       # CORS configuration (ALLOWED_ORIGINS)
 │   │   │   ├── date.ts              # Date calculation utilities
+│   │   │   ├── logger.ts            # Winston structured logger (service=ics-web)
 │   │   │   └── showtimes.ts         # Showtime grouping utilities
 │   │   ├── app.ts                   # Express app configuration (incl. GET /api/health)
 │   │   └── index.ts                 # Server entry point
 │   ├── tests/
-│   │   └── fixtures/                # HTML fixtures for parser tests
+│   │   ├── fixtures/                # HTML fixtures for parser tests
+│   │   └── services/
+│   │       └── redis-client.test.ts # Redis client integration tests
 │   ├── package.json
 │   └── tsconfig.json
 ├── e2e/                             # Playwright end-to-end tests
 ├── scripts/
 │   ├── backup-db.sh                 # Database backup script
+│   ├── install-hooks.sh             # Install git pre-push hooks
 │   ├── integration-test.sh          # Full-stack integration test runner
 │   ├── pull-and-deploy.sh           # Pull latest Docker image & restart
 │   └── restore-db.sh                # Database restore script
 ├── .dockerignore
 ├── .env.example                     # Environment variables template
 ├── .gitignore
+├── AGENTS.md                        # Instructions for AI coding agents
+├── CONTRIBUTING.md                  # Human contributor guide
 ├── DEPLOYMENT.md                    # Comprehensive deployment guide
+├── MONITORING.md                    # Observability stack documentation
 ├── docker-compose.build.yml         # Local build stack
 ├── docker-compose.dev.yml           # Development stack
-├── docker-compose.yml               # Production stack
-├── Dockerfile                       # Multi-stage production build
+├── docker-compose.yml               # Production stack (with monitoring/scraper profiles)
+├── Dockerfile                       # Multi-stage production build (ics-web)
+├── Dockerfile.scraper               # Scraper microservice build (ics-scraper)
 ├── playwright.config.ts             # Playwright E2E configuration
 ├── package.json                     # Root convenience scripts
 └── README.md                        # This file
@@ -638,6 +691,34 @@ Deletes the cinema and cascades to all its showtimes and weekly programs.
 **Example:**
 ```bash
 curl -X DELETE http://localhost:3000/api/cinemas/C0099
+```
+
+---
+
+#### Sync Cinemas to JSON
+
+```http
+GET /api/cinemas/sync
+```
+
+Manually synchronizes the database cinema configurations to the `cinemas.json` file. This endpoint reads all cinemas from the database and overwrites the JSON file.
+
+**Note:** Automatic synchronization occurs after all cinema CRUD operations (`POST`, `PUT`, `DELETE`), so manual sync is rarely needed unless the JSON file was modified externally or becomes out of sync.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "count": 3,
+    "message": "Synced 3 cinema(s) to JSON file"
+  }
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:3000/api/cinemas/sync
 ```
 
 ---
@@ -997,6 +1078,7 @@ cp .env.example .env
 | `POSTGRES_USER` | Database username | `postgres` | `myuser` |
 | `POSTGRES_PASSWORD` | Database password | `password` | `securepass123` |
 | `PORT` | API server port | `3000` | `8080` |
+| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins. Must include every origin the browser uses to reach the app — including LAN IPs (e.g. `http://192.168.1.100:3000`) for local network installs. | `http://localhost:3000,http://localhost:5173` | `http://localhost:3000,http://192.168.1.100:3000` |
 | `VITE_API_BASE_URL` | Client API base URL | `http://localhost:3000/api` | `https://api.example.com/api` |
 
 ### Optional Variables
@@ -1010,6 +1092,13 @@ cp .env.example .env
 | `SCRAPE_DAYS` | Number of days to scrape (1-14) | `7` | `14` |
 | `SCRAPE_MODE` | Start date: `weekly` (Wed), `from_today`, or `from_today_limited` | `weekly` | `from_today_limited` |
 | `NODE_ENV` | Environment mode | `development` | `production` |
+| `REDIS_URL` | Redis connection URL (required for scraper microservice) | `redis://localhost:6379` | `redis://ics-redis:6379` |
+| `USE_REDIS_SCRAPER` | Delegate scraping to the Redis microservice | `false` | `true` |
+| `LOG_LEVEL` | Log verbosity (`error`, `warn`, `info`, `debug`) | `info` | `debug` |
+| `OTEL_ENABLED` | Enable OpenTelemetry distributed tracing | `false` | `true` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP gRPC endpoint for Tempo | `http://ics-tempo:4317` | `http://ics-tempo:4317` |
+| `GRAFANA_ADMIN_USER` | Grafana admin username | `admin` | `admin` |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana admin password | `admin` | `securepass` |
 
 ### Cron Schedule Examples
 
@@ -1144,7 +1233,56 @@ Cinema list is managed in the **database**, not a static file. On first startup,
 - **C0072**: Le Grand Action  
 - **C0089**: Max Linder Panorama
 
-The seed file (`cinemas.json`) is kept as the source of truth for initial setup — it is read **once** when the database has no configured cinemas, and never again.
+### Cinema Configuration Synchronization
+
+**Automatic Sync**: When cinemas are added, updated, or deleted via the API, both the PostgreSQL database AND the `server/src/config/cinemas.json` file are automatically synchronized.
+
+**Volume Mount for Git Persistence**: The `server/src/config/` directory is mounted as a Docker volume (`./server/src/config:/app/server/src/config`), which means:
+- Changes to `cinemas.json` inside the container are **immediately visible** on your host filesystem
+- You can commit and push these changes to git using the standard workflow below
+- The file persists across container restarts and rebuilds
+- Works on both macOS and Linux hosts
+
+**How it works:**
+- All CRUD operations (`POST /api/cinemas`, `PUT /api/cinemas/:id`, `DELETE /api/cinemas/:id`) update both the database and JSON file atomically using transactions
+- If the JSON write fails, the database changes are automatically rolled back to maintain consistency
+- File locking prevents concurrent write corruption
+- The volume mount ensures changes are immediately visible to git on the host
+
+**Git Workflow for Cinema Changes:**
+
+After adding, updating, or deleting cinemas via the API, commit the changes to the repository:
+
+```bash
+# 1. Check what changed
+git status
+# → modified: server/src/config/cinemas.json
+
+git diff server/src/config/cinemas.json
+
+# 2. Commit using Conventional Commits format
+git add server/src/config/cinemas.json
+
+# Adding a cinema:
+git commit -m "feat(cinema): add Le Champo (C0042)"
+# Removing a cinema:
+git commit -m "chore(cinema): remove Épée de Bois (W7504)"
+# Updating cinema details:
+git commit -m "fix(cinema): update Grand Action URL"
+
+# 3. Push to remote
+git push
+```
+
+**Manual Sync**: If the JSON file becomes out of sync with the database (e.g., after manual database edits), you can manually trigger synchronization:
+
+```bash
+curl http://localhost:3000/api/cinemas/sync
+```
+
+This endpoint reads all cinemas from the database and overwrites `cinemas.json`.
+
+**Note**: Both the PostgreSQL database (in a Docker volume) and `cinemas.json` (on host filesystem via volume mount) are kept in sync automatically. Either can be used as a reference.
 
 ### Adding New Cinemas
 
@@ -1186,15 +1324,81 @@ curl -X DELETE http://localhost:3000/api/cinemas/C0089
 
 ## 🐳 Docker Deployment
 
+### Docker Image Optimization
+
+**Current image size:** 1.19 GB (optimized from 1.58 GB - **24.6% reduction, -390 MB**)
+
+The Docker image has been aggressively optimized for production deployment:
+
+| Technique | Savings | Description |
+|-----------|---------|-------------|
+| Playwright install as user | -271 MB | Install browsers as nodejs user to avoid chown duplicate layer |
+| npm cache cleanup | -2-5 MB | Aggressive cache cleaning in all stages |
+| Source maps disabled | -1-2 MB | No .map files in production build |
+| Playwright cleanup | -5-10 MB | Clean /tmp and caches after browser install |
+| Build artifacts removal | -1-2 MB | Remove .d.ts, .map, test files |
+
+**Build Optimizations:**
+- **Frontend Builder**: npm cache cleaned, Vite build without source maps, node_modules cache removed
+- **Backend Builder**: npm cache cleaned, source maps removed in builder stage, reduced data transfer
+- **Production Stage**: Playwright system deps installed as root, then browsers installed as nodejs user (eliminates chown duplicate), --only-shell chromium for minimal browser footprint
+
+**Key Innovation:** The largest optimization comes from installing Playwright browsers AS the nodejs user instead of as root and then using `chown -R`. The chown command would create a 271 MB duplicate layer containing copies of all the browser files.
+
+**Image Analysis:**
+```bash
+# View layer sizes
+docker history allo-scrapper-ics-web:latest --human | head -20
+
+# Verify no source maps in production
+docker run --rm allo-scrapper-ics-web find /app -name "*.map"
+# (should return nothing)
+```
+
+---
+
 ### Using Pre-built Images from GitHub Container Registry
 
 The application is automatically built and published to GitHub Container Registry on every release.
 
+### Platform Support
+
+Docker images are built for **linux/amd64** only. ARM64 (Apple Silicon, Raspberry Pi) is not supported via pre-built images due to QEMU emulation instability during `npm ci` on GitHub Actions runners. If you need to run on ARM64, build the image locally on your ARM64 machine:
+
+```bash
+docker build -t allo-scrapper .
+```
+
 **Available images:**
-- `ghcr.io/phbassin/allo-scrapper:latest` - Latest stable release
-- `ghcr.io/phbassin/allo-scrapper:v1.0.0` - Specific version
-- `ghcr.io/phbassin/allo-scrapper:main` - Latest from main branch
-- `ghcr.io/phbassin/allo-scrapper:develop` - Latest from develop branch
+
+> **v1.1.0+ tag strategy:**
+> - **`:stable`** — production-ready builds from `main` branch and version tags. Use this in production.
+> - **`:latest`** — continuous development builds from `develop`. May be unstable.
+>
+> If you used `:latest` for production in v1.0.0, switch to `:stable`. See [Migration Guide](#migration-guide-v100--v110).
+
+- `ghcr.io/phbassin/allo-scrapper:stable` - Latest production-ready release (main branch) **[recommended for production]**
+- `ghcr.io/phbassin/allo-scrapper:latest` - Latest development build (develop branch)
+- `ghcr.io/phbassin/allo-scrapper:v1.1.0` - Specific version
+- `ghcr.io/phbassin/allo-scrapper:main` - Latest commit on main branch
+- `ghcr.io/phbassin/allo-scrapper:develop` - Latest commit on develop branch
+
+#### Migration Guide: v1.0.0 → v1.1.0
+
+The Docker tag `:latest` now explicitly tracks the `develop` branch (continuous development). For production deployments, use `:stable` instead:
+
+```yaml
+# Before (v1.0.0) — production
+image: ghcr.io/phbassin/allo-scrapper:latest
+
+# After (v1.1.0+) — production
+image: ghcr.io/phbassin/allo-scrapper:stable
+
+# After (v1.1.0+) — bleeding edge / development
+image: ghcr.io/phbassin/allo-scrapper:latest
+```
+
+No API, schema, or configuration changes are required. Only the Docker tag needs to be updated.
 
 #### Quick Deployment
 
@@ -1248,12 +1452,36 @@ npm run dev
 Uses `docker-compose.yml` with pre-built images from GitHub Container Registry:
 
 ```bash
+# Base stack (app + DB + Redis)
 docker compose up -d
+
+# With scraper microservice
+docker compose --profile scraper up -d
+
+# With full observability stack (Prometheus, Grafana, Loki, Tempo)
+docker compose --profile monitoring up -d
+
+# Everything
+docker compose --profile monitoring --profile scraper up -d
 ```
 
-**Services:**
-- `db`: PostgreSQL 15 with volume persistence
-- `web`: Combined API + static frontend (port 3000)
+**Base services (`docker compose up -d`):**
+- `ics-db`: PostgreSQL 15 with volume persistence
+- `ics-redis`: Redis 7 (message queue + pub/sub)
+- `ics-web`: Combined API + static frontend (port 3000)
+
+**`--profile scraper` adds:**
+- `ics-scraper`: Scraper microservice (job consumer)
+- `ics-scraper-cron`: Cron-triggered scraper
+
+**`--profile monitoring` adds:**
+- `ics-prometheus`: Metrics (port 9090)
+- `ics-grafana`: Dashboards (port 3001, default admin/admin)
+- `ics-loki` + `ics-promtail`: Log aggregation
+- `ics-tempo`: Distributed tracing (OTLP port 4317)
+- `ics-postgres-exporter`, `ics-redis-exporter`: DB/Redis metrics
+
+> See [MONITORING.md](./MONITORING.md) for full observability setup instructions.
 
 ### Building Docker Images Locally
 
@@ -1309,31 +1537,53 @@ The repository includes a GitHub Actions workflow (`.github/workflows/docker-bui
    - Manual workflow dispatch
 
 2. **Builds:**
-   - Multi-platform Docker images (linux/amd64, linux/arm64)
+   - Multi-platform Docker images (linux/amd64)
    - Uses layer caching for faster builds
    - Runs automated tests (if configured)
 
 3. **Publishes to:**
    - GitHub Container Registry (ghcr.io)
-   - Tags: `latest`, `main`, `develop`, version tags
+   - Tags: `stable` (main + version tags), `latest` (develop), `main`, `develop`, version tags
+
+4. **Tag strategy:**
+   - `:latest` tracks the `develop` branch (continuous development)
+   - `:stable` tracks the `main` branch and version tags (production-ready)
 
 4. **Outputs:**
    - Build attestation
    - Image digest
    - Build summary in Actions UI
 
-### Using Pre-built Images
+### Release Process
 
-Pre-built Docker images are automatically published to GitHub Container Registry on every release.
+To publish a new production release:
+
+1. Merge features from `develop` → `main` via PR
+2. Create a version tag on `main`:
+   ```bash
+   git checkout main && git pull
+   git tag v1.2.0
+   git push origin v1.2.0
+   ```
+3. The CI workflow automatically publishes:
+   - `:stable` tag (updated)
+   - `:v1.2.0` and `:v1.2` tags (new)
+   - `:main` tag (updated)
+4. Create a GitHub release using the tag and paste the relevant CHANGELOG.md section
+
+### Using Pre-built Images
 
 **Pull and use images:**
 
 ```bash
-# Pull from GitHub Container Registry
+# Pull stable (production-ready) image
+docker pull ghcr.io/phbassin/allo-scrapper:stable
+
+# Pull latest development build
 docker pull ghcr.io/phbassin/allo-scrapper:latest
 
 # Or pull a specific version
-docker pull ghcr.io/phbassin/allo-scrapper:v1.0.0
+docker pull ghcr.io/phbassin/allo-scrapper:v1.1.0
 
 # Run with docker compose (automatically pulls if not present)
 docker compose up -d
@@ -1343,11 +1593,12 @@ docker images | grep allo-scrapper
 ```
 
 **Available tags:**
-- `latest` - Latest stable release (main branch)
-- `v1.0.0`, `v1.0`, etc. - Specific version tags
+- `stable` - Production-ready release (main branch and version tags) **[recommended for production]**
+- `latest` - Latest development build (develop branch, may be unstable)
+- `v1.1.0`, `v1.1`, etc. - Specific version tags
 - `main` - Latest commit on main branch
 - `develop` - Latest commit on develop branch
-- `main-abc1234` - Specific commit SHA
+- `sha-abc1234` - Specific commit SHA
 
 **Registry cleanup policy:** untagged images and images older than 15 days are automatically deleted daily by the `GHCR Cleanup` workflow.
 
@@ -1504,10 +1755,10 @@ docker compose ps
 cat .env | grep POSTGRES
 
 # Restart database
-docker compose restart db
+docker compose restart ics-db
 
 # View database logs
-docker compose logs db
+docker compose logs ics-db
 ```
 
 ---
@@ -1522,7 +1773,7 @@ docker compose logs db
 curl http://localhost:3000/api/scraper/status
 
 # View server logs
-docker compose logs web
+docker compose logs ics-web
 
 # Check scrape reports
 curl http://localhost:3000/api/reports
@@ -1549,7 +1800,7 @@ curl http://localhost:3000/api/health
 cat client/.env | grep VITE_API_BASE_URL
 
 # Check server logs for errors
-docker compose logs web -f
+docker compose logs ics-web -f
 
 # Restart services
 docker compose restart
@@ -1583,10 +1834,10 @@ docker compose up -d
 **Solution:**
 ```bash
 # Run migration manually
-docker compose exec web npm run db:migrate
+docker compose exec ics-web npm run db:migrate
 
 # Or connect to database and run schema manually
-docker compose exec db psql -U postgres -d its
+docker compose exec ics-db psql -U postgres -d its
 
 # In psql:
 \i /path/to/schema.sql
@@ -1594,14 +1845,17 @@ docker compose exec db psql -U postgres -d its
 
 ---
 
-### Client Cannot Reach API
+### Client Cannot Reach API / CORS Error
 
-**Problem:** Network errors in browser console
+**Problem:** Network errors or `Not allowed by CORS` errors in browser console or server logs
 
 **Solution:**
 1. Check `VITE_API_BASE_URL` in `.env`
 2. Verify API is accessible: `curl http://localhost:3000/api/health`
-3. Check CORS settings in `server/src/app.ts`
+3. Check CORS settings — `ALLOWED_ORIGINS` env var must include **every origin the browser uses to reach the app**:
+   - If accessing from `http://192.168.1.100:3000`, add that to `ALLOWED_ORIGINS`
+   - Edit `.env`: `ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000`
+   - Then restart: `docker compose restart ics-web`
 4. Rebuild client: `cd client && npm run build`
 
 ---
@@ -1633,16 +1887,20 @@ docker build -t test .
 
 **Solution:**
 ```bash
-# Restart server to reload config
-docker compose restart web
+# The config directory is volume-mounted, so API changes are visible on host immediately.
 
-# Trigger new scrape
+# If you manually edited cinemas.json on the host, restart the server to pick up changes:
+docker compose restart ics-web
+
+# Trigger a new scrape to fetch data for updated cinemas:
 curl -X POST http://localhost:3000/api/scraper/trigger
 
-# If needed, clear database
+# If the JSON file and database diverged (e.g. after manual DB edits), resync:
+curl http://localhost:3000/api/cinemas/sync
+
+# Full reset (clears all data):
 docker compose down -v
 docker compose up -d
-docker compose exec web npm run db:migrate
 ```
 
 ---

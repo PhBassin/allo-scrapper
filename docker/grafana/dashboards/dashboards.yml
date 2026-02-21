@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: allo-scrapper
+    orgId: 1
+    folder: Allo-Scrapper
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards

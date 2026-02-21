@@ -1,0 +1,143 @@
+{
+  "id": null,
+  "uid": "app",
+  "title": "Application (API & Logs)",
+  "tags": ["app", "allo-scrapper"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "HTTP API",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "HTTP Request Rate (req/s)",
+      "datasource": { "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 1, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job=\"ics-web\"}[5m])",
+          "legendFormat": "{{ method }} {{ route }} {{ status_code }}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "HTTP Error Rate (4xx + 5xx /s)",
+      "datasource": { "uid": "prometheus" },
+      "gridPos": { "x": 12, "y": 1, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job=\"ics-web\", status_code=~\"[45]..\"}[5m])",
+          "legendFormat": "{{ status_code }} {{ route }}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "HTTP Response Duration (p50 / p95 / p99)",
+      "datasource": { "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 7 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=\"ics-web\"}[5m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"ics-web\"}[5m]))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job=\"ics-web\"}[5m]))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "row",
+      "title": "Logs (Loki)",
+      "gridPos": { "x": 0, "y": 15, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 6,
+      "type": "logs",
+      "title": "Backend Logs (ics-web)",
+      "datasource": { "uid": "loki" },
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "{container_name=~\".*ics-web.*\"}",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 7,
+      "type": "logs",
+      "title": "Scraper Logs (ics-scraper)",
+      "datasource": { "uid": "loki" },
+      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "{container_name=~\".*ics-scraper.*\"}",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 8,
+      "type": "logs",
+      "title": "Error Logs (all services, level=error)",
+      "datasource": { "uid": "loki" },
+      "gridPos": { "x": 0, "y": 32, "w": 24, "h": 7 },
+      "targets": [
+        {
+          "expr": "{container_name=~\".*ics-.*\"} | json | level=`error`",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ]
+}

@@ -53,6 +53,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=stable,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push Docker image
         id: build
@@ -64,7 +65,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
 
       - name: Generate artifact attestation
         if: github.event_name != 'pull_request'
@@ -84,11 +85,15 @@ jobs:
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag Strategy:**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`:latest\` — tracks \`develop\` branch (continuous development)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`:stable\` — tracks \`main\` branch and version tags (production)" >> $GITHUB_STEP_SUMMARY
 
   cleanup-after-production-build:
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     permissions:
       packages: write
     
@@ -108,11 +113,11 @@ jobs:
           echo "### 🧹 Post-Build Cleanup Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Mode:** 🔍 DRY-RUN (no images deleted - for safety)" >> $GITHUB_STEP_SUMMARY
-          echo "**Trigger:** Production build (tag v*)" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** Production build (main branch or tag v*)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "ℹ️ To enable actual deletion, modify this workflow and remove 'dry-run: true'" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Policy:**" >> $GITHUB_STEP_SUMMARY
           echo "- Keep: 10 versions maximum" >> $GITHUB_STEP_SUMMARY
           echo "- Delete: Only untagged versions" >> $GITHUB_STEP_SUMMARY
-          echo "- Protected: All tagged versions (v*)" >> $GITHUB_STEP_SUMMARY
+          echo "- Protected: All tagged versions (v*, stable, latest)" >> $GITHUB_STEP_SUMMARY

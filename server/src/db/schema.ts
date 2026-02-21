@@ -3,12 +3,13 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { db } from './client.js';
 import type { CinemaConfig } from '../types/scraper.js';
+import { logger } from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export async function initializeDatabase() {
-  console.log('🔄 Initialisation de la base de données PostgreSQL...');
+  logger.info('🔄 Initialisation de la base de données PostgreSQL...');
 
   const schema = [
     // Table: cinemas
@@ -109,9 +110,9 @@ export async function initializeDatabase() {
     for (const statement of schema) {
       await db.query(statement);
     }
-    console.log('✅ Base de données initialisée avec succès');
+    logger.info('✅ Base de données initialisée avec succès');
   } catch (error) {
-    console.error('❌ Erreur lors de l\'initialisation de la base de données:', error);
+    logger.error('❌ Erreur lors de l\'initialisation de la base de données:', error);
     throw error;
   }
 
@@ -125,7 +126,7 @@ async function seedCinemasIfEmpty(): Promise<void> {
     const count = parseInt(countResult.rows[0].count, 10);
 
     if (count > 0) {
-      console.log(`ℹ️  Cinemas already seeded (${count} with URL). Skipping seed.`);
+      logger.info(`ℹ️  Cinemas already seeded (${count} with URL). Skipping seed.`);
       return;
     }
 
@@ -142,9 +143,9 @@ async function seedCinemasIfEmpty(): Promise<void> {
       );
     }
 
-    console.log(`🌱 Seeded ${cinemas.length} cinema(s) from cinemas.json`);
+    logger.info(`🌱 Seeded ${cinemas.length} cinema(s) from cinemas.json`);
   } catch (error) {
-    console.error('⚠️  Warning: Could not seed cinemas:', error);
+    logger.error('⚠️  Warning: Could not seed cinemas:', error);
     // Non-fatal: continue without seeding
   }
 }

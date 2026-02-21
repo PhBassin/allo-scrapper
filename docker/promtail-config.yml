@@ -1,0 +1,45 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://ics-loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Collect logs from all Docker containers on the ics-network
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # Use container name as the job label
+      - source_labels: [__meta_docker_container_name]
+        regex: /(.*)
+        target_label: container
+      # Keep only ics-* containers
+      - source_labels: [container]
+        regex: ics-.*
+        action: keep
+      # Propagate compose service label
+      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
+        target_label: service
+      # Add a static environment label
+      - target_label: env
+        replacement: production
+    pipeline_stages:
+      # Parse JSON log lines produced by Winston in production
+      - json:
+          expressions:
+            level: level
+            message: message
+            service: service
+            timestamp: timestamp
+      - labels:
+          level:
+          service:
+      - timestamp:
+          source: timestamp
+          format: RFC3339

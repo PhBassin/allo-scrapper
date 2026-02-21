@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { scrapeManager } from './scrape-manager.js';
+import { logger } from '../utils/logger.js';
 
 // Cron service for scheduled scraping
 class CronService {
@@ -8,7 +9,7 @@ class CronService {
   // Start the cron job
   start(): void {
     if (this.job) {
-      console.log('⚠️  Cron job already running');
+      logger.info('⚠️  Cron job already running');
       return;
     }
 
@@ -17,23 +18,23 @@ class CronService {
     // 0 8 * * 3 = At 08:00 on Wednesday
     const schedule = process.env.SCRAPE_CRON_SCHEDULE || '0 8 * * 3';
 
-    console.log(`⏰ Scheduling cron job: ${schedule} (Europe/Paris timezone)`);
+    logger.info(`⏰ Scheduling cron job: ${schedule} (Europe/Paris timezone)`);
 
     this.job = cron.schedule(
       schedule,
       async () => {
-        console.log('⏰ Cron job triggered - starting scrape...');
+        logger.info('⏰ Cron job triggered - starting scrape...');
         
         try {
           if (scrapeManager.isRunning()) {
-            console.log('⚠️  Scrape already running, skipping cron trigger');
+            logger.info('⚠️  Scrape already running, skipping cron trigger');
             return;
           }
 
           // Automatic cron jobs always use 'weekly' mode with 7 days
           await scrapeManager.startScrape('cron', { mode: 'weekly', days: 7 });
         } catch (error) {
-          console.error('❌ Error in cron job:', error);
+          logger.error('❌ Error in cron job:', error);
         }
       },
       {
@@ -42,7 +43,7 @@ class CronService {
       }
     );
 
-    console.log('✅ Cron job started successfully');
+    logger.info('✅ Cron job started successfully');
   }
 
   // Stop the cron job
@@ -50,7 +51,7 @@ class CronService {
     if (this.job) {
       this.job.stop();
       this.job = undefined;
-      console.log('⏸️  Cron job stopped');
+      logger.info('⏸️  Cron job stopped');
     }
   }
 

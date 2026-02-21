@@ -1,7 +1,14 @@
 import express from 'express';
 import { db } from '../db/client.js';
-import { getCinemas, getShowtimesByCinemaAndWeek, addCinema, updateCinemaConfig, deleteCinema } from '../db/queries.js';
+import { getCinemas, getShowtimesByCinemaAndWeek } from '../db/queries.js';
 import { getWeekStart } from '../utils/date.js';
+import { addCinemaAndScrape } from '../services/scraper/index.js';
+import {
+  addCinemaWithSync,
+  updateCinemaWithSync,
+  deleteCinemaWithSync,
+  syncCinemasFromDatabase,
+} from '../services/cinema-config.js';
 import type { ApiResponse } from '../types/api.js';
 
 const router = express.Router();
@@ -27,6 +34,16 @@ router.post('/', async (req, res, next) => {
   try {
     const { id, name, url } = req.body;
 
+    // Smart add via URL only
+    if (url && !id && !name) {
+      const cinema = await addCinemaAndScrape(url);
+      const response: ApiResponse = {
+        success: true,
+        data: cinema,
+      };
+      return res.status(201).json(response);
+    }
+
     if (!id || !name || !url) {
       const response: ApiResponse = {
         success: false,
@@ -35,7 +52,7 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json(response);
     }
 
-    const cinema = await addCinema(db, { id, name, url });
+    const cinema = await addCinemaWithSync(db, { id, name, url });
 
     const response: ApiResponse = {
       success: true,
@@ -73,7 +90,7 @@ router.put('/:id', async (req, res, next) => {
     if (name) updates.name = name;
     if (url) updates.url = url;
 
-    const cinema = await updateCinemaConfig(db, cinemaId, updates);
+    const cinema = await updateCinemaWithSync(db, cinemaId, updates);
 
     if (!cinema) {
       const response: ApiResponse = {
@@ -98,7 +115,7 @@ router.put('/:id', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     const cinemaId = req.params.id;
-    const deleted = await deleteCinema(db, cinemaId);
+    const deleted = await deleteCinemaWithSync(db, cinemaId);
 
     if (!deleted) {
       const response: ApiResponse = {
@@ -109,6 +126,25 @@ router.delete('/:id', async (req, res, next) => {
     }
 
     return res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// GET /api/cinemas/sync - Manual sync from database to JSON file
+router.get('/sync', async (_req, res, next) => {
+  try {
+    const count = await syncCinemasFromDatabase(db);
+
+    const response: ApiResponse = {
+      success: true,
+      data: {
+        count,
+        message: `Synced ${count} cinema(s) to JSON file`,
+      },
+    };
+
+    return res.json(response);
   } catch (error) {
     return next(error);
   }

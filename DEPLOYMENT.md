@@ -104,6 +104,13 @@ POSTGRES_PASSWORD=your_secure_password_here  # ⚠️ CHANGE THIS!
 PORT=3000
 NODE_ENV=production
 
+# CORS – must include the origin the browser uses to reach the app.
+# When served via Docker on port 3000, the frontend and API share the same origin.
+# Add http://localhost:5173 if also running the Vite dev server.
+# IMPORTANT: if accessed from another machine on your LAN (e.g. http://192.168.1.100:3000),
+# you MUST add that address here, or browsers will get a CORS error.
+ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
+
 # Scraper Configuration
 SCRAPE_CRON_SCHEDULE=0 8 * * 3    # Wednesday at 8:00 AM
 SCRAPE_DELAY_MS=1000              # 1 second between requests
@@ -117,11 +124,17 @@ TZ=Europe/Paris                   # Your timezone
 ### Pull and Run
 
 The application is automatically built and pushed to GitHub Container Registry on every release.
-An automated GitHub Actions cleanup job also runs daily to delete untagged images and images older than 15 days.
+An automated GitHub Actions cleanup job also runs on every push to `main` (and version tags) to delete untagged images.
+
+> **Tag strategy (v1.1.0+):**
+> - **`:stable`** — production-ready; built from `main` branch and version tags. **Use this in production.**
+> - **`:latest`** — development builds from `develop`; may be unstable.
+>
+> If you were using `:latest` for production in v1.0.0, switch to `:stable`.
 
 ```bash
-# Pull the latest image
-docker pull ghcr.io/phbassin/allo-scrapper:latest
+# Pull the stable (production-ready) image
+docker pull ghcr.io/phbassin/allo-scrapper:stable
 
 # Start the services
 docker compose up -d
@@ -281,6 +294,35 @@ docker compose exec db psql -U postgres -d cinema_showtimes -c "
 
 ## Monitoring & Maintenance
 
+### Observability Stack (Optional)
+
+A full observability stack (Prometheus, Grafana, Loki, Tempo) is available via the `monitoring` Docker Compose profile. See [MONITORING.md](./MONITORING.md) for full documentation.
+
+```bash
+# Start monitoring services (Grafana on :3001, Prometheus on :9090)
+docker compose --profile monitoring up -d
+
+# Start monitoring + scraper microservice together
+docker compose --profile monitoring --profile scraper up -d
+```
+
+### Scraper Microservice (Optional)
+
+By default the scraper runs in-process inside `ics-web`. To use the standalone scraper microservice (communicates via Redis):
+
+```bash
+# 1. Enable the feature flag in .env
+USE_REDIS_SCRAPER=true
+
+# 2. Start the scraper service
+docker compose --profile scraper up -d
+
+# 3. Restart the web service to pick up the flag
+docker compose restart ics-web
+```
+
+The `ics-scraper-cron` service handles scheduled automatic scraping; `ics-scraper` processes on-demand jobs from the Redis queue.
+
 ### Health Checks
 
 ```bash
@@ -348,7 +390,7 @@ docker compose exec web npm run scrape
 ### Standard Update Process
 
 ```bash
-# 1. Pull latest image
+# 1. Pull stable image (production-ready)
 docker compose pull
 
 # 2. Stop and remove old containers
@@ -386,6 +428,9 @@ docker compose down --remove-orphans
 ```bash
 # Pull specific version
 docker pull ghcr.io/phbassin/allo-scrapper:v1.0.0
+
+# Or use the stable tag (always points to latest production release)
+docker pull ghcr.io/phbassin/allo-scrapper:stable
 
 # Update docker-compose.yml to use specific tag
 # image: ghcr.io/phbassin/allo-scrapper:v1.0.0
