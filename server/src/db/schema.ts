@@ -12,6 +12,9 @@ export async function initializeDatabase() {
   logger.info('🔄 Initialisation de la base de données PostgreSQL...');
 
   const schema = [
+    // Enable extensions
+    `CREATE EXTENSION IF NOT EXISTS pg_trgm`,
+
     // Table: cinemas
     `CREATE TABLE IF NOT EXISTS cinemas (
       id TEXT PRIMARY KEY,
@@ -46,6 +49,9 @@ export async function initializeDatabase() {
       audience_rating REAL,
       source_url TEXT NOT NULL
     )`,
+
+    // Index for films title (trigram similarity for fuzzy search)
+    `CREATE INDEX IF NOT EXISTS idx_films_title_trgm ON films USING gin(title gin_trgm_ops)`,
 
     // Table: showtimes
     `CREATE TABLE IF NOT EXISTS showtimes (
