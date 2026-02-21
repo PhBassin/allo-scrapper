@@ -2,6 +2,7 @@ import axios from 'axios';
 import type {
   ApiResponse,
   FilmWithShowtimes,
+  Film,
   Cinema,
   ShowtimeWithFilm,
   ScrapeReport,
@@ -48,6 +49,28 @@ export async function getFilmById(id: number): Promise<FilmWithShowtimes> {
     throw new Error(response.data.error || 'Failed to fetch film');
   }
   return response.data.data;
+}
+
+/**
+ * Search films using fuzzy matching
+ * @param query Search query (minimum 2 characters)
+ * @returns Array of films matching the search query
+ */
+export async function searchFilms(query: string): Promise<Film[]> {
+  // Validate query locally to avoid unnecessary API calls
+  if (!query || query.trim().length < 2) {
+    return [];
+  }
+  
+  const response = await api.get<ApiResponse<{ films: Film[]; query: string }>>('/films/search', {
+    params: { q: query.trim() }
+  });
+  
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to search films');
+  }
+  
+  return response.data.data.films;
 }
 
 // ============================================================================
