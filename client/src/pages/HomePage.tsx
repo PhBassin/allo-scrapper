@@ -6,6 +6,7 @@ import FilmCard from '../components/FilmCard';
 import ScrapeButton from '../components/ScrapeButton';
 import ScrapeProgress from '../components/ScrapeProgress';
 import DaySelector from '../components/DaySelector';
+import FilmSearchBar from '../components/FilmSearchBar';
 
 export default function HomePage() {
   const [films, setFilms] = useState<FilmWithShowtimes[]>([]);
@@ -148,6 +149,11 @@ export default function HomePage() {
             <ScrapeProgress onComplete={handleScrapeComplete} />
           </div>
         )}
+
+        {/* Film Search Bar */}
+        <div className="mb-6">
+          <FilmSearchBar placeholder="Rechercher un film..." />
+        </div>
 
         {/* Day Selector */}
         {weekStart && (
