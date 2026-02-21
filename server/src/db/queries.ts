@@ -925,3 +925,53 @@ export async function getLatestScrapeReport(db: DB): Promise<ScrapeReport | unde
   );
   return result.rows[0];
 }
+
+// --- Film Search ---
+
+/**
+ * Search films using fuzzy matching (trigram similarity + partial match)
+ * @param db Database connection
+ * @param query Search query string
+ * @param limit Maximum number of results (default: 10)
+ * @returns Array of films matching the search query
+ */
+export async function searchFilms(
+  db: DB,
+  query: string,
+  limit: number = 10
+): Promise<Film[]> {
+  const result = await db.query<FilmRow>(
+    `SELECT 
+      id, title, original_title, poster_url, duration_minutes,
+      release_date, rerelease_date, genres, nationality, director,
+      actors, synopsis, certificate, press_rating, audience_rating,
+      source_url,
+      similarity(title, $1) AS score
+    FROM films
+    WHERE 
+      similarity(title, $1) > 0.3
+      OR title ILIKE '%' || $1 || '%'
+    ORDER BY score DESC
+    LIMIT $2`,
+    [query, limit]
+  );
+
+  return result.rows.map(row => ({
+    id: row.id,
+    title: row.title,
+    original_title: row.original_title || undefined,
+    poster_url: row.poster_url || undefined,
+    duration_minutes: row.duration_minutes || undefined,
+    release_date: row.release_date || undefined,
+    rerelease_date: row.rerelease_date || undefined,
+    genres: row.genres ? JSON.parse(row.genres) : [],
+    nationality: row.nationality || undefined,
+    director: row.director || undefined,
+    actors: row.actors ? JSON.parse(row.actors) : [],
+    synopsis: row.synopsis || undefined,
+    certificate: row.certificate || undefined,
+    press_rating: row.press_rating || undefined,
+    audience_rating: row.audience_rating || undefined,
+    source_url: row.source_url
+  }));
+}

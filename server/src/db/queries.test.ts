@@ -219,8 +219,6 @@ describe('Queries - Film Search', () => {
     });
   });
 });
-  });
-});
 
 describe('Queries - Cinemas', () => {
   describe('getCinemaConfigs', () => {
