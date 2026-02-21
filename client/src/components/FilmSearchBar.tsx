@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { searchFilms } from '../api/client';
 import { useDebounce } from '../hooks/useDebounce';
+import { highlightText } from '../utils/highlight';
 import type { Film } from '../types';
 
 interface FilmSearchBarProps {
@@ -214,11 +215,11 @@ export default function FilmSearchBar({
                   {/* Film Info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
-                      {film.title}
+                      {highlightText(film.title, query)}
                     </p>
                     {film.original_title && film.original_title !== film.title && (
                       <p className="text-xs text-gray-500 truncate">
-                        {film.original_title}
+                        {highlightText(film.original_title, query)}
                       </p>
                     )}
                     {film.genres && film.genres.length > 0 && (
