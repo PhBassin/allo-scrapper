@@ -1078,7 +1078,7 @@ cp .env.example .env
 | `POSTGRES_USER` | Database username | `postgres` | `myuser` |
 | `POSTGRES_PASSWORD` | Database password | `password` | `securepass123` |
 | `PORT` | API server port | `3000` | `8080` |
-| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins | `http://localhost:3000,http://localhost:5173` | `http://localhost:3000,https://example.com` |
+| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins. Must include every origin the browser uses to reach the app — including LAN IPs (e.g. `http://192.168.1.100:3000`) for local network installs. | `http://localhost:3000,http://localhost:5173` | `http://localhost:3000,http://192.168.1.100:3000` |
 | `VITE_API_BASE_URL` | Client API base URL | `http://localhost:3000/api` | `https://api.example.com/api` |
 
 ### Optional Variables
@@ -1845,14 +1845,17 @@ docker compose exec ics-db psql -U postgres -d its
 
 ---
 
-### Client Cannot Reach API
+### Client Cannot Reach API / CORS Error
 
-**Problem:** Network errors in browser console
+**Problem:** Network errors or `Not allowed by CORS` errors in browser console or server logs
 
 **Solution:**
 1. Check `VITE_API_BASE_URL` in `.env`
 2. Verify API is accessible: `curl http://localhost:3000/api/health`
-3. Check CORS settings — `ALLOWED_ORIGINS` env var must include the browser origin (see `server/src/utils/cors-config.ts`)
+3. Check CORS settings — `ALLOWED_ORIGINS` env var must include **every origin the browser uses to reach the app**:
+   - If accessing from `http://192.168.1.100:3000`, add that to `ALLOWED_ORIGINS`
+   - Edit `.env`: `ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000`
+   - Then restart: `docker compose restart ics-web`
 4. Rebuild client: `cd client && npm run build`
 
 ---
