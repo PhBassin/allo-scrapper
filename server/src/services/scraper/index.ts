@@ -21,18 +21,25 @@ import { logger } from '../../utils/logger.js';
  * Load the theater page once to extract metadata (cinema name, city, etc.)
  * and the list of dates that actually have published showtimes.
  */
-async function loadTheaterMetadata(
+export async function loadTheaterMetadata(
   db: DB,
-  cinema: CinemaConfig
+  cinemaConfig: CinemaConfig
 ): Promise<{ availableDates: string[]; cinema: Cinema }> {
-  const { html, availableDates } = await fetchTheaterPage(cinema.url);
+  const { html, availableDates } = await fetchTheaterPage(cinemaConfig.url);
 
   // Parse cinema metadata from the initial HTML and upsert into DB
-  const pageData = parseTheaterPage(html, cinema.id);
-  await upsertCinema(db, pageData.cinema);
-  logger.info(`✅ Cinema ${pageData.cinema.name} metadata upserted`);
+  const pageData = parseTheaterPage(html, cinemaConfig.id);
+  
+  // Ensure we keep the URL from the config, as it's not present in the HTML
+  const cinema = {
+    ...pageData.cinema,
+    url: cinemaConfig.url
+  };
+  
+  await upsertCinema(db, cinema);
+  logger.info(`✅ Cinema ${cinema.name} metadata upserted`);
 
-  return { availableDates, cinema: pageData.cinema };
+  return { availableDates, cinema };
 }
 
 // Scraper un cinéma pour une date donnée
