@@ -194,4 +194,93 @@ test.describe('Film Search', () => {
       await expect(placeholderIcon).toBeVisible();
     }
   });
+
+  test('should highlight matching text in search results', async ({ page }) => {
+    const searchInput = page.locator('[data-testid="search-input"]');
+    
+    // Type a search query
+    await searchInput.fill('mar');
+    
+    // Wait for results
+    await page.waitForTimeout(500);
+    await page.waitForSelector('[data-testid="search-result-item"]', { timeout: 5000 });
+    
+    // Check for <mark> elements in results
+    const marks = page.locator('[data-testid="search-results"] mark');
+    const markCount = await marks.count();
+    
+    // Should have at least one highlighted match
+    expect(markCount).toBeGreaterThan(0);
+    
+    // Verify the highlighted text contains the search query (case-insensitive)
+    const firstMark = marks.first();
+    const highlightedText = await firstMark.textContent();
+    expect(highlightedText?.toLowerCase()).toContain('mar');
+  });
+
+  test('should highlight in both title and original title', async ({ page }) => {
+    const searchInput = page.locator('[data-testid="search-input"]');
+    
+    // Search for a term that might appear in original titles
+    await searchInput.fill('the');
+    
+    // Wait for results
+    await page.waitForTimeout(500);
+    await page.waitForSelector('[data-testid="search-result-item"]', { timeout: 5000 });
+    
+    // Check that highlighting exists
+    const marks = page.locator('[data-testid="search-results"] mark');
+    const markCount = await marks.count();
+    expect(markCount).toBeGreaterThan(0);
+    
+    // Verify highlighted text matches query
+    const firstMark = marks.first();
+    const highlightedText = await firstMark.textContent();
+    expect(highlightedText?.toLowerCase()).toBe('the');
+  });
+
+  test('should update highlighting when query changes', async ({ page }) => {
+    const searchInput = page.locator('[data-testid="search-input"]');
+    
+    // First search
+    await searchInput.fill('mar');
+    await page.waitForTimeout(500);
+    await page.waitForSelector('[data-testid="search-results"] mark', { timeout: 5000 });
+    
+    // Get first highlighted text
+    let firstMark = page.locator('[data-testid="search-results"] mark').first();
+    let firstHighlight = await firstMark.textContent();
+    expect(firstHighlight?.toLowerCase()).toContain('mar');
+    
+    // Change search query
+    await searchInput.fill('mat');
+    await page.waitForTimeout(500);
+    await page.waitForSelector('[data-testid="search-results"] mark', { timeout: 5000 });
+    
+    // Get new highlighted text
+    firstMark = page.locator('[data-testid="search-results"] mark').first();
+    const secondHighlight = await firstMark.textContent();
+    expect(secondHighlight?.toLowerCase()).toContain('mat');
+  });
+
+  test('should have proper styling for highlighted text', async ({ page }) => {
+    const searchInput = page.locator('[data-testid="search-input"]');
+    
+    // Perform a search
+    await searchInput.fill('mar');
+    await page.waitForTimeout(500);
+    await page.waitForSelector('[data-testid="search-results"] mark', { timeout: 5000 });
+    
+    // Check that mark element has yellow background
+    const firstMark = page.locator('[data-testid="search-results"] mark').first();
+    
+    // Get computed background color
+    const bgColor = await firstMark.evaluate((el) => {
+      return window.getComputedStyle(el).backgroundColor;
+    });
+    
+    // Should have a background color set (yellow-ish)
+    expect(bgColor).toBeTruthy();
+    expect(bgColor).not.toBe('rgba(0, 0, 0, 0)'); // Not transparent
+  });
 });
