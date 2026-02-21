@@ -205,6 +205,68 @@ describe('Queries - Film Search', () => {
       expect(result[0].title).toBe('L\'Été');
     });
 
+    it('should return films with very permissive fuzzy matching (low similarity threshold)', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({
+          rows: [
+            {
+              id: 1,
+              title: 'Marty',
+              original_title: 'Marty',
+              genres: '[]',
+              actors: '[]'
+            },
+            {
+              id: 2,
+              title: 'La Mer',
+              original_title: null,
+              genres: '[]',
+              actors: '[]'
+            }
+          ]
+        })
+      } as unknown as DB;
+
+      const result = await searchFilms(mockDb, 'mer', 10);
+
+      expect(result.length).toBeGreaterThan(0);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('similarity'),
+        ['mer', 10]
+      );
+      // Should use low similarity threshold (0.1) for permissive matching
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('0.1'),
+        ['mer', 10]
+      );
+    });
+
+    it('should search in original_title as well as title', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({
+          rows: [
+            {
+              id: 19776,
+              title: 'Matrix',
+              original_title: 'The Matrix',
+              genres: '[]',
+              actors: '[]'
+            }
+          ]
+        })
+      } as unknown as DB;
+
+      const result = await searchFilms(mockDb, 'The Matrix', 10);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].title).toBe('Matrix');
+      expect(result[0].original_title).toBe('The Matrix');
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('original_title'),
+        ['The Matrix', 10]
+      );
+    });
+
     it('should use default limit of 10 when not specified', async () => {
       const mockDb = {
         query: vi.fn().mockResolvedValue({ rows: [] })
