@@ -50,3 +50,15 @@ export function cleanCinemaUrl(url: string): string {
   // Remove everything from the first ? or # onwards
   return url.split(/[?#]/)[0];
 }
+
+/**
+ * Validates that the URL is a valid Allociné URL (https://www.allocine.fr/...)
+ */
+export function isValidAllocineUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.hostname === 'www.allocine.fr';
+  } catch {
+    return false;
+  }
+}

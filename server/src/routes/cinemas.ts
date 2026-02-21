@@ -3,6 +3,7 @@ import { db } from '../db/client.js';
 import { getCinemas, getShowtimesByCinemaAndWeek } from '../db/queries.js';
 import { getWeekStart } from '../utils/date.js';
 import { addCinemaAndScrape } from '../services/scraper/index.js';
+import { isValidAllocineUrl } from '../services/scraper/utils.js';
 import {
   addCinemaWithSync,
   updateCinemaWithSync,
@@ -36,6 +37,14 @@ router.post('/', async (req, res, next) => {
 
     // Smart add via URL only
     if (url && !id && !name) {
+      if (!isValidAllocineUrl(url)) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Invalid Allocine URL. Must be https://www.allocine.fr/...',
+        };
+        return res.status(400).json(response);
+      }
+
       const cinema = await addCinemaAndScrape(url);
       const response: ApiResponse = {
         success: true,
@@ -48,6 +57,14 @@ router.post('/', async (req, res, next) => {
       const response: ApiResponse = {
         success: false,
         error: 'Missing required fields: id, name, url',
+      };
+      return res.status(400).json(response);
+    }
+
+    if (!isValidAllocineUrl(url)) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Invalid Allocine URL. Must be https://www.allocine.fr/...',
       };
       return res.status(400).json(response);
     }
@@ -82,6 +99,14 @@ router.put('/:id', async (req, res, next) => {
       const response: ApiResponse = {
         success: false,
         error: 'At least one field must be provided: name, url',
+      };
+      return res.status(400).json(response);
+    }
+
+    if (url && !isValidAllocineUrl(url)) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Invalid Allocine URL. Must be https://www.allocine.fr/...',
       };
       return res.status(400).json(response);
     }

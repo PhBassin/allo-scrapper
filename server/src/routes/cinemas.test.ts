@@ -43,21 +43,21 @@ describe('Routes - Cinemas', () => {
   describe('POST /', () => {
     it('should create a new cinema and return 201', async () => {
       mockReq = {
-        body: { id: 'C0099', name: 'New Cinema', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html' }
+        body: { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' }
       };
-      const created = { id: 'C0099', name: 'New Cinema', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html' };
+      const created = { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' };
       (cinemaConfig.addCinemaWithSync as any).mockResolvedValue(created);
 
       const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
 
-      expect(cinemaConfig.addCinemaWithSync).toHaveBeenCalledWith(expect.anything(), { id: 'C0099', name: 'New Cinema', url: 'https://www.example-cinema-site.com/seance/salle_gen_csalle=C0099.html' });
+      expect(cinemaConfig.addCinemaWithSync).toHaveBeenCalledWith(expect.anything(), { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' });
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: created }));
     });
 
     it('should return 400 when id is missing', async () => {
-      mockReq = { body: { name: 'Missing ID', url: 'https://example.com' } };
+      mockReq = { body: { name: 'Missing ID', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' } };
 
       const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
@@ -67,7 +67,7 @@ describe('Routes - Cinemas', () => {
     });
 
     it('should return 400 when name is missing', async () => {
-      mockReq = { body: { id: 'C0099', url: 'https://example.com' } };
+      mockReq = { body: { id: 'C0099', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' } };
 
       const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
@@ -84,8 +84,18 @@ describe('Routes - Cinemas', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
     });
 
+    it('should return 400 when url is invalid', async () => {
+      mockReq = { body: { id: 'C0099', name: 'New Cinema', url: 'https://example.com' } };
+
+      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
+      await handler(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, error: expect.stringContaining('Invalid Allocine URL') }));
+    });
+
     it('should return 409 on duplicate cinema id', async () => {
-      mockReq = { body: { id: 'W7504', name: 'Duplicate', url: 'https://example.com' } };
+      mockReq = { body: { id: 'W7504', name: 'Duplicate', url: 'https://www.allocine.fr/seance/salle_affich-salle=W7504.html' } };
       (cinemaConfig.addCinemaWithSync as any).mockRejectedValue(new Error('duplicate key value violates unique constraint'));
 
       const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
@@ -96,7 +106,7 @@ describe('Routes - Cinemas', () => {
     });
 
     it('should call next(error) on unexpected error', async () => {
-      mockReq = { body: { id: 'C0099', name: 'New Cinema', url: 'https://example.com' } };
+      mockReq = { body: { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' } };
       const error = new Error('Unexpected DB error');
       (cinemaConfig.addCinemaWithSync as any).mockRejectedValue(error);
 
@@ -109,14 +119,14 @@ describe('Routes - Cinemas', () => {
 
   describe('PUT /:id', () => {
     it('should update a cinema and return the updated record', async () => {
-      mockReq = { params: { id: 'W7504' }, body: { name: 'Updated Name', url: 'https://new-url.com' } };
-      const updated = { id: 'W7504', name: 'Updated Name', url: 'https://new-url.com' };
+      mockReq = { params: { id: 'W7504' }, body: { name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' } };
+      const updated = { id: 'W7504', name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' };
       (cinemaConfig.updateCinemaWithSync as any).mockResolvedValue(updated);
 
       const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.put)?.route.stack[0].handle;
       await handler(mockReq, mockRes, mockNext);
 
-      expect(cinemaConfig.updateCinemaWithSync).toHaveBeenCalledWith(expect.anything(), 'W7504', { name: 'Updated Name', url: 'https://new-url.com' });
+      expect(cinemaConfig.updateCinemaWithSync).toHaveBeenCalledWith(expect.anything(), 'W7504', { name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' });
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: updated }));
     });
 
@@ -127,6 +137,16 @@ describe('Routes - Cinemas', () => {
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    it('should return 400 when url is invalid', async () => {
+      mockReq = { params: { id: 'W7504' }, body: { url: 'https://example.com' } };
+
+      const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.put)?.route.stack[0].handle;
+      await handler(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, error: expect.stringContaining('Invalid Allocine URL') }));
     });
 
     it('should return 404 when cinema not found', async () => {
