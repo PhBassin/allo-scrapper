@@ -1,5 +1,20 @@
 [
   {
+    "id": "C0153",
+    "name": "Cinéma Chaplin Denfert",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0153.html"
+  },
+  {
+    "id": "W7515",
+    "name": "Cinéma Chaplin Saint Lambert",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=W7515.html"
+  },
+  {
+    "id": "C0076",
+    "name": "Cinéma du Panthéon",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0076.html"
+  },
+  {
     "id": "W7517",
     "name": "Club de l'Etoile",
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=W7517.html"
@@ -10,9 +25,44 @@
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=W7504.html"
   },
   {
+    "id": "C0147",
+    "name": "Escurial",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0147.html"
+  },
+  {
+    "id": "W7588",
+    "name": "Jeu de Paume",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=W7588.html"
+  },
+  {
+    "id": "C0134",
+    "name": "L'Archipel",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0134.html"
+  },
+  {
+    "id": "C0054",
+    "name": "L'Arlequin",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0054.html"
+  },
+  {
+    "id": "C0005",
+    "name": "L'Entrepôt",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0005.html"
+  },
+  {
+    "id": "C0009",
+    "name": "Le Balzac",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0009.html"
+  },
+  {
     "id": "C0023",
     "name": "Le Brady",
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0023.html"
+  },
+  {
+    "id": "C0004",
+    "name": "Le Cinéma des Cinéastes",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0004.html"
   },
   {
     "id": "C0072",
@@ -20,8 +70,53 @@
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0072.html"
   },
   {
+    "id": "C0095",
+    "name": "Les 3 Luxembourg",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0095.html"
+  },
+  {
+    "id": "C0013",
+    "name": "Luminor Hôtel de Ville",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0013.html"
+  },
+  {
+    "id": "C0139",
+    "name": "Majestic Bastille",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0139.html"
+  },
+  {
+    "id": "C0120",
+    "name": "Majestic Passy",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0120.html"
+  },
+  {
     "id": "C0089",
     "name": "Max Linder Panorama",
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0089.html"
+  },
+  {
+    "id": "C0041",
+    "name": "Nouvel Odéon ",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0041.html"
+  },
+  {
+    "id": "C6336",
+    "name": "Publicis Cinémas",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C6336.html"
+  },
+  {
+    "id": "C0074",
+    "name": "Reflet Medicis",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0074.html"
+  },
+  {
+    "id": "C0016",
+    "name": "Studio Galande",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0016.html"
+  },
+  {
+    "id": "C0083",
+    "name": "Studio des Ursulines",
+    "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0083.html"
   }
 ]
