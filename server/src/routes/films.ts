@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '../db/client.js';
-import { getWeeklyFilms, getFilmsByDate, getShowtimesByDate, getFilm, getShowtimesByFilmAndWeek, getWeeklyShowtimes } from '../db/queries.js';
+import { getWeeklyFilms, getFilmsByDate, getShowtimesByDate, getFilm, getShowtimesByFilmAndWeek, getWeeklyShowtimes, searchFilms } from '../db/queries.js';
 import { getWeekStart } from '../utils/date.js';
 import { groupShowtimesByCinema } from '../utils/showtimes.js';
 import type { ApiResponse } from '../types/api.js';
@@ -70,6 +70,41 @@ router.get('/', async (req, res) => {
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch films',
+    };
+    return res.status(500).json(response);
+  }
+});
+
+// GET /api/films/search - Search films with fuzzy matching
+router.get('/search', async (req, res) => {
+  try {
+    const query = req.query.q as string | undefined;
+    
+    // Validate query parameter
+    if (!query || query.trim().length < 2) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Search query must be at least 2 characters',
+      };
+      return res.status(400).json(response);
+    }
+    
+    const films = await searchFilms(db, query.trim(), 10);
+    
+    const response: ApiResponse = {
+      success: true,
+      data: { 
+        films,
+        query: query.trim()
+      },
+    };
+    
+    return res.json(response);
+  } catch (error) {
+    logger.error('Error searching films:', error);
+    const response: ApiResponse = {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to search films',
     };
     return res.status(500).json(response);
   }
