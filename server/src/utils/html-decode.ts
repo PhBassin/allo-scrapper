@@ -1,4 +1,4 @@
-import { decode } from 'he';
+import he from 'he';
 
 /**
  * Decodes HTML entities in a string.
@@ -20,7 +20,7 @@ export function decodeHtmlEntities(text: string | undefined): string | undefined
   if (text === undefined) {
     return undefined;
   }
-  return decode(text);
+  return he.decode(text);
 }
 
 /**
@@ -34,5 +34,5 @@ export function decodeHtmlEntities(text: string | undefined): string | undefined
  * // Returns: ["Théâtre", "Comédie"]
  */
 export function decodeHtmlEntitiesArray(texts: string[]): string[] {
-  return texts.map(text => decode(text));
+  return texts.map(text => he.decode(text));
 }
