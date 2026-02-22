@@ -17,6 +17,7 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void) {
 
   // Use ref to keep stable callback reference and avoid re-subscribing
   const onCompleteRef = useRef(onComplete);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
   
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -35,9 +36,35 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void) {
         }));
 
         if (event.type === 'completed') {
+          // Reset events array to avoid accumulation
+          setTimeout(() => {
+            setState((prev) => ({
+              ...prev,
+              events: [event],
+            }));
+          }, 100);
+          
           onCompleteRef.current?.(true);
+          
+          // Close SSE connection after completion to avoid flickering
+          setTimeout(() => {
+            if (unsubscribeRef.current) {
+              unsubscribeRef.current();
+              unsubscribeRef.current = null;
+              setState((prev) => ({ ...prev, isConnected: false }));
+            }
+          }, 1500);
         } else if (event.type === 'failed') {
           onCompleteRef.current?.(false);
+          
+          // Close SSE connection after failure
+          setTimeout(() => {
+            if (unsubscribeRef.current) {
+              unsubscribeRef.current();
+              unsubscribeRef.current = null;
+              setState((prev) => ({ ...prev, isConnected: false }));
+            }
+          }, 1500);
         }
       },
       (error: Error) => {
@@ -49,12 +76,18 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void) {
       }
     );
 
+    // Store unsubscribe function in ref for early cleanup
+    unsubscribeRef.current = unsubscribe;
+
     // Mark as connected
     setState((prev) => ({ ...prev, isConnected: true }));
 
     // Cleanup on unmount
     return () => {
-      unsubscribe();
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
       setState((prev) => ({ ...prev, isConnected: false }));
     };
   }, []);
