@@ -74,13 +74,11 @@ export default function HomePage() {
   };
 
   const handleScrapeComplete = () => {
-    // Reload data immediately to show new results
-    loadData(selectedDate);
-    
-    // Hide progress after 5 seconds
+    // Hide progress and reload data after a delay to avoid flickering
     setTimeout(() => {
       setShowProgress(false);
-    }, 5000);
+      loadData(selectedDate);
+    }, 2000);
   };
 
   const handleAddCinema = async () => {
