@@ -12,6 +12,7 @@ export interface ScrapeJob {
   options?: {
     mode?: 'weekly' | 'from_today' | 'from_today_limited';
     days?: number;
+    filmId?: number;
   };
   /** OpenTelemetry trace context propagated from the HTTP request */
   traceContext?: Record<string, string>;

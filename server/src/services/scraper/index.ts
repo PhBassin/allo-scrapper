@@ -47,7 +47,8 @@ async function scrapeTheater(
   db: DB,
   cinema: CinemaConfig,
   date: string,
-  progress?: ProgressTracker
+  progress?: ProgressTracker,
+  filmId?: number
 ): Promise<{ filmsCount: number; showtimesCount: number }> {
   logger.info(`\n📍 Scraping ${cinema.name} (${cinema.id}) for ${date}...`);
 
@@ -60,13 +61,16 @@ async function scrapeTheater(
     // Fetch the per-date JSON from the internal API (plain HTTP, no browser)
     const json = await fetchShowtimesJson(cinema.id, date);
     const filmShowtimesData = parseShowtimesJson(json, cinema.id, date);
+    const filteredFilmShowtimesData = filmId
+      ? filmShowtimesData.filter(({ film }) => film.id === filmId)
+      : filmShowtimesData;
 
-    logger.info(`  📊 Found ${filmShowtimesData.length} film(s) for ${date}`);
+    logger.info(`  📊 Found ${filteredFilmShowtimesData.length} film(s) for ${date}`);
 
     const weeklyPrograms: WeeklyProgram[] = [];
 
     // Traiter chaque film
-    for (const filmData of filmShowtimesData) {
+    for (const filmData of filteredFilmShowtimesData) {
       const film = filmData.film;
 
       progress?.emit({ type: 'film_started', film_title: film.title, film_id: film.id });
@@ -133,7 +137,7 @@ async function scrapeTheater(
       logger.info(`  ✅ Weekly programs updated for ${weeklyPrograms.length} films`);
     }
 
-    logger.info(`✅ Scraped ${filmShowtimesData.length} films from ${cinema.name} for ${date}`);
+    logger.info(`✅ Scraped ${filteredFilmShowtimesData.length} films from ${cinema.name} for ${date}`);
     progress?.emit({ type: 'date_completed', date, films_count: filmsCount });
 
     return { filmsCount, showtimesCount };
@@ -147,6 +151,7 @@ async function scrapeTheater(
 export interface ScrapeOptions {
   mode?: ScrapeMode;
   days?: number;
+  filmId?: number;
 }
 
 // Run the full scraper with progress tracking
@@ -282,7 +287,13 @@ export async function runScraper(
       for (const date of datesToScrape) {
         logger.info(`\n   📅 Attempting date: ${date}`);
         try {
-          const { filmsCount, showtimesCount } = await scrapeTheater(db, cinema, date, progress);
+          const { filmsCount, showtimesCount } = await scrapeTheater(
+            db,
+            cinema,
+            date,
+            progress,
+            options?.filmId
+          );
           cinemaFilmsCount += filmsCount;
           cinemaShowtimesCount += showtimesCount;
           successfulDates++;

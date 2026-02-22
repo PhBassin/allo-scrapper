@@ -100,6 +100,29 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     );
   });
 
+  it('POST /trigger with filmId starts a film-only scrape', async () => {
+    const { default: router } = await import('./scraper.js');
+
+    const req = buildMockReq({ body: { filmId: 123 } });
+    const res = buildMockRes();
+
+    (scrapeManager.isRunning as any).mockReturnValue(false);
+    (scrapeManager.startScrape as any).mockResolvedValue(42);
+
+    const layer = router.stack.find(
+      (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+    );
+    await layer.route.stack[0].handle(req, res, vi.fn());
+
+    expect(scrapeManager.startScrape).toHaveBeenCalledWith('manual', { filmId: 123 });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({ reportId: 42 }),
+      })
+    );
+  });
+
   it('POST /trigger returns 409 when scrape already running', async () => {
     const { default: router } = await import('./scraper.js');
 
@@ -184,6 +207,41 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=true / Redis mode)', () => {
         data: expect.objectContaining({
           reportId: 99,
           queueDepth: 1,
+        }),
+      })
+    );
+  });
+
+  it('POST /trigger with filmId queues a film-only job via Redis', async () => {
+    const { default: router } = await import('./scraper.js');
+    const { getRedisClient } = await import('../services/redis-client.js');
+    const { createScrapeReport } = await import('../db/queries.js');
+
+    const publishJob = vi.fn().mockResolvedValue(2);
+    (createScrapeReport as any).mockResolvedValue(99);
+    (getRedisClient as any).mockReturnValue({ publishJob });
+
+    const req = buildMockReq({ body: { filmId: 123 } });
+    const res = buildMockRes();
+
+    const layer = router.stack.find(
+      (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+    );
+    await layer.route.stack[0].handle(req, res, vi.fn());
+
+    expect(publishJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reportId: 99,
+        triggerType: 'manual',
+        options: { filmId: 123 },
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({
+          reportId: 99,
+          queueDepth: 2,
         }),
       })
     );

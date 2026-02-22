@@ -9,8 +9,18 @@ const router = express.Router();
 const USE_REDIS_SCRAPER = process.env.USE_REDIS_SCRAPER === 'true';
 
 // POST /api/scraper/trigger - Start a manual scrape
-router.post('/trigger', async (_req, res) => {
+router.post('/trigger', async (req, res) => {
   try {
+    const rawFilmId = req.body?.filmId;
+    const filmId = rawFilmId === undefined ? undefined : Number(rawFilmId);
+    if (filmId !== undefined && (!Number.isInteger(filmId) || filmId <= 0)) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'filmId must be a positive integer',
+      };
+      return res.status(400).json(response);
+    }
+
     if (USE_REDIS_SCRAPER) {
       // Delegate to Redis microservice
       const { getRedisClient } = await import('../services/redis-client.js');
@@ -22,6 +32,7 @@ router.post('/trigger', async (_req, res) => {
       const queueDepth = await getRedisClient().publishJob({
         reportId,
         triggerType: 'manual',
+        ...(filmId ? { options: { filmId } } : {}),
       });
 
       const response: ApiResponse = {
@@ -51,7 +62,7 @@ router.post('/trigger', async (_req, res) => {
       return res.status(409).json(response);
     }
 
-    const reportId = await scrapeManager.startScrape('manual');
+    const reportId = await scrapeManager.startScrape('manual', filmId ? { filmId } : undefined);
 
     const response: ApiResponse = {
       success: true,

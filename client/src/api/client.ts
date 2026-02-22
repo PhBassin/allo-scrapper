@@ -109,8 +109,11 @@ export async function addCinema(url: string): Promise<Cinema> {
 // SCRAPER API
 // ============================================================================
 
-export async function triggerScrape(): Promise<{ reportId: number; message: string }> {
-  const response = await api.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger');
+export async function triggerScrape(filmId?: number): Promise<{ reportId: number; message: string }> {
+  const response = await api.post<ApiResponse<{ reportId: number; message: string }>>(
+    '/scraper/trigger',
+    filmId ? { filmId } : undefined
+  );
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to trigger scrape');
   }
