@@ -41,3 +41,15 @@ export function extractCinemaIdFromUrl(url: string): string | null {
   const match = url.match(/(?:-salle=|_csalle=)([A-Z0-9]+)/);
   return match ? match[1] : null;
 }
+
+/**
+ * Validates that the URL is a valid Allociné URL (https://www.allocine.fr/...)
+ */
+export function isValidAllocineUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.hostname === 'www.allocine.fr';
+  } catch {
+    return false;
+  }
+}
