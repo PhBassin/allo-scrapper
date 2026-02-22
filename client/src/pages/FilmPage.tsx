@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getFilmById } from '../api/client';
+import { getFilmById, triggerScrape } from '../api/client';
 import type { FilmWithShowtimes } from '../types';
 import CinemaShowtimes from '../components/CinemaShowtimes';
 
@@ -9,6 +9,9 @@ export default function FilmPage() {
   const [film, setFilm] = useState<FilmWithShowtimes | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isScrapingFilm, setIsScrapingFilm] = useState(false);
+  const [scrapeFilmError, setScrapeFilmError] = useState<string | null>(null);
+  const [scrapeFilmSuccess, setScrapeFilmSuccess] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -36,6 +39,23 @@ export default function FilmPage() {
 
     loadData();
   }, [id]);
+
+  const handleFilmScrape = async () => {
+    if (!film) return;
+
+    setIsScrapingFilm(true);
+    setScrapeFilmError(null);
+    setScrapeFilmSuccess(false);
+    try {
+      await triggerScrape(film.id);
+      setScrapeFilmSuccess(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur lors du démarrage du scraping';
+      setScrapeFilmError(message);
+    } finally {
+      setIsScrapingFilm(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -78,6 +98,19 @@ export default function FilmPage() {
 
             <div className="card p-6 space-y-4">
               <h1 className="text-2xl font-bold leading-tight">{film.title}</h1>
+              <button
+                onClick={handleFilmScrape}
+                disabled={isScrapingFilm}
+                className={`w-full px-4 py-2 rounded-lg font-semibold text-black transition-all duration-200 ${
+                  isScrapingFilm
+                    ? 'bg-gray-300 cursor-not-allowed'
+                    : 'bg-primary hover:bg-yellow-500 active:scale-95'
+                }`}
+              >
+                {isScrapingFilm ? 'Scraping en cours...' : '🔄 Scraper uniquement ce film'}
+              </button>
+              {scrapeFilmSuccess && <p className="text-sm text-green-700">Scraping film démarré !</p>}
+              {scrapeFilmError && <p className="text-sm text-red-600">{scrapeFilmError}</p>}
               
               <div className="space-y-2 text-sm">
                 {film.duration_minutes && (
