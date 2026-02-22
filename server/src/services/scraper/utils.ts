@@ -36,8 +36,20 @@ export function isStaleResponse(
 
 /**
  * Extracts the Allocine cinema ID (e.g., C0013) from a URL.
+ * Strictly validates that the URL originates from www.allocine.fr to prevent SSRF.
  */
 export function extractCinemaIdFromUrl(url: string): string | null {
+  try {
+    const parsedUrl = new URL(url);
+    // Strict domain validation
+    if (parsedUrl.hostname !== 'www.allocine.fr') {
+      return null;
+    }
+  } catch {
+    // Invalid URL format
+    return null;
+  }
+
   const match = url.match(/(?:-salle=|_csalle=)([A-Z0-9]+)/);
   return match ? match[1] : null;
 }

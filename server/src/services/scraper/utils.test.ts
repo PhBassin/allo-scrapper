@@ -93,7 +93,17 @@ describe('extractCinemaIdFromUrl', () => {
   });
 
   it('returns null for invalid URLs', () => {
-    expect(extractCinemaIdFromUrl('https://www.google.com')).toBeNull();
+    // Malicious domain with valid ID pattern
+    expect(extractCinemaIdFromUrl('https://malicious.com/attack?param-salle=C1234')).toBeNull();
+    // Localhost attempt
+    expect(extractCinemaIdFromUrl('http://localhost:8080/my-exploit?_csalle=C9999')).toBeNull();
+    // Subdomain bypass attempt (e.g., evil.com ending with allocine.fr)
+    expect(extractCinemaIdFromUrl('https://www.allocine.fr.evil.com/seance/salle_gen_csalle=C0013.html')).toBeNull();
+    // Relative URL (invalid URL format)
+    expect(extractCinemaIdFromUrl('/seance/salle_gen_csalle=C0013.html')).toBeNull();
+    // Valid domain but invalid path/pattern
     expect(extractCinemaIdFromUrl('https://www.allocine.fr/film/fichefilm_gen_cfilm=12345.html')).toBeNull();
+    // Completely unrelated URL
+    expect(extractCinemaIdFromUrl('https://www.google.com')).toBeNull();
   });
 });
