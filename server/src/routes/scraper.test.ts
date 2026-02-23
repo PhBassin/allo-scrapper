@@ -98,7 +98,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
         data: expect.objectContaining({ reportId: 42 }),
       })
     );
-  });
+  }, 10000); // Increase timeout to 10s for first test with module import overhead
 
   it('POST /trigger returns 409 when scrape already running', async () => {
     const { default: router } = await import('./scraper.js');
@@ -144,6 +144,85 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
           isRunning: false,
           useRedisScraper: false,
         }),
+      })
+    );
+  });
+
+  it('POST /trigger with cinemaId starts cinema-only scrape', async () => {
+    const { default: router } = await import('./scraper.js');
+
+    const req = buildMockReq({ body: { cinemaId: 'C0153' } });
+    const res = buildMockRes();
+
+    (scrapeManager.isRunning as any).mockReturnValue(false);
+    (scrapeManager.startScrape as any).mockResolvedValue(42);
+
+    const layer = router.stack.find(
+      (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+    );
+    await layer.route.stack[0].handle(req, res, vi.fn());
+
+    expect(scrapeManager.startScrape).toHaveBeenCalledWith(
+      'manual',
+      expect.objectContaining({
+        cinemaId: 'C0153',
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({ reportId: 42 }),
+      })
+    );
+  });
+
+  it('POST /trigger rejects invalid cinemaId format', async () => {
+    const { default: router } = await import('./scraper.js');
+
+    const req = buildMockReq({ body: { cinemaId: 'INVALID' } });
+    const res = buildMockRes();
+
+    const layer = router.stack.find(
+      (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+    );
+    await layer.route.stack[0].handle(req, res, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.objectContaining({
+          message: expect.stringContaining('Invalid cinemaId format'),
+        }),
+      })
+    );
+  });
+
+  it('POST /trigger with both cinemaId and filmId works', async () => {
+    const { default: router } = await import('./scraper.js');
+
+    const req = buildMockReq({ body: { cinemaId: 'C0153', filmId: 12345 } });
+    const res = buildMockRes();
+
+    (scrapeManager.isRunning as any).mockReturnValue(false);
+    (scrapeManager.startScrape as any).mockResolvedValue(42);
+
+    const layer = router.stack.find(
+      (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+    );
+    await layer.route.stack[0].handle(req, res, vi.fn());
+
+    expect(scrapeManager.startScrape).toHaveBeenCalledWith(
+      'manual',
+      expect.objectContaining({
+        cinemaId: 'C0153',
+        filmId: 12345,
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({ reportId: 42 }),
       })
     );
   });
@@ -207,6 +286,45 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=true / Redis mode)', () => {
           useRedisScraper: true,
           isRunning: false,
           currentSession: null,
+        }),
+      })
+    );
+  });
+
+  it('POST /trigger with cinemaId queues cinema scrape job via Redis', async () => {
+    const { default: router } = await import('./scraper.js');
+    const { getRedisClient } = await import('../services/redis-client.js');
+    const { createScrapeReport } = await import('../db/queries.js');
+
+    (createScrapeReport as any).mockResolvedValue(99);
+    const mockPublishJob = vi.fn().mockResolvedValue(1);
+    (getRedisClient as any).mockReturnValue({
+      publishJob: mockPublishJob,
+    });
+
+    const req = buildMockReq({ body: { cinemaId: 'C0153' } });
+    const res = buildMockRes();
+
+    const layer = router.stack.find(
+      (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+    );
+    await layer.route.stack[0].handle(req, res, vi.fn());
+
+    expect(mockPublishJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reportId: 99,
+        triggerType: 'manual',
+        options: expect.objectContaining({
+          cinemaId: 'C0153',
+        }),
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({
+          reportId: 99,
+          queueDepth: 1,
         }),
       })
     );
