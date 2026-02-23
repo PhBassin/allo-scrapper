@@ -141,6 +141,8 @@ async function scrapeTheater(
 export interface ScrapeOptions {
   mode?: ScrapeMode;
   days?: number;
+  cinemaId?: string;
+  filmId?: number;
 }
 
 export async function runScraper(
@@ -163,7 +165,17 @@ export async function runScraper(
   const startTime = Date.now();
 
   try {
-    const cinemas = await getCinemaConfigs(db);
+    let cinemas = await getCinemaConfigs(db);
+    
+    // Filter by cinemaId if provided
+    if (options?.cinemaId) {
+      cinemas = cinemas.filter(c => c.id === options.cinemaId);
+      if (cinemas.length === 0) {
+        throw new Error(`Cinema with ID ${options.cinemaId} not found in configuration`);
+      }
+      logger.info('Filtering to specific cinema', { cinemaId: options.cinemaId });
+    }
+    
     logger.info('Cinemas loaded', { count: cinemas.length });
 
     const scrapeMode = options?.mode ?? (process.env.SCRAPE_MODE as ScrapeMode) ?? 'from_today_limited';
