@@ -6,10 +6,11 @@ export interface ScrapeProgressProps {
 }
 
 export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {}) {
-  const { isConnected, events, latestEvent, error } = useScrapeProgress(onComplete);
+  const { events, latestEvent, error } = useScrapeProgress(onComplete);
 
-  // Show loading state while connecting or waiting for first event
-  if (!isConnected || events.length === 0) {
+  // Only show connecting state if we have no events yet
+  // Once we have events, keep showing progress even if disconnected
+  if (events.length === 0) {
     return (
       <div className="border-2 rounded-lg p-6 shadow-lg bg-white border-primary" data-testid="scrape-progress">
         <div className="flex items-center gap-3">
@@ -72,6 +73,11 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
         <p className="text-sm text-gray-600">
           <span className="font-semibold">Statut:</span> {latestEvent?.type || 'initializing'}
         </p>
+        {isCompleted && (
+          <p className="text-sm text-green-600 mt-2">
+            🔄 Rechargement de la page dans quelques instants...
+          </p>
+        )}
       </div>
 
       {/* Cinema Progress */}
