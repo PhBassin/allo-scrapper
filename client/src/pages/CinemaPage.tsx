@@ -108,17 +108,21 @@ export default function CinemaPage() {
   };
 
   const handleScrapeComplete = async () => {
-    // Hide progress and reload data after a delay
+    // Wait 5 seconds to allow user to see completion message
     setTimeout(async () => {
-      setShowProgress(false);
+      // Reload data FIRST
       if (id) {
         try {
           const schedule = await getCinemaSchedule(id);
           setShowtimes(schedule.showtimes);
         } catch (err: any) {
+          // Don't hide modal on error - user should see the error message
           setError(err.message || 'Failed to reload cinema data');
+          return; // Exit early, keep modal visible
         }
       }
+      // THEN hide modal only if reload succeeded
+      setShowProgress(false);
     }, 5000);
   };
 
