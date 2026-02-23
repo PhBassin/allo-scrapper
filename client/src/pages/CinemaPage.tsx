@@ -149,7 +149,7 @@ export default function CinemaPage() {
       {cinema && (
         <div className="sticky top-20 z-10 mb-6 flex justify-end">
           <ScrapeButton
-            onTrigger={async () => { await triggerCinemaScrape(cinema.id); }}
+            onTrigger={async () => { await triggerCinemaScrape(id!); }}
             onScrapeStart={handleScrapeStart}
             buttonText="🔄 Scraper uniquement ce cinéma"
             loadingText="Scraping en cours..."
