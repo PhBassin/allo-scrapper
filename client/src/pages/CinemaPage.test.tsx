@@ -244,9 +244,6 @@ describe('CinemaPage - Scrape completion and data reload', () => {
   });
 
   it('calls getCinemas and getCinemaSchedule when handleScrapeComplete is triggered', async () => {
-    // Mock ScrapeProgress to call onComplete callback immediately
-    const mockOnComplete = vi.fn();
-    
     render(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
