@@ -31,7 +31,7 @@ export default function DaySelector({ weekStart, selectedDate, onSelectDate }: D
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => onSelectDate(null)}
-          className={`px-3 py-1.5 text-sm rounded-lg transition font-semibold ${
+          className={`px-3 py-1.5 text-sm rounded-lg transition font-semibold cursor-pointer active:scale-95 ${
             selectedDate === null
               ? 'bg-primary text-black'
               : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
@@ -44,7 +44,7 @@ export default function DaySelector({ weekStart, selectedDate, onSelectDate }: D
           <button
             key={day.date}
             onClick={() => onSelectDate(day.date)}
-            className={`px-3 py-1.5 text-sm rounded-lg transition font-semibold capitalize ${
+            className={`px-3 py-1.5 text-sm rounded-lg transition font-semibold capitalize cursor-pointer active:scale-95 ${
               selectedDate === day.date
                 ? 'bg-primary text-black'
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'

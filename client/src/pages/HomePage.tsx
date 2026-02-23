@@ -182,7 +182,7 @@ export default function HomePage() {
             ))}
             <button
               onClick={handleAddCinema}
-              className="px-3 py-1.5 bg-white border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-primary hover:text-primary transition font-semibold"
+              className="px-3 py-1.5 bg-white border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-primary hover:text-primary transition font-semibold cursor-pointer active:scale-95"
             >
               + Ajouter un cinéma
             </button>
