@@ -74,13 +74,24 @@ export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
   );
 }
 
-// Récupérer les cinémas configurés pour le scraping (ceux avec une URL)
-export async function getCinemaConfigs(db: DB): Promise<Array<{ id: string; name: string; url: string }>> {
-  const result = await db.query<{ id: string; name: string; url: string }>(
-    'SELECT id, name, url FROM cinemas WHERE url IS NOT NULL ORDER BY name'
+// Get all cinemas from database
+export async function getCinemas(db: DB): Promise<Cinema[]> {
+  const result = await db.query<CinemaRow>(
+    'SELECT * FROM cinemas ORDER BY name'
   );
-  return result.rows;
+
+  return result.rows.map(row => ({
+    id: row.id,
+    name: row.name,
+    address: row.address ?? undefined,
+    postal_code: row.postal_code ?? undefined,
+    city: row.city ?? undefined,
+    screen_count: row.screen_count ?? undefined,
+    image_url: row.image_url ?? undefined,
+    url: row.url ?? undefined,
+  }));
 }
+
 
 // Récupérer un film par son ID
 export async function getFilm(db: DB, filmId: number): Promise<Film | undefined> {
