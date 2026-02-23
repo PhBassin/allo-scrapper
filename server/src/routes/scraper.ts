@@ -9,8 +9,23 @@ const router = express.Router();
 const USE_REDIS_SCRAPER = process.env.USE_REDIS_SCRAPER === 'true';
 
 // POST /api/scraper/trigger - Start a manual scrape
-router.post('/trigger', async (_req, res) => {
+router.post('/trigger', async (req, res) => {
   try {
+    // Extract and validate cinemaId and filmId from request body
+    const { cinemaId, filmId } = req.body as { cinemaId?: string; filmId?: number };
+    
+    // Validate cinemaId format if provided
+    if (cinemaId && !/^C\d{4}$/.test(cinemaId)) {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          message: 'Invalid cinemaId format. Expected format: C#### (e.g., C0153)',
+          code: 'INVALID_CINEMA_ID',
+        },
+      };
+      return res.status(400).json(response);
+    }
+    
     if (USE_REDIS_SCRAPER) {
       // Delegate to Redis microservice
       const { getRedisClient } = await import('../services/redis-client.js');
@@ -22,6 +37,10 @@ router.post('/trigger', async (_req, res) => {
       const queueDepth = await getRedisClient().publishJob({
         reportId,
         triggerType: 'manual',
+        options: {
+          ...(cinemaId && { cinemaId }),
+          ...(filmId && { filmId }),
+        },
       });
 
       const response: ApiResponse = {
@@ -51,7 +70,10 @@ router.post('/trigger', async (_req, res) => {
       return res.status(409).json(response);
     }
 
-    const reportId = await scrapeManager.startScrape('manual');
+    const reportId = await scrapeManager.startScrape('manual', {
+      ...(cinemaId && { cinemaId }),
+      ...(filmId && { filmId }),
+    });
 
     const response: ApiResponse = {
       success: true,
