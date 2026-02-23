@@ -191,9 +191,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        error: expect.objectContaining({
-          message: expect.stringContaining('Invalid cinemaId format'),
-        }),
+        error: expect.stringContaining('Invalid cinemaId format'),
       })
     );
   });

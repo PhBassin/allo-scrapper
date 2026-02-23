@@ -18,10 +18,7 @@ router.post('/trigger', async (req, res) => {
     if (cinemaId && !/^C\d{4}$/.test(cinemaId)) {
       const response: ApiResponse = {
         success: false,
-        error: {
-          message: 'Invalid cinemaId format. Expected format: C#### (e.g., C0153)',
-          code: 'INVALID_CINEMA_ID',
-        },
+        error: 'Invalid cinemaId format. Expected format: C#### (e.g., C0153)',
       };
       return res.status(400).json(response);
     }
