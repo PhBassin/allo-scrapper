@@ -3,6 +3,8 @@ import { scrapeManager } from '../services/scrape-manager.js';
 import { progressTracker } from '../services/progress-tracker.js';
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
+import { getCinemas } from '../db/queries.js';
+import { db } from '../db/client.js';
 
 const router = express.Router();
 
@@ -14,13 +16,18 @@ router.post('/trigger', async (req, res) => {
     // Extract and validate cinemaId and filmId from request body
     const { cinemaId, filmId } = req.body as { cinemaId?: string; filmId?: number };
     
-    // Validate cinemaId format if provided
-    if (cinemaId && !/^C\d{4}$/.test(cinemaId)) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'Invalid cinemaId format. Expected format: C#### (e.g., C0153)',
-      };
-      return res.status(400).json(response);
+    // Validate cinemaId exists in database if provided
+    if (cinemaId) {
+      const cinemas = await getCinemas(db);
+      const cinemaExists = cinemas.some(c => c.id === cinemaId);
+      
+      if (!cinemaExists) {
+        const response: ApiResponse = {
+          success: false,
+          error: `Cinema not found: ${cinemaId}`,
+        };
+        return res.status(404).json(response);
+      }
     }
     
     if (USE_REDIS_SCRAPER) {
