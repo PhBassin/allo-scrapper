@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getWeeklyFilms, getFilmsByDate, getCinemas, getScrapeStatus, addCinema } from '../api/client';
+import { getWeeklyFilms, getFilmsByDate, getCinemas, getScrapeStatus, addCinema, triggerScrape } from '../api/client';
 import type { FilmWithShowtimes, Cinema } from '../types';
 import FilmCard from '../components/FilmCard';
 import ScrapeButton from '../components/ScrapeButton';
@@ -137,7 +137,10 @@ export default function HomePage() {
             )}
           </div>
           <div className="flex-shrink-0">
-            <ScrapeButton onScrapeStart={handleScrapeStart} />
+            <ScrapeButton 
+              onTrigger={triggerScrape}
+              onScrapeStart={handleScrapeStart} 
+            />
           </div>
         </div>
 
