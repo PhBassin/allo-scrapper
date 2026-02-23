@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import CinemaPage from './CinemaPage';
 import * as clientApi from '../api/client';
-import type { Cinema, ShowtimeWithFilm } from '../types';
+import type { Cinema } from '../types';
 
 vi.mock('../api/client', () => ({
   getCinemas: vi.fn(),

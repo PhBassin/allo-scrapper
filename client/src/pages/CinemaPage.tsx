@@ -148,7 +148,7 @@ export default function CinemaPage() {
       {/* Scrape Button (Sticky) */}
       <div className="sticky top-20 z-10 mb-6 flex justify-end">
         <ScrapeButton
-          onTrigger={() => triggerCinemaScrape(id!)}
+          onTrigger={async () => { await triggerCinemaScrape(id!); }}
           onScrapeStart={handleScrapeStart}
           buttonText="🔄 Scraper uniquement ce cinéma"
           loadingText="Scraping en cours..."

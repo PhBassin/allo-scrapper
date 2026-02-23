@@ -138,7 +138,7 @@ export default function HomePage() {
           </div>
           <div className="flex-shrink-0">
             <ScrapeButton 
-              onTrigger={triggerScrape}
+              onTrigger={async () => { await triggerScrape(); }}
               onScrapeStart={handleScrapeStart} 
             />
           </div>
