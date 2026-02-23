@@ -198,7 +198,7 @@ export default function CinemaPage() {
                   key={date}
                   onClick={() => setSelectedDate(date)}
                   className={`
-                    px-4 py-3 rounded-xl border-2 transition-all text-center min-w-[90px] group
+                    px-4 py-3 rounded-xl border-2 transition-all text-center min-w-[90px] group cursor-pointer active:scale-95
                     ${isActive 
                       ? 'border-primary bg-yellow-50 text-black shadow-sm' 
                       : 'border-transparent bg-white text-gray-600 hover:bg-gray-50'

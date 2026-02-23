@@ -55,7 +55,7 @@ export default function CinemaShowtimes({ cinemas, initialDate }: CinemaShowtime
                   key={date}
                   onClick={() => setSelectedDate(date)}
                   className={`
-                    px-4 py-2 rounded-lg border-2 transition-all text-center min-w-[80px]
+                    px-4 py-2 rounded-lg border-2 transition-all text-center min-w-[80px] cursor-pointer active:scale-95
                     ${isActive 
                       ? 'border-primary bg-yellow-50 text-black shadow-sm' 
                       : 'border-transparent bg-white text-gray-600 hover:bg-gray-50'
