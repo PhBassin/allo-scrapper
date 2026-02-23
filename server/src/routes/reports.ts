@@ -11,8 +11,14 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const query = req.query as GetReportsQuery;
-    const page = parseInt(query.page || '1');
-    const pageSize = parseInt(query.pageSize || '20');
+    let page = parseInt(query.page || '1');
+    let pageSize = parseInt(query.pageSize || '20');
+
+    // Security: Validate and clamp pagination parameters to prevent DoS
+    if (isNaN(page) || page < 1) page = 1;
+    if (isNaN(pageSize) || pageSize < 1) pageSize = 20;
+    if (pageSize > 100) pageSize = 100;
+
     const status = query.status;
     const triggerType = query.triggerType;
 
