@@ -982,7 +982,7 @@ POST /api/scraper/trigger
 **Request Body (optional):**
 ```json
 {
-  "cinemaId": "C0153",  // Optional: scrape only this cinema
+  "cinemaId": "C0153",  // Optional: scrape only this cinema (must exist in database)
   "filmId": 12345       // Optional: scrape only this film
 }
 ```
@@ -1004,14 +1004,11 @@ POST /api/scraper/trigger
 }
 ```
 
-**Response (400 — invalid cinemaId):**
+**Response (404 — cinema not found):**
 ```json
 {
   "success": false,
-  "error": {
-    "message": "Invalid cinemaId format. Expected format: C#### (e.g., C0153)",
-    "code": "INVALID_CINEMA_ID"
-  }
+  "error": "Cinema not found: CXXXX"
 }
 ```
 
@@ -1034,10 +1031,15 @@ POST /api/scraper/trigger
 # Full scrape (all cinemas, all films)
 curl -X POST http://localhost:3000/api/scraper/trigger
 
-# Cinema-specific scrape
+# Cinema-specific scrape (C-prefix)
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Content-Type: application/json" \
   -d '{"cinemaId": "C0153"}'
+
+# Cinema-specific scrape (W-prefix)
+curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"cinemaId": "W7515"}'
 
 # Film-specific scrape
 curl -X POST http://localhost:3000/api/scraper/trigger \
