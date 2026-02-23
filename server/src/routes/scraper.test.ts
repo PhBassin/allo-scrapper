@@ -47,6 +47,11 @@ vi.mock('../db/queries.js', () => ({
   createScrapeReport: vi.fn().mockResolvedValue(99),
   updateScrapeReport: vi.fn(),
   getLatestScrapeReport: vi.fn().mockResolvedValue(null),
+  getCinemas: vi.fn().mockResolvedValue([
+    { id: 'C0153', name: 'Cinéma Chaplin Denfert' },
+    { id: 'W7515', name: 'Cinéma Chaplin Saint Lambert' },
+    { id: 'C0076', name: 'Cinéma du Panthéon' },
+  ]),
 }));
 
 // ---- helpers ---------------------------------------------------------------
@@ -176,10 +181,38 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     );
   });
 
-  it('POST /trigger rejects invalid cinemaId format', async () => {
+  it('POST /trigger accepts cinemaId with W prefix (W7515)', async () => {
     const { default: router } = await import('./scraper.js');
 
-    const req = buildMockReq({ body: { cinemaId: 'INVALID' } });
+    const req = buildMockReq({ body: { cinemaId: 'W7515' } });
+    const res = buildMockRes();
+
+    (scrapeManager.isRunning as any).mockReturnValue(false);
+    (scrapeManager.startScrape as any).mockResolvedValue(42);
+
+    const layer = router.stack.find(
+      (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+    );
+    await layer.route.stack[0].handle(req, res, vi.fn());
+
+    expect(scrapeManager.startScrape).toHaveBeenCalledWith(
+      'manual',
+      expect.objectContaining({
+        cinemaId: 'W7515',
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({ reportId: 42 }),
+      })
+    );
+  });
+
+  it('POST /trigger rejects non-existent cinemaId', async () => {
+    const { default: router } = await import('./scraper.js');
+
+    const req = buildMockReq({ body: { cinemaId: 'CXXXX' } });
     const res = buildMockRes();
 
     const layer = router.stack.find(
@@ -187,11 +220,11 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     );
     await layer.route.stack[0].handle(req, res, vi.fn());
 
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        error: expect.stringContaining('Invalid cinemaId format'),
+        error: expect.stringContaining('Cinema not found'),
       })
     );
   });
@@ -314,6 +347,45 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=true / Redis mode)', () => {
         triggerType: 'manual',
         options: expect.objectContaining({
           cinemaId: 'C0153',
+        }),
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({
+          reportId: 99,
+          queueDepth: 1,
+        }),
+      })
+    );
+  });
+
+  it('POST /trigger with W-prefix cinemaId queues cinema scrape job via Redis', async () => {
+    const { default: router } = await import('./scraper.js');
+    const { getRedisClient } = await import('../services/redis-client.js');
+    const { createScrapeReport } = await import('../db/queries.js');
+
+    (createScrapeReport as any).mockResolvedValue(99);
+    const mockPublishJob = vi.fn().mockResolvedValue(1);
+    (getRedisClient as any).mockReturnValue({
+      publishJob: mockPublishJob,
+    });
+
+    const req = buildMockReq({ body: { cinemaId: 'W7515' } });
+    const res = buildMockRes();
+
+    const layer = router.stack.find(
+      (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+    );
+    await layer.route.stack[0].handle(req, res, vi.fn());
+
+    expect(mockPublishJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reportId: 99,
+        triggerType: 'manual',
+        options: expect.objectContaining({
+          cinemaId: 'W7515',
         }),
       })
     );
