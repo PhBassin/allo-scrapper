@@ -1,42 +1,35 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ScrapeButton from './ScrapeButton';
-import * as clientApi from '../api/client';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-
-// Mock the API client
-vi.mock('../api/client', () => ({
-  triggerScrape: vi.fn(),
-}));
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 
 describe('ScrapeButton', () => {
-  let mockTriggerScrape: ReturnType<typeof vi.fn>;
+  let mockOnTrigger: Mock<() => Promise<void>>;
 
   beforeEach(() => {
-    mockTriggerScrape = vi.fn();
-    (clientApi.triggerScrape as any) = mockTriggerScrape;
+    mockOnTrigger = vi.fn<() => Promise<void>>();
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should call triggerScrape when clicked', async () => {
-    mockTriggerScrape.mockResolvedValue({});
-    render(<ScrapeButton />);
+  it('should call onTrigger when clicked', async () => {
+    mockOnTrigger.mockResolvedValue(undefined);
+    render(<ScrapeButton onTrigger={mockOnTrigger} />);
 
     const button = screen.getByRole('button', { name: /Lancer le scraping manuel/i });
     fireEvent.click(button);
 
-    expect(mockTriggerScrape).toHaveBeenCalled();
+    expect(mockOnTrigger).toHaveBeenCalled();
     await waitFor(() => {
       expect(screen.getByText('Scraping démarré !')).toBeInTheDocument();
     });
   });
 
   it('should call onScrapeStart on success', async () => {
-    mockTriggerScrape.mockResolvedValue({});
+    mockOnTrigger.mockResolvedValue(undefined);
     const onScrapeStart = vi.fn();
-    render(<ScrapeButton onScrapeStart={onScrapeStart} />);
+    render(<ScrapeButton onTrigger={mockOnTrigger} onScrapeStart={onScrapeStart} />);
 
     const button = screen.getByRole('button', { name: /Lancer le scraping manuel/i });
     fireEvent.click(button);
@@ -53,10 +46,10 @@ describe('ScrapeButton', () => {
         data: { error: 'Already running' }
       }
     };
-    mockTriggerScrape.mockRejectedValue(error);
+    mockOnTrigger.mockRejectedValue(error);
     const onScrapeStart = vi.fn();
 
-    render(<ScrapeButton onScrapeStart={onScrapeStart} />);
+    render(<ScrapeButton onTrigger={mockOnTrigger} onScrapeStart={onScrapeStart} />);
 
     const button = screen.getByRole('button', { name: /Lancer le scraping manuel/i });
     fireEvent.click(button);
@@ -75,9 +68,9 @@ describe('ScrapeButton', () => {
         data: { error: 'Server exploded' }
       }
     };
-    mockTriggerScrape.mockRejectedValue(error);
+    mockOnTrigger.mockRejectedValue(error);
 
-    render(<ScrapeButton />);
+    render(<ScrapeButton onTrigger={mockOnTrigger} />);
 
     const button = screen.getByRole('button', { name: /Lancer le scraping manuel/i });
     fireEvent.click(button);

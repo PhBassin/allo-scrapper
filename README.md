@@ -979,6 +979,20 @@ curl "http://localhost:3000/api/reports/42"
 POST /api/scraper/trigger
 ```
 
+**Request Body (optional):**
+```json
+{
+  "cinemaId": "C0153",  // Optional: scrape only this cinema (must exist in database)
+  "filmId": 12345       // Optional: scrape only this film
+}
+```
+
+**Behavior:**
+- No parameters → Full scrape (all cinemas, all films, all dates)
+- `cinemaId` only → Scrape this cinema (all films, all dates for this cinema)
+- `filmId` only → Scrape this film (all cinemas showing this film)
+- Both `cinemaId` and `filmId` → Scrape this film at this specific cinema only
+
 **Response (200 — started):**
 ```json
 {
@@ -987,6 +1001,14 @@ POST /api/scraper/trigger
     "reportId": 43,
     "message": "Scrape started successfully"
   }
+}
+```
+
+**Response (404 — cinema not found):**
+```json
+{
+  "success": false,
+  "error": "Cinema not found: CXXXX"
 }
 ```
 
@@ -1004,9 +1026,30 @@ POST /api/scraper/trigger
 }
 ```
 
-**Example:**
+**Examples:**
 ```bash
+# Full scrape (all cinemas, all films)
 curl -X POST http://localhost:3000/api/scraper/trigger
+
+# Cinema-specific scrape (C-prefix)
+curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"cinemaId": "C0153"}'
+
+# Cinema-specific scrape (W-prefix)
+curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"cinemaId": "W7515"}'
+
+# Film-specific scrape
+curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"filmId": 12345}'
+
+# Combined: scrape specific film at specific cinema
+curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"cinemaId": "C0153", "filmId": 12345}'
 ```
 
 ---

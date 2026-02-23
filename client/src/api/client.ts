@@ -117,6 +117,26 @@ export async function triggerScrape(): Promise<{ reportId: number; message: stri
   return response.data.data;
 }
 
+export async function triggerCinemaScrape(cinemaId: string): Promise<{ reportId: number; message: string }> {
+  const response = await api.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
+    cinemaId,
+  });
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to trigger cinema scrape');
+  }
+  return response.data.data;
+}
+
+export async function triggerFilmScrape(filmId: number): Promise<{ reportId: number; message: string }> {
+  const response = await api.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
+    filmId,
+  });
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to trigger film scrape');
+  }
+  return response.data.data;
+}
+
 export async function getScrapeStatus(): Promise<ScrapeStatus> {
   const response = await api.get<ApiResponse<ScrapeStatus>>('/scraper/status');
   if (!response.data.success || !response.data.data) {

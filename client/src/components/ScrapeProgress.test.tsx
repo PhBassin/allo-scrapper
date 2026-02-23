@@ -187,4 +187,139 @@ describe('ScrapeProgress', () => {
 
     expect(screen.getByText(/en cours: Test Film/i)).toBeInTheDocument();
   });
+
+  it('should keep showing completed state even after SSE disconnects', () => {
+    // This tests the fix: completed state should remain visible even when isConnected = false
+    const mockState: ProgressState = {
+      isConnected: false, // SSE connection closed
+      events: [
+        { type: 'started', total_cinemas: 1, total_dates: 7 },
+        { type: 'cinema_completed', cinema_name: 'Test Cinema', total_films: 5 },
+        { type: 'completed', summary: { 
+          total_cinemas: 1, 
+          successful_cinemas: 1, 
+          failed_cinemas: 0, 
+          total_films: 5, 
+          total_showtimes: 25, 
+          duration_ms: 10000, 
+          errors: [] 
+        }},
+      ],
+      latestEvent: { type: 'completed', summary: { 
+        total_cinemas: 1, 
+        successful_cinemas: 1, 
+        failed_cinemas: 0, 
+        total_films: 5, 
+        total_showtimes: 25, 
+        duration_ms: 10000, 
+        errors: [] 
+      }},
+      error: undefined,
+    };
+    mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
+
+    render(<ScrapeProgress />);
+
+    // Should show completed state, NOT "Connexion en cours..."
+    expect(screen.getByText(/scraping terminé/i)).toBeInTheDocument();
+    expect(screen.queryByText(/connexion en cours/i)).not.toBeInTheDocument();
+    
+    // Should show auto-reload message
+    expect(screen.getByText(/rechargement de la page/i)).toBeInTheDocument();
+  });
+
+  it('should display reload message when scrape completes successfully', () => {
+    const mockState: ProgressState = {
+      isConnected: true,
+      events: [
+        {
+          type: 'completed',
+          summary: {
+            total_cinemas: 1,
+            successful_cinemas: 1,
+            failed_cinemas: 0,
+            total_films: 5,
+            total_showtimes: 10,
+            duration_ms: 5000,
+            errors: [],
+          },
+        },
+      ],
+      latestEvent: {
+        type: 'completed',
+        summary: {
+          total_cinemas: 1,
+          successful_cinemas: 1,
+          failed_cinemas: 0,
+          total_films: 5,
+          total_showtimes: 10,
+          duration_ms: 5000,
+          errors: [],
+        },
+      },
+    };
+
+    mockUseScrapeProgress.mockReturnValue({
+      ...mockState,
+      reset: vi.fn(),
+    });
+
+    const { getByText } = render(<ScrapeProgress />);
+
+    // Verify completion message is displayed
+    expect(getByText(/Scraping terminé/)).toBeInTheDocument();
+    
+    // Verify reload message is displayed
+    expect(getByText(/🔄 Rechargement de la page dans quelques instants/)).toBeInTheDocument();
+  });
+
+  it('should keep reload message visible even after SSE disconnects', () => {
+    // Simulate state after SSE disconnect (isConnected = false)
+    // but with completed event still in events array
+    const mockState: ProgressState = {
+      isConnected: false, // SSE disconnected
+      events: [
+        {
+          type: 'completed',
+          summary: {
+            total_cinemas: 1,
+            successful_cinemas: 1,
+            failed_cinemas: 0,
+            total_films: 5,
+            total_showtimes: 10,
+            duration_ms: 5000,
+            errors: [],
+          },
+        },
+      ],
+      latestEvent: {
+        type: 'completed',
+        summary: {
+          total_cinemas: 1,
+          successful_cinemas: 1,
+          failed_cinemas: 0,
+          total_films: 5,
+          total_showtimes: 10,
+          duration_ms: 5000,
+          errors: [],
+        },
+      },
+    };
+
+    mockUseScrapeProgress.mockReturnValue({
+      ...mockState,
+      reset: vi.fn(),
+    });
+
+    const { getByText, queryByText } = render(<ScrapeProgress />);
+
+    // Should NOT show "Connexion en cours..." (loading state)
+    expect(queryByText(/Connexion en cours/)).not.toBeInTheDocument();
+    
+    // Should keep showing completed message
+    expect(getByText(/Scraping terminé/)).toBeInTheDocument();
+    
+    // Should keep showing reload message
+    expect(getByText(/🔄 Rechargement de la page dans quelques instants/)).toBeInTheDocument();
+  });
 });

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getCinemas, getCinemaSchedule } from '../api/client';
+import { getCinemas, getCinemaSchedule, triggerCinemaScrape, getScrapeStatus } from '../api/client';
 import type { Cinema, ShowtimeWithFilm } from '../types';
 import ShowtimeList from '../components/ShowtimeList';
+import ScrapeButton from '../components/ScrapeButton';
+import ScrapeProgress from '../components/ScrapeProgress';
 
 interface FilmGroup {
   film: {
@@ -25,6 +27,7 @@ export default function CinemaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [showProgress, setShowProgress] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -35,9 +38,10 @@ export default function CinemaPage() {
         setError(null);
         
         // Fetch cinema details and schedule in parallel
-        const [cinemas, schedule] = await Promise.all([
+        const [cinemas, schedule, scrapeStatus] = await Promise.all([
           getCinemas(),
-          getCinemaSchedule(id)
+          getCinemaSchedule(id),
+          getScrapeStatus()
         ]);
         
         const foundCinema = cinemas.find(c => c.id === id);
@@ -47,6 +51,11 @@ export default function CinemaPage() {
         
         setCinema(foundCinema);
         setShowtimes(schedule.showtimes);
+
+        // Check if scrape is running
+        if (scrapeStatus.isRunning) {
+          setShowProgress(true);
+        }
 
         // Set default selected date (today or first available)
         if (schedule.showtimes.length > 0) {
@@ -94,6 +103,29 @@ export default function CinemaPage() {
     };
   };
 
+  const handleScrapeStart = () => {
+    setShowProgress(true);
+  };
+
+  const handleScrapeComplete = async () => {
+    // Wait 5 seconds to allow user to see completion message
+    setTimeout(async () => {
+      // Reload data FIRST
+      if (id) {
+        try {
+          const schedule = await getCinemaSchedule(id);
+          setShowtimes(schedule.showtimes);
+        } catch (err: any) {
+          // Don't hide modal on error - user should see the error message
+          setError(err.message || 'Failed to reload cinema data');
+          return; // Exit early, keep modal visible
+        }
+      }
+      // THEN hide modal only if reload succeeded
+      setShowProgress(false);
+    }, 5000);
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -117,6 +149,27 @@ export default function CinemaPage() {
 
   return (
     <div>
+      {/* Scrape Button (Sticky) */}
+      {cinema && (
+        <div className="sticky top-20 z-10 mb-6 flex justify-end">
+          <ScrapeButton
+            onTrigger={async () => { await triggerCinemaScrape(id!); }}
+            onScrapeStart={handleScrapeStart}
+            buttonText="🔄 Scraper uniquement ce cinéma"
+            loadingText="Scraping en cours..."
+            successText="Scraping démarré !"
+            className="bg-white/95 backdrop-blur-sm shadow-md rounded-lg p-2"
+          />
+        </div>
+      )}
+
+      {/* Scrape Progress */}
+      {showProgress && (
+        <div className="mb-8">
+          <ScrapeProgress onComplete={handleScrapeComplete} />
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <Link to="/" className="hover:text-primary hover:underline">← Accueil</Link>
