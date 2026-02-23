@@ -29,47 +29,47 @@ export default function CinemaPage() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [showProgress, setShowProgress] = useState(false);
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!id) return;
+  const loadData = async () => {
+    if (!id) return;
 
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Fetch cinema details and schedule in parallel
-        const [cinemas, schedule, scrapeStatus] = await Promise.all([
-          getCinemas(),
-          getCinemaSchedule(id),
-          getScrapeStatus()
-        ]);
-        
-        const foundCinema = cinemas.find(c => c.id === id);
-        if (!foundCinema) {
-          throw new Error('Cinema not found');
-        }
-        
-        setCinema(foundCinema);
-        setShowtimes(schedule.showtimes);
-
-        // Check if scrape is running
-        if (scrapeStatus.isRunning) {
-          setShowProgress(true);
-        }
-
-        // Set default selected date (today or first available)
-        if (schedule.showtimes.length > 0) {
-          const today = new Date().toISOString().split('T')[0];
-          const dates = getUniqueDates(schedule.showtimes);
-          setSelectedDate(dates.includes(today) ? today : dates[0]);
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load cinema data');
-      } finally {
-        setIsLoading(false);
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Fetch cinema details and schedule in parallel
+      const [cinemas, schedule, scrapeStatus] = await Promise.all([
+        getCinemas(),
+        getCinemaSchedule(id),
+        getScrapeStatus()
+      ]);
+      
+      const foundCinema = cinemas.find(c => c.id === id);
+      if (!foundCinema) {
+        throw new Error('Cinema not found');
       }
-    };
+      
+      setCinema(foundCinema);
+      setShowtimes(schedule.showtimes);
 
+      // Check if scrape is running
+      if (scrapeStatus.isRunning) {
+        setShowProgress(true);
+      }
+
+      // Set default selected date (today or first available)
+      if (schedule.showtimes.length > 0) {
+        const today = new Date().toISOString().split('T')[0];
+        const dates = getUniqueDates(schedule.showtimes);
+        setSelectedDate(dates.includes(today) ? today : dates[0]);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load cinema data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
   }, [id]);
 
@@ -107,23 +107,12 @@ export default function CinemaPage() {
     setShowProgress(true);
   };
 
-  const handleScrapeComplete = async () => {
-    // Wait 5 seconds to allow user to see completion message
-    setTimeout(async () => {
-      // Reload data FIRST
-      if (id) {
-        try {
-          const schedule = await getCinemaSchedule(id);
-          setShowtimes(schedule.showtimes);
-        } catch (err: any) {
-          // Don't hide modal on error - user should see the error message
-          setError(err.message || 'Failed to reload cinema data');
-          return; // Exit early, keep modal visible
-        }
-      }
-      // THEN hide modal only if reload succeeded
+  const handleScrapeComplete = () => {
+    // Hide progress and reload data after a delay to avoid flickering
+    setTimeout(() => {
       setShowProgress(false);
-    }, 5000);
+      loadData();
+    }, 2000);
   };
 
   if (isLoading) {
