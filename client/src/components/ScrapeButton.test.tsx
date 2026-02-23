@@ -1,12 +1,12 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ScrapeButton from './ScrapeButton';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 
 describe('ScrapeButton', () => {
-  let mockOnTrigger: ReturnType<typeof vi.fn>;
+  let mockOnTrigger: Mock<() => Promise<void>>;
 
   beforeEach(() => {
-    mockOnTrigger = vi.fn();
+    mockOnTrigger = vi.fn<() => Promise<void>>();
   });
 
   afterEach(() => {
