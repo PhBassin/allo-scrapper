@@ -24,7 +24,7 @@ describe('parseFilmPage', () => {
   it('should parse trailer URL from valid HTML', () => {
     const result = parseFilmPage(validHtml);
     // The parser prepends the base URL
-    expect(result.trailer_url).toBe('https://www.example-cinema-site.com/video/player_gen_cmedia=19598288&cfilm=296180.html');
+    expect(result.trailer_url).toBe('https://www.allocine.fr/video/player_gen_cmedia=19598288&cfilm=296180.html');
   });
 
   it('should parse duration with only hours', () => {

@@ -280,7 +280,7 @@ describe('parseTheaterPage - Data Validation', () => {
   it('should parse valid source URLs for films', () => {
     [c0089Result, w7504Result, c0072Result].forEach((result) => {
       result.films.forEach((filmData) => {
-        expect(filmData.film.source_url).toMatch(/^https:\/\/www\.example-cinema-site\.com/);
+        expect(filmData.film.source_url).toMatch(/^https:\/\/www\.allocine\.fr/);
         expect(filmData.film.source_url).toContain('cfilm=');
       });
     });

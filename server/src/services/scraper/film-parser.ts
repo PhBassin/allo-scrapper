@@ -30,7 +30,7 @@ export function parseFilmPage(html: string): FilmPageData {
   if (trailerLink.length) {
     const href = trailerLink.attr('href');
     if (href) {
-      trailerUrl = `https://www.example-cinema-site.com${href}`;
+      trailerUrl = `https://www.allocine.fr${href}`;
     }
   }
 
