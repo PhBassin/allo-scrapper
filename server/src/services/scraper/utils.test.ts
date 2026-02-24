@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isStaleResponse, extractCinemaIdFromUrl } from './utils.js';
+import { isStaleResponse, extractCinemaIdFromUrl, isValidAllocineUrl } from './utils.js';
 import type { Showtime } from '../../types/scraper.js';
 
 // Helper to build a minimal Showtime object for testing
@@ -93,7 +93,40 @@ describe('extractCinemaIdFromUrl', () => {
   });
 
   it('returns null for invalid URLs', () => {
-    expect(extractCinemaIdFromUrl('https://www.google.com')).toBeNull();
+    // Malicious domain with valid ID pattern
+    expect(extractCinemaIdFromUrl('https://malicious.com/attack?param-salle=C1234')).toBeNull();
+    // Localhost attempt
+    expect(extractCinemaIdFromUrl('http://localhost:8080/my-exploit?_csalle=C9999')).toBeNull();
+    // Subdomain bypass attempt (e.g., evil.com ending with allocine.fr)
+    expect(extractCinemaIdFromUrl('https://www.allocine.fr.evil.com/seance/salle_gen_csalle=C0013.html')).toBeNull();
+    // Relative URL (invalid URL format)
+    expect(extractCinemaIdFromUrl('/seance/salle_gen_csalle=C0013.html')).toBeNull();
+    // Valid domain but invalid path/pattern
     expect(extractCinemaIdFromUrl('https://www.allocine.fr/film/fichefilm_gen_cfilm=12345.html')).toBeNull();
+    // Completely unrelated URL
+    expect(extractCinemaIdFromUrl('https://www.google.com')).toBeNull();
+  });
+});
+
+describe('isValidAllocineUrl', () => {
+  it('returns true for valid Allociné URLs', () => {
+    expect(isValidAllocineUrl('https://www.allocine.fr/seance/salle_affich-salle=C0013.html')).toBe(true);
+    expect(isValidAllocineUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0013.html')).toBe(true);
+    expect(isValidAllocineUrl('https://www.allocine.fr/some/other/page.html')).toBe(true);
+  });
+
+  it('returns false for non-https URLs', () => {
+    expect(isValidAllocineUrl('http://www.allocine.fr/seance/salle_affich-salle=C0013.html')).toBe(false);
+  });
+
+  it('returns false for different domains', () => {
+    expect(isValidAllocineUrl('https://www.google.com')).toBe(false);
+    expect(isValidAllocineUrl('https://evil.allocine.fr.com')).toBe(false);
+    expect(isValidAllocineUrl('https://allocine.fr')).toBe(false); // subdomain mismatch
+  });
+
+  it('returns false for malformed URLs', () => {
+    expect(isValidAllocineUrl('not a url')).toBe(false);
+    expect(isValidAllocineUrl('')).toBe(false);
   });
 });

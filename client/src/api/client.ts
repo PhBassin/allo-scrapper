@@ -2,6 +2,7 @@ import axios from 'axios';
 import type {
   ApiResponse,
   FilmWithShowtimes,
+  Film,
   Cinema,
   ShowtimeWithFilm,
   ScrapeReport,
@@ -32,12 +33,44 @@ export async function getWeeklyFilms(): Promise<{ films: FilmWithShowtimes[]; we
   return response.data.data;
 }
 
+export async function getFilmsByDate(date: string): Promise<{ films: FilmWithShowtimes[]; weekStart: string; date: string }> {
+  const response = await api.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string; date: string }>>('/films', {
+    params: { date }
+  });
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to fetch films');
+  }
+  return response.data.data;
+}
+
 export async function getFilmById(id: number): Promise<FilmWithShowtimes> {
   const response = await api.get<ApiResponse<FilmWithShowtimes>>(`/films/${id}`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch film');
   }
   return response.data.data;
+}
+
+/**
+ * Search films using fuzzy matching
+ * @param query Search query (minimum 2 characters)
+ * @returns Array of films matching the search query
+ */
+export async function searchFilms(query: string): Promise<Film[]> {
+  // Validate query locally to avoid unnecessary API calls
+  if (!query || query.trim().length < 2) {
+    return [];
+  }
+  
+  const response = await api.get<ApiResponse<{ films: Film[]; query: string }>>('/films/search', {
+    params: { q: query.trim() }
+  });
+  
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to search films');
+  }
+  
+  return response.data.data.films;
 }
 
 // ============================================================================
@@ -80,6 +113,26 @@ export async function triggerScrape(): Promise<{ reportId: number; message: stri
   const response = await api.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger');
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to trigger scrape');
+  }
+  return response.data.data;
+}
+
+export async function triggerCinemaScrape(cinemaId: string): Promise<{ reportId: number; message: string }> {
+  const response = await api.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
+    cinemaId,
+  });
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to trigger cinema scrape');
+  }
+  return response.data.data;
+}
+
+export async function triggerFilmScrape(filmId: number): Promise<{ reportId: number; message: string }> {
+  const response = await api.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
+    filmId,
+  });
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to trigger film scrape');
   }
   return response.data.data;
 }

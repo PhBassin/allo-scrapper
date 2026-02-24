@@ -235,6 +235,79 @@ Split into separate commits when:
 
 ---
 
+## Testing Your Changes with Docker
+
+### Testing a Pull Request
+
+When you open a PR, GitHub Actions automatically builds a Docker image tagged with your PR number.
+
+**How to test your PR:**
+
+1. **Find your PR number** (e.g., #141)
+2. **Wait for CI** — The "Docker Build & Push" workflow must complete
+3. **Pull the image:**
+   ```bash
+   docker pull ghcr.io/phbassin/allo-scrapper:pr-141
+   ```
+4. **Test locally:**
+   ```bash
+   # Option A: Run directly
+   docker run -p 3000:3000 -e POSTGRES_HOST=host.docker.internal ghcr.io/phbassin/allo-scrapper:pr-141
+   
+   # Option B: Use docker-compose (temporarily edit docker-compose.yml)
+   services:
+     ics-web:
+       image: ghcr.io/phbassin/allo-scrapper:pr-141
+       # ... rest of config
+   
+   docker compose up -d
+   ```
+
+5. **Verify your changes:**
+   ```bash
+   curl http://localhost:3000/api/health
+   # Test specific features you modified
+   ```
+
+### Finding the Image Tag
+
+**Method 1: GitHub Actions Summary (Easiest)**
+1. Go to your PR
+2. Click "Checks" → "Docker Build & Push"
+3. Click "Summary" — you'll see a highlighted section:
+   ```
+   🎯 Test This PR:
+   docker pull ghcr.io/phbassin/allo-scrapper:pr-141
+   ```
+
+**Method 2: PR Tag Convention**
+- PR #141 → `pr-141`
+- PR #200 → `pr-200`
+
+### Available Tags
+
+| Tag | When Created | Purpose |
+|-----|--------------|---------|
+| `pr-<number>` | Every PR commit | Testing before merge |
+| `sha-<commit>` | Every commit | Specific version for debugging |
+| `develop` | Push to develop | Latest dev build |
+| `stable` | Push to main or version tag | Production-ready |
+
+### Cleaning Up Test Images
+
+After your PR is merged, the test images remain in the registry. The cleanup workflow runs periodically to remove old versions, keeping the 30 most recent.
+
+To manually delete your PR image (optional):
+```bash
+# List all versions (requires gh CLI)
+gh api repos/PhBassin/allo-scrapper/packages/container/allo-scrapper/versions
+
+# Delete specific version by ID
+gh api -X DELETE repos/PhBassin/allo-scrapper/packages/container/allo-scrapper/versions/<version_id>
+```
+
+---
+
 ## Pull Request Guidelines
 
 ### Before Opening a PR

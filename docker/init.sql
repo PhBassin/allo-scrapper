@@ -1,6 +1,9 @@
 -- Database schema initialization for Allo-Scrapper
 -- This script is automatically executed on first PostgreSQL startup
 
+-- Enable pg_trgm extension for fuzzy text search
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- Table: cinemas
 CREATE TABLE IF NOT EXISTS cinemas (
   id TEXT PRIMARY KEY,
@@ -32,6 +35,9 @@ CREATE TABLE IF NOT EXISTS films (
   audience_rating REAL,
   source_url TEXT NOT NULL
 );
+
+-- Index for films title (trigram similarity for fuzzy search)
+CREATE INDEX IF NOT EXISTS idx_films_title_trgm ON films USING gin(title gin_trgm_ops);
 
 -- Table: showtimes
 CREATE TABLE IF NOT EXISTS showtimes (

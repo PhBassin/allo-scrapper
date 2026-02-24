@@ -31,7 +31,7 @@ services:
 
   # Production web server (serves both API and frontend)
   ics-web:
-    build: .
+    image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-latest}
     user: root
     pull_policy: always
     restart: unless-stopped
