@@ -1,26 +1,29 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getWeeklyFilms, getCinemas, getScrapeStatus, addCinema } from '../api/client';
+import { getWeeklyFilms, getFilmsByDate, getCinemas, getScrapeStatus, addCinema, triggerScrape } from '../api/client';
 import type { FilmWithShowtimes, Cinema } from '../types';
 import FilmCard from '../components/FilmCard';
 import ScrapeButton from '../components/ScrapeButton';
 import ScrapeProgress from '../components/ScrapeProgress';
+import DaySelector from '../components/DaySelector';
+import FilmSearchBar from '../components/FilmSearchBar';
 
 export default function HomePage() {
   const [films, setFilms] = useState<FilmWithShowtimes[]>([]);
   const [cinemas, setCinemas] = useState<Cinema[]>([]);
   const [weekStart, setWeekStart] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showProgress, setShowProgress] = useState(false);
 
-  const loadData = async () => {
+  const loadData = async (date?: string | null) => {
     try {
       setIsLoading(true);
       setError(null);
       
       const [filmsData, cinemasData, scrapeStatus] = await Promise.all([
-        getWeeklyFilms(),
+        date ? getFilmsByDate(date) : getWeeklyFilms(),
         getCinemas(),
         getScrapeStatus()
       ]);
@@ -41,8 +44,12 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(selectedDate);
+  }, [selectedDate]);
+
+  const handleDateSelect = (date: string | null) => {
+    setSelectedDate(date);
+  };
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -67,13 +74,11 @@ export default function HomePage() {
   };
 
   const handleScrapeComplete = () => {
-    // Reload data immediately to show new results
-    loadData();
-    
-    // Hide progress after 5 seconds
+    // Hide progress and reload data after a delay to avoid flickering
     setTimeout(() => {
       setShowProgress(false);
-    }, 5000);
+      loadData(selectedDate);
+    }, 2000);
   };
 
   const handleAddCinema = async () => {
@@ -83,7 +88,7 @@ export default function HomePage() {
     try {
       setIsLoading(true);
       await addCinema(url);
-      await loadData();
+      await loadData(selectedDate);
       alert("Cinéma ajouté avec succès !");
     } catch (err: any) {
       alert("Erreur lors de l'ajout du cinéma: " + (err.message || 'Erreur inconnue'));
@@ -115,16 +120,27 @@ export default function HomePage() {
       <div className="mb-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
           <div>
-            <h1 className="text-4xl font-bold mb-3">Au programme cette semaine</h1>
-            {weekStart && (
+            <h1 className="text-4xl font-bold mb-3">
+              {selectedDate ? 'Films du jour' : 'Au programme cette semaine'}
+            </h1>
+            {weekStart && !selectedDate && (
               <div className="flex items-center gap-2 text-gray-500 font-medium">
                 <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Semaine ciné</span>
                 <span>Du {formatDate(weekStart)} au {getWeekEndDate(weekStart)}</span>
               </div>
             )}
+            {selectedDate && (
+              <div className="flex items-center gap-2 text-gray-500 font-medium">
+                <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Date sélectionnée</span>
+                <span>{formatDate(selectedDate)}</span>
+              </div>
+            )}
           </div>
           <div className="flex-shrink-0">
-            <ScrapeButton onScrapeStart={handleScrapeStart} />
+            <ScrapeButton 
+              onTrigger={async () => { await triggerScrape(); }}
+              onScrapeStart={handleScrapeStart} 
+            />
           </div>
         </div>
 
@@ -132,6 +148,22 @@ export default function HomePage() {
         {showProgress && (
           <div className="mb-8">
             <ScrapeProgress onComplete={handleScrapeComplete} />
+          </div>
+        )}
+
+        {/* Film Search Bar */}
+        <div className="mb-6">
+          <FilmSearchBar placeholder="Rechercher un film..." />
+        </div>
+
+        {/* Day Selector */}
+        {weekStart && (
+          <div className="mb-6">
+            <DaySelector 
+              weekStart={weekStart} 
+              selectedDate={selectedDate}
+              onSelectDate={handleDateSelect}
+            />
           </div>
         )}
 
@@ -150,7 +182,7 @@ export default function HomePage() {
             ))}
             <button
               onClick={handleAddCinema}
-              className="px-3 py-1.5 bg-white border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-primary hover:text-primary transition font-semibold"
+              className="px-3 py-1.5 bg-white border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-primary hover:text-primary transition font-semibold cursor-pointer active:scale-95"
             >
               + Ajouter un cinéma
             </button>
@@ -167,7 +199,7 @@ export default function HomePage() {
         ) : (
           <div className="bg-gray-50 rounded-2xl p-12 text-center border-2 border-dashed border-gray-200">
             <p className="text-gray-600 text-lg font-medium mb-2">
-              Aucun film programmé pour le moment.
+              {selectedDate ? 'Aucun film programmé pour cette date.' : 'Aucun film programmé pour le moment.'}
             </p>
             <p className="text-gray-400 text-sm max-w-md mx-auto">
               Utilisez le bouton de mise à jour pour collecter les données des cinémas et afficher le programme.

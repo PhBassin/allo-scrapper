@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getWeekDates, getCurrentWeekStart, getTodayDate, getScrapeDates } from './date.js';
 
 describe('getScrapeDates', () => {
@@ -11,6 +11,7 @@ describe('getScrapeDates', () => {
   });
 
   it('should return 7 dates starting from Wednesday in weekly mode', () => {
+    vi.setSystemTime(new Date('2026-02-19T10:00:00')); // Thursday
     const dates = getScrapeDates('weekly', 7);
     expect(dates).toHaveLength(7);
     const firstDate = new Date(dates[0] + 'T00:00:00');
@@ -25,6 +26,7 @@ describe('getScrapeDates', () => {
   });
 
   it('should default to weekly mode and 7 days', () => {
+    vi.setSystemTime(new Date('2026-02-19T10:00:00')); // Thursday
     const dates = getScrapeDates();
     expect(dates).toHaveLength(7);
     const firstDate = new Date(dates[0] + 'T00:00:00');
@@ -104,6 +106,14 @@ describe('getScrapeDates', () => {
 });
 
 describe('getWeekDates', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('should return exactly 7 dates by default', () => {
     const dates = getWeekDates();
     expect(dates).toHaveLength(7);
@@ -156,6 +166,7 @@ describe('getWeekDates', () => {
   });
 
   it('should start from current Wednesday when no weekStart provided', () => {
+    vi.setSystemTime(new Date('2026-02-20T10:00:00')); // Friday
     const dates = getWeekDates();
     const firstDate = new Date(dates[0] + 'T00:00:00');
     expect(firstDate.getDay()).toBe(3); // 3 = Wednesday
@@ -189,12 +200,22 @@ describe('getWeekDates', () => {
 });
 
 describe('getCurrentWeekStart', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('should return a date string in YYYY-MM-DD format', () => {
+    vi.setSystemTime(new Date('2026-02-20T10:00:00')); // Friday
     const weekStart = getCurrentWeekStart();
     expect(weekStart).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it('should return a Wednesday', () => {
+    vi.setSystemTime(new Date('2026-02-20T10:00:00')); // Friday
     const weekStart = getCurrentWeekStart();
     const date = new Date(weekStart + 'T00:00:00');
     expect(date.getDay()).toBe(3); // Wednesday

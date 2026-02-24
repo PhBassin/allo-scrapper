@@ -7,6 +7,7 @@ import {
   upsertWeeklyPrograms,
   getFilm,
   getCinemaConfigs,
+  getCinemas,
 } from '../db/queries.js';
 import { fetchTheaterPage, fetchShowtimesJson, fetchFilmPage, delay, closeBrowser } from './http-client.js';
 import { parseTheaterPage } from './theater-parser.js';
@@ -141,6 +142,8 @@ async function scrapeTheater(
 export interface ScrapeOptions {
   mode?: ScrapeMode;
   days?: number;
+  cinemaId?: string;
+  filmId?: number;
 }
 
 export async function runScraper(
@@ -163,7 +166,28 @@ export async function runScraper(
   const startTime = Date.now();
 
   try {
-    const cinemas = await getCinemaConfigs(db);
+    let cinemas = await getCinemaConfigs(db);
+    
+    // Filter to specific cinema if provided
+    if (options?.cinemaId) {
+      // First verify cinema exists in database (source of truth)
+      const allCinemasFromDb = await getCinemas(db);
+      const cinemaExistsInDb = allCinemasFromDb.some(c => c.id === options.cinemaId);
+      
+      if (!cinemaExistsInDb) {
+        throw new Error(`Cinema not found in database: ${options.cinemaId}`);
+      }
+      
+      // Then check if cinema is configured for scraping
+      const foundCinema = cinemas.find(c => c.id === options.cinemaId);
+      if (!foundCinema) {
+        throw new Error(`Cinema not configured for scraping: ${options.cinemaId}`);
+      }
+      
+      cinemas = [foundCinema];
+      logger.info(`Scraping only cinema: ${foundCinema.name} (${foundCinema.id})`);
+    }
+    
     logger.info('Cinemas loaded', { count: cinemas.length });
 
     const scrapeMode = options?.mode ?? (process.env.SCRAPE_MODE as ScrapeMode) ?? 'from_today_limited';

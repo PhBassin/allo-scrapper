@@ -822,6 +822,81 @@ curl http://localhost:3000/api/films/123456
 
 ---
 
+#### Search Films
+
+```http
+GET /api/films/search?q={query}
+```
+
+Search for films using fuzzy matching with PostgreSQL trigram similarity. Returns up to 10 results matching the query string.
+
+**Query Parameters:**
+- `q` (string, required): Search query (minimum 2 characters)
+
+**Search Behavior:**
+- Uses multi-strategy hybrid search combining:
+  1. **Exact match** (highest priority): `title = query` or `original_title = query`
+  2. **Prefix match**: Title starts with query (e.g., "Mar" → "Marty")
+  3. **Trigram similarity** (very permissive, similarity > 0.1): Handles typos and variations
+  4. **Partial match** (case-insensitive ILIKE `%query%`): Contains query anywhere
+  5. **Original title search**: All strategies applied to `original_title` as well
+- Results ordered by relevance using weighted scoring:
+  - Exact match: 1.0 (highest)
+  - Starts with query: 0.9
+  - High trigram similarity (>0.3): 0.6-0.8
+  - Low trigram similarity (>0.1): 0.5-0.6 (very permissive!)
+  - Contains anywhere: 0.35-0.4
+- **Very permissive**: Accepts false positives for maximum coverage (e.g., "mer" finds "Marty", "La Mer", "Merlin")
+- Returns up to 10 results
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 123456,
+      "title": "The Matrix",
+      "original_title": "The Matrix",
+      "poster_url": "https://...",
+      "duration_minutes": 136,
+      "release_date": "1999-06-23",
+      "genres": ["Sci-Fi", "Action"],
+      "nationality": "USA",
+      "director": "Wachowski Brothers"
+    }
+  ]
+}
+```
+
+**Error Responses:**
+- `400` — Missing or invalid query parameter (e.g., query too short)
+
+**Examples:**
+```bash
+# Exact match
+curl "http://localhost:3000/api/films/search?q=Matrix"
+
+# Fuzzy match (typo)
+curl "http://localhost:3000/api/films/search?q=Matirx"
+
+# Partial match
+curl "http://localhost:3000/api/films/search?q=Matr"
+
+# Very permissive search (accepts variations)
+curl "http://localhost:3000/api/films/search?q=mer"
+# → Finds "Marty", "La Mer", "Merlin", etc.
+
+# Original title search
+curl "http://localhost:3000/api/films/search?q=The%20Matrix"
+# → Finds films with original_title="The Matrix"
+
+# URL-encoded query (with spaces)
+curl "http://localhost:3000/api/films/search?q=The%20Dark%20Knight"
+```
+
+---
+
 #### List Scrape Reports
 
 ```http
@@ -904,6 +979,20 @@ curl "http://localhost:3000/api/reports/42"
 POST /api/scraper/trigger
 ```
 
+**Request Body (optional):**
+```json
+{
+  "cinemaId": "C0153",  // Optional: scrape only this cinema (must exist in database)
+  "filmId": 12345       // Optional: scrape only this film
+}
+```
+
+**Behavior:**
+- No parameters → Full scrape (all cinemas, all films, all dates)
+- `cinemaId` only → Scrape this cinema (all films, all dates for this cinema)
+- `filmId` only → Scrape this film (all cinemas showing this film)
+- Both `cinemaId` and `filmId` → Scrape this film at this specific cinema only
+
 **Response (200 — started):**
 ```json
 {
@@ -912,6 +1001,14 @@ POST /api/scraper/trigger
     "reportId": 43,
     "message": "Scrape started successfully"
   }
+}
+```
+
+**Response (404 — cinema not found):**
+```json
+{
+  "success": false,
+  "error": "Cinema not found: CXXXX"
 }
 ```
 
@@ -929,9 +1026,30 @@ POST /api/scraper/trigger
 }
 ```
 
-**Example:**
+**Examples:**
 ```bash
+# Full scrape (all cinemas, all films)
 curl -X POST http://localhost:3000/api/scraper/trigger
+
+# Cinema-specific scrape (C-prefix)
+curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"cinemaId": "C0153"}'
+
+# Cinema-specific scrape (W-prefix)
+curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"cinemaId": "W7515"}'
+
+# Film-specific scrape
+curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"filmId": 12345}'
+
+# Combined: scrape specific film at specific cinema
+curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"cinemaId": "C0153", "filmId": 12345}'
 ```
 
 ---
@@ -1604,6 +1722,46 @@ docker images | grep allo-scrapper
 
 **Browse all available images:**
 https://github.com/PhBassin/allo-scrapper/pkgs/container/allo-scrapper
+
+### Testing Pull Requests with Docker
+
+Every Pull Request automatically builds a Docker image with multiple tags for easy testing:
+
+| Tag Format | Example | Use Case |
+|------------|---------|----------|
+| `pr-<number>` | `pr-141` | **Primary PR tag** — easiest to find and use |
+| `sha-<short>` | `sha-1353598` | Specific commit (7 characters) |
+| `develop` | `develop` | Latest development build from develop branch |
+| `stable` | `stable` | Production-ready build from main branch |
+
+**Quick Start — Test a PR:**
+
+```bash
+# Pull the PR image (replace 141 with your PR number)
+docker pull ghcr.io/phbassin/allo-scrapper:pr-141
+
+# Run it locally
+docker run -p 3000:3000 ghcr.io/phbassin/allo-scrapper:pr-141
+
+# Or use with docker-compose (edit docker-compose.yml):
+services:
+  ics-web:
+    image: ghcr.io/phbassin/allo-scrapper:pr-141
+```
+
+**Find the PR tag:**
+1. Open the PR on GitHub
+2. Click on "Checks" tab
+3. Click on "Docker Build & Push" workflow
+4. View the "Summary" tab — the PR tag is highlighted with a copy-paste command
+
+**Tag Strategy Reference:**
+- `:pr-<number>` — Pull Request builds (for testing before merge)
+- `:develop` — Latest from develop branch (may be unstable)
+- `:stable` — Production builds from main branch + version tags
+- `:latest` — Alias for develop (continuous development)
+- `:sha-<commit>` — Specific commit hash (for precise rollback)
+- `:v1.2.3` — Semantic version tags (release versions)
 
 ### Setting Up CI/CD
 

@@ -1,5 +1,6 @@
 import type { FilmShowtimeData, Film, Showtime } from '../../types/scraper.js';
 import { logger } from '../../utils/logger.js';
+import { decodeHtmlEntities, decodeHtmlEntitiesArray } from '../../utils/html-decode.js';
 
 // ── Allociné internal API response types ──────────────────────────────────────
 
@@ -233,19 +234,21 @@ export function parseShowtimesJson(
     for (const credit of movie.credits ?? []) {
       const name = credit.person?.fullName;
       if (!name) continue;
+      const decodedName = decodeHtmlEntities(name) ?? name;
       const pos = credit.position?.name?.toLowerCase() ?? '';
       if (pos === 'director' || pos === 'réalisateur') {
-        director = name;
+        director = decodedName;
       } else if (pos === 'actor' || pos === 'acteur') {
-        actors.push(name);
+        actors.push(decodedName);
       }
     }
 
     // Genres
-    const genres = (movie.genres ?? []).map(g => g.translate ?? '').filter(Boolean);
+    const genres = decodeHtmlEntitiesArray((movie.genres ?? []).map(g => g.translate ?? '').filter(Boolean));
 
     // Nationality / countries
-    const nationality = (movie.countries ?? []).map(c => c.localizedName ?? '').filter(Boolean).join(', ') || undefined;
+    const nationalityRaw = (movie.countries ?? []).map(c => c.localizedName ?? '').filter(Boolean).join(', ') || undefined;
+    const nationality = decodeHtmlEntities(nationalityRaw);
 
     // Ratings (out of 5)
     const press_rating = movie.stats?.pressReview?.score ?? undefined;
@@ -256,15 +259,15 @@ export function parseShowtimesJson(
 
     const film: Film = {
       id: filmId,
-      title: movie.title ?? '',
-      original_title: movie.originalTitle,
+      title: decodeHtmlEntities(movie.title) ?? '',
+      original_title: decodeHtmlEntities(movie.originalTitle),
       poster_url: movie.poster?.url,
       duration_minutes: runtimeToMinutes(movie.runtime),
       genres,
       nationality,
       director,
       actors,
-      synopsis: movie.synopsis,
+      synopsis: decodeHtmlEntities(movie.synopsis),
       press_rating,
       audience_rating,
       release_date,

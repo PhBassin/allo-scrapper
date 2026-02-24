@@ -1,8 +1,12 @@
 name: Nettoyage Images Untagged GHCR
 
+# ⚠️ TEMPORARILY DISABLED
+# Automatic Docker image cleanup is disabled for manual control.
+# This workflow can still be triggered manually via workflow_dispatch.
+# To re-enable: uncomment the schedule block below.
 on:
-  schedule:
-    - cron: '0 2 */5 * *' # 
+  # schedule:
+  #   - cron: '0 2 */5 * *' # Runs every 5 days at 2 AM UTC
   workflow_dispatch:     # Permet de le lancer manuellement pour tester
 
 env:

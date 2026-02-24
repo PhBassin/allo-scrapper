@@ -486,4 +486,158 @@ describe('parseShowtimesJson', () => {
       expect(result[1].film.id).toBe(99999);
     });
   });
+
+  describe('HTML entity decoding', () => {
+    it('should decode HTML entities in title', () => {
+      const movie = makeMovie({ title: "L&#039;histoire d&#039;un film" });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.title).toBe("L'histoire d'un film");
+    });
+
+    it('should decode HTML entities in original_title', () => {
+      const movie = makeMovie({ originalTitle: "Th&eacute;&acirc;tre &amp; Com&eacute;die" });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.original_title).toBe("Théâtre & Comédie");
+    });
+
+    it('should decode HTML entities in synopsis', () => {
+      const movie = makeMovie({ 
+        synopsis: "L&#039;histoire d&#039;un voyage en apn&eacute;e dans la journ&eacute;e banale d&#039;un adolescent"
+      });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.synopsis).toBe("L'histoire d'un voyage en apnée dans la journée banale d'un adolescent");
+    });
+
+    it('should decode HTML entities in director name', () => {
+      const movie = makeMovie({
+        credits: [
+          { person: { fullName: 'Fran&ccedil;ois Tr&eacute;au' }, position: { name: 'director' } },
+        ],
+      });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.director).toBe('François Tréau');
+    });
+
+    it('should decode HTML entities in actor names', () => {
+      const movie = makeMovie({
+        credits: [
+          { person: { fullName: 'L&eacute;a Seydoux' }, position: { name: 'actor' } },
+          { person: { fullName: 'G&eacute;rard Depardieu' }, position: { name: 'actor' } },
+        ],
+      });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.actors).toEqual(['Léa Seydoux', 'Gérard Depardieu']);
+    });
+
+    it('should decode HTML entities in genres', () => {
+      const movie = makeMovie({
+        genres: [
+          { translate: 'Com&eacute;die' },
+          { translate: 'Th&eacute;&acirc;tre' },
+        ],
+      });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.genres).toEqual(['Comédie', 'Théâtre']);
+    });
+
+    it('should decode HTML entities in nationality', () => {
+      const movie = makeMovie({
+        countries: [
+          { localizedName: 'Fran&ccedil;ais' },
+          { localizedName: 'Qu&eacute;b&eacute;cois' },
+        ],
+      });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.nationality).toBe('Français, Québécois');
+    });
+
+    it('should handle multiple types of HTML entities together', () => {
+      const movie = makeMovie({
+        title: "L&#039;&eacute;t&eacute; &amp; l&#039;automne",
+        synopsis: "&quot;C&#039;est tr&egrave;s int&eacute;ressant&quot;",
+        credits: [
+          { person: { fullName: 'Fran&ccedil;ois &amp; Jos&eacute;' }, position: { name: 'director' } },
+        ],
+        genres: [{ translate: 'Com&eacute;die dramatique' }],
+      });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.title).toBe("L'été & l'automne");
+      expect(result[0].film.synopsis).toBe('"C\'est très intéressant"');
+      expect(result[0].film.director).toBe('François & José');
+      expect(result[0].film.genres).toEqual(['Comédie dramatique']);
+    });
+
+    it('should handle strings without HTML entities (no change)', () => {
+      const movie = makeMovie({
+        title: 'Simple Title',
+        synopsis: 'No special characters here',
+        credits: [
+          { person: { fullName: 'John Doe' }, position: { name: 'director' } },
+        ],
+      });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.title).toBe('Simple Title');
+      expect(result[0].film.synopsis).toBe('No special characters here');
+      expect(result[0].film.director).toBe('John Doe');
+    });
+
+    it('should handle undefined fields gracefully with decoding', () => {
+      const movie = makeMovie({
+        title: undefined,
+        originalTitle: undefined,
+        synopsis: undefined,
+        credits: [],
+        genres: [],
+        countries: [],
+      });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.title).toBe(''); // decodeHtmlEntities(undefined) ?? ''
+      expect(result[0].film.original_title).toBeUndefined();
+      expect(result[0].film.synopsis).toBeUndefined();
+      expect(result[0].film.director).toBeUndefined();
+      expect(result[0].film.actors).toEqual([]);
+      expect(result[0].film.genres).toEqual([]);
+      expect(result[0].film.nationality).toBeUndefined();
+    });
+  });
 });

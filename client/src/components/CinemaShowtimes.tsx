@@ -23,6 +23,15 @@ export default function CinemaShowtimes({ cinemas, initialDate }: CinemaShowtime
     return dates.includes(today) ? today : (dates[0] || '');
   });
 
+  const displayedCinemas = useMemo(() => {
+    return cinemas
+      .map(cinema => ({
+        cinema,
+        showtimes: cinema.showtimes.filter(s => s.date === selectedDate)
+      }))
+      .filter(({ showtimes }) => showtimes.length > 0);
+  }, [cinemas, selectedDate]);
+
   if (cinemas.length === 0) {
     return (
       <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
@@ -46,7 +55,7 @@ export default function CinemaShowtimes({ cinemas, initialDate }: CinemaShowtime
                   key={date}
                   onClick={() => setSelectedDate(date)}
                   className={`
-                    px-4 py-2 rounded-lg border-2 transition-all text-center min-w-[80px]
+                    px-4 py-2 rounded-lg border-2 transition-all text-center min-w-[80px] cursor-pointer active:scale-95
                     ${isActive 
                       ? 'border-primary bg-yellow-50 text-black shadow-sm' 
                       : 'border-transparent bg-white text-gray-600 hover:bg-gray-50'
@@ -71,41 +80,36 @@ export default function CinemaShowtimes({ cinemas, initialDate }: CinemaShowtime
 
       {/* Cinemas List */}
       <div className="space-y-4">
-        {cinemas.map((cinema) => {
-          const dailyShowtimes = cinema.showtimes.filter(s => s.date === selectedDate);
-          if (dailyShowtimes.length === 0) return null;
-
-          return (
-            <div key={cinema.id} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-bold">
-                    <Link to={`/cinema/${cinema.id}`} className="hover:text-primary transition">
-                      {cinema.name}
-                    </Link>
-                  </h3>
-                  {cinema.address && (
-                    <p className="text-sm text-gray-500">
-                      {cinema.address}, {cinema.city}
-                    </p>
-                  )}
-                </div>
-                <Link 
-                  to={`/cinema/${cinema.id}`} 
-                  className="text-xs font-semibold text-primary-dark hover:underline bg-yellow-100 px-2 py-1 rounded"
-                >
-                  Fiche cinéma
-                </Link>
+        {displayedCinemas.map(({ cinema, showtimes }) => (
+          <div key={cinema.id} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-bold">
+                  <Link to={`/cinema/${cinema.id}`} className="hover:text-primary transition">
+                    {cinema.name}
+                  </Link>
+                </h3>
+                {cinema.address && (
+                  <p className="text-sm text-gray-500">
+                    {cinema.address}, {cinema.city}
+                  </p>
+                )}
               </div>
-              
-              <div className="pt-3 border-t border-gray-50">
-                <ShowtimeList showtimes={dailyShowtimes} cinemaId={cinema.id} />
-              </div>
+              <Link
+                to={`/cinema/${cinema.id}`}
+                className="text-xs font-semibold text-primary-dark hover:underline bg-yellow-100 px-2 py-1 rounded"
+              >
+                Fiche cinéma
+              </Link>
             </div>
-          );
-        })}
 
-        {cinemas.every(c => c.showtimes.filter(s => s.date === selectedDate).length === 0) && (
+            <div className="pt-3 border-t border-gray-50">
+              <ShowtimeList showtimes={showtimes} />
+            </div>
+          </div>
+        ))}
+
+        {displayedCinemas.length === 0 && (
           <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
             <p className="text-gray-500 font-medium">Aucune séance ce jour-là</p>
           </div>

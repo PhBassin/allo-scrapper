@@ -13,9 +13,12 @@ vi.mock('../db/client.js', () => ({
 
 vi.mock('../db/queries.js', () => ({
   getWeeklyFilms: vi.fn(),
+  getFilmsByDate: vi.fn(),
+  getShowtimesByDate: vi.fn(),
   getFilm: vi.fn(),
   getShowtimesByFilmAndWeek: vi.fn(),
-  getWeeklyShowtimes: vi.fn()
+  getWeeklyShowtimes: vi.fn(),
+  searchFilms: vi.fn()
 }));
 
 vi.mock('../utils/date.js', () => ({
@@ -36,7 +39,7 @@ describe('Routes - Films', () => {
 
   describe('GET /', () => {
     it('should return weekly films with showtimes', async () => {
-      mockReq = {};
+      mockReq = { query: {} };
       const mockFilms = [{ id: 1, title: 'Film 1' }];
       const mockShowtimes = [
         { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
@@ -59,7 +62,7 @@ describe('Routes - Films', () => {
     });
 
     it('should handle errors', async () => {
-      mockReq = {};
+      mockReq = { query: {} };
       (queries.getWeeklyFilms as any).mockRejectedValue(new Error('DB Error'));
 
       const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get)?.route.stack[0].handle;
@@ -67,6 +70,41 @@ describe('Routes - Films', () => {
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+    });
+  });
+
+  describe('GET / with date filter', () => {
+    it('should return films for a specific date', async () => {
+      mockReq = { query: { date: '2026-02-20' } };
+      const mockFilms = [{ id: 1, title: 'Film 1' }];
+      const mockShowtimes = [
+        { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' }, date: '2026-02-20' }
+      ];
+
+      (queries.getFilmsByDate as any).mockResolvedValue(mockFilms);
+      (queries.getShowtimesByDate as any).mockResolvedValue(mockShowtimes);
+
+      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get)?.route.stack[0].handle;
+      await handler(mockReq, mockRes);
+
+      expect(queries.getFilmsByDate).toHaveBeenCalledWith(db, '2026-02-20', '2026-02-18');
+      expect(mockRes.json).toHaveBeenCalled();
+      const response = mockRes.json.mock.calls[0][0];
+      expect(response.success).toBe(true);
+      expect(response.data.films[0].cinemas).toHaveLength(1);
+      expect(response.data.date).toBe('2026-02-20');
+    });
+
+    it('should return 400 for invalid date format', async () => {
+      mockReq = { query: { date: 'invalid-date' } };
+      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get)?.route.stack[0].handle;
+      await handler(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.stringContaining('date')
+      }));
     });
   });
 
@@ -106,6 +144,93 @@ describe('Routes - Films', () => {
       await handler(mockReq, mockRes);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe('GET /search', () => {
+    it('should return search results with valid query', async () => {
+      mockReq = { query: { q: 'Matrix' } };
+      const mockFilms = [
+        { 
+          id: 19776, 
+          title: 'Matrix',
+          genres: ['Science Fiction', 'Action'],
+          poster_url: 'matrix.jpg'
+        }
+      ];
+
+      (queries.searchFilms as any).mockResolvedValue(mockFilms);
+
+      const handler = router.stack.find(s => s.route?.path === '/search' && s.route?.methods.get)?.route.stack[0].handle;
+      await handler(mockReq, mockRes);
+
+      expect(queries.searchFilms).toHaveBeenCalledWith(db, 'Matrix', 10);
+      expect(mockRes.json).toHaveBeenCalled();
+      const response = mockRes.json.mock.calls[0][0];
+      expect(response.success).toBe(true);
+      expect(response.data.films).toHaveLength(1);
+      expect(response.data.films[0].title).toBe('Matrix');
+      expect(response.data.query).toBe('Matrix');
+    });
+
+    it('should return 400 if query parameter is missing', async () => {
+      mockReq = { query: {} };
+      const handler = router.stack.find(s => s.route?.path === '/search' && s.route?.methods.get)?.route.stack[0].handle;
+      await handler(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.stringContaining('at least 2 characters')
+      }));
+    });
+
+    it('should return 400 if query is too short', async () => {
+      mockReq = { query: { q: 'a' } };
+      const handler = router.stack.find(s => s.route?.path === '/search' && s.route?.methods.get)?.route.stack[0].handle;
+      await handler(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.stringContaining('at least 2 characters')
+      }));
+    });
+
+    it('should return empty array when no results found', async () => {
+      mockReq = { query: { q: 'xyz123notfound' } };
+      (queries.searchFilms as any).mockResolvedValue([]);
+
+      const handler = router.stack.find(s => s.route?.path === '/search' && s.route?.methods.get)?.route.stack[0].handle;
+      await handler(mockReq, mockRes);
+
+      expect(mockRes.json).toHaveBeenCalled();
+      const response = mockRes.json.mock.calls[0][0];
+      expect(response.success).toBe(true);
+      expect(response.data.films).toEqual([]);
+    });
+
+    it('should handle errors', async () => {
+      mockReq = { query: { q: 'test' } };
+      (queries.searchFilms as any).mockRejectedValue(new Error('DB Error'));
+
+      const handler = router.stack.find(s => s.route?.path === '/search' && s.route?.methods.get)?.route.stack[0].handle;
+      await handler(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ 
+        success: false
+      }));
+    });
+
+    it('should trim whitespace from query', async () => {
+      mockReq = { query: { q: '  Matrix  ' } };
+      (queries.searchFilms as any).mockResolvedValue([]);
+
+      const handler = router.stack.find(s => s.route?.path === '/search' && s.route?.methods.get)?.route.stack[0].handle;
+      await handler(mockReq, mockRes);
+
+      expect(queries.searchFilms).toHaveBeenCalledWith(db, 'Matrix', 10);
     });
   });
 });

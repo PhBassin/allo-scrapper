@@ -43,3 +43,12 @@ body {
   overflow: hidden;
 }
 
+/* Search result highlighting */
+mark {
+  background-color: rgb(254 240 138); /* Tailwind yellow-200 */
+  color: inherit;
+  padding: 0 0.125rem;
+  font-weight: 600;
+  border-radius: 0.125rem;
+}
+

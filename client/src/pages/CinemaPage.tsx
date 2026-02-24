@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getCinemas, getCinemaSchedule } from '../api/client';
+import { getCinemas, getCinemaSchedule, triggerCinemaScrape, getScrapeStatus } from '../api/client';
 import type { Cinema, ShowtimeWithFilm } from '../types';
 import ShowtimeList from '../components/ShowtimeList';
+import ScrapeButton from '../components/ScrapeButton';
+import ScrapeProgress from '../components/ScrapeProgress';
 
 interface FilmGroup {
   film: {
@@ -25,42 +27,49 @@ export default function CinemaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [showProgress, setShowProgress] = useState(false);
+
+  const loadData = async () => {
+    if (!id) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Fetch cinema details and schedule in parallel
+      const [cinemas, schedule, scrapeStatus] = await Promise.all([
+        getCinemas(),
+        getCinemaSchedule(id),
+        getScrapeStatus()
+      ]);
+      
+      const foundCinema = cinemas.find(c => c.id === id);
+      if (!foundCinema) {
+        throw new Error('Cinema not found');
+      }
+      
+      setCinema(foundCinema);
+      setShowtimes(schedule.showtimes);
+
+      // Check if scrape is running
+      if (scrapeStatus.isRunning) {
+        setShowProgress(true);
+      }
+
+      // Set default selected date (today or first available)
+      if (schedule.showtimes.length > 0) {
+        const today = new Date().toISOString().split('T')[0];
+        const dates = getUniqueDates(schedule.showtimes);
+        setSelectedDate(dates.includes(today) ? today : dates[0]);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load cinema data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!id) return;
-
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Fetch cinema details and schedule in parallel
-        const [cinemas, schedule] = await Promise.all([
-          getCinemas(),
-          getCinemaSchedule(id)
-        ]);
-        
-        const foundCinema = cinemas.find(c => c.id === id);
-        if (!foundCinema) {
-          throw new Error('Cinema not found');
-        }
-        
-        setCinema(foundCinema);
-        setShowtimes(schedule.showtimes);
-
-        // Set default selected date (today or first available)
-        if (schedule.showtimes.length > 0) {
-          const today = new Date().toISOString().split('T')[0];
-          const dates = getUniqueDates(schedule.showtimes);
-          setSelectedDate(dates.includes(today) ? today : dates[0]);
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load cinema data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadData();
   }, [id]);
 
@@ -94,6 +103,18 @@ export default function CinemaPage() {
     };
   };
 
+  const handleScrapeStart = () => {
+    setShowProgress(true);
+  };
+
+  const handleScrapeComplete = () => {
+    // Hide progress and reload data after a delay to avoid flickering
+    setTimeout(() => {
+      setShowProgress(false);
+      loadData();
+    }, 2000);
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -117,6 +138,27 @@ export default function CinemaPage() {
 
   return (
     <div>
+      {/* Scrape Button (Sticky) */}
+      {cinema && (
+        <div className="sticky top-20 z-10 mb-6 flex justify-end">
+          <ScrapeButton
+            onTrigger={async () => { await triggerCinemaScrape(id!); }}
+            onScrapeStart={handleScrapeStart}
+            buttonText="🔄 Scraper uniquement ce cinéma"
+            loadingText="Scraping en cours..."
+            successText="Scraping démarré !"
+            className="bg-white/95 backdrop-blur-sm shadow-md rounded-lg p-2"
+          />
+        </div>
+      )}
+
+      {/* Scrape Progress */}
+      {showProgress && (
+        <div className="mb-8">
+          <ScrapeProgress onComplete={handleScrapeComplete} />
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <Link to="/" className="hover:text-primary hover:underline">← Accueil</Link>
@@ -156,7 +198,7 @@ export default function CinemaPage() {
                   key={date}
                   onClick={() => setSelectedDate(date)}
                   className={`
-                    px-4 py-3 rounded-xl border-2 transition-all text-center min-w-[90px] group
+                    px-4 py-3 rounded-xl border-2 transition-all text-center min-w-[90px] group cursor-pointer active:scale-95
                     ${isActive 
                       ? 'border-primary bg-yellow-50 text-black shadow-sm' 
                       : 'border-transparent bg-white text-gray-600 hover:bg-gray-50'
@@ -243,7 +285,7 @@ export default function CinemaPage() {
                     </div>
 
                     <div className="pt-2 border-t border-gray-100">
-                      <ShowtimeList showtimes={showtimes} cinemaId={id!} />
+                      <ShowtimeList showtimes={showtimes} />
                     </div>
                   </div>
                 </div>
