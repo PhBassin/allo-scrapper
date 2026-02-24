@@ -1,9 +1,13 @@
 name: Cleanup Docker Images
 
+# ⚠️ TEMPORARILY DISABLED
+# Automatic Docker image cleanup is disabled for manual control.
+# This workflow can still be triggered manually via workflow_dispatch.
+# To re-enable: uncomment the push trigger and/or schedule block below.
 on:
-  push:
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - main
   workflow_dispatch:
     inputs:
       dry-run:
