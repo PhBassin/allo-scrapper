@@ -84,11 +84,33 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Highlight PR tag for easy testing
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🎯 Test This Pull Request:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "# Pull the image" >> $GITHUB_STEP_SUMMARY
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# Run it locally" >> $GITHUB_STEP_SUMMARY
+            echo "docker run -p 3000:3000 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "💡 **Tip:** See [CONTRIBUTING.md](https://github.com/${{ github.repository }}/blob/develop/CONTRIBUTING.md#testing-your-changes-with-docker) for more testing options." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
           echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tag Strategy:**" >> $GITHUB_STEP_SUMMARY
           echo "- \`:latest\` — tracks \`develop\` branch (continuous development)" >> $GITHUB_STEP_SUMMARY
           echo "- \`:stable\` — tracks \`main\` branch and version tags (production)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`:pr-<number>\` — Pull Request builds (for testing)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`:sha-<commit>\` — Specific commit (for precise rollback)" >> $GITHUB_STEP_SUMMARY
 
   # ⚠️ TEMPORARILY DISABLED
   # Post-build Docker image cleanup is disabled for manual control.
