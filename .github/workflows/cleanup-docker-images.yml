@@ -1,15 +1,16 @@
 name: Cleanup Docker Images
 
-# ⚠️ TEMPORARILY DISABLED
-# Automatic Docker image cleanup is disabled for manual control.
-# This workflow can still be triggered manually via workflow_dispatch.
-# To re-enable: uncomment the push trigger and/or schedule block below.
+# Manual cleanup workflow (trigger via workflow_dispatch)
+# Keeps N most recent versions, protects important tags
+# Default: keeps 30 versions and runs in dry-run mode for safety
 on:
-  # push:
-  #   branches:
-  #     - main
   workflow_dispatch:
     inputs:
+      keep_versions:
+        description: 'Number of recent versions to keep'
+        required: true
+        default: '30'
+        type: string
       dry-run:
         description: 'Enable dry-run mode (test without deleting)'
         required: false
@@ -22,6 +23,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  KEEP_VERSIONS: ${{ github.event.inputs.keep_versions || '30' }}
 
 jobs:
   cleanup-images:
@@ -33,12 +35,7 @@ jobs:
       - name: Determine dry-run mode
         id: dry-run
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "enabled=${{ inputs.dry-run }}" >> $GITHUB_OUTPUT
-          else
-            # Dry-run mode for automatic triggers (first 5 runs for safety)
-            echo "enabled=true" >> $GITHUB_OUTPUT
-          fi
+          echo "enabled=${{ inputs.dry-run }}" >> $GITHUB_OUTPUT
 
       - name: Delete old container images (DRY-RUN)
         if: steps.dry-run.outputs.enabled == 'true'
@@ -46,7 +43,7 @@ jobs:
         with:
           package-name: 'allo-scrapper'
           package-type: 'container'
-          min-versions-to-keep: 10
+          min-versions-to-keep: ${{ env.KEEP_VERSIONS }}
           delete-only-untagged-versions: 'true'
           token: ${{ secrets.GITHUB_TOKEN }}
           dry-run: true
@@ -57,7 +54,7 @@ jobs:
         with:
           package-name: 'allo-scrapper'
           package-type: 'container'
-          min-versions-to-keep: 10
+          min-versions-to-keep: ${{ env.KEEP_VERSIONS }}
           delete-only-untagged-versions: 'true'
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -78,6 +75,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Registry:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Policy:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Keep: 10 versions maximum" >> $GITHUB_STEP_SUMMARY
+          echo "- Keep: ${{ env.KEEP_VERSIONS }} versions maximum" >> $GITHUB_STEP_SUMMARY
           echo "- Delete: Only untagged versions" >> $GITHUB_STEP_SUMMARY
-          echo "- Protected: All tagged versions (v*)" >> $GITHUB_STEP_SUMMARY
+          echo "- Protected: All tagged versions (latest, stable, develop, main, v*, pr-*)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "💡 **Alternative:** Use the \`scripts/cleanup-old-docker-images.sh\` script for more control and tag filtering." >> $GITHUB_STEP_SUMMARY

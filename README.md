@@ -1723,6 +1723,46 @@ docker images | grep allo-scrapper
 **Browse all available images:**
 https://github.com/PhBassin/allo-scrapper/pkgs/container/allo-scrapper
 
+### Testing Pull Requests with Docker
+
+Every Pull Request automatically builds a Docker image with multiple tags for easy testing:
+
+| Tag Format | Example | Use Case |
+|------------|---------|----------|
+| `pr-<number>` | `pr-141` | **Primary PR tag** — easiest to find and use |
+| `sha-<short>` | `sha-1353598` | Specific commit (7 characters) |
+| `develop` | `develop` | Latest development build from develop branch |
+| `stable` | `stable` | Production-ready build from main branch |
+
+**Quick Start — Test a PR:**
+
+```bash
+# Pull the PR image (replace 141 with your PR number)
+docker pull ghcr.io/phbassin/allo-scrapper:pr-141
+
+# Run it locally
+docker run -p 3000:3000 ghcr.io/phbassin/allo-scrapper:pr-141
+
+# Or use with docker-compose (edit docker-compose.yml):
+services:
+  ics-web:
+    image: ghcr.io/phbassin/allo-scrapper:pr-141
+```
+
+**Find the PR tag:**
+1. Open the PR on GitHub
+2. Click on "Checks" tab
+3. Click on "Docker Build & Push" workflow
+4. View the "Summary" tab — the PR tag is highlighted with a copy-paste command
+
+**Tag Strategy Reference:**
+- `:pr-<number>` — Pull Request builds (for testing before merge)
+- `:develop` — Latest from develop branch (may be unstable)
+- `:stable` — Production builds from main branch + version tags
+- `:latest` — Alias for develop (continuous development)
+- `:sha-<commit>` — Specific commit hash (for precise rollback)
+- `:v1.2.3` — Semantic version tags (release versions)
+
 ### Setting Up CI/CD
 
 1. Enable GitHub Container Registry in repository settings
