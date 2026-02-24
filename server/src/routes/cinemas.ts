@@ -37,6 +37,14 @@ router.post('/', async (req, res, next) => {
 
     // Smart add via URL only
     if (url && !id && !name) {
+      if (url.length > 2048) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'URL is too long (max 2048 characters)',
+        };
+        return res.status(400).json(response);
+      }
+
       if (!isValidAllocineUrl(url)) {
         const response: ApiResponse = {
           success: false,
@@ -57,6 +65,39 @@ router.post('/', async (req, res, next) => {
       const response: ApiResponse = {
         success: false,
         error: 'Missing required fields: id, name, url',
+      };
+      return res.status(400).json(response);
+    }
+
+    // Input validation
+    if (typeof id !== 'string' || !/^[A-Za-z0-9]+$/.test(id)) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Invalid ID format. Must be alphanumeric string.',
+      };
+      return res.status(400).json(response);
+    }
+
+    if (id.length > 20) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'ID is too long (max 20 characters)',
+      };
+      return res.status(400).json(response);
+    }
+
+    if (typeof name !== 'string' || name.length > 100) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Name must be a string between 1 and 100 characters',
+      };
+      return res.status(400).json(response);
+    }
+
+    if (typeof url !== 'string' || url.length > 2048) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'URL is too long (max 2048 characters)',
       };
       return res.status(400).json(response);
     }
@@ -99,6 +140,22 @@ router.put('/:id', async (req, res, next) => {
       const response: ApiResponse = {
         success: false,
         error: 'At least one field must be provided: name, url',
+      };
+      return res.status(400).json(response);
+    }
+
+    if (name && (typeof name !== 'string' || name.length > 100)) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Name must be a string between 1 and 100 characters',
+      };
+      return res.status(400).json(response);
+    }
+
+    if (url && (typeof url !== 'string' || url.length > 2048)) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'URL is too long (max 2048 characters)',
       };
       return res.status(400).json(response);
     }
