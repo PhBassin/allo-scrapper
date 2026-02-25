@@ -93,6 +93,14 @@ export async function getCinemas(db: DB): Promise<Cinema[]> {
 }
 
 
+// Get cinemas configured for scraping (those with a URL)
+export async function getCinemaConfigs(db: DB): Promise<Array<{ id: string; name: string; url: string }>> {
+  const result = await db.query<{ id: string; name: string; url: string }>(
+    'SELECT id, name, url FROM cinemas WHERE url IS NOT NULL ORDER BY name'
+  );
+  return result.rows;
+}
+
 // Récupérer un film par son ID
 export async function getFilm(db: DB, filmId: number): Promise<Film | undefined> {
   const result = await db.query<FilmRow>(
