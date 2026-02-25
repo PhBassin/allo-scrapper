@@ -11,6 +11,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ---- mocks ----------------------------------------------------------------
 
+vi.mock('../middleware/auth.js', () => ({
+  requireAuth: vi.fn((req, res, next) => next())
+}));
+
 vi.mock('../services/scrape-manager.js', () => ({
   scrapeManager: {
     isRunning: vi.fn().mockReturnValue(false),
@@ -95,7 +99,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
     expect(layer).toBeDefined();
-    await layer.route.stack[0].handle(req, res, vi.fn());
+    await layer.route.stack[1].handle(req, res, vi.fn());
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -120,7 +124,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[0].handle(req, res, vi.fn());
+    await layer.route.stack[1].handle(req, res, vi.fn());
 
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith(
@@ -165,7 +169,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[0].handle(req, res, vi.fn());
+    await layer.route.stack[1].handle(req, res, vi.fn());
 
     expect(scrapeManager.startScrape).toHaveBeenCalledWith(
       'manual',
@@ -193,7 +197,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[0].handle(req, res, vi.fn());
+    await layer.route.stack[1].handle(req, res, vi.fn());
 
     expect(scrapeManager.startScrape).toHaveBeenCalledWith(
       'manual',
@@ -218,7 +222,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[0].handle(req, res, vi.fn());
+    await layer.route.stack[1].handle(req, res, vi.fn());
 
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith(
@@ -241,7 +245,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[0].handle(req, res, vi.fn());
+    await layer.route.stack[1].handle(req, res, vi.fn());
 
     expect(scrapeManager.startScrape).toHaveBeenCalledWith(
       'manual',
@@ -286,7 +290,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=true / Redis mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[0].handle(req, res, vi.fn());
+    await layer.route.stack[1].handle(req, res, vi.fn());
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -339,7 +343,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=true / Redis mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[0].handle(req, res, vi.fn());
+    await layer.route.stack[1].handle(req, res, vi.fn());
 
     expect(mockPublishJob).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -378,7 +382,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=true / Redis mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[0].handle(req, res, vi.fn());
+    await layer.route.stack[1].handle(req, res, vi.fn());
 
     expect(mockPublishJob).toHaveBeenCalledWith(
       expect.objectContaining({

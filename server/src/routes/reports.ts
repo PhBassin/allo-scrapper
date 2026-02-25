@@ -4,11 +4,12 @@ import { getScrapeReports, getScrapeReport } from '../db/queries.js';
 import type { ApiResponse, PaginatedResponse, GetReportsQuery } from '../types/api.js';
 import type { ScrapeReport } from '../db/queries.js';
 import { logger } from '../utils/logger.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // GET /api/reports - Get all scrape reports (paginated)
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const query = req.query as GetReportsQuery;
     let page = parseInt(query.page || '1');
@@ -58,7 +59,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/reports/:id - Get a specific report
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
   try {
     const reportId = parseInt(req.params.id);
 

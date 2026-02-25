@@ -9,7 +9,7 @@ services:
     volumes:
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,7 +22,7 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,7 +31,8 @@ services:
 
   # Production web server (serves both API and frontend)
   ics-web:
-    image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-latest}
+    #image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-latest}
+    build: .
     user: root
     pull_policy: always
     restart: unless-stopped
@@ -69,7 +70,7 @@ services:
     networks:
       - ics-network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -229,9 +230,9 @@ services:
       - ./docker/tempo.yml:/etc/tempo/config.yml:ro
       - tempo-data:/tmp/tempo
     ports:
-      - "3200:3200"   # Tempo HTTP API
-      - "4317:4317"   # OTLP gRPC receiver
-      - "4318:4318"   # OTLP HTTP receiver
+      - "3200:3200" # Tempo HTTP API
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
     networks:
       - ics-network
     profiles:

@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -7,6 +9,14 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, title }: LayoutProps) {
+  const { isAuthenticated, user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-secondary text-white shadow-lg">
@@ -16,13 +26,36 @@ export default function Layout({ children, title }: LayoutProps) {
               <span className="text-primary">🎬</span>
               <span>Allo-Scrapper</span>
             </Link>
-            <nav className="flex gap-4">
+            <nav className="flex items-center gap-6">
               <Link to="/" className="hover:text-primary transition">
                 Accueil
               </Link>
-              <Link to="/reports" className="hover:text-primary transition">
-                Rapports
-              </Link>
+              {isAuthenticated && (
+                <Link to="/reports" className="hover:text-primary transition">
+                  Rapports
+                </Link>
+              )}
+              <div className="border-l border-gray-600 h-6"></div>
+              {isAuthenticated ? (
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-300">
+                    Connecté en tant que <strong className="text-white">{user?.username}</strong>
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded transition"
+                  >
+                    Déconnexion
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  className="text-sm bg-primary text-black hover:bg-yellow-500 font-medium px-4 py-2 rounded transition"
+                >
+                  Connexion
+                </Link>
+              )}
             </nav>
           </div>
         </div>

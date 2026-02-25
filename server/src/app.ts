@@ -14,6 +14,7 @@ import filmsRouter from './routes/films.js';
 import cinemasRouter from './routes/cinemas.js';
 import scraperRouter from './routes/scraper.js';
 import reportsRouter from './routes/reports.js';
+import authRouter from './routes/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,7 @@ export function createApp() {
   app.use(express.urlencoded({ extended: true }));
 
   // API routes
+  app.use('/api/auth', authRouter);
   app.use('/api/films', filmsRouter);
   app.use('/api/cinemas', cinemasRouter);
   app.use('/api/scraper', scraperRouter);

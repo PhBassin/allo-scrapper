@@ -3,6 +3,9 @@ import router from './reports.js';
 import * as queries from '../db/queries.js';
 
 // Mock dependencies
+vi.mock('../middleware/auth.js', () => ({
+  requireAuth: vi.fn((req, res, next) => next())
+}));
 vi.mock('../db/client.js', () => ({
   db: {
     query: vi.fn()
@@ -47,7 +50,9 @@ describe('Routes - Reports', () => {
       (queries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
 
       // Find the handler for GET /
-      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get)?.route.stack[0].handle;
+      const getRoute = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get);
+      // stack[0] is requireAuth, stack[1] is the actual handler
+      const handler = getRoute?.route.stack[1].handle;
 
       expect(handler).toBeDefined();
       await handler(mockReq, mockRes, mockNext);
@@ -65,7 +70,8 @@ describe('Routes - Reports', () => {
 
       (queries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
 
-      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get)?.route.stack[0].handle;
+      const getRoute = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get);
+      const handler = getRoute?.route.stack[1].handle;
       await handler(mockReq, mockRes, mockNext);
 
       expect(queries.getScrapeReports).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
@@ -82,7 +88,8 @@ describe('Routes - Reports', () => {
 
       (queries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
 
-      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get)?.route.stack[0].handle;
+      const getRoute = router.stack.find(s => s.route?.path === '/' && s.route?.methods.get);
+      const handler = getRoute?.route.stack[1].handle;
       await handler(mockReq, mockRes, mockNext);
 
       expect(queries.getScrapeReports).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({

@@ -5,22 +5,23 @@ import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 import { getCinemas } from '../db/queries.js';
 import { db } from '../db/client.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
 const USE_REDIS_SCRAPER = process.env.USE_REDIS_SCRAPER === 'true';
 
 // POST /api/scraper/trigger - Start a manual scrape
-router.post('/trigger', async (req, res) => {
+router.post('/trigger', requireAuth, async (req, res) => {
   try {
     // Extract and validate cinemaId and filmId from request body
     const { cinemaId, filmId } = req.body as { cinemaId?: string; filmId?: number };
-    
+
     // Validate cinemaId exists in database if provided
     if (cinemaId) {
       const cinemas = await getCinemas(db);
       const cinemaExists = cinemas.some(c => c.id === cinemaId);
-      
+
       if (!cinemaExists) {
         const response: ApiResponse = {
           success: false,
@@ -29,7 +30,7 @@ router.post('/trigger', async (req, res) => {
         return res.status(404).json(response);
       }
     }
-    
+
     if (USE_REDIS_SCRAPER) {
       // Delegate to Redis microservice
       const { getRedisClient } = await import('../services/redis-client.js');
