@@ -256,6 +256,51 @@ export async function upsertShowtime(db: DB, showtime: Showtime): Promise<void> 
   );
 }
 
+// Insertion ou mise à jour de plusieurs séances
+export async function upsertShowtimes(db: DB, showtimes: Showtime[]): Promise<void> {
+  if (showtimes.length === 0) return;
+
+  const values: any[] = [];
+  const valueSets: string[] = [];
+  let paramIndex = 1;
+
+  for (const showtime of showtimes) {
+    valueSets.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9})`);
+    values.push(
+      showtime.id,
+      showtime.film_id,
+      showtime.cinema_id,
+      showtime.date,
+      showtime.time,
+      showtime.datetime_iso,
+      showtime.version || null,
+      showtime.format || null,
+      JSON.stringify(showtime.experiences),
+      showtime.week_start
+    );
+    paramIndex += 10;
+  }
+
+  await db.query(
+    `
+      INSERT INTO showtimes (
+        id, film_id, cinema_id, date, time, datetime_iso,
+        version, format, experiences, week_start
+      )
+      VALUES ${valueSets.join(', ')}
+      ON CONFLICT(id) DO UPDATE SET
+        date = EXCLUDED.date,
+        time = EXCLUDED.time,
+        datetime_iso = EXCLUDED.datetime_iso,
+        version = EXCLUDED.version,
+        format = EXCLUDED.format,
+        experiences = EXCLUDED.experiences,
+        week_start = EXCLUDED.week_start
+    `,
+    values
+  );
+}
+
 // Insertion ou mise à jour d'un programme hebdomadaire
 export async function upsertWeeklyProgram(db: DB, program: WeeklyProgram): Promise<void> {
   await db.query(
