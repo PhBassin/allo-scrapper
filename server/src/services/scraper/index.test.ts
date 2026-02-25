@@ -18,6 +18,7 @@ vi.mock('../../db/queries.js', () => ({
   upsertCinema: vi.fn(),
   upsertFilm: vi.fn(),
   upsertShowtime: vi.fn(),
+  upsertShowtimes: vi.fn(),
   upsertWeeklyPrograms: vi.fn(),
   getFilm: vi.fn(),
   getCinemaConfigs: vi.fn(),

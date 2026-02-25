@@ -2,7 +2,7 @@ import { db, type DB } from '../../db/client.js';
 import {
   upsertCinema,
   upsertFilm,
-  upsertShowtime,
+  upsertShowtimes,
   upsertWeeklyPrograms,
   getFilm,
   getCinemaConfigs,
@@ -100,9 +100,7 @@ async function scrapeTheater(
         logger.info(`  ✅ Film "${film.title}" updated`);
 
         // Insérer/mettre à jour les séances
-        for (const showtime of filmData.showtimes) {
-          await upsertShowtime(db, showtime);
-        }
+        await upsertShowtimes(db, filmData.showtimes);
         logger.info(`  ✅ ${filmData.showtimes.length} showtimes updated`);
 
         weeklyPrograms.push({
