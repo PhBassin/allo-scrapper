@@ -8,6 +8,7 @@ import { Registry, collectDefaultMetrics } from 'prom-client';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
+import { createRateLimiter } from './middleware/rate-limiter.js';
 
 // Import routes
 import filmsRouter from './routes/films.js';
@@ -47,6 +48,29 @@ export function createApp() {
   app.use(morgan('combined'));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
+  // Rate Limiting
+  // Strict limit for scraper triggers (expensive operation)
+  const scraperLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Limit each IP to 10 scrape requests per window
+    message: 'Too many scrape requests, please try again later.'
+  });
+  app.use('/api/scraper/trigger', scraperLimiter);
+
+  // Moderate limit for cinema modifications (prevent spam/DoS)
+  const cinemaWriteLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 50,
+    message: 'Too many cinema modification requests, please try again later.'
+  });
+  app.use('/api/cinemas', (req, res, next) => {
+    // Apply only to write operations
+    if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+      return cinemaWriteLimiter(req, res, next);
+    }
+    next();
+  });
 
   // API routes
   app.use('/api/films', filmsRouter);
