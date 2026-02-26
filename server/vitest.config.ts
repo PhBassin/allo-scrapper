@@ -35,6 +35,7 @@ export default defineConfig({
         'src/index.ts',
         'src/db/**',
         'src/routes/**',
+        'src/middleware/**',
         'src/services/cron.ts',
         'src/services/progress-tracker.ts',
         'src/services/scrape-manager.ts',
