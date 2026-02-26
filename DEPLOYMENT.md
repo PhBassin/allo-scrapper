@@ -387,7 +387,24 @@ docker compose exec web npm run scrape
 
 ## Updating the Application
 
-### Standard Update Process
+### Pre-Update Checklist
+
+**CRITICAL:** Always check for database migrations before updating!
+
+```bash
+# 1. Review release notes for breaking changes
+# Check GitHub releases: https://github.com/PhBassin/allo-scrapper/releases
+
+# 2. Check for new migrations
+ls migrations/*.sql | sort
+
+# 3. Backup database BEFORE update
+./scripts/backup-db.sh
+# or manually:
+docker compose exec -T db pg_dump -U postgres ics > backup_$(date +%Y%m%d_%H%M%S).sql
+```
+
+### Standard Update Process (Without Migrations)
 
 ```bash
 # 1. Pull stable image (production-ready)
@@ -403,6 +420,43 @@ docker compose up -d
 docker compose ps
 curl http://localhost:3000/api/health
 ```
+
+### Update Process with Database Migrations
+
+**IMPORTANT:** When a release includes database migrations, you MUST apply them BEFORE deploying the new code.
+
+```bash
+# 1. Backup database (MANDATORY)
+docker compose exec -T db pg_dump -U postgres its > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# 2. Apply migrations in order (while old code is still running)
+# Check migrations/README.md for the list of migrations
+
+# Apply each new migration sequentially:
+docker compose exec -T db psql -U postgres -d its < migrations/003_add_users_table.sql
+
+# 3. Verify migration success
+docker compose exec db psql -U postgres -d its -c "\d users"
+
+# 4. NOW update the application code
+docker compose pull
+docker compose down
+docker compose up -d
+
+# 5. Verify deployment
+docker compose ps
+curl http://localhost:3000/api/health
+
+# 6. Test new features (example: authentication)
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq
+```
+
+**Migration Order:**
+1. **Backup** → 2. **Apply Migrations** → 3. **Verify Migrations** → 4. **Deploy Code** → 5. **Verify**
+
+See **[migrations/README.md](migrations/README.md)** for detailed migration documentation and rollback procedures.
 
 ### Zero-Downtime Update (Advanced)
 
