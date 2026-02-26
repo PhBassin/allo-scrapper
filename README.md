@@ -512,6 +512,69 @@ Protected endpoints require JWT authentication:
 
 **⚠️ Important:** Change the default admin password in production environments.
 
+### Rate Limiting
+
+All API endpoints are protected with rate limiting to prevent abuse and ensure service availability.
+
+#### Rate Limits by Endpoint Type
+
+| Endpoint Type | Limit | Window | Description |
+|--------------|-------|--------|-------------|
+| **General API** | 100 requests | 15 minutes | Applies to all `/api/*` routes |
+| **Login** | 5 failed attempts | 15 minutes | Failed logins only (successful logins don't count) |
+| **Registration** | 3 registrations | 1 hour | New user registrations |
+| **Protected Endpoints** | 60 requests | 15 minutes | `/api/reports/*` endpoints |
+| **Scraper Trigger** | 10 requests | 15 minutes | `/api/scraper/trigger` endpoint |
+| **Public Endpoints** | 100 requests | 15 minutes | `/api/films/*`, `/api/cinemas/*` |
+
+#### Rate Limit Headers
+
+All API responses include rate limit headers:
+- `RateLimit-Limit` - Maximum requests allowed in the window
+- `RateLimit-Remaining` - Requests remaining in current window
+- `RateLimit-Reset` - Unix timestamp when the window resets
+
+#### 429 Response Format
+
+When the rate limit is exceeded, the API returns a `429 Too Many Requests` response:
+
+```json
+{
+  "success": false,
+  "error": "Too many requests, please try again later."
+}
+```
+
+The response includes a `Retry-After` header indicating when to retry (in seconds).
+
+#### Configuration
+
+Rate limits can be configured via environment variables in `.env`:
+
+```bash
+# Rate limit window (default: 15 minutes)
+RATE_LIMIT_WINDOW_MS=900000
+
+# General API limit (default: 100)
+RATE_LIMIT_GENERAL_MAX=100
+
+# Auth login limit (default: 5)
+RATE_LIMIT_AUTH_MAX=5
+
+# Registration limit (default: 3)
+RATE_LIMIT_REGISTER_MAX=3
+RATE_LIMIT_REGISTER_WINDOW_MS=3600000
+
+# Protected endpoints limit (default: 60)
+RATE_LIMIT_PROTECTED_MAX=60
+
+# Scraper trigger limit (default: 10)
+RATE_LIMIT_SCRAPER_MAX=10
+
+# Public endpoints limit (default: 100)
+RATE_LIMIT_PUBLIC_MAX=100
+```
+
 ### Endpoints
 
 #### Health Check

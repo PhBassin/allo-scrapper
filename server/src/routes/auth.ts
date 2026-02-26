@@ -5,6 +5,7 @@ import { db } from '../db/client.js';
 import { getUserByUsername, createUser } from '../db/queries.js';
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
+import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ export interface AuthResponse {
 }
 
 // POST /api/auth/login - Login user
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
 
@@ -81,7 +82,7 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /api/auth/register - Register a new user (can be disabled or protected later)
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
 

@@ -8,6 +8,7 @@ import { Registry, collectDefaultMetrics } from 'prom-client';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
+import { generalLimiter } from './middleware/rate-limit.js';
 
 // Import routes
 import filmsRouter from './routes/films.js';
@@ -48,6 +49,9 @@ export function createApp() {
   app.use(morgan('combined'));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
+  // Rate limiting for all API routes
+  app.use('/api', generalLimiter);
 
   // API routes
   app.use('/api/auth', authRouter);

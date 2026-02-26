@@ -6,11 +6,12 @@ import { groupShowtimesByCinema } from '../utils/showtimes.js';
 import type { ApiResponse } from '../types/api.js';
 import type { FilmWithShowtimes, Showtime, Cinema } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
+import { publicLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
 
 // GET /api/films - Get weekly films or films by date
-router.get('/', async (req, res) => {
+router.get('/', publicLimiter, async (req, res) => {
   try {
     const weekStart = getWeekStart();
     const dateParam = req.query.date as string | undefined;
@@ -76,7 +77,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/films/search - Search films with fuzzy matching
-router.get('/search', async (req, res) => {
+router.get('/search', publicLimiter, async (req, res) => {
   try {
     const query = req.query.q as string | undefined;
     
@@ -111,7 +112,7 @@ router.get('/search', async (req, res) => {
 });
 
 // GET /api/films/:id - Get film by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', publicLimiter, async (req, res) => {
   try {
     const filmId = parseInt(req.params.id);
     const weekStart = getWeekStart();

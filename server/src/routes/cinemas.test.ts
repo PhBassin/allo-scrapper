@@ -25,6 +25,13 @@ vi.mock('../utils/date.js', () => ({
   getWeekStart: vi.fn().mockReturnValue('2026-02-18')
 }));
 
+// Helper to get the actual route handler (skips middleware like rate limiters)
+function getRouteHandler(path: string, method: 'get' | 'post' | 'put' | 'delete') {
+  const route = router.stack.find(s => s.route?.path === path && s.route?.methods[method])?.route;
+  // Get the last handler in the stack (actual route handler, after middleware)
+  return route?.stack[route.stack.length - 1]?.handle;
+}
+
 describe('Routes - Cinemas', () => {
   let mockRes: any;
   let mockReq: any;

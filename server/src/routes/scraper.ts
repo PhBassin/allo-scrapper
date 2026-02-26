@@ -6,13 +6,14 @@ import { logger } from '../utils/logger.js';
 import { getCinemas } from '../db/queries.js';
 import { db } from '../db/client.js';
 import { requireAuth } from '../middleware/auth.js';
+import { scraperLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
 
 const USE_REDIS_SCRAPER = process.env.USE_REDIS_SCRAPER === 'true';
 
 // POST /api/scraper/trigger - Start a manual scrape
-router.post('/trigger', requireAuth, async (req, res) => {
+router.post('/trigger', requireAuth, scraperLimiter, async (req, res) => {
   try {
     // Extract and validate cinemaId and filmId from request body
     const { cinemaId, filmId } = req.body as { cinemaId?: string; filmId?: number };
