@@ -195,6 +195,115 @@ For production deployment and advanced configuration, see [DEPLOYMENT.md](./DEPL
 
 ---
 
+## 🌐 External Host Access (LAN/Network)
+
+The application can be accessed from other devices on your local network (LAN access).
+
+### Accessing from Another Machine
+
+**When running via Docker:**
+
+1. **Find your server's IP address:**
+   ```bash
+   # On Linux
+   hostname -I
+   # or
+   ip addr show | grep "inet "
+   
+   # On macOS
+   ipconfig getifaddr en0  # for Wi-Fi
+   ipconfig getifaddr en1  # for Ethernet
+   
+   # Example output: 192.168.1.100
+   ```
+
+2. **Update CORS configuration** (required for browsers to accept API calls):
+   ```bash
+   # Edit .env file
+   nano .env
+   
+   # Add your server's IP to ALLOWED_ORIGINS
+   ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
+   #                                      ^^^^^^^^^^^^^^^^^^^
+   #                                      Add your server's LAN IP
+   
+   # Restart the container to apply changes
+   docker compose restart ics-web
+   ```
+
+3. **Access from another device on the same network:**
+   ```
+   Open browser → http://192.168.1.100:3000
+   ```
+
+### How It Works
+
+- **Production (Docker):** The React frontend is served by the same Express server that hosts the API on port 3000
+- **API calls use relative paths** (`/api/films`) instead of absolute URLs like `http://localhost:3000/api/films`
+- **Works with any hostname:** `localhost`, LAN IP (`192.168.x.x`), or custom domain name
+- **CORS must include the origin** that browsers use to reach the app (the full URL including protocol)
+
+### Troubleshooting External Access
+
+#### Problem: "Network Error" or "Failed to fetch" in browser
+
+**Symptoms:** Homepage loads but shows "Failed to load data" or network errors
+
+**Solution:**
+```bash
+# 1. Verify CORS configuration includes your server IP
+cat .env | grep ALLOWED_ORIGINS
+# Should show: ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
+
+# 2. If missing, add your server IP
+echo "ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000" >> .env
+
+# 3. Restart container
+docker compose restart ics-web
+
+# 4. Clear browser cache and reload page
+```
+
+**Verify the fix:**
+- Open browser DevTools (F12)
+- Go to Network tab
+- Reload the page
+- Check API requests - they should use your server's IP (e.g., `http://192.168.1.100:3000/api/films`)
+- NOT `http://localhost:3000/api/films`
+
+#### Problem: CORS error in browser console
+
+```
+Access to fetch at 'http://192.168.1.100:3000/api/films' from origin 
+'http://192.168.1.100:3000' has been blocked by CORS policy
+```
+
+**Solution:** Add the exact origin (including `http://`) to `ALLOWED_ORIGINS` in `.env`, then restart:
+```bash
+# Add the origin shown in the error message
+ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
+
+docker compose restart ics-web
+```
+
+#### Problem: Cannot connect to server from another device
+
+**Checklist:**
+1. Verify server is accessible: `ping 192.168.1.100` from the other device
+2. Check firewall: Ensure port 3000 is open on the server
+3. Verify Docker container is running: `docker compose ps`
+4. Test API directly: `curl http://192.168.1.100:3000/api/health`
+
+### Development Mode (Vite)
+
+When running `npm run dev` for local development:
+- **Frontend:** `http://localhost:5173` (Vite dev server with hot-reload)
+- **Backend API:** `http://localhost:3000` (Express server)
+- **Proxy:** Vite automatically forwards `/api/*` requests to port 3000
+- **CORS:** Must include both origins: `http://localhost:3000,http://localhost:5173`
+
+---
+
 ## 💻 Development Setup
 
 ### Prerequisites
@@ -1397,7 +1506,6 @@ cp .env.example .env
 | `POSTGRES_PASSWORD` | Database password | `password` | `securepass123` |
 | `PORT` | API server port | `3000` | `8080` |
 | `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins. Must include every origin the browser uses to reach the app — including LAN IPs (e.g. `http://192.168.1.100:3000`) for local network installs. | `http://localhost:3000,http://localhost:5173` | `http://localhost:3000,http://192.168.1.100:3000` |
-| `VITE_API_BASE_URL` | Client API base URL | `http://localhost:3000/api` | `https://api.example.com/api` |
 
 ### Optional Variables
 
@@ -1418,6 +1526,7 @@ cp .env.example .env
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP gRPC endpoint for Tempo | `http://ics-tempo:4317` | `http://ics-tempo:4317` |
 | `GRAFANA_ADMIN_USER` | Grafana admin username | `admin` | `admin` |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana admin password | `admin` | `securepass` |
+| `VITE_API_BASE_URL` | API base URL for Vite dev server (local development only). Production Docker builds use relative URLs (`/api`) automatically and ignore this variable. | `/api` | `http://localhost:3000/api` |
 
 ### Cron Schedule Examples
 

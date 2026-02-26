@@ -105,11 +105,23 @@ PORT=3000
 NODE_ENV=production
 
 # CORS – must include the origin the browser uses to reach the app.
-# When served via Docker on port 3000, the frontend and API share the same origin.
-# Add http://localhost:5173 if also running the Vite dev server.
-# IMPORTANT: if accessed from another machine on your LAN (e.g. http://192.168.1.100:3000),
-# you MUST add that address here, or browsers will get a CORS error.
+# The frontend and API are served by the same Express server on port 3000.
+#
+# For local access only:
+ALLOWED_ORIGINS=http://localhost:3000
+#
+# For LAN access (access from other devices on your network):
+# Add your server's LAN IP address (find with: hostname -I)
 ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
+#
+# For production with domain:
+ALLOWED_ORIGINS=https://cinema.example.com
+#
+# Multiple origins (localhost + LAN + domain):
+ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000,https://cinema.example.com
+#
+# IMPORTANT: After changing ALLOWED_ORIGINS, restart the container:
+# docker compose restart ics-web
 
 # Scraper Configuration
 SCRAPE_CRON_SCHEDULE=0 8 * * 3    # Wednesday at 8:00 AM
@@ -242,6 +254,153 @@ SCRAPE_CRON_SCHEDULE=0 8 * * 3  # Every Wednesday at 8:00 AM
 # Twice daily:      0 8,20 * * *
 # Disable cron:     # (comment out the line)
 ```
+
+---
+
+### Network Access & CORS
+
+**Accessing from LAN:**
+
+When deploying on a local network server (e.g., home/office network), you must update CORS to allow browser connections from your server's IP address.
+
+#### Step-by-Step Setup
+
+1. **Find your server's IP address:**
+   ```bash
+   # Linux
+   hostname -I
+   # Example output: 192.168.1.100 10.0.2.15
+   
+   # macOS
+   ipconfig getifaddr en0  # Wi-Fi
+   ipconfig getifaddr en1  # Ethernet
+   ```
+
+2. **Update CORS configuration in `.env`:**
+   ```bash
+   # Edit .env file
+   nano .env
+   
+   # Add your server's LAN IP to ALLOWED_ORIGINS
+   ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
+   ```
+
+3. **Restart the web service:**
+   ```bash
+   docker compose restart ics-web
+   ```
+
+4. **Access from another device on the same network:**
+   ```
+   Browser → http://192.168.1.100:3000
+   ```
+
+#### Multiple Access Points
+
+For servers accessible via multiple addresses:
+
+```bash
+# .env example for multiple origins
+ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000,https://cinema.example.com
+```
+
+**Security Note:** Only add origins you trust. Each origin grants full API access to browsers visiting from that address.
+
+#### Testing External Access
+
+**Test API connectivity:**
+```bash
+# From another machine on the network
+curl http://192.168.1.100:3000/api/health
+
+# Expected: {"status":"ok","timestamp":"..."}
+```
+
+**Verify CORS headers:**
+```bash
+curl -I http://192.168.1.100:3000/api/films \
+  -H "Origin: http://192.168.1.100:3000"
+
+# Should include this header:
+# Access-Control-Allow-Origin: http://192.168.1.100:3000
+```
+
+**Test from browser:**
+1. Open `http://192.168.1.100:3000` on another device
+2. Open DevTools (F12) → Network tab
+3. Reload the page
+4. Verify API requests use the server IP (not localhost):
+   - ✅ Correct: `http://192.168.1.100:3000/api/films`
+   - ❌ Wrong: `http://localhost:3000/api/films`
+
+#### Troubleshooting Network Access
+
+**Problem: "Failed to fetch" or "Network Error"**
+
+1. Verify CORS configuration:
+   ```bash
+   docker compose exec ics-web printenv ALLOWED_ORIGINS
+   ```
+
+2. Check if your IP is included - if not, update `.env` and restart
+
+3. Verify container is accessible:
+   ```bash
+   # From external device
+   ping 192.168.1.100
+   curl http://192.168.1.100:3000/api/health
+   ```
+
+**Problem: CORS error in browser console**
+
+```
+Access to fetch at 'http://192.168.1.100:3000/api/films' 
+has been blocked by CORS policy
+```
+
+**Solution:** Add the exact origin to `ALLOWED_ORIGINS` in `.env`:
+```bash
+ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
+docker compose restart ics-web
+```
+
+**Problem: Cannot reach server from external device**
+
+1. **Check firewall:** Ensure port 3000 is open
+   ```bash
+   # Ubuntu/Debian
+   sudo ufw allow 3000/tcp
+   sudo ufw status
+   ```
+
+2. **Verify Docker port binding:**
+   ```bash
+   docker compose ps
+   # Should show: 0.0.0.0:3000->3000/tcp
+   ```
+
+3. **Test connectivity:**
+   ```bash
+   # From external device
+   telnet 192.168.1.100 3000
+   # Should connect (if telnet installed)
+   ```
+
+#### Production Deployment with Domain
+
+For production with a domain name:
+
+1. **Update `.env` with your domain:**
+   ```bash
+   ALLOWED_ORIGINS=https://cinema.example.com
+   ```
+
+2. **Use HTTPS with reverse proxy** (see "SSL/HTTPS Setup" section below)
+
+3. **Restart services:**
+   ```bash
+   docker compose restart ics-web
+   ```
 
 ---
 
