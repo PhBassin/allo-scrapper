@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { FilmWithShowtimes } from '../types';
 import CinemaShowtimes from './CinemaShowtimes';
 
@@ -15,7 +15,7 @@ function formatDuration(minutes?: number): string {
   return `${hours}h${mins > 0 ? ` ${mins}min` : ''}`;
 }
 
-export default function FilmCard({ film, isNew = false }: FilmCardProps) {
+function FilmCard({ film, isNew = false }: FilmCardProps) {
   const [showSchedule, setShowSchedule] = useState(false);
 
   return (
@@ -134,3 +134,7 @@ export default function FilmCard({ film, isNew = false }: FilmCardProps) {
     </div>
   );
 }
+
+// ⚡ PERFORMANCE: Memoize FilmCard to prevent re-renders of the entire list
+// when parent state (like scrape progress or date selection loading state) changes.
+export default memo(FilmCard);

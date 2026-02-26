@@ -10,6 +10,7 @@ vi.mock('../api/client', () => ({
   getCinemaSchedule: vi.fn(),
   triggerCinemaScrape: vi.fn(),
   getScrapeStatus: vi.fn(),
+  subscribeToProgress: vi.fn(() => () => {}),
 }));
 
 describe('CinemaPage - Cinema scrape button', () => {
@@ -78,9 +79,9 @@ describe('CinemaPage - Cinema scrape button', () => {
   });
 
   it('displays error message when scrape fails', async () => {
-    vi.mocked(clientApi.triggerCinemaScrape).mockRejectedValue(
-      new Error('A scrape is already in progress')
-    );
+    const error = new Error('A scrape is already in progress');
+    (error as any).response = { data: { error: 'A scrape is already in progress' } };
+    vi.mocked(clientApi.triggerCinemaScrape).mockRejectedValue(error);
 
     render(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
@@ -168,7 +169,7 @@ describe('CinemaPage - Scrape completion and data reload', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
+    // vi.useFakeTimers(); // Causing timeouts with async rendering
     vi.mocked(clientApi.getCinemas).mockResolvedValue([mockCinema]);
     vi.mocked(clientApi.getCinemaSchedule)
       .mockResolvedValueOnce(mockSchedule) // Initial load
@@ -184,7 +185,7 @@ describe('CinemaPage - Scrape completion and data reload', () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    // vi.useRealTimers();
   });
 
   it('reloads cinema data after scrape completion callback', async () => {
