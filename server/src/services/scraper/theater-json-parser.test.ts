@@ -203,6 +203,46 @@ describe('parseShowtimesJson', () => {
       expect(result[0].film.duration_minutes).toBeUndefined();
     });
 
+    it('should return undefined for runtime NaN', () => {
+      const movie = makeMovie({ runtime: NaN });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.duration_minutes).toBeUndefined();
+    });
+
+    it('should return undefined for runtime Infinity', () => {
+      const movie = makeMovie({ runtime: Infinity });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.duration_minutes).toBeUndefined();
+    });
+
+    it('should return undefined for runtime -Infinity', () => {
+      const movie = makeMovie({ runtime: -Infinity });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.duration_minutes).toBeUndefined();
+    });
+
+    it('should return undefined for negative runtime', () => {
+      const movie = makeMovie({ runtime: -120 });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.duration_minutes).toBeUndefined();
+    });
+
     it('should detect réalisateur as director', () => {
       const movie = makeMovie({
         credits: [
@@ -281,6 +321,45 @@ describe('parseShowtimesJson', () => {
         '2026-02-22'
       );
       expect(result[0].film.genres).toEqual(['Action']);
+    });
+
+    it('should handle NaN press_rating', () => {
+      const movie = makeMovie({
+        stats: { pressReview: { score: NaN }, userRating: { score: 3.5 } },
+      });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.press_rating).toBeUndefined();
+      expect(result[0].film.audience_rating).toBe(3.5);
+    });
+
+    it('should handle NaN audience_rating', () => {
+      const movie = makeMovie({
+        stats: { pressReview: { score: 4.0 }, userRating: { score: NaN } },
+      });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.press_rating).toBe(4.0);
+      expect(result[0].film.audience_rating).toBeUndefined();
+    });
+
+    it('should handle Infinity ratings', () => {
+      const movie = makeMovie({
+        stats: { pressReview: { score: Infinity }, userRating: { score: -Infinity } },
+      });
+      const result = parseShowtimesJson(
+        { error: false, results: [{ movie, showtimes: { original: [makeShowtime()] } }] },
+        'C0072',
+        '2026-02-22'
+      );
+      expect(result[0].film.press_rating).toBeUndefined();
+      expect(result[0].film.audience_rating).toBeUndefined();
     });
   });
 
