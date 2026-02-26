@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { getWeeklyFilms, getFilmsByDate, getCinemas, getScrapeStatus, addCinema, triggerScrape } from '../api/client';
 import type { FilmWithShowtimes, Cinema } from '../types';
@@ -7,6 +7,7 @@ import ScrapeButton from '../components/ScrapeButton';
 import ScrapeProgress from '../components/ScrapeProgress';
 import DaySelector from '../components/DaySelector';
 import FilmSearchBar from '../components/FilmSearchBar';
+import { AuthContext } from '../contexts/AuthContext';
 
 export default function HomePage() {
   const [films, setFilms] = useState<FilmWithShowtimes[]>([]);
@@ -16,6 +17,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showProgress, setShowProgress] = useState(false);
+  const { isAuthenticated } = useContext(AuthContext);
 
   const loadData = async (date?: string | null) => {
     try {
@@ -86,13 +88,12 @@ export default function HomePage() {
     if (!url) return;
 
     try {
-      setIsLoading(true);
+      setShowProgress(true);
       await addCinema(url);
-      await loadData(selectedDate);
-      alert("Cinéma ajouté avec succès !");
+      // Data will reload when progress completes via handleScrapeComplete
     } catch (err: any) {
-      alert("Erreur lors de l'ajout du cinéma: " + (err.message || 'Erreur inconnue'));
-      setIsLoading(false);
+      setShowProgress(false);
+      setError(err.message || 'Erreur lors de l\'ajout du cinéma');
     }
   };
 
@@ -180,12 +181,14 @@ export default function HomePage() {
                 {cinema.name}
               </Link>
             ))}
-            <button
-              onClick={handleAddCinema}
-              className="px-3 py-1.5 bg-white border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-primary hover:text-primary transition font-semibold cursor-pointer active:scale-95"
-            >
-              + Ajouter un cinéma
-            </button>
+            {isAuthenticated && (
+              <button
+                onClick={handleAddCinema}
+                className="px-3 py-1.5 bg-white border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-primary hover:text-primary transition font-semibold cursor-pointer active:scale-95"
+              >
+                + Ajouter un cinéma
+              </button>
+            )}
           </div>
         </div>
       </div>
