@@ -4,6 +4,13 @@ import { logger } from '../utils/logger.js';
 
 // --- Database Row Interfaces ---
 
+export interface UserRow {
+  id: number;
+  username: string;
+  password_hash: string;
+  created_at: string;
+}
+
 export interface CinemaRow {
   id: string;
   name: string;
@@ -86,6 +93,24 @@ export interface ShowtimeWithCinemaRow extends ShowtimeRow {
 
 // Helper to handle parameter syntax for PostgreSQL
 // We convert from named parameters (conceptually) to numbered parameters ($1, $2, etc.)
+
+// --- Auth / User Queries ---
+
+export async function getUserByUsername(db: DB, username: string): Promise<UserRow | undefined> {
+  const result = await db.query<UserRow>(
+    'SELECT id, username, password_hash, created_at FROM users WHERE username = $1',
+    [username]
+  );
+  return result.rows[0];
+}
+
+export async function createUser(db: DB, username: string, passwordHash: string): Promise<UserRow> {
+  const result = await db.query<UserRow>(
+    'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username, password_hash, created_at',
+    [username, passwordHash]
+  );
+  return result.rows[0];
+}
 
 // Insertion ou mise à jour d'un cinéma
 export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
@@ -374,7 +399,7 @@ export async function getFilm(db: DB, filmId: number): Promise<Film | undefined>
     'SELECT * FROM films WHERE id = $1',
     [filmId]
   );
-  
+
   const row = result.rows[0];
   if (!row) return undefined;
 

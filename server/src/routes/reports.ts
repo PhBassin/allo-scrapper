@@ -4,11 +4,13 @@ import { getScrapeReports, getScrapeReport } from '../db/queries.js';
 import type { ApiResponse, PaginatedResponse, GetReportsQuery } from '../types/api.js';
 import type { ScrapeReport } from '../db/queries.js';
 import { logger } from '../utils/logger.js';
+import { requireAuth } from '../middleware/auth.js';
+import { protectedLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
 
 // GET /api/reports - Get all scrape reports (paginated)
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, protectedLimiter, async (req, res) => {
   try {
     const query = req.query as GetReportsQuery;
     let page = parseInt(query.page || '1');
@@ -58,7 +60,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/reports/:id - Get a specific report
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAuth, protectedLimiter, async (req, res) => {
   try {
     const reportId = parseInt(req.params.id);
 

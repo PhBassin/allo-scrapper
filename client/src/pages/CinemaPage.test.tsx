@@ -1,16 +1,33 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { vi, describe, it, beforeEach, afterEach, expect } from 'vitest';
+import { vi, describe, it, beforeEach, expect } from 'vitest';
 import CinemaPage from './CinemaPage';
 import * as clientApi from '../api/client';
 import type { Cinema, ShowtimeWithFilm } from '../types';
+import { AuthContext } from '../contexts/AuthContext';
+
+const mockAuthContext = {
+  isAuthenticated: true,
+  token: 'mock-token',
+  user: { id: 1, username: 'testuser' },
+  login: vi.fn(),
+  logout: vi.fn(),
+};
+
+const renderWithAuth = (ui: React.ReactElement) => {
+  return render(
+    <AuthContext.Provider value={mockAuthContext}>
+      {ui}
+    </AuthContext.Provider>
+  );
+};
 
 vi.mock('../api/client', () => ({
   getCinemas: vi.fn(),
   getCinemaSchedule: vi.fn(),
   triggerCinemaScrape: vi.fn(),
   getScrapeStatus: vi.fn(),
-  subscribeToProgress: vi.fn(() => () => {}),
+  subscribeToProgress: vi.fn(),
 }));
 
 describe('CinemaPage - Cinema scrape button', () => {
@@ -29,18 +46,18 @@ describe('CinemaPage - Cinema scrape button', () => {
     vi.clearAllMocks();
     vi.mocked(clientApi.getCinemas).mockResolvedValue([mockCinema]);
     vi.mocked(clientApi.getCinemaSchedule).mockResolvedValue(mockSchedule);
-    vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ 
-      isRunning: false, 
+    vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({
+      isRunning: false,
       currentSession: undefined
     });
-    vi.mocked(clientApi.triggerCinemaScrape).mockResolvedValue({ 
-      reportId: 1, 
-      message: 'ok' 
+    vi.mocked(clientApi.triggerCinemaScrape).mockResolvedValue({
+      reportId: 1,
+      message: 'ok'
     });
   });
 
   it('renders cinema scrape button in sticky position', async () => {
-    render(
+    renderWithAuth(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -49,13 +66,13 @@ describe('CinemaPage - Cinema scrape button', () => {
     );
 
     await screen.findByRole('heading', { name: 'UGC Test' });
-    
+
     const button = screen.getByRole('button', { name: /Scraper uniquement ce cinéma/i });
     expect(button).toBeInTheDocument();
   });
 
   it('triggers cinema scrape when button is clicked', async () => {
-    render(
+    renderWithAuth(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -64,26 +81,29 @@ describe('CinemaPage - Cinema scrape button', () => {
     );
 
     await screen.findByRole('heading', { name: 'UGC Test' });
-    
-    const scrapeButton = screen.getByRole('button', { 
-      name: /Scraper uniquement ce cinéma/i 
+
+    const scrapeButton = screen.getByRole('button', {
+      name: /Scraper uniquement ce cinéma/i
     });
     fireEvent.click(scrapeButton);
 
     await waitFor(() => {
       expect(clientApi.triggerCinemaScrape).toHaveBeenCalledWith('C0153');
     });
-    
+
     expect(await screen.findByText(/Scraping démarré/i))
       .toBeInTheDocument();
   });
 
   it('displays error message when scrape fails', async () => {
-    const error = new Error('A scrape is already in progress');
-    (error as any).response = { data: { error: 'A scrape is already in progress' } };
-    vi.mocked(clientApi.triggerCinemaScrape).mockRejectedValue(error);
+    vi.mocked(clientApi.triggerCinemaScrape).mockRejectedValue({
+      response: {
+        status: 500,
+        data: { error: 'A scrape is already in progress' }
+      }
+    });
 
-    render(
+    renderWithAuth(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -92,9 +112,9 @@ describe('CinemaPage - Cinema scrape button', () => {
     );
 
     await screen.findByRole('heading', { name: 'UGC Test' });
-    
-    fireEvent.click(screen.getByRole('button', { 
-      name: /Scraper uniquement ce cinéma/i 
+
+    fireEvent.click(screen.getByRole('button', {
+      name: /Scraper uniquement ce cinéma/i
     }));
 
     expect(await screen.findByText(/A scrape is already in progress/i))
@@ -106,7 +126,7 @@ describe('CinemaPage - Cinema scrape button', () => {
       () => new Promise(resolve => setTimeout(() => resolve({ reportId: 1, message: 'ok' }), 100))
     );
 
-    render(
+    renderWithAuth(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -115,11 +135,11 @@ describe('CinemaPage - Cinema scrape button', () => {
     );
 
     await screen.findByRole('heading', { name: 'UGC Test' });
-    
-    const button = screen.getByRole('button', { 
-      name: /Scraper uniquement ce cinéma/i 
+
+    const button = screen.getByRole('button', {
+      name: /Scraper uniquement ce cinéma/i
     });
-    
+
     fireEvent.click(button);
 
     // During scrape: button should be disabled and show loading text
@@ -141,7 +161,7 @@ describe('CinemaPage - Scrape completion and data reload', () => {
   };
 
   const mockSchedule = { showtimes: [], weekStart: '2026-02-23' };
-  const mockUpdatedSchedule = { 
+  const mockUpdatedSchedule = {
     showtimes: [
       {
         id: '1',
@@ -169,27 +189,22 @@ describe('CinemaPage - Scrape completion and data reload', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // vi.useFakeTimers(); // Causing timeouts with async rendering
     vi.mocked(clientApi.getCinemas).mockResolvedValue([mockCinema]);
     vi.mocked(clientApi.getCinemaSchedule)
       .mockResolvedValueOnce(mockSchedule) // Initial load
       .mockResolvedValueOnce(mockUpdatedSchedule); // After scrape
-    vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ 
-      isRunning: false, 
+    vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({
+      isRunning: false,
       currentSession: undefined
     });
-    vi.mocked(clientApi.triggerCinemaScrape).mockResolvedValue({ 
-      reportId: 1, 
-      message: 'ok' 
+    vi.mocked(clientApi.triggerCinemaScrape).mockResolvedValue({
+      reportId: 1,
+      message: 'ok'
     });
-  });
-
-  afterEach(() => {
-    // vi.useRealTimers();
   });
 
   it('reloads cinema data after scrape completion callback', async () => {
-    render(
+    renderWithAuth(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -208,8 +223,8 @@ describe('CinemaPage - Scrape completion and data reload', () => {
   it('keeps modal visible during data reload', async () => {
     // This test verifies the integration between CinemaPage and ScrapeProgress
     // The modal should remain visible until data is reloaded
-    
-    render(
+
+    renderWithAuth(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -218,7 +233,7 @@ describe('CinemaPage - Scrape completion and data reload', () => {
     );
 
     await screen.findByRole('heading', { name: 'UGC Test' });
-    
+
     // Verify initial schedule load
     expect(clientApi.getCinemaSchedule).toHaveBeenCalledWith('C0153');
   });
@@ -228,7 +243,7 @@ describe('CinemaPage - Scrape completion and data reload', () => {
       .mockResolvedValueOnce(mockSchedule) // Initial load succeeds
       .mockRejectedValueOnce(new Error('Failed to reload cinema data')); // Reload fails
 
-    render(
+    renderWithAuth(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -237,7 +252,7 @@ describe('CinemaPage - Scrape completion and data reload', () => {
     );
 
     await screen.findByRole('heading', { name: 'UGC Test' });
-    
+
     // The test verifies that the error handling is in place
     // In the actual implementation, if getCinemaSchedule fails in handleScrapeComplete,
     // the modal should stay visible (early return in catch block)
@@ -245,7 +260,7 @@ describe('CinemaPage - Scrape completion and data reload', () => {
   });
 
   it('calls getCinemas and getCinemaSchedule when handleScrapeComplete is triggered', async () => {
-    render(
+    renderWithAuth(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -264,13 +279,13 @@ describe('CinemaPage - Scrape completion and data reload', () => {
 
     // Simulate scrape completion by calling the component's handleScrapeComplete
     // This will be indirectly tested via the ScrapeProgress component's onComplete callback
-    
+
     // Note: Since handleScrapeComplete is called by ScrapeProgress via onComplete callback,
     // and we're not rendering the full ScrapeProgress component here,
     // we need to verify that the pattern is correct by checking that:
     // 1. Initial load calls getCinemas and getCinemaSchedule once
     // 2. After implementation, a reload would call them again
-    
+
     // This is a structural test - after the refactoring, handleScrapeComplete
     // should call loadData(), which will call both getCinemas and getCinemaSchedule
   });

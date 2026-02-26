@@ -496,6 +496,85 @@ All endpoints except `GET /api/health` return:
 }
 ```
 
+### Authentication
+
+Protected endpoints require JWT authentication:
+- **Login**: `POST /api/auth/login` to obtain a token
+- **Authorization Header**: `Authorization: Bearer <token>`
+- **Protected Endpoints**:
+  - `POST /api/scraper/trigger` - Trigger manual scraping
+  - `GET /api/reports` - View scrape reports
+  - `GET /api/reports/:id` - View report details
+
+**Default credentials:**
+- Username: `admin`
+- Password: `admin`
+
+**⚠️ Important:** Change the default admin password in production environments.
+
+### Rate Limiting
+
+All API endpoints are protected with rate limiting to prevent abuse and ensure service availability.
+
+#### Rate Limits by Endpoint Type
+
+| Endpoint Type | Limit | Window | Description |
+|--------------|-------|--------|-------------|
+| **General API** | 100 requests | 15 minutes | Applies to all `/api/*` routes |
+| **Login** | 5 failed attempts | 15 minutes | Failed logins only (successful logins don't count) |
+| **Registration** | 3 registrations | 1 hour | New user registrations |
+| **Protected Endpoints** | 60 requests | 15 minutes | `/api/reports/*` endpoints |
+| **Scraper Trigger** | 10 requests | 15 minutes | `/api/scraper/trigger` endpoint |
+| **Public Endpoints** | 100 requests | 15 minutes | `/api/films/*`, `/api/cinemas/*` |
+
+#### Rate Limit Headers
+
+All API responses include rate limit headers:
+- `RateLimit-Limit` - Maximum requests allowed in the window
+- `RateLimit-Remaining` - Requests remaining in current window
+- `RateLimit-Reset` - Unix timestamp when the window resets
+
+#### 429 Response Format
+
+When the rate limit is exceeded, the API returns a `429 Too Many Requests` response:
+
+```json
+{
+  "success": false,
+  "error": "Too many requests, please try again later."
+}
+```
+
+The response includes a `Retry-After` header indicating when to retry (in seconds).
+
+#### Configuration
+
+Rate limits can be configured via environment variables in `.env`:
+
+```bash
+# Rate limit window (default: 15 minutes)
+RATE_LIMIT_WINDOW_MS=900000
+
+# General API limit (default: 100)
+RATE_LIMIT_GENERAL_MAX=100
+
+# Auth login limit (default: 5)
+RATE_LIMIT_AUTH_MAX=5
+
+# Registration limit (default: 3)
+RATE_LIMIT_REGISTER_MAX=3
+RATE_LIMIT_REGISTER_WINDOW_MS=3600000
+
+# Protected endpoints limit (default: 60)
+RATE_LIMIT_PROTECTED_MAX=60
+
+# Scraper trigger limit (default: 10)
+RATE_LIMIT_SCRAPER_MAX=10
+
+# Public endpoints limit (default: 100)
+RATE_LIMIT_PUBLIC_MAX=100
+```
+
 ### Endpoints
 
 #### Health Check
@@ -897,7 +976,116 @@ curl "http://localhost:3000/api/films/search?q=The%20Dark%20Knight"
 
 ---
 
-#### List Scrape Reports
+#### User Login
+
+```http
+POST /api/auth/login
+```
+
+**Description:** Authenticate a user and receive a JWT token for accessing protected endpoints.
+
+**Request Body:**
+```json
+{
+  "username": "admin",
+  "password": "admin"
+}
+```
+
+**Response (200 — success):**
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": 1,
+      "username": "admin"
+    }
+  }
+}
+```
+
+**Response (401 — invalid credentials):**
+```json
+{
+  "success": false,
+  "error": "Invalid credentials"
+}
+```
+
+**Response (400 — missing fields):**
+```json
+{
+  "success": false,
+  "error": "Username and password are required"
+}
+```
+
+**Example:**
+```bash
+# Login and save token
+TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
+
+# Use token for protected endpoints
+curl http://localhost:3000/api/reports \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Note:** The default admin account is created automatically on first database initialization with username `admin` and password `admin`. **Change this password in production.**
+
+---
+
+#### Register New User
+
+```http
+POST /api/auth/register
+```
+
+**Description:** Create a new user account. This endpoint can be disabled or protected in production environments.
+
+**Request Body:**
+```json
+{
+  "username": "newuser",
+  "password": "securepassword"
+}
+```
+
+**Response (201 — created):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "User registered successfully",
+    "user": {
+      "id": 2,
+      "username": "newuser"
+    }
+  }
+}
+```
+
+**Response (409 — username exists):**
+```json
+{
+  "success": false,
+  "error": "Username already exists"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"newuser","password":"securepass123"}'
+```
+
+---
+
+#### Get Scrape Reports
 
 ```http
 GET /api/reports
@@ -979,6 +1167,8 @@ curl "http://localhost:3000/api/reports/42"
 POST /api/scraper/trigger
 ```
 
+**Authentication:** Required (Bearer token)
+
 **Request Body (optional):**
 ```json
 {
@@ -1028,26 +1218,36 @@ POST /api/scraper/trigger
 
 **Examples:**
 ```bash
+# Get auth token first
+TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
+
 # Full scrape (all cinemas, all films)
-curl -X POST http://localhost:3000/api/scraper/trigger
+curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Authorization: Bearer $TOKEN"
 
 # Cinema-specific scrape (C-prefix)
 curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"cinemaId": "C0153"}'
 
 # Cinema-specific scrape (W-prefix)
 curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"cinemaId": "W7515"}'
 
 # Film-specific scrape
 curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"filmId": 12345}'
 
 # Combined: scrape specific film at specific cinema
 curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"cinemaId": "C0153", "filmId": 12345}'
 ```
@@ -1204,6 +1404,7 @@ cp .env.example .env
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
 | `DATABASE_URL` | Full PostgreSQL connection string (overrides individual settings above) | — | `postgresql://postgres:password@localhost:5432/its` |
+| `JWT_SECRET` | Secret key for JWT token signing (⚠️ **required in production**) | `dev-secret-key-change-in-prod` | `your-super-secret-key-min-32-chars` |
 | `TZ` | Timezone for cron jobs (IANA format) | `Europe/Paris` | `America/New_York` |
 | `SCRAPE_CRON_SCHEDULE` | Cron expression for scheduled scraping | `0 8 * * 3` | `0 3 * * *` |
 | `SCRAPE_DELAY_MS` | Delay between HTTP requests to avoid rate limiting (ms) | `1000` | `2000` |
@@ -1327,6 +1528,24 @@ Logs scraping job execution details.
 **Indexes:**
 - `idx_scrape_reports_started_at` on `(started_at DESC)`
 - `idx_scrape_reports_status` on `(status)`
+
+#### `users`
+Stores user authentication credentials.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | SERIAL | Primary key |
+| `username` | VARCHAR(255) | Unique username |
+| `password_hash` | VARCHAR(255) | bcrypt hashed password |
+| `created_at` | TIMESTAMPTZ | Account creation timestamp |
+
+**Indexes:**
+- Unique constraint on `username`
+
+**Default User:**
+- Username: `admin`
+- Password: `admin` (bcrypt hashed)
+- Created automatically on first database initialization
 
 ### Relationships
 
