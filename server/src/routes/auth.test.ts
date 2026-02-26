@@ -1,11 +1,18 @@
+// IMPORTANT: Set JWT_SECRET BEFORE any imports
+// The auth middleware reads process.env.JWT_SECRET at module load time
+process.env.JWT_SECRET = 'test-secret';
+
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import authRouter from './auth.js';
 import { db } from '../db/client.js';
 import * as queries from '../db/queries.js';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import type { AuthRequest } from '../middleware/auth.js';
+
+const TEST_JWT_SECRET = 'test-secret';
 
 vi.mock('../db/client.js', () => ({
     db: {
@@ -15,6 +22,34 @@ vi.mock('../db/client.js', () => ({
 
 vi.mock('../db/queries.js');
 
+// Mock the auth middleware with proper JWT verification using test secret
+vi.mock('../middleware/auth.js', () => ({
+    requireAuth: vi.fn((req: AuthRequest, res, next) => {
+        const authHeader = req.headers.authorization as string | undefined;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required. No token provided.',
+            });
+        }
+
+        const token = authHeader.split(' ')[1];
+
+        try {
+            const decoded = jwt.verify(token, 'test-secret') as { id: number; username: string };
+            req.user = decoded;
+            next();
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid or expired token.',
+            });
+        }
+    }),
+    AuthRequest: {} as any,
+}));
+
 const app = express();
 app.use(express.json());
 app.use('/api/auth', authRouter);
@@ -22,7 +57,6 @@ app.use('/api/auth', authRouter);
 describe('Auth Routes', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        process.env.JWT_SECRET = 'test-secret';
     });
 
     describe('POST /api/auth/login', () => {
@@ -304,7 +338,12 @@ describe('Auth Routes', () => {
                 .set('Authorization', `Bearer ${validToken}`)
                 .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123!' });
 
-            expect(bcryptHashSpy).toHaveBeenCalledWith('NewPass123!', expect.any(Number));
+            // bcrypt.hash can be called with (password, saltRounds) or (password, salt)
+            // Our implementation uses genSalt first, so the second arg is a salt string
+            expect(bcryptHashSpy).toHaveBeenCalledWith(
+                'NewPass123!',
+                expect.stringMatching(/^\$2[aby]\$\d+\$/) // bcrypt salt format
+            );
         });
 
         it('should not expose password hash in response', async () => {
