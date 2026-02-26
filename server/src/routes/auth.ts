@@ -2,10 +2,11 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db } from '../db/client.js';
-import { getUserByUsername, createUser } from '../db/queries.js';
+import { getUserByUsername, createUser, updateUserPassword } from '../db/queries.js';
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
+import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -123,6 +124,78 @@ router.post('/register', registerLimiter, async (req, res) => {
         const response: ApiResponse = {
             success: false,
             error: 'Registration failed',
+        };
+        return res.status(500).json(response);
+    }
+});
+
+// POST /api/auth/change-password - Change user password (protected)
+router.post('/change-password', requireAuth, authLimiter, async (req: AuthRequest, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        // Validate required fields
+        if (!currentPassword || !newPassword) {
+            const response: ApiResponse = {
+                success: false,
+                error: 'Current password and new password are required',
+            };
+            return res.status(400).json(response);
+        }
+
+        // Validate password strength (OWASP/NIST best practices)
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]).{8,}$/;
+        if (!passwordRegex.test(newPassword)) {
+            const response: ApiResponse = {
+                success: false,
+                error: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character',
+            };
+            return res.status(400).json(response);
+        }
+
+        // Get user from database (req.user is set by requireAuth middleware)
+        const user = await getUserByUsername(db, req.user!.username);
+
+        if (!user) {
+            const response: ApiResponse = {
+                success: false,
+                error: 'User not found',
+            };
+            return res.status(404).json(response);
+        }
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+        if (!isMatch) {
+            const response: ApiResponse = {
+                success: false,
+                error: 'Current password is incorrect',
+            };
+            return res.status(401).json(response);
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+        // Update password in database
+        await updateUserPassword(db, user.id, newPasswordHash);
+
+        logger.info(`Password changed for user: ${user.username}`);
+
+        const response: ApiResponse = {
+            success: true,
+            data: {
+                message: 'Password changed successfully',
+            },
+        };
+
+        return res.json(response);
+    } catch (error) {
+        logger.error('Change password error:', error);
+        const response: ApiResponse = {
+            success: false,
+            error: 'Failed to change password',
         };
         return res.status(500).json(response);
     }

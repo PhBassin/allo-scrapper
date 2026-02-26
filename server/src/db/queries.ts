@@ -112,6 +112,13 @@ export async function createUser(db: DB, username: string, passwordHash: string)
   return result.rows[0];
 }
 
+export async function updateUserPassword(db: DB, userId: number, newPasswordHash: string): Promise<void> {
+  await db.query(
+    'UPDATE users SET password_hash = $1 WHERE id = $2',
+    [newPasswordHash, userId]
+  );
+}
+
 // Insertion ou mise à jour d'un cinéma
 export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
   await db.query(
