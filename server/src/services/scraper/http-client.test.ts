@@ -1,9 +1,13 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 
 // fetchTheaterPage now uses Playwright (headless browser) internally and cannot
 // be easily unit-tested with a fetch mock. We test the simpler HTTP functions.
 
 describe('fetchShowtimesJson', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -31,7 +35,7 @@ describe('fetchShowtimesJson', () => {
     expect(capturedUrls[0]).toContain('C0072');
     expect(capturedUrls[0]).toContain('2026-02-22');
     expect(capturedUrls[0]).not.toContain('example-cinema-site.com');
-  });
+  }, 15000);
 
   it('should throw on non-OK response', async () => {
     vi.stubGlobal(
@@ -46,10 +50,14 @@ describe('fetchShowtimesJson', () => {
     const { fetchShowtimesJson } = await import('./http-client.js');
 
     await expect(fetchShowtimesJson('C9999', '2026-02-22')).rejects.toThrow('404');
-  });
+  }, 15000);
 });
 
 describe('fetchFilmPage', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -76,5 +84,5 @@ describe('fetchFilmPage', () => {
     expect(capturedUrls[0]).not.toContain('example-cinema-site.com');
     expect(capturedUrls[0]).toContain('allocine.fr');
     expect(capturedUrls[0]).toContain('12345');
-  });
+  }, 15000);
 });

@@ -91,7 +91,7 @@ export async function initializeDatabase() {
     // Index for weekly_programs
     `CREATE INDEX IF NOT EXISTS idx_weekly_programs_week ON weekly_programs(week_start)`,
 
-    // Table: scrape_reports (NEW)
+    // Table: scrape_reports
     `CREATE TABLE IF NOT EXISTS scrape_reports (
       id SERIAL PRIMARY KEY,
       started_at TIMESTAMPTZ NOT NULL,
@@ -109,7 +109,15 @@ export async function initializeDatabase() {
 
     // Indexes for scrape_reports
     `CREATE INDEX IF NOT EXISTS idx_scrape_reports_started_at ON scrape_reports(started_at DESC)`,
-    `CREATE INDEX IF NOT EXISTS idx_scrape_reports_status ON scrape_reports(status)`
+    `CREATE INDEX IF NOT EXISTS idx_scrape_reports_status ON scrape_reports(status)`,
+
+    // Table: users (Auth system)
+    `CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`
   ];
 
   try {
