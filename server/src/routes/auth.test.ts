@@ -5,6 +5,7 @@ import authRouter from './auth.js';
 import { db } from '../db/client.js';
 import * as queries from '../db/queries.js';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 vi.mock('../db/client.js', () => ({
     db: {
@@ -99,6 +100,250 @@ describe('Auth Routes', () => {
             expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
             expect(response.body.error).toBe('Username and password are required');
+        });
+    });
+
+    describe('POST /api/auth/change-password', () => {
+        const JWT_SECRET = 'test-secret';
+        let validToken: string;
+
+        beforeEach(() => {
+            // Create a valid token for testing
+            validToken = jwt.sign(
+                { id: 1, username: 'testuser' },
+                JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+        });
+
+        it('should require authentication', async () => {
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .send({ currentPassword: 'old', newPassword: 'NewPass123!' });
+
+            expect(response.status).toBe(401);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toBe('Authentication required. No token provided.');
+        });
+
+        it('should return 400 if currentPassword is missing', async () => {
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ newPassword: 'NewPass123!' });
+
+            expect(response.status).toBe(400);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toBe('Current password and new password are required');
+        });
+
+        it('should return 400 if newPassword is missing', async () => {
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!' });
+
+            expect(response.status).toBe(400);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toBe('Current password and new password are required');
+        });
+
+        it('should return 400 if newPassword is too short', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'testuser',
+                password_hash: await bcrypt.hash('OldPass123!', 10),
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!', newPassword: 'Short1!' });
+
+            expect(response.status).toBe(400);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toContain('Password must be at least 8 characters');
+        });
+
+        it('should return 400 if newPassword lacks uppercase', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'testuser',
+                password_hash: await bcrypt.hash('OldPass123!', 10),
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!', newPassword: 'newpass123!' });
+
+            expect(response.status).toBe(400);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toContain('Password must be at least 8 characters');
+        });
+
+        it('should return 400 if newPassword lacks lowercase', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'testuser',
+                password_hash: await bcrypt.hash('OldPass123!', 10),
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!', newPassword: 'NEWPASS123!' });
+
+            expect(response.status).toBe(400);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toContain('Password must be at least 8 characters');
+        });
+
+        it('should return 400 if newPassword lacks digit', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'testuser',
+                password_hash: await bcrypt.hash('OldPass123!', 10),
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPassword!' });
+
+            expect(response.status).toBe(400);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toContain('Password must be at least 8 characters');
+        });
+
+        it('should return 400 if newPassword lacks special character', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'testuser',
+                password_hash: await bcrypt.hash('OldPass123!', 10),
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123' });
+
+            expect(response.status).toBe(400);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toContain('Password must be at least 8 characters');
+        });
+
+        it('should return 401 if currentPassword is incorrect', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'testuser',
+                password_hash: await bcrypt.hash('OldPass123!', 10),
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'WrongPass123!', newPassword: 'NewPass123!' });
+
+            expect(response.status).toBe(401);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toBe('Current password is incorrect');
+        });
+
+        it('should change password successfully with valid inputs', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'testuser',
+                password_hash: await bcrypt.hash('OldPass123!', 10),
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            vi.mocked(queries.updateUserPassword).mockResolvedValue(undefined);
+
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123!' });
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+            expect(response.body.data.message).toBe('Password changed successfully');
+            expect(queries.updateUserPassword).toHaveBeenCalledWith(
+                db,
+                1,
+                expect.any(String) // The new password hash
+            );
+        });
+
+        it('should hash the new password with bcrypt', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'testuser',
+                password_hash: await bcrypt.hash('OldPass123!', 10),
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            vi.mocked(queries.updateUserPassword).mockResolvedValue(undefined);
+
+            const bcryptHashSpy = vi.spyOn(bcrypt, 'hash');
+
+            await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123!' });
+
+            expect(bcryptHashSpy).toHaveBeenCalledWith('NewPass123!', expect.any(Number));
+        });
+
+        it('should not expose password hash in response', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'testuser',
+                password_hash: await bcrypt.hash('OldPass123!', 10),
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            vi.mocked(queries.updateUserPassword).mockResolvedValue(undefined);
+
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123!' });
+
+            expect(response.body.data.password_hash).toBeUndefined();
+            expect(response.body.data.newPasswordHash).toBeUndefined();
+        });
+
+        it('should return 500 on database error', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'testuser',
+                password_hash: await bcrypt.hash('OldPass123!', 10),
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            vi.mocked(queries.updateUserPassword).mockRejectedValue(new Error('Database error'));
+
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123!' });
+
+            expect(response.status).toBe(500);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toBe('Failed to change password');
         });
     });
 });
