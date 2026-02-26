@@ -1,5 +1,6 @@
 import { type DB } from './client.js';
 import type { Cinema, Film, Showtime, WeeklyProgram } from '../types/scraper.js';
+import { logger } from '../utils/logger.js';
 
 // --- Database Row Interfaces ---
 
@@ -93,6 +94,14 @@ export async function getCinemas(db: DB): Promise<Cinema[]> {
 }
 
 
+// Get cinemas configured for scraping (those with a URL)
+export async function getCinemaConfigs(db: DB): Promise<Array<{ id: string; name: string; url: string }>> {
+  const result = await db.query<{ id: string; name: string; url: string }>(
+    'SELECT id, name, url FROM cinemas WHERE url IS NOT NULL ORDER BY name'
+  );
+  return result.rows;
+}
+
 // Récupérer un film par son ID
 export async function getFilm(db: DB, filmId: number): Promise<Film | undefined> {
   const result = await db.query<FilmRow>(
@@ -123,8 +132,45 @@ export async function getFilm(db: DB, filmId: number): Promise<Film | undefined>
   };
 }
 
+/**
+ * Sanitize numeric fields in a Film object to prevent NaN/Infinity from being inserted.
+ * Converts NaN and Infinity to null with warning logs.
+ */
+function sanitizeNumericValue(value: number | undefined | null, fieldName: string, filmId: number): number | null {
+  if (value === undefined || value === null) return null;
+  
+  if (!Number.isFinite(value)) {
+    logger.warn('Invalid numeric value detected', { field: fieldName, value, filmId });
+    return null;
+  }
+  
+  return value;
+}
+
+/**
+ * Sanitize a Film object before database insertion to prevent NaN/Infinity errors.
+ * This is a defense-in-depth layer in case the parser doesn't catch all edge cases.
+ */
+function sanitizeFilm(film: Film): Film {
+  return {
+    ...film,
+    duration_minutes: film.duration_minutes !== undefined
+      ? sanitizeNumericValue(film.duration_minutes, 'duration_minutes', film.id) ?? undefined
+      : undefined,
+    press_rating: film.press_rating !== undefined
+      ? sanitizeNumericValue(film.press_rating, 'press_rating', film.id) ?? undefined
+      : undefined,
+    audience_rating: film.audience_rating !== undefined
+      ? sanitizeNumericValue(film.audience_rating, 'audience_rating', film.id) ?? undefined
+      : undefined,
+  };
+}
+
 // Insertion ou mise à jour d'un film
 export async function upsertFilm(db: DB, film: Film): Promise<void> {
+  // Sanitize film data to prevent NaN/Infinity from reaching the database
+  const sanitized = sanitizeFilm(film);
+  
   await db.query(
     `
       INSERT INTO films (
@@ -155,22 +201,22 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
         source_url = $16
     `,
     [
-      film.id,
-      film.title,
-      film.original_title ?? null,
-      film.poster_url ?? null,
-      film.duration_minutes ?? null,
-      film.release_date ?? null,
-      film.rerelease_date ?? null,
-      JSON.stringify(film.genres),
-      film.nationality ?? null,
-      film.director ?? null,
-      JSON.stringify(film.actors),
-      film.synopsis ?? null,
-      film.certificate ?? null,
-      film.press_rating ?? null,
-      film.audience_rating ?? null,
-      film.source_url,
+      sanitized.id,
+      sanitized.title,
+      sanitized.original_title ?? null,
+      sanitized.poster_url ?? null,
+      sanitized.duration_minutes ?? null,
+      sanitized.release_date ?? null,
+      sanitized.rerelease_date ?? null,
+      JSON.stringify(sanitized.genres),
+      sanitized.nationality ?? null,
+      sanitized.director ?? null,
+      JSON.stringify(sanitized.actors),
+      sanitized.synopsis ?? null,
+      sanitized.certificate ?? null,
+      sanitized.press_rating ?? null,
+      sanitized.audience_rating ?? null,
+      sanitized.source_url,
     ]
   );
 }

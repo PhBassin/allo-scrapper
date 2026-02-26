@@ -48,6 +48,7 @@ async function scrapeTheater(
   db: DB,
   cinema: CinemaConfig,
   date: string,
+  movieDelayMs: number,
   progress?: ProgressPublisher
 ): Promise<{ filmsCount: number; showtimesCount: number }> {
   logger.info('Scraping cinema for date', { cinema: cinema.name, id: cinema.id, date });
@@ -84,7 +85,7 @@ async function scrapeTheater(
               film.duration_minutes = filmPageData.duration_minutes;
             }
 
-            await delay(500);
+            await delay(movieDelayMs);
           } catch (error) {
             logger.warn('Error fetching film page', { filmId: film.id, error });
           }
@@ -165,6 +166,10 @@ export async function runScraper(
 
   const startTime = Date.now();
 
+  // Read delay configuration from environment
+  const theaterDelayMs = parseInt(process.env.SCRAPE_THEATER_DELAY_MS || '3000', 10);
+  const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
+
   try {
     let cinemas = await getCinemaConfigs(db);
     
@@ -172,7 +177,7 @@ export async function runScraper(
     if (options?.cinemaId) {
       // First verify cinema exists in database (source of truth)
       const allCinemasFromDb = await getCinemas(db);
-      const cinemaExistsInDb = allCinemasFromDb.some(c => c.id === options.cinemaId);
+      const cinemaExistsInDb = allCinemasFromDb.some((c: Cinema) => c.id === options.cinemaId);
       
       if (!cinemaExistsInDb) {
         throw new Error(`Cinema not found in database: ${options.cinemaId}`);
@@ -194,6 +199,7 @@ export async function runScraper(
     const scrapeDays = options?.days || parseInt(process.env.SCRAPE_DAYS || '7', 10);
     const dates = getScrapeDates(scrapeMode, scrapeDays);
     logger.info('Scrape config', { mode: scrapeMode, dates: dates.length, scrapeDays });
+    logger.info('Delay config', { theaterDelayMs, movieDelayMs });
 
     summary.total_cinemas = cinemas.length;
     summary.total_dates = dates.length;
@@ -243,12 +249,11 @@ export async function runScraper(
       for (const date of datesToScrape) {
         logger.info('Attempting date', { cinema: cinema.name, date });
         try {
-          const { filmsCount, showtimesCount } = await scrapeTheater(db, cinema, date, progress);
+          const { filmsCount, showtimesCount } = await scrapeTheater(db, cinema, date, movieDelayMs, progress);
           cinemaFilmsCount += filmsCount;
           cinemaShowtimesCount += showtimesCount;
           successfulDates++;
           logger.info('Date scraped successfully', { date, films: filmsCount, showtimes: showtimesCount });
-          await delay(500);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           logger.error('Date scrape failed', { cinema: cinema.name, date, error: errorMessage });
@@ -291,6 +296,12 @@ export async function runScraper(
       } else {
         summary.failed_cinemas++;
         logger.error('Cinema failed completely', { cinema: cinema.name, dates: datesToScrape.length });
+      }
+
+      // Apply delay between cinemas (except after the last one)
+      if (i < cinemas.length - 1) {
+        logger.info('Waiting before next cinema', { delayMs: theaterDelayMs });
+        await delay(theaterDelayMs);
       }
     }
 

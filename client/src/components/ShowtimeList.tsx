@@ -1,17 +1,19 @@
+import { useMemo, memo } from 'react';
 import type { Showtime } from '../types';
 
 interface ShowtimeListProps {
   showtimes: Showtime[];
 }
 
-export default function ShowtimeList({ showtimes }: ShowtimeListProps) {
+function ShowtimeList({ showtimes }: ShowtimeListProps) {
   // Group showtimes by version (VF/VO)
-  const showtimesByVersion = showtimes.reduce((acc, showtime) => {
+  // ⚡ PERFORMANCE: Memoize grouping logic to avoid re-calculation on every render
+  const showtimesByVersion = useMemo(() => showtimes.reduce((acc, showtime) => {
     const version = showtime.version || 'VF';
     if (!acc[version]) acc[version] = [];
     acc[version].push(showtime);
     return acc;
-  }, {} as Record<string, Showtime[]>);
+  }, {} as Record<string, Showtime[]>), [showtimes]);
 
   const versionEntries = Object.entries(showtimesByVersion);
 
@@ -44,3 +46,7 @@ export default function ShowtimeList({ showtimes }: ShowtimeListProps) {
     </div>
   );
 }
+
+// ⚡ PERFORMANCE: Memoize component to prevent re-renders when parent re-renders
+// but showtimes data hasn't changed.
+export default memo(ShowtimeList);

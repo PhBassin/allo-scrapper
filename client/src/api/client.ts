@@ -14,19 +14,51 @@ import type {
 // Use relative path by default to work with proxy in dev and same-origin in prod
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-const api = axios.create({
+const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+// Add a request interceptor to include the JWT token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add a response interceptor to handle 401 errors
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Emit custom event for App.tsx to handle logout + redirect
+      // This allows proper React Router navigation instead of window.location
+      const event = new CustomEvent('auth:unauthorized', {
+        detail: { 
+          originalPath: window.location.pathname 
+        }
+      });
+      window.dispatchEvent(event);
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ============================================================================
 // FILMS API
 // ============================================================================
 
 export async function getWeeklyFilms(): Promise<{ films: FilmWithShowtimes[]; weekStart: string }> {
-  const response = await api.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string }>>('/films');
+  const response = await apiClient.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string }>>('/films');
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch films');
   }
@@ -34,7 +66,7 @@ export async function getWeeklyFilms(): Promise<{ films: FilmWithShowtimes[]; we
 }
 
 export async function getFilmsByDate(date: string): Promise<{ films: FilmWithShowtimes[]; weekStart: string; date: string }> {
-  const response = await api.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string; date: string }>>('/films', {
+  const response = await apiClient.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string; date: string }>>('/films', {
     params: { date }
   });
   if (!response.data.success || !response.data.data) {
@@ -44,7 +76,7 @@ export async function getFilmsByDate(date: string): Promise<{ films: FilmWithSho
 }
 
 export async function getFilmById(id: number): Promise<FilmWithShowtimes> {
-  const response = await api.get<ApiResponse<FilmWithShowtimes>>(`/films/${id}`);
+  const response = await apiClient.get<ApiResponse<FilmWithShowtimes>>(`/films/${id}`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch film');
   }
@@ -61,15 +93,15 @@ export async function searchFilms(query: string): Promise<Film[]> {
   if (!query || query.trim().length < 2) {
     return [];
   }
-  
-  const response = await api.get<ApiResponse<{ films: Film[]; query: string }>>('/films/search', {
+
+  const response = await apiClient.get<ApiResponse<{ films: Film[]; query: string }>>('/films/search', {
     params: { q: query.trim() }
   });
-  
+
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to search films');
   }
-  
+
   return response.data.data.films;
 }
 
@@ -78,7 +110,7 @@ export async function searchFilms(query: string): Promise<Film[]> {
 // ============================================================================
 
 export async function getCinemas(): Promise<Cinema[]> {
-  const response = await api.get<ApiResponse<Cinema[]>>('/cinemas');
+  const response = await apiClient.get<ApiResponse<Cinema[]>>('/cinemas');
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch cinemas');
   }
@@ -88,7 +120,7 @@ export async function getCinemas(): Promise<Cinema[]> {
 export async function getCinemaSchedule(
   cinemaId: string
 ): Promise<{ showtimes: ShowtimeWithFilm[]; weekStart: string }> {
-  const response = await api.get<ApiResponse<{ showtimes: ShowtimeWithFilm[]; weekStart: string }>>(
+  const response = await apiClient.get<ApiResponse<{ showtimes: ShowtimeWithFilm[]; weekStart: string }>>(
     `/cinemas/${cinemaId}`
   );
   if (!response.data.success || !response.data.data) {
@@ -98,7 +130,7 @@ export async function getCinemaSchedule(
 }
 
 export async function addCinema(url: string): Promise<Cinema> {
-  const response = await api.post<ApiResponse<Cinema>>('/cinemas', { url });
+  const response = await apiClient.post<ApiResponse<Cinema>>('/cinemas', { url });
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to add cinema');
   }
@@ -110,7 +142,7 @@ export async function addCinema(url: string): Promise<Cinema> {
 // ============================================================================
 
 export async function triggerScrape(): Promise<{ reportId: number; message: string }> {
-  const response = await api.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger');
+  const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger');
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to trigger scrape');
   }
@@ -118,7 +150,7 @@ export async function triggerScrape(): Promise<{ reportId: number; message: stri
 }
 
 export async function triggerCinemaScrape(cinemaId: string): Promise<{ reportId: number; message: string }> {
-  const response = await api.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
+  const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
     cinemaId,
   });
   if (!response.data.success || !response.data.data) {
@@ -128,7 +160,7 @@ export async function triggerCinemaScrape(cinemaId: string): Promise<{ reportId:
 }
 
 export async function triggerFilmScrape(filmId: number): Promise<{ reportId: number; message: string }> {
-  const response = await api.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
+  const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
     filmId,
   });
   if (!response.data.success || !response.data.data) {
@@ -138,7 +170,7 @@ export async function triggerFilmScrape(filmId: number): Promise<{ reportId: num
 }
 
 export async function getScrapeStatus(): Promise<ScrapeStatus> {
-  const response = await api.get<ApiResponse<ScrapeStatus>>('/scraper/status');
+  const response = await apiClient.get<ApiResponse<ScrapeStatus>>('/scraper/status');
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch scrape status');
   }
@@ -180,7 +212,7 @@ export async function getScrapeReports(params?: {
   status?: 'running' | 'success' | 'partial_success' | 'failed';
   triggerType?: 'manual' | 'cron';
 }): Promise<PaginatedResponse<ScrapeReport>> {
-  const response = await api.get<ApiResponse<PaginatedResponse<ScrapeReport>>>('/reports', { params });
+  const response = await apiClient.get<ApiResponse<PaginatedResponse<ScrapeReport>>>('/reports', { params });
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch reports');
   }
@@ -188,7 +220,7 @@ export async function getScrapeReports(params?: {
 }
 
 export async function getScrapeReportById(id: number): Promise<ScrapeReport> {
-  const response = await api.get<ApiResponse<ScrapeReport>>(`/reports/${id}`);
+  const response = await apiClient.get<ApiResponse<ScrapeReport>>(`/reports/${id}`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch report');
   }
@@ -196,4 +228,4 @@ export async function getScrapeReportById(id: number): Promise<ScrapeReport> {
 }
 
 // Export api instance for custom requests
-export default api;
+export default apiClient;

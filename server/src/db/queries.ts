@@ -4,6 +4,13 @@ import { logger } from '../utils/logger.js';
 
 // --- Database Row Interfaces ---
 
+export interface UserRow {
+  id: number;
+  username: string;
+  password_hash: string;
+  created_at: string;
+}
+
 export interface CinemaRow {
   id: string;
   name: string;
@@ -87,6 +94,31 @@ export interface ShowtimeWithCinemaRow extends ShowtimeRow {
 // Helper to handle parameter syntax for PostgreSQL
 // We convert from named parameters (conceptually) to numbered parameters ($1, $2, etc.)
 
+// --- Auth / User Queries ---
+
+export async function getUserByUsername(db: DB, username: string): Promise<UserRow | undefined> {
+  const result = await db.query<UserRow>(
+    'SELECT id, username, password_hash, created_at FROM users WHERE username = $1',
+    [username]
+  );
+  return result.rows[0];
+}
+
+export async function createUser(db: DB, username: string, passwordHash: string): Promise<UserRow> {
+  const result = await db.query<UserRow>(
+    'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username, password_hash, created_at',
+    [username, passwordHash]
+  );
+  return result.rows[0];
+}
+
+export async function updateUserPassword(db: DB, userId: number, newPasswordHash: string): Promise<void> {
+  await db.query(
+    'UPDATE users SET password_hash = $1 WHERE id = $2',
+    [newPasswordHash, userId]
+  );
+}
+
 // Insertion ou mise à jour d'un cinéma
 export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
   await db.query(
@@ -168,8 +200,45 @@ export async function deleteCinema(db: DB, id: string): Promise<boolean> {
   return (result.rowCount ?? 0) > 0;
 }
 
+/**
+ * Sanitize numeric fields in a Film object to prevent NaN/Infinity from being inserted.
+ * Converts NaN and Infinity to null with warning logs.
+ */
+function sanitizeNumericValue(value: number | undefined | null, fieldName: string, filmId: number): number | null {
+  if (value === undefined || value === null) return null;
+  
+  if (!Number.isFinite(value)) {
+    logger.warn(`⚠️  Invalid ${fieldName} value (${value}) for film ID ${filmId}, converting to null`);
+    return null;
+  }
+  
+  return value;
+}
+
+/**
+ * Sanitize a Film object before database insertion to prevent NaN/Infinity errors.
+ * This is a defense-in-depth layer in case the parser doesn't catch all edge cases.
+ */
+function sanitizeFilm(film: Film): Film {
+  return {
+    ...film,
+    duration_minutes: film.duration_minutes !== undefined
+      ? sanitizeNumericValue(film.duration_minutes, 'duration_minutes', film.id) ?? undefined
+      : undefined,
+    press_rating: film.press_rating !== undefined
+      ? sanitizeNumericValue(film.press_rating, 'press_rating', film.id) ?? undefined
+      : undefined,
+    audience_rating: film.audience_rating !== undefined
+      ? sanitizeNumericValue(film.audience_rating, 'audience_rating', film.id) ?? undefined
+      : undefined,
+  };
+}
+
 // Insertion ou mise à jour d'un film
 export async function upsertFilm(db: DB, film: Film): Promise<void> {
+  // Sanitize film data to prevent NaN/Infinity from reaching the database
+  const sanitized = sanitizeFilm(film);
+  
   await db.query(
     `
       INSERT INTO films (
@@ -200,22 +269,22 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
         source_url = $16
     `,
     [
-      film.id,
-      film.title,
-      film.original_title ?? null,
-      film.poster_url ?? null,
-      film.duration_minutes ?? null,
-      film.release_date ?? null,
-      film.rerelease_date ?? null,
-      JSON.stringify(film.genres),
-      film.nationality ?? null,
-      film.director ?? null,
-      JSON.stringify(film.actors),
-      film.synopsis ?? null,
-      film.certificate ?? null,
-      film.press_rating ?? null,
-      film.audience_rating ?? null,
-      film.source_url,
+      sanitized.id,
+      sanitized.title,
+      sanitized.original_title ?? null,
+      sanitized.poster_url ?? null,
+      sanitized.duration_minutes ?? null,
+      sanitized.release_date ?? null,
+      sanitized.rerelease_date ?? null,
+      JSON.stringify(sanitized.genres),
+      sanitized.nationality ?? null,
+      sanitized.director ?? null,
+      JSON.stringify(sanitized.actors),
+      sanitized.synopsis ?? null,
+      sanitized.certificate ?? null,
+      sanitized.press_rating ?? null,
+      sanitized.audience_rating ?? null,
+      sanitized.source_url,
     ]
   );
 }
@@ -253,6 +322,51 @@ export async function upsertShowtime(db: DB, showtime: Showtime): Promise<void> 
       JSON.stringify(showtime.experiences),
       showtime.week_start,
     ]
+  );
+}
+
+// Insertion ou mise à jour de plusieurs séances
+export async function upsertShowtimes(db: DB, showtimes: Showtime[]): Promise<void> {
+  if (showtimes.length === 0) return;
+
+  const values: any[] = [];
+  const valueSets: string[] = [];
+  let paramIndex = 1;
+
+  for (const showtime of showtimes) {
+    valueSets.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9})`);
+    values.push(
+      showtime.id,
+      showtime.film_id,
+      showtime.cinema_id,
+      showtime.date,
+      showtime.time,
+      showtime.datetime_iso,
+      showtime.version || null,
+      showtime.format || null,
+      JSON.stringify(showtime.experiences),
+      showtime.week_start
+    );
+    paramIndex += 10;
+  }
+
+  await db.query(
+    `
+      INSERT INTO showtimes (
+        id, film_id, cinema_id, date, time, datetime_iso,
+        version, format, experiences, week_start
+      )
+      VALUES ${valueSets.join(', ')}
+      ON CONFLICT(id) DO UPDATE SET
+        date = EXCLUDED.date,
+        time = EXCLUDED.time,
+        datetime_iso = EXCLUDED.datetime_iso,
+        version = EXCLUDED.version,
+        format = EXCLUDED.format,
+        experiences = EXCLUDED.experiences,
+        week_start = EXCLUDED.week_start
+    `,
+    values
   );
 }
 
@@ -329,7 +443,7 @@ export async function getFilm(db: DB, filmId: number): Promise<Film | undefined>
     'SELECT * FROM films WHERE id = $1',
     [filmId]
   );
-  
+
   const row = result.rows[0];
   if (!row) return undefined;
 

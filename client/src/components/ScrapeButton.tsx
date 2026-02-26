@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
 
 interface ScrapeButtonProps {
   onTrigger: () => Promise<void>;
@@ -9,9 +10,9 @@ interface ScrapeButtonProps {
   successText?: string;
 }
 
-export default function ScrapeButton({ 
+export default function ScrapeButton({
   onTrigger,
-  onScrapeStart, 
+  onScrapeStart,
   className = '',
   buttonText = '🔄 Lancer le scraping manuel',
   loadingText = 'Scraping en cours...',
@@ -20,6 +21,11 @@ export default function ScrapeButton({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const { isAuthenticated } = useContext(AuthContext);
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const handleClick = async () => {
     setIsLoading(true);
@@ -28,12 +34,12 @@ export default function ScrapeButton({
 
     try {
       await onTrigger();
-      
+
       setSuccess(true);
       if (onScrapeStart) {
         onScrapeStart();
       }
-      
+
       // Reset success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
@@ -58,8 +64,8 @@ export default function ScrapeButton({
         className={`
           px-6 py-3 rounded-lg font-semibold text-black
           transition-all duration-200 
-          ${isLoading 
-            ? 'bg-gray-300 cursor-not-allowed' 
+          ${isLoading
+            ? 'bg-gray-300 cursor-not-allowed'
             : 'bg-primary hover:bg-yellow-500 active:scale-95'
           }
           ${success ? 'ring-2 ring-green-500' : ''}

@@ -2,7 +2,7 @@ import { db, type DB } from '../../db/client.js';
 import {
   upsertCinema,
   upsertFilm,
-  upsertShowtime,
+  upsertShowtimes,
   upsertWeeklyPrograms,
   getFilm,
   getCinemaConfigs,
@@ -47,6 +47,7 @@ async function scrapeTheater(
   db: DB,
   cinema: CinemaConfig,
   date: string,
+  movieDelayMs: number,
   progress?: ProgressTracker
 ): Promise<{ filmsCount: number; showtimesCount: number }> {
   logger.info(`\n📍 Scraping ${cinema.name} (${cinema.id}) for ${date}...`);
@@ -86,7 +87,7 @@ async function scrapeTheater(
               film.duration_minutes = filmPageData.duration_minutes;
             }
 
-            await delay(500); // Délai pour éviter le rate limiting
+            await delay(movieDelayMs); // Délai pour éviter le rate limiting
           } catch (error) {
             logger.error(`  ⚠️  Error fetching film page for ${film.id}:`, error);
           }
@@ -99,9 +100,7 @@ async function scrapeTheater(
         logger.info(`  ✅ Film "${film.title}" updated`);
 
         // Insérer/mettre à jour les séances
-        for (const showtime of filmData.showtimes) {
-          await upsertShowtime(db, showtime);
-        }
+        await upsertShowtimes(db, filmData.showtimes);
         logger.info(`  ✅ ${filmData.showtimes.length} showtimes updated`);
 
         weeklyPrograms.push({
@@ -183,10 +182,11 @@ export async function addCinemaAndScrape(
   const { availableDates, cinema } = await loadTheaterMetadata(db, tempConfig);
 
   // 4. Scrape available dates
+  const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
   logger.info(`   📅 Scraping ${availableDates.length} available date(s)...`);
   for (const date of availableDates) {
     try {
-      await scrapeTheater(db, tempConfig, date, progress);
+      await scrapeTheater(db, tempConfig, date, movieDelayMs, progress);
     } catch (error) {
       logger.error(`   ❌ Failed to scrape date ${date}:`, error);
       // Continue with other dates
@@ -220,6 +220,10 @@ export async function runScraper(
     errors: [],
   };
 
+  // Read delay configuration from environment
+  const theaterDelayMs = parseInt(process.env.SCRAPE_THEATER_DELAY_MS || '3000', 10);
+  const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
+
   try {
     // Charger la configuration des cinémas depuis la base de données
     let cinemas = await getCinemaConfigs(db);
@@ -240,6 +244,7 @@ export async function runScraper(
     const scrapeDays = options?.days || parseInt(process.env.SCRAPE_DAYS || '7', 10);
     const dates = getScrapeDates(scrapeMode, scrapeDays);
     logger.info(`📅 Mode: ${scrapeMode}, Scraping ${dates.length} date(s) (SCRAPE_DAYS=${scrapeDays}): ${dates.join(', ')}\n`);
+    logger.info(`⏱️  Delays: ${theaterDelayMs}ms between cinemas, ${movieDelayMs}ms between films\n`);
 
     summary.total_cinemas = cinemas.length;
     summary.total_dates = dates.length;
@@ -294,12 +299,11 @@ export async function runScraper(
       for (const date of datesToScrape) {
         logger.info(`\n   📅 Attempting date: ${date}`);
         try {
-          const { filmsCount, showtimesCount } = await scrapeTheater(db, cinema, date, progress);
+          const { filmsCount, showtimesCount } = await scrapeTheater(db, cinema, date, movieDelayMs, progress);
           cinemaFilmsCount += filmsCount;
           cinemaShowtimesCount += showtimesCount;
           successfulDates++;
           logger.info(`   ✅ Date ${date} completed: ${filmsCount} films, ${showtimesCount} showtimes`);
-          await delay(500); // Délai entre chaque requête
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           logger.error(`   ❌ Date ${date} failed:`, errorMessage);
@@ -336,6 +340,12 @@ export async function runScraper(
       } else {
         summary.failed_cinemas++;
         logger.error(`❌ ${cinema.name} failed completely (0/${datesToScrape.length} dates successful)`);
+      }
+
+      // Apply delay between cinemas (except after the last one)
+      if (i < cinemas.length - 1) {
+        logger.info(`⏸️  Waiting ${theaterDelayMs}ms before next cinema...`);
+        await delay(theaterDelayMs);
       }
     }
 

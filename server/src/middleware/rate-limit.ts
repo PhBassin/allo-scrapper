@@ -1,0 +1,83 @@
+import rateLimit from 'express-rate-limit';
+
+// Helper to parse env var as number with fallback
+const parseEnvInt = (key: string, defaultValue: number): number => {
+  const val = process.env[key];
+  return val ? parseInt(val, 10) : defaultValue;
+};
+
+// Skip rate limiting in test environment when req.ip is undefined
+const skipTest = (req: any) => !req.ip;
+
+// Window duration in milliseconds
+const WINDOW_MS = parseEnvInt('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000); // 15 min
+
+// General API rate limiter (applies to all /api/* routes)
+export const generalLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  max: parseEnvInt('RATE_LIMIT_GENERAL_MAX', 100),
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: skipTest,
+  message: {
+    success: false,
+    error: 'Too many requests, please try again later.',
+  },
+});
+
+// Strict limiter for authentication endpoints (login)
+export const authLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  max: parseEnvInt('RATE_LIMIT_AUTH_MAX', 5),
+  skipSuccessfulRequests: true, // Don't count successful logins
+  skip: skipTest,
+  message: {
+    success: false,
+    error: 'Too many login attempts, please try again after 15 minutes.',
+  },
+});
+
+// Strict limiter for registration
+export const registerLimiter = rateLimit({
+  windowMs: parseEnvInt('RATE_LIMIT_REGISTER_WINDOW_MS', 60 * 60 * 1000), // 1 hour
+  max: parseEnvInt('RATE_LIMIT_REGISTER_MAX', 3),
+  skip: skipTest,
+  message: {
+    success: false,
+    error: 'Too many registration attempts, please try again later.',
+  },
+});
+
+// Moderate limiter for protected data endpoints (reports)
+export const protectedLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  max: parseEnvInt('RATE_LIMIT_PROTECTED_MAX', 60),
+  skip: skipTest,
+  message: {
+    success: false,
+    error: 'Too many requests to this resource, please try again later.',
+  },
+});
+
+// Very strict limiter for expensive operations (scraping)
+export const scraperLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  max: parseEnvInt('RATE_LIMIT_SCRAPER_MAX', 10),
+  skip: skipTest,
+  message: {
+    success: false,
+    error: 'Too many scrape requests, please try again later.',
+  },
+});
+
+// Moderate limiter for public read endpoints (cinemas, films)
+export const publicLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  max: parseEnvInt('RATE_LIMIT_PUBLIC_MAX', 100),
+  skip: skipTest,
+  message: {
+    success: false,
+    error: 'Too many requests, please try again later.',
+  },
+});
+
