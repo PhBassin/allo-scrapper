@@ -22,6 +22,12 @@ vi.mock('../services/scraper/utils.js', () => ({
   isValidAllocineUrl: vi.fn().mockImplementation((url) => url.startsWith('https://www.allocine.fr/')),
 }));
 
+// Helper to get the actual route handler (skips middleware like rate limiters)
+function getRouteHandler(path: string, method: 'get' | 'post' | 'put' | 'delete') {
+  const route = router.stack.find(s => s.route?.path === path && s.route?.methods[method])?.route;
+  return route?.stack[route.stack.length - 1]?.handle;
+}
+
 describe('Routes - Cinemas - Validation', () => {
   let mockRes: any;
   let mockReq: any;
@@ -36,9 +42,7 @@ describe('Routes - Cinemas - Validation', () => {
     mockNext = vi.fn();
   });
 
-  const getHandler = (method: string, path: string) => {
-    return router.stack.find(s => s.route?.path === path && s.route?.methods[method])?.route.stack[0].handle;
-  };
+
 
   it('should reject POST with invalid ID format (non-alphanumeric)', async () => {
     mockReq = {
@@ -49,7 +53,7 @@ describe('Routes - Cinemas - Validation', () => {
       }
     };
 
-    const handler = getHandler('post', '/');
+    const handler = getRouteHandler('/', 'post');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -69,7 +73,7 @@ describe('Routes - Cinemas - Validation', () => {
       }
     };
 
-    const handler = getHandler('post', '/');
+    const handler = getRouteHandler('/', 'post');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -88,7 +92,7 @@ describe('Routes - Cinemas - Validation', () => {
       }
     };
 
-    const handler = getHandler('post', '/');
+    const handler = getRouteHandler('/', 'post');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -106,7 +110,7 @@ describe('Routes - Cinemas - Validation', () => {
       }
     };
 
-    const handler = getHandler('put', '/:id');
+    const handler = getRouteHandler('/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);

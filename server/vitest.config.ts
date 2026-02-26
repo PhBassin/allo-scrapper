@@ -6,13 +6,13 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     env: {
-      // Test-friendly rate limits
-      RATE_LIMIT_GENERAL_MAX: '3',
-      RATE_LIMIT_AUTH_MAX: '2',
-      RATE_LIMIT_REGISTER_MAX: '2',
-      RATE_LIMIT_PROTECTED_MAX: '3',
-      RATE_LIMIT_SCRAPER_MAX: '2',
-      RATE_LIMIT_PUBLIC_MAX: '3',
+      // Test-friendly rate limits (high enough for all tests)
+      RATE_LIMIT_GENERAL_MAX: '100',
+      RATE_LIMIT_AUTH_MAX: '50',
+      RATE_LIMIT_REGISTER_MAX: '50',
+      RATE_LIMIT_PROTECTED_MAX: '100',
+      RATE_LIMIT_SCRAPER_MAX: '50',
+      RATE_LIMIT_PUBLIC_MAX: '100',
       RATE_LIMIT_WINDOW_MS: '60000', // 1 minute
     },
     coverage: {

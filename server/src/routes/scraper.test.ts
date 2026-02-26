@@ -76,6 +76,11 @@ function buildMockReq(overrides: object = {}) {
   return { on: vi.fn(), ...overrides } as any;
 }
 
+// Helper to get the last handler in the route stack (actual route handler, after middleware)
+function getRouteHandler(layer: any) {
+  return layer.route.stack[layer.route.stack.length - 1].handle;
+}
+
 // ---- tests -----------------------------------------------------------------
 
 describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
@@ -99,7 +104,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
     expect(layer).toBeDefined();
-    await layer.route.stack[1].handle(req, res, vi.fn());
+    await getRouteHandler(layer)(req, res, vi.fn());
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -124,7 +129,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[1].handle(req, res, vi.fn());
+    await getRouteHandler(layer)(req, res, vi.fn());
 
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith(
@@ -144,7 +149,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/status' && l.route?.methods?.get
     );
-    await layer.route.stack[0].handle(req, res, vi.fn());
+    await getRouteHandler(layer)(req, res, vi.fn());
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -169,7 +174,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[1].handle(req, res, vi.fn());
+    await getRouteHandler(layer)(req, res, vi.fn());
 
     expect(scrapeManager.startScrape).toHaveBeenCalledWith(
       'manual',
@@ -197,7 +202,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[1].handle(req, res, vi.fn());
+    await getRouteHandler(layer)(req, res, vi.fn());
 
     expect(scrapeManager.startScrape).toHaveBeenCalledWith(
       'manual',
@@ -222,7 +227,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[1].handle(req, res, vi.fn());
+    await getRouteHandler(layer)(req, res, vi.fn());
 
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith(
@@ -245,7 +250,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=false / legacy mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[1].handle(req, res, vi.fn());
+    await getRouteHandler(layer)(req, res, vi.fn());
 
     expect(scrapeManager.startScrape).toHaveBeenCalledWith(
       'manual',
@@ -290,7 +295,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=true / Redis mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[1].handle(req, res, vi.fn());
+    await getRouteHandler(layer)(req, res, vi.fn());
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -312,7 +317,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=true / Redis mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/status' && l.route?.methods?.get
     );
-    await layer.route.stack[0].handle(req, res, vi.fn());
+    await getRouteHandler(layer)(req, res, vi.fn());
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -343,7 +348,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=true / Redis mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[1].handle(req, res, vi.fn());
+    await getRouteHandler(layer)(req, res, vi.fn());
 
     expect(mockPublishJob).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -382,7 +387,7 @@ describe('Routes - Scraper (USE_REDIS_SCRAPER=true / Redis mode)', () => {
     const layer = router.stack.find(
       (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
     );
-    await layer.route.stack[1].handle(req, res, vi.fn());
+    await getRouteHandler(layer)(req, res, vi.fn());
 
     expect(mockPublishJob).toHaveBeenCalledWith(
       expect.objectContaining({

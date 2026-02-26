@@ -55,7 +55,7 @@ describe('Routes - Cinemas', () => {
       const created = { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' };
       (cinemaConfig.addCinemaWithSync as any).mockResolvedValue(created);
 
-      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
+      const handler = getRouteHandler('/', 'post');
       await handler(mockReq, mockRes, mockNext);
 
       expect(cinemaConfig.addCinemaWithSync).toHaveBeenCalledWith(expect.anything(), { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' });
@@ -66,7 +66,7 @@ describe('Routes - Cinemas', () => {
     it('should return 400 when id is missing', async () => {
       mockReq = { body: { name: 'Missing ID', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' } };
 
-      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
+      const handler = getRouteHandler('/', 'post');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -76,7 +76,7 @@ describe('Routes - Cinemas', () => {
     it('should return 400 when name is missing', async () => {
       mockReq = { body: { id: 'C0099', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' } };
 
-      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
+      const handler = getRouteHandler('/', 'post');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -85,7 +85,7 @@ describe('Routes - Cinemas', () => {
     it('should return 400 when url is missing', async () => {
       mockReq = { body: { id: 'C0099', name: 'New Cinema' } };
 
-      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
+      const handler = getRouteHandler('/', 'post');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -94,7 +94,7 @@ describe('Routes - Cinemas', () => {
     it('should return 400 when url is invalid', async () => {
       mockReq = { body: { id: 'C0099', name: 'New Cinema', url: 'https://example.com' } };
 
-      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
+      const handler = getRouteHandler('/', 'post');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -105,7 +105,7 @@ describe('Routes - Cinemas', () => {
       mockReq = { body: { id: 'W7504', name: 'Duplicate', url: 'https://www.allocine.fr/seance/salle_affich-salle=W7504.html' } };
       (cinemaConfig.addCinemaWithSync as any).mockRejectedValue(new Error('duplicate key value violates unique constraint'));
 
-      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
+      const handler = getRouteHandler('/', 'post');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(409);
@@ -117,7 +117,7 @@ describe('Routes - Cinemas', () => {
       const error = new Error('Unexpected DB error');
       (cinemaConfig.addCinemaWithSync as any).mockRejectedValue(error);
 
-      const handler = router.stack.find(s => s.route?.path === '/' && s.route?.methods.post)?.route.stack[0].handle;
+      const handler = getRouteHandler('/', 'post');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(error);
@@ -130,7 +130,7 @@ describe('Routes - Cinemas', () => {
       const updated = { id: 'W7504', name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' };
       (cinemaConfig.updateCinemaWithSync as any).mockResolvedValue(updated);
 
-      const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.put)?.route.stack[0].handle;
+      const handler = getRouteHandler('/:id', 'put');
       await handler(mockReq, mockRes, mockNext);
 
       expect(cinemaConfig.updateCinemaWithSync).toHaveBeenCalledWith(expect.anything(), 'W7504', { name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' });
@@ -140,7 +140,7 @@ describe('Routes - Cinemas', () => {
     it('should return 400 when body is empty', async () => {
       mockReq = { params: { id: 'W7504' }, body: {} };
 
-      const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.put)?.route.stack[0].handle;
+      const handler = getRouteHandler('/:id', 'put');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -149,7 +149,7 @@ describe('Routes - Cinemas', () => {
     it('should return 400 when url is invalid', async () => {
       mockReq = { params: { id: 'W7504' }, body: { url: 'https://example.com' } };
 
-      const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.put)?.route.stack[0].handle;
+      const handler = getRouteHandler('/:id', 'put');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -160,7 +160,7 @@ describe('Routes - Cinemas', () => {
       mockReq = { params: { id: 'UNKNOWN' }, body: { name: 'X' } };
       (cinemaConfig.updateCinemaWithSync as any).mockResolvedValue(undefined);
 
-      const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.put)?.route.stack[0].handle;
+      const handler = getRouteHandler('/:id', 'put');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
@@ -172,7 +172,7 @@ describe('Routes - Cinemas', () => {
       const error = new Error('DB Error');
       (cinemaConfig.updateCinemaWithSync as any).mockRejectedValue(error);
 
-      const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.put)?.route.stack[0].handle;
+      const handler = getRouteHandler('/:id', 'put');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(error);
@@ -184,7 +184,7 @@ describe('Routes - Cinemas', () => {
       mockReq = { params: { id: 'W7504' } };
       (cinemaConfig.deleteCinemaWithSync as any).mockResolvedValue(true);
 
-      const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.delete)?.route.stack[0].handle;
+      const handler = getRouteHandler('/:id', 'delete');
       await handler(mockReq, mockRes, mockNext);
 
       expect(cinemaConfig.deleteCinemaWithSync).toHaveBeenCalledWith(expect.anything(), 'W7504');
@@ -196,7 +196,7 @@ describe('Routes - Cinemas', () => {
       mockReq = { params: { id: 'UNKNOWN' } };
       (cinemaConfig.deleteCinemaWithSync as any).mockResolvedValue(false);
 
-      const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.delete)?.route.stack[0].handle;
+      const handler = getRouteHandler('/:id', 'delete');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
@@ -208,7 +208,7 @@ describe('Routes - Cinemas', () => {
       const error = new Error('DB Error');
       (cinemaConfig.deleteCinemaWithSync as any).mockRejectedValue(error);
 
-      const handler = router.stack.find(s => s.route?.path === '/:id' && s.route?.methods.delete)?.route.stack[0].handle;
+      const handler = getRouteHandler('/:id', 'delete');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(error);
@@ -220,7 +220,7 @@ describe('Routes - Cinemas', () => {
       mockReq = {};
       (cinemaConfig.syncCinemasFromDatabase as any).mockResolvedValue(3);
 
-      const handler = router.stack.find(s => s.route?.path === '/sync' && s.route?.methods.get)?.route.stack[0].handle;
+      const handler = getRouteHandler('/sync', 'get');
       await handler(mockReq, mockRes, mockNext);
 
       expect(cinemaConfig.syncCinemasFromDatabase).toHaveBeenCalledWith(expect.anything());
@@ -238,7 +238,7 @@ describe('Routes - Cinemas', () => {
       const error = new Error('Sync Error');
       (cinemaConfig.syncCinemasFromDatabase as any).mockRejectedValue(error);
 
-      const handler = router.stack.find(s => s.route?.path === '/sync' && s.route?.methods.get)?.route.stack[0].handle;
+      const handler = getRouteHandler('/sync', 'get');
       await handler(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(error);
