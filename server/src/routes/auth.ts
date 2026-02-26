@@ -12,6 +12,9 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
 const JWT_EXPIRES_IN = '24h';
 
+// Pre-computed hash for 'dummy' (cost 10) to prevent timing attacks
+const DUMMY_HASH = '$2b$10$OjIEvY.r8hZtkpA2kEa0EeIJoxe2tgk/ANQghcJfuj5QA7h/lDEb2';
+
 export interface AuthResponse {
     token: string;
     user: {
@@ -35,17 +38,12 @@ router.post('/login', authLimiter, async (req, res) => {
 
         const user = await getUserByUsername(db, username);
 
-        if (!user) {
-            const response: ApiResponse = {
-                success: false,
-                error: 'Invalid credentials',
-            };
-            return res.status(401).json(response);
-        }
+        // Use user's hash or dummy hash to ensure constant time comparison
+        const hashToCompare = user ? user.password_hash : DUMMY_HASH;
 
-        const isMatch = await bcrypt.compare(password, user.password_hash);
+        const isMatch = await bcrypt.compare(password, hashToCompare);
 
-        if (!isMatch) {
+        if (!user || !isMatch) {
             const response: ApiResponse = {
                 success: false,
                 error: 'Invalid credentials',
