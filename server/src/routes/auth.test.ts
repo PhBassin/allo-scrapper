@@ -63,6 +63,22 @@ describe('Auth Routes', () => {
             expect(response.body.error).toBe('Invalid credentials');
         });
 
+        it('should execute constant-time comparison for unknown user', async () => {
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(undefined);
+            const compareSpy = vi.spyOn(bcrypt, 'compare');
+
+            const response = await request(app)
+                .post('/api/auth/login')
+                .send({ username: 'unknown', password: 'password123' });
+
+            expect(response.status).toBe(401);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toBe('Invalid credentials');
+
+            // Verify that bcrypt.compare was called even though user was not found
+            expect(compareSpy).toHaveBeenCalled();
+        });
+
         it('should return 401 for unknown user', async () => {
             vi.mocked(queries.getUserByUsername).mockResolvedValue(undefined);
 
