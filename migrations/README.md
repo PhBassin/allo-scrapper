@@ -15,6 +15,22 @@ Migrations are numbered sequentially and should be applied in order. Each migrat
 
 **Breaking Change:** Yes - affects database schema
 
+### 002_add_pg_trgm_extension.sql
+**Version:** 2.1.0  
+**Date:** 2026-02-21  
+**Description:** Enables PostgreSQL trigram extension (`pg_trgm`) for fuzzy text search and creates GIN index on `films.title` for improved similarity search performance.
+
+**Breaking Change:** No - adds extension and index only
+
+### 003_add_users_table.sql
+**Version:** 2.2.0  
+**Date:** 2026-02-26  
+**Description:** Creates `users` table for JWT authentication and seeds default admin user (username: `admin`, password: `admin`). Required for authentication features.
+
+**Breaking Change:** No - adds new table only
+
+**Security Note:** Change the default admin password after first login in production.
+
 ## How to Apply Migrations
 
 ### Prerequisites
@@ -66,6 +82,26 @@ psql -U postgres -d cinema_showtimes
 -- Rollback: Rename source_url back to allocine_url
 BEGIN;
 ALTER TABLE films RENAME COLUMN source_url TO allocine_url;
+COMMIT;
+```
+
+### 002_add_pg_trgm_extension.sql Rollback
+
+```sql
+-- Rollback: Remove index and extension
+BEGIN;
+DROP INDEX IF EXISTS idx_films_title_trgm;
+DROP EXTENSION IF EXISTS pg_trgm;
+COMMIT;
+```
+
+### 003_add_users_table.sql Rollback
+
+```sql
+-- Rollback: Drop users table
+-- WARNING: This will delete all user accounts
+BEGIN;
+DROP TABLE IF EXISTS users CASCADE;
 COMMIT;
 ```
 
@@ -160,3 +196,9 @@ docker compose exec db psql -U postgres -c "\du"
 - Migrations are designed to be idempotent
 - Keep backups for at least 7 days after migrations
 - Document any manual steps required
+
+## Production Deployment
+
+For production deployment workflows including migration procedures, see **[DEPLOYMENT.md](../DEPLOYMENT.md)** in the root directory.
+
+**Critical:** Always run migrations BEFORE deploying new code that depends on schema changes.
