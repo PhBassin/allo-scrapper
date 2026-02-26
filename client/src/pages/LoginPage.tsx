@@ -28,8 +28,8 @@ const LoginPage: React.FC = () => {
             );
 
             if (response.data.success) {
-                // Assume API returns { success: true, token: string, user: { id, username } }
-                const { token, user } = response.data;
+                // API returns { success: true, data: { token, user } }
+                const { token, user } = response.data.data;
                 login(token, user);
                 navigate(from, { replace: true });
             } else {

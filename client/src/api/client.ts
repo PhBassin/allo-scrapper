@@ -35,6 +35,24 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Add a response interceptor to handle 401 errors
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Emit custom event for App.tsx to handle logout + redirect
+      // This allows proper React Router navigation instead of window.location
+      const event = new CustomEvent('auth:unauthorized', {
+        detail: { 
+          originalPath: window.location.pathname 
+        }
+      });
+      window.dispatchEvent(event);
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ============================================================================
 // FILMS API
 // ============================================================================
