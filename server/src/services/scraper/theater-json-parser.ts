@@ -97,9 +97,37 @@ function extractMovieId(movie: AllocineMovie): number | null {
   return null;
 }
 
+/**
+ * Convert runtime from seconds to minutes, filtering out invalid values.
+ * Returns undefined for NaN, Infinity, zero, negative, or missing values.
+ */
 function runtimeToMinutes(seconds: number | undefined): number | undefined {
-  if (!seconds || seconds <= 0) return undefined;
+  if (seconds === undefined || seconds === null) return undefined;
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    if (Number.isNaN(seconds) || !Number.isFinite(seconds)) {
+      logger.warn(`⚠️  Invalid runtime value detected: ${seconds}`);
+    }
+    return undefined;
+  }
   return Math.round(seconds / 60);
+}
+
+/**
+ * Validate and sanitize a rating value (press or audience).
+ * Returns undefined for NaN, Infinity, or values outside 0-5 range.
+ */
+function sanitizeRating(rating: number | undefined): number | undefined {
+  if (rating === undefined || rating === null) return undefined;
+  if (!Number.isFinite(rating)) {
+    logger.warn(`⚠️  Invalid rating value detected: ${rating}`);
+    return undefined;
+  }
+  // Ratings should be between 0 and 5
+  if (rating < 0 || rating > 5) {
+    logger.warn(`⚠️  Rating out of range (0-5): ${rating}`);
+    return undefined;
+  }
+  return rating;
 }
 
 function parseReleaseDate(releases: AllocineRelease[] | undefined): {
@@ -250,9 +278,9 @@ export function parseShowtimesJson(
     const nationalityRaw = (movie.countries ?? []).map(c => c.localizedName ?? '').filter(Boolean).join(', ') || undefined;
     const nationality = decodeHtmlEntities(nationalityRaw);
 
-    // Ratings (out of 5)
-    const press_rating = movie.stats?.pressReview?.score ?? undefined;
-    const audience_rating = movie.stats?.userRating?.score ?? undefined;
+    // Ratings (out of 5) - sanitize to filter NaN/Infinity
+    const press_rating = sanitizeRating(movie.stats?.pressReview?.score);
+    const audience_rating = sanitizeRating(movie.stats?.userRating?.score);
 
     // Release dates
     const { release_date, rerelease_date } = parseReleaseDate(movie.releases);
