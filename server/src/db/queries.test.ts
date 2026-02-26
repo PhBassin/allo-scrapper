@@ -426,3 +426,142 @@ describe('Queries - Cinemas', () => {
     });
   });
 });
+
+describe('Queries - Film Sanitization', () => {
+  // Import the sanitizeFilm function for testing
+  // Note: We'll test this via upsertFilm behavior since sanitizeFilm is internal
+  
+  describe('upsertFilm with invalid numeric values', () => {
+    it('should handle NaN duration_minutes by converting to null', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({ rows: [] })
+      } as unknown as DB;
+
+      const filmWithNaN = {
+        id: 12345,
+        title: 'Test Film',
+        duration_minutes: NaN,
+        press_rating: 4.0,
+        audience_rating: 3.5,
+        genres: [],
+        actors: [],
+        source_url: 'https://example.com',
+      };
+
+      // This should not throw an error - NaN should be sanitized to null
+      const { upsertFilm } = await import('./queries.js');
+      await upsertFilm(mockDb, filmWithNaN);
+      
+      // Verify the query was called with null for duration_minutes
+      expect(mockDb.query).toHaveBeenCalledOnce();
+      const params: any[] = mockDb.query.mock.calls[0][1];
+      // Parameter $5 is duration_minutes
+      expect(params[4]).toBeNull();
+    });
+
+    it('should handle Infinity duration_minutes by converting to null', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({ rows: [] })
+      } as unknown as DB;
+
+      const filmWithInfinity = {
+        id: 12345,
+        title: 'Test Film',
+        duration_minutes: Infinity,
+        press_rating: 4.0,
+        audience_rating: 3.5,
+        genres: [],
+        actors: [],
+        source_url: 'https://example.com',
+      };
+
+      const { upsertFilm } = await import('./queries.js');
+      await upsertFilm(mockDb, filmWithInfinity);
+      
+      // Verify the query was called with null for duration_minutes
+      expect(mockDb.query).toHaveBeenCalledOnce();
+      const params: any[] = mockDb.query.mock.calls[0][1];
+      expect(params[4]).toBeNull();
+    });
+
+    it('should handle NaN press_rating by converting to null', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({ rows: [] })
+      } as unknown as DB;
+
+      const filmWithNaNRating = {
+        id: 12345,
+        title: 'Test Film',
+        duration_minutes: 120,
+        press_rating: NaN,
+        audience_rating: 3.5,
+        genres: [],
+        actors: [],
+        source_url: 'https://example.com',
+      };
+
+      const { upsertFilm } = await import('./queries.js');
+      await upsertFilm(mockDb, filmWithNaNRating);
+      
+      // Verify the query was called with null for press_rating
+      expect(mockDb.query).toHaveBeenCalledOnce();
+      const params: any[] = mockDb.query.mock.calls[0][1];
+      // Parameter $14 is press_rating
+      expect(params[13]).toBeNull();
+    });
+
+    it('should handle NaN audience_rating by converting to null', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({ rows: [] })
+      } as unknown as DB;
+
+      const filmWithNaNAudience = {
+        id: 12345,
+        title: 'Test Film',
+        duration_minutes: 120,
+        press_rating: 4.0,
+        audience_rating: NaN,
+        genres: [],
+        actors: [],
+        source_url: 'https://example.com',
+      };
+
+      const { upsertFilm } = await import('./queries.js');
+      await upsertFilm(mockDb, filmWithNaNAudience);
+      
+      // Verify the query was called with null for audience_rating
+      expect(mockDb.query).toHaveBeenCalledOnce();
+      const params: any[] = mockDb.query.mock.calls[0][1];
+      // Parameter $15 is audience_rating
+      expect(params[14]).toBeNull();
+    });
+
+    it('should preserve valid numeric values', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({ rows: [] })
+      } as unknown as DB;
+
+      const validFilm = {
+        id: 12345,
+        title: 'Test Film',
+        duration_minutes: 120,
+        press_rating: 4.0,
+        audience_rating: 3.5,
+        genres: [],
+        actors: [],
+        source_url: 'https://example.com',
+      };
+
+      const { upsertFilm } = await import('./queries.js');
+      await upsertFilm(mockDb, validFilm);
+      
+      // Verify valid values are preserved
+      expect(mockDb.query).toHaveBeenCalledOnce();
+      const params: any[] = mockDb.query.mock.calls[0][1];
+      expect(params[4]).toBe(120);      // duration_minutes
+      expect(params[13]).toBe(4.0);     // press_rating
+      expect(params[14]).toBe(3.5);     // audience_rating
+    });
+  });
+});
+
