@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
 import { AuthContext } from '../contexts/AuthContext';
+import apiClient from '../api/client';
 
 const LoginPage: React.FC = () => {
     const [username, setUsername] = useState('');
@@ -21,11 +21,7 @@ const LoginPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            // Direct axios call to avoid interceptor issues before token exists
-            const response = await axios.post(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/login`,
-                { username, password }
-            );
+            const response = await apiClient.post('/auth/login', { username, password });
 
             if (response.data.success) {
                 // API returns { success: true, data: { token, user } }
