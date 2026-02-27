@@ -11,7 +11,7 @@ import { publicLimiter } from '../middleware/rate-limit.js';
 const router = express.Router();
 
 // GET /api/films - Get weekly films or films by date
-router.get('/', publicLimiter, async (req, res) => {
+router.get('/', publicLimiter, async (req, res, next) => {
   try {
     const weekStart = getWeekStart();
     const dateParam = req.query.date as string | undefined;
@@ -67,17 +67,12 @@ router.get('/', publicLimiter, async (req, res) => {
 
     return res.json(response);
   } catch (error) {
-    logger.error('Error fetching films:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch films',
-    };
-    return res.status(500).json(response);
+    next(error);
   }
 });
 
 // GET /api/films/search - Search films with fuzzy matching
-router.get('/search', publicLimiter, async (req, res) => {
+router.get('/search', publicLimiter, async (req, res, next) => {
   try {
     const query = req.query.q as string | undefined;
     
@@ -102,17 +97,12 @@ router.get('/search', publicLimiter, async (req, res) => {
     
     return res.json(response);
   } catch (error) {
-    logger.error('Error searching films:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to search films',
-    };
-    return res.status(500).json(response);
+    next(error);
   }
 });
 
 // GET /api/films/:id - Get film by ID
-router.get('/:id', publicLimiter, async (req, res) => {
+router.get('/:id', publicLimiter, async (req, res, next) => {
   try {
     const filmId = parseInt(req.params.id);
     const weekStart = getWeekStart();
@@ -150,12 +140,7 @@ router.get('/:id', publicLimiter, async (req, res) => {
 
     return res.json(response);
   } catch (error) {
-    logger.error('Error fetching film:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch film',
-    };
-    return res.status(500).json(response);
+    next(error);
   }
 });
 
