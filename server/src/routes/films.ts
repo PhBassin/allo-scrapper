@@ -5,7 +5,6 @@ import { getWeekStart } from '../utils/date.js';
 import { groupShowtimesByCinema } from '../utils/showtimes.js';
 import type { ApiResponse } from '../types/api.js';
 import type { FilmWithShowtimes, Showtime, Cinema } from '../types/scraper.js';
-import { logger } from '../utils/logger.js';
 import { publicLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
@@ -67,7 +66,7 @@ router.get('/', publicLimiter, async (req, res, next) => {
 
     return res.json(response);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -97,7 +96,7 @@ router.get('/search', publicLimiter, async (req, res, next) => {
     
     return res.json(response);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -140,7 +139,7 @@ router.get('/:id', publicLimiter, async (req, res, next) => {
 
     return res.json(response);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
