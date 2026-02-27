@@ -52,6 +52,7 @@ export async function initializeDatabase() {
 
     // Index for films title (trigram similarity for fuzzy search)
     `CREATE INDEX IF NOT EXISTS idx_films_title_trgm ON films USING gin(title gin_trgm_ops)`,
+    `CREATE INDEX IF NOT EXISTS idx_films_original_title_trgm ON films USING gin(original_title gin_trgm_ops)`,
 
     // Table: showtimes
     `CREATE TABLE IF NOT EXISTS showtimes (
