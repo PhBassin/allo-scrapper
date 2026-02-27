@@ -62,3 +62,4 @@ temp/
 out.txt
 test.out
 *.out
+backup_*.sql
