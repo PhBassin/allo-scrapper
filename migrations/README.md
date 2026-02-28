@@ -54,10 +54,10 @@ docker compose exec db psql -U postgres -d cinema_showtimes -f /tmp/001_neutrali
 
 ```bash
 # 1. Backup database
-docker compose exec -T db pg_dump -U postgres its > backup_before_migration.sql
+docker compose exec -T db pg_dump -U postgres ics > backup_before_migration.sql
 
 # 2. Apply migration
-docker compose exec -T db psql -U postgres -d its < migrations/001_neutralize_references.sql
+docker compose exec -T db psql -U postgres -d ics < migrations/001_neutralize_references.sql
 ```
 
 ### Method 3: From inside the container

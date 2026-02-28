@@ -114,6 +114,16 @@ npm run test:ui
 - Use descriptive test names: `should extract cinema address correctly`
 - Group related tests in `describe()` blocks
 - Use fixtures for realistic data (see `server/tests/fixtures/`)
+- **For authentication tests:** Set `process.env.JWT_SECRET` before importing modules that use it
+  ```typescript
+  // CORRECT - set before import
+  process.env.JWT_SECRET = 'test-secret';
+  import { authMiddleware } from '../middleware/auth';
+  
+  // WRONG - set after import (middleware already loaded with undefined secret)
+  import { authMiddleware } from '../middleware/auth';
+  process.env.JWT_SECRET = 'test-secret'; // ❌ Too late!
+  ```
 
 For detailed testing documentation, see [`server/tests/README.md`](./server/tests/README.md).
 

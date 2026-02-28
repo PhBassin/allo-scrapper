@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+---
+
+## [2.1.0] - 2026-02-28
+
+### Added
+
+- **APP_NAME Environment Variable** — Configurable application name for server logs, health check API, and service identifiers (default: `Allo-Scrapper`)
+- **VITE_APP_NAME Environment Variable** — Configurable application name for React UI: browser title, header, footer (default: `Allo-Scrapper`)
+- **Sticky Header** — Persistent navigation header on HomePage and CinemaPage with backdrop blur effect
+- **Scroll-to-Top Button** — Floating button to quickly return to the top of the page
+
+### Changed
+
+- **Database Rename** — Default database name changed from `its` to `ics` (Independent Cinema Showtimes) for consistency with Docker service naming (`ics-web`, `ics-db`, etc.)
+- **Docker Compose** — Production deployment now pulls from the registry image (`ghcr.io/phbassin/allo-scrapper:stable`) with `pull_policy: always`
+
+### Fixed
+
+- **Security: Hardcoded JWT Secret** — Removed insecure hardcoded `JWT_SECRET` fallback; application now requires an explicit secret to be set
+- **Security: Information Leakage** — Films API no longer exposes internal error details or unintended data in responses
+- **TypeScript Errors** — Resolved type errors in the films route handler
+
+### Performance
+
+- **Film Search Index** — Added index on `original_title` column and tuned search query for significantly faster film lookups
+- **CinemaPage Memoization** — Applied `useMemo` to expensive computations in CinemaPage to prevent unnecessary re-renders
+
+### Documentation
+
+- **README Reorganization** — Split monolithic README into separate focused documentation files
+- **JWT_SECRET Documentation** — Added comprehensive documentation for JWT secret configuration across all `.md` files
+- **ICS Database Documentation** — Updated all documentation to reflect the `its` → `ics` database rename
+
+### Migration Guide (its → ics)
+
+**This is a breaking change for existing installations.**
+
+Choose one of the following options:
+
+#### Option A: Rename your database (recommended for new naming consistency)
+
+```bash
+# 1. Stop services
+docker compose down
+
+# 2. Start only the database
+docker compose up -d ics-db
+
+# 3. Rename the database
+docker compose exec ics-db psql -U postgres -c "ALTER DATABASE its RENAME TO ics;"
+
+# 4. Restart all services
+docker compose up -d
+```
+
+#### Option B: Keep the old database name
+
+If you prefer to keep your existing `its` database, add this to your `.env` file:
+
+```bash
+POSTGRES_DB=its
+```
+
+---
+
 ## [2.0.0] - 2026-02-26
 
 ### Added
@@ -80,7 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### 1. Backup Database
 
 ```bash
-docker compose exec -T db pg_dump -U postgres its > backup_before_v2.0.0.sql
+docker compose exec -T db pg_dump -U postgres ics > backup_before_v2.0.0.sql
 ```
 
 #### 2. Pull Latest Images
@@ -92,7 +159,7 @@ docker compose pull
 #### 3. Apply Database Migration
 
 ```bash
-docker compose exec -T db psql -U postgres -d its < migrations/003_add_users_table.sql
+docker compose exec -T db psql -U postgres -d ics < migrations/003_add_users_table.sql
 ```
 
 Expected output:
@@ -157,7 +224,7 @@ docker compose down
 
 # 2. Restore database backup
 docker compose up -d db
-docker compose exec -T db psql -U postgres -d its < backup_before_v2.0.0.sql
+docker compose exec -T db psql -U postgres -d ics < backup_before_v2.0.0.sql
 
 # 3. Revert to v1.1.0 images
 docker compose pull ghcr.io/phbassin/allo-scrapper:v1.1.0
@@ -233,6 +300,7 @@ No API, database schema, or configuration changes are included in this release.
 - Docker Compose profiles for modular deployment
 - `cinemas.json` configuration file with API-driven add/sync workflow
 
+[2.1.0]: https://github.com/PhBassin/allo-scrapper/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/PhBassin/allo-scrapper/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/PhBassin/allo-scrapper/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/PhBassin/allo-scrapper/releases/tag/v1.0.0

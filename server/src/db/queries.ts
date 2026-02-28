@@ -1072,32 +1072,32 @@ export async function searchFilms(
       CASE
         -- Exact match (highest priority)
         WHEN LOWER(title) = LOWER($1) THEN 1.0
-        WHEN LOWER(COALESCE(original_title, '')) = LOWER($1) THEN 0.95
+        WHEN original_title IS NOT NULL AND LOWER(original_title) = LOWER($1) THEN 0.95
         
         -- Starts with query (very high priority)
         WHEN LOWER(title) LIKE LOWER($1) || '%' THEN 0.9
-        WHEN LOWER(COALESCE(original_title, '')) LIKE LOWER($1) || '%' THEN 0.85
+        WHEN original_title IS NOT NULL AND LOWER(original_title) LIKE LOWER($1) || '%' THEN 0.85
         
         -- Good trigram similarity (high priority)
         WHEN similarity(title, $1) > 0.3 THEN similarity(title, $1) * 0.8
-        WHEN similarity(COALESCE(original_title, ''), $1) > 0.3 THEN similarity(COALESCE(original_title, ''), $1) * 0.75
+        WHEN original_title IS NOT NULL AND similarity(original_title, $1) > 0.3 THEN similarity(original_title, $1) * 0.75
         
         -- Moderate trigram similarity (permissive - medium priority)
         WHEN similarity(title, $1) > 0.1 THEN similarity(title, $1) * 0.6
-        WHEN similarity(COALESCE(original_title, ''), $1) > 0.1 THEN similarity(COALESCE(original_title, ''), $1) * 0.55
+        WHEN original_title IS NOT NULL AND similarity(original_title, $1) > 0.1 THEN similarity(original_title, $1) * 0.55
         
         -- Contains anywhere in title (lower priority)
         WHEN title ILIKE '%' || $1 || '%' THEN 0.4
-        WHEN COALESCE(original_title, '') ILIKE '%' || $1 || '%' THEN 0.35
+        WHEN original_title IS NOT NULL AND original_title ILIKE '%' || $1 || '%' THEN 0.35
         
         ELSE 0.1
       END AS score
     FROM films
     WHERE 
       similarity(title, $1) > 0.1
-      OR similarity(COALESCE(original_title, ''), $1) > 0.1
+      OR (original_title IS NOT NULL AND similarity(original_title, $1) > 0.1)
       OR title ILIKE '%' || $1 || '%'
-      OR COALESCE(original_title, '') ILIKE '%' || $1 || '%'
+      OR (original_title IS NOT NULL AND original_title ILIKE '%' || $1 || '%')
     ORDER BY score DESC, title ASC
     LIMIT $2`,
     [query, limit]

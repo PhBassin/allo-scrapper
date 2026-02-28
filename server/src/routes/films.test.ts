@@ -34,6 +34,7 @@ function getRouteHandler(path: string, method: 'get' | 'post' | 'put' | 'delete'
 describe('Routes - Films', () => {
   let mockRes: any;
   let mockReq: any;
+  let mockNext: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -41,6 +42,7 @@ describe('Routes - Films', () => {
       json: vi.fn().mockReturnThis(),
       status: vi.fn().mockReturnThis()
     };
+    mockNext = vi.fn();
   });
 
   describe('GET /', () => {
@@ -57,8 +59,8 @@ describe('Routes - Films', () => {
       // We need to call the handler. Express router makes it hard to call directly.
       // In a real test we'd use supertest. Here we'll find the handler.
       const handler = getRouteHandler('/', 'get');
-      
-      await handler(mockReq, mockRes);
+
+      await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
@@ -69,13 +71,17 @@ describe('Routes - Films', () => {
 
     it('should handle errors', async () => {
       mockReq = { query: {} };
-      (queries.getWeeklyFilms as any).mockRejectedValue(new Error('DB Error'));
+      const error = new Error('DB Error');
+      (queries.getWeeklyFilms as any).mockRejectedValue(error);
 
       const handler = getRouteHandler('/', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(500);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+      // OLD BEHAVIOR: expect(mockRes.status).toHaveBeenCalledWith(500);
+      // NEW BEHAVIOR: expect(mockNext).toHaveBeenCalledWith(error);
+
+      expect(mockNext).toHaveBeenCalledWith(error);
+      expect(mockRes.status).not.toHaveBeenCalledWith(500); // Should not manually handle error
     });
   });
 
@@ -91,7 +97,7 @@ describe('Routes - Films', () => {
       (queries.getShowtimesByDate as any).mockResolvedValue(mockShowtimes);
 
       const handler = getRouteHandler('/', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
       expect(queries.getFilmsByDate).toHaveBeenCalledWith(db, '2026-02-20', '2026-02-18');
       expect(mockRes.json).toHaveBeenCalled();
@@ -104,7 +110,7 @@ describe('Routes - Films', () => {
     it('should return 400 for invalid date format', async () => {
       mockReq = { query: { date: 'invalid-date' } };
       const handler = getRouteHandler('/', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -126,7 +132,7 @@ describe('Routes - Films', () => {
       (queries.getShowtimesByFilmAndWeek as any).mockResolvedValue(mockShowtimes);
 
       const handler = getRouteHandler('/:id', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
@@ -137,7 +143,7 @@ describe('Routes - Films', () => {
     it('should return 400 for invalid ID', async () => {
       mockReq = { params: { id: 'abc' } };
       const handler = getRouteHandler('/:id', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
     });
@@ -147,9 +153,21 @@ describe('Routes - Films', () => {
       (queries.getFilm as any).mockResolvedValue(null);
 
       const handler = getRouteHandler('/:id', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+
+    it('should handle errors', async () => {
+      mockReq = { params: { id: '1' } };
+      const error = new Error('DB Error');
+      (queries.getFilm as any).mockRejectedValue(error);
+
+      const handler = getRouteHandler('/:id', 'get');
+      await handler(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(error);
+      expect(mockRes.status).not.toHaveBeenCalledWith(500);
     });
   });
 
@@ -157,8 +175,8 @@ describe('Routes - Films', () => {
     it('should return search results with valid query', async () => {
       mockReq = { query: { q: 'Matrix' } };
       const mockFilms = [
-        { 
-          id: 19776, 
+        {
+          id: 19776,
           title: 'Matrix',
           genres: ['Science Fiction', 'Action'],
           poster_url: 'matrix.jpg'
@@ -168,7 +186,7 @@ describe('Routes - Films', () => {
       (queries.searchFilms as any).mockResolvedValue(mockFilms);
 
       const handler = getRouteHandler('/search', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
       expect(queries.searchFilms).toHaveBeenCalledWith(db, 'Matrix', 10);
       expect(mockRes.json).toHaveBeenCalled();
@@ -182,7 +200,7 @@ describe('Routes - Films', () => {
     it('should return 400 if query parameter is missing', async () => {
       mockReq = { query: {} };
       const handler = getRouteHandler('/search', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -194,7 +212,7 @@ describe('Routes - Films', () => {
     it('should return 400 if query is too short', async () => {
       mockReq = { query: { q: 'a' } };
       const handler = getRouteHandler('/search', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -208,7 +226,7 @@ describe('Routes - Films', () => {
       (queries.searchFilms as any).mockResolvedValue([]);
 
       const handler = getRouteHandler('/search', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
@@ -218,15 +236,14 @@ describe('Routes - Films', () => {
 
     it('should handle errors', async () => {
       mockReq = { query: { q: 'test' } };
-      (queries.searchFilms as any).mockRejectedValue(new Error('DB Error'));
+      const error = new Error('DB Error');
+      (queries.searchFilms as any).mockRejectedValue(error);
 
       const handler = getRouteHandler('/search', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(500);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ 
-        success: false
-      }));
+      expect(mockNext).toHaveBeenCalledWith(error);
+      expect(mockRes.status).not.toHaveBeenCalledWith(500);
     });
 
     it('should trim whitespace from query', async () => {
@@ -234,7 +251,7 @@ describe('Routes - Films', () => {
       (queries.searchFilms as any).mockResolvedValue([]);
 
       const handler = getRouteHandler('/search', 'get');
-      await handler(mockReq, mockRes);
+      await handler(mockReq, mockRes, mockNext);
 
       expect(queries.searchFilms).toHaveBeenCalledWith(db, 'Matrix', 10);
     });

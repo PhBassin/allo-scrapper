@@ -96,7 +96,7 @@ nano .env
 # Database Configuration
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
-POSTGRES_DB=its
+POSTGRES_DB=ics
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_secure_password_here  # ⚠️ CHANGE THIS!
 
@@ -404,6 +404,278 @@ For production with a domain name:
 
 ---
 
+## JWT Secret Configuration (CRITICAL)
+
+### Overview
+
+**⚠️ SECURITY REQUIREMENT:** The application **requires** `JWT_SECRET` to be configured in production environments. There is **no default fallback** for security reasons.
+
+**What it does:**
+- Signs JWT tokens used for authentication
+- Validates tokens on protected endpoints
+- Invalidates all sessions when changed
+
+**Security implications:**
+- Anyone with the secret can forge valid authentication tokens
+- Leaked secret = complete authentication bypass
+- Must be unique per environment (dev/staging/production)
+
+---
+
+### Generating a Secure Secret
+
+**Requirements:**
+- Minimum 32 characters (256 bits recommended)
+- Cryptographically random (not a password or phrase)
+- Unique to this installation
+
+**Method 1: OpenSSL (Recommended)**
+```bash
+openssl rand -base64 32
+# Output: Kx7JhF9mP3nQ8wE2vY5zL1dR6sT4cW0oA9bN8xM7uI=
+```
+
+**Method 2: Node.js**
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+# Output: P8vQ3wR7xY2zA1bN5cM4dF6gH9jK0lT3uW8eI7oA5s=
+```
+
+**Method 3: Python**
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+# Output: 8G5kD2qL9xW3mN7jR4cY1vB6zH0pF5uT8eI3oA7s
+```
+
+**⚠️ DO NOT use these examples!** Generate your own unique secret.
+
+---
+
+### Configuring the Secret
+
+#### Production Deployment
+
+**Step 1: Generate secret**
+```bash
+# Generate and save to file
+openssl rand -base64 32 > jwt_secret.txt
+
+# Or save directly to environment
+export JWT_SECRET=$(openssl rand -base64 32)
+```
+
+**Step 2: Add to .env file**
+```bash
+# Edit .env
+nano .env
+
+# Add line (paste your generated secret):
+JWT_SECRET=<your_generated_secret_here>
+
+# Example (DO NOT use this exact value):
+JWT_SECRET=Kx7JhF9mP3nQ8wE2vY5zL1dR6sT4cW0oA9bN8xM7uI=
+```
+
+**Step 3: Restart services**
+```bash
+docker compose restart ics-web
+```
+
+**Step 4: Verify configuration**
+```bash
+# Test authentication endpoint
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq
+
+# Expected: {"success":true,"data":{"token":"eyJ..."}}
+
+# If error: "JWT secret not configured" → JWT_SECRET not loaded
+# Check: docker compose exec ics-web printenv JWT_SECRET
+```
+
+---
+
+### Secret Rotation (Advanced)
+
+Rotating `JWT_SECRET` invalidates all existing user sessions. Users must re-login after rotation.
+
+**When to rotate:**
+- Security breach (secret compromised)
+- Employee with secret access leaves
+- Periodic rotation policy (e.g., every 90 days)
+- Moving between environments (dev → staging → production)
+
+**Rotation procedure (zero-downtime):**
+
+```bash
+# 1. Backup current secret
+echo "Old secret: $(grep JWT_SECRET .env)" > jwt_rotation_$(date +%Y%m%d).log
+
+# 2. Generate new secret
+NEW_SECRET=$(openssl rand -base64 32)
+echo "New secret: $NEW_SECRET" >> jwt_rotation_$(date +%Y%m%d).log
+
+# 3. Update .env file
+sed -i.bak "s/^JWT_SECRET=.*/JWT_SECRET=$NEW_SECRET/" .env
+
+# 4. Rolling restart (zero downtime - requires multiple instances)
+# For single instance (brief downtime):
+docker compose restart ics-web
+
+# 5. Notify users to re-login
+echo "Secret rotated at $(date)" >> jwt_rotation_$(date +%Y%m%d).log
+
+# 6. Monitor for authentication errors
+docker compose logs -f ics-web | grep "Unauthorized"
+```
+
+**Note:** All users will be logged out immediately when the secret changes. Plan rotation during maintenance windows or off-peak hours.
+
+---
+
+### Security Best Practices
+
+#### ✅ DO
+
+- **Generate cryptographically random secrets** (use OpenSSL/crypto libraries)
+- **Use different secrets per environment** (dev/staging/production)
+- **Store in environment variables** (.env file, not code)
+- **Minimum 32 characters** (256 bits recommended)
+- **Rotate periodically** (every 90 days or after incidents)
+- **Use secret management systems** in production (AWS Secrets Manager, HashiCorp Vault, etc.)
+- **Backup old secrets** during rotation (for debugging)
+- **Document rotation dates** (maintain audit log)
+
+#### ❌ DON'T
+
+- **Never commit to version control** (.gitignore .env files)
+- **Never use weak secrets** (passwords, dictionary words, patterns)
+- **Never share between environments** (same secret for dev and prod)
+- **Never log the secret** (in application logs or error messages)
+- **Never transmit over insecure channels** (email, chat, HTTP)
+- **Never hardcode in application** (always use environment variables)
+- **Never reuse** across multiple applications
+
+---
+
+### Troubleshooting JWT Issues
+
+#### Error: "JWT secret not configured"
+
+**Symptom:** 500 error on login, logs show "JWT_SECRET must be configured"
+
+**Cause:** Environment variable not set
+
+**Fix:**
+```bash
+# Check if set
+docker compose exec ics-web printenv JWT_SECRET
+
+# If empty, add to .env and restart
+echo "JWT_SECRET=$(openssl rand -base64 32)" >> .env
+docker compose restart ics-web
+```
+
+---
+
+#### Error: "Unauthorized" after secret rotation
+
+**Symptom:** Valid users get 401 errors, worked before rotation
+
+**Cause:** Old tokens invalidated by new secret
+
+**Fix:** Users must log in again to get new tokens:
+```bash
+# Re-login to get new token
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq
+```
+
+---
+
+#### Error: "Invalid token"
+
+**Symptom:** Protected endpoints return 401, token format looks valid
+
+**Possible causes:**
+1. **JWT_SECRET changed** → Users must re-login
+2. **Token from different environment** → Dev token won't work in prod if secrets differ
+3. **Token malformed** → Check Authorization header: `Bearer <token>`
+
+**Debug:**
+```bash
+# Decode token payload (without verifying signature)
+# Install: npm install -g jwt-cli
+jwt decode <your_token>
+
+# Check if token was signed with current secret
+curl http://localhost:3000/api/reports \
+  -H "Authorization: Bearer <token>" \
+  -v
+
+# If 401: Token invalid/expired or signed with wrong secret
+```
+
+---
+
+### Using Secret Management Systems (Production)
+
+For enterprise deployments, use dedicated secret management instead of .env files:
+
+#### AWS Secrets Manager
+
+```bash
+# Store secret in AWS Secrets Manager
+aws secretsmanager create-secret \
+  --name allo-scrapper/jwt-secret \
+  --secret-string "$(openssl rand -base64 32)"
+
+# Retrieve in application startup script
+export JWT_SECRET=$(aws secretsmanager get-secret-value \
+  --secret-id allo-scrapper/jwt-secret \
+  --query SecretString \
+  --output text)
+
+# Start application with secret
+docker compose up -d
+```
+
+#### HashiCorp Vault
+
+```bash
+# Store secret in Vault
+vault kv put secret/allo-scrapper jwt_secret="$(openssl rand -base64 32)"
+
+# Retrieve in application startup
+export JWT_SECRET=$(vault kv get -field=jwt_secret secret/allo-scrapper)
+
+# Start application
+docker compose up -d
+```
+
+#### Docker Secrets (Docker Swarm)
+
+```bash
+# Create Docker secret
+echo "$(openssl rand -base64 32)" | docker secret create jwt_secret -
+
+# Reference in docker-compose.yml (swarm mode)
+services:
+  ics-web:
+    secrets:
+      - jwt_secret
+    environment:
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+
+secrets:
+  jwt_secret:
+    external: true
+```
+
+---
+
 ## Database Management
 
 ### Manual Migration
@@ -586,16 +858,16 @@ curl http://localhost:3000/api/health
 
 ```bash
 # 1. Backup database (MANDATORY)
-docker compose exec -T db pg_dump -U postgres its > backup_$(date +%Y%m%d_%H%M%S).sql
+docker compose exec -T db pg_dump -U postgres ics > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # 2. Apply migrations in order (while old code is still running)
 # Check migrations/README.md for the list of migrations
 
 # Apply each new migration sequentially:
-docker compose exec -T db psql -U postgres -d its < migrations/003_add_users_table.sql
+docker compose exec -T db psql -U postgres -d ics < migrations/003_add_users_table.sql
 
 # 3. Verify migration success
-docker compose exec db psql -U postgres -d its -c "\d users"
+docker compose exec db psql -U postgres -d ics -c "\d users"
 
 # 4. NOW update the application code
 docker compose pull
@@ -926,18 +1198,39 @@ server {
 
 ## Security Recommendations
 
-### Production Checklist
+### Production Security Checklist
 
+#### Authentication & Secrets
+- [ ] **Set JWT_SECRET environment variable** (CRITICAL - no default)
+- [ ] **Generate cryptographically random JWT_SECRET** (min 32 chars): `openssl rand -base64 32`
+- [ ] **Never commit JWT_SECRET to git** (.env should be in .gitignore)
+- [ ] **Use different JWT_SECRET per environment** (dev/staging/production)
+- [ ] **Change default admin password** (username: admin, password: admin)
+- [ ] **Rotate JWT_SECRET periodically** (every 90 days recommended)
+
+#### Database Security
 - [ ] Change default PostgreSQL password
-- [ ] Use strong, unique passwords
-- [ ] Don't expose PostgreSQL port publicly (remove from docker-compose.yml)
+- [ ] Use strong, unique passwords (min 16 chars, mixed case + numbers + symbols)
+- [ ] Don't expose PostgreSQL port publicly (remove `ports:` from docker-compose.yml)
+- [ ] Enable PostgreSQL SSL/TLS connections
+- [ ] Restrict database user permissions (principle of least privilege)
+
+#### Application Security
+- [ ] Configure ALLOWED_ORIGINS restrictively (only trusted domains)
+- [ ] Enable HTTPS with reverse proxy (see SSL/HTTPS Setup section)
+- [ ] Review rate limiting configuration (adjust for your traffic patterns)
+- [ ] Disable registration endpoint if not needed (comment out route)
+- [ ] Monitor failed login attempts (check scrape_reports logs)
+
+#### Infrastructure Security
 - [ ] Keep Docker and system packages updated
-- [ ] Enable firewall (ufw/iptables)
-- [ ] Use HTTPS with reverse proxy
-- [ ] Regular backups (automated)
-- [ ] Monitor logs for suspicious activity
-- [ ] Limit container resources (memory, CPU)
+- [ ] Enable firewall (ufw/iptables) - allow only necessary ports
+- [ ] Regular automated backups (database + .env configuration)
+- [ ] Monitor logs for suspicious activity (failed logins, rate limit hits)
+- [ ] Limit container resources (memory, CPU) to prevent DoS
 - [ ] Use non-root user in containers (already configured)
+- [ ] Implement log rotation (prevent disk filling)
+- [ ] Set up monitoring/alerting (see MONITORING.md)
 
 ### Firewall Configuration
 
