@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-its}
+      POSTGRES_DB: ${POSTGRES_DB:-ics}
     volumes:
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
@@ -46,7 +46,7 @@ services:
       NODE_ENV: production
       POSTGRES_HOST: ics-db
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-its}
+      POSTGRES_DB: ${POSTGRES_DB:-ics}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       PORT: 3000
@@ -88,7 +88,7 @@ services:
       NODE_ENV: production
       POSTGRES_HOST: ics-db
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-its}
+      POSTGRES_DB: ${POSTGRES_DB:-ics}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       REDIS_URL: redis://ics-redis:6379
@@ -119,7 +119,7 @@ services:
       NODE_ENV: production
       POSTGRES_HOST: ics-db
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-its}
+      POSTGRES_DB: ${POSTGRES_DB:-ics}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       REDIS_URL: redis://ics-redis:6379
@@ -200,7 +200,7 @@ services:
     image: prometheuscommunity/postgres-exporter:v0.15.0
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@ics-db:5432/${POSTGRES_DB:-its}?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@ics-db:5432/${POSTGRES_DB:-ics}?sslmode=disable"
     depends_on:
       ics-db:
         condition: service_healthy
