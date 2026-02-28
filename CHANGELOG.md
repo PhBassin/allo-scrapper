@@ -9,14 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [2.1.0] - 2026-02-28
+
 ### Added
 
 - **APP_NAME Environment Variable** — Configurable application name for server logs, health check API, and service identifiers (default: `Allo-Scrapper`)
 - **VITE_APP_NAME Environment Variable** — Configurable application name for React UI: browser title, header, footer (default: `Allo-Scrapper`)
+- **Sticky Header** — Persistent navigation header on HomePage and CinemaPage with backdrop blur effect
+- **Scroll-to-Top Button** — Floating button to quickly return to the top of the page
 
 ### Changed
 
 - **Database Rename** — Default database name changed from `its` to `ics` (Independent Cinema Showtimes) for consistency with Docker service naming (`ics-web`, `ics-db`, etc.)
+- **Docker Compose** — Production deployment now pulls from the registry image (`ghcr.io/phbassin/allo-scrapper:stable`) with `pull_policy: always`
+
+### Fixed
+
+- **Security: Hardcoded JWT Secret** — Removed insecure hardcoded `JWT_SECRET` fallback; application now requires an explicit secret to be set
+- **Security: Information Leakage** — Films API no longer exposes internal error details or unintended data in responses
+- **TypeScript Errors** — Resolved type errors in the films route handler
+
+### Performance
+
+- **Film Search Index** — Added index on `original_title` column and tuned search query for significantly faster film lookups
+- **CinemaPage Memoization** — Applied `useMemo` to expensive computations in CinemaPage to prevent unnecessary re-renders
+
+### Documentation
+
+- **README Reorganization** — Split monolithic README into separate focused documentation files
+- **JWT_SECRET Documentation** — Added comprehensive documentation for JWT secret configuration across all `.md` files
+- **ICS Database Documentation** — Updated all documentation to reflect the `its` → `ics` database rename
 
 ### Migration Guide (its → ics)
 
@@ -276,6 +300,7 @@ No API, database schema, or configuration changes are included in this release.
 - Docker Compose profiles for modular deployment
 - `cinemas.json` configuration file with API-driven add/sync workflow
 
+[2.1.0]: https://github.com/PhBassin/allo-scrapper/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/PhBassin/allo-scrapper/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/PhBassin/allo-scrapper/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/PhBassin/allo-scrapper/releases/tag/v1.0.0
