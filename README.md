@@ -40,6 +40,9 @@
 - **Modern UI**: React SPA with Vite for fast development
 - **Real-time Progress**: Server-Sent Events (SSE) for live scraping updates
 - **Weekly Reports**: Track cinema programs and identify new releases
+- **JWT Authentication**: Secure user authentication with token-based sessions
+- **Password Management**: Change password functionality for authenticated users
+- **Rate Limiting**: Comprehensive rate limiting per endpoint type (auth, public, protected)
 - **Docker Ready**: Full containerization with multi-stage builds (linux/amd64)
 - **CI/CD**: GitHub Actions workflow for automated Docker image builds
 - **Redis Job Queue**: Scraper microservice mode via Redis pub/sub (`USE_REDIS_SCRAPER=true`)
@@ -684,6 +687,59 @@ RATE_LIMIT_SCRAPER_MAX=10
 RATE_LIMIT_PUBLIC_MAX=100
 ```
 
+#### Practical Rate Limiting Examples
+
+**Example 1: Testing rate limits**
+```bash
+# Trigger rate limit on login (5 failed attempts per 15 min)
+for i in {1..6}; do
+  curl -X POST http://localhost:3000/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"username":"admin","password":"wrong"}' \
+    -w "\nStatus: %{http_code}\n"
+done
+
+# 6th request returns 429 Too Many Requests
+```
+
+**Example 2: Checking rate limit headers**
+```bash
+# Make request and view headers
+curl -I http://localhost:3000/api/films
+
+# Response includes:
+# RateLimit-Limit: 100
+# RateLimit-Remaining: 99
+# RateLimit-Reset: 1709647200  (Unix timestamp)
+```
+
+**Example 3: Handling 429 responses**
+```bash
+# When rate limited, check Retry-After header
+curl -i http://localhost:3000/api/auth/login \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"wrong"}'
+
+# If 429, response includes:
+# Retry-After: 896  (seconds until reset)
+```
+
+**Example 4: Rate limit bypass for successful logins**
+```bash
+# Failed logins count toward limit
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"wrong"}'
+# → Increments counter
+
+# Successful logins do NOT count
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}'
+# → Does NOT increment counter (returns token)
+```
+
 ### Endpoints
 
 #### Health Check
@@ -1194,6 +1250,85 @@ curl -X POST http://localhost:3000/api/auth/register \
 
 ---
 
+#### Change Password
+
+```http
+POST /api/auth/change-password
+```
+
+**Authentication:** Required (Bearer token)
+
+**Description:** Change the password for the currently authenticated user. Requires the current password for verification.
+
+**Request Body:**
+```json
+{
+  "currentPassword": "current_password",
+  "newPassword": "new_secure_password"
+}
+```
+
+**Response (200 — success):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Password updated successfully"
+  }
+}
+```
+
+**Response (401 — invalid current password):**
+```json
+{
+  "success": false,
+  "error": "Current password is incorrect"
+}
+```
+
+**Response (400 — missing fields):**
+```json
+{
+  "success": false,
+  "error": "Current password and new password are required"
+}
+```
+
+**Response (401 — unauthorized, no token):**
+```json
+{
+  "success": false,
+  "error": "Unauthorized"
+}
+```
+
+**Example:**
+```bash
+# Get auth token first
+TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
+
+# Change password
+curl -X POST http://localhost:3000/api/auth/change-password \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"currentPassword":"admin","newPassword":"NewSecurePass123!"}'
+
+# Verify new password works (should succeed)
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"NewSecurePass123!"}'
+```
+
+**Security Notes:**
+- Requires valid JWT token (must be logged in)
+- Current password must be provided (prevents unauthorized password changes if session is hijacked)
+- Failed password change attempts count toward rate limiting
+- Password is hashed with bcrypt before storage (never stored in plaintext)
+
+---
+
 #### Get Scrape Reports
 
 ```http
@@ -1506,16 +1641,17 @@ cp .env.example .env
 | `POSTGRES_PASSWORD` | Database password | `password` | `securepass123` |
 | `PORT` | API server port | `3000` | `8080` |
 | `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins. Must include every origin the browser uses to reach the app — including LAN IPs (e.g. `http://192.168.1.100:3000`) for local network installs. | `http://localhost:3000,http://localhost:5173` | `http://localhost:3000,http://192.168.1.100:3000` |
+| `JWT_SECRET` | Secret key for JWT token signing (⚠️ **REQUIRED in production**, no default fallback for security) | — | `openssl rand -base64 32` |
 
 ### Optional Variables
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
 | `DATABASE_URL` | Full PostgreSQL connection string (overrides individual settings above) | — | `postgresql://postgres:password@localhost:5432/its` |
-| `JWT_SECRET` | Secret key for JWT token signing (⚠️ **required in production**) | `dev-secret-key-change-in-prod` | `your-super-secret-key-min-32-chars` |
 | `TZ` | Timezone for cron jobs (IANA format) | `Europe/Paris` | `America/New_York` |
 | `SCRAPE_CRON_SCHEDULE` | Cron expression for scheduled scraping | `0 8 * * 3` | `0 3 * * *` |
-| `SCRAPE_DELAY_MS` | Delay between HTTP requests to avoid rate limiting (ms) | `1000` | `2000` |
+| `SCRAPE_THEATER_DELAY_MS` | Delay between cinema scrapes (ms) | `3000` | `5000` |
+| `SCRAPE_MOVIE_DELAY_MS` | Delay between film detail fetches (ms) | `500` | `1000` |
 | `SCRAPE_DAYS` | Number of days to scrape (1-14) | `7` | `14` |
 | `SCRAPE_MODE` | Start date: `weekly` (Wed), `from_today`, or `from_today_limited` | `weekly` | `from_today_limited` |
 | `NODE_ENV` | Environment mode | `development` | `production` |
@@ -2388,6 +2524,173 @@ curl http://localhost:3000/api/cinemas/sync
 docker compose down -v
 docker compose up -d
 ```
+
+---
+
+## 🔐 Authentication Troubleshooting
+
+### Problem: "JWT secret not configured" error
+
+**Symptoms:**
+- 500 Internal Server Error on `/api/auth/login` or protected endpoints
+- Server logs show: `Error: JWT_SECRET must be configured in production`
+- Authentication endpoints fail with generic server error
+
+**Cause:** `JWT_SECRET` environment variable is not set (required in production)
+
+**Solution:**
+```bash
+# 1. Generate a secure secret (32+ characters)
+openssl rand -base64 32
+
+# Example output: Kx7JhF9mP3nQ8wE2vY5zL1dR6sT4cW0oA9bN8xM7uI=
+
+# 2. Add to .env file
+echo "JWT_SECRET=Kx7JhF9mP3nQ8wE2vY5zL1dR6sT4cW0oA9bN8xM7uI=" >> .env
+
+# 3. Restart services
+docker compose restart ics-web
+
+# 4. Verify authentication works
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq
+
+# Should return: {"success":true,"data":{"token":"eyJ..."}}
+```
+
+---
+
+### Problem: "Invalid token" or "Unauthorized" errors
+
+**Symptoms:**
+- Protected endpoints return 401 Unauthorized
+- Response: `{"success":false,"error":"Unauthorized"}`
+- Valid token worked before, now rejected
+
+**Possible Causes:**
+
+**1. JWT_SECRET was changed (invalidates all tokens)**
+```bash
+# Check if JWT_SECRET changed recently
+cat .env | grep JWT_SECRET
+
+# If changed, all users must re-login
+# Old tokens are invalidated when secret changes
+```
+
+**Solution:** Users must log in again to get new tokens
+
+**2. Token expired (not implemented yet, but reserved for future)**
+```bash
+# Currently tokens don't expire
+# If expiration is enabled in future, users must re-login
+```
+
+**3. Token malformed or missing**
+```bash
+# Check Authorization header format
+curl http://localhost:3000/api/reports \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -v
+
+# Header must be exactly: Authorization: Bearer <token>
+# Common mistakes:
+# ❌ Authorization: YOUR_TOKEN (missing "Bearer ")
+# ❌ Authorization: Bearer: YOUR_TOKEN (extra colon)
+# ❌ Missing Authorization header entirely
+```
+
+---
+
+### Problem: Cannot change default admin password
+
+**Symptoms:**
+- `/api/auth/change-password` returns 401 "Current password is incorrect"
+- Using default credentials (admin/admin) but password change fails
+
+**Solution:**
+```bash
+# 1. Verify you can login with current password
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq
+
+# 2. Get token from response
+TOKEN="<token_from_step_1>"
+
+# 3. Change password with correct current password
+curl -X POST http://localhost:3000/api/auth/change-password \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"currentPassword":"admin","newPassword":"NewSecurePass123!"}'
+
+# 4. Verify new password works
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"NewSecurePass123!"}' | jq
+```
+
+---
+
+### Problem: Rate limited on login attempts
+
+**Symptoms:**
+- 429 Too Many Requests on `/api/auth/login`
+- Response: `{"success":false,"error":"Too many requests, please try again later."}`
+- `Retry-After` header indicates wait time
+
+**Cause:** Exceeded 5 failed login attempts in 15-minute window
+
+**Solution:**
+```bash
+# Option 1: Wait for rate limit window to reset
+# Check Retry-After header for exact time:
+curl -I http://localhost:3000/api/auth/login \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"wrong"}'
+
+# Retry-After: 896  (seconds until reset, ~15 minutes)
+
+# Option 2: Restart server to clear rate limit (development only)
+docker compose restart ics-web
+
+# Option 3: Configure higher limit (in .env)
+RATE_LIMIT_AUTH_MAX=10  # Allow 10 failed attempts instead of 5
+docker compose restart ics-web
+```
+
+**Note:** Successful logins do NOT count toward rate limit - only failed attempts.
+
+---
+
+### Problem: Users table not found
+
+**Symptoms:**
+- Database error: `relation "users" does not exist`
+- Authentication endpoints fail with database errors
+
+**Cause:** Database migration not applied (v2.0.0+ requires users table)
+
+**Solution:**
+```bash
+# Apply migration manually
+docker compose exec -T db psql -U postgres -d its < migrations/003_add_users_table.sql
+
+# Verify table exists
+docker compose exec db psql -U postgres -d its -c "\d users"
+
+# Restart application
+docker compose restart ics-web
+
+# Test authentication
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq
+```
+
+See [migrations/README.md](./migrations/README.md) for complete migration documentation.
 
 ---
 
