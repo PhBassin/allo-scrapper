@@ -62,7 +62,11 @@ export function createApp() {
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      name: process.env.APP_NAME ?? 'Allo-Scrapper'
+    });
   });
 
   // Prometheus metrics endpoint
