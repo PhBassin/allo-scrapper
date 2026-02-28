@@ -7,6 +7,7 @@ import ScrapeButton from '../components/ScrapeButton';
 import ScrapeProgress from '../components/ScrapeProgress';
 import DaySelector from '../components/DaySelector';
 import FilmSearchBar from '../components/FilmSearchBar';
+import ScrollToTop from '../components/ScrollToTop';
 import { AuthContext } from '../contexts/AuthContext';
 
 export default function HomePage() {
@@ -117,49 +118,50 @@ export default function HomePage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Header Section */}
-      <div className="mb-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-3">
-              {selectedDate ? 'Films du jour' : 'Au programme cette semaine'}
-            </h1>
-            {weekStart && !selectedDate && (
-              <div className="flex items-center gap-2 text-gray-500 font-medium">
-                <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Semaine ciné</span>
-                <span>Du {formatDate(weekStart)} au {getWeekEndDate(weekStart)}</span>
-              </div>
-            )}
-            {selectedDate && (
-              <div className="flex items-center gap-2 text-gray-500 font-medium">
-                <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Date sélectionnée</span>
-                <span>{formatDate(selectedDate)}</span>
-              </div>
-            )}
-          </div>
-          <div className="flex-shrink-0">
-            <ScrapeButton 
-              onTrigger={async () => { await triggerScrape(); }}
-              onScrapeStart={handleScrapeStart} 
-            />
-          </div>
-        </div>
+      {/* Scrape Button - Above sticky header */}
+      <div className="flex justify-end mb-6">
+        <ScrapeButton 
+          onTrigger={async () => { await triggerScrape(); }}
+          onScrapeStart={handleScrapeStart} 
+        />
+      </div>
 
-        {/* Scrape Progress */}
-        {showProgress && (
-          <div className="mb-8">
-            <ScrapeProgress onComplete={handleScrapeComplete} />
+      {/* Scrape Progress - Above sticky header */}
+      {showProgress && (
+        <div className="mb-6">
+          <ScrapeProgress onComplete={handleScrapeComplete} />
+        </div>
+      )}
+
+      {/* Title and Date Info - Above sticky header */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold mb-3">
+          {selectedDate ? 'Films du jour' : 'Au programme cette semaine'}
+        </h1>
+        {weekStart && !selectedDate && (
+          <div className="flex items-center gap-2 text-gray-500 font-medium">
+            <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Semaine ciné</span>
+            <span>Du {formatDate(weekStart)} au {getWeekEndDate(weekStart)}</span>
           </div>
         )}
+        {selectedDate && (
+          <div className="flex items-center gap-2 text-gray-500 font-medium">
+            <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Date sélectionnée</span>
+            <span>{formatDate(selectedDate)}</span>
+          </div>
+        )}
+      </div>
 
+      {/* Sticky Header Section - Compact */}
+      <div className="sticky top-0 z-40 bg-gray-50 pt-4 pb-4 mb-6">
         {/* Film Search Bar */}
-        <div className="mb-6">
+        <div className="mb-4">
           <FilmSearchBar placeholder="Rechercher un film..." />
         </div>
 
         {/* Day Selector */}
         {weekStart && (
-          <div className="mb-6">
+          <div>
             <DaySelector 
               weekStart={weekStart} 
               selectedDate={selectedDate}
@@ -167,29 +169,29 @@ export default function HomePage() {
             />
           </div>
         )}
+      </div>
 
-        {/* Quick Cinema Links */}
-        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-          <h2 className="text-xs font-bold text-gray-400 uppercase mb-3 px-1">Accès rapide par cinéma</h2>
-          <div className="flex flex-wrap gap-2">
-            {cinemas.map((cinema) => (
-              <Link
-                key={cinema.id}
-                to={`/cinema/${cinema.id}`}
-                className="px-3 py-1.5 bg-gray-50 text-gray-700 text-sm rounded-lg hover:bg-primary hover:text-black transition font-semibold"
-              >
-                {cinema.name}
-              </Link>
-            ))}
-            {isAuthenticated && (
-              <button
-                onClick={handleAddCinema}
-                className="px-3 py-1.5 bg-white border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-primary hover:text-primary transition font-semibold cursor-pointer active:scale-95"
-              >
-                + Ajouter un cinéma
-              </button>
-            )}
-          </div>
+      {/* Quick Cinema Links - Below sticky header */}
+      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm mb-10">
+        <h2 className="text-xs font-bold text-gray-400 uppercase mb-3 px-1">Accès rapide par cinéma</h2>
+        <div className="flex flex-wrap gap-2">
+          {cinemas.map((cinema) => (
+            <Link
+              key={cinema.id}
+              to={`/cinema/${cinema.id}`}
+              className="px-3 py-1.5 bg-gray-50 text-gray-700 text-sm rounded-lg hover:bg-primary hover:text-black transition font-semibold"
+            >
+              {cinema.name}
+            </Link>
+          ))}
+          {isAuthenticated && (
+            <button
+              onClick={handleAddCinema}
+              className="px-3 py-1.5 bg-white border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-primary hover:text-primary transition font-semibold cursor-pointer active:scale-95"
+            >
+              + Ajouter un cinéma
+            </button>
+          )}
         </div>
       </div>
 
@@ -210,6 +212,9 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Scroll to Top Button */}
+      <ScrollToTop />
     </div>
   );
 }

@@ -52,3 +52,9 @@ mark {
   border-radius: 0.125rem;
 }
 
+/* Sticky header backdrop blur effect (optional enhancement) */
+.sticky {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
