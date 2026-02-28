@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **APP_NAME Environment Variable** — Configurable application name for server logs, health check API, and service identifiers (default: `Allo-Scrapper`)
+- **VITE_APP_NAME Environment Variable** — Configurable application name for React UI: browser title, header, footer (default: `Allo-Scrapper`)
+
+### Changed
+
+- **Database Rename** — Default database name changed from `its` to `ics` (Independent Cinema Showtimes) for consistency with Docker service naming (`ics-web`, `ics-db`, etc.)
+
+### Migration Guide (its → ics)
+
+**This is a breaking change for existing installations.**
+
+Choose one of the following options:
+
+#### Option A: Rename your database (recommended for new naming consistency)
+
+```bash
+# 1. Stop services
+docker compose down
+
+# 2. Start only the database
+docker compose up -d ics-db
+
+# 3. Rename the database
+docker compose exec ics-db psql -U postgres -c "ALTER DATABASE its RENAME TO ics;"
+
+# 4. Restart all services
+docker compose up -d
+```
+
+#### Option B: Keep the old database name
+
+If you prefer to keep your existing `its` database, add this to your `.env` file:
+
+```bash
+POSTGRES_DB=its
+```
+
+---
+
 ## [2.0.0] - 2026-02-26
 
 ### Added
@@ -80,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### 1. Backup Database
 
 ```bash
-docker compose exec -T db pg_dump -U postgres its > backup_before_v2.0.0.sql
+docker compose exec -T db pg_dump -U postgres ics > backup_before_v2.0.0.sql
 ```
 
 #### 2. Pull Latest Images
@@ -92,7 +135,7 @@ docker compose pull
 #### 3. Apply Database Migration
 
 ```bash
-docker compose exec -T db psql -U postgres -d its < migrations/003_add_users_table.sql
+docker compose exec -T db psql -U postgres -d ics < migrations/003_add_users_table.sql
 ```
 
 Expected output:
@@ -157,7 +200,7 @@ docker compose down
 
 # 2. Restore database backup
 docker compose up -d db
-docker compose exec -T db psql -U postgres -d its < backup_before_v2.0.0.sql
+docker compose exec -T db psql -U postgres -d ics < backup_before_v2.0.0.sql
 
 # 3. Revert to v1.1.0 images
 docker compose pull ghcr.io/phbassin/allo-scrapper:v1.1.0

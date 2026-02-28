@@ -458,7 +458,7 @@ docker compose exec ics-web sh
 docker compose exec ics-web npm run db:migrate
 
 # Connect to PostgreSQL
-docker compose exec ics-db psql -U postgres -d its
+docker compose exec ics-db psql -U postgres -d ics
 
 # Run scraper manually
 docker compose exec ics-web node -e "require('./dist/services/scraper').scrapeAllTheaters()"
