@@ -11,7 +11,8 @@ import {
   syncCinemasFromDatabase,
 } from '../services/cinema-config.js';
 import type { ApiResponse } from '../types/api.js';
-import { publicLimiter } from '../middleware/rate-limit.js';
+import { publicLimiter, protectedLimiter } from '../middleware/rate-limit.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -32,7 +33,7 @@ router.get('/', publicLimiter, async (_req, res, next) => {
 });
 
 // POST /api/cinemas - Add a new cinema
-router.post('/', publicLimiter, async (req, res, next) => {
+router.post('/', requireAuth, protectedLimiter, async (req, res, next) => {
   try {
     const { id, name, url } = req.body;
 
@@ -132,7 +133,7 @@ router.post('/', publicLimiter, async (req, res, next) => {
 });
 
 // PUT /api/cinemas/:id - Update a cinema's name and/or URL
-router.put('/:id', publicLimiter, async (req, res, next) => {
+router.put('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
   try {
     const cinemaId = req.params.id;
     const { name, url } = req.body;
@@ -195,7 +196,7 @@ router.put('/:id', publicLimiter, async (req, res, next) => {
 });
 
 // DELETE /api/cinemas/:id - Delete a cinema (cascades to showtimes and weekly_programs)
-router.delete('/:id', publicLimiter, async (req, res, next) => {
+router.delete('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
   try {
     const cinemaId = req.params.id;
     const deleted = await deleteCinemaWithSync(db, cinemaId);
@@ -215,7 +216,7 @@ router.delete('/:id', publicLimiter, async (req, res, next) => {
 });
 
 // GET /api/cinemas/sync - Manual sync from database to JSON file
-router.get('/sync', publicLimiter, async (_req, res, next) => {
+router.get('/sync', requireAuth, protectedLimiter, async (_req, res, next) => {
   try {
     const count = await syncCinemasFromDatabase(db);
 
