@@ -133,29 +133,29 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Sticky Header Section */}
-      <div className="sticky top-0 z-40 bg-gray-50 pt-4 pb-6 mb-6">
-        {/* Title and Date Info */}
-        <div className="mb-6">
-          <h1 className="text-4xl font-bold mb-3">
-            {selectedDate ? 'Films du jour' : 'Au programme cette semaine'}
-          </h1>
-          {weekStart && !selectedDate && (
-            <div className="flex items-center gap-2 text-gray-500 font-medium">
-              <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Semaine ciné</span>
-              <span>Du {formatDate(weekStart)} au {getWeekEndDate(weekStart)}</span>
-            </div>
-          )}
-          {selectedDate && (
-            <div className="flex items-center gap-2 text-gray-500 font-medium">
-              <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Date sélectionnée</span>
-              <span>{formatDate(selectedDate)}</span>
-            </div>
-          )}
-        </div>
+      {/* Title and Date Info - Above sticky header */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold mb-3">
+          {selectedDate ? 'Films du jour' : 'Au programme cette semaine'}
+        </h1>
+        {weekStart && !selectedDate && (
+          <div className="flex items-center gap-2 text-gray-500 font-medium">
+            <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Semaine ciné</span>
+            <span>Du {formatDate(weekStart)} au {getWeekEndDate(weekStart)}</span>
+          </div>
+        )}
+        {selectedDate && (
+          <div className="flex items-center gap-2 text-gray-500 font-medium">
+            <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Date sélectionnée</span>
+            <span>{formatDate(selectedDate)}</span>
+          </div>
+        )}
+      </div>
 
+      {/* Sticky Header Section - Compact */}
+      <div className="sticky top-0 z-40 bg-gray-50 pt-4 pb-4 mb-6">
         {/* Film Search Bar */}
-        <div className="mb-6">
+        <div className="mb-4">
           <FilmSearchBar placeholder="Rechercher un film..." />
         </div>
 
