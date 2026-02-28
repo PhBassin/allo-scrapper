@@ -14,6 +14,8 @@ export default function Layout({ children, title }: LayoutProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const APP_NAME = import.meta.env.VITE_APP_NAME || 'Allo-Scrapper';
+
   const handleLogout = () => {
     logout();
     setIsDropdownOpen(false);
@@ -48,7 +50,7 @@ export default function Layout({ children, title }: LayoutProps) {
           <div className="flex items-center justify-between">
             <Link to="/" className="text-2xl font-bold flex items-center gap-2">
               <span className="text-primary">🎬</span>
-              <span>Allo-Scrapper</span>
+              <span>{APP_NAME}</span>
             </Link>
             <nav className="flex items-center gap-6">
               <Link to="/" className="hover:text-primary transition">
@@ -138,7 +140,7 @@ export default function Layout({ children, title }: LayoutProps) {
             Données fournies par le site source - Mise à jour hebdomadaire
           </p>
           <p className="text-xs text-gray-400 mt-2">
-            Allo-Scrapper &copy; {new Date().getFullYear()}
+            {APP_NAME} &copy; {new Date().getFullYear()}
           </p>
         </div>
       </footer>
