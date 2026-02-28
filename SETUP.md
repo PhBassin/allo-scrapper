@@ -81,7 +81,7 @@ brew install postgresql@15
 brew services start postgresql@15
 
 # Create database
-createdb its
+createdb ics
 ```
 
 #### 2. Configure Environment
@@ -155,7 +155,7 @@ cp .env.example .env
 |----------|-------------|---------|---------|
 | `POSTGRES_HOST` | PostgreSQL server hostname | `localhost` | `db` |
 | `POSTGRES_PORT` | PostgreSQL server port | `5432` | `5432` |
-| `POSTGRES_DB` | Database name (`its` = Independant Theater Showtime) | `its` | `its` |
+| `POSTGRES_DB` | Database name (`ics` = Independent Cinema Showtimes) | `ics` | `ics` |
 | `POSTGRES_USER` | Database username | `postgres` | `myuser` |
 | `POSTGRES_PASSWORD` | Database password | `password` | `securepass123` |
 | `PORT` | API server port | `3000` | `8080` |
@@ -166,7 +166,7 @@ cp .env.example .env
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
-| `DATABASE_URL` | Full PostgreSQL connection string (overrides individual settings above) | — | `postgresql://postgres:password@localhost:5432/its` |
+| `DATABASE_URL` | Full PostgreSQL connection string (overrides individual settings above) | — | `postgresql://postgres:password@localhost:5432/ics` |
 | `TZ` | Timezone for cron jobs (IANA format) | `Europe/Paris` | `America/New_York` |
 | `SCRAPE_CRON_SCHEDULE` | Cron expression for scheduled scraping | `0 8 * * 3` | `0 3 * * *` |
 | `SCRAPE_THEATER_DELAY_MS` | Delay between cinema scrapes (ms) | `3000` | `5000` |
@@ -181,6 +181,8 @@ cp .env.example .env
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP gRPC endpoint for Tempo | `http://ics-tempo:4317` | `http://ics-tempo:4317` |
 | `GRAFANA_ADMIN_USER` | Grafana admin username | `admin` | `admin` |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana admin password | `admin` | `securepass` |
+| `APP_NAME` | Application name used in server logs, health check API, and service identifiers | `Allo-Scrapper` | `My Cinema App` |
+| `VITE_APP_NAME` | Application name for React UI (browser title, header, footer). Requires `VITE_` prefix for Vite. | `Allo-Scrapper` | `My Cinema App` |
 | `VITE_API_BASE_URL` | API base URL for Vite dev server (local development only). Production Docker builds use relative URLs (`/api`) automatically and ignore this variable. | `/api` | `http://localhost:3000/api` |
 
 ### Cron Schedule Examples
@@ -322,7 +324,7 @@ npm run dev:down
 docker compose -f docker-compose.dev.yml exec server npm run db:migrate
 
 # Connect to PostgreSQL CLI
-docker compose -f docker-compose.dev.yml exec db psql -U postgres -d its
+docker compose -f docker-compose.dev.yml exec db psql -U postgres -d ics
 
 # Inside psql:
 \dt          # List tables

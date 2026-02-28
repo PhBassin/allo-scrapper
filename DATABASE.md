@@ -350,7 +350,7 @@ docker compose exec ics-web npm run db:migrate
 
 ```bash
 # Connect to PostgreSQL
-docker compose exec ics-db psql -U postgres -d its
+docker compose exec ics-db psql -U postgres -d ics
 
 # Inside psql:
 \dt                    # List tables

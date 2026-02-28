@@ -96,7 +96,7 @@ nano .env
 # Database Configuration
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
-POSTGRES_DB=its
+POSTGRES_DB=ics
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_secure_password_here  # ⚠️ CHANGE THIS!
 
@@ -858,16 +858,16 @@ curl http://localhost:3000/api/health
 
 ```bash
 # 1. Backup database (MANDATORY)
-docker compose exec -T db pg_dump -U postgres its > backup_$(date +%Y%m%d_%H%M%S).sql
+docker compose exec -T db pg_dump -U postgres ics > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # 2. Apply migrations in order (while old code is still running)
 # Check migrations/README.md for the list of migrations
 
 # Apply each new migration sequentially:
-docker compose exec -T db psql -U postgres -d its < migrations/003_add_users_table.sql
+docker compose exec -T db psql -U postgres -d ics < migrations/003_add_users_table.sql
 
 # 3. Verify migration success
-docker compose exec db psql -U postgres -d its -c "\d users"
+docker compose exec db psql -U postgres -d ics -c "\d users"
 
 # 4. NOW update the application code
 docker compose pull

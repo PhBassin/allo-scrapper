@@ -46,7 +46,7 @@ docker compose restart ics-db
 docker compose logs ics-db
 
 # Verify connection
-docker compose exec ics-db psql -U postgres -d its -c "SELECT 1;"
+docker compose exec ics-db psql -U postgres -d ics -c "SELECT 1;"
 ```
 
 ---
@@ -62,7 +62,7 @@ docker compose exec ics-db psql -U postgres -d its -c "SELECT 1;"
 docker compose exec ics-web npm run db:migrate
 
 # Or connect to database and run schema manually
-docker compose exec ics-db psql -U postgres -d its
+docker compose exec ics-db psql -U postgres -d ics
 
 # In psql:
 \i /path/to/schema.sql
@@ -78,10 +78,10 @@ docker compose exec ics-db psql -U postgres -d its
 
 ```bash
 # Apply migration manually
-docker compose exec -T ics-db psql -U postgres -d its < migrations/003_add_users_table.sql
+docker compose exec -T ics-db psql -U postgres -d ics < migrations/003_add_users_table.sql
 
 # Verify table exists
-docker compose exec ics-db psql -U postgres -d its -c "\d users"
+docker compose exec ics-db psql -U postgres -d ics -c "\d users"
 
 # Restart application
 docker compose restart ics-web
@@ -228,7 +228,7 @@ docker compose restart
 
 ```bash
 # Check if database has data
-docker compose exec ics-db psql -U postgres -d its -c "SELECT COUNT(*) FROM cinemas;"
+docker compose exec ics-db psql -U postgres -d ics -c "SELECT COUNT(*) FROM cinemas;"
 
 # Trigger scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
@@ -668,7 +668,7 @@ docker compose ps
 curl http://localhost:3000/api/health
 
 # Database connection
-docker compose exec ics-db psql -U postgres -d its -c "SELECT 1;"
+docker compose exec ics-db psql -U postgres -d ics -c "SELECT 1;"
 
 # Redis connection
 docker compose exec ics-redis redis-cli ping
