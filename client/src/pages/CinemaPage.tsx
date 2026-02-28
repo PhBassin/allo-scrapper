@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getCinemas, getCinemaSchedule, triggerCinemaScrape, getScrapeStatus } from '../api/client';
 import type { Cinema, ShowtimeWithFilm } from '../types';
@@ -115,6 +115,13 @@ export default function CinemaPage() {
     }, 2000);
   };
 
+  // ⚡ PERFORMANCE: Memoize derived state calculations to prevent expensive
+  // array operations (getUniqueDates, filter, groupByFilm) on every render,
+  // especially when showtimes array is large or during unrelated state updates (like scrape progress).
+  const dates = useMemo(() => getUniqueDates(showtimes), [showtimes]);
+  const selectedShowtimes = useMemo(() => showtimes.filter(s => s.date === selectedDate), [showtimes, selectedDate]);
+  const filmGroups = useMemo(() => groupByFilm(selectedShowtimes), [selectedShowtimes]);
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -131,10 +138,6 @@ export default function CinemaPage() {
       </div>
     );
   }
-
-  const dates = getUniqueDates(showtimes);
-  const selectedShowtimes = showtimes.filter(s => s.date === selectedDate);
-  const filmGroups = groupByFilm(selectedShowtimes);
 
   return (
     <div>
