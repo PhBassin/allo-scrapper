@@ -10,7 +10,10 @@ import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+}
 const JWT_EXPIRES_IN = '24h';
 
 // Pre-computed hash for 'dummy' (cost 10) to prevent timing attacks
