@@ -5,7 +5,7 @@ import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION } from '@opentele
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { trace, type Tracer } from '@opentelemetry/api';
 
-const SERVICE_NAME = 'ics-scraper';
+const SERVICE_NAME = `${process.env.APP_NAME ?? 'Allo-Scrapper'}-scraper`;
 const SERVICE_VERSION = '1.0.0';
 
 let _sdk: NodeSDK | null = null;
