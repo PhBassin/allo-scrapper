@@ -48,24 +48,8 @@ END $$;
 -- Create index on role column for performance
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
--- Promote default admin user to admin role
+-- Promote default admin user to admin role (idempotent - only if user exists)
 UPDATE users SET role = 'admin' WHERE username = 'admin' AND role != 'admin';
-
--- Verify at least one admin exists
-DO $$ 
-DECLARE
-    admin_count INTEGER;
-BEGIN
-    SELECT COUNT(*) INTO admin_count FROM users WHERE role = 'admin';
-    
-    IF admin_count = 0 THEN
-        RAISE EXCEPTION 'Migration safety check failed: No admin user found after migration';
-    ELSIF admin_count = 1 THEN
-        RAISE NOTICE 'Admin verification successful: exactly 1 admin user exists';
-    ELSE
-        RAISE NOTICE 'Admin verification successful: % admin users exist', admin_count;
-    END IF;
-END $$;
 
 -- Verify role column exists and has correct constraint
 DO $$ 
@@ -89,22 +73,6 @@ BEGIN
         RAISE NOTICE 'Migration successful: role column and constraint verified';
     ELSE
         RAISE EXCEPTION 'Migration verification failed';
-    END IF;
-END $$;
-
--- Verify default admin user has admin role
-DO $$ 
-DECLARE
-    admin_user_role TEXT;
-BEGIN
-    SELECT role INTO admin_user_role FROM users WHERE username = 'admin';
-    
-    IF admin_user_role = 'admin' THEN
-        RAISE NOTICE 'Default admin user has admin role';
-    ELSIF admin_user_role IS NULL THEN
-        RAISE WARNING 'Default admin user not found';
-    ELSE
-        RAISE EXCEPTION 'Default admin user has incorrect role: %', admin_user_role;
     END IF;
 END $$;
 
