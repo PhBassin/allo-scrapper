@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as queries from '../db/queries.js';
 import router from './cinemas.js';
+import { db } from '../db/client.js';
 
 // Mock the dependencies
 vi.mock('../db/client.js', () => ({
@@ -31,15 +32,22 @@ describe('Routes - Cinemas - Security', () => {
   let mockRes: any;
   let mockReq: any;
   let mockNext: any;
+  let mockApp: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockApp = {
+      get: vi.fn((key: string) => {
+        if (key === 'db') return db;
+        return undefined;
+      })
+    };
     mockRes = {
       json: vi.fn().mockReturnThis(),
       status: vi.fn().mockReturnThis()
     };
     mockNext = vi.fn();
-    mockReq = {};
+    mockReq = { app: mockApp };
   });
 
   it('should delegate error handling to next() and NOT expose sensitive details directly', async () => {

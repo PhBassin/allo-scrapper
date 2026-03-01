@@ -1,5 +1,5 @@
 import express from 'express';
-import { db } from '../db/client.js';
+import type { DB } from '../db/client.js';
 import { getCinemas, getShowtimesByCinemaAndWeek } from '../db/queries.js';
 import { getWeekStart } from '../utils/date.js';
 import { addCinemaAndScrape } from '../services/scraper/index.js';
@@ -17,8 +17,9 @@ import { requireAuth } from '../middleware/auth.js';
 const router = express.Router();
 
 // GET /api/cinemas - Get all cinemas
-router.get('/', publicLimiter, async (_req, res, next) => {
+router.get('/', publicLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const cinemas = await getCinemas(db);
 
     const response: ApiResponse = {
@@ -35,6 +36,7 @@ router.get('/', publicLimiter, async (_req, res, next) => {
 // POST /api/cinemas - Add a new cinema
 router.post('/', requireAuth, protectedLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const { id, name, url } = req.body;
 
     // Smart add via URL only
@@ -135,6 +137,7 @@ router.post('/', requireAuth, protectedLimiter, async (req, res, next) => {
 // PUT /api/cinemas/:id - Update a cinema's name and/or URL
 router.put('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const cinemaId = req.params.id;
     const { name, url } = req.body;
 
@@ -198,6 +201,7 @@ router.put('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
 // DELETE /api/cinemas/:id - Delete a cinema (cascades to showtimes and weekly_programs)
 router.delete('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const cinemaId = req.params.id;
     const deleted = await deleteCinemaWithSync(db, cinemaId);
 
@@ -216,8 +220,9 @@ router.delete('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
 });
 
 // GET /api/cinemas/sync - Manual sync from database to JSON file
-router.get('/sync', requireAuth, protectedLimiter, async (_req, res, next) => {
+router.get('/sync', requireAuth, protectedLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const count = await syncCinemasFromDatabase(db);
 
     const response: ApiResponse = {
@@ -237,6 +242,7 @@ router.get('/sync', requireAuth, protectedLimiter, async (_req, res, next) => {
 // GET /api/cinemas/:id - Get cinema schedule
 router.get('/:id', publicLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const cinemaId = req.params.id;
     const weekStart = getWeekStart();
 
