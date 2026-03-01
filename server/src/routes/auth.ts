@@ -7,6 +7,7 @@ import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/admin.js';
 
 const router = express.Router();
 
@@ -85,8 +86,8 @@ router.post('/login', authLimiter, async (req, res) => {
     }
 });
 
-// POST /api/auth/register - Register a new user (can be disabled or protected later)
-router.post('/register', registerLimiter, async (req, res) => {
+// POST /api/auth/register - Register a new user (admin-only)
+router.post('/register', registerLimiter, requireAuth, requireAdmin, async (req, res) => {
     try {
         const { username, password } = req.body;
 
