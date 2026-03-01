@@ -31,6 +31,32 @@ Migrations are numbered sequentially and should be applied in order. Each migrat
 
 **Security Note:** Change the default admin password after first login in production.
 
+### 004_add_app_settings.sql
+**Version:** 3.0.0  
+**Date:** 2026-03-01  
+**Description:** Creates `app_settings` table with singleton constraint for white-label branding configuration. Stores site name, logo/favicon (base64), color palette (9 colors), typography (Google Fonts), footer customization, and email branding.
+
+**Breaking Change:** No - adds new table only
+
+**Features:**
+- Singleton pattern (only 1 row allowed)
+- Default branding values (#FECC00, #1F2937)
+- JSONB for footer links array
+- Foreign key to users(id) for tracking changes
+
+### 005_add_user_roles.sql
+**Version:** 3.0.0  
+**Date:** 2026-03-01  
+**Description:** Adds `role` column to `users` table with check constraint for 'admin' or 'user' values. Automatically promotes default admin user to admin role. Required for role-based access control in admin panel.
+
+**Breaking Change:** No - extends existing table
+
+**Safety Features:**
+- Idempotent (checks if column already exists)
+- Auto-promotes 'admin' user to admin role
+- Verifies at least 1 admin exists after migration
+- Index on role column for performance
+
 ## How to Apply Migrations
 
 ### Prerequisites
@@ -102,6 +128,28 @@ COMMIT;
 -- WARNING: This will delete all user accounts
 BEGIN;
 DROP TABLE IF EXISTS users CASCADE;
+COMMIT;
+```
+
+### 004_add_app_settings.sql Rollback
+
+```sql
+-- Rollback: Drop app_settings table
+-- WARNING: This will delete all branding configuration
+BEGIN;
+DROP INDEX IF EXISTS idx_app_settings_updated_at;
+DROP TABLE IF EXISTS app_settings CASCADE;
+COMMIT;
+```
+
+### 005_add_user_roles.sql Rollback
+
+```sql
+-- Rollback: Remove role column and related objects
+BEGIN;
+DROP INDEX IF EXISTS idx_users_role;
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users DROP COLUMN IF EXISTS role;
 COMMIT;
 ```
 

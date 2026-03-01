@@ -118,7 +118,54 @@ export async function initializeDatabase() {
       username VARCHAR(255) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
       created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-    )`
+    )`,
+
+    // Migration: add role column to users (if not exists)
+    `DO $$ 
+     BEGIN
+       IF NOT EXISTS (
+         SELECT 1 FROM information_schema.columns 
+         WHERE table_name = 'users' AND column_name = 'role'
+       ) THEN
+         ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user';
+         ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'user'));
+         CREATE INDEX idx_users_role ON users(role);
+       END IF;
+     END $$`,
+
+    // Table: app_settings (White-label branding configuration)
+    `CREATE TABLE IF NOT EXISTS app_settings (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      site_name TEXT NOT NULL DEFAULT 'Allo-Scrapper',
+      logo_base64 TEXT,
+      favicon_base64 TEXT,
+      color_primary TEXT NOT NULL DEFAULT '#FECC00',
+      color_secondary TEXT NOT NULL DEFAULT '#1F2937',
+      color_accent TEXT NOT NULL DEFAULT '#3B82F6',
+      color_background TEXT NOT NULL DEFAULT '#F9FAFB',
+      color_text TEXT NOT NULL DEFAULT '#111827',
+      color_link TEXT NOT NULL DEFAULT '#2563EB',
+      color_success TEXT NOT NULL DEFAULT '#10B981',
+      color_warning TEXT NOT NULL DEFAULT '#F59E0B',
+      color_error TEXT NOT NULL DEFAULT '#EF4444',
+      font_family_heading TEXT NOT NULL DEFAULT 'system-ui, -apple-system, sans-serif',
+      font_family_body TEXT NOT NULL DEFAULT 'system-ui, -apple-system, sans-serif',
+      footer_text TEXT DEFAULT 'Données fournies par le site source - Mise à jour hebdomadaire',
+      footer_copyright TEXT DEFAULT '{site_name} © {year}',
+      footer_links JSONB DEFAULT '[]'::jsonb,
+      email_from_name TEXT DEFAULT 'Allo-Scrapper',
+      email_header_color TEXT DEFAULT '#FECC00',
+      email_footer_text TEXT,
+      updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      updated_by INTEGER REFERENCES users(id),
+      CONSTRAINT singleton_check CHECK (id = 1)
+    )`,
+
+    // Insert default app_settings (singleton)
+    `INSERT INTO app_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`,
+
+    // Index for app_settings
+    `CREATE INDEX IF NOT EXISTS idx_app_settings_updated_at ON app_settings(updated_at)`
   ];
 
   try {
