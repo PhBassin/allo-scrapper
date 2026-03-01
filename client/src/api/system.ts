@@ -28,7 +28,7 @@ export interface DatabaseStats {
   tables: number;
   cinemas: number;
   films: number;
-  seances: number;
+  showtimes: number;
 }
 
 export interface SystemInfo {

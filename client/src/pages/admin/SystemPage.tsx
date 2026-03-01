@@ -224,8 +224,8 @@ const SystemPage: React.FC = () => {
                 <dd className="font-medium">{systemInfo.database.films}</dd>
               </div>
               <div>
-                <dt className="text-sm text-gray-600">Seances</dt>
-                <dd className="font-medium">{systemInfo.database.seances}</dd>
+                <dt className="text-sm text-gray-600">Showtimes</dt>
+                <dd className="font-medium">{systemInfo.database.showtimes}</dd>
               </div>
             </dl>
           </div>
