@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '../db/client.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
 import type { ApiResponse } from '../types/api.js';
 import type { UserPublic, UserRole } from '../types/user.js';
@@ -12,7 +12,6 @@ import {
   getAdminCount,
   generateRandomPassword,
 } from '../db/user-queries.js';
-import { createUser } from '../db/queries.js';
 import bcrypt from 'bcryptjs';
 import { logger } from '../utils/logger.js';
 
@@ -51,7 +50,7 @@ router.get(
   '/',
   requireAuth,
   requireAdmin,
-  async (req: express.Request, res: express.Response) => {
+  async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
 
 
@@ -61,16 +60,18 @@ router.get(
 
       // Validate pagination params
       if (isNaN(limit) || limit < 1) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid limit parameter',
         } as ApiResponse);
+        return;
       }
       if (isNaN(offset) || offset < 0) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid offset parameter',
         } as ApiResponse);
+        return;
       }
 
       const users = await getAllUsers(db, { limit, offset });
@@ -106,25 +107,27 @@ router.get(
   '/:id',
   requireAuth,
   requireAdmin,
-  async (req: express.Request, res: express.Response) => {
+  async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
 
       const userId = parseInt(req.params.id, 10);
 
       if (isNaN(userId)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid user ID',
         } as ApiResponse);
+        return;
       }
 
       const user = await getUserById(db, userId);
 
       if (!user) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'User not found',
         } as ApiResponse);
+        return;
       }
 
       logger.info('Admin retrieved user details', {
@@ -157,54 +160,58 @@ router.post(
   '/',
   requireAuth,
   requireAdmin,
-  async (req: express.Request, res: express.Response) => {
+  async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
 
       const { username, password, role } = req.body;
 
       // Validate required fields
       if (!username || !password) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Username and password are required',
         } as ApiResponse);
+        return;
       }
 
       // Validate username format
       if (!USERNAME_REGEX.test(username)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Username must be alphanumeric and 3-15 characters long',
         } as ApiResponse);
+        return;
       }
 
       // Validate password
       const passwordError = validatePassword(password);
       if (passwordError) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: passwordError,
         } as ApiResponse);
+        return;
       }
 
       // Validate role (default to 'user' if not provided)
       const userRole: UserRole = role || 'user';
       if (userRole !== 'admin' && userRole !== 'user') {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid role. Must be "admin" or "user"',
         } as ApiResponse);
+        return;
       }
 
       // Hash password
       const passwordHash = await bcrypt.hash(password, 10);
 
-      // Create user
-      const newUser = await createUser(db, {
-        username,
-        password_hash: passwordHash,
-        role: userRole,
-      });
+      // Create user with direct DB query
+      const result = await db.query<UserPublic>(
+        'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role, created_at',
+        [username, passwordHash, userRole]
+      );
+      const newUser = result.rows[0];
 
       logger.info('Admin created new user', {
         adminId: req.user!.id,
@@ -221,10 +228,11 @@ router.post(
     } catch (error: any) {
       // Handle duplicate username error
       if (error.code === '23505' || error.message?.includes('duplicate key')) {
-        return res.status(409).json({
+        res.status(409).json({
           success: false,
           error: 'Username already exists',
         } as ApiResponse);
+        return;
       }
 
       logger.error('Failed to create user', { error });
@@ -246,7 +254,7 @@ router.put(
   '/:id/role',
   requireAuth,
   requireAdmin,
-  async (req: express.Request, res: express.Response) => {
+  async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
 
       const userId = parseInt(req.params.id, 10);
@@ -254,43 +262,48 @@ router.put(
 
       // Validate user ID
       if (isNaN(userId)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid user ID',
         } as ApiResponse);
+        return;
       }
 
       // Validate role
       if (!role) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Role is required',
         } as ApiResponse);
+        return;
       }
       if (role !== 'admin' && role !== 'user') {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid role. Must be "admin" or "user"',
         } as ApiResponse);
+        return;
       }
 
       // Check if user exists
       const targetUser = await getUserById(db, userId);
       if (!targetUser) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'User not found',
         } as ApiResponse);
+        return;
       }
 
       // Safety guard: Prevent demoting the last admin
       if (targetUser.role === 'admin' && role === 'user') {
         const adminCount = await getAdminCount(db);
         if (adminCount <= 1) {
-          return res.status(403).json({
+          res.status(403).json({
             success: false,
             error: 'Cannot demote the last admin user',
           } as ApiResponse);
+          return;
         }
       }
 
@@ -332,26 +345,28 @@ router.post(
   '/:id/reset-password',
   requireAuth,
   requireAdmin,
-  async (req: express.Request, res: express.Response) => {
+  async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
 
       const userId = parseInt(req.params.id, 10);
 
       // Validate user ID
       if (isNaN(userId)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid user ID',
         } as ApiResponse);
+        return;
       }
 
       // Check if user exists
       const targetUser = await getUserById(db, userId);
       if (!targetUser) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'User not found',
         } as ApiResponse);
+        return;
       }
 
       // Generate new password
@@ -402,44 +417,48 @@ router.delete(
   '/:id',
   requireAuth,
   requireAdmin,
-  async (req: express.Request, res: express.Response) => {
+  async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
 
       const userId = parseInt(req.params.id, 10);
 
       // Validate user ID
       if (isNaN(userId)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid user ID',
         } as ApiResponse);
+        return;
       }
 
       // Safety guard: Prevent self-deletion
       if (userId === req.user!.id) {
-        return res.status(403).json({
+        res.status(403).json({
           success: false,
           error: 'Cannot delete your own account',
         } as ApiResponse);
+        return;
       }
 
       // Check if user exists and get their role
       const targetUser = await getUserById(db, userId);
       if (!targetUser) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'User not found',
         } as ApiResponse);
+        return;
       }
 
       // Safety guard: Prevent deleting the last admin
       if (targetUser.role === 'admin') {
         const adminCount = await getAdminCount(db);
         if (adminCount <= 1) {
-          return res.status(403).json({
+          res.status(403).json({
             success: false,
             error: 'Cannot delete the last admin user',
           } as ApiResponse);
+          return;
         }
       }
 
@@ -447,10 +466,11 @@ router.delete(
       const deleted = await deleteUser(db, userId);
 
       if (!deleted) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'User not found',
         } as ApiResponse);
+        return;
       }
 
       logger.info('Admin deleted user', {

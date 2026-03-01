@@ -18,6 +18,8 @@ import cinemasRouter from './routes/cinemas.js';
 import scraperRouter from './routes/scraper.js';
 import reportsRouter from './routes/reports.js';
 import authRouter from './routes/auth.js';
+import settingsRouter from './routes/settings.js';
+import usersRouter from './routes/users.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,6 +63,8 @@ export function createApp() {
   app.use('/api/cinemas', cinemasRouter);
   app.use('/api/scraper', scraperRouter);
   app.use('/api/reports', reportsRouter);
+  app.use('/api/settings', settingsRouter);
+  app.use('/api/users', usersRouter);
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {

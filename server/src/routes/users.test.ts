@@ -50,7 +50,6 @@ vi.mock('../middleware/admin.js', () => ({
 }));
 
 import * as userQueries from '../db/user-queries.js';
-import * as queries from '../db/queries.js';
 import { db } from '../db/client.js';
 
 describe('User Management Routes', () => {
@@ -221,11 +220,11 @@ describe('User Management Routes', () => {
       const newUser = {
         id: 3,
         username: 'newuser',
-        role: 'user',
+        role: 'user' as UserRole,
         created_at: '2024-01-03T00:00:00Z',
       };
 
-      vi.mocked(queries.createUser).mockResolvedValue(newUser);
+      vi.mocked(db.query).mockResolvedValue({ rows: [newUser], rowCount: 1 } as any);
 
       const response = await request(app)
         .post('/api/users')
@@ -245,11 +244,11 @@ describe('User Management Routes', () => {
       const newUser = {
         id: 3,
         username: 'newuser',
-        role: 'user',
+        role: 'user' as UserRole,
         created_at: '2024-01-03T00:00:00Z',
       };
 
-      vi.mocked(queries.createUser).mockResolvedValue(newUser);
+      vi.mocked(db.query).mockResolvedValue({ rows: [newUser], rowCount: 1 } as any);
 
       const response = await request(app)
         .post('/api/users')
@@ -316,10 +315,10 @@ describe('User Management Routes', () => {
     });
 
     it('should validate username is unique', async () => {
-      // Mock createUser to throw duplicate key error
+      // Mock db.query to throw duplicate key error
       const duplicateError: any = new Error('duplicate key value violates unique constraint');
       duplicateError.code = '23505';
-      vi.mocked(queries.createUser).mockRejectedValue(duplicateError);
+      vi.mocked(db.query).mockRejectedValue(duplicateError);
 
       const response = await request(app)
         .post('/api/users')
@@ -398,7 +397,7 @@ describe('User Management Routes', () => {
     });
 
     it('should return 500 on database error', async () => {
-      vi.mocked(queries.createUser).mockRejectedValue(new Error('Database error'));
+      vi.mocked(db.query).mockRejectedValue(new Error('Database error'));
 
       const response = await request(app)
         .post('/api/users')
