@@ -78,7 +78,7 @@ export function createApp() {
   // Theme CSS endpoint (public, with ETag caching)
   app.get('/api/theme.css', async (req, res) => {
     try {
-      const db = req.app.locals.db;
+      const db = req.app.get('db');
       const css = await generateThemeCSS(db);
       
       // Generate ETag from CSS content (MD5 hash)

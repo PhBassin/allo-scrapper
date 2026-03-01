@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { createApp } from './app.js';
+import { db } from './db/client.js';
 import { initializeDatabase } from './db/schema.js';
 import { cronService } from './services/cron.js';
 import { logger } from './utils/logger.js';
@@ -34,6 +35,9 @@ async function startServer() {
 
     // Create Express app
     const app = createApp();
+
+    // Register database connection for dependency injection
+    app.set('db', db);
 
     // Start server
     const server = app.listen(PORT, () => {
