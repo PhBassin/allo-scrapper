@@ -127,6 +127,35 @@ router.put('/', protectedLimiter, requireAuth, requireAdmin, async (req: AuthReq
       updates.favicon_base64 = faviconValidation.compressedBase64!;
     }
 
+    // Validate footer links to prevent stored XSS via javascript: or data: URIs
+    if (updates.footer_links && Array.isArray(updates.footer_links)) {
+      for (const link of updates.footer_links) {
+        if (link.url) {
+          try {
+            const parsedUrl = new URL(link.url, 'http://dummy.com');
+            if (
+              parsedUrl.protocol !== 'http:' &&
+              parsedUrl.protocol !== 'https:' &&
+              parsedUrl.protocol !== 'mailto:' &&
+              parsedUrl.protocol !== 'tel:'
+            ) {
+              const response: ApiResponse = {
+                success: false,
+                error: `Invalid URL protocol in footer link: ${link.url}`,
+              };
+              return res.status(400).json(response);
+            }
+          } catch (e) {
+            const response: ApiResponse = {
+              success: false,
+              error: `Invalid URL format in footer link: ${link.url}`,
+            };
+            return res.status(400).json(response);
+          }
+        }
+      }
+    }
+
     const updatedSettings = await updateSettings(db, updates, req.user!.id);
 
     if (!updatedSettings) {
