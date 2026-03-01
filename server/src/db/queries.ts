@@ -99,7 +99,7 @@ export interface ShowtimeWithCinemaRow extends ShowtimeRow {
 
 export async function getUserByUsername(db: DB, username: string): Promise<UserRow | undefined> {
   const result = await db.query<UserRow>(
-    'SELECT id, username, password_hash, created_at FROM users WHERE username = $1',
+    'SELECT id, username, password_hash, role, created_at FROM users WHERE username = $1',
     [username]
   );
   return result.rows[0];
