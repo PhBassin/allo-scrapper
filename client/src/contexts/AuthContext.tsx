@@ -1,15 +1,16 @@
 import React, { createContext, useState, useEffect, type ReactNode } from 'react';
 
-
-interface User {
+export interface User {
     id: number;
     username: string;
+    role: 'admin' | 'user';
 }
 
 interface AuthContextType {
     isAuthenticated: boolean;
     token: string | null;
     user: User | null;
+    isAdmin: boolean;
     login: (token: string, user: User) => void;
     logout: () => void;
 }
@@ -18,6 +19,7 @@ export const AuthContext = createContext<AuthContextType>({
     isAuthenticated: false,
     token: null,
     user: null,
+    isAdmin: false,
     login: () => { },
     logout: () => { },
 });
@@ -34,6 +36,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     const isAuthenticated = !!token;
+    const isAdmin = user?.role === 'admin';
 
     useEffect(() => {
         if (token) {
@@ -64,7 +67,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, token, user, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, token, user, isAdmin, login, logout }}>
             {children}
         </AuthContext.Provider>
     );
