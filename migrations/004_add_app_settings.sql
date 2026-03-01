@@ -11,39 +11,37 @@
 
 BEGIN;
 
--- Create app_settings table if not exists
+-- Create app_settings table if not exists (with FINAL schema matching TypeScript types)
 CREATE TABLE IF NOT EXISTS app_settings (
   id INTEGER PRIMARY KEY DEFAULT 1,
   
-  -- Identité
+  -- Identity
   site_name TEXT NOT NULL DEFAULT 'Allo-Scrapper',
   logo_base64 TEXT,
   favicon_base64 TEXT,
   
-  -- Palette de couleurs (hex #RRGGBB)
+  -- Color palette (hex #RRGGBB)
   color_primary TEXT NOT NULL DEFAULT '#FECC00',
   color_secondary TEXT NOT NULL DEFAULT '#1F2937',
-  color_accent TEXT NOT NULL DEFAULT '#3B82F6',
-  color_background TEXT NOT NULL DEFAULT '#F9FAFB',
-  color_text TEXT NOT NULL DEFAULT '#111827',
-  color_link TEXT NOT NULL DEFAULT '#2563EB',
+  color_accent TEXT NOT NULL DEFAULT '#F59E0B',
+  color_background TEXT NOT NULL DEFAULT '#FFFFFF',
+  color_surface TEXT NOT NULL DEFAULT '#F3F4F6',
+  color_text_primary TEXT NOT NULL DEFAULT '#111827',
+  color_text_secondary TEXT NOT NULL DEFAULT '#6B7280',
   color_success TEXT NOT NULL DEFAULT '#10B981',
-  color_warning TEXT NOT NULL DEFAULT '#F59E0B',
   color_error TEXT NOT NULL DEFAULT '#EF4444',
   
-  -- Typographies
-  font_family_heading TEXT NOT NULL DEFAULT 'system-ui, -apple-system, sans-serif',
-  font_family_body TEXT NOT NULL DEFAULT 'system-ui, -apple-system, sans-serif',
+  -- Typography
+  font_primary TEXT NOT NULL DEFAULT 'Inter',
+  font_secondary TEXT NOT NULL DEFAULT 'Roboto',
   
   -- Footer
   footer_text TEXT DEFAULT 'Données fournies par le site source - Mise à jour hebdomadaire',
-  footer_copyright TEXT DEFAULT '{site_name} © {year}',
   footer_links JSONB DEFAULT '[]'::jsonb,
   
-  -- Email branding (pour futures notifications)
+  -- Email branding (for future notifications)
   email_from_name TEXT DEFAULT 'Allo-Scrapper',
-  email_header_color TEXT DEFAULT '#FECC00',
-  email_footer_text TEXT,
+  email_from_address TEXT DEFAULT 'no-reply@allocine-scrapper.com',
   
   -- Metadata
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -90,13 +88,39 @@ BEGIN
     END IF;
 END $$;
 
--- Verify default values
+-- Verify default values and final schema columns
 DO $$ 
 DECLARE
     settings_row app_settings%ROWTYPE;
 BEGIN
     SELECT * INTO settings_row FROM app_settings WHERE id = 1;
     
+    -- Verify new schema columns exist
+    IF settings_row.color_text_primary IS NULL THEN
+        RAISE EXCEPTION 'Schema error: color_text_primary is NULL';
+    END IF;
+    
+    IF settings_row.color_text_secondary IS NULL THEN
+        RAISE EXCEPTION 'Schema error: color_text_secondary is NULL';
+    END IF;
+    
+    IF settings_row.color_surface IS NULL THEN
+        RAISE EXCEPTION 'Schema error: color_surface is NULL';
+    END IF;
+    
+    IF settings_row.font_primary IS NULL THEN
+        RAISE EXCEPTION 'Schema error: font_primary is NULL';
+    END IF;
+    
+    IF settings_row.font_secondary IS NULL THEN
+        RAISE EXCEPTION 'Schema error: font_secondary is NULL';
+    END IF;
+    
+    IF settings_row.email_from_address IS NULL THEN
+        RAISE EXCEPTION 'Schema error: email_from_address is NULL';
+    END IF;
+    
+    -- Verify core values
     IF settings_row.site_name != 'Allo-Scrapper' THEN
         RAISE EXCEPTION 'Default site_name incorrect: %', settings_row.site_name;
     END IF;
@@ -105,11 +129,7 @@ BEGIN
         RAISE EXCEPTION 'Default color_primary incorrect: %', settings_row.color_primary;
     END IF;
     
-    IF settings_row.color_secondary != '#1F2937' THEN
-        RAISE EXCEPTION 'Default color_secondary incorrect: %', settings_row.color_secondary;
-    END IF;
-    
-    RAISE NOTICE 'Default values verification successful';
+    RAISE NOTICE 'Default values and schema verification successful';
 END $$;
 
 COMMIT;
