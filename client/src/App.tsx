@@ -8,6 +8,7 @@ import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import SettingsPage from './pages/admin/SettingsPage';
+import UsersPage from './pages/admin/UsersPage';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
 import { SettingsProvider, SettingsContext } from './contexts/SettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -95,6 +96,14 @@ function AppRoutes() {
           element={
             <RequireAdmin>
               <SettingsPage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <RequireAdmin>
+              <UsersPage />
             </RequireAdmin>
           }
         />
