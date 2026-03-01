@@ -52,6 +52,7 @@ vi.mock('../middleware/auth.js', () => ({
 
 const app = express();
 app.use(express.json());
+app.set('db', db); // Register mock db for dependency injection
 app.use('/api/auth', authRouter);
 
 describe('Auth Routes', () => {

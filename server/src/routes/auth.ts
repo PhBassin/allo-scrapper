@@ -1,8 +1,8 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { db } from '../db/client.js';
 import { getUserByUsername, createUser, updateUserPassword } from '../db/queries.js';
+import type { DB } from '../db/client.js';
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
@@ -32,6 +32,7 @@ export interface AuthResponse {
 // POST /api/auth/login - Login user
 router.post('/login', authLimiter, async (req, res) => {
     try {
+        const db: DB = req.app.get('db');
         const { username, password } = req.body;
 
         if (!username || !password) {
@@ -89,6 +90,7 @@ router.post('/login', authLimiter, async (req, res) => {
 // POST /api/auth/register - Register a new user (admin-only)
 router.post('/register', registerLimiter, requireAuth, requireAdmin, async (req, res) => {
     try {
+        const db: DB = req.app.get('db');
         const { username, password } = req.body;
 
         if (!username || !password) {
@@ -139,6 +141,7 @@ router.post('/register', registerLimiter, requireAuth, requireAdmin, async (req,
 // POST /api/auth/change-password - Change user password (protected)
 router.post('/change-password', requireAuth, authLimiter, async (req: AuthRequest, res) => {
     try {
+        const db: DB = req.app.get('db');
         const { currentPassword, newPassword } = req.body;
 
         // Validate required fields
