@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 
 interface DaySelectorProps {
   weekStart: string;
@@ -6,7 +6,7 @@ interface DaySelectorProps {
   onSelectDate: (date: string | null) => void;
 }
 
-export default function DaySelector({ weekStart, selectedDate, onSelectDate }: DaySelectorProps) {
+function DaySelector({ weekStart, selectedDate, onSelectDate }: DaySelectorProps) {
   const days = useMemo(() => {
     if (!weekStart) return [];
     
@@ -58,3 +58,7 @@ export default function DaySelector({ weekStart, selectedDate, onSelectDate }: D
     </div>
   );
 }
+
+// ⚡ PERFORMANCE: Memoize component to prevent re-renders when parent re-renders
+// but selectedDate and weekStart haven't changed.
+export default memo(DaySelector);

@@ -1,5 +1,5 @@
-import { useEffect, useState, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState, useContext, useCallback } from 'react';
+
 import { getWeeklyFilms, getFilmsByDate, getCinemas, getScrapeStatus, addCinema, triggerScrape } from '../api/client';
 import type { FilmWithShowtimes, Cinema } from '../types';
 import FilmCard from '../components/FilmCard';
@@ -9,6 +9,7 @@ import DaySelector from '../components/DaySelector';
 import FilmSearchBar from '../components/FilmSearchBar';
 import ScrollToTop from '../components/ScrollToTop';
 import { AuthContext } from '../contexts/AuthContext';
+import CinemasQuickLinks from '../components/CinemasQuickLinks';
 
 export default function HomePage() {
   const [films, setFilms] = useState<FilmWithShowtimes[]>([]);
@@ -50,9 +51,9 @@ export default function HomePage() {
     loadData(selectedDate);
   }, [selectedDate]);
 
-  const handleDateSelect = (date: string | null) => {
+  const handleDateSelect = useCallback((date: string | null) => {
     setSelectedDate(date);
-  };
+  }, []);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -84,7 +85,7 @@ export default function HomePage() {
     }, 2000);
   };
 
-  const handleAddCinema = async () => {
+  const handleAddCinema = useCallback(async () => {
     const url = window.prompt("Entrez l'URL Allociné du cinéma à ajouter (ex: https://www.allocine.fr/seance/salle_affich-salle=C0013.html):");
     if (!url) return;
 
@@ -96,7 +97,7 @@ export default function HomePage() {
       setShowProgress(false);
       setError(err.message || 'Erreur lors de l\'ajout du cinéma');
     }
-  };
+  }, []);
 
   if (isLoading) {
     return (
@@ -172,28 +173,11 @@ export default function HomePage() {
       </div>
 
       {/* Quick Cinema Links - Below sticky header */}
-      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm mb-10">
-        <h2 className="text-xs font-bold text-gray-400 uppercase mb-3 px-1">Accès rapide par cinéma</h2>
-        <div className="flex flex-wrap gap-2">
-          {cinemas.map((cinema) => (
-            <Link
-              key={cinema.id}
-              to={`/cinema/${cinema.id}`}
-              className="px-3 py-1.5 bg-gray-50 text-gray-700 text-sm rounded-lg hover:bg-primary hover:text-black transition font-semibold"
-            >
-              {cinema.name}
-            </Link>
-          ))}
-          {isAuthenticated && (
-            <button
-              onClick={handleAddCinema}
-              className="px-3 py-1.5 bg-white border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-primary hover:text-primary transition font-semibold cursor-pointer active:scale-95"
-            >
-              + Ajouter un cinéma
-            </button>
-          )}
-        </div>
-      </div>
+      <CinemasQuickLinks
+        cinemas={cinemas}
+        isAuthenticated={isAuthenticated}
+        onAddCinema={handleAddCinema}
+      />
 
       {/* Films List */}
       <div className="space-y-8">

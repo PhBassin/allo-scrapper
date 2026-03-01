@@ -1,10 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getCinemas, getCinemaSchedule, triggerCinemaScrape, getScrapeStatus } from '../api/client';
 import type { Cinema, ShowtimeWithFilm } from '../types';
 import ShowtimeList from '../components/ShowtimeList';
 import ScrapeButton from '../components/ScrapeButton';
 import ScrapeProgress from '../components/ScrapeProgress';
+import CinemaDateSelector from '../components/CinemaDateSelector';
 
 interface FilmGroup {
   film: {
@@ -94,14 +95,14 @@ export default function CinemaPage() {
     return Array.from(filmMap.values());
   };
 
-  const formatDateLabel = (dateStr: string) => {
+  const formatDateLabel = useCallback((dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
     return {
       weekday: date.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', ''),
       day: date.getDate(),
       month: date.toLocaleDateString('fr-FR', { month: 'short' }),
     };
-  };
+  }, []);
 
   const handleScrapeStart = () => {
     setShowProgress(true);
@@ -187,43 +188,13 @@ export default function CinemaPage() {
       </div>
 
       {/* Date Selector */}
-      {dates.length > 0 && (
-        <div className="mb-8 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="flex gap-2 min-w-max">
-            {dates.map((date) => {
-              const label = formatDateLabel(date);
-              const isActive = date === selectedDate;
-              const dateShowtimes = showtimes.filter(s => s.date === date);
-              const hasShowtimes = dateShowtimes.length > 0;
-
-              return (
-                <button
-                  key={date}
-                  onClick={() => setSelectedDate(date)}
-                  className={`
-                    px-4 py-3 rounded-xl border-2 transition-all text-center min-w-[90px] group cursor-pointer active:scale-95
-                    ${isActive 
-                      ? 'border-primary bg-yellow-50 text-black shadow-sm' 
-                      : 'border-transparent bg-white text-gray-600 hover:bg-gray-50'
-                    }
-                    ${!hasShowtimes && !isActive ? 'opacity-50' : ''}
-                  `}
-                >
-                  <div className={`text-xs uppercase font-bold mb-0.5 ${isActive ? 'text-primary-dark' : 'text-gray-400 group-hover:text-gray-600'}`}>
-                    {label.weekday}
-                  </div>
-                  <div className="text-lg font-bold leading-none">
-                    {label.day}
-                  </div>
-                  <div className="text-[10px] text-gray-400 mt-1">
-                    {label.month}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <CinemaDateSelector
+        dates={dates}
+        selectedDate={selectedDate}
+        showtimes={showtimes}
+        onSelectDate={setSelectedDate}
+        formatDateLabel={formatDateLabel}
+      />
 
       {/* Films List for Selected Date */}
       <div className="min-h-[300px]">
