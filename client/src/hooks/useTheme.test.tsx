@@ -14,6 +14,7 @@ describe('useTheme', () => {
       publicSettings,
       adminSettings: null,
       isLoading: false,
+      isLoadingPublic: false,
       error: null,
       refreshPublicSettings: vi.fn(),
       refreshAdminSettings: vi.fn(),
