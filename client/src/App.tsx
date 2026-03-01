@@ -7,8 +7,11 @@ import FilmPage from './pages/FilmPage';
 import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import SettingsPage from './pages/admin/SettingsPage';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import RequireAdmin from './components/RequireAdmin';
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -66,6 +69,14 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin/settings"
+          element={
+            <RequireAdmin>
+              <SettingsPage />
+            </RequireAdmin>
+          }
+        />
       </Routes>
     </Layout>
   );
@@ -74,9 +85,11 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <SettingsProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </SettingsProvider>
     </AuthProvider>
   );
 }

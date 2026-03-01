@@ -75,7 +75,8 @@ export function createApp() {
       res.set('Content-Type', serverRegistry.contentType);
       res.end(await serverRegistry.metrics());
     } catch (err) {
-      res.status(500).end(String(err));
+      logger.error('Error generating metrics', { error: err });
+      res.status(500).end('Internal server error');
     }
   });
 
@@ -85,7 +86,7 @@ export function createApp() {
     app.use(express.static(publicPath));
 
     // Serve index.html for all non-API routes (SPA support)
-    app.get('*', (_req, res) => {
+    app.get('*', generalLimiter, (_req, res) => {
       res.sendFile(path.join(publicPath, 'index.html'));
     });
   }

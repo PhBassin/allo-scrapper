@@ -8,6 +8,42 @@ const USER_AGENT =
 
 const ALLOCINE_BASE_URL = 'https://www.allocine.fr';
 
+/**
+ * Validates cinema ID format (e.g., "C0072", "W7517")
+ * @throws {Error} if format is invalid
+ */
+function validateCinemaId(cinemaId: string): void {
+  // Cinema IDs must match: letter + 4-5 digits
+  if (!/^[A-Z]\d{4,5}$/.test(cinemaId)) {
+    throw new Error(`Invalid cinema ID format: ${cinemaId}`);
+  }
+}
+
+/**
+ * Validates date format (YYYY-MM-DD)
+ * @throws {Error} if format is invalid or not a real date
+ */
+function validateDate(date: string): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error(`Invalid date format: ${date}`);
+  }
+  // Validate it's a real date
+  const parsed = new Date(date);
+  if (isNaN(parsed.getTime())) {
+    throw new Error(`Invalid date: ${date}`);
+  }
+}
+
+/**
+ * Validates film ID format (must be a positive integer)
+ * @throws {Error} if format is invalid
+ */
+function validateFilmId(filmId: number): void {
+  if (!Number.isInteger(filmId) || filmId <= 0) {
+    throw new Error(`Invalid film ID: ${filmId}`);
+  }
+}
+
 // Shared browser instance to avoid launching a new browser for every request
 let _browser: Browser | null = null;
 
@@ -76,6 +112,10 @@ export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterIn
  * @param date     - e.g. "2026-02-22"
  */
 export async function fetchShowtimesJson(cinemaId: string, date: string): Promise<unknown> {
+  // Validate inputs before using in URL to prevent SSRF
+  validateCinemaId(cinemaId);
+  validateDate(date);
+
   const url = `${ALLOCINE_BASE_URL}/_/showtimes/theater-${cinemaId}/d-${date}/`;
   logger.info(`📡 Fetching showtimes JSON: ${url}`);
 
@@ -96,6 +136,9 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
 }
 
 export async function fetchFilmPage(filmId: number): Promise<string> {
+  // Validate input before using in URL to prevent SSRF
+  validateFilmId(filmId);
+
   const url = `${ALLOCINE_BASE_URL}/film/fichefilm_gen_cfilm=${filmId}.html`;
 
   logger.info(`🎬 Fetching film page: ${url}`);
