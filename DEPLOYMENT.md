@@ -127,7 +127,53 @@ ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000,https://cinema.e
 SCRAPE_CRON_SCHEDULE=0 8 * * 3    # Wednesday at 8:00 AM
 SCRAPE_DELAY_MS=1000              # 1 second between requests
 TZ=Europe/Paris                   # Your timezone
+
+# Docker User Permissions (for volume write permissions)
+# Set to your host user UID/GID (run `id` to find yours)
+# Defaults to 1000:1000 (standard Linux user)
+DOCKER_UID=1000                   # Your user ID
+DOCKER_GID=1000                   # Your group ID
 ```
+
+### 4. Configure Docker User Permissions
+
+The application runs as a non-root user for security. When using volume mounts for cinema config persistence, you must configure the container user to match your host user.
+
+**Find your UID/GID:**
+
+```bash
+# Linux/macOS
+id
+
+# Output example:
+# uid=1000(youruser) gid=1000(yourgroup) groups=...
+```
+
+**Set in `.env` file:**
+
+```bash
+# Add these lines to your .env file
+DOCKER_UID=1000  # Replace with your UID from above
+DOCKER_GID=1000  # Replace with your GID from above
+```
+
+**Why this matters:**
+- The cinema config file (`cinemas.json`) is mounted from host to container
+- API updates write to this file inside the container
+- Container user must have write permission to host-mounted files
+- Running as your host UID ensures seamless read/write access
+
+**Default values:**
+- `DOCKER_UID=1000` (standard Linux first user)
+- `DOCKER_GID=1000` (standard Linux first group)
+
+**macOS users:** Your UID is typically 501, GID is 20:
+```bash
+DOCKER_UID=501
+DOCKER_GID=20
+```
+
+**Security note:** Never use `user: root` in production. Always run containers as non-root users.
 
 ---
 
