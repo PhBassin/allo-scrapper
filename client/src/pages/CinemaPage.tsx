@@ -151,7 +151,7 @@ export default function CinemaPage() {
             buttonText="🔄 Scraper uniquement ce cinéma"
             loadingText="Scraping en cours..."
             successText="Scraping démarré !"
-            className="bg-white/95 backdrop-blur-sm shadow-md rounded-lg p-2"
+            className="bg-white/95 shadow-md rounded-lg p-2"
           />
         </div>
       )}
