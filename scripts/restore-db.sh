@@ -33,30 +33,37 @@ if [ "$REPLY" != "yes" ]; then
 fi
 
 # Check if containers are running
-if ! docker compose ps | grep -q "allo-scrapper-db.*Up"; then
+if ! docker compose ps ics-db | grep -q "Up"; then
     echo "❌ Error: Database container is not running"
-    echo "   Start it with: docker compose up -d db"
+    echo "   Start it with: docker compose up -d ics-db"
     exit 1
 fi
 
 # Stop web service to prevent connections
 echo "🛑 Stopping web service..."
-docker compose stop web
+docker compose stop ics-web
+
+# Create safety backup before restore
+echo "💾 Creating safety backup before restore..."
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+SAFETY_BACKUP="./backups/before_restore_${TIMESTAMP}.sql.gz"
+docker compose exec -T ics-db pg_dump -U postgres ics | gzip > "$SAFETY_BACKUP"
+echo "   Safety backup saved: $SAFETY_BACKUP"
 
 # Restore database
 echo "🔄 Restoring database..."
 if [[ "$BACKUP_FILE" == *.gz ]]; then
-    gunzip -c "$BACKUP_FILE" | docker compose exec -T db psql -U postgres its
+    gunzip -c "$BACKUP_FILE" | docker compose exec -T ics-db psql -U postgres ics
 else
-    docker compose exec -T db psql -U postgres its < "$BACKUP_FILE"
+    docker compose exec -T ics-db psql -U postgres ics < "$BACKUP_FILE"
 fi
 
 # Restart web service
 echo "🚀 Restarting web service..."
-docker compose start web
+docker compose start ics-web
 
 echo ""
 echo "✅ Database restored successfully!"
 echo ""
 echo "🔍 Verify with:"
-echo "   docker compose exec db psql -U postgres its -c 'SELECT COUNT(*) FROM films;'"
+echo "   docker compose exec ics-db psql -U postgres ics -c 'SELECT COUNT(*) FROM films;'"
