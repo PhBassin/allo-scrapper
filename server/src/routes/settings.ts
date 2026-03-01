@@ -18,6 +18,14 @@ import { requireAdmin, type AuthRequest } from '../middleware/admin.js';
 
 const router = express.Router();
 
+// Rate limiter for settings import to prevent abuse and DoS
+const settingsImportLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 import requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Rate limiting for admin settings endpoint
 const settingsAdminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -236,7 +244,7 @@ router.post('/export', requireAuth, requireAdmin, async (req: AuthRequest, res) 
  * POST /api/settings/import (admin only)
  * Import settings from JSON backup
  */
-router.post('/import', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/import', requireAuth, requireAdmin, settingsImportLimiter, async (req: AuthRequest, res) => {
   try {
     const importData: AppSettingsExport = req.body;
 
