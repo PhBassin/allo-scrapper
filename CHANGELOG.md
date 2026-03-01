@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.1] - 2026-03-01
+
+### Security
+
+- **Cinema Admin Endpoints** — Added JWT authentication requirement to cinema management endpoints (`POST /api/cinemas`, `PUT /api/cinemas/:id`, `DELETE /api/cinemas/:id`) to prevent unauthorized modifications (#191)
+
+### Fixed
+
+- **Browser Tab Title** — Fixed browser tab to display configured `VITE_APP_NAME` instead of hardcoded 'client' text (#193)
+- **Docker Build** — Fixed `VITE_APP_NAME` build arg not being passed correctly in Docker Compose and GitHub Actions workflow
+
+### Documentation
+
+- Added comprehensive frontend build configuration documentation
+- Documented `VITE_APP_NAME` environment variable for development and production builds
+
+---
+
 ## [2.1.0] - 2026-02-28
 
 ### Added
