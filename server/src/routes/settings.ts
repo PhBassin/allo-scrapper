@@ -25,7 +25,7 @@ const FAVICON_MAX_SIZE = 50000; // 50 KB
  * GET /api/settings (public)
  * Returns public settings for theming (no authentication required)
  */
-router.get('/', async (req, res) => {
+router.get('/', async (_req, res) => {
   try {
     const settings = await getPublicSettings(db);
 
@@ -56,7 +56,7 @@ router.get('/', async (req, res) => {
  * GET /api/settings/admin (admin only)
  * Returns full settings including email configuration
  */
-router.get('/admin', requireAuth, requireAdmin, async (req, res) => {
+router.get('/admin', requireAuth, requireAdmin, async (_req, res) => {
   try {
     const settings = await getSettings(db);
 
@@ -192,7 +192,7 @@ router.post('/reset', requireAuth, requireAdmin, async (req: AuthRequest, res) =
  * POST /api/settings/export (admin only)
  * Export settings as JSON for backup
  */
-router.post('/export', requireAuth, requireAdmin, async (req, res) => {
+router.post('/export', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const exportData = await exportSettings(db);
 
@@ -205,7 +205,7 @@ router.post('/export', requireAuth, requireAdmin, async (req, res) => {
     }
 
     logger.info('Settings exported', {
-      userId: (req as AuthRequest).user!.id,
+      userId: req.user!.id,
     });
 
     const response: ApiResponse = {

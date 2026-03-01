@@ -39,12 +39,10 @@ export async function validateImage(
   try {
     // Extract base64 data (remove data URL prefix if present)
     let base64Data = imageData.trim();
-    let mimeType: 'image/png' | 'image/jpeg' = 'image/png';
 
     // Handle data URL format (allow for whitespace in the pattern)
     const dataUrlMatch = base64Data.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/s);
     if (dataUrlMatch) {
-      mimeType = dataUrlMatch[1] === 'jpg' ? 'image/jpeg' : `image/${dataUrlMatch[1]}` as 'image/png' | 'image/jpeg';
       base64Data = dataUrlMatch[2];
     } else if (base64Data.startsWith('data:')) {
       // Unsupported format
