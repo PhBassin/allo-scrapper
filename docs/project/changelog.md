@@ -11,6 +11,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.0.0-beta.2] - [Unreleased]
+
+### Documentation
+
+- **Documentation Restructure (Issue #239)** — Complete reorganization of documentation into professional `/docs/` hierarchy
+  - Migrated 12,586 lines of documentation from flat root structure to organized categories
+  - Created 42 documentation files following Divio Documentation System (Tutorials, How-To Guides, Reference, Explanation)
+  - Split API.md (2,157 lines) into 10 modular endpoint files for better discoverability
+  - Organized into 4 main categories: Getting Started, Guides, Reference, Troubleshooting
+  - Added comprehensive navigation with READMEs, tables of contents, and breadcrumbs on all pages
+  - Created 19 backward compatibility symlinks (all root `.md` files now point to `/docs/`)
+  - Zero information loss - all examples, code snippets, and formatting preserved
+  - Completed through 9 incremental PRs (#240-#248) for reviewability
+  - **New structure:**
+    - `docs/getting-started/` — Quick start, installation, configuration guides
+    - `docs/guides/deployment/` — Production, Docker, backup, monitoring, networking
+    - `docs/guides/development/` — Testing, contributing, CI/CD workflows
+    - `docs/guides/administration/` — Admin panel and white-label customization
+    - `docs/reference/api/` — Modular API endpoint documentation (10 files)
+    - `docs/reference/` — Database schema, scraper internals, utility scripts
+    - `docs/troubleshooting/` — Common issues and debugging guides
+    - `docs/project/` — Changelog, security policy, contributing, white-label roadmap
+  - **Benefits achieved:**
+    - ✅ Improved discoverability with logical hierarchy and clear navigation
+    - ✅ Better maintainability with related documentation grouped together
+    - ✅ Enhanced contributor experience with organized development guides
+    - ✅ 100% backward compatible - all external links continue to work via symlinks
+    - ✅ Professional structure ready for open-source community growth
+
+---
+
 ## [3.0.0-beta.1] - 2026-03-01
 
 ### Added
