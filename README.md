@@ -409,7 +409,16 @@ Project meta-documentation.
 - [Security](./docs/project/security.md) - Security policies
 - [AI Agents](./docs/project/agents.md) - Guidelines for AI coding agents
 
-**Legacy documentation** (root-level `.md` files) will be migrated to `/docs/` in future releases. For now, both locations are maintained for backward compatibility
+### 🔗 Backward Compatibility
+
+All documentation has been migrated to the `/docs/` directory. Root-level `.md` files are now **symlinks** that redirect to the new locations for backward compatibility with existing external links and bookmarks.
+
+**Original Files** → **New Locations:**
+- `SETUP.md` → [`docs/getting-started/installation.md`](./docs/getting-started/installation.md)
+- `DEPLOYMENT.md` → [`docs/guides/deployment/production.md`](./docs/guides/deployment/production.md)
+- `API.md` → [`docs/reference/api/README.md`](./docs/reference/api/README.md)
+- `AGENTS.md` → [`docs/project/agents.md`](./docs/project/agents.md)
+- And more... (see [full documentation structure](./docs/README.md))
 
 ---
 
