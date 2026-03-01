@@ -316,6 +316,35 @@ gh api repos/PhBassin/allo-scrapper/packages/container/allo-scrapper/versions
 gh api -X DELETE repos/PhBassin/allo-scrapper/packages/container/allo-scrapper/versions/<version_id>
 ```
 
+### Docker Build Arguments
+
+When building Docker images locally, you can customize the application name using build arguments:
+
+```bash
+# Build with default name (Allo-Scrapper)
+docker compose build
+
+# Build with custom name
+docker compose build --build-arg VITE_APP_NAME="My Custom Name"
+
+# Manual docker build
+docker build --build-arg VITE_APP_NAME="Test Cinema" .
+
+# Verify the build result
+docker run --rm <image-name> cat /app/public/index.html | grep title
+# Expected: <title>Allo-Scrapper</title> (or your custom name)
+```
+
+**Note:** The `VITE_APP_NAME` build argument is automatically passed by:
+- `docker-compose.yml` (reads from `.env` file with fallback to `Allo-Scrapper`)
+- GitHub Actions workflow (hardcoded as `Allo-Scrapper` in `.github/workflows/docker-build-push.yml`)
+
+To change the app name for all CI/CD builds, modify the workflow file:
+```yaml
+build-args: |
+  VITE_APP_NAME=Your New Name
+```
+
 ---
 
 ## Pull Request Guidelines
