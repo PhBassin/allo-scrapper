@@ -2,6 +2,7 @@ import express from 'express';
 import { db } from '../db/client.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
+import { protectedLimiter } from '../middleware/rate-limit.js';
 import type { ApiResponse } from '../types/api.js';
 import type { UserPublic, UserRole } from '../types/user.js';
 import {
@@ -48,6 +49,7 @@ function validatePassword(password: string): string | null {
  */
 router.get(
   '/',
+  protectedLimiter,
   requireAuth,
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
@@ -105,6 +107,7 @@ router.get(
  */
 router.get(
   '/:id',
+  protectedLimiter,
   requireAuth,
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
@@ -158,6 +161,7 @@ router.get(
  */
 router.post(
   '/',
+  protectedLimiter,
   requireAuth,
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
@@ -252,6 +256,7 @@ router.post(
  */
 router.put(
   '/:id/role',
+  protectedLimiter,
   requireAuth,
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
@@ -343,6 +348,7 @@ router.put(
  */
 router.post(
   '/:id/reset-password',
+  protectedLimiter,
   requireAuth,
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
@@ -415,6 +421,7 @@ router.post(
  */
 router.delete(
   '/:id',
+  protectedLimiter,
   requireAuth,
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {

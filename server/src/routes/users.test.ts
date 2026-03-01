@@ -48,6 +48,9 @@ vi.mock('../middleware/admin.js', () => ({
     }
   },
 }));
+vi.mock('../middleware/rate-limit.js', () => ({
+  protectedLimiter: (req: any, res: any, next: any) => next(),
+}));
 
 import * as userQueries from '../db/user-queries.js';
 import { db } from '../db/client.js';

@@ -87,7 +87,7 @@ router.post('/login', authLimiter, async (req, res) => {
 });
 
 // POST /api/auth/register - Register a new user (admin-only)
-router.post('/register', requireAuth, requireAdmin, registerLimiter, async (req, res) => {
+router.post('/register', registerLimiter, requireAuth, requireAdmin, async (req, res) => {
     try {
         const { username, password } = req.body;
 
