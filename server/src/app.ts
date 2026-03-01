@@ -75,7 +75,8 @@ export function createApp() {
       res.set('Content-Type', serverRegistry.contentType);
       res.end(await serverRegistry.metrics());
     } catch (err) {
-      res.status(500).end(String(err));
+      logger.error('Error generating metrics', { error: err });
+      res.status(500).end('Internal server error');
     }
   });
 
