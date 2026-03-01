@@ -928,85 +928,376 @@ docker compose up -d
 
 ## Backup & Restore
 
-### Automated Backup Script
+The project includes comprehensive backup scripts for both local development and production environments. All backups are kept indefinitely (no automatic deletion).
 
-Create `~/allo-scrapper/scripts/backup-db.sh`:
-
-```bash
-#!/bin/bash
-set -e
-
-BACKUP_DIR="$HOME/allo-scrapper/backups"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="${BACKUP_DIR}/cinema_showtimes_${TIMESTAMP}.sql"
-
-echo "🔄 Creating database backup..."
-mkdir -p "$BACKUP_DIR"
-
-# Backup database
-docker compose exec -T db pg_dump -U postgres cinema_showtimes > "$BACKUP_FILE"
-
-# Compress backup
-gzip "$BACKUP_FILE"
-
-echo "✅ Backup created: ${BACKUP_FILE}.gz"
-
-# Keep only last 7 backups
-find "$BACKUP_DIR" -name "*.sql.gz" -mtime +7 -delete
-echo "🧹 Old backups cleaned (kept last 7 days)"
-```
-
-Make it executable:
+### Quick Reference
 
 ```bash
-chmod +x ~/allo-scrapper/scripts/backup-db.sh
+# Local Development
+./scripts/backup-db.sh                    # Create local backup
+./scripts/restore-db.sh <backup-file>     # Restore local database
+./scripts/list-backups.sh                 # List all backups
+
+# Production (via SSH)
+./scripts/backup-production.sh            # Backup from production
+./scripts/restore-production.sh <file>    # Restore to production
 ```
 
-### Scheduled Backups
+---
 
-Add to crontab:
+### Local Backup & Restore
+
+#### Create Local Backup
 
 ```bash
-crontab -e
+# Create compressed backup of local database
+./scripts/backup-db.sh
 
-# Add line (daily backup at 2 AM):
-0 2 * * * cd ~/allo-scrapper && ./scripts/backup-db.sh >> logs/backup.log 2>&1
+# Example output:
+# 💾 Creating database backup...
+#    Database: ics
+#    Service: ics-db
+# ✅ Backup created: ./backups/ics_20260301_143022.sql.gz
+#    Size: 1.2M
 ```
 
-### Manual Backup
+**Features:**
+- Compressed with gzip (saves ~90% space)
+- Timestamped filename: `ics_YYYYMMDD_HHMMSS.sql.gz`
+- Stored in `./backups/` directory
+- All backups kept indefinitely (no auto-deletion)
+- Automatic error handling
+
+#### Restore Local Database
 
 ```bash
-# Backup database
-docker compose exec -T db pg_dump -U postgres cinema_showtimes > backup_$(date +%Y%m%d).sql
+# List available backups
+./scripts/list-backups.sh
 
-# Backup with compression
-docker compose exec -T db pg_dump -U postgres cinema_showtimes | gzip > backup_$(date +%Y%m%d).sql.gz
+# Restore from backup (with safety backup)
+./scripts/restore-db.sh ./backups/ics_20260301_143022.sql.gz
+
+# Example output:
+# ⚠️  WARNING: This will replace the current database!
+#    Backup file: ./backups/ics_20260301_143022.sql.gz
+# 
+# Are you sure you want to continue? (yes/no): yes
+# 💾 Creating safety backup before restore...
+#    Safety backup saved: ./backups/before_restore_20260301_143530.sql.gz
+# 🛑 Stopping web service...
+# 🔄 Restoring database...
+# 🚀 Restarting web service...
+# ✅ Database restored successfully!
 ```
 
-### Restore from Backup
+**Features:**
+- Automatic safety backup before restore
+- Stops web service during restore (prevents connection errors)
+- Supports both `.sql` and `.sql.gz` files
+- Automatic service restart after restore
+- Verification command provided
+
+---
+
+### Production Backup & Restore (SSH)
+
+#### Prerequisites
+
+Set up SSH key authentication to your production server:
 
 ```bash
-# Stop application
-docker compose stop web
+# Generate SSH key (if you don't have one)
+ssh-keygen -t ed25519 -C "your-email@example.com"
 
-# Restore database
-gunzip -c backup_20260215.sql.gz | docker compose exec -T db psql -U postgres cinema_showtimes
+# Copy public key to production server
+ssh-copy-id user@ics.opalkad.com
 
-# Restart application
-docker compose start web
+# Test connection (should not ask for password)
+ssh user@ics.opalkad.com "echo 'SSH connection successful'"
 ```
+
+#### Create Production Backup
+
+```bash
+# Backup from production (default: user@ics.opalkad.com ~/allo-scrapper)
+./scripts/backup-production.sh
+
+# Custom SSH connection and path
+./scripts/backup-production.sh myuser@production.example.com /opt/allo-scrapper
+
+# Example output:
+# 🌐 Production Database Backup
+#    SSH: user@ics.opalkad.com
+#    Remote path: ~/allo-scrapper
+#    Backup file: ics_production_20260301_143022.sql.gz
+# 
+# 🔗 Testing SSH connection...
+# 🐳 Checking remote Docker container...
+# 💾 Creating backup on production server...
+# ✅ Production backup completed successfully!
+#    File: ./backups/production/ics_production_20260301_143022.sql.gz
+#    Size: 2.4M
+#    SHA256: a1b2c3d4e5f6...
+```
+
+**Features:**
+- Downloads backup via SSH
+- Stored in `./backups/production/` directory
+- SHA256 checksum for integrity verification
+- Tests SSH connection before starting
+- Verifies remote Docker container is running
+- All backups kept indefinitely
+
+#### Restore to Production
+
+**⚠️ DANGER: This replaces the production database. Use with extreme caution!**
+
+```bash
+# Restore production from backup
+./scripts/restore-production.sh ./backups/production/ics_production_20260301_143022.sql.gz
+
+# Custom SSH connection and path
+./scripts/restore-production.sh ./backups/ics_local_20260301_120000.sql.gz myuser@production.example.com /opt/allo-scrapper
+
+# Example output:
+# ⚠️  WARNING: This will replace the PRODUCTION database!
+#    SSH: user@ics.opalkad.com
+#    Remote path: ~/allo-scrapper
+#    Backup file: ./backups/production/ics_production_20260301_143022.sql.gz
+# 
+#    This operation will:
+#    1. Create a safety backup on production
+#    2. Stop the production web service
+#    3. Restore the database
+#    4. Restart the production web service
+# 
+# Are you ABSOLUTELY SURE you want to continue? Type 'yes' to proceed: yes
+# 
+# 🔍 Verifying backup integrity...
+# ✅ Checksum verified
+# 🔗 Testing SSH connection...
+# 🐳 Checking remote Docker container...
+# 💾 Creating safety backup on production...
+#    Safety backup saved on production: ~/allo-scrapper/backups/before_restore_production_20260301_143530.sql.gz
+# 🛑 Stopping production web service...
+# 📤 Uploading backup to production...
+# 🔄 Restoring database on production...
+# 🧹 Cleaning up...
+# 🚀 Restarting production web service...
+# 🔍 Verifying restore...
+# ✅ Production database restored successfully!
+#    Films in database: 1234
+#    Safety backup saved: ~/allo-scrapper/backups/before_restore_production_20260301_143530.sql.gz
+```
+
+**Features:**
+- Checksum verification before upload
+- Safety backup created on production before restore
+- Stops production web service during restore
+- Uploads backup via SCP
+- Restores database on remote server
+- Automatic cleanup of temporary files
+- Verification of restored data
+- Provides command to download safety backup
+
+---
+
+### List All Backups
+
+```bash
+# List both local and production backups
+./scripts/list-backups.sh
+
+# List only local backups
+./scripts/list-backups.sh --local
+
+# List only production backups
+./scripts/list-backups.sh --production
+
+# Example output:
+# 📋 Database Backups
+# 
+# 🏠 Local Backups (./backups)
+# 
+#    FILENAME                                           SIZE         DATE
+#    -------------------------------------------------- ------------ --------------------
+#    before_restore_20260301_143530.sql.gz             1.2M         2026-03-01 14:35:30
+#    ics_20260301_143022.sql.gz                        1.2M         2026-03-01 14:30:22
+#    ics_20260228_120000.sql.gz                        1.1M         2026-02-28 12:00:00
+# 
+# 🌐 Production Backups (./backups/production)
+# 
+#    FILENAME                                           SIZE         DATE
+#    -------------------------------------------------- ------------ --------------------
+#    ics_production_20260301_143022.sql.gz             2.4M         2026-03-01 14:30:22 ✓
+#    ics_production_20260228_090000.sql.gz             2.3M         2026-02-28 09:00:00 ✓
+# 
+# 📊 Summary
+# 
+#    Local backups: 3 files (3.5M total)
+#    Production backups: 2 files (4.7M total)
+```
+
+**Note:** The ✓ symbol indicates a SHA256 checksum file is present for integrity verification.
+
+---
+
+### Backup Storage
+
+Backups are stored in the following structure:
+
+```
+./backups/
+├── ics_20260301_143022.sql.gz                    # Local backup
+├── ics_20260228_120000.sql.gz                    # Local backup
+├── before_restore_20260301_143530.sql.gz         # Safety backup (local)
+└── production/
+    ├── ics_production_20260301_143022.sql.gz     # Production backup
+    ├── ics_production_20260301_143022.sql.gz.sha256  # Checksum
+    ├── ics_production_20260228_090000.sql.gz     # Production backup
+    └── ics_production_20260228_090000.sql.gz.sha256  # Checksum
+```
+
+**Important:**
+- All backups are kept indefinitely (no automatic deletion)
+- You must manually delete old backups if needed
+- The `./backups/` directory is excluded from git (see `.gitignore`)
+- Production backups include SHA256 checksums for integrity verification
+- Safety backups are created automatically before any restore operation
+
+---
+
+### Manual Backup Commands
+
+If you need to create backups manually without using the scripts:
+
+```bash
+# Local backup
+docker compose exec -T ics-db pg_dump -U postgres ics | gzip > ./backups/manual_$(date +%Y%m%d_%H%M%S).sql.gz
+
+# Production backup (via SSH)
+ssh user@ics.opalkad.com "cd ~/allo-scrapper && docker compose exec -T ics-db pg_dump -U postgres ics" | gzip > ./backups/production/manual_$(date +%Y%m%d_%H%M%S).sql.gz
+```
+
+---
 
 ### Complete System Backup
 
+For a complete system backup (config + database):
+
 ```bash
-# Backup configuration and database
-tar -czf allo-scrapper-backup-$(date +%Y%m%d).tar.gz \
+# Create complete backup
+tar -czf allo-scrapper-complete-$(date +%Y%m%d).tar.gz \
   .env \
   docker-compose.yml \
+  server/src/config/cinemas.json \
   backups/
 
-# Restore
-tar -xzf allo-scrapper-backup-20260215.tar.gz
+# Restore from complete backup
+tar -xzf allo-scrapper-complete-20260301.tar.gz
+```
+
+---
+
+### Backup Best Practices
+
+1. **Regular Backups**
+   - Create production backups before any deployment
+   - Create local backups before testing destructive operations
+   - Keep multiple backup versions for different time periods
+
+2. **Verify Backups**
+   - Production backups include SHA256 checksums
+   - Periodically test restores on a non-production environment
+   - Verify backup file sizes are reasonable (not 0 bytes)
+
+3. **Safety**
+   - Always create a safety backup before restore (automatic)
+   - Test restore process on local environment first
+   - Never restore to production without confirmation prompt
+
+4. **Storage**
+   - Store production backups in `./backups/production/`
+   - Keep local backups separate from production backups
+   - Consider external backup storage for disaster recovery
+
+5. **SSH Security**
+   - Use SSH key authentication (not passwords)
+   - Restrict SSH key permissions: `chmod 600 ~/.ssh/id_ed25519`
+   - Use a dedicated backup user on production server
+
+---
+
+### Troubleshooting Backups
+
+#### SSH Connection Failed
+
+```bash
+# Problem: Cannot connect to production server
+# Solution: Set up SSH key authentication
+
+ssh-copy-id user@ics.opalkad.com
+
+# Test connection
+ssh user@ics.opalkad.com "echo 'Connection successful'"
+```
+
+#### Database Container Not Running
+
+```bash
+# Problem: Database container is not running
+# Solution: Start the database container
+
+# Local
+docker compose up -d ics-db
+
+# Production
+ssh user@ics.opalkad.com "cd ~/allo-scrapper && docker compose up -d ics-db"
+```
+
+#### Backup File Empty or Corrupted
+
+```bash
+# Problem: Backup file is 0 bytes or corrupted
+# Solution: Check Docker container logs and disk space
+
+# Check logs
+docker compose logs ics-db | tail -50
+
+# Check disk space
+df -h
+
+# Verify backup integrity (production backups only)
+sha256sum -c ./backups/production/ics_production_20260301_143022.sql.gz.sha256
+```
+
+#### Restore Failed
+
+```bash
+# Problem: Restore fails with errors
+# Solution: Check backup file and database logs
+
+# Test if backup file is valid
+gunzip -t ./backups/ics_20260301_143022.sql.gz
+
+# Check database logs
+docker compose logs ics-db | tail -100
+
+# Restore from safety backup
+./scripts/restore-db.sh ./backups/before_restore_20260301_143530.sql.gz
+```
+
+#### Production Service Won't Start After Restore
+
+```bash
+# Problem: Web service won't start after production restore
+# Solution: Check logs and restart services
+
+# Check production logs via SSH
+ssh user@ics.opalkad.com "cd ~/allo-scrapper && docker compose logs ics-web | tail -50"
+
+# Restart all services
+ssh user@ics.opalkad.com "cd ~/allo-scrapper && docker compose restart"
 ```
 
 ---
