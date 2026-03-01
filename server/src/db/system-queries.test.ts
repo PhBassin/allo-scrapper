@@ -160,7 +160,7 @@ describe('System Queries', () => {
         tables: 10,
         cinemas: 5,
         films: 100,
-        seances: 500,
+        showtimes: 500,
       });
     });
 
@@ -181,7 +181,7 @@ describe('System Queries', () => {
         tables: 0,
         cinemas: 0,
         films: 0,
-        seances: 0,
+        showtimes: 0,
       });
     });
 
@@ -200,7 +200,7 @@ describe('System Queries', () => {
       expect(result.tables).toBe(25);
       expect(result.cinemas).toBe(150);
       expect(result.films).toBe(5000);
-      expect(result.seances).toBe(50000);
+      expect(result.showtimes).toBe(50000);
     });
 
     it('should handle database query errors', async () => {

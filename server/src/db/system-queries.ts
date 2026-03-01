@@ -31,7 +31,7 @@ export interface DatabaseStats {
   tables: number;
   cinemas: number;
   films: number;
-  seances: number;
+  showtimes: number;
 }
 
 /**
@@ -136,18 +136,18 @@ export async function getDatabaseStats(db: DB): Promise<DatabaseStats> {
   );
   const films = parseInt(filmCountResult.rows[0]?.count || '0', 10);
 
-  // Get seance count
-  const seanceCountResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM seances`,
+  // Get showtime count
+  const showtimeCountResult = await db.query(
+    `SELECT COUNT(*)::text AS count FROM showtimes`,
     []
   );
-  const seances = parseInt(seanceCountResult.rows[0]?.count || '0', 10);
+  const showtimes = parseInt(showtimeCountResult.rows[0]?.count || '0', 10);
 
   return {
     size,
     tables,
     cinemas,
     films,
-    seances,
+    showtimes,
   };
 }
