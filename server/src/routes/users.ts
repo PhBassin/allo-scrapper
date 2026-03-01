@@ -1,5 +1,5 @@
 import express from 'express';
-import { db } from '../db/client.js';
+import type { DB } from '../db/client.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
@@ -54,7 +54,7 @@ router.get(
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
-
+      const db: DB = req.app.get('db');
 
       // Parse pagination params
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
@@ -112,6 +112,7 @@ router.get(
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
+      const db: DB = req.app.get('db');
 
       const userId = parseInt(req.params.id, 10);
 
@@ -166,6 +167,7 @@ router.post(
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
+      const db: DB = req.app.get('db');
 
       const { username, password, role } = req.body;
 
@@ -261,6 +263,7 @@ router.put(
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
+      const db: DB = req.app.get('db');
 
       const userId = parseInt(req.params.id, 10);
       const { role } = req.body;
@@ -353,6 +356,7 @@ router.post(
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
+      const db: DB = req.app.get('db');
 
       const userId = parseInt(req.params.id, 10);
 
@@ -426,6 +430,7 @@ router.delete(
   requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
+      const db: DB = req.app.get('db');
 
       const userId = parseInt(req.params.id, 10);
 

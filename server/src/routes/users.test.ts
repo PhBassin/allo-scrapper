@@ -57,10 +57,12 @@ import { db } from '../db/client.js';
 
 describe('User Management Routes', () => {
   let app: express.Application;
+  const mockDb: DB = db as DB;
 
   beforeEach(() => {
     app = express();
     app.use(express.json());
+    app.set('db', mockDb);
     app.use('/api/users', usersRouter);
     vi.clearAllMocks();
   });
