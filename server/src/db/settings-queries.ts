@@ -26,7 +26,7 @@ export interface AppSettingsRow {
   font_primary: string;
   font_secondary: string;
   footer_text: string | null;
-  footer_links: string; // JSON string
+  footer_links: string | FooterLink[]; // JSON string or JSONB object
   email_from_name: string;
   email_from_address: string;
   updated_at: string;
@@ -37,7 +37,10 @@ export interface AppSettingsRow {
 function rowToSettings(row: AppSettingsRow): AppSettings {
   return {
     ...row,
-    footer_links: JSON.parse(row.footer_links) as FooterLink[],
+    // Handle both JSONB (already parsed) and TEXT (need to parse)
+    footer_links: typeof row.footer_links === 'string' 
+      ? JSON.parse(row.footer_links) as FooterLink[]
+      : row.footer_links,
   };
 }
 
@@ -123,9 +126,9 @@ export async function updateSettings(
     if (key in updates) {
       const value = updates[key as keyof AppSettingsUpdate];
       
-      // Special handling for footer_links (need to stringify)
+      // Special handling for footer_links (JSONB type - need to stringify and cast)
       if (key === 'footer_links') {
-        fields.push(`${dbColumn} = $${paramIndex}`);
+        fields.push(`${dbColumn} = $${paramIndex}::jsonb`);
         values.push(JSON.stringify(value));
         paramIndex++;
       } else {
