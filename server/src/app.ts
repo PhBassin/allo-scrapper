@@ -85,7 +85,7 @@ export function createApp() {
     app.use(express.static(publicPath));
 
     // Serve index.html for all non-API routes (SPA support)
-    app.get('*', (_req, res) => {
+    app.get('*', generalLimiter, (_req, res) => {
       res.sendFile(path.join(publicPath, 'index.html'));
     });
   }
