@@ -344,6 +344,33 @@ The app name is set in `.github/workflows/docker-build-push.yml` as a build argu
 
 For complete environment variable documentation, see [SETUP.md](./SETUP.md).
 
+### Dynamic White-Label Theme
+
+The application supports **runtime theme customization** via the admin panel, allowing you to change branding, colors, fonts, and footer without rebuilding the Docker image.
+
+**Features:**
+- ✅ **Site Name & Logo** - Customize the site name and upload a custom logo
+- ✅ **Favicon** - Upload a custom favicon
+- ✅ **Color Palette** - Customize primary, secondary, accent, and UI colors
+- ✅ **Typography** - Choose custom fonts from Google Fonts
+- ✅ **Footer** - Custom footer text and links
+
+**How It Works:**
+1. Admin logs in and navigates to `/admin/settings`
+2. Customizes branding in the admin panel (5 tabs: General, Colors, Typography, Footer, Email)
+3. Changes apply **immediately** via `/api/theme.css` dynamic stylesheet
+4. Settings stored in database (`app_settings` table)
+5. Changes persist across container restarts
+
+**Loading Strategy:**
+- App shows loading screen while fetching settings from `/api/settings`
+- Theme.css is injected dynamically via `useTheme` hook
+- Hardcoded defaults used if API fails (graceful degradation)
+- Logo, favicon, and document title update dynamically
+
+**For Admin Panel Documentation:**
+See [API.md](./API.md) for Settings API reference (`/api/settings/*` endpoints).
+
 ---
 
 ## 📚 Documentation

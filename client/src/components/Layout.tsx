@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useContext, useState, useEffect, useRef } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
+import { SettingsContext } from '../contexts/SettingsContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -10,11 +11,13 @@ interface LayoutProps {
 
 export default function Layout({ children, title }: LayoutProps) {
   const { isAuthenticated, isAdmin, user, logout } = useContext(AuthContext);
+  const { publicSettings } = useContext(SettingsContext);
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const APP_NAME = import.meta.env.VITE_APP_NAME || 'Allo-Scrapper';
+  const APP_NAME = publicSettings?.site_name || import.meta.env.VITE_APP_NAME || 'Allo-Scrapper';
+  const logo = publicSettings?.logo_base64;
 
   const handleLogout = () => {
     logout();
@@ -49,7 +52,15 @@ export default function Layout({ children, title }: LayoutProps) {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="text-2xl font-bold flex items-center gap-2">
-              <span className="text-primary">🎬</span>
+              {logo ? (
+                <img 
+                  src={logo} 
+                  alt={`${APP_NAME} logo`} 
+                  className="h-8 w-8 object-contain" 
+                />
+              ) : (
+                <span className="text-primary">🎬</span>
+              )}
               <span>{APP_NAME}</span>
             </Link>
             <nav className="flex items-center gap-6">
@@ -156,8 +167,23 @@ export default function Layout({ children, title }: LayoutProps) {
       <footer className="bg-secondary text-white mt-16">
         <div className="container mx-auto px-4 py-6 text-center">
           <p className="text-sm">
-            Données fournies par le site source - Mise à jour hebdomadaire
+            {publicSettings?.footer_text || 'Données fournies par le site source - Mise à jour hebdomadaire'}
           </p>
+          {publicSettings?.footer_links && publicSettings.footer_links.length > 0 && (
+            <div className="flex justify-center gap-4 mt-3">
+              {publicSettings.footer_links.map((link, index) => (
+                <a
+                  key={index}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-gray-400 hover:text-primary transition"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </div>
+          )}
           <p className="text-xs text-gray-400 mt-2">
             {APP_NAME} &copy; {new Date().getFullYear()}
           </p>

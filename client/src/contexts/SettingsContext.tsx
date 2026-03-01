@@ -10,6 +10,7 @@ interface SettingsContextType {
     
     // Loading states
     isLoading: boolean;
+    isLoadingPublic: boolean; // Specific flag for initial public settings load
     error: string | null;
     
     // Actions
@@ -22,6 +23,7 @@ export const SettingsContext = createContext<SettingsContextType>({
     publicSettings: null,
     adminSettings: null,
     isLoading: false,
+    isLoadingPublic: true,
     error: null,
     refreshPublicSettings: async () => {},
     refreshAdminSettings: async () => {},
@@ -36,6 +38,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     const [publicSettings, setPublicSettings] = useState<AppSettingsPublic | null>(null);
     const [adminSettings, setAdminSettings] = useState<AppSettings | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingPublic, setIsLoadingPublic] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // Fetch public settings (no auth required)
@@ -51,6 +54,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
             console.error('Error loading public settings:', err);
         } finally {
             setIsLoading(false);
+            setIsLoadingPublic(false);
         }
     }, []);
 
@@ -136,6 +140,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
                 publicSettings,
                 adminSettings,
                 isLoading,
+                isLoadingPublic,
                 error,
                 refreshPublicSettings,
                 refreshAdminSettings,
