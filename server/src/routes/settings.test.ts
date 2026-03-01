@@ -224,6 +224,47 @@ describe('Settings Routes', () => {
       expect(response.status).toBe(200);
     });
 
+    it('should reject footer links with unsafe protocols (XSS prevention)', async () => {
+      const updates = {
+        footer_links: [
+          { label: 'Safe Link', url: 'https://example.com' },
+          { label: 'Unsafe Link', url: 'javascript:alert(1)' },
+        ],
+      };
+
+      const response = await request(app)
+        .put('/api/settings')
+        .set('Authorization', 'Bearer valid-token')
+        .send(updates);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toContain('Invalid URL protocol in footer link');
+      expect(settingsQueries.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it('should allow footer links with safe protocols', async () => {
+      const updates = {
+        footer_links: [
+          { label: 'Safe HTTPS', url: 'https://example.com' },
+          { label: 'Safe HTTP', url: 'http://example.com' },
+          { label: 'Safe Mailto', url: 'mailto:test@example.com' },
+        ],
+      };
+
+      vi.mocked(settingsQueries.updateSettings).mockResolvedValue({} as any);
+
+      const response = await request(app)
+        .put('/api/settings')
+        .set('Authorization', 'Bearer valid-token')
+        .send(updates);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      // Need to use expect.anything() for db connection parameter
+      expect(settingsQueries.updateSettings).toHaveBeenCalledWith(expect.anything(), updates, 1);
+    });
+
     it('should return 401 without authentication', async () => {
       const response = await request(app)
         .put('/api/settings')
