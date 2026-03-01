@@ -112,9 +112,9 @@ export async function getScraperStatus(db: DB): Promise<ScraperStatus> {
   );
   const activeJobs = parseInt(activeJobsResult.rows[0]?.count || '0', 10);
 
-  // Get last scrape time from showtimes table
+  // Get last scrape time from scrape_reports table
   const lastScrapeResult = await db.query(
-    `SELECT MAX(created_at) AS last_scrape FROM showtimes`,
+    `SELECT MAX(completed_at) AS last_scrape FROM scrape_reports WHERE status = 'completed'`,
     []
   );
   const lastScrapeTime = lastScrapeResult.rows[0]?.last_scrape || null;
