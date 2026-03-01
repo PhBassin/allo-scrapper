@@ -79,6 +79,13 @@ export function createApp() {
   app.get('/api/theme.css', async (req, res) => {
     try {
       const db = req.app.get('db');
+      
+      if (!db) {
+        logger.error('Database connection not found in app context');
+        res.set('Content-Type', 'text/css; charset=utf-8');
+        return res.send(':root { --color-primary: #FECC00; --color-secondary: #1F2937; }');
+      }
+      
       const css = await generateThemeCSS(db);
       
       // Generate ETag from CSS content (MD5 hash)
