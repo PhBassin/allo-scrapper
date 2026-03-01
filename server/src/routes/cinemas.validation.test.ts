@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as cinemaConfig from '../services/cinema-config.js';
 import router from './cinemas.js';
+import { db } from '../db/client.js';
 
 // Mock dependencies
 vi.mock('../db/client.js', () => ({
@@ -32,9 +33,16 @@ describe('Routes - Cinemas - Validation', () => {
   let mockRes: any;
   let mockReq: any;
   let mockNext: any;
+  let mockApp: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockApp = {
+      get: vi.fn((key: string) => {
+        if (key === 'db') return db;
+        return undefined;
+      })
+    };
     mockRes = {
       json: vi.fn().mockReturnThis(),
       status: vi.fn().mockReturnThis()
@@ -50,7 +58,8 @@ describe('Routes - Cinemas - Validation', () => {
         id: 'invalid-id!',
         name: 'Test Cinema',
         url: 'https://www.allocine.fr/test'
-      }
+      },
+      app: mockApp
     };
 
     const handler = getRouteHandler('/', 'post');
@@ -70,7 +79,8 @@ describe('Routes - Cinemas - Validation', () => {
         id: 'A'.repeat(21),
         name: 'Test Cinema',
         url: 'https://www.allocine.fr/test'
-      }
+      },
+      app: mockApp
     };
 
     const handler = getRouteHandler('/', 'post');
@@ -89,7 +99,8 @@ describe('Routes - Cinemas - Validation', () => {
         id: 'C001',
         name: 'A'.repeat(101),
         url: 'https://www.allocine.fr/test'
-      }
+      },
+      app: mockApp
     };
 
     const handler = getRouteHandler('/', 'post');
@@ -107,7 +118,8 @@ describe('Routes - Cinemas - Validation', () => {
       params: { id: 'C001' },
       body: {
         name: 'A'.repeat(101)
-      }
+      },
+      app: mockApp
     };
 
     const handler = getRouteHandler('/:id', 'put');
