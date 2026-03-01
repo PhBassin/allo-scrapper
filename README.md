@@ -375,27 +375,41 @@ See [API.md](./API.md) for Settings API reference (`/api/settings/*` endpoints).
 
 ## 📚 Documentation
 
-### Core Documentation
-- **[API.md](./API.md)** - Complete REST API reference with all endpoints
-- **[SETUP.md](./SETUP.md)** - Development setup and environment variables
-- **[DATABASE.md](./DATABASE.md)** - Database schema, tables, and queries
-- **[SCRAPER.md](./SCRAPER.md)** - Cinema configuration and scraping behavior
+**📖 [Browse Full Documentation →](./docs/)**
 
-### Operations & Deployment
-- **[DOCKER.md](./DOCKER.md)** - Docker deployment, optimization, and profiles
-- **[NETWORKING.md](./NETWORKING.md)** - LAN access and CORS configuration
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Production deployment guide
-- **[MONITORING.md](./MONITORING.md)** - Observability stack (Prometheus, Grafana, Loki, Tempo)
+Our documentation is organized into the following categories:
 
-### Development & CI/CD
-- **[TESTING.md](./TESTING.md)** - Unit tests, E2E tests, and coverage
-- **[CICD.md](./CICD.md)** - GitHub Actions, releases, and tag strategy
-- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines
-- **[AGENTS.md](./AGENTS.md)** - AI agent workflow and instructions
+### 🚀 [Getting Started](./docs/getting-started/)
+New to Allo-Scrapper? Start here for quick setup and configuration.
+- [Quick Start](./docs/getting-started/quick-start.md) - Get running in 5 minutes
+- [Installation](./docs/getting-started/installation.md) - Detailed setup instructions
+- [Configuration](./docs/getting-started/configuration.md) - Environment variables
 
-### Reference
-- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and solutions
-- **[CHANGELOG.md](./CHANGELOG.md)** - Version history and release notes
+### 📖 [Guides](./docs/guides/)
+Step-by-step tutorials for common tasks.
+- [**Deployment**](./docs/guides/deployment/) - Production deployment, Docker, backups, monitoring
+- [**Development**](./docs/guides/development/) - Local setup, testing, contributing, CI/CD
+- [**Administration**](./docs/guides/administration/) - Admin panel, white-label, user management
+
+### 📋 [Reference](./docs/reference/)
+Technical reference documentation.
+- [**API**](./docs/reference/api/) - Complete REST API documentation
+- [**Database**](./docs/reference/database/) - Schema and migrations
+- [**Scripts**](./docs/reference/scripts/) - Automation scripts
+- [**Architecture**](./docs/reference/architecture/) - System design
+
+### 🔧 [Troubleshooting](./docs/troubleshooting/)
+Solutions to common issues.
+- [Common Issues](./docs/troubleshooting/common-issues.md)
+- [Database](./docs/troubleshooting/database.md) | [Docker](./docs/troubleshooting/docker.md) | [Networking](./docs/troubleshooting/networking.md) | [Scraper](./docs/troubleshooting/scraper.md)
+
+### 📦 [Project](./docs/project/)
+Project meta-documentation.
+- [Changelog](./docs/project/changelog.md) - Version history
+- [Security](./docs/project/security.md) - Security policies
+- [AI Agents](./docs/project/agents.md) - Guidelines for AI coding agents
+
+**Legacy documentation** (root-level `.md` files) will be migrated to `/docs/` in future releases. For now, both locations are maintained for backward compatibility
 
 ---
 
