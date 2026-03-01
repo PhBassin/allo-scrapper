@@ -15,6 +15,7 @@
 
 - [Features](#-features)
 - [Architecture](#-architecture)
+- [White-Label Branding](#-white-label-branding)
 - [Quick Start](#-quick-start)
 - [Documentation](#-documentation)
 - [Contributing](#-contributing)
@@ -30,6 +31,8 @@
 - **Modern UI**: React SPA with Vite for fast development
 - **Real-time Progress**: Server-Sent Events (SSE) for live scraping updates
 - **Weekly Reports**: Track cinema programs and identify new releases
+- **White-Label Branding**: Complete customization (site name, logo, colors, fonts, footer) via admin panel
+- **User Management**: Role-based access control (admin/user) with comprehensive user CRUD
 - **JWT Authentication**: Secure user authentication with token-based sessions
 - **Password Management**: Change password functionality for authenticated users
 - **Rate Limiting**: Comprehensive rate limiting per endpoint type (auth, public, protected)
@@ -89,6 +92,155 @@
 6. Client receives JSON responses and renders UI
 
 > See [MONITORING.md](./MONITORING.md) for the full observability stack documentation.
+
+---
+
+## 🎨 White-Label Branding
+
+Allo-Scrapper supports complete white-label customization through a comprehensive admin panel. Transform the application to match your brand identity with custom colors, fonts, logo, and more.
+
+### Admin Panel Access
+
+1. Navigate to `/admin/settings` (requires admin role)
+2. **Default credentials:**
+   - Username: `admin`
+   - Password: `admin`
+
+⚠️ **Important:** Change the default admin password immediately after first login (click your username → "Change Password").
+
+### Customization Options
+
+The admin panel provides five tabs for complete branding control:
+
+#### 1. General Settings
+- **Site Name**: Displayed in header, page title, and footer
+- **Logo**: Custom logo image (PNG/JPG/SVG, max 200KB, min 100x100px)
+- **Favicon**: Browser tab icon (ICO/PNG, max 50KB, 32x32 or 64x64px)
+
+#### 2. Color Scheme
+Customize 9 color variables with live preview:
+- **Primary**: Main brand color (buttons, links, highlights)
+- **Secondary**: Header, footer background
+- **Accent**: Call-to-action elements
+- **Background**: Page background
+- **Surface**: Card backgrounds
+- **Text Primary**: Main text color
+- **Text Secondary**: Muted text (labels, captions)
+- **Success**: Success messages and indicators
+- **Error**: Error messages and alerts
+
+All colors must be valid hex codes (e.g., `#FECC00`, `#1F2937`, `#FFF`).
+
+#### 3. Typography
+- **Heading Font**: Choose from 15+ Google Fonts for headings (h1-h6)
+- **Body Font**: Choose font for body text and UI elements
+- **Live Preview**: See font changes in real-time
+
+**Available Google Fonts:**
+Inter, Roboto, Open Sans, Lato, Montserrat, Poppins, Raleway, Nunito, PT Sans, Source Sans Pro, Work Sans, Archivo, Manrope, DM Sans, Plus Jakarta Sans
+
+#### 4. Footer Customization
+- **Footer Text**: Custom message with dynamic placeholders:
+  - `{site_name}` → Site name from General settings
+  - `{year}` → Current year
+- **Footer Links**: Add unlimited custom links (e.g., Privacy Policy, Contact, About)
+  - Each link: Label + URL
+  - Drag to reorder
+
+#### 5. Email Branding
+- **From Name**: Sender name for system emails
+- **From Address**: Sender email address
+- **Header Color**: Email template header background
+- **Footer Text**: Email template footer message
+
+### Configuration Management
+
+**Export Settings** (backup):
+```bash
+# Using admin panel: Click "Export Configuration" button
+
+# Using API:
+TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
+
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:3000/api/settings/export > settings-backup.json
+```
+
+**Import Settings** (restore from backup):
+```bash
+# Using admin panel: Click "Import Configuration" button and select JSON file
+
+# Using API:
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @settings-backup.json \
+  http://localhost:3000/api/settings/import
+```
+
+**Reset to Defaults**:
+- Click "Reset to Defaults" button in admin panel
+- Restores original Allo-Scrapper branding
+
+### User Role Management
+
+The system supports two roles:
+
+| Role | Permissions |
+|------|-------------|
+| **admin** | Full access: Settings, user management, reports, scraping control |
+| **user** | Limited access: View cinema schedules only |
+
+**Safety Features:**
+- Cannot delete the last admin user
+- Cannot demote the last admin to user role
+- Admin authentication required to create new users
+- Self-deletion prevention
+
+**Managing Users** (admin only):
+1. Navigate to `/admin/users`
+2. Create, edit, delete users
+3. Change user roles
+4. Reset user passwords (generates secure random password)
+
+### API Access
+
+Settings and user management are available via REST API:
+
+- **Settings API**: `/api/settings/*` - See [API.md](./API.md#settings-management)
+- **Users API**: `/api/users/*` - See [API.md](./API.md#user-management)
+- **Theme CSS**: `/api/theme.css` - Dynamically generated CSS with theme variables
+
+For complete API documentation, see [API.md](./API.md).
+
+### Best Practices
+
+1. **Backup before major changes**: Use export feature before making significant branding changes
+2. **Test in staging first**: If using multi-environment setup
+3. **Use high contrast colors**: Ensure accessibility (WCAG AA minimum)
+4. **Optimize images**: Compress logo/favicon before upload to stay under size limits
+5. **Change default password**: Critical security step for production deployments
+6. **Create backup admin**: Have at least 2 admin users before deleting/demoting accounts
+
+### Troubleshooting
+
+**Images not uploading:**
+- Check file size (Logo: 200KB max, Favicon: 50KB max)
+- Verify format (PNG, JPG, SVG for logo; ICO, PNG for favicon)
+- Ensure dimensions meet minimums (Logo: 100x100px+, Favicon: 32x32 or 64x64)
+
+**Settings not saving:**
+- Check browser console for error messages
+- Verify JWT token is valid (try logging out and back in)
+- Check network tab for API errors
+
+**Theme not applying:**
+- Hard refresh browser (Ctrl+F5 or Cmd+Shift+R)
+- Clear browser cache
+- Check `/api/theme.css` endpoint directly
+
+For detailed user guide and screenshots, see [ADMIN_PANEL.md](./ADMIN_PANEL.md).
 
 ---
 
