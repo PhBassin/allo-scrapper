@@ -1,5 +1,5 @@
 import express from 'express';
-import { db } from '../db/client.js';
+import type { DB } from '../db/client.js';
 import {
   getSettings,
   getPublicSettings,
@@ -26,8 +26,9 @@ const FAVICON_MAX_SIZE = 50000; // 50 KB
  * GET /api/settings (public)
  * Returns public settings for theming (no authentication required)
  */
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
+    const db: DB = req.app.get('db');
     const settings = await getPublicSettings(db);
 
     if (!settings) {
@@ -57,8 +58,9 @@ router.get('/', async (_req, res) => {
  * GET /api/settings/admin (admin only)
  * Returns full settings including email configuration
  */
-router.get('/admin', protectedLimiter, requireAuth, requireAdmin, async (_req, res) => {
+router.get('/admin', protectedLimiter, requireAuth, requireAdmin, async (req, res) => {
   try {
+    const db: DB = req.app.get('db');
     const settings = await getSettings(db);
 
     if (!settings) {
@@ -90,6 +92,7 @@ router.get('/admin', protectedLimiter, requireAuth, requireAdmin, async (_req, r
  */
 router.put('/', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
+    const db: DB = req.app.get('db');
     const updates: AppSettingsUpdate = req.body;
 
     // Validate and compress logo if provided
@@ -160,6 +163,7 @@ router.put('/', protectedLimiter, requireAuth, requireAdmin, async (req: AuthReq
  */
 router.post('/reset', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
+    const db: DB = req.app.get('db');
     const defaultSettings = await resetSettings(db, req.user!.id);
 
     if (!defaultSettings) {
@@ -195,6 +199,7 @@ router.post('/reset', protectedLimiter, requireAuth, requireAdmin, async (req: A
  */
 router.post('/export', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
+    const db: DB = req.app.get('db');
     const exportData = await exportSettings(db);
 
     if (!exportData) {
@@ -230,6 +235,7 @@ router.post('/export', protectedLimiter, requireAuth, requireAdmin, async (req: 
  */
 router.post('/import', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
+    const db: DB = req.app.get('db');
     const importData: AppSettingsExport = req.body;
 
     // Validate import data structure
