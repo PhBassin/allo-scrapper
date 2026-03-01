@@ -96,7 +96,7 @@ router.get('/admin', requireAuth, settingsAdminLimiter, requireAdmin, async (_re
  * PUT /api/settings (admin only)
  * Update settings
  */
-router.put('/', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
+router.put('/', requireAuth, settingsAdminLimiter, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const updates: AppSettingsUpdate = req.body;
 
