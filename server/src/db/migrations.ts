@@ -59,8 +59,25 @@ export async function createSchemaTable(db: DB): Promise<void> {
  * @param filename - Migration filename (e.g., '001_initial.sql')
  * @returns SQL content as string
  */
+/**
+ * Get the migrations directory path (works in both development and Docker)
+ * In Docker: /app/migrations (copied by Dockerfile)
+ * In development: /path/to/project/migrations
+ */
+function getMigrationsDir(): string {
+  return process.env.NODE_ENV === 'production'
+    ? path.join('/app', 'migrations')
+    : path.join(__dirname, '../../../migrations');
+}
+
+/**
+ * Read a migration file from the migrations directory
+ * 
+ * @param filename - Migration filename (e.g., "001_initial_schema.sql")
+ * @returns SQL content of the migration file
+ */
 async function readMigrationFile(filename: string): Promise<string> {
-  const migrationsDir = path.join(__dirname, '../../../migrations');
+  const migrationsDir = getMigrationsDir();
   const filePath = path.join(migrationsDir, filename);
   return await fs.readFile(filePath, 'utf8');
 }
@@ -74,7 +91,7 @@ async function readMigrationFile(filename: string): Promise<string> {
  */
 export async function getPendingMigrations(db: DB): Promise<string[]> {
   // Get all migration files
-  const migrationsDir = path.join(__dirname, '../../../migrations');
+  const migrationsDir = getMigrationsDir();
   const allFiles = await fs.readdir(migrationsDir);
   const migrationFiles = allFiles
     .filter(f => f.endsWith('.sql'))
