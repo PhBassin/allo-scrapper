@@ -6,7 +6,7 @@ set -e
 
 BACKUP_DIR="./backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="${BACKUP_DIR}/its_${TIMESTAMP}.sql"
+BACKUP_FILE="${BACKUP_DIR}/ics_${TIMESTAMP}.sql"
 
 echo "🔄 Creating database backup..."
 
@@ -14,15 +14,15 @@ echo "🔄 Creating database backup..."
 mkdir -p "$BACKUP_DIR"
 
 # Check if containers are running
-if ! docker compose ps | grep -q "allo-scrapper-db.*Up"; then
+if ! docker compose ps | grep -q "Up"; then
     echo "❌ Error: Database container is not running"
-    echo "   Start it with: docker compose up -d db"
+    echo "   Start it with: docker compose up -d ics-db"
     exit 1
 fi
 
 # Backup database
 echo "📦 Dumping database to ${BACKUP_FILE}..."
-docker compose exec -T db pg_dump -U postgres its > "$BACKUP_FILE"
+docker compose exec -T ics-db pg_dump -U postgres ics > "$BACKUP_FILE"
 
 # Compress backup
 echo "🗜️  Compressing backup..."
@@ -35,12 +35,12 @@ echo "✅ Backup created successfully!"
 echo "   File: ${COMPRESSED_FILE}"
 echo "   Size: ${BACKUP_SIZE}"
 
-# Keep only last 7 backups
-echo "🧹 Cleaning old backups (keeping last 7 days)..."
-find "$BACKUP_DIR" -name "*.sql.gz" -mtime +7 -delete
+# Note: Auto-deletion disabled - keeping all backups
+# To enable auto-cleanup, uncomment the following line:
+# find "$BACKUP_DIR" -name "*.sql.gz" -mtime +7 -delete
 
 BACKUP_COUNT=$(find "$BACKUP_DIR" -name "*.sql.gz" | wc -l | tr -d ' ')
-echo "   Backups in directory: ${BACKUP_COUNT}"
+echo "   Total backups in directory: ${BACKUP_COUNT}"
 
 echo ""
 echo "📋 Recent backups:"
