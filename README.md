@@ -158,6 +158,42 @@ For production deployment and advanced configuration, see [DEPLOYMENT.md](./DEPL
 
 ---
 
+## ⚙️ Configuration
+
+### Frontend Build Configuration
+
+The frontend application name can be customized via Docker build arguments:
+
+| Variable | Description | Default | Used By |
+|----------|-------------|---------|---------|
+| `VITE_APP_NAME` | Application name (browser tab, header, footer) | `Allo-Scrapper` | Docker build, GitHub Actions |
+
+**Local Development:**
+```bash
+# In .env file (root directory)
+VITE_APP_NAME=Allo-Scrapper
+
+# Run Vite dev server (reads from .env at runtime)
+cd client
+npm run dev
+```
+
+**Docker Build:**
+```bash
+# Using docker-compose.yml (reads from .env file)
+docker compose build
+
+# Manual build with custom name
+docker build --build-arg VITE_APP_NAME="My Cinema App" .
+```
+
+**GitHub Actions:**
+The app name is set in `.github/workflows/docker-build-push.yml` as a build argument. All images built by CI/CD (develop, main, PR) use the configured name.
+
+For complete environment variable documentation, see [SETUP.md](./SETUP.md).
+
+---
+
 ## 📚 Documentation
 
 ### Core Documentation
