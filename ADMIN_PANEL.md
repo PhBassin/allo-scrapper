@@ -14,6 +14,7 @@ Complete guide to using the Allo-Scrapper admin panel for white-label branding a
   - [Typography](#3-typography)
   - [Footer](#4-footer)
   - [Email Branding](#5-email-branding)
+- [System Information](#system-information)
 - [Configuration Management](#configuration-management)
 - [User Management](#user-management)
 - [Best Practices](#best-practices)
@@ -26,6 +27,7 @@ Complete guide to using the Allo-Scrapper admin panel for white-label branding a
 The admin panel provides comprehensive control over:
 - **Branding**: Site name, logo, favicon, colors, fonts, footer
 - **Users**: Create, edit, delete users; manage roles
+- **System**: Monitor application health, database, and migrations
 - **Configuration**: Export/import settings for backup and migration
 
 **Access Level**: Admin role required for all admin panel features.
@@ -45,11 +47,13 @@ The admin panel provides comprehensive control over:
 
 ⚠️ **Security Alert**: Change the default admin password immediately after first login!
 
-### Step 2: Open Admin Panel
+### Step 2: Access Admin Features
 
-1. Click your username in the top-right corner
-2. Select **"Admin Settings"** from the dropdown menu
-3. Admin panel opens at `/admin/settings`
+Click your username in the top-right corner to access admin-only features:
+
+- **Admin Settings** (`/admin/settings`) - Branding, colors, typography, footer, email
+- **Users** (`/admin/users`) - User management and role assignment
+- **System** (`/admin/system`) - System diagnostics and monitoring
 
 ---
 
@@ -258,7 +262,228 @@ Configure email template branding for system-generated emails.
 
 ---
 
+## System Information
+
+Monitor application health, server metrics, database statistics, and migration status.
+
+**Access**: Click your username → **"System"** from the dropdown menu  
+**Route**: `/admin/system`  
+**Requirements**: Admin role required
+
+### Overview Dashboard
+
+The System Information page provides real-time diagnostics across four main areas:
+
+1. **Health Status** - Overall system health and component checks
+2. **Application Info** - Version, environment, and build information
+3. **Server Health** - Uptime, memory usage, and platform details
+4. **Database Statistics** - Size, table counts, and data metrics
+5. **Database Migrations** - Applied and pending migration status
+
+### Auto-Refresh
+
+**Purpose**: Automatically refresh metrics every 30 seconds to monitor live system status.
+
+**Usage**:
+1. Toggle the **"Auto-refresh (30s)"** checkbox at the top of the page
+2. When enabled, all metrics update every 30 seconds
+3. Disable when not actively monitoring to reduce server load
+
+**Recommended**: Enable during scraping operations or troubleshooting.
+
+---
+
+### Health Status Card
+
+Displays overall system health with status badge and component checks.
+
+#### Status Indicators
+
+| Status | Color | Meaning |
+|--------|-------|---------|
+| **Healthy** | Green | All systems operational |
+| **Degraded** | Yellow | Some issues detected (e.g., pending migrations) |
+| **Error** | Red | Critical system failure |
+
+#### Health Checks
+
+- **Database**: Connection and query functionality
+- **Migrations**: All migrations applied (no pending)
+- **Scrapers**: Active scraping jobs count
+
+**Troubleshooting**:
+- **Red status**: Check server logs immediately
+- **Yellow status**: Review pending migrations or active jobs
+- **Database check failed**: Verify PostgreSQL is running
+
+---
+
+### Application Info Card
+
+View application metadata and version information.
+
+#### Fields
+
+- **Version**: Semantic version (e.g., `1.0.0`)
+- **Build Date**: ISO timestamp when application was built
+- **Environment**: `production`, `development`, or `staging`
+- **Node Version**: Node.js runtime version (e.g., `v20.20.0`)
+
+**Use Cases**:
+- Verify correct version after deployment
+- Confirm environment matches expected (prod vs dev)
+- Troubleshoot compatibility issues with Node.js version
+
+---
+
+### Server Health Card
+
+Monitor server resource usage and uptime.
+
+#### Metrics
+
+- **Uptime**: Time since server started (formatted: "2h 15m 30s")
+- **Memory Usage**:
+  - **Heap Used**: JavaScript heap memory in use
+  - **Heap Total**: Total heap allocated
+  - **RSS**: Resident Set Size (total memory including native)
+- **Platform**: Operating system (e.g., `linux`, `darwin`)
+- **Architecture**: CPU architecture (e.g., `arm64`, `x64`)
+
+**Memory Format**: All memory values displayed in MB (e.g., "45.23 MB")
+
+**Warning Signs**:
+- Heap usage approaching total → potential memory leak
+- RSS significantly higher than heap → native module memory usage
+- Low uptime after deployment → server restarts (check logs)
+
+---
+
+### Database Statistics Card
+
+View database size and data record counts.
+
+#### Metrics
+
+- **Database Size**: Total PostgreSQL database size (e.g., "8063 kB")
+- **Tables**: Total number of database tables
+- **Cinemas**: Count of cinema records
+- **Films**: Count of film records  
+- **Showtimes**: Count of showtime records
+
+**Use Cases**:
+- Monitor database growth over time
+- Verify data after scraping operations
+- Identify cleanup needs (old showtimes)
+
+**Expected Values** (approximate):
+- Cinemas: 10-50 (depends on configuration)
+- Films: 100-500 (varies by season)
+- Showtimes: 1,000-10,000 (depends on time period)
+
+---
+
+### Database Migrations Table
+
+Track applied and pending database schema migrations.
+
+#### Table Columns
+
+| Column | Description |
+|--------|-------------|
+| **Migration** | Filename of migration SQL file |
+| **Applied At** | Timestamp when migration was executed |
+| **Status** | Badge showing "Applied" (green) |
+
+#### Migration Naming Convention
+
+Migrations follow the format: `NNN_description.sql`
+
+**Examples**:
+- `001_neutralize_references.sql` - Initial schema
+- `003_add_users_table.sql` - User authentication
+- `007_seed_default_admin.sql` - Default admin user
+
+#### Understanding Migration Status
+
+**Healthy State**:
+- ✅ All migrations applied
+- ✅ Pending count: 0
+- ✅ Migrations tab shows green "Applied" badges
+
+**Warning State**:
+- ⚠️ Pending migrations exist
+- ⚠️ Health status shows "Degraded"
+- ⚠️ Action required: Run migration command
+
+**To Apply Pending Migrations**:
+
+```bash
+# Via Docker
+docker compose restart ics-web
+
+# Migrations auto-apply on startup if AUTO_MIGRATE=true (default)
+```
+
+**Manual Migration** (if auto-migrate disabled):
+
+```bash
+docker compose exec ics-web npm run migrate
+```
+
+---
+
+### Monitoring Workflows
+
+#### During Scraping Operations
+
+1. Navigate to System page
+2. Enable auto-refresh
+3. Monitor:
+   - Active scraper jobs count
+   - Memory usage (should not spike excessively)
+   - Showtimes count increasing
+4. After scraping completes:
+   - Active jobs should return to 0
+   - Showtimes count should reflect new data
+   - Memory should stabilize (not continuously growing)
+
+#### After Deployment
+
+1. Check Application Info:
+   - Verify version matches deployed version
+   - Confirm environment is `production`
+2. Check Health Status:
+   - Must be "Healthy" (green)
+   - All checks passing
+3. Check Migrations:
+   - Pending count should be 0
+   - All expected migrations applied
+4. Check Server Health:
+   - Uptime recently reset (seconds/minutes)
+   - Memory usage reasonable (<200 MB for small deployments)
+
+#### Troubleshooting Performance Issues
+
+1. **High Memory Usage**:
+   - Check RSS vs Heap (if RSS >> Heap, native modules issue)
+   - Review active scraper jobs (memory-intensive)
+   - Consider increasing server resources
+
+2. **Degraded Health**:
+   - Check pending migrations → restart server
+   - Review logs for error details
+   - Verify database connectivity
+
+3. **Unexpected Data Counts**:
+   - Zero showtimes after scraping → check scraper logs
+   - Duplicate films → check scraper deduplication logic
+   - Missing cinemas → verify `cinemas.json` configuration
+
+---
+
 ## Configuration Management
+
 
 ### Export Configuration
 
