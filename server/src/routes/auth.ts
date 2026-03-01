@@ -24,6 +24,7 @@ export interface AuthResponse {
     user: {
         id: number;
         username: string;
+        role: 'admin' | 'user';
     };
 }
 
@@ -67,7 +68,8 @@ router.post('/login', authLimiter, async (req, res) => {
                 token,
                 user: {
                     id: user.id,
-                    username: user.username
+                    username: user.username,
+                    role: user.role as 'admin' | 'user'
                 }
             }
         };
@@ -116,7 +118,8 @@ router.post('/register', registerLimiter, async (req, res) => {
                 message: 'User registered successfully',
                 user: {
                     id: user.id,
-                    username: user.username
+                    username: user.username,
+                    role: user.role as 'admin' | 'user'
                 }
             }
         };
