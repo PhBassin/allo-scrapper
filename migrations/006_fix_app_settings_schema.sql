@@ -27,12 +27,24 @@ ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS font_primary TEXT NOT NULL DEF
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS font_secondary TEXT NOT NULL DEFAULT 'Roboto';
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS email_from_address TEXT DEFAULT 'no-reply@allocine-scrapper.com';
 
--- Copy values from old columns to new columns
-UPDATE app_settings SET 
-  color_text_primary = color_text,
-  font_primary = font_family_heading,
-  font_secondary = font_family_body
-WHERE id = 1;
+-- Copy values from old columns to new columns (with IF EXISTS guards)
+DO $$
+BEGIN
+  -- Only perform updates if old columns exist
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='app_settings' AND column_name='color_text'
+  ) THEN
+    UPDATE app_settings SET 
+      color_text_primary = color_text,
+      font_primary = font_family_heading,
+      font_secondary = font_family_body
+    WHERE id = 1;
+    RAISE NOTICE 'Copied values from old columns to new columns';
+  ELSE
+    RAISE NOTICE 'Old columns not found (fresh install), skipping value copy';
+  END IF;
+END $$;
 
 -- Drop old columns
 ALTER TABLE app_settings DROP COLUMN IF EXISTS color_text;
@@ -45,7 +57,15 @@ ALTER TABLE app_settings DROP COLUMN IF EXISTS email_header_color;
 ALTER TABLE app_settings DROP COLUMN IF EXISTS email_footer_text;
 
 -- Verify footer_links is a valid JSONB array (not empty string)
-UPDATE app_settings SET footer_links = '[]'::jsonb WHERE footer_links IS NULL OR footer_links::text = '';
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM app_settings WHERE id = 1) THEN
+    UPDATE app_settings 
+    SET footer_links = '[]'::jsonb 
+    WHERE id = 1 AND (footer_links IS NULL OR footer_links::text = '');
+    RAISE NOTICE 'Verified footer_links is valid JSONB';
+  END IF;
+END $$;
 
 -- Verify the migration
 DO $$ 
