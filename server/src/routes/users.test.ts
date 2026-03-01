@@ -3,10 +3,28 @@ import request from 'supertest';
 import express from 'express';
 import usersRouter from './users.js';
 import type { DB } from '../db/client.js';
+import type { UserRole } from '../types/user.js';
 
 // Mock dependencies
+vi.mock('../db/client.js', () => ({
+  db: {
+    query: vi.fn(),
+  },
+}));
 vi.mock('../db/user-queries.js');
 vi.mock('../db/queries.js');
+vi.mock('bcryptjs', () => ({
+  default: {
+    hash: vi.fn().mockResolvedValue('$2b$10$hashedPasswordExample1234567890123456789012'),
+    compare: vi.fn(),
+  },
+}));
+vi.mock('../utils/logger.js', () => ({
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 vi.mock('../middleware/auth.js', () => ({
   requireAuth: (req: any, res: any, next: any) => {
     if (req.headers.authorization === 'Bearer valid-admin-token') {
@@ -33,17 +51,14 @@ vi.mock('../middleware/admin.js', () => ({
 
 import * as userQueries from '../db/user-queries.js';
 import * as queries from '../db/queries.js';
+import { db } from '../db/client.js';
 
 describe('User Management Routes', () => {
   let app: express.Application;
-  const mockDb: DB = {
-    query: vi.fn(),
-  } as unknown as DB;
 
   beforeEach(() => {
     app = express();
     app.use(express.json());
-    app.set('db', mockDb);
     app.use('/api/users', usersRouter);
     vi.clearAllMocks();
   });
@@ -64,7 +79,7 @@ describe('User Management Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toEqual(mockUsers);
-      expect(userQueries.getAllUsers).toHaveBeenCalledWith(mockDb, { limit: 100, offset: 0 });
+      expect(userQueries.getAllUsers).toHaveBeenCalledWith(db, { limit: 100, offset: 0 });
     });
 
     it('should return 401 for unauthenticated requests', async () => {
@@ -92,7 +107,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token');
 
       expect(response.status).toBe(200);
-      expect(userQueries.getAllUsers).toHaveBeenCalledWith(mockDb, { limit: 50, offset: 0 });
+      expect(userQueries.getAllUsers).toHaveBeenCalledWith(db, { limit: 50, offset: 0 });
     });
 
     it('should support offset query parameter', async () => {
@@ -103,7 +118,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token');
 
       expect(response.status).toBe(200);
-      expect(userQueries.getAllUsers).toHaveBeenCalledWith(mockDb, { limit: 100, offset: 10 });
+      expect(userQueries.getAllUsers).toHaveBeenCalledWith(db, { limit: 100, offset: 10 });
     });
 
     it('should support both limit and offset parameters', async () => {
@@ -114,7 +129,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token');
 
       expect(response.status).toBe(200);
-      expect(userQueries.getAllUsers).toHaveBeenCalledWith(mockDb, { limit: 25, offset: 50 });
+      expect(userQueries.getAllUsers).toHaveBeenCalledWith(db, { limit: 25, offset: 50 });
     });
 
     it('should return 500 on database error', async () => {
@@ -126,7 +141,7 @@ describe('User Management Routes', () => {
 
       expect(response.status).toBe(500);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('Internal server error');
+      expect(response.body.error).toBe('Failed to list users');
     });
   });
 
@@ -148,7 +163,7 @@ describe('User Management Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toEqual(mockUser);
-      expect(userQueries.getUserById).toHaveBeenCalledWith(mockDb, 2);
+      expect(userQueries.getUserById).toHaveBeenCalledWith(db, 2);
     });
 
     it('should return 404 for non-existent user', async () => {
@@ -210,10 +225,7 @@ describe('User Management Routes', () => {
         created_at: '2024-01-03T00:00:00Z',
       };
 
-      // Mock username check (no duplicate)
-      vi.mocked(mockDb.query).mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
-      // Mock user creation
-      vi.mocked(mockDb.query).mockResolvedValueOnce({ rows: [newUser], rowCount: 1 } as any);
+      vi.mocked(queries.createUser).mockResolvedValue(newUser);
 
       const response = await request(app)
         .post('/api/users')
@@ -237,8 +249,7 @@ describe('User Management Routes', () => {
         created_at: '2024-01-03T00:00:00Z',
       };
 
-      vi.mocked(mockDb.query).mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
-      vi.mocked(mockDb.query).mockResolvedValueOnce({ rows: [newUser], rowCount: 1 } as any);
+      vi.mocked(queries.createUser).mockResolvedValue(newUser);
 
       const response = await request(app)
         .post('/api/users')
@@ -305,11 +316,10 @@ describe('User Management Routes', () => {
     });
 
     it('should validate username is unique', async () => {
-      // Mock username exists
-      vi.mocked(mockDb.query).mockResolvedValueOnce({
-        rows: [{ id: 2 }],
-        rowCount: 1,
-      } as any);
+      // Mock createUser to throw duplicate key error
+      const duplicateError: any = new Error('duplicate key value violates unique constraint');
+      duplicateError.code = '23505';
+      vi.mocked(queries.createUser).mockRejectedValue(duplicateError);
 
       const response = await request(app)
         .post('/api/users')
@@ -333,7 +343,7 @@ describe('User Management Routes', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Password is required');
+      expect(response.body.error).toBe('Username and password are required');
     });
 
     it('should validate password meets complexity requirements', async () => {
@@ -361,7 +371,7 @@ describe('User Management Routes', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('Role must be either "admin" or "user"');
+      expect(response.body.error).toBe('Invalid role. Must be "admin" or "user"');
     });
 
     it('should return 401 for unauthenticated', async () => {
@@ -388,7 +398,7 @@ describe('User Management Routes', () => {
     });
 
     it('should return 500 on database error', async () => {
-      vi.mocked(mockDb.query).mockRejectedValue(new Error('Database error'));
+      vi.mocked(queries.createUser).mockRejectedValue(new Error('Database error'));
 
       const response = await request(app)
         .post('/api/users')
@@ -407,13 +417,15 @@ describe('User Management Routes', () => {
       const mockUser = {
         id: 2,
         username: 'user1',
-        role: 'user',
+        role: 'user' as UserRole,
         created_at: '2024-01-02T00:00:00Z',
       };
+      const updatedUser = { ...mockUser, role: 'admin' as UserRole };
 
-      vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
+      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(mockUser); // First call to check user exists
       vi.mocked(userQueries.getAdminCount).mockResolvedValue(2); // More than 1 admin
       vi.mocked(userQueries.updateUserRole).mockResolvedValue(undefined);
+      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(updatedUser); // Second call to fetch updated user
 
       const response = await request(app)
         .put('/api/users/2/role')
@@ -423,7 +435,7 @@ describe('User Management Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.role).toBe('admin');
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith(mockDb, 2, 'admin');
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 2, 'admin');
     });
 
     it('should prevent last admin from demoting self (403)', async () => {
@@ -451,13 +463,15 @@ describe('User Management Routes', () => {
       const mockAdminUser = {
         id: 3,
         username: 'admin2',
-        role: 'admin',
+        role: 'admin' as UserRole,
         created_at: '2024-01-03T00:00:00Z',
       };
+      const updatedUser = { ...mockAdminUser, role: 'user' as UserRole };
 
-      vi.mocked(userQueries.getUserById).mockResolvedValue(mockAdminUser);
+      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(mockAdminUser); // Check user exists
       vi.mocked(userQueries.getAdminCount).mockResolvedValue(2); // 2 admins
       vi.mocked(userQueries.updateUserRole).mockResolvedValue(undefined);
+      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(updatedUser); // Fetch updated user
 
       const response = await request(app)
         .put('/api/users/3/role')
@@ -465,19 +479,21 @@ describe('User Management Routes', () => {
         .send({ role: 'user' });
 
       expect(response.status).toBe(200);
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith(mockDb, 3, 'user');
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 3, 'user');
     });
 
     it('should allow admin to promote users to admin', async () => {
       const mockUser = {
         id: 2,
         username: 'user1',
-        role: 'user',
+        role: 'user' as UserRole,
         created_at: '2024-01-02T00:00:00Z',
       };
+      const updatedUser = { ...mockUser, role: 'admin' as UserRole };
 
-      vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
+      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(mockUser); // Check user exists
       vi.mocked(userQueries.updateUserRole).mockResolvedValue(undefined);
+      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(updatedUser); // Fetch updated user
 
       const response = await request(app)
         .put('/api/users/2/role')
@@ -485,7 +501,7 @@ describe('User Management Routes', () => {
         .send({ role: 'admin' });
 
       expect(response.status).toBe(200);
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith(mockDb, 2, 'admin');
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 2, 'admin');
     });
 
     it('should return 404 for non-existent user', async () => {
@@ -507,7 +523,7 @@ describe('User Management Routes', () => {
         .send({ role: 'superadmin' });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('Role must be either "admin" or "user"');
+      expect(response.body.error).toBe('Invalid role. Must be "admin" or "user"');
     });
 
     it('should return 400 for invalid ID format', async () => {
@@ -554,13 +570,13 @@ describe('User Management Routes', () => {
       const mockUser = {
         id: 2,
         username: 'user1',
-        role: 'user',
+        role: 'user' as UserRole,
         created_at: '2024-01-02T00:00:00Z',
       };
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
       vi.mocked(userQueries.generateRandomPassword).mockReturnValue('RandomPass123!@#');
-      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
+      vi.mocked(db.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
 
       const response = await request(app)
         .post('/api/users/2/reset-password')
@@ -569,7 +585,7 @@ describe('User Management Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.newPassword).toBe('RandomPass123!@#');
-      expect(response.body.data.message).toContain('reset');
+      expect(response.body.data.user).toEqual(mockUser);
     });
 
     it('should return new password in response for admin to share', async () => {
@@ -582,7 +598,7 @@ describe('User Management Routes', () => {
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
       vi.mocked(userQueries.generateRandomPassword).mockReturnValue('NewPass456!@#');
-      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
+      vi.mocked(db.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
 
       const response = await request(app)
         .post('/api/users/2/reset-password')
@@ -602,15 +618,15 @@ describe('User Management Routes', () => {
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
       vi.mocked(userQueries.generateRandomPassword).mockReturnValue('RandomPass123!@#');
-      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
+      vi.mocked(db.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
 
       await request(app)
         .post('/api/users/2/reset-password')
         .set('Authorization', 'Bearer valid-admin-token');
 
       // Verify password was hashed (bcrypt hash starts with $2b$)
-      expect(mockDb.query).toHaveBeenCalled();
-      const queryCall = vi.mocked(mockDb.query).mock.calls[0];
+      expect(db.query).toHaveBeenCalled();
+      const queryCall = vi.mocked(db.query).mock.calls[0];
       expect(queryCall[1][0]).toMatch(/^\$2[aby]\$/);
       expect(queryCall[1][0]).not.toBe('RandomPass123!@#');
     });
@@ -677,22 +693,22 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token');
 
       expect(response.status).toBe(204);
-      expect(userQueries.deleteUser).toHaveBeenCalledWith(mockDb, 2);
+      expect(userQueries.deleteUser).toHaveBeenCalledWith(db, 2);
     });
 
     it('should prevent deletion of last admin (403)', async () => {
       const mockAdminUser = {
-        id: 1,
-        username: 'admin',
-        role: 'admin',
-        created_at: '2024-01-01T00:00:00Z',
+        id: 2,
+        username: 'admin2',
+        role: 'admin' as UserRole,
+        created_at: '2024-01-02T00:00:00Z',
       };
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockAdminUser);
       vi.mocked(userQueries.getAdminCount).mockResolvedValue(1); // Only 1 admin
 
       const response = await request(app)
-        .delete('/api/users/1')
+        .delete('/api/users/2')
         .set('Authorization', 'Bearer valid-admin-token');
 
       expect(response.status).toBe(403);
@@ -736,7 +752,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token');
 
       expect(response.status).toBe(204);
-      expect(userQueries.deleteUser).toHaveBeenCalledWith(mockDb, 2);
+      expect(userQueries.deleteUser).toHaveBeenCalledWith(db, 2);
     });
 
     it('should allow deletion of other admin if not last', async () => {
@@ -756,7 +772,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token');
 
       expect(response.status).toBe(204);
-      expect(userQueries.deleteUser).toHaveBeenCalledWith(mockDb, 3);
+      expect(userQueries.deleteUser).toHaveBeenCalledWith(db, 3);
     });
 
     it('should return 404 for non-existent user', async () => {
