@@ -1,5 +1,5 @@
 import express from 'express';
-import { db } from '../db/client.js';
+import type { DB } from '../db/client.js';
 import { getWeeklyFilms, getFilmsByDate, getShowtimesByDate, getFilm, getShowtimesByFilmAndWeek, getWeeklyShowtimes, searchFilms } from '../db/queries.js';
 import { getWeekStart } from '../utils/date.js';
 import { groupShowtimesByCinema } from '../utils/showtimes.js';
@@ -12,6 +12,7 @@ const router = express.Router();
 // GET /api/films - Get weekly films or films by date
 router.get('/', publicLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const weekStart = getWeekStart();
     const dateParam = req.query.date as string | undefined;
 
@@ -73,6 +74,7 @@ router.get('/', publicLimiter, async (req, res, next) => {
 // GET /api/films/search - Search films with fuzzy matching
 router.get('/search', publicLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const query = req.query.q as string | undefined;
     
     // Validate query parameter
@@ -103,6 +105,7 @@ router.get('/search', publicLimiter, async (req, res, next) => {
 // GET /api/films/:id - Get film by ID
 router.get('/:id', publicLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const filmId = parseInt(req.params.id);
     const weekStart = getWeekStart();
 

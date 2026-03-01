@@ -35,9 +35,16 @@ describe('Routes - Films', () => {
   let mockRes: any;
   let mockReq: any;
   let mockNext: any;
+  let mockApp: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockApp = {
+      get: vi.fn((key: string) => {
+        if (key === 'db') return db;
+        return undefined;
+      })
+    };
     mockRes = {
       json: vi.fn().mockReturnThis(),
       status: vi.fn().mockReturnThis()
@@ -47,7 +54,7 @@ describe('Routes - Films', () => {
 
   describe('GET /', () => {
     it('should return weekly films with showtimes', async () => {
-      mockReq = { query: {} };
+      mockReq = { query: {}, app: mockApp };
       const mockFilms = [{ id: 1, title: 'Film 1' }];
       const mockShowtimes = [
         { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
@@ -70,7 +77,7 @@ describe('Routes - Films', () => {
     });
 
     it('should handle errors', async () => {
-      mockReq = { query: {} };
+      mockReq = { query: {}, app: mockApp };
       const error = new Error('DB Error');
       (queries.getWeeklyFilms as any).mockRejectedValue(error);
 
@@ -87,7 +94,7 @@ describe('Routes - Films', () => {
 
   describe('GET / with date filter', () => {
     it('should return films for a specific date', async () => {
-      mockReq = { query: { date: '2026-02-20' } };
+      mockReq = { query: { date: '2026-02-20' }, app: mockApp };
       const mockFilms = [{ id: 1, title: 'Film 1' }];
       const mockShowtimes = [
         { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' }, date: '2026-02-20' }
@@ -108,7 +115,7 @@ describe('Routes - Films', () => {
     });
 
     it('should return 400 for invalid date format', async () => {
-      mockReq = { query: { date: 'invalid-date' } };
+      mockReq = { query: { date: 'invalid-date' }, app: mockApp };
       const handler = getRouteHandler('/', 'get');
       await handler(mockReq, mockRes, mockNext);
 
@@ -122,7 +129,7 @@ describe('Routes - Films', () => {
 
   describe('GET /:id', () => {
     it('should return film by ID with showtimes', async () => {
-      mockReq = { params: { id: '1' } };
+      mockReq = { params: { id: '1' }, app: mockApp };
       const mockFilm = { id: 1, title: 'Film 1' };
       const mockShowtimes = [
         { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
@@ -141,7 +148,7 @@ describe('Routes - Films', () => {
     });
 
     it('should return 400 for invalid ID', async () => {
-      mockReq = { params: { id: 'abc' } };
+      mockReq = { params: { id: 'abc' }, app: mockApp };
       const handler = getRouteHandler('/:id', 'get');
       await handler(mockReq, mockRes, mockNext);
 
@@ -149,7 +156,7 @@ describe('Routes - Films', () => {
     });
 
     it('should return 404 for non-existent film', async () => {
-      mockReq = { params: { id: '99' } };
+      mockReq = { params: { id: '99' }, app: mockApp };
       (queries.getFilm as any).mockResolvedValue(null);
 
       const handler = getRouteHandler('/:id', 'get');
@@ -159,7 +166,7 @@ describe('Routes - Films', () => {
     });
 
     it('should handle errors', async () => {
-      mockReq = { params: { id: '1' } };
+      mockReq = { params: { id: '1' }, app: mockApp };
       const error = new Error('DB Error');
       (queries.getFilm as any).mockRejectedValue(error);
 
@@ -173,7 +180,7 @@ describe('Routes - Films', () => {
 
   describe('GET /search', () => {
     it('should return search results with valid query', async () => {
-      mockReq = { query: { q: 'Matrix' } };
+      mockReq = { query: { q: 'Matrix' }, app: mockApp };
       const mockFilms = [
         {
           id: 19776,
@@ -198,7 +205,7 @@ describe('Routes - Films', () => {
     });
 
     it('should return 400 if query parameter is missing', async () => {
-      mockReq = { query: {} };
+      mockReq = { query: {}, app: mockApp };
       const handler = getRouteHandler('/search', 'get');
       await handler(mockReq, mockRes, mockNext);
 
@@ -210,7 +217,7 @@ describe('Routes - Films', () => {
     });
 
     it('should return 400 if query is too short', async () => {
-      mockReq = { query: { q: 'a' } };
+      mockReq = { query: { q: 'a' }, app: mockApp };
       const handler = getRouteHandler('/search', 'get');
       await handler(mockReq, mockRes, mockNext);
 
@@ -222,7 +229,7 @@ describe('Routes - Films', () => {
     });
 
     it('should return empty array when no results found', async () => {
-      mockReq = { query: { q: 'xyz123notfound' } };
+      mockReq = { query: { q: 'xyz123notfound' }, app: mockApp };
       (queries.searchFilms as any).mockResolvedValue([]);
 
       const handler = getRouteHandler('/search', 'get');
@@ -235,7 +242,7 @@ describe('Routes - Films', () => {
     });
 
     it('should handle errors', async () => {
-      mockReq = { query: { q: 'test' } };
+      mockReq = { query: { q: 'test' }, app: mockApp };
       const error = new Error('DB Error');
       (queries.searchFilms as any).mockRejectedValue(error);
 
@@ -247,7 +254,7 @@ describe('Routes - Films', () => {
     });
 
     it('should trim whitespace from query', async () => {
-      mockReq = { query: { q: '  Matrix  ' } };
+      mockReq = { query: { q: '  Matrix  ' }, app: mockApp };
       (queries.searchFilms as any).mockResolvedValue([]);
 
       const handler = getRouteHandler('/search', 'get');
