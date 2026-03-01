@@ -9,7 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [3.0.0-beta.1] - 2026-03-01
+
 ### Added
+
+- **System Information & Diagnostics Dashboard** — Admin panel with real-time system monitoring at `/admin/system`
+  - System health card: status, uptime, version
+  - Database stats card: cinemas, movies, showtimes counts
+  - System resources card: memory usage, Node.js version
+  - Database health card: connection status, migrations status
+  - Migrations table with all applied migrations and timestamps
+  - Auto-refresh every 30 seconds
+  - System Information API endpoints (`GET /api/system/info`, `GET /api/system/migrations`, `GET /api/system/health`)
 
 - **White-Label Branding System** — Complete customization of application appearance and branding via admin panel
   - Admin panel UI at `/admin/settings` with 5 tabs: General, Colors, Typography, Footer, Email
@@ -122,6 +135,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `role` column: CHECK constraint for 'admin' or 'user' values
   - Default admin user auto-promoted on migration
   - Index on role column for query performance
+
+### Fixed
+
+- **Stored XSS Vulnerability in Footer Links** — Added server-side validation to prevent `javascript:` and other unsafe URL protocols in footer links configuration (HIGH severity, requires admin access)
 
 ---
 
@@ -432,6 +449,8 @@ No API, database schema, or configuration changes are included in this release.
 - Docker Compose profiles for modular deployment
 - `cinemas.json` configuration file with API-driven add/sync workflow
 
+[3.0.0-beta.1]: https://github.com/PhBassin/allo-scrapper/compare/v2.1.1...v3.0.0-beta.1
+[2.1.1]: https://github.com/PhBassin/allo-scrapper/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/PhBassin/allo-scrapper/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/PhBassin/allo-scrapper/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/PhBassin/allo-scrapper/compare/v1.0.0...v1.1.0
