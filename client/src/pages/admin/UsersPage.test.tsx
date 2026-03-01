@@ -311,8 +311,8 @@ describe('UsersPage', () => {
 
       // Wait for dialog to appear and query button within it
       const dialog = await screen.findByRole('heading', { name: /delete user/i });
-      const dialogContainer = dialog.closest('div[class*="fixed"]');
-      const confirmButton = within(dialogContainer!).getByRole('button', { name: /^delete$/i });
+      const dialogContainer = dialog.closest('div[class*="fixed"]') as HTMLElement;
+      const confirmButton = within(dialogContainer).getByRole('button', { name: /^delete$/i });
       await user.click(confirmButton);
 
       await waitFor(() => {
@@ -340,8 +340,8 @@ describe('UsersPage', () => {
 
       // Wait for dialog to appear and query button within it
       const dialog = await screen.findByRole('heading', { name: /delete user/i });
-      const dialogContainer = dialog.closest('div[class*="fixed"]');
-      const confirmButton = within(dialogContainer!).getByRole('button', { name: /^delete$/i });
+      const dialogContainer = dialog.closest('div[class*="fixed"]') as HTMLElement;
+      const confirmButton = within(dialogContainer).getByRole('button', { name: /^delete$/i });
       await user.click(confirmButton);
 
       await waitFor(() => {

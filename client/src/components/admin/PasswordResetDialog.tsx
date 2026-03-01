@@ -30,7 +30,7 @@ const PasswordResetDialog: React.FC<PasswordResetDialogProps> = ({
   };
 
   // Prevent backdrop click from closing (force user to use Close button)
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleBackdropClick = () => {
     // Do nothing - we want to force users to click the Close button
     // to ensure they've read the warning
   };
