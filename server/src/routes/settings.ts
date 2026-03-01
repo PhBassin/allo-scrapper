@@ -174,7 +174,7 @@ router.put('/', requireAuth, settingsAdminLimiter, requireAdmin, async (req: Aut
  * POST /api/settings/reset (admin only)
  * Reset settings to default values
  */
-router.post('/reset', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/reset', requireAuth, settingsAdminLimiter, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const defaultSettings = await resetSettings(db, req.user!.id);
 
