@@ -1,5 +1,4 @@
 import express from 'express';
-import rateLimit from 'express-rate-limit';
 import { db } from '../db/client.js';
 import {
   getSettings,
@@ -15,24 +14,9 @@ import type { AppSettingsUpdate, AppSettingsExport } from '../types/settings.js'
 import { logger } from '../utils/logger.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin, type AuthRequest } from '../middleware/admin.js';
+import { protectedLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
-
-// Rate limiter for settings import to prevent abuse and DoS
-const settingsImportLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 import requests per windowMs
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Rate limiting for admin settings endpoint
-const settingsAdminLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs for admin settings
-  standardHeaders: true,
-  legacyHeaders: false,
-});
 
 // Size limits for images (in bytes)
 const LOGO_MAX_SIZE = 200000; // 200 KB
@@ -73,38 +57,38 @@ router.get('/', async (_req, res) => {
  * GET /api/settings/admin (admin only)
  * Returns full settings including email configuration
  */
-router.get('/admin', requireAuth, settingsAdminLimiter, requireAdmin, async (_req, res) => {
- try {
-   const settings = await getSettings(db);
+router.get('/admin', protectedLimiter, requireAuth, requireAdmin, async (_req, res) => {
+  try {
+    const settings = await getSettings(db);
 
-   if (!settings) {
-     const response: ApiResponse = {
-       success: false,
-       error: 'Settings not found',
-     };
-     return res.status(404).json(response);
-   }
+    if (!settings) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Settings not found',
+      };
+      return res.status(404).json(response);
+    }
 
-   const response: ApiResponse = {
-     success: true,
-     data: settings,
-   };
-   return res.json(response);
- } catch (error) {
-   logger.error('Error fetching admin settings:', error);
-   const response: ApiResponse = {
-     success: false,
-     error: 'Failed to fetch settings',
-   };
-   return res.status(500).json(response);
- }
+    const response: ApiResponse = {
+      success: true,
+      data: settings,
+    };
+    return res.json(response);
+  } catch (error) {
+    logger.error('Error fetching admin settings:', error);
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to fetch settings',
+    };
+    return res.status(500).json(response);
+  }
 });
 
 /**
  * PUT /api/settings (admin only)
  * Update settings
  */
-router.put('/', requireAuth, settingsAdminLimiter, requireAdmin, async (req: AuthRequest, res) => {
+router.put('/', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const updates: AppSettingsUpdate = req.body;
 
@@ -174,7 +158,7 @@ router.put('/', requireAuth, settingsAdminLimiter, requireAdmin, async (req: Aut
  * POST /api/settings/reset (admin only)
  * Reset settings to default values
  */
-router.post('/reset', requireAuth, settingsAdminLimiter, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/reset', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const defaultSettings = await resetSettings(db, req.user!.id);
 
@@ -209,7 +193,7 @@ router.post('/reset', requireAuth, settingsAdminLimiter, requireAdmin, async (re
  * POST /api/settings/export (admin only)
  * Export settings as JSON for backup
  */
-router.post('/export', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/export', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const exportData = await exportSettings(db);
 
@@ -244,7 +228,7 @@ router.post('/export', requireAuth, requireAdmin, async (req: AuthRequest, res) 
  * POST /api/settings/import (admin only)
  * Import settings from JSON backup
  */
-router.post('/import', requireAuth, requireAdmin, settingsImportLimiter, async (req: AuthRequest, res) => {
+router.post('/import', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const importData: AppSettingsExport = req.body;
 
