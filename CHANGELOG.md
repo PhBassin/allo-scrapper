@@ -9,6 +9,120 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **White-Label Branding System** — Complete customization of application appearance and branding via admin panel
+  - Admin panel UI at `/admin/settings` with 5 tabs: General, Colors, Typography, Footer, Email
+  - Customizable site name, logo (PNG/JPG/SVG, max 200KB), favicon (ICO/PNG, max 50KB)
+  - 9-color theme system: primary, secondary, accent, background, surface, text (primary/secondary), success, error
+  - Typography selection from 15+ Google Fonts for headings and body text
+  - Footer customization with dynamic placeholders (`{site_name}`, `{year}`) and custom links
+  - Email branding configuration for system-generated emails
+  - Configuration export/import for backup and migration (JSON format)
+  - Reset to defaults functionality
+  
+- **Settings Management API** — Comprehensive REST API for branding configuration
+  - `GET /api/settings` - Public settings for theme application (no auth required)
+  - `GET /api/settings/admin` - Full settings including audit fields (admin only)
+  - `PUT /api/settings` - Update settings with validation (admin only)
+  - `POST /api/settings/reset` - Reset to defaults (admin only)
+  - `GET /api/settings/export` - Export settings as JSON backup (admin only)
+  - `POST /api/settings/import` - Import settings from JSON (admin only)
+  - `GET /api/theme.css` - Dynamically generated CSS with theme variables (public, cached with ETag)
+  
+- **User Management System** — Role-based access control with comprehensive user CRUD
+  - Two roles: `admin` (full access) and `user` (cinema schedules only)
+  - Admin panel for user management (create, edit, delete users)
+  - Safety guards: prevent last admin deletion, self-deletion prevention
+  - Secure password reset with cryptographically random passwords
+  
+- **User Management API** — Admin-only endpoints for managing users
+  - `GET /api/users` - List all users with pagination
+  - `GET /api/users/:id` - Get user by ID
+  - `POST /api/users` - Create new user with role selection
+  - `PUT /api/users/:id/role` - Change user role (admin/user)
+  - `POST /api/users/:id/reset-password` - Generate new secure password
+  - `DELETE /api/users/:id` - Delete user with safety checks
+  
+- **Dynamic Theme Generator** — Server-side CSS generation from settings
+  - Automatic Google Fonts import detection and generation
+  - CSS custom properties for all theme variables
+  - ETag-based caching for performance (1-hour cache)
+  - Graceful fallback to defaults on errors
+  
+- **Admin Role Middleware** — Role-based route protection
+  - `requireAdmin()` middleware for admin-only endpoints
+  - JWT authentication + database role verification
+  - Returns 403 Forbidden for non-admin users
+  
+- **Image Validation & Compression** — Secure image upload handling
+  - Base64 image validation with file type detection
+  - Size limits enforced (Logo: 200KB, Favicon: 50KB)
+  - Dimension validation (Logo: min 100x100px, Favicon: 32x32 or 64x64)
+  - Sharp-based compression for oversized images
+
+### Changed
+
+- **User Table Schema** — Extended with role-based access control
+  - Added `role` column with `admin` and `user` values
+  - Default `admin` user promoted to admin role automatically
+  - Index on `role` column for performance
+  
+- **JWT Payload** — Extended to include user role
+  - Login response now includes `role` field
+  - JWT token contains role claim for authorization
+
+### Security
+
+- **Admin Route Protection** — All admin endpoints protected by role-based middleware
+  - Settings management endpoints require admin role
+  - User management endpoints require admin role
+  - Rate limiting applied to all admin endpoints (60 req/15min)
+  - Audit trail: `updated_by` tracks which admin made changes
+
+- **User Management Safety Guards** — Multiple protections against accidental lockout
+  - Cannot delete the last admin user
+  - Cannot demote the last admin to user role
+  - Cannot delete your own account (self-deletion prevention)
+  - Password complexity validation on user creation
+
+### Documentation
+
+- **ADMIN_PANEL.md** — Comprehensive admin panel user guide (new file)
+  - Complete walkthrough of all admin panel features
+  - Best practices for branding and security
+  - Troubleshooting common issues
+  
+- **API.md** — Documented white-label APIs
+  - Complete Settings Management API reference with examples
+  - Complete User Management API reference with examples
+  - Theme CSS endpoint documentation
+  
+- **README.md** — Added White-Label Branding section
+  - Overview of customization options
+  - Quick start guide for admin panel
+  - Configuration management instructions
+  
+- **AGENTS.md** — Added white-label development guide
+  - System architecture overview
+  - Backend and frontend component reference
+  - Step-by-step guide for extending settings schema
+  - Common patterns and troubleshooting
+
+### Database
+
+- **app_settings table** — Singleton table for application-wide settings
+  - Singleton constraint (id=1 only)
+  - 9 color fields, 2 font fields, logo/favicon base64 fields
+  - Footer configuration (text, copyright, links JSONB)
+  - Email branding fields
+  - Audit fields (updated_at, updated_by FK to users)
+  
+- **users table extension** — Added role-based access control
+  - `role` column: CHECK constraint for 'admin' or 'user' values
+  - Default admin user auto-promoted on migration
+  - Index on role column for query performance
+
 ---
 
 ## [2.1.1] - 2026-03-01
