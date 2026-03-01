@@ -63,9 +63,14 @@ export async function createSchemaTable(db: DB): Promise<void> {
  * Get the migrations directory path (works in both development and Docker)
  * In Docker: /app/migrations (copied by Dockerfile)
  * In development: /path/to/project/migrations
+ * 
+ * Detection strategy: Check if running from /app/dist (Docker) or local dev path
  */
 function getMigrationsDir(): string {
-  return process.env.NODE_ENV === 'production'
+  // In Docker, __dirname is /app/dist/db
+  // In development, __dirname is /path/to/project/server/src/db (compiled to dist/db)
+  const isDocker = __dirname.startsWith('/app/dist');
+  return isDocker 
     ? path.join('/app', 'migrations')
     : path.join(__dirname, '../../../migrations');
 }
@@ -192,7 +197,7 @@ export async function runMigrations(db: DB): Promise<void> {
   await createSchemaTable(db);
 
   // Get all migration files for checksum verification
-  const migrationsDir = path.join(__dirname, '../../../migrations');
+  const migrationsDir = getMigrationsDir();
   const allFiles = await fs.readdir(migrationsDir);
   const migrationFiles = allFiles.filter(f => f.endsWith('.sql')).sort();
 
