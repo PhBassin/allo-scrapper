@@ -31,10 +31,13 @@ services:
 
   # Production web server (serves both API and frontend)
   ics-web:
-    image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-stable}
-    #build: .
+    #image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-stable}
+    build:
+      context: .
+      args:
+        VITE_APP_NAME: ${VITE_APP_NAME:-Allo-Scrapper}
     user: root
-    pull_policy: always
+    #pull_policy: always
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"

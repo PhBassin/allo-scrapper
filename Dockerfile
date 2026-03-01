@@ -11,6 +11,9 @@
 # ----------------------------------------------------------------------------
 FROM node:20-alpine AS frontend-builder
 
+# Accept build argument for app name (allows customization at build time)
+ARG VITE_APP_NAME=Allo-Scrapper
+
 WORKDIR /app/client
 
 # Copy frontend package files
@@ -23,6 +26,9 @@ RUN npm ci && \
 
 # Copy frontend source
 COPY client/ ./
+
+# Set environment variable for Vite to substitute in index.html
+ENV VITE_APP_NAME=${VITE_APP_NAME}
 
 # Build frontend for production (source maps disabled in vite.config.ts)
 RUN npm run build && \
