@@ -5,10 +5,12 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Registry, collectDefaultMetrics } from 'prom-client';
+import { createHash } from 'crypto';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
 import { generalLimiter } from './middleware/rate-limit.js';
+import { generateThemeCSS } from './services/theme-generator.js';
 
 // Import routes
 import filmsRouter from './routes/films.js';
@@ -67,6 +69,39 @@ export function createApp() {
       timestamp: new Date().toISOString(),
       name: process.env.APP_NAME ?? 'Allo-Scrapper'
     });
+  });
+
+  // Theme CSS endpoint (public, with ETag caching)
+  app.get('/api/theme.css', async (req, res) => {
+    try {
+      const db = req.app.locals.db;
+      const css = await generateThemeCSS(db);
+      
+      // Generate ETag from CSS content (MD5 hash)
+      const etag = createHash('md5').update(css, 'utf8').digest('hex');
+      
+      // Check If-None-Match header for HTTP caching
+      const clientEtag = req.headers['if-none-match'];
+      if (clientEtag && clientEtag === etag) {
+        // Client has latest version, return 304 Not Modified
+        return res.status(304).end();
+      }
+      
+      // Set caching headers
+      res.set({
+        'Content-Type': 'text/css; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+        'ETag': etag,
+      });
+      
+      return res.send(css);
+    } catch (err) {
+      logger.error('Error serving theme CSS', { error: err });
+      
+      // Return minimal fallback CSS on error (don't fail hard)
+      res.set('Content-Type', 'text/css; charset=utf-8');
+      return res.send(':root { --color-primary: #FECC00; --color-secondary: #1F2937; }');
+    }
   });
 
   // Prometheus metrics endpoint
