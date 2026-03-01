@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import router from './reports.js';
 import * as queries from '../db/queries.js';
+import { db } from '../db/client.js';
 
 // Mock dependencies
 vi.mock('../middleware/auth.js', () => ({
@@ -34,9 +35,16 @@ describe('Routes - Reports', () => {
   let mockRes: any;
   let mockReq: any;
   let mockNext: any;
+  let mockApp: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockApp = {
+      get: vi.fn((key: string) => {
+        if (key === 'db') return db;
+        return undefined;
+      })
+    };
     mockRes = {
       json: vi.fn().mockReturnThis(),
       status: vi.fn().mockReturnThis(),
@@ -50,7 +58,8 @@ describe('Routes - Reports', () => {
         query: {
           page: '1',
           pageSize: '1000' // Requesting excessive page size
-        }
+        },
+        app: mockApp
       };
 
       (queries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
@@ -67,7 +76,8 @@ describe('Routes - Reports', () => {
 
     it('should use default pageSize of 20 if not provided', async () => {
       mockReq = {
-        query: {}
+        query: {},
+        app: mockApp
       };
 
       (queries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
@@ -84,7 +94,8 @@ describe('Routes - Reports', () => {
       mockReq = {
         query: {
           page: '-5'
-        }
+        },
+        app: mockApp
       };
 
       (queries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });

@@ -1,5 +1,5 @@
 import express from 'express';
-import { db } from '../db/client.js';
+import type { DB } from '../db/client.js';
 import { getScrapeReports, getScrapeReport } from '../db/queries.js';
 import type { ApiResponse, PaginatedResponse, GetReportsQuery } from '../types/api.js';
 import type { ScrapeReport } from '../db/queries.js';
@@ -12,6 +12,7 @@ const router = express.Router();
 // GET /api/reports - Get all scrape reports (paginated)
 router.get('/', requireAuth, protectedLimiter, async (req, res) => {
   try {
+    const db: DB = req.app.get('db');
     const query = req.query as GetReportsQuery;
     let page = parseInt(query.page || '1');
     let pageSize = parseInt(query.pageSize || '20');
@@ -62,6 +63,7 @@ router.get('/', requireAuth, protectedLimiter, async (req, res) => {
 // GET /api/reports/:id - Get a specific report
 router.get('/:id', requireAuth, protectedLimiter, async (req, res) => {
   try {
+    const db: DB = req.app.get('db');
     const reportId = parseInt(req.params.id);
 
     if (isNaN(reportId)) {
