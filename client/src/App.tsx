@@ -9,13 +9,29 @@ import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import SettingsPage from './pages/admin/SettingsPage';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
-import { SettingsProvider } from './contexts/SettingsContext';
+import { SettingsProvider, SettingsContext } from './contexts/SettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequireAdmin from './components/RequireAdmin';
+import { useTheme } from './hooks/useTheme';
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <p className="mt-4 text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
 
 function AppRoutes() {
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
+  const { isLoadingPublic } = useContext(SettingsContext);
+
+  // Apply theme globally
+  useTheme();
 
   useEffect(() => {
     const handleUnauthorized = (event: Event) => {
@@ -37,6 +53,11 @@ function AppRoutes() {
       window.removeEventListener('auth:unauthorized', handleUnauthorized);
     };
   }, [logout, navigate]);
+
+  // Show loading screen while fetching initial settings
+  if (isLoadingPublic) {
+    return <LoadingScreen />;
+  }
 
   return (
     <Layout>
