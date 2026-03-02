@@ -116,7 +116,15 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
   validateCinemaId(cinemaId);
   validateDate(date);
 
-  const url = `${ALLOCINE_BASE_URL}/_/showtimes/theater-${cinemaId}/d-${date}/`;
+  // Construct URL via URL object and re-validate hostname to satisfy SSRF guard.
+  // Even though cinemaId and date are already strictly validated above, building
+  // the URL with new URL() and asserting the final hostname prevents any future
+  // taint from reaching the fetch call.
+  const constructed = new URL(`/_/showtimes/theater-${cinemaId}/d-${date}/`, ALLOCINE_BASE_URL);
+  if (constructed.hostname !== 'www.allocine.fr' || constructed.protocol !== 'https:') {
+    throw new Error(`SSRF guard: unexpected host in constructed URL ${constructed.href}`);
+  }
+  const url = constructed.href;
   logger.info(`📡 Fetching showtimes JSON: ${url}`);
 
   const response = await fetch(url, {
@@ -139,7 +147,12 @@ export async function fetchFilmPage(filmId: number): Promise<string> {
   // Validate input before using in URL to prevent SSRF
   validateFilmId(filmId);
 
-  const url = `${ALLOCINE_BASE_URL}/film/fichefilm_gen_cfilm=${filmId}.html`;
+  // Construct URL via URL object and re-validate hostname (SSRF guard).
+  const constructed = new URL(`/film/fichefilm_gen_cfilm=${filmId}.html`, ALLOCINE_BASE_URL);
+  if (constructed.hostname !== 'www.allocine.fr' || constructed.protocol !== 'https:') {
+    throw new Error(`SSRF guard: unexpected host in constructed URL ${constructed.href}`);
+  }
+  const url = constructed.href;
 
   logger.info(`🎬 Fetching film page: ${url}`);
 
