@@ -218,7 +218,7 @@ describe('Auth Routes', () => {
 
             expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
-            expect(response.body.error).toContain('Password must be at least 8 characters');
+            expect(response.body.error).toContain('Password must contain at least one uppercase letter');
         });
 
         it('should return 400 if newPassword lacks lowercase', async () => {
@@ -237,7 +237,7 @@ describe('Auth Routes', () => {
 
             expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
-            expect(response.body.error).toContain('Password must be at least 8 characters');
+            expect(response.body.error).toContain('Password must contain at least one lowercase letter');
         });
 
         it('should return 400 if newPassword lacks digit', async () => {
@@ -256,7 +256,7 @@ describe('Auth Routes', () => {
 
             expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
-            expect(response.body.error).toContain('Password must be at least 8 characters');
+            expect(response.body.error).toContain('Password must contain at least one digit');
         });
 
         it('should return 400 if newPassword lacks special character', async () => {
@@ -275,7 +275,7 @@ describe('Auth Routes', () => {
 
             expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
-            expect(response.body.error).toContain('Password must be at least 8 characters');
+            expect(response.body.error).toContain('Password must contain at least one special character');
         });
 
         it('should return 401 if currentPassword is incorrect', async () => {
