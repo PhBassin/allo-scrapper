@@ -195,10 +195,7 @@ export async function addCinemaAndScrape(
 
   await closeBrowser();
 
-  // 5. Sync cinemas to JSON file after successful scrape
-  const { syncCinemasFromDatabase } = await import('../cinema-config.js');
-  await syncCinemasFromDatabase(db);
-  logger.info('✅ Cinema added and synced to JSON file');
+  logger.info('✅ Cinema added successfully');
 
   return cinema;
 }

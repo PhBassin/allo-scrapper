@@ -1,15 +1,9 @@
 import express from 'express';
 import type { DB } from '../db/client.js';
-import { getCinemas, getShowtimesByCinemaAndWeek } from '../db/queries.js';
+import { getCinemas, getShowtimesByCinemaAndWeek, addCinema, updateCinemaConfig, deleteCinema } from '../db/queries.js';
 import { getWeekStart } from '../utils/date.js';
 import { addCinemaAndScrape } from '../services/scraper/index.js';
 import { isValidAllocineUrl } from '../services/scraper/utils.js';
-import {
-  addCinemaWithSync,
-  updateCinemaWithSync,
-  deleteCinemaWithSync,
-  syncCinemasFromDatabase,
-} from '../services/cinema-config.js';
 import type { ApiResponse } from '../types/api.js';
 import { publicLimiter, protectedLimiter } from '../middleware/rate-limit.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -115,7 +109,7 @@ router.post('/', requireAuth, requireAdmin, protectedLimiter, async (req, res, n
       return res.status(400).json(response);
     }
 
-    const cinema = await addCinemaWithSync(db, { id, name, url });
+    const cinema = await addCinema(db, { id, name, url });
 
     const response: ApiResponse = {
       success: true,
@@ -178,7 +172,7 @@ router.put('/:id', requireAuth, requireAdmin, protectedLimiter, async (req, res,
     if (name) updates.name = name;
     if (url) updates.url = url;
 
-    const cinema = await updateCinemaWithSync(db, cinemaId, updates);
+    const cinema = await updateCinemaConfig(db, cinemaId, updates);
 
     if (!cinema) {
       const response: ApiResponse = {
@@ -204,7 +198,7 @@ router.delete('/:id', requireAuth, requireAdmin, protectedLimiter, async (req, r
   try {
     const db: DB = req.app.get('db');
     const cinemaId = req.params.id;
-    const deleted = await deleteCinemaWithSync(db, cinemaId);
+    const deleted = await deleteCinema(db, cinemaId);
 
     if (!deleted) {
       const response: ApiResponse = {
@@ -215,26 +209,6 @@ router.delete('/:id', requireAuth, requireAdmin, protectedLimiter, async (req, r
     }
 
     return res.status(204).send();
-  } catch (error) {
-    return next(error);
-  }
-});
-
-// GET /api/cinemas/sync - Manual sync from database to JSON file
-router.get('/sync', requireAuth, requireAdmin, protectedLimiter, async (req, res, next) => {
-  try {
-    const db: DB = req.app.get('db');
-    const count = await syncCinemasFromDatabase(db);
-
-    const response: ApiResponse = {
-      success: true,
-      data: {
-        count,
-        message: `Synced ${count} cinema(s) to JSON file`,
-      },
-    };
-
-    return res.json(response);
   } catch (error) {
     return next(error);
   }

@@ -24,11 +24,6 @@ vi.mock('../../db/queries.js', () => ({
   getCinemaConfigs: vi.fn(),
 }));
 
-// Mock cinema-config
-vi.mock('../cinema-config.js', () => ({
-  syncCinemasFromDatabase: vi.fn(),
-}));
-
 describe('addCinemaAndScrape', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -51,7 +46,7 @@ describe('addCinemaAndScrape', () => {
       expect.objectContaining({
         id: 'W7517',
         name: 'Club de l Etoile',
-        url: mockUrl, // This is expected to fail currently
+        url: mockUrl,
       })
     );
 

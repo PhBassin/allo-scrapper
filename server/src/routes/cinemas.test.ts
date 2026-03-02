@@ -52,7 +52,7 @@ describe('Routes - Cinemas', () => {
   });
 
   describe('POST /', () => {
-    it.skip('should create a new cinema and return 201', async () => { // pending #277 — route still calls addCinemaWithSync
+    it('should create a new cinema and return 201', async () => {
       mockReq = {
         body: { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' },
         app: mockApp
@@ -130,7 +130,7 @@ describe('Routes - Cinemas', () => {
   });
 
   describe('PUT /:id', () => {
-    it.skip('should update a cinema and return the updated record', async () => { // pending #277 — route still calls updateCinemaWithSync
+    it('should update a cinema and return the updated record', async () => {
       mockReq = { params: { id: 'W7504' }, body: { name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' }, app: mockApp };
       const updated = { id: 'W7504', name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' };
       (queries.updateCinemaConfig as any).mockResolvedValue(updated);
@@ -185,7 +185,7 @@ describe('Routes - Cinemas', () => {
   });
 
   describe('DELETE /:id', () => {
-    it.skip('should delete a cinema and return 204', async () => { // pending #277 — route still calls deleteCinemaWithSync
+    it('should delete a cinema and return 204', async () => {
       mockReq = { params: { id: 'W7504' }, app: mockApp };
       (queries.deleteCinema as any).mockResolvedValue(true);
 
