@@ -23,14 +23,14 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 2. BRANCH  → Create a dedicated feature branch from develop for this issue
 3. RED     → Write failing tests first (commit before implementing)
 4. GREEN   → Write minimal code to make tests pass
-5. COMMIT  → Atomic commits with Conventional Commits format
-6. PR      → Open Pull Request referencing the issue, wait for review
+5. DOCS    → Update README.md / AGENTS.md if API or behaviour changed
+6. COMMIT  → Atomic commits with Conventional Commits format
+7. PR      → Open Pull Request referencing the issue, wait for review
              → After merge: switch back to develop, pull latest
 ```
 
 **Conditional steps (not always required):**
 - **Docker build** — run `docker compose build` before pushing if Dockerfile or dependencies changed
-- **Docs update** — update README.md if public API or user-facing features changed
 - **E2E tests** — Playwright infrastructure exists (`e2e/`) but E2E tests are currently out of scope
 
 ---
@@ -156,7 +156,20 @@ cd server && npm run test:run   # all green
 
 ---
 
-## Step 5: Atomic Commits
+## Step 5: DOCS — Update Documentation
+
+Before committing, update documentation if any of the following changed:
+
+- **Public API** — new or modified endpoints → update `README.md` API section
+- **Behaviour change** — changed defaults, config, env vars → update `README.md`
+- **Agent workflow** — new gotchas, lessons learned, or workflow changes → update `AGENTS.md`
+- **White-label / settings schema** — update `WHITE-LABEL.md`
+
+If nothing changed for external consumers or future agents, skip this step.
+
+---
+
+## Step 6: Atomic Commits
 
 **Each commit = one logical, self-contained change.**
 
@@ -206,12 +219,12 @@ git commit -m "test(scope): add test for <feature>"       # RED — always first
 git commit -m "feat(scope): implement <feature>
 
 refs #<issue>"                                             # GREEN
-git commit -m "docs: update README with <feature>"        # if applicable
+git commit -m "docs: update README with <feature>"        # DOCS — if applicable
 ```
 
 ---
 
-## Step 6: Pull Request
+## Step 7: Pull Request
 
 ```bash
 # Push branch
