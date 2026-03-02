@@ -8,6 +8,7 @@ import { logger } from '../utils/logger.js';
 import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
+import { validatePasswordStrength } from '../utils/security.js';
 
 const router = express.Router();
 
@@ -154,11 +155,11 @@ router.post('/change-password', requireAuth, authLimiter, async (req: AuthReques
         }
 
         // Validate password strength (OWASP/NIST best practices)
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]).{8,}$/;
-        if (!passwordRegex.test(newPassword)) {
+        const passwordError = validatePasswordStrength(newPassword);
+        if (passwordError) {
             const response: ApiResponse = {
                 success: false,
-                error: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character',
+                error: passwordError,
             };
             return res.status(400).json(response);
         }

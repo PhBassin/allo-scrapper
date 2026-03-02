@@ -15,32 +15,12 @@ import {
 } from '../db/user-queries.js';
 import bcrypt from 'bcryptjs';
 import { logger } from '../utils/logger.js';
+import { validatePasswordStrength } from '../utils/security.js';
 
 const router = express.Router();
 
 // Username validation regex: alphanumeric only, 3-15 characters
 const USERNAME_REGEX = /^[a-zA-Z0-9]{3,15}$/;
-
-// Password validation: min 8 chars, uppercase, lowercase, digit, special char
-const PASSWORD_MIN_LENGTH = 8;
-function validatePassword(password: string): string | null {
-  if (password.length < PASSWORD_MIN_LENGTH) {
-    return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
-  }
-  if (!/[A-Z]/.test(password)) {
-    return 'Password must contain at least one uppercase letter';
-  }
-  if (!/[a-z]/.test(password)) {
-    return 'Password must contain at least one lowercase letter';
-  }
-  if (!/[0-9]/.test(password)) {
-    return 'Password must contain at least one digit';
-  }
-  if (!/[^A-Za-z0-9]/.test(password)) {
-    return 'Password must contain at least one special character';
-  }
-  return null;
-}
 
 /**
  * GET /api/users
@@ -190,7 +170,7 @@ router.post(
       }
 
       // Validate password
-      const passwordError = validatePassword(password);
+      const passwordError = validatePasswordStrength(password);
       if (passwordError) {
         res.status(400).json({
           success: false,
