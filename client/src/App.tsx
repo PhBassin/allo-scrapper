@@ -7,6 +7,7 @@ import FilmPage from './pages/FilmPage';
 import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import CinemasPage from './pages/admin/CinemasPage';
 import SettingsPage from './pages/admin/SettingsPage';
 import UsersPage from './pages/admin/UsersPage';
 import SystemPage from './pages/admin/SystemPage';
@@ -90,6 +91,14 @@ function AppRoutes() {
             <ProtectedRoute>
               <ReportsPage />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/cinemas"
+          element={
+            <RequireAdmin>
+              <CinemasPage />
+            </RequireAdmin>
           }
         />
         <Route
