@@ -37,6 +37,7 @@ export interface Film {
 export interface Cinema {
   id: string;
   name: string;
+  url?: string;
   address?: string;
   postal_code?: string;
   city?: string;
