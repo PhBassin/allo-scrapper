@@ -180,7 +180,7 @@ export default function CinemaPage() {
           </p>
         )}
         
-        {cinema.screen_count && (
+        {cinema.screen_count != null && cinema.screen_count > 0 && (
           <p className="text-gray-600">
             🎬 {cinema.screen_count} salle{cinema.screen_count > 1 ? 's' : ''}
           </p>
@@ -240,22 +240,22 @@ export default function CinemaPage() {
                       </div>
 
                       {/* Ratings */}
-                      {(film.press_rating || film.audience_rating) && (
+                      {(film.press_rating != null && film.press_rating > 0) || (film.audience_rating != null && film.audience_rating > 0) ? (
                         <div className="flex gap-3 mb-4">
-                          {film.press_rating && (
+                          {film.press_rating != null && film.press_rating > 0 && (
                             <div className="flex items-center gap-1">
                               <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Presse</span>
                               <span className="font-bold text-sm">★ {film.press_rating.toFixed(1)}</span>
                             </div>
                           )}
-                          {film.audience_rating && (
+                          {film.audience_rating != null && film.audience_rating > 0 && (
                             <div className="flex items-center gap-1">
                               <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Spectateurs</span>
                               <span className="font-bold text-sm">★ {film.audience_rating.toFixed(1)}</span>
                             </div>
                           )}
                         </div>
-                      )}
+                      ) : null}
                     </div>
 
                     <div className="pt-2 border-t border-gray-100">

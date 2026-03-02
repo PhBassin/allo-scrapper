@@ -79,16 +79,16 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
               )}
             </div>
 
-            {(film.press_rating || film.audience_rating) && (
+            {(film.press_rating != null && film.press_rating > 0) || (film.audience_rating != null && film.audience_rating > 0) ? (
               <div className="flex gap-4 mb-4 pt-4 border-t border-gray-50">
-                {film.press_rating && (
+                {film.press_rating != null && film.press_rating > 0 && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-yellow-500 text-lg leading-none">★</span>
                     <span className="font-bold">{film.press_rating.toFixed(1)}</span>
                     <span className="text-[10px] text-gray-400 uppercase font-bold">Presse</span>
                   </div>
                 )}
-                {film.audience_rating && (
+                {film.audience_rating != null && film.audience_rating > 0 && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-yellow-500 text-lg leading-none">★</span>
                     <span className="font-bold">{film.audience_rating.toFixed(1)}</span>
@@ -96,7 +96,7 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
 
             {film.synopsis && <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{film.synopsis}</p>}
           </div>
