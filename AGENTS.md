@@ -370,7 +370,7 @@ gh pr checks
 
 ### Adding a New Cinema
 
-Use the admin UI at `/admin/cinemas`. It handles scraping, DB persistence, and `cinemas.json` update automatically.
+Use the admin UI at `/admin/cinemas`. It handles scraping and DB persistence automatically.
 
 If scripting via API:
 ```bash
@@ -380,11 +380,7 @@ curl -X POST http://localhost:3000/api/cinemas \
   -d '{"url":"https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html"}'
 ```
 
-Then commit the updated config:
-```bash
-git add server/src/config/cinemas.json
-git commit -m "feat(cinema): add <cinema name> (CXXXX)"
-```
+No file commit is needed — Postgres is the source of truth. `cinemas.json` is only a one-time bootstrap seed and is never written to by the application.
 
 For parser changes, write tests first (see Step 3).
 
