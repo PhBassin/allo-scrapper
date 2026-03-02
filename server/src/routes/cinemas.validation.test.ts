@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as cinemaConfig from '../services/cinema-config.js';
+import * as queries from '../db/queries.js';
 import router from './cinemas.js';
 import { db } from '../db/client.js';
 
@@ -8,11 +8,10 @@ vi.mock('../db/client.js', () => ({
   db: { query: vi.fn() }
 }));
 
-vi.mock('../services/cinema-config.js', () => ({
-  addCinemaWithSync: vi.fn(),
-  updateCinemaWithSync: vi.fn(),
-  deleteCinemaWithSync: vi.fn(),
-  syncCinemasFromDatabase: vi.fn(),
+vi.mock('../db/queries.js', () => ({
+  addCinema: vi.fn(),
+  updateCinemaConfig: vi.fn(),
+  deleteCinema: vi.fn(),
 }));
 
 vi.mock('../services/scraper/index.js', () => ({
@@ -50,8 +49,6 @@ describe('Routes - Cinemas - Validation', () => {
     mockNext = vi.fn();
   });
 
-
-
   it('should reject POST with invalid ID format (non-alphanumeric)', async () => {
     mockReq = {
       body: {
@@ -70,7 +67,7 @@ describe('Routes - Cinemas - Validation', () => {
       success: false,
       error: expect.stringContaining('Invalid ID format. Must be alphanumeric string.')
     }));
-    expect(cinemaConfig.addCinemaWithSync).not.toHaveBeenCalled();
+    expect(queries.addCinema).not.toHaveBeenCalled();
   });
 
   it('should reject POST with ID too long', async () => {
@@ -113,7 +110,7 @@ describe('Routes - Cinemas - Validation', () => {
     }));
   });
 
-   it('should reject PUT with Name too long', async () => {
+  it('should reject PUT with Name too long', async () => {
     mockReq = {
       params: { id: 'C001' },
       body: {
