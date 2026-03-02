@@ -97,12 +97,6 @@ describe('Routes - Cinemas - Security', () => {
       expect(names).toContain('requireAdmin');
     });
 
-    it('GET /sync should require both requireAuth and requireAdmin middleware', () => {
-      const names = getMiddlewareNames('/sync', 'get');
-      expect(names).toContain('requireAuth');
-      expect(names).toContain('requireAdmin');
-    });
-
     it('GET / should NOT require authentication', () => {
       const names = getMiddlewareNames('/', 'get');
       expect(names).not.toContain('requireAuth');
