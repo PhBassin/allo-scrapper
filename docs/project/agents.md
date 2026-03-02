@@ -26,8 +26,13 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 5. DOCS    → Update README.md / AGENTS.md if API or behaviour changed
 6. COMMIT  → Atomic commits with Conventional Commits format
 7. PR      → Open Pull Request referencing the issue, wait for review
-             → After merge: switch back to develop, pull latest
+8. MERGE   → STOP and wait for the PR to be merged before starting the next issue
+             → After merge: switch back to develop, pull latest, then proceed
 ```
+
+**CRITICAL: Do NOT start the next branch/issue until the current PR is merged.**
+Never stack branches on top of unmerged feature branches.
+If a PR depends on another, wait for the dependency to merge to `develop` first.
 
 **Conditional steps (not always required):**
 - **Docker build** — run `docker compose build` before pushing if Dockerfile or dependencies changed
