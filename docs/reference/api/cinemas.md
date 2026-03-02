@@ -183,34 +183,5 @@ Deletes the cinema and cascades to all its showtimes and weekly programs.
 curl -X DELETE http://localhost:3000/api/cinemas/C0099
 ```
 
----
-
-### Sync Cinemas to JSON
-
-```http
-GET /api/cinemas/sync
-```
-
-Manually synchronizes the database cinema configurations to the `cinemas.json` file. This endpoint reads all cinemas from the database and overwrites the JSON file.
-
-**Note:** Automatic synchronization occurs after all cinema CRUD operations (`POST`, `PUT`, `DELETE`), so manual sync is rarely needed unless the JSON file was modified externally or becomes out of sync.
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "count": 3,
-    "message": "Synced 3 cinema(s) to JSON file"
-  }
-}
-```
-
-**Example:**
-```bash
-curl http://localhost:3000/api/cinemas/sync
-```
-
----
 
 [← Back to API Reference](./README.md)
