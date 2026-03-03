@@ -1,0 +1,37 @@
+# Traefik v3 – static configuration
+# Used by the ics-traefik service in the monitoring Docker Compose profile.
+#
+# Routing rules are defined as labels on each service in docker-compose.yml.
+
+# ---------------------------------------------------------------------------
+# API / Dashboard
+# Accessible at http://localhost:8080/dashboard/ (local dev only – no auth)
+# ---------------------------------------------------------------------------
+api:
+  dashboard: true
+  insecure: true  # OK for local dev; lock this down in production
+
+# ---------------------------------------------------------------------------
+# Entrypoints
+# ---------------------------------------------------------------------------
+entryPoints:
+  web:
+    address: ":80"
+
+# ---------------------------------------------------------------------------
+# Providers
+# ---------------------------------------------------------------------------
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    # Only expose services that explicitly set traefik.enable=true
+    exposedByDefault: false
+    network: ics-network
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+log:
+  level: INFO
+
+accessLog: {}

@@ -26,15 +26,16 @@ Complete guide to the observability stack shipped with Allo-Scrapper.
 
 ## Overview
 
-| Tool | Role | Port |
-|---|---|---|
-| **Prometheus** | Metrics scraping & storage | 9090 |
-| **Grafana** | Dashboards (metrics + logs + traces) | 3001 |
-| **Loki** | Log aggregation | 3100 |
-| **Promtail** | Log shipper (Docker → Loki) | — |
-| **Tempo** | Distributed tracing (OTLP) | 3200 / 4317 |
-| **postgres-exporter** | PostgreSQL → Prometheus | — |
-| **redis-exporter** | Redis → Prometheus | — |
+| Tool | Role | Direct Port | Traefik Route |
+|---|---|---|---|
+| **Traefik** | Reverse proxy / edge router | 80, 8080 (dashboard) | — |
+| **Prometheus** | Metrics scraping & storage | 9090 | `/prometheus/` |
+| **Grafana** | Dashboards (metrics + logs + traces) | 3001 | `/grafana/` |
+| **Loki** | Log aggregation | 3100 | `/loki/` |
+| **Promtail** | Log shipper (Docker → Loki) | — | — |
+| **Tempo** | Distributed tracing (OTLP) | 3200 / 4317 | — |
+| **postgres-exporter** | PostgreSQL → Prometheus | — | — |
+| **redis-exporter** | Redis → Prometheus | — | — |
 
 All monitoring services run under the `monitoring` Docker Compose profile.
 
@@ -46,8 +47,14 @@ All monitoring services run under the `monitoring` Docker Compose profile.
 # Start monitoring alongside the main app
 docker compose --profile monitoring up -d
 
-# Open Grafana
-open http://localhost:3001   # user: admin / password: admin
+# Access services via Traefik reverse proxy (recommended)
+open http://localhost/grafana/      # Grafana – user: admin / password: admin
+open http://localhost/prometheus/   # Prometheus UI
+open http://localhost:8080          # Traefik dashboard
+
+# Direct access also works (bypasses Traefik)
+open http://localhost:3001/grafana/ # Grafana
+open http://localhost:9090          # Prometheus
 ```
 
 **Default credentials:**
@@ -80,13 +87,17 @@ curl http://localhost:3100/ready
 
 # Tempo health check
 curl http://localhost:3200/ready
+
+# Traefik health check
+curl http://localhost:8080/api/http/routers
 ```
 
 **First time setup checklist:**
 1. ✅ All monitoring containers show "Up" (`docker compose --profile monitoring ps`)
-2. ✅ All Prometheus targets are UP at `http://localhost:9090/targets`
+2. ✅ All Prometheus targets are UP at `http://localhost/prometheus/targets`
 3. ✅ Loki query `{container="ics-web"}` returns logs in Grafana Explore
 4. ✅ Pre-provisioned dashboards appear in Grafana → Dashboards → Allo-Scrapper
+5. ✅ Traefik routes visible at `http://localhost:8080/dashboard/`
 
 ---
 
@@ -121,7 +132,7 @@ Dashboards are automatically provisioned from `docker/grafana/dashboards/`.
 | **Application (API & Logs)** | `app` | HTTP request rate, error rate, response latency, structured logs |
 
 **Access dashboards:**
-1. Open Grafana: `http://localhost:3001`
+1. Open Grafana: `http://localhost/grafana/` (or `http://localhost:3001/grafana/` directly)
 2. Navigate to **Dashboards** → **Allo-Scrapper** folder
 3. Select a dashboard
 
@@ -205,7 +216,7 @@ Both `ics-web` and `ics-scraper` emit **structured JSON logs** in production (co
 - `debug` - Detailed debugging information
 
 **Viewing logs in Grafana:**
-1. Open Grafana: `http://localhost:3001`
+1. Open Grafana: `http://localhost/grafana/` (or `http://localhost:3001/grafana/` directly)
 2. Navigate to **Explore**
 3. Select **Loki** datasource
 4. Use LogQL queries:
@@ -257,7 +268,7 @@ docker compose restart ics-web ics-scraper
 ```
 
 **Viewing traces in Grafana:**
-1. Open Grafana: `http://localhost:3001`
+1. Open Grafana: `http://localhost/grafana/` (or `http://localhost:3001/grafana/` directly)
 2. Navigate to **Explore**
 3. Select **Tempo** datasource
 4. Search by:
@@ -319,7 +330,7 @@ docker compose restart ics-grafana
 
 ### Method 2: Manual Import
 
-1. Open Grafana: `http://localhost:3001`
+1. Open Grafana: `http://localhost/grafana/` (or `http://localhost:3001/grafana/` directly)
 2. Navigate to **Dashboards** → **Import**
 3. Upload JSON file or paste JSON
 4. Select datasources (Prometheus, Loki, Tempo)
@@ -473,6 +484,52 @@ docker compose build ics-web ics-scraper
 docker compose restart ics-web ics-scraper
 ```
 
+---
+
+### Grafana shows "failed to load its application files"
+
+**Cause:** Grafana is configured with a `/grafana/` subpath (`GF_SERVER_ROOT_URL`) but was accessed at the root URL (`http://localhost:3001/`).
+
+**Solution:** Use the correct URL — the `/grafana/` subpath is required:
+```bash
+# Via Traefik reverse proxy (recommended)
+open http://localhost/grafana/
+
+# Direct to Grafana container
+open http://localhost:3001/grafana/
+```
+
+Do **not** access `http://localhost:3001` (root) — assets will fail to load.
+
+---
+
+### Loki keeps restarting ("mkdir /tmp/loki/rules: permission denied")
+
+**Cause:** On macOS, Docker volume mounts assign root ownership to the directory, but Loki runs as UID 10001 by default and cannot create subdirectories.
+
+**Fix:** `ics-loki` is configured with `user: "0"` in `docker-compose.yml` to run as root inside the container. If you see this error after pulling an older image, ensure your local `docker-compose.yml` has:
+
+```yaml
+ics-loki:
+  user: "0"
+```
+
+Then restart: `docker compose --profile monitoring restart ics-loki`
+
+---
+
+### Prometheus UI is blank behind Traefik
+
+**Cause:** Prometheus needs `--web.external-url=/prometheus/` to serve assets correctly when behind a reverse proxy that strips the `/prometheus` prefix.
+
+**Fix:** Ensure `docker-compose.yml` has these flags on `ics-prometheus`:
+```yaml
+command:
+  - '--web.external-url=/prometheus/'
+  - '--web.route-prefix=/'
+```
+
+Then restart: `docker compose --profile monitoring restart ics-prometheus`
 ---
 
 ## Configuration Files

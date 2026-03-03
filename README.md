@@ -78,7 +78,8 @@
               └─────────────────────────┘
 
   Monitoring (--profile monitoring):
-  Prometheus :9090 → Grafana :3001
+  Traefik :80 (reverse proxy) → Grafana /grafana/  :3001
+                              → Prometheus /prometheus/ :9090
   Loki + Promtail (logs) → Grafana
   Tempo :3200 (traces, OTLP :4317) → Grafana
 ```
