@@ -22,6 +22,21 @@ describe('logger', () => {
     expect(typeof logger.debug).toBe('function');
   });
 
+  it('service name is hardcoded as "ics-scraper"', async () => {
+    const { logger } = await import('../../src/utils/logger.js');
+    expect((logger as any).defaultMeta).toEqual({ service: 'ics-scraper' });
+  });
+
+  it('does not use APP_NAME env variable for the service identifier', async () => {
+    process.env.APP_NAME = 'CustomName';
+    vi.resetModules();
+    const { logger } = await import('../../src/utils/logger.js');
+
+    const serviceName = (logger as any).defaultMeta?.service;
+    expect(serviceName).toBe('ics-scraper');
+    expect(serviceName).not.toBe('CustomName-scraper');
+  });
+
   it('logger.info does not throw', async () => {
     const { logger } = await import('../../src/utils/logger.js');
     expect(() => logger.info('test message', { key: 'value' })).not.toThrow();
