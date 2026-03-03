@@ -311,8 +311,17 @@ allo-scrapper/
 ### Setup (run once after cloning)
 
 ```bash
-./scripts/install-hooks.sh   # Install git hooks (pre-push: tsc + tests)
+# Install git hooks (pre-push: tsc + tests)
+./scripts/install-hooks.sh
+
+# Install dependencies (CRITICAL: run from server/ directory)
+cd server && npm install
+
+# Install client dependencies
+cd ../client && npm install
 ```
+
+**⚠️ Always run `npm install` from `server/` directory, not root.** See "Native Dependencies" gotcha below.
 
 ### Development
 
@@ -487,6 +496,36 @@ The `Cinema` interface in `client/src/types/index.ts` must include `url?: string
 ### Pre-Push Hook
 
 A git pre-push hook runs `tsc --noEmit` + `vitest run` before every push. Fix all TypeScript errors and test failures before pushing — the hook will block the push otherwise.
+
+### Native Dependencies — `sharp` Package
+
+The `sharp` package is a native binary dependency used for image validation and compression in the white-label branding system (`server/src/utils/image-validator.ts`). It requires platform-specific binaries during installation.
+
+**Problem:** Tests fail with `Error: Cannot find package 'sharp'` if:
+- `npm install` was run from the wrong directory (root instead of `server/`)
+- Installation was interrupted mid-process
+- `node_modules/` was deleted or corrupted
+
+**Affected files:**
+- `server/src/routes/settings.ts` — imports `image-validator.ts`
+- `server/src/utils/image-validator.ts` — direct import
+- `server/src/utils/image-validator.test.ts` — test file
+
+**Solution:** Always run `npm install` from the `server/` directory:
+
+```bash
+cd server && npm install
+```
+
+If tests still fail after `npm install`:
+
+```bash
+cd server
+rm -rf node_modules
+npm install
+```
+
+**Why this happens:** `sharp` downloads native binaries during postinstall scripts. Running `npm install` from the root directory or interrupting the installation can result in incomplete or missing binaries, even though `package.json` and `package-lock.json` are correct.
 
 ---
 

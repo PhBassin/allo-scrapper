@@ -306,6 +306,53 @@ docker compose exec ics-web npm run db:migrate
 curl -X POST http://localhost:3000/api/scraper/trigger
 ```
 
+### Option C: Local Development (No Docker)
+
+For active development without Docker:
+
+**Prerequisites:**
+- Node.js 20.19+ or 22.12+
+- PostgreSQL 15+
+- Redis (optional, only if `USE_REDIS_SCRAPER=true`)
+
+**Setup:**
+```bash
+# Clone repository
+git clone https://github.com/PhBassin/allo-scrapper.git
+cd allo-scrapper
+
+# Install server dependencies (IMPORTANT: run from server/ directory)
+cd server
+npm install
+
+# Install client dependencies
+cd ../client
+npm install
+
+# Setup environment and database
+cd ../server
+cp .env.example .env
+# Edit .env with your PostgreSQL credentials
+npm run db:migrate
+
+# Run development servers (in separate terminals)
+# Terminal 1 - API server
+cd server && npm run dev    # API on http://localhost:3000
+
+# Terminal 2 - Frontend dev server
+cd client && npm run dev    # UI on http://localhost:5173
+```
+
+**⚠️ Important:** Always run `npm install` from the `server/` directory, not the root. The `sharp` image processing library requires native binaries that may not install correctly if run from the wrong directory.
+
+**Troubleshooting:**
+If you encounter `Cannot find package 'sharp'` errors:
+```bash
+cd server
+rm -rf node_modules
+npm install
+```
+
 For production deployment and advanced configuration, see [DEPLOYMENT.md](./DEPLOYMENT.md) and [DOCKER.md](./DOCKER.md).
 
 ---
