@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '../../utils/logger';
 
 interface PasswordResetDialogProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ const PasswordResetDialog: React.FC<PasswordResetDialogProps> = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy password:', error);
+      logger.error('Failed to copy password to clipboard', { detail: String(error) });
     }
   };
 

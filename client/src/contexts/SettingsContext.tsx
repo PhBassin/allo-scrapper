@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { getPublicSettings, getAdminSettings, updateSettings as apiUpdateSettings, type AppSettings, type AppSettingsPublic, type AppSettingsUpdate } from '../api/settings';
+import { logger } from '../utils/logger';
 
 interface SettingsContextType {
     // Public settings (available to all users)
@@ -51,7 +52,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to load settings';
             setError(message);
-            console.error('Error loading public settings:', err);
+            logger.error('Error loading public settings', { detail: message });
         } finally {
             setIsLoading(false);
             setIsLoadingPublic(false);
@@ -87,7 +88,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to load admin settings';
             setError(message);
-            console.error('Error loading admin settings:', err);
+            logger.error('Error loading admin settings', { detail: message });
         } finally {
             setIsLoading(false);
         }

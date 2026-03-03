@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/client';
+import { logger } from '../utils/logger';
 
 const ChangePasswordPage: React.FC = () => {
     const [currentPassword, setCurrentPassword] = useState('');
@@ -58,7 +59,7 @@ const ChangePasswordPage: React.FC = () => {
             } else {
                 setError('An unexpected error occurred. Please try again later.');
             }
-            console.error('Change password error:', err);
+            logger.error('Change password error', { detail: String(err) });
         } finally {
             setIsLoading(false);
         }

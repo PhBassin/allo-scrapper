@@ -4,6 +4,7 @@ import { searchFilms } from '../api/client';
 import { useDebounce } from '../hooks/useDebounce';
 import { highlightText } from '../utils/highlight';
 import type { Film } from '../types';
+import { logger } from '../utils/logger';
 
 interface FilmSearchBarProps {
   className?: string;
@@ -38,7 +39,7 @@ export default function FilmSearchBar({
         setIsOpen(true);
         setSelectedIndex(-1);
       } catch (error) {
-        console.error('Search error:', error);
+        logger.error('Search error', { detail: String(error) });
         setResults([]);
       } finally {
         setIsLoading(false);
