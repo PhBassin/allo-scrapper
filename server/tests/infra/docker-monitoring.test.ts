@@ -55,6 +55,15 @@ describe('docker/traefik/traefik.yml', () => {
     expect(content).toContain('api:');
     expect(content).toContain('dashboard: true');
   });
+
+  it('does not hardcode a network name in the Docker provider (avoids compose project prefix mismatch)', () => {
+    const content = readFile('docker/traefik/traefik.yml');
+    // "network: <name>" in the Docker provider causes Traefik to fail
+    // silently when Docker Compose prefixes the network name (e.g.
+    // ics-network → allo-scrapper_ics-network). Leave it unset so Traefik
+    // auto-selects the first available network for each container.
+    expect(content).not.toMatch(/^\s*network:\s*\S/m);
+  });
 });
 
 // ---------------------------------------------------------------------------
