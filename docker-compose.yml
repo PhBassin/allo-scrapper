@@ -41,6 +41,12 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.app.entrypoints=web"
+      - "traefik.http.routers.app.priority=1"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
     volumes:
       # Mount cinema config so API changes to cinemas.json are visible on host
       # This enables: git add server/src/config/cinemas.json && git commit && git push
@@ -145,13 +151,41 @@ services:
       - scraper
 
   # ---------------------------------------------------------------------------
-  # Monitoring stack (Loki + Promtail + Prometheus + Grafana)
+  # Monitoring stack (Traefik + Loki + Promtail + Prometheus + Grafana + Tempo)
   # Start with: docker compose --profile monitoring up -d
+  #
+  # Access via Traefik reverse proxy (port 80):
+  #   http://localhost/grafana/      – Grafana dashboards
+  #   http://localhost/prometheus/   – Prometheus UI
+  #   http://localhost:8080          – Traefik dashboard
+  #
+  # Direct access (bypasses Traefik):
+  #   http://localhost:3001/grafana/ – Grafana
+  #   http://localhost:9090          – Prometheus
+  #   http://localhost:3100          – Loki query API
   # ---------------------------------------------------------------------------
+
+  # Traefik – reverse proxy and edge router
+  ics-traefik:
+    image: traefik:v3.0
+    restart: unless-stopped
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+    networks:
+      - ics-network
+    profiles:
+      - monitoring
 
   # Loki – log aggregation backend
   ics-loki:
     image: grafana/loki:2.9.0
+    user: "0"  # Run as root to avoid volume permission errors on macOS (refs #293)
     restart: unless-stopped
     command: -config.file=/etc/loki/config.yml
     volumes:
@@ -159,6 +193,14 @@ services:
       - loki-data:/tmp/loki
     ports:
       - "3100:3100"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.loki.rule=PathPrefix(`/loki`)"
+      - "traefik.http.routers.loki.entrypoints=web"
+      - "traefik.http.routers.loki.priority=10"
+      - "traefik.http.middlewares.loki-stripprefix.stripprefix.prefixes=/loki"
+      - "traefik.http.routers.loki.middlewares=loki-stripprefix"
+      - "traefik.http.services.loki.loadbalancer.server.port=3100"
     networks:
       - ics-network
     profiles:
@@ -188,11 +230,21 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=15d'
       - '--web.enable-lifecycle'
+      - '--web.external-url=/prometheus/'
+      - '--web.route-prefix=/'
     volumes:
       - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=PathPrefix(`/prometheus`)"
+      - "traefik.http.routers.prometheus.entrypoints=web"
+      - "traefik.http.routers.prometheus.priority=10"
+      - "traefik.http.middlewares.prometheus-stripprefix.stripprefix.prefixes=/prometheus"
+      - "traefik.http.routers.prometheus.middlewares=prometheus-stripprefix"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
     networks:
       - ics-network
     profiles:
@@ -260,6 +312,12 @@ services:
       - grafana-data:/var/lib/grafana
     ports:
       - "3001:3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=PathPrefix(`/grafana`)"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.routers.grafana.priority=10"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     depends_on:
       - ics-prometheus
       - ics-loki
