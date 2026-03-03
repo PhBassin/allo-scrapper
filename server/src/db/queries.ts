@@ -168,12 +168,19 @@ export async function addCinema(
   return result.rows[0];
 }
 
-// Mettre à jour la configuration d'un cinéma (nom et/ou URL)
+// Mettre à jour la configuration d'un cinéma
 export async function updateCinemaConfig(
   db: DB,
   id: string,
-  updates: { name?: string; url?: string }
-): Promise<{ id: string; name: string; url: string } | undefined> {
+  updates: {
+    name?: string;
+    url?: string;
+    address?: string;
+    postal_code?: string;
+    city?: string;
+    screen_count?: number;
+  }
+): Promise<Cinema | undefined> {
   const fields: string[] = [];
   const values: unknown[] = [];
   let paramIndex = 1;
@@ -186,13 +193,42 @@ export async function updateCinemaConfig(
     fields.push(`url = $${paramIndex++}`);
     values.push(updates.url);
   }
+  if (updates.address !== undefined) {
+    fields.push(`address = $${paramIndex++}`);
+    values.push(updates.address);
+  }
+  if (updates.postal_code !== undefined) {
+    fields.push(`postal_code = $${paramIndex++}`);
+    values.push(updates.postal_code);
+  }
+  if (updates.city !== undefined) {
+    fields.push(`city = $${paramIndex++}`);
+    values.push(updates.city);
+  }
+  if (updates.screen_count !== undefined) {
+    fields.push(`screen_count = $${paramIndex++}`);
+    values.push(updates.screen_count);
+  }
 
   values.push(id);
-  const result = await db.query<{ id: string; name: string; url: string }>(
-    `UPDATE cinemas SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING id, name, url`,
+  const result = await db.query<CinemaRow>(
+    `UPDATE cinemas SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
     values
   );
-  return result.rows[0];
+
+  const row = result.rows[0];
+  if (!row) return undefined;
+
+  return {
+    id: row.id,
+    name: row.name,
+    address: row.address ?? undefined,
+    postal_code: row.postal_code ?? undefined,
+    city: row.city ?? undefined,
+    screen_count: row.screen_count ?? undefined,
+    image_url: row.image_url ?? undefined,
+    url: row.url ?? undefined,
+  };
 }
 
 // Supprimer un cinéma (et ses séances via CASCADE)

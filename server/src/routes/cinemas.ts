@@ -129,21 +129,23 @@ router.post('/', requireAuth, requireAdmin, protectedLimiter, async (req, res, n
   }
 });
 
-// PUT /api/cinemas/:id - Update a cinema's name and/or URL
+// PUT /api/cinemas/:id - Update a cinema's configuration
 router.put('/:id', requireAuth, requireAdmin, protectedLimiter, async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
     const cinemaId = req.params.id;
-    const { name, url } = req.body;
+    const { name, url, address, postal_code, city, screen_count } = req.body;
 
-    if (!name && !url) {
+    // At least one field must be provided
+    if (!name && !url && !address && postal_code === undefined && !city && screen_count === undefined) {
       const response: ApiResponse = {
         success: false,
-        error: 'At least one field must be provided: name, url',
+        error: 'At least one field must be provided: name, url, address, postal_code, city, screen_count',
       };
       return res.status(400).json(response);
     }
 
+    // Validate name
     if (name && (typeof name !== 'string' || name.length > 100)) {
       const response: ApiResponse = {
         success: false,
@@ -152,6 +154,7 @@ router.put('/:id', requireAuth, requireAdmin, protectedLimiter, async (req, res,
       return res.status(400).json(response);
     }
 
+    // Validate url
     if (url && (typeof url !== 'string' || url.length > 2048)) {
       const response: ApiResponse = {
         success: false,
@@ -168,9 +171,84 @@ router.put('/:id', requireAuth, requireAdmin, protectedLimiter, async (req, res,
       return res.status(400).json(response);
     }
 
-    const updates: { name?: string; url?: string } = {};
+    // Validate address
+    if (address !== undefined && (typeof address !== 'string' || address.length > 200)) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Address must be at most 200 characters',
+      };
+      return res.status(400).json(response);
+    }
+
+    // Validate postal_code
+    if (postal_code !== undefined) {
+      if (typeof postal_code !== 'string' || postal_code.length > 10) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Postal code must be at most 10 characters',
+        };
+        return res.status(400).json(response);
+      }
+      // Alphanumeric validation
+      if (postal_code && !/^[a-zA-Z0-9]+$/.test(postal_code)) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Postal code must be alphanumeric',
+        };
+        return res.status(400).json(response);
+      }
+    }
+
+    // Validate city
+    if (city !== undefined && (typeof city !== 'string' || city.length > 100)) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'City must be at most 100 characters',
+      };
+      return res.status(400).json(response);
+    }
+
+    // Validate screen_count
+    if (screen_count !== undefined && screen_count !== null) {
+      if (typeof screen_count !== 'number') {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Screen count must be a number',
+        };
+        return res.status(400).json(response);
+      }
+      if (!Number.isInteger(screen_count)) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Screen count must be an integer',
+        };
+        return res.status(400).json(response);
+      }
+      if (screen_count < 1 || screen_count > 50) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Screen count must be between 1 and 50',
+        };
+        return res.status(400).json(response);
+      }
+    }
+
+    // Build updates object
+    const updates: {
+      name?: string;
+      url?: string;
+      address?: string;
+      postal_code?: string;
+      city?: string;
+      screen_count?: number;
+    } = {};
+
     if (name) updates.name = name;
     if (url) updates.url = url;
+    if (address !== undefined) updates.address = address || undefined;
+    if (postal_code !== undefined) updates.postal_code = postal_code || undefined;
+    if (city !== undefined) updates.city = city || undefined;
+    if (screen_count !== undefined) updates.screen_count = screen_count ?? undefined;
 
     const cinema = await updateCinemaConfig(db, cinemaId, updates);
 

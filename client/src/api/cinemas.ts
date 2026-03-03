@@ -17,6 +17,10 @@ export interface CinemaCreate {
 export interface CinemaUpdate {
   name?: string;
   url?: string;
+  address?: string;
+  postal_code?: string;
+  city?: string;
+  screen_count?: number;
 }
 
 // ============================================================================
