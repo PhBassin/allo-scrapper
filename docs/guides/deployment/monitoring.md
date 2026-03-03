@@ -54,6 +54,40 @@ open http://localhost:3001   # user: admin / password: admin
 - Username: `admin`
 - Password: `admin` (you will be prompted to change on first login)
 
+**Change Grafana admin password:**
+```bash
+# Option A: via Grafana CLI (container must be running)
+docker compose exec ics-grafana grafana-cli admin reset-admin-password <newpassword>
+
+# Option B: via environment variables (takes effect on next container creation)
+# Edit .env:
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=<newpassword>
+# Then recreate the container:
+docker compose up -d --force-recreate ics-grafana
+```
+
+**Verify the stack is working:**
+```bash
+# All monitoring containers should show "Up"
+docker compose --profile monitoring ps
+
+# Prometheus health check
+curl http://localhost:9090/-/healthy
+
+# Loki health check
+curl http://localhost:3100/ready
+
+# Tempo health check
+curl http://localhost:3200/ready
+```
+
+**First time setup checklist:**
+1. ✅ All monitoring containers show "Up" (`docker compose --profile monitoring ps`)
+2. ✅ All Prometheus targets are UP at `http://localhost:9090/targets`
+3. ✅ Loki query `{container="ics-web"}` returns logs in Grafana Explore
+4. ✅ Pre-provisioned dashboards appear in Grafana → Dashboards → Allo-Scrapper
+
 ---
 
 ## Starting and Stopping
@@ -194,6 +228,16 @@ Both `ics-web` and `ics-scraper` emit **structured JSON logs** in production (co
 - Promtail ships all `ics-*` container stdout/stderr to Loki automatically
 - No application changes needed - just write to stdout/stderr
 - Logs are automatically labeled with container name, service, etc.
+
+**Logger service names (hardcoded):**
+
+| Service | `service` field in JSON logs |
+|---------|------------------------------|
+| Backend API (`ics-web`) | `ics-web` |
+| Scraper microservice (`ics-scraper`) | `ics-scraper` |
+| Client logs forwarded via API | `ics-web` with `source: "client"` |
+
+These identifiers are hardcoded in the Winston logger configuration and match the Docker container naming convention. `APP_NAME` is used for client display only (React app title/header) and does **not** affect the `service` label in logs.
 
 ---
 
@@ -406,6 +450,27 @@ open http://localhost:9090/targets
 
 # Restart exporters
 docker compose restart ics-postgres-exporter ics-redis-exporter
+```
+
+---
+
+### Logs show wrong service name in Grafana
+
+**Cause:** Logger `defaultMeta.service` is using `APP_NAME` instead of the hardcoded identifier.
+
+**Solution:**
+```bash
+# Verify logger config in server
+grep "defaultMeta" server/src/utils/logger.ts
+# Expected: defaultMeta: { service: 'ics-web' },
+
+# Verify logger config in scraper
+grep "defaultMeta" scraper/src/utils/logger.ts
+# Expected: defaultMeta: { service: 'ics-scraper' },
+
+# If wrong, fix both files and rebuild
+docker compose build ics-web ics-scraper
+docker compose restart ics-web ics-scraper
 ```
 
 ---

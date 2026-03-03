@@ -11,7 +11,7 @@ const isProduction = process.env.NODE_ENV === 'production';
  */
 export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL ?? 'info',
-  defaultMeta: { service: process.env.APP_NAME ?? 'Allo-Scrapper' },
+  defaultMeta: { service: 'ics-web' },
   format: isProduction
     ? combine(timestamp(), json())
     : combine(colorize(), simple()),
