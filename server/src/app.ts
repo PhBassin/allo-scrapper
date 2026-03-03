@@ -34,6 +34,9 @@ collectDefaultMetrics({ register: serverRegistry, prefix: 'ics_web_' });
 export function createApp() {
   const app = express();
 
+  // Trust the first proxy to ensure accurate IP resolution for rate limiting
+  app.set('trust proxy', 1);
+
   // Middleware
   app.use(
     helmet({
