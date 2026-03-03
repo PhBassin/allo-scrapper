@@ -568,6 +568,40 @@ export async function getShowtimesByCinemaAndWeek(
     [cinemaId, weekStart]
   );
 
+  // ⚡ PERFORMANCE: Memoize JSON.parse for arrays
+  const experiencesCache = new Map<string, string[]>();
+  const parseExperiences = (expStr: string | null): string[] => {
+    const str = expStr ?? '[]';
+    let cached = experiencesCache.get(str);
+    if (!cached) {
+      cached = JSON.parse(str);
+      experiencesCache.set(str, cached!);
+    }
+    return cached as string[];
+  };
+
+  const genresCache = new Map<string, string[]>();
+  const parseGenres = (str: string | null): string[] => {
+    const s = str ?? '[]';
+    let cached = genresCache.get(s);
+    if (!cached) {
+      cached = JSON.parse(s);
+      genresCache.set(s, cached!);
+    }
+    return cached as string[];
+  };
+
+  const actorsCache = new Map<string, string[]>();
+  const parseActors = (str: string | null): string[] => {
+    const s = str ?? '[]';
+    let cached = actorsCache.get(s);
+    if (!cached) {
+      cached = JSON.parse(s);
+      actorsCache.set(s, cached!);
+    }
+    return cached as string[];
+  };
+
   return result.rows.map((row) => ({
     id: row.id,
     film_id: row.film_id,
@@ -577,7 +611,7 @@ export async function getShowtimesByCinemaAndWeek(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseExperiences(row.experiences),
     week_start: row.week_start,
     film: {
       id: row.film_id,
@@ -587,10 +621,10 @@ export async function getShowtimesByCinemaAndWeek(
       duration_minutes: row.duration_minutes ?? undefined,
       release_date: row.release_date ?? undefined,
       rerelease_date: row.rerelease_date ?? undefined,
-      genres: JSON.parse(row.genres ?? '[]'),
+      genres: parseGenres(row.genres),
       nationality: row.nationality ?? undefined,
       director: row.director ?? undefined,
-      actors: JSON.parse(row.actors ?? '[]'),
+      actors: parseActors(row.actors),
       synopsis: row.synopsis ?? undefined,
       certificate: row.certificate ?? undefined,
       press_rating: row.press_rating ?? undefined,
@@ -692,6 +726,18 @@ export async function getShowtimesByDate(
     [date, weekStart]
   );
 
+  // ⚡ PERFORMANCE: Memoize JSON.parse for experiences
+  const experiencesCache = new Map<string, string[]>();
+  const parseExperiences = (expStr: string | null): string[] => {
+    const str = expStr ?? '[]';
+    let cached = experiencesCache.get(str);
+    if (!cached) {
+      cached = JSON.parse(str);
+      experiencesCache.set(str, cached!);
+    }
+    return cached as string[];
+  };
+
   return result.rows.map((row) => ({
     id: row.id,
     film_id: row.film_id,
@@ -701,7 +747,7 @@ export async function getShowtimesByDate(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseExperiences(row.experiences),
     week_start: row.week_start,
     cinema: {
       id: row.cinema_id,
@@ -806,6 +852,18 @@ export async function getShowtimesByFilmAndWeek(
     [filmId, weekStart]
   );
 
+  // ⚡ PERFORMANCE: Memoize JSON.parse for experiences
+  const experiencesCache = new Map<string, string[]>();
+  const parseExperiences = (expStr: string | null): string[] => {
+    const str = expStr ?? '[]';
+    let cached = experiencesCache.get(str);
+    if (!cached) {
+      cached = JSON.parse(str);
+      experiencesCache.set(str, cached!);
+    }
+    return cached as string[];
+  };
+
   return result.rows.map((row) => ({
     id: row.id,
     film_id: row.film_id,
@@ -815,7 +873,7 @@ export async function getShowtimesByFilmAndWeek(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseExperiences(row.experiences),
     week_start: row.week_start,
     cinema: {
       id: row.cinema_id,
@@ -853,6 +911,20 @@ export async function getWeeklyShowtimes(
     [weekStart]
   );
 
+  // ⚡ PERFORMANCE: Memoize JSON.parse for experiences
+  // Reduces parsing overhead significantly when returning thousands of rows
+  // as the number of unique experience strings (e.g., '[]', '["IMAX"]') is very small.
+  const experiencesCache = new Map<string, string[]>();
+  const parseExperiences = (expStr: string | null): string[] => {
+    const str = expStr ?? '[]';
+    let cached = experiencesCache.get(str);
+    if (!cached) {
+      cached = JSON.parse(str);
+      experiencesCache.set(str, cached!);
+    }
+    return cached as string[];
+  };
+
   return result.rows.map((row) => ({
     id: row.id,
     film_id: row.film_id,
@@ -862,7 +934,7 @@ export async function getWeeklyShowtimes(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseExperiences(row.experiences),
     week_start: row.week_start,
     cinema: {
       id: row.cinema_id,
