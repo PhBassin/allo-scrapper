@@ -26,7 +26,11 @@ providers:
     endpoint: "unix:///var/run/docker.sock"
     # Only expose services that explicitly set traefik.enable=true
     exposedByDefault: false
-    network: ics-network
+    # Note: do NOT set 'network' here. Docker Compose prefixes network names
+    # with the project name (e.g. ics-network → allo-scrapper_ics-network),
+    # so a hardcoded name would silently break routing. Traefik auto-selects
+    # the first available network for each container, which is correct when
+    # all services share a single network.
 
 # ---------------------------------------------------------------------------
 # Logging
