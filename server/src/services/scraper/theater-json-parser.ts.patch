@@ -1,0 +1,11 @@
+--- server/src/services/scraper/theater-json-parser.ts
++++ server/src/services/scraper/theater-json-parser.ts
+@@ -298,7 +298,7 @@
+       audience_rating,
+       release_date,
+       rerelease_date,
+-      source_url: `https://www.allocine.fr/film/fichefilm_gen_cfilm=${filmId}.html`,
++      source_url: `${ALLOCINE_BASE_URL}/film/fichefilm_gen_cfilm=${filmId}.html`,
+     };
+
+     const showtimes = mapShowtimes(result.showtimes ?? {}, filmId, cinemaId, date);

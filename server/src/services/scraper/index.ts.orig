@@ -29,13 +29,13 @@ export async function loadTheaterMetadata(
 
   // Parse cinema metadata from the initial HTML and upsert into DB
   const pageData = parseTheaterPage(html, cinemaConfig.id);
-  
+
   // Ensure we keep the URL from the config, as it's not present in the HTML
   const cinema = {
     ...pageData.cinema,
     url: cinemaConfig.url
   };
-  
+
   await upsertCinema(db, cinema);
   logger.info(`✅ Cinema ${cinema.name} metadata upserted`);
 
@@ -157,7 +157,7 @@ export async function addCinemaAndScrape(
 ): Promise<Cinema> {
   // 1. Validate URL first!
   if (!isValidAllocineUrl(url)) {
-    throw new Error(`Invalid Allocine URL. Must be ${ALLOCINE_BASE_URL}/...`);
+    throw new Error('Invalid Allocine URL. Must be https://www.allocine.fr/...');
   }
 
   // 2. Extract ID and clean URL
@@ -224,7 +224,7 @@ export async function runScraper(
   try {
     // Charger la configuration des cinémas depuis la base de données
     let cinemas = await getCinemaConfigs(db);
-    
+
     // Filter by cinemaId if provided
     if (options?.cinemaId) {
       cinemas = cinemas.filter(c => c.id === options.cinemaId);
@@ -233,7 +233,7 @@ export async function runScraper(
       }
       logger.info(`🎯 Filtering to specific cinema: ${options.cinemaId}\n`);
     }
-    
+
     logger.info(`📋 Loaded ${cinemas.length} cinema(s) from database\n`);
 
     // Déterminer les dates à scraper
@@ -304,19 +304,19 @@ export async function runScraper(
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           logger.error(`   ❌ Date ${date} failed:`, errorMessage);
-          summary.errors.push({ 
-            cinema_name: cinema.name, 
+          summary.errors.push({
+            cinema_name: cinema.name,
             date: date,
-            error: errorMessage 
+            error: errorMessage
           });
-          
-          progress?.emit({ 
+
+          progress?.emit({
             type: 'date_failed',
-            cinema_name: cinema.name, 
+            cinema_name: cinema.name,
             date: date,
-            error: errorMessage 
+            error: errorMessage
           });
-          
+
           continue; // Skip to next date for this cinema
         }
       }
