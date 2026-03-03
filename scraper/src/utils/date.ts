@@ -14,13 +14,19 @@ export function getCurrentWeekStart(): string {
 
 export const getWeekStart = getCurrentWeekStart;
 
+import { logger } from './logger.js';
+
 export function getWeekDates(weekStart?: string, numDays: number = 7): string[] {
   const start = weekStart ? new Date(weekStart) : new Date(getCurrentWeekStart());
 
   const validatedDays = Math.max(1, Math.min(14, numDays));
 
   if (validatedDays !== numDays) {
-    console.warn(`⚠️  SCRAPE_DAYS value ${numDays} out of range. Using ${validatedDays} instead (valid range: 1-14)`);
+    logger.warn('SCRAPE_DAYS value out of range, clamping', {
+      requested: numDays,
+      used: validatedDays,
+      validRange: '1-14',
+    });
   }
 
   const dates: string[] = [];

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../../utils/logger';
 
 interface FontSelectorProps {
     label: string;
@@ -76,7 +77,7 @@ const FontSelector: React.FC<FontSelectorProps> = ({
         fontFace.load().then(() => {
             setFontLoaded(true);
         }).catch(() => {
-            console.warn(`Failed to load font: ${value}`);
+            logger.warn('Failed to load font', { font: value });
             setFontLoaded(true); // Show anyway
         });
 

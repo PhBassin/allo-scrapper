@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import apiClient from '../api/client';
+import { logger } from '../utils/logger';
 
 const LoginPage: React.FC = () => {
     const [username, setUsername] = useState('');
@@ -37,7 +38,7 @@ const LoginPage: React.FC = () => {
             } else {
                 setError('An unexpected error occurred. Please try again later.');
             }
-            console.error('Login error:', err);
+            logger.error('Login error', { detail: String(err) });
         } finally {
             setIsLoading(false);
         }

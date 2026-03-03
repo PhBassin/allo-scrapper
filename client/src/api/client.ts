@@ -9,6 +9,7 @@ import type {
   PaginatedResponse,
   ScrapeStatus,
 } from '../types';
+import { logger } from '../utils/logger';
 
 // Create axios instance
 // Use relative path by default to work with proxy in dev and same-origin in prod
@@ -185,12 +186,12 @@ export function subscribeToProgress(onEvent: (event: any) => void, onError?: (er
       const data = JSON.parse(event.data);
       onEvent(data);
     } catch (error) {
-      console.error('Failed to parse SSE event:', error);
+      logger.error('Failed to parse SSE event', { detail: String(error) });
     }
   };
 
   eventSource.onerror = (error) => {
-    console.error('SSE connection error:', error);
+    logger.error('SSE connection error', { detail: String(error) });
     if (onError) {
       onError(new Error('Connection lost'));
     }
