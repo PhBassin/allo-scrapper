@@ -27,6 +27,8 @@ POST /api/scraper/trigger
 - Both `cinemaId` and `filmId` → Scrape this film at this specific cinema only
 
 **Response (200 — started):**
+
+**In-Process Mode** (default: `USE_REDIS_SCRAPER=false`):
 ```json
 {
   "success": true,
@@ -36,6 +38,23 @@ POST /api/scraper/trigger
   }
 }
 ```
+
+**Redis Microservice Mode** (`USE_REDIS_SCRAPER=true`):
+```json
+{
+  "success": true,
+  "data": {
+    "reportId": 43,
+    "message": "Scrape job queued for microservice",
+    "queueDepth": 2
+  }
+}
+```
+
+**Response Fields:**
+- `reportId` - Unique scrape report ID (can be used to track progress in database)
+- `message` - Human-readable status message
+- `queueDepth` - (Redis mode only) Number of jobs in the Redis queue after this job was added
 
 **Response (404 — cinema not found):**
 ```json
@@ -103,12 +122,15 @@ curl -X POST http://localhost:3000/api/scraper/trigger \
 GET /api/scraper/status
 ```
 
-**Response:**
+**Authentication:** Not required (public endpoint)
+
+**Response (In-Process Mode):**
 ```json
 {
   "success": true,
   "data": {
     "isRunning": true,
+    "useRedisScraper": false,
     "currentSession": {
       "reportId": 43,
       "triggerType": "manual",
@@ -123,6 +145,29 @@ GET /api/scraper/status
   }
 }
 ```
+
+**Response (Redis Microservice Mode):**
+```json
+{
+  "success": true,
+  "data": {
+    "isRunning": false,
+    "useRedisScraper": true,
+    "currentSession": null,
+    "latestReport": {
+      "id": 42,
+      "completed_at": "2024-02-15T10:15:23.000Z",
+      "status": "success"
+    }
+  }
+}
+```
+
+**Response Fields:**
+- `isRunning` - Whether a scrape is currently running in-process (always `false` in Redis mode)
+- `useRedisScraper` - Whether the Redis microservice scraper is enabled (`USE_REDIS_SCRAPER` env var)
+- `currentSession` - Current scrape session details (null in Redis mode or when no scrape is running)
+- `latestReport` - Most recent completed scrape report from database
 
 **Example:**
 ```bash
