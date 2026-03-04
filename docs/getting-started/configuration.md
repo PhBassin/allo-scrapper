@@ -144,12 +144,17 @@ These variables are **required** for the application to function properly.
   - `*/30 * * * *` - Every 30 minutes
   - `0 0 * * 0` - Every Sunday at midnight
 - **Tools**: Use [crontab.guru](https://crontab.guru/) to build expressions
+- **Notes**: 
+  - Used by both the in-process cron (ics-web) and scraper microservice cron (ics-scraper-cron)
+  - Internal variable `CRON_SCHEDULE` is automatically set from this value in docker-compose.yml
 
 #### `SCRAPE_THEATER_DELAY_MS`
 - **Description**: Delay between cinema scrapes (milliseconds)
 - **Default**: `3000` (3 seconds)
 - **Range**: `1000` - `10000`
-- **Notes**: Lower values = faster scraping, higher values = more polite to source website
+- **Notes**: 
+  - Lower values = faster scraping, higher values = more polite to source website
+  - ⚠️ **Docker Compose**: `SCRAPE_DELAY_MS` in docker-compose.yml is obsolete and ignored (use `SCRAPE_THEATER_DELAY_MS` in `.env` instead)
 
 #### `SCRAPE_MOVIE_DELAY_MS`
 - **Description**: Delay between film detail fetches (milliseconds)
@@ -191,6 +196,15 @@ These variables are **required** for the application to function properly.
   - `false` - In-process scraping (legacy mode)
   - `true` - Microservice scraping (requires Redis and scraper container)
   - See [Scraper System Architecture](../../reference/architecture/scraper-system.md)
+
+#### `METRICS_PORT`
+- **Description**: Port for Prometheus metrics endpoint (scraper microservice only)
+- **Default**: `9091`
+- **Example**: `9091`, `9092`
+- **Notes**: 
+  - Only used by the scraper microservice (`ics-scraper` container)
+  - Exposes metrics at `http://localhost:9091/metrics`
+  - See [Monitoring Guide](../../guides/deployment/monitoring.md) for Prometheus configuration
 
 ---
 
