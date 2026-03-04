@@ -71,7 +71,7 @@ Root documentation files:
 - README.md              # Main entry point (features, architecture, quick start)
 - AGENTS.md              # AI agent workflow (TDD, Git, commits)
 - WHITE-LABEL.md         # White-label branding system
-- MONITORING.md          # Observability stack
+- docs/guides/deployment/monitoring.md  # Observability stack (symlink removed later)
 - [Other root .md files] # Specific topics
 ```
 
@@ -369,7 +369,7 @@ Before completing a documentation task, verify:
 - `AGENTS.md` — Development workflow (TDD, Git, PRs)
 - `README.md` — Project overview and architecture
 - `WHITE-LABEL.md` — Branding system details
-- `MONITORING.md` — Observability stack
+- `docs/guides/deployment/monitoring.md` — Observability stack
 - `docs/README.md` — Documentation structure index
 
 **When documenting new features:**

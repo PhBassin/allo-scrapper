@@ -1,1 +1,0 @@
-docs/guides/administration/admin-panel.md

@@ -299,7 +299,6 @@ allo-scrapper/
 ├── e2e/                        # Playwright E2E tests (out of scope for now)
 ├── .github/                    # GitHub config (issues, workflows)
 ├── WHITE-LABEL.md              # White-label branding system docs
-├── MONITORING.md               # Observability stack documentation
 ├── CONTRIBUTING.md             # Human contributor guide
 └── AGENTS.md                   # This file
 ```

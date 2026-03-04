@@ -413,7 +413,7 @@ docker compose exec db psql -U postgres -c "\du"
 
 ## Production Deployment
 
-For production deployment workflows including migration procedures, see **[DEPLOYMENT.md](../DEPLOYMENT.md)** in the root directory.
+For production deployment workflows including migration procedures, see **[Production Deployment](../docs/guides/deployment/production.md)**.
 
 **Critical Notes:**
 - **Automatic migrations run at startup** - No manual intervention needed
