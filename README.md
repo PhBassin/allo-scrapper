@@ -424,6 +424,8 @@ See [API.md](./API.md) for Settings API reference (`/api/settings/*` endpoints).
 
 **📖 [Browse Full Documentation →](./docs/)**
 
+> **Tip for AI Agents:** Use the `@docs-writer` OpenCode agent for all documentation tasks. It's specialized in maintaining our Divio-structured docs with automatic validation.
+
 Our documentation is organized into the following categories:
 
 ### 🚀 [Getting Started](./docs/getting-started/)
