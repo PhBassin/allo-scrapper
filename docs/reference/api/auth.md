@@ -26,7 +26,8 @@ POST /api/auth/login
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "user": {
       "id": 1,
-      "username": "admin"
+      "username": "admin",
+      "role": "admin"
     }
   }
 }
@@ -70,7 +71,10 @@ curl http://localhost:3000/api/reports \
 POST /api/auth/register
 ```
 
-**Description:** Create a new user account. This endpoint can be disabled or protected in production environments.
+**Authentication:** Required (Bearer token)  
+**Role:** Admin only
+
+**Description:** Create a new user account. Only administrators can register new users.
 
 **Request Body:**
 ```json
@@ -88,7 +92,8 @@ POST /api/auth/register
     "message": "User registered successfully",
     "user": {
       "id": 2,
-      "username": "newuser"
+      "username": "newuser",
+      "role": "user"
     }
   }
 }
@@ -102,9 +107,32 @@ POST /api/auth/register
 }
 ```
 
+**Response (401 — unauthorized):**
+```json
+{
+  "success": false,
+  "error": "Unauthorized"
+}
+```
+
+**Response (403 — not admin):**
+```json
+{
+  "success": false,
+  "error": "Admin access required"
+}
+```
+
 **Example:**
 ```bash
+# Get admin token first
+TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
+
+# Register new user (admin only)
 curl -X POST http://localhost:3000/api/auth/register \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"username":"newuser","password":"securepass123"}'
 ```
@@ -134,7 +162,7 @@ POST /api/auth/change-password
 {
   "success": true,
   "data": {
-    "message": "Password updated successfully"
+    "message": "Password changed successfully"
   }
 }
 ```
@@ -189,5 +217,7 @@ curl -X POST http://localhost:3000/api/auth/login \
 - Password is hashed with bcrypt before storage (never stored in plaintext)
 
 ---
+
+**Last updated:** March 4, 2026
 
 [← Back to API Reference](./README.md)
