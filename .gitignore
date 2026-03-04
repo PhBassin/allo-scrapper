@@ -63,3 +63,8 @@ out.txt
 test.out
 *.out
 backup_*.sql
+
+# Git merge/rebase artifacts
+*.orig
+*.patch
+*.rej
