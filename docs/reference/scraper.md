@@ -274,7 +274,7 @@ fix(cinema): update Grand Action scraping URL
 
 ## API Endpoints
 
-See [API.md](./API.md) for complete API reference:
+See [API.md](./api/README.md) for complete API reference:
 
 - `GET /api/cinemas` - List all cinemas
 - `GET /api/cinemas/:id` - Get cinema details with showtimes
@@ -318,7 +318,7 @@ Express API (ics-web)
 - Enables horizontal scaling (multiple scraper workers)
 - Better observability (metrics, tracing)
 
-See [DOCKER.md](./DOCKER.md) for scraper microservice deployment.
+See [DOCKER.md](../guides/deployment/docker.md) for scraper microservice deployment.
 
 ---
 
@@ -341,7 +341,7 @@ Events include:
 - `completed` - Scrape finished successfully
 - `failed` - Fatal error
 
-See [API.md - Watch Scrape Progress](./API.md#watch-scrape-progress-sse) for full event reference.
+See [API.md - Watch Scrape Progress](./api/README.md#watch-scrape-progress-sse) for full event reference.
 
 ### Scrape Reports
 

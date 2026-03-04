@@ -18,10 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Documentation Restructure (Issue #239)** — Complete reorganization of documentation into professional `/docs/` hierarchy
   - Migrated 12,586 lines of documentation from flat root structure to organized categories
   - Created 42 documentation files following Divio Documentation System (Tutorials, How-To Guides, Reference, Explanation)
-  - Split API.md (2,157 lines) into 10 modular endpoint files for better discoverability
+  - Split API.md (2,157 lines) (root symlink) into 10 modular endpoint files for better discoverability
   - Organized into 4 main categories: Getting Started, Guides, Reference, Troubleshooting
   - Added comprehensive navigation with READMEs, tables of contents, and breadcrumbs on all pages
-  - Created 19 backward compatibility symlinks (all root `.md` files now point to `/docs/`)
+  - Created 18 backward compatibility symlinks (removed later)
   - Zero information loss - all examples, code snippets, and formatting preserved
   - Completed through 9 incremental PRs (#240-#248) for reviewability
   - **New structure:**
@@ -132,12 +132,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- **ADMIN_PANEL.md** — Comprehensive admin panel user guide (new file)
+- **ADMIN_PANEL.md** (root symlink, removed later) — Comprehensive admin panel user guide (new file)
   - Complete walkthrough of all admin panel features
   - Best practices for branding and security
   - Troubleshooting common issues
   
-- **API.md** — Documented white-label APIs
+- **API.md** (root symlink, removed later) — Documented white-label APIs
   - Complete Settings Management API reference with examples
   - Complete User Management API reference with examples
   - Theme CSS endpoint documentation

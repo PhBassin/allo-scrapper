@@ -894,7 +894,7 @@ docker system prune -a --volumes
 
 ### For More Help
 
-- **Docker Issues**: [Docker Troubleshooting](../../../TROUBLESHOOTING.md#docker-issues)
+- **Docker Issues**: [Docker Troubleshooting](../../troubleshooting/common-issues.md#docker-issues)
 - **Database Issues**: [Database Troubleshooting](../../troubleshooting/database.md)
 - **Networking Issues**: [Networking Guide](./networking.md)
 - **GitHub Issues**: [Report a bug](https://github.com/PhBassin/allo-scrapper/issues)

@@ -345,7 +345,7 @@ curl -X POST http://localhost:3000/api/cinemas \
   -d '{"url":"https://www.allocine.fr/seance/salle_gen_csalle=C0001.html"}'
 ```
 
-See [SCRAPER.md](../../../SCRAPER.md) for cinema configuration details.
+See [SCRAPER.md](../../reference/scraper.md) for cinema configuration details.
 
 ### 3. Run First Scrape
 

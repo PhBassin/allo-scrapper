@@ -34,7 +34,7 @@
 - ✅ Backend API : Settings, Users, Theme Generator, System Info (2,380+ lignes de tests)
 - ✅ Frontend : SettingsPage (5 tabs), UsersPage, SystemPage, RequireAdmin
 - ✅ Thème dynamique : useTheme hook + /api/theme.css
-- ✅ Documentation : ADMIN_PANEL.md (822 lignes) + API.md (245 lignes ajoutées)
+- ✅ Documentation : ADMIN_PANEL.md (822 lignes) (root symlink, removed later) + API.md (245 lignes ajoutées) (root symlink, removed later)
 - ✅ E2E Tests : 853 lignes (theme, users, system)
 
 **✅ Phase 11 complétée (01/03/2026):**
@@ -564,14 +564,14 @@ CREATE INDEX idx_users_role ON users(role);
   - ✅ Responsive layout tests (desktop/mobile)
 
 **Documentation:**
-- ✅ **ADMIN_PANEL.md** - System Information section added (221 lignes)
+- ✅ **ADMIN_PANEL.md** (root symlink, removed later) - System Information section added (221 lignes)
   - ✅ Overview of system monitoring features
   - ✅ Detailed docs for all 5 dashboard components
   - ✅ Auto-refresh usage instructions
   - ✅ Health status indicators and troubleshooting
   - ✅ Monitoring workflows
 
-- ✅ **API.md** - System endpoints documented (245 lignes added)
+- ✅ **API.md** (root symlink, removed later) - System endpoints documented (245 lignes added)
   - ✅ `GET /api/system/info` with examples
   - ✅ `GET /api/system/migrations` with examples
   - ✅ `GET /api/system/health` with examples
@@ -651,7 +651,7 @@ CREATE INDEX idx_users_role ON users(role);
   - [ ] Screenshots (optionnel)
   - [ ] Credentials par défaut
   - [ ] Instructions export/import
-- [ ] Update API.md
+- [ ] Update API.md (root symlink, removed later)
   - [ ] Documenter `/api/settings` endpoints
   - [ ] Documenter `/api/users` endpoints
   - [ ] Documenter `/api/theme.css`
@@ -665,7 +665,7 @@ CREATE INDEX idx_users_role ON users(role);
   - [ ] Workflow branding customization
 - [ ] Commits
   - [ ] `docs: update README with admin panel documentation`
-  - [ ] `docs: update API.md with settings and users endpoints`
+  - [ ] `docs: update API.md with settings and users endpoints` (root symlink, removed later)
   - [ ] `chore(docker): verify full stack build`
 
 ---
@@ -700,7 +700,7 @@ CREATE INDEX idx_users_role ON users(role);
 - ✅ Tests unitaires frontend >= 70% coverage (UsersPage + composants admin testés)
 - ✅ Tests e2e passent (`./scripts/integration-test.sh`) - 664 lignes E2E tests
 - ✅ Docker build réussit (vérifié dans PRs #229, #230)
-- ✅ Documentation à jour (ADMIN_PANEL.md 601 lignes, API.md, AGENTS.md)
+- ✅ Documentation à jour (ADMIN_PANEL.md 601 lignes (root symlink, removed later), API.md (root symlink, removed later), AGENTS.md)
 - ✅ Aucun secret committé (.env, tokens)
 - ✅ Conventional Commits respectés (tous PRs)
 - ✅ Issues GitHub fermées avec "Closes #X" (#194-#230)
@@ -711,7 +711,7 @@ CREATE INDEX idx_users_role ON users(role);
 - ✅ Migrations Viewer implémenté (table avec applied/pending status)
 - ✅ Health Metrics implémenté (health checks avec status indicators)
 - ✅ E2E tests pour system page (11 test cases, 189 lignes)
-- ✅ Documentation API.md et ADMIN_PANEL.md complétée
+- ✅ Documentation API.md (root symlink, removed later) et ADMIN_PANEL.md (root symlink, removed later) complétée
 - ✅ 11 commits suivant Conventional Commits
 - ✅ Bugs critiques fixés (table names, scrape_reports query)
 
@@ -767,11 +767,11 @@ CREATE INDEX idx_users_role ON users(role);
 
 ## 📚 Ressources
 
-- [Documentation migrations](./migrations/README.md)
-- [Documentation AGENTS.md](./AGENTS.md)
-- [Guide TDD](./TESTING.md)
-- [API Documentation](./API.md)
-- [Admin Panel User Guide](./ADMIN_PANEL.md)
+- [Documentation migrations](../getting-started/installation.md#database-migrations)
+- [Documentation AGENTS.md](../../AGENTS.md)
+- [Guide TDD](../guides/development/testing.md)
+- [API Documentation](../reference/api/README.md)
+- [Admin Panel User Guide](../guides/administration/admin-panel.md)
 - [Issue #231 - System Tab](https://github.com/PhBassin/allo-scrapper/issues/231)
 
 ---
@@ -847,9 +847,9 @@ docker compose build
 docker compose up -d
 
 # Update docs
-# - ADMIN_PANEL.md (System tab section)
-# - API.md (/api/system/* endpoints)
-# - WHITE_LABEL_PLAN.md (mark Phase 11 complete)
+# - docs/guides/administration/admin-panel.md (System tab section)
+# - docs/reference/api/README.md (/api/system/* endpoints)
+# - docs/project/white-label-plan.md (mark Phase 11 complete)
 ```
 
 ### 5. Create PR
