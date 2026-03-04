@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext, useCallback } from 'react';
+import { useEffect, useState, useContext, useCallback, useMemo } from 'react';
 
 import { getWeeklyFilms, getFilmsByDate, getCinemas, getScrapeStatus, addCinema, triggerScrape } from '../api/client';
 import type { FilmWithShowtimes, Cinema } from '../types';
@@ -55,14 +55,19 @@ export default function HomePage() {
     setSelectedDate(date);
   }, []);
 
+  // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
+  // re-initialization during renders
+  const formatterDate = useMemo(() => new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }), []);
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('fr-FR', { 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric' 
-    });
+    if (isNaN(date.getTime())) return '';
+    return formatterDate.format(date);
   };
 
   const getWeekEndDate = (startStr: string) => {

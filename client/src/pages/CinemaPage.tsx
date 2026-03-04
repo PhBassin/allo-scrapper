@@ -95,14 +95,21 @@ export default function CinemaPage() {
     return Array.from(filmMap.values());
   };
 
+  // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instances to prevent expensive
+  // re-initialization during frequent renders
+  const formatterWeekday = useMemo(() => new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }), []);
+  const formatterMonth = useMemo(() => new Intl.DateTimeFormat('fr-FR', { month: 'short' }), []);
+
   const formatDateLabel = useCallback((dateStr: string) => {
+    if (!dateStr) return { weekday: '', day: 0, month: '' };
     const date = new Date(dateStr + 'T00:00:00');
+    if (isNaN(date.getTime())) return { weekday: 'Invalid', day: 0, month: 'Date' };
     return {
-      weekday: date.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', ''),
+      weekday: formatterWeekday.format(date).replace('.', ''),
       day: date.getDate(),
-      month: date.toLocaleDateString('fr-FR', { month: 'short' }),
+      month: formatterMonth.format(date),
     };
-  }, []);
+  }, [formatterWeekday, formatterMonth]);
 
   const handleScrapeStart = () => {
     setShowProgress(true);

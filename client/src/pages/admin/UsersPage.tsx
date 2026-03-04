@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, createUser, updateUserRole, resetUserPassword, deleteUser } from '../../api/users';
 import type { UserPublic, UserCreate } from '../../api/users';
 import RoleBadge from '../../components/admin/RoleBadge';
@@ -87,13 +87,20 @@ const UsersPage: React.FC = () => {
     }
   };
 
+  // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
+  // re-initialization during lists renders
+  const formatterDate = useMemo(() => new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }), []);
+
   // Format date
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return formatterDate.format(date);
   };
 
   if (loading) {
