@@ -6,11 +6,17 @@ interface DaySelectorProps {
   onSelectDate: (date: string | null) => void;
 }
 
+// ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
+// re-initialization during loops or frequent re-renders
+const formatterDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+
 function DaySelector({ weekStart, selectedDate, onSelectDate }: DaySelectorProps) {
   const days = useMemo(() => {
     if (!weekStart) return [];
     
     const start = new Date(weekStart);
+    if (isNaN(start.getTime())) return [];
+
     const result = [];
     
     for (let i = 0; i < 7; i++) {
@@ -18,7 +24,7 @@ function DaySelector({ weekStart, selectedDate, onSelectDate }: DaySelectorProps
       date.setDate(start.getDate() + i);
       result.push({
         date: date.toISOString().split('T')[0],
-        label: date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+        label: formatterDay.format(date)
       });
     }
     
