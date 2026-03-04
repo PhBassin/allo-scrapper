@@ -8,6 +8,7 @@ Complete guide for deploying Allo-Scrapper to production using Docker.
 - [Initial Setup](#initial-setup)
 - [Deployment](#deployment)
 - [Environment Configuration](#environment-configuration)
+- [Rate Limiting Configuration](#rate-limiting-configuration)
 - [JWT Secret Configuration](#jwt-secret-configuration)
 - [Database Management](#database-management)
 - [Monitoring & Maintenance](#monitoring--maintenance)
@@ -118,6 +119,10 @@ PORT=3000
 NODE_ENV=production
 LOG_LEVEL=warn
 
+# Application Configuration
+APP_NAME=My Cinema App                    # Optional, default: "Allo-Scrapper"
+AUTO_MIGRATE=true                         # Optional, default: true
+
 # JWT Secret (REQUIRED for production)
 JWT_SECRET=<GENERATE_WITH_openssl_rand_-base64_32>
 
@@ -130,6 +135,20 @@ SCRAPE_CRON_SCHEDULE=0 3 * * *    # Daily at 3 AM
 TZ=Europe/Paris                   # Your timezone
 SCRAPE_DAYS=14                    # Scrape 2 weeks ahead
 ```
+
+**Additional Configuration Variables:**
+
+**`APP_NAME`** (optional, default: "Allo-Scrapper")
+```bash
+APP_NAME=My Cinema App
+```
+Used in logger output, health check responses, and application branding. Changes the service name across all monitoring and logging.
+
+**`AUTO_MIGRATE`** (optional, default: true)
+```bash
+AUTO_MIGRATE=true
+```
+Controls automatic database migrations on startup. Set to `false` to prevent automatic schema changes in production (requires manual migration with `npm run migrate:up` in server/ directory).
 
 See [Configuration Guide](../../getting-started/configuration.md) for all environment variables.
 
@@ -276,6 +295,49 @@ TZ=Asia/Tokyo
 
 ---
 
+## Rate Limiting Configuration
+
+Allo-Scrapper implements comprehensive rate limiting to protect against abuse. Configure per-endpoint limits via environment variables:
+
+### Rate Limit Variables
+
+```bash
+# Authentication endpoints (login, register)
+AUTH_RATE_LIMIT_WINDOW_MS=900000        # 15 minutes (default)
+AUTH_RATE_LIMIT_MAX_REQUESTS=5          # Max 5 requests per window (default)
+
+# Registration endpoint (stricter)
+REGISTER_RATE_LIMIT_WINDOW_MS=3600000   # 1 hour (default)
+REGISTER_RATE_LIMIT_MAX_REQUESTS=3      # Max 3 requests per window (default)
+
+# Protected endpoints (authenticated users)
+PROTECTED_RATE_LIMIT_WINDOW_MS=900000   # 15 minutes (default)
+PROTECTED_RATE_LIMIT_MAX_REQUESTS=60    # Max 60 requests per window (default)
+
+# Public API endpoints
+PUBLIC_RATE_LIMIT_WINDOW_MS=900000      # 15 minutes (default)
+PUBLIC_RATE_LIMIT_MAX_REQUESTS=100      # Max 100 requests per window (default)
+
+# Scraper endpoints
+SCRAPER_RATE_LIMIT_WINDOW_MS=900000     # 15 minutes (default)
+SCRAPER_RATE_LIMIT_MAX_REQUESTS=10      # Max 10 requests per window (default)
+
+# General fallback
+GENERAL_RATE_LIMIT_WINDOW_MS=900000     # 15 minutes (default)
+GENERAL_RATE_LIMIT_MAX_REQUESTS=100     # Max 100 requests per window (default)
+```
+
+### Production Recommendations
+
+- **Keep defaults** for most deployments
+- **Reduce limits** if experiencing abuse
+- **Increase protected limits** for high-traffic authenticated applications
+- **Monitor** rate limit hits via logs (structured JSON logging)
+
+All rate limits use the `express-rate-limit` middleware with in-memory storage. For distributed deployments, consider implementing Redis-based rate limiting.
+
+---
+
 ## JWT Secret Configuration
 
 ⚠️ **CRITICAL**: JWT secret is **required** for production authentication.
@@ -418,13 +480,58 @@ docker compose exec ics-db psql -U postgres -d ics \
 ⚠️ **Warning**: This deletes all data!
 
 ```bash
+# List volumes
+docker volume ls | grep allo-scrapper
+
 # Stop services
 docker compose down
 
-# Remove database volume
-docker volume rm allo-scrapper_postgres_data
+# Remove postgres data (DESTROYS ALL DATA)
+docker volume rm allo-scrapper_postgres-data
 
-# Restart (will re-initialize)
+# Restart fresh
+docker compose up -d
+```
+
+### Database Backup
+
+**Volume Information:**
+- **Volume name**: `allo-scrapper_postgres-data`
+- **Location**: Docker volume (managed by Docker, not a bind mount)
+
+**Manual backup:**
+```bash
+# Create backup directory
+mkdir -p backups
+
+# Backup database volume
+docker run --rm \
+  -v allo-scrapper_postgres-data:/data \
+  -v $(pwd)/backups:/backup \
+  alpine tar czf /backup/postgres-$(date +%Y%m%d-%H%M%S).tar.gz -C /data .
+```
+
+**SQL dump backup:**
+```bash
+# Create SQL dump
+docker compose exec ics-db pg_dump -U postgres -d ics > backups/ics_backup_$(date +%Y%m%d_%H%M%S).sql
+```
+
+**Restore from backup:**
+```bash
+# Stop services
+docker compose down
+
+# Remove current volume
+docker volume rm allo-scrapper_postgres-data
+
+# Restore volume from tar.gz
+docker run --rm \
+  -v allo-scrapper_postgres-data:/data \
+  -v $(pwd)/backups:/backup \
+  alpine tar xzf /backup/postgres-YYYYMMDD-HHMMSS.tar.gz -C /data
+
+# Start services
 docker compose up -d
 ```
 

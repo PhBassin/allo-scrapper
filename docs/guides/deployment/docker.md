@@ -2,6 +2,8 @@
 
 Complete guide for Docker deployment, containerization, and optimization.
 
+**Last updated:** March 4, 2026
+
 **Related Guides:**
 - [Production Deployment](./production.md) - Full production setup
 - [Backup & Restore](./backup-restore.md) - Database backup workflows
@@ -57,6 +59,18 @@ The Docker image has been aggressively optimized for production deployment:
 - Playwright system deps installed as root
 - Then browsers installed as nodejs user (eliminates chown duplicate)
 - --only-shell chromium for minimal browser footprint
+
+### Configuration Volume Mount
+
+The `./server/src/config:/app/dist/config` bind mount allows cinema configuration changes made via the API (admin panel) to be immediately visible on the host filesystem. This enables version control of cinema configuration:
+
+```bash
+git add server/src/config/cinemas.json
+git commit -m "chore: update cinema configuration"
+git push
+```
+
+**Important:** This bind mount ensures that when cinemas are added/modified through the admin UI, the changes persist on the host and can be committed to version control.
 
 **Key Innovation:** The largest optimization comes from installing Playwright browsers AS the nodejs user instead of as root and then using `chown -R`. The chown command would create a 271 MB duplicate layer containing copies of all the browser files.
 
@@ -337,19 +351,36 @@ docker compose down -v
 ```
 
 **Volumes:**
-- `postgres-data` - PostgreSQL database (persistent)
-- `redis-data` - Redis data (persistent)
-- `./server/src/config` - Cinema configuration (bind mount)
+- `postgres-data` - PostgreSQL database persistence
+- `loki-data`, `prometheus-data`, `tempo-data`, `grafana-data` - Monitoring stack data
+- `./server/src/config:/app/dist/config` - Bind mount for cinema configuration (enables git commits of API changes)
 
 ### Backup Volumes
 
 ```bash
+# List all project volumes
+docker volume ls | grep allo-scrapper
+
 # Backup PostgreSQL volume
 docker run --rm \
   -v allo-scrapper_postgres-data:/data \
   -v $(pwd)/backups:/backup \
   alpine tar czf /backup/postgres-volume-$(date +%Y%m%d).tar.gz -C /data .
+
+# Backup monitoring data (optional)
+docker run --rm \
+  -v allo-scrapper_prometheus-data:/data \
+  -v $(pwd)/backups:/backup \
+  alpine tar czf /backup/prometheus-volume-$(date +%Y%m%d).tar.gz -C /data .
+
+# Restore PostgreSQL volume
+docker run --rm \
+  -v allo-scrapper_postgres-data:/data \
+  -v $(pwd)/backups:/backup \
+  alpine tar xzf /backup/postgres-volume-YYYYMMDD.tar.gz -C /data
 ```
+
+> **Note:** Redis data is not persisted by design. Redis serves as a message queue and pub/sub system, not as persistent storage.
 
 See [Backup & Restore](./backup-restore.md) for complete backup workflows.
 

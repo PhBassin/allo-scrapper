@@ -2,6 +2,8 @@
 
 Comprehensive guide for testing the Allo-Scrapper application.
 
+**Last updated:** March 4, 2026
+
 **Related Documentation:**
 - [Installation Guide](../../getting-started/installation.md) - Development environment setup
 - [Contributing Guide](./contributing.md) - Testing requirements for contributions
@@ -12,6 +14,7 @@ Comprehensive guide for testing the Allo-Scrapper application.
 ## Table of Contents
 
 - [Overview](#overview)
+- [Testing Multiple Packages](#testing-multiple-packages)
 - [Unit Tests](#unit-tests)
 - [Integration Tests (E2E)](#integration-tests-e2e)
 - [Test Coverage](#test-coverage)
@@ -30,6 +33,50 @@ The project uses a comprehensive testing strategy:
 
 ---
 
+## Testing Multiple Packages
+
+This project has test suites in three packages with different testing frameworks and purposes:
+
+### Server Tests (Vitest)
+```bash
+cd server
+npm test                # Watch mode
+npm run test:run        # Single run
+npm run test:coverage   # With coverage
+```
+
+### Scraper Microservice Tests (Vitest)
+```bash
+cd scraper
+npm test                # Watch mode
+npm run test:run        # Single run
+```
+
+### Client Tests (Vitest + React Testing Library)
+```bash
+cd client
+npm test                # Run client tests
+```
+
+### Run All Tests
+```bash
+# Check current test counts across all packages
+cd server && npm run test:run
+cd ../scraper && npm run test:run
+cd ../client && npm test
+```
+
+**Current Test Status:**
+- **Server**: ~569 passing tests + 13 skipped = 582 tests across 35 test files
+- **Scraper**: ~32 passing tests across 5 test files
+- **Client**: ~168 passing tests across 17 test files
+- **E2E**: 12 comprehensive Playwright test spec files
+- **Total**: ~769 tests across 69+ test files (all packages combined)
+
+> **Note**: Test counts change frequently as the codebase evolves. Use the commands above to check current counts.
+
+---
+
 ## Unit Tests
 
 ### Technology
@@ -37,7 +84,7 @@ The project uses a comprehensive testing strategy:
 - **Framework**: [Vitest](https://vitest.dev/) - Fast, modern test runner
 - **Assertion Library**: Built-in Vitest assertions
 - **Mocking**: Vitest mocks and spies
-- **Location**: `server/src/**/*.test.ts`
+- **Location**: `server/src/**/*.test.ts` (co-located) + `server/tests/` (dedicated test directory)
 
 ### Running Unit Tests
 
@@ -59,38 +106,53 @@ npm run test:ui
 
 ### Test Files
 
-| File | Tests | What it covers |
-|------|-------|----------------|
-| `theater-json-parser.test.ts` | 34 | JSON-based showtime parsing |
-| `theater-parser.test.ts` | 30 | HTML parsing for all cinemas |
-| `date.test.ts` | 24 | Date utility functions |
-| `cinema-config.test.ts` | 17 | Cinema DB+JSON sync service |
-| `queries.test.ts` | 15 | Database query functions |
-| `cinemas.test.ts` | 15 | Cinemas API route handler (CRUD) |
-| `scraper/utils.test.ts` | 14 | Scraper utility functions |
-| `redis-client.test.ts` | 14 | Redis client singleton and pub/sub |
-| `film-parser.test.ts` | 6 | Film detail page HTML parsing |
-| `scraper.test.ts` | 5 | Scraper route (USE_REDIS_SCRAPER flag) |
-| `films.test.ts` | 5 | Films API route handler |
-| `cors-config.test.ts` | 4 | CORS configuration |
-| `http-client.test.ts` | 3 | HTTP client for the source website |
-| `showtimes.test.ts` | 2 | Showtime grouping utilities |
-| `benchmark-weekly-programs.test.ts` | 2 | DB upsert performance benchmark |
-| `cinemas.security.test.ts` | 1 | Cinema route security/error handling |
+The server package contains comprehensive test coverage across multiple areas:
 
-**Total**: 191 tests across 16 test files
+**Key Test Categories:**
+- **API Routes**: Authentication, cinemas, films, users, settings, reports
+- **Database**: Queries, migrations, benchmarks, user management, settings
+- **Scraping**: HTML parsing, JSON parsing, HTTP client, utilities
+- **Services**: Theme generation, system info, Redis client
+- **Middleware**: Admin authorization, rate limiting
+- **Utilities**: Date functions, image validation, HTML decoding, CORS config
+
+**Current Test Count:**
+```bash
+# Check current server test count
+cd server && npm run test:run
+# Shows: ~569 passing + 13 skipped = 582 tests across 35 test files
+```
+
+**Major Test Files Include:**
+- `theater-json-parser.test.ts` - JSON-based showtime parsing (51 tests)
+- `users.test.ts` - User management API (54 tests)
+- `theater-parser.test.ts` - HTML parsing for cinemas (30 tests)
+- `user-queries.test.ts` - Database user operations (30 tests)
+- `queries.test.ts` - Core database queries (28 tests)
+- `date.test.ts` - Date utility functions (24 tests)
+- `html-decode.test.ts` - HTML entity decoding (23 tests)
+- `migrations.test.ts` - Database schema migrations (22 tests)
+- And many more...
 
 ### Test Fixtures
 
 - **Location**: `server/tests/fixtures/`
-- **Content**: Full HTML pages from the source website (~1.6MB)
-- **Purpose**: Realistic testing with actual cinema data
+- **Content**: 4 fixture files totaling ~1.6MB
+  - `cinema-c0072-page.html` - Cinéma Épée de Bois
+  - `cinema-c0089-page.html` - Cinéma Example
+  - `cinema-w7504-page.html` - Club de l'Étoile
+  - `film-page.html` - Film detail page
+- **Purpose**: Realistic testing with actual cinema data from Allociné
 
 **Adding fixtures:**
 ```bash
-# Fetch HTML for a cinema
-curl "https://www.example-cinema-site.com/seance/salle_gen_csalle=CXXXX.html" \
+# Fetch HTML for a cinema (replace CXXXX with actual cinema ID)
+curl "https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html" \
   -o server/tests/fixtures/cinema-cxxxx-page.html
+
+# Example: Fetch Club de l'Étoile cinema page
+curl "https://www.allocine.fr/seance/salle_gen_csalle=W7504.html" \
+  -o server/tests/fixtures/cinema-w7504-page.html
 ```
 
 ### Example Unit Test
@@ -174,12 +236,22 @@ npx playwright test --headed --debug
 ### Test Locations
 
 ```
-e2e/                        # Playwright E2E tests
-├── scrape-progress.spec.ts # Progress window tests
-└── ...                     # Future E2E tests
+e2e/                              # Playwright E2E tests (12 comprehensive specs)
+├── admin-system.spec.ts          # Admin system information dashboard
+├── auth-flow.spec.ts             # Authentication workflows
+├── change-password.spec.ts       # Password change functionality
+├── cinema-scrape.spec.ts         # Cinema scraping operations
+├── database-schema.spec.ts       # Database schema validation
+├── day-filter.spec.ts            # Day filtering functionality
+├── film-search.spec.ts           # Film search features
+├── reports-navigation.spec.ts    # Reports page navigation
+├── scrape-progress.spec.ts       # Scrape progress monitoring
+├── showtime-buttons.spec.ts      # Showtime button interactions
+├── theme-application.spec.ts     # Theme customization
+└── user-management.spec.ts       # User CRUD operations
 
-playwright.config.ts        # Playwright configuration
-scripts/integration-test.sh # Automated full-stack test script
+playwright.config.ts              # Playwright configuration
+scripts/integration-test.sh       # Automated full-stack test script
 ```
 
 ### Example E2E Test
@@ -244,16 +316,27 @@ export default defineConfig({
       functions: 80,
       branches: 65,
       statements: 80,
+      // Apply thresholds per file, not globally
+      perFile: true,
       include: ['src/**/*.ts'],
       exclude: [
         'src/**/*.test.ts',
         'src/types/**',
+        // Extensive exclusion list - see vitest.config.ts for full list
+        'src/app.ts',
         'src/index.ts',
+        'src/db/**',
+        'src/routes/**',
+        'src/middleware/**',
+        'src/utils/**',
+        // ... and more
       ],
     },
   },
 });
 ```
+
+> **Note**: Coverage thresholds are enforced per file (`perFile: true`), but many files are excluded from coverage requirements (routes, db, middleware, utils). See `server/vitest.config.ts` for the complete exclusion list.
 
 ### Coverage Reporting
 
@@ -315,19 +398,48 @@ npm test
 
 ```
 server/
-├── src/
+├── src/                                   # Co-located tests
 │   ├── services/
 │   │   ├── scraper/
 │   │   │   ├── theater-parser.ts          # Implementation
 │   │   │   ├── theater-parser.test.ts     # Tests
 │   │   │   └── ...
+│   ├── routes/
+│   │   ├── auth.ts                        # Implementation
+│   │   ├── auth.test.ts                   # Tests
+│   │   └── ...
 │   └── utils/
 │       ├── date.ts                        # Implementation
 │       ├── date.test.ts                   # Tests
 │       └── ...
-└── tests/
+└── tests/                                 # Dedicated test directory
+    ├── services/
+    │   └── redis-client.test.ts           # Integration tests
     └── fixtures/                          # Test HTML files
+        ├── cinema-c0072-page.html
         ├── cinema-c0089-page.html
+        ├── cinema-w7504-page.html
+        └── film-page.html
+
+scraper/
+└── tests/unit/                            # Scraper microservice tests
+    ├── logger.test.ts
+    ├── metrics.test.ts
+    ├── redis-client.test.ts
+    ├── tracer.test.ts
+    └── scraper/
+        └── utils.test.ts
+
+client/
+└── src/                                   # React component tests
+    ├── components/
+    │   ├── ScrapeButton.test.tsx
+    │   └── ...
+    ├── pages/
+    │   ├── HomePage.test.tsx
+    │   └── ...
+    └── utils/
+        ├── date.test.ts
         └── ...
 ```
 

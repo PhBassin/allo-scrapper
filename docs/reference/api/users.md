@@ -1,84 +1,108 @@
 # User Management API
 
-**Admin Only:** All endpoints require admin authentication
+🔒 **Admin Only:** All endpoints require admin authentication
 
-The User Management API enables administrators to manage user accounts and roles. All endpoints require admin authentication.
+The User Management API enables administrators to manage user accounts and roles. All endpoints require admin authentication and are rate-limited.
 
-## User Management
+**Last updated:** March 4, 2026
 
-### List All Users
+---
+
+## Table of Contents
+
+- [List All Users](#list-all-users)
+- [Get User by ID](#get-user-by-id)
+- [Create New User](#create-new-user)
+- [Update User Role](#update-user-role)
+- [Reset User Password](#reset-user-password)
+- [Delete User](#delete-user)
+- [Password Requirements](#password-requirements)
+- [Error Responses](#error-responses)
+
+---
+
+## List All Users
 
 ```http
 GET /api/users
 ```
 
-**Authentication:** Required (Admin role only)
+🔒 **Authentication:** Required (Admin role only)  
+**Rate Limit:** 100 requests/15 minutes
 
-**Query Parameters:**
-- `page` (optional, integer): Page number (default: `1`)
-- `pageSize` (optional, integer): Users per page (default: `20`, max: `100`)
+Retrieve all users with pagination support.
 
-**Response (200):**
+### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `limit` | integer | No | `100` | Maximum number of users to return |
+| `offset` | integer | No | `0` | Number of users to skip |
+
+### Response
+
+**Success (200 OK):**
 ```json
 {
   "success": true,
-  "data": {
-    "users": [
-      {
-        "id": 1,
-        "username": "admin",
-        "role": "admin",
-        "created_at": "2026-01-15T10:00:00.000Z"
-      },
-      {
-        "id": 2,
-        "username": "viewer",
-        "role": "user",
-        "created_at": "2026-02-01T14:30:00.000Z"
-      }
-    ],
-    "total": 2,
-    "page": 1,
-    "pageSize": 20,
-    "totalPages": 1
-  }
+  "data": [
+    {
+      "id": 1,
+      "username": "admin",
+      "role": "admin",
+      "created_at": "2026-01-15T10:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "username": "viewer",
+      "role": "user",
+      "created_at": "2026-02-01T14:30:00.000Z"
+    }
+  ]
 }
 ```
 
-**Response (403 — not admin):**
-```json
-{
-  "success": false,
-  "error": "Forbidden: Admin access required"
-}
-```
+**Errors:**
+- `400 Bad Request`: Invalid limit or offset parameter
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Admin access required
+- `429 Too Many Requests`: Rate limit exceeded
 
-**Example:**
+### Example
+
 ```bash
 # Get auth token
 TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
 
-# List users
-curl "http://localhost:3000/api/users?page=1&pageSize=20" \
+# List first 50 users
+curl "http://localhost:3000/api/users?limit=50&offset=0" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
 
-### Get User by ID
+## Get User by ID
 
 ```http
 GET /api/users/:id
 ```
 
-**Authentication:** Required (Admin role only)
+🔒 **Authentication:** Required (Admin role only)  
+**Rate Limit:** 100 requests/15 minutes
 
-**Parameters:**
-- `id` (integer): User ID
+Retrieve a specific user by their ID.
 
-**Response (200):**
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | integer | Yes | User ID |
+
+### Response
+
+**Success (200 OK):**
 ```json
 {
   "success": true,
@@ -91,15 +115,15 @@ GET /api/users/:id
 }
 ```
 
-**Response (404 — user not found):**
-```json
-{
-  "success": false,
-  "error": "User not found"
-}
-```
+**Errors:**
+- `400 Bad Request`: Invalid user ID
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Admin access required
+- `404 Not Found`: User not found
+- `429 Too Many Requests`: Rate limit exceeded
 
-**Example:**
+### Example
+
 ```bash
 # Get auth token
 TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
@@ -113,17 +137,19 @@ curl http://localhost:3000/api/users/2 \
 
 ---
 
-### Create New User
+## Create New User
 
 ```http
 POST /api/users
 ```
 
-**Authentication:** Required (Admin role only)
+🔒 **Authentication:** Required (Admin role only)  
+**Rate Limit:** 100 requests/15 minutes
 
-**Description:** Create a new user account with specified role.
+Create a new user account with specified role.
 
-**Request Body:**
+### Request Body
+
 ```json
 {
   "username": "newuser",
@@ -132,44 +158,38 @@ POST /api/users
 }
 ```
 
-**Validation Rules:**
-- **Username**: 3-50 characters, alphanumeric + underscore/hyphen, unique
-- **Password**: Minimum 8 characters (hashed with bcrypt)
-- **Role**: Must be either `"admin"` or `"user"`
+### Validation Rules
 
-**Response (201 — created):**
+| Field | Requirements |
+|-------|-------------|
+| **username** | 3-15 characters, alphanumeric only (a-z, A-Z, 0-9), unique |
+| **password** | See [Password Requirements](#password-requirements) |
+| **role** | Must be either `"admin"` or `"user"` (defaults to `"user"`) |
+
+### Response
+
+**Success (201 Created):**
 ```json
 {
   "success": true,
   "data": {
-    "user": {
-      "id": 3,
-      "username": "newuser",
-      "role": "user",
-      "created_at": "2026-03-01T16:00:00.000Z"
-    },
-    "message": "User created successfully"
+    "id": 3,
+    "username": "newuser",
+    "role": "user",
+    "created_at": "2026-03-04T16:00:00.000Z"
   }
 }
 ```
 
-**Response (409 — username exists):**
-```json
-{
-  "success": false,
-  "error": "Username already exists"
-}
-```
+**Errors:**
+- `400 Bad Request`: Missing required fields, invalid username format, weak password, or invalid role
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Admin access required
+- `409 Conflict`: Username already exists
+- `429 Too Many Requests`: Rate limit exceeded
 
-**Response (400 — validation error):**
-```json
-{
-  "success": false,
-  "error": "Username must be 3-50 characters and contain only letters, numbers, underscores, and hyphens"
-}
-```
+### Example
 
-**Example:**
 ```bash
 # Get auth token
 TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
@@ -189,58 +209,55 @@ curl -X POST http://localhost:3000/api/users \
 
 ---
 
-### Update User Role
+## Update User Role
 
 ```http
 PUT /api/users/:id/role
 ```
 
-**Authentication:** Required (Admin role only)
+🔒 **Authentication:** Required (Admin role only)  
+**Rate Limit:** 100 requests/15 minutes
 
-**Description:** Change a user's role between `admin` and `user`. Safety guards prevent demoting the last admin.
+Change a user's role between `admin` and `user`. Safety guards prevent demoting the last admin.
 
-**Parameters:**
-- `id` (integer): User ID
+### Parameters
 
-**Request Body:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | integer | Yes | User ID |
+
+### Request Body
+
 ```json
 {
   "role": "admin"
 }
 ```
 
-**Response (200 — success):**
+### Response
+
+**Success (200 OK):**
 ```json
 {
   "success": true,
   "data": {
-    "user": {
-      "id": 2,
-      "username": "viewer",
-      "role": "admin"
-    },
-    "message": "User role updated successfully"
+    "id": 2,
+    "username": "viewer",
+    "role": "admin",
+    "created_at": "2026-02-01T14:30:00.000Z"
   }
 }
 ```
 
-**Response (400 — cannot demote last admin):**
-```json
-{
-  "success": false,
-  "error": "Cannot change role: at least one admin user must remain"
-}
-```
+**Errors:**
+- `400 Bad Request`: Invalid user ID or role
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Admin access required, or cannot demote the last admin user
+- `404 Not Found`: User not found
+- `429 Too Many Requests`: Rate limit exceeded
 
-**Response (404 — user not found):**
-```json
-{
-  "success": false,
-  "error": "User not found"
-}
-```
+### Example
 
-**Example:**
 ```bash
 # Get auth token
 TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
@@ -256,41 +273,52 @@ curl -X PUT http://localhost:3000/api/users/2/role \
 
 ---
 
-### Reset User Password
+## Reset User Password
 
 ```http
 POST /api/users/:id/reset-password
 ```
 
-**Authentication:** Required (Admin role only)
+🔒 **Authentication:** Required (Admin role only)  
+**Rate Limit:** 100 requests/15 minutes
 
-**Description:** Generate a new secure random password for a user. Returns the plaintext password (only shown once).
+Generate a new secure random password for a user. Returns the plaintext password (only shown once).
 
-**Parameters:**
-- `id` (integer): User ID
+### Parameters
 
-**Response (200 — success):**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | integer | Yes | User ID |
+
+### Response
+
+**Success (200 OK):**
 ```json
 {
   "success": true,
   "data": {
-    "message": "Password reset successfully",
-    "new_password": "Xy9mK2pQr4sT"
+    "user": {
+      "id": 2,
+      "username": "viewer",
+      "role": "user",
+      "created_at": "2026-02-01T14:30:00.000Z"
+    },
+    "newPassword": "Xy9mK2pQr4sT"
   }
 }
 ```
 
-**Response (404 — user not found):**
-```json
-{
-  "success": false,
-  "error": "User not found"
-}
-```
+**Errors:**
+- `400 Bad Request`: Invalid user ID
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Admin access required
+- `404 Not Found`: User not found
+- `429 Too Many Requests`: Rate limit exceeded
 
 **Security Note:** The new password is only returned in this response and is not stored in plaintext. Communicate it securely to the user.
 
-**Example:**
+### Example
+
 ```bash
 # Get auth token
 TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
@@ -302,61 +330,44 @@ curl -X POST http://localhost:3000/api/users/2/reset-password \
   -H "Authorization: Bearer $TOKEN"
 
 # Response includes new password:
-# {"success":true,"data":{"message":"Password reset successfully","new_password":"Xy9mK2pQr4sT"}}
+# {"success":true,"data":{"user":{...},"newPassword":"Xy9mK2pQr4sT"}}
 ```
 
 ---
 
-### Delete User
+## Delete User
 
 ```http
 DELETE /api/users/:id
 ```
 
-**Authentication:** Required (Admin role only)
+🔒 **Authentication:** Required (Admin role only)  
+**Rate Limit:** 100 requests/15 minutes
 
-**Description:** Delete a user account. Safety guards prevent:
+Delete a user account. Safety guards prevent:
 - Deleting the last admin user
 - Deleting your own account (self-deletion)
 
-**Parameters:**
-- `id` (integer): User ID
+### Parameters
 
-**Response (200 — success):**
-```json
-{
-  "success": true,
-  "data": {
-    "message": "User deleted successfully"
-  }
-}
-```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | integer | Yes | User ID |
 
-**Response (400 — cannot delete last admin):**
-```json
-{
-  "success": false,
-  "error": "Cannot delete the last admin user"
-}
-```
+### Response
 
-**Response (400 — cannot self-delete):**
-```json
-{
-  "success": false,
-  "error": "Cannot delete your own account"
-}
-```
+**Success (204 No Content):**
+Empty response body.
 
-**Response (404 — user not found):**
-```json
-{
-  "success": false,
-  "error": "User not found"
-}
-```
+**Errors:**
+- `400 Bad Request`: Invalid user ID
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Admin access required, cannot delete the last admin user, or cannot delete your own account
+- `404 Not Found`: User not found
+- `429 Too Many Requests`: Rate limit exceeded
 
-**Example:**
+### Example
+
 ```bash
 # Get auth token
 TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
@@ -369,5 +380,69 @@ curl -X DELETE http://localhost:3000/api/users/3 \
 ```
 
 ---
+
+## Password Requirements
+
+All passwords must meet these security requirements:
+
+- **Minimum length:** 8 characters
+- **Uppercase letter:** At least one (A-Z)
+- **Lowercase letter:** At least one (a-z)
+- **Digit:** At least one (0-9)
+- **Special character:** At least one (any non-alphanumeric character)
+
+**Valid examples:**
+- `SecurePass123!`
+- `MyP@ssw0rd`
+- `Admin2024#`
+
+**Invalid examples:**
+- `password` (no uppercase, digit, or special character)
+- `PASSWORD123` (no lowercase or special character)
+- `Pass123` (too short, no special character)
+
+---
+
+## Error Responses
+
+All error responses follow this format:
+
+```json
+{
+  "success": false,
+  "error": "Error message description"
+}
+```
+
+### Common Error Messages
+
+| Status | Error Message | Cause |
+|--------|---------------|-------|
+| 400 | `"Username and password are required"` | Missing required fields |
+| 400 | `"Username must be alphanumeric and 3-15 characters long"` | Invalid username format |
+| 400 | `"Password must be at least 8 characters"` | Password too short |
+| 400 | `"Password must contain at least one uppercase letter"` | Missing uppercase |
+| 400 | `"Password must contain at least one lowercase letter"` | Missing lowercase |
+| 400 | `"Password must contain at least one digit"` | Missing number |
+| 400 | `"Password must contain at least one special character"` | Missing special character |
+| 400 | `"Invalid role. Must be \"admin\" or \"user\""` | Invalid role value |
+| 400 | `"Invalid user ID"` | Non-numeric user ID |
+| 400 | `"Invalid limit parameter"` | Invalid limit value |
+| 400 | `"Invalid offset parameter"` | Invalid offset value |
+| 401 | `"Unauthorized"` | Missing or invalid JWT token |
+| 403 | `"Forbidden: Admin access required"` | Non-admin user |
+| 403 | `"Cannot demote the last admin user"` | Safety guard violation |
+| 403 | `"Cannot delete the last admin user"` | Safety guard violation |
+| 403 | `"Cannot delete your own account"` | Self-deletion attempt |
+| 404 | `"User not found"` | User ID doesn't exist |
+| 409 | `"Username already exists"` | Duplicate username |
+| 429 | `"Too Many Requests"` | Rate limit exceeded |
+
+---
+
+**See also:**
+- [Authentication API](./auth.md)
+- [Rate Limiting](../architecture/rate-limiting.md)
+- [Admin Panel Guide](../../guides/administration/user-management.md)
 
 [← Back to API Reference](./README.md)

@@ -1,8 +1,11 @@
 # Settings Management API
 
-**Admin Only:** All write endpoints require admin authentication
+**Admin Only:** All write endpoints require admin authentication  
+**Rate Limit:** 60 requests per 15 minutes (applies to all admin endpoints)
 
 The Settings API provides complete white-label branding customization for the application. Configure site name, logo, colors, fonts, footer, and email branding through a comprehensive admin interface.
+
+**Last updated:** March 4, 2026
 
 ## Settings Management
 
@@ -150,10 +153,20 @@ PUT /api/settings
 **Validation Rules:**
 - **Colors**: Must be valid hex codes (e.g., `#FECC00` or `#FFF`)
 - **Images**: Must be valid base64 data URLs
-  - Logo: Max 200KB, formats: PNG/JPG/SVG, min 100x100px
+  - Logo: Max 2MB (before compression), formats: PNG/JPEG/WebP, max 500x500px
   - Favicon: Max 50KB, formats: ICO/PNG, 32x32 or 64x64px
 - **Footer links**: Array of `{label: string, url: string}` objects
 - **Fonts**: String values (Google Fonts or system fonts)
+
+#### Image Processing
+
+All uploaded logos are automatically processed:
+- **Validation**: Format (PNG/JPEG/WebP), dimensions (max 500x500), size (max 2MB)
+- **Compression**: Automatically compressed for optimal storage and delivery
+- **Storage**: Only the compressed version is stored and served
+- **Output**: The compressed base64 data is returned in the response
+
+Unsupported formats or oversized images will be rejected with a 400 error.
 
 **Response (200 — success):**
 ```json
@@ -246,24 +259,36 @@ curl -X POST http://localhost:3000/api/settings/reset \
 ### Export Settings
 
 ```http
-GET /api/settings/export
+POST /api/settings/export
 ```
 
-**Authentication:** Required (Admin role only)
+🔒 **Authentication:** Required (Admin role only)  
+**Rate Limit:** 60 requests per 15 minutes
 
 **Description:** Export all settings as a JSON file for backup or migration purposes.
 
 **Response (200):**
 ```json
 {
-  "version": "1.0",
-  "exported_at": "2026-03-01T15:30:00.000Z",
-  "settings": {
-    "site_name": "My Cinema Portal",
-    "logo_base64": "data:image/png;base64,...",
-    "color_primary": "#FECC00",
-    "footer_links": [...]
+  "success": true,
+  "data": {
+    "version": "1.0",
+    "exported_at": "2026-03-01T15:30:00.000Z",
+    "settings": {
+      "site_name": "My Cinema Portal",
+      "logo_base64": "data:image/png;base64,...",
+      "color_primary": "#FECC00",
+      "footer_links": [...]
+    }
   }
+}
+```
+
+**Response (403 — not admin):**
+```json
+{
+  "success": false,
+  "error": "Forbidden: Admin access required"
 }
 ```
 
@@ -275,7 +300,7 @@ TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
   -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
 
 # Export settings to file
-curl http://localhost:3000/api/settings/export \
+curl -X POST http://localhost:3000/api/settings/export \
   -H "Authorization: Bearer $TOKEN" \
   -o settings-backup.json
 ```
@@ -291,6 +316,8 @@ POST /api/settings/import
 **Authentication:** Required (Admin role only)
 
 **Description:** Import settings from a previously exported JSON file. Validates the structure before applying.
+
+⚠️ **Warning**: Import overwrites ALL current settings. This action cannot be undone. Export current settings before importing to create a backup.
 
 **Request Body:**
 ```json
@@ -312,6 +339,14 @@ POST /api/settings/import
     "message": "Settings imported successfully",
     "applied_fields": ["site_name", "color_primary", "font_primary"]
   }
+}
+```
+
+**Response (403 — not admin):**
+```json
+{
+  "success": false,
+  "error": "Forbidden: Admin access required"
 }
 ```
 
