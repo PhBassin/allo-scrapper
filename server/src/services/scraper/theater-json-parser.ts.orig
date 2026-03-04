@@ -301,7 +301,7 @@ export function parseShowtimesJson(
       audience_rating,
       release_date,
       rerelease_date,
-      source_url: `${ALLOCINE_BASE_URL}/film/fichefilm_gen_cfilm=${filmId}.html`,
+      source_url: `https://www.allocine.fr/film/fichefilm_gen_cfilm=${filmId}.html`,
     };
 
     const showtimes = mapShowtimes(result.showtimes ?? {}, filmId, cinemaId, date);

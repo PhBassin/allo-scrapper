@@ -2,10 +2,11 @@
 
 import { chromium, type Browser } from 'playwright';
 import { logger } from '../../utils/logger.js';
-import { ALLOCINE_BASE_URL } from './utils.js';
 
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+const ALLOCINE_BASE_URL = 'https://www.allocine.fr';
 
 /**
  * Validates cinema ID format (e.g., "C0072", "W7517")
