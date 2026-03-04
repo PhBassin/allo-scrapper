@@ -238,6 +238,7 @@ docker compose restart ics-web ics-scraper
 | Variable | Default | Description |
 |---|---|---|
 | `LOG_LEVEL` | `info` | Log verbosity (`error`, `warn`, `info`, `debug`) |
+| `METRICS_PORT` | `9091` | Prometheus metrics port (scraper microservice only) |
 | `OTEL_ENABLED` | `false` | Enable OpenTelemetry tracing |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://ics-tempo:4317` | OTLP gRPC endpoint |
 | `GRAFANA_ADMIN_USER` | `admin` | Grafana admin username |
@@ -459,14 +460,14 @@ docker compose restart ics-postgres-exporter ics-redis-exporter
 
 ### Grafana Datasources
 
-**Location:** `docker/grafana/datasources/`
+**Location:** `docker/grafana/datasources/datasources.yml`
 
 **Auto-provisioned datasources:**
-- `prometheus.yml` - Prometheus (http://ics-prometheus:9090)
-- `loki.yml` - Loki (http://ics-loki:3100)
-- `tempo.yml` - Tempo (http://ics-tempo:3200)
+- Prometheus (http://ics-prometheus:9090)
+- Loki (http://ics-loki:3100)
+- Tempo (http://ics-tempo:3200)
 
-**Note:** Datasources are automatically configured on Grafana startup.
+**Note:** All datasources are defined in a single YAML file and automatically configured on Grafana startup.
 
 ---
 
