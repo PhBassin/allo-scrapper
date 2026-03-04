@@ -540,6 +540,54 @@ npm install
 
 ---
 
+## Custom OpenCode Agents
+
+This project includes specialized OpenCode agents to assist with specific tasks.
+
+### docs-writer Agent
+
+**Purpose:** Maintains and writes project documentation following the Divio documentation system.
+
+**Location:** `.opencode/agents/docs-writer.md`
+
+**Capabilities:**
+- Creates and updates documentation in `docs/` and root markdown files
+- Follows Divio principles (tutorials, guides, reference, troubleshooting)
+- Validates markdown syntax using markdownlint
+- Checks for broken links automatically
+- Verifies code examples against current codebase
+- Can research external references (official docs)
+- Delegates to explore agent for code understanding
+
+**Usage:**
+
+Direct invocation:
+```
+@docs-writer Update the API documentation for /api/cinemas endpoint
+```
+
+Automatic delegation (when asking about documentation):
+```
+Can you update the troubleshooting guide for Docker networking?
+```
+
+**Configuration:**
+- **Mode**: Subagent (invokable, not primary)
+- **Temperature**: 0.2 (precise and consistent)
+- **Tools**: Full file access, webfetch, task delegation, bash validation
+- **Permissions**: 
+  - Bash commands require approval (except validation tools)
+  - External fetches require approval
+  - Can delegate to explore agent automatically
+
+**Best Practices:**
+- Use for all documentation updates and creation
+- Let it validate links and syntax automatically
+- Provide context about feature changes when updating docs
+- Trust its adherence to Divio system and project style
+
+---
+
 ## Questions?
 
 If unclear about requirements:
