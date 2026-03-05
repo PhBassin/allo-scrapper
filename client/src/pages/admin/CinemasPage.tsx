@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getCinemas, createCinema, updateCinema, deleteCinema } from '../../api/cinemas';
 import type { CinemaCreate, CinemaUpdate } from '../../api/cinemas';
 import type { Cinema } from '../../types';
@@ -84,15 +84,20 @@ const CinemasPage: React.FC = () => {
 
   // ── Filtering ────────────────────────────────────────────────────────────────
 
-  const filteredCinemas = cinemas.filter((cinema) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      cinema.name.toLowerCase().includes(q) ||
-      cinema.id.toLowerCase().includes(q) ||
-      (cinema.city ?? '').toLowerCase().includes(q)
-    );
-  });
+  // ⚡ PERFORMANCE: Memoize the filtered cinemas list to prevent expensive
+  // recalculation of the entire array on every render, especially when unrelated
+  // state (like modal visibility or form data) changes.
+  const filteredCinemas = useMemo(() => {
+    return cinemas.filter((cinema) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        cinema.name.toLowerCase().includes(q) ||
+        cinema.id.toLowerCase().includes(q) ||
+        (cinema.city ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [cinemas, searchQuery]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
