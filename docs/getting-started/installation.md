@@ -255,8 +255,8 @@ This installs pre-push hooks that run TypeScript checks and tests before pushing
 **Best for:** Production deployments, VPS/cloud hosting, high-traffic sites
 
 For complete production deployment instructions, see:
-- **[Production Deployment Guide](../../guides/deployment/production.md)** - Complete production setup
-- **[Docker Setup Guide](../../guides/deployment/docker.md)** - Docker optimization for production
+- **[Production Deployment Guide](../guides/deployment/production.md)** - Complete production setup
+- **[Docker Setup Guide](../guides/deployment/docker.md)** - Docker optimization for production
 
 **Quick Production Start:**
 
@@ -373,7 +373,7 @@ crontab -e
 0 2 * * * /path/to/allo-scrapper/scripts/backup-production.sh --host localhost --user postgres
 ```
 
-See [Backup & Restore Guide](../../guides/deployment/backup-restore.md) for complete backup setup.
+See [Backup & Restore Guide](../guides/deployment/backup-restore.md) for complete backup setup.
 
 ---
 
@@ -453,7 +453,7 @@ cd client && npm run build && cd ..
 
 ### Check Changelog
 
-Always review [CHANGELOG.md](../../project/changelog.md) before upgrading for:
+Always review [CHANGELOG.md](../project/changelog.md) before upgrading for:
 - Breaking changes
 - Migration notes
 - New features
@@ -542,7 +542,7 @@ rm -rf node_modules server/node_modules client/node_modules
 npm run install:all
 ```
 
-For more troubleshooting, see [Troubleshooting Guide](../../troubleshooting/).
+For more troubleshooting, see [Troubleshooting Guide](../troubleshooting/).
 
 ---
 
@@ -552,9 +552,9 @@ After installation:
 
 - **[Configuration Guide](./configuration.md)** - Complete environment variable reference
 - **[Quick Start Guide](./quick-start.md)** - Get familiar with basic usage
-- **[Development Setup](../../guides/development/setup.md)** - Set up for contributing
-- **[Production Deployment](../../guides/deployment/production.md)** - Production best practices
-- **[API Reference](../../reference/api/)** - Explore the API
+- **[Development Setup](../guides/development/setup.md)** - Set up for contributing
+- **[Production Deployment](../guides/deployment/production.md)** - Production best practices
+- **[API Reference](../reference/api/)** - Explore the API
 
 ---
 

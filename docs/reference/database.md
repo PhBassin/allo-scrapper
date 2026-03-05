@@ -3,8 +3,8 @@
 Complete database schema documentation for the Allo-Scrapper PostgreSQL database.
 
 **Related Documentation:**
-- [API Reference](../api/README.md) - API endpoints that query this data
-- [Installation Guide](../../getting-started/installation.md) - Database initialization
+- [API Reference](./api/README.md) - API endpoints that query this data
+- [Installation Guide](../getting-started/installation.md) - Database initialization
 
 ---
 
@@ -453,9 +453,9 @@ GROUP BY trigger_type;
 
 ## Related Documentation
 
-- [API Reference](../api/README.md) - API endpoints that query this data
-- [Installation Guide](../../getting-started/installation.md) - Database initialization
-- [Troubleshooting](./TROUBLESHOOTING.md) - Database issues
+- [API Reference](./api/README.md) - API endpoints that query this data
+- [Installation Guide](../getting-started/installation.md) - Database initialization
+- [Troubleshooting](../troubleshooting/common-issues.md) - Database issues
 
 ---
 

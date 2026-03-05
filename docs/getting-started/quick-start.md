@@ -252,7 +252,7 @@ lsof -i :5173
 lsof -i :5432
 ```
 
-For more troubleshooting, see [Troubleshooting Guide](../../troubleshooting/).
+For more troubleshooting, see [Troubleshooting Guide](../troubleshooting/).
 
 ---
 
@@ -262,9 +262,9 @@ Now that you're up and running:
 
 - **[Installation Guide](./installation.md)** - Detailed installation options (manual setup, production)
 - **[Configuration Guide](./configuration.md)** - Complete environment variable reference
-- **[API Reference](../../reference/api/)** - Explore the REST API
-- **[Development Setup](../../guides/development/setup.md)** - Set up for development and contributing
-- **[Production Deployment](../../guides/deployment/production.md)** - Deploy to production
+- **[API Reference](../reference/api/)** - Explore the REST API
+- **[Development Setup](../guides/development/setup.md)** - Set up for development and contributing
+- **[Production Deployment](../guides/deployment/production.md)** - Deploy to production
 
 ---
 

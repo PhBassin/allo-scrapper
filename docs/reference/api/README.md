@@ -4,7 +4,7 @@ Complete REST API documentation for Allo-Scrapper.
 
 ## 📑 API Endpoints
 
-### [Authentication](./authentication.md)
+### [Authentication](./auth.md)
 User authentication and JWT token management.
 
 **Endpoints:**
