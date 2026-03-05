@@ -3,9 +3,9 @@
 Complete guide for configuring and managing the cinema scraper.
 
 **Related Documentation:**
-- [Scraper API](../api/scraper.md) - Scraper API endpoints
+- [Scraper API](./api/scraper.md) - Scraper API endpoints
 - [Database Reference](./database.md) - Data storage structure
-- [Docker Deployment](../../guides/deployment/docker.md) - Scraper microservice mode
+- [Docker Deployment](../guides/deployment/docker.md) - Scraper microservice mode
 
 ---
 
@@ -367,7 +367,7 @@ Reports include:
 
 ## Troubleshooting
 
-See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for:
+See [Troubleshooting Guide](../troubleshooting/common-issues.md) for:
 - Scraper not running
 - Cinema-specific scraping errors
 - Data synchronization issues
@@ -377,10 +377,10 @@ See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for:
 
 ## Related Documentation
 
-- [Scraper API](../api/scraper.md) - Scraper API endpoints
+- [Scraper API](./api/scraper.md) - Scraper API endpoints
 - [Database Reference](./database.md) - Data storage structure
-- [Docker Deployment](../../guides/deployment/docker.md) - Scraper microservice mode
-- [Troubleshooting](./TROUBLESHOOTING.md) - Scraper issues
+- [Docker Deployment](../guides/deployment/docker.md) - Scraper microservice mode
+- [Troubleshooting](../troubleshooting/common-issues.md) - Scraper issues
 
 ---
 

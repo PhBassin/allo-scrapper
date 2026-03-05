@@ -422,7 +422,7 @@ The white-label branding system supports full customization via an admin panel a
 - `client/src/pages/admin/SettingsPage.tsx` — Admin UI
 - `client/src/contexts/SettingsContext.tsx` — Frontend state
 
-See [WHITE-LABEL.md](./WHITE-LABEL.md) for full documentation, schema change instructions, and troubleshooting.
+See [WHITE-LABEL.md](../../WHITE-LABEL.md) for full documentation, schema change instructions, and troubleshooting.
 
 ---
 

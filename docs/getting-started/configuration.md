@@ -204,7 +204,7 @@ These variables are **required** for the application to function properly.
 - **Notes**: 
   - Only used by the scraper microservice (`ics-scraper` container)
   - Exposes metrics at `http://localhost:9091/metrics`
-  - See [Monitoring Guide](../../guides/deployment/monitoring.md) for Prometheus configuration
+  - See [Monitoring Guide](../guides/deployment/monitoring.md) for Prometheus configuration
 
 ---
 
@@ -232,7 +232,7 @@ These variables are **required** for the application to function properly.
 - **Example**: `SecureGrafanaP@ss`
 - **⚠️ Important**: Change default in production
 
-See [Monitoring Guide](../../guides/deployment/monitoring.md) for complete observability stack setup.
+See [Monitoring Guide](../guides/deployment/monitoring.md) for complete observability stack setup.
 
 ---
 
@@ -392,7 +392,7 @@ ALLOWED_ORIGINS=https://cinema.example.com  # Good
 # ALLOWED_ORIGINS=http://cinema.example.com  # Bad
 ```
 
-See [Security Guide](../../project/security.md) for complete security recommendations.
+See [Security Guide](../project/security.md) for complete security recommendations.
 
 ---
 
@@ -458,9 +458,9 @@ docker compose restart
 
 - [Quick Start](./quick-start.md) - Get running quickly
 - [Installation](./installation.md) - Installation methods
-- [Production Deployment](../../guides/deployment/production.md) - Production setup
-- [Troubleshooting](../../troubleshooting/) - Common issues
-- [Security Guide](../../project/security.md) - Security best practices
+- [Production Deployment](../guides/deployment/production.md) - Production setup
+- [Troubleshooting](../troubleshooting/) - Common issues
+- [Security Guide](../project/security.md) - Security best practices
 
 ---
 
