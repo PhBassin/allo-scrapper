@@ -54,7 +54,7 @@ router.get('/', requireAuth, protectedLimiter, async (req, res) => {
     logger.error('Error fetching reports:', error);
     const response: ApiResponse = {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch reports',
+      error: 'Failed to fetch reports',
     };
     res.status(500).json(response);
   }
@@ -94,7 +94,7 @@ router.get('/:id', requireAuth, protectedLimiter, async (req, res) => {
     logger.error('Error fetching report:', error);
     const response: ApiResponse = {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch report',
+      error: 'Failed to fetch report',
     };
     return res.status(500).json(response);
   }
