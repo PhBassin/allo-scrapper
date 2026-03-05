@@ -93,7 +93,7 @@ router.post('/trigger', requireAuth, scraperLimiter, async (req, res) => {
     logger.error('Error starting scrape:', error);
     const response: ApiResponse = {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to start scrape',
+      error: 'Failed to start scrape',
     };
     return res.status(500).json(response);
   }
@@ -120,7 +120,7 @@ router.get('/status', async (_req, res) => {
     logger.error('Error fetching scrape status:', error);
     const response: ApiResponse = {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch scrape status',
+      error: 'Failed to fetch scrape status',
     };
     res.status(500).json(response);
   }
