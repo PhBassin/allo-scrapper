@@ -195,7 +195,7 @@ These variables are **required** for the application to function properly.
 - **Notes**: 
   - `false` - In-process scraping (legacy mode)
   - `true` - Microservice scraping (requires Redis and scraper container)
-  - See [Scraper System Architecture](../../reference/architecture/scraper-system.md)
+  - See [Scraper System Architecture](../reference/architecture/scraper-system.md)
 
 #### `METRICS_PORT`
 - **Description**: Port for Prometheus metrics endpoint (scraper microservice only)

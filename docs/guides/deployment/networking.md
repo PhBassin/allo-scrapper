@@ -528,7 +528,7 @@ ALLOWED_ORIGINS=https://cinema.example.com,https://www.cinema.example.com
 - [Production Deployment](./production.md) - Custom domain and HTTPS setup
 - [Docker Setup](./docker.md) - Container management
 - [../../getting-started/configuration.md](../../getting-started/configuration.md) - Environment variables
-- [../../troubleshooting/network.md](../../troubleshooting/network.md) - Network issues
+- [Network Troubleshooting](../../troubleshooting/networking.md) - Network issues
 
 ---
 
