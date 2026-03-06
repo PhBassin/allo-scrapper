@@ -585,7 +585,7 @@ This guide covers managing user accounts through the admin panel interface. For 
 - [Admin Panel Guide](./admin-panel.md) - Complete admin panel reference
 - [Users API Reference](../../reference/api/users.md) - API documentation for developers
 - [Security Policy](../../project/security.md) - Security best practices and policies
-- [Authentication Guide](../../getting-started/authentication.md) - Login and authentication setup
+- [Authentication API Reference](../../reference/api/auth.md) - API authentication endpoints
 - [Quick Start](../../getting-started/quick-start.md) - Initial setup and configuration
 
 ---
