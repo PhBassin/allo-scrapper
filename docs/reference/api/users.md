@@ -442,7 +442,7 @@ All error responses follow this format:
 
 **See also:**
 - [Authentication API](./auth.md)
-- [Rate Limiting](../architecture/rate-limiting.md)
+- [Rate Limiting](./rate-limiting.md)
 - [Admin Panel Guide](../../guides/administration/user-management.md)
 
 [← Back to API Reference](./README.md)

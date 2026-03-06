@@ -152,7 +152,7 @@ User → [Start Scrape] → API Server → Redis Publisher
 
 ## Related Documentation
 
-- [Scraper Configuration](../../guides/administration/scraper.md) - Scraper settings
+- [Scraper Reference](../scraper.md) - Scraper configuration and settings
 - [Monitoring Guide](../../guides/deployment/monitoring.md) - Observability stack
 - [API Reference](../api/) - API endpoints and schemas
 - [Database Schema](../database/schema.md) - Data model

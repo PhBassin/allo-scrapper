@@ -681,4 +681,4 @@ All indexes are created automatically by migrations or init.sql:
 - [Troubleshooting: Database](../../troubleshooting/database.md) - Common database issues
 - [API Reference: Cinemas](../api/cinemas.md) - Cinema endpoints
 - [API Reference: Films](../api/films.md) - Films endpoints
-- [API Reference: Showtimes](../api/showtimes.md) - Showtimes endpoints
+- [API Reference](../api/README.md) - API documentation
