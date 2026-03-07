@@ -26,7 +26,7 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 5. DOCS    → Update README.md / AGENTS.md if API or behaviour changed
 6. COMMIT  → Atomic commits with Conventional Commits format
 7. PR      → Open Pull Request referencing the issue, wait for review
-             → After merge: use `/cleanup` skill or manually switch back to develop, pull latest
+             → After merge: use cleanup skill or manually switch back to develop, pull latest
 ```
 
 **Conditional steps (not always required):**
@@ -247,9 +247,9 @@ Closes #<issue-number>"
 
 **After merge:**
 
-Use the `/cleanup` skill for automated post-merge cleanup:
-```bash
-/cleanup
+Use the cleanup skill for automated post-merge cleanup:
+```
+Load the cleanup skill and help me clean up my merged branch
 ```
 
 This will:
@@ -602,11 +602,11 @@ Can you update the troubleshooting guide for Docker networking?
 - Provide context about feature changes when updating docs
 - Trust its adherence to Divio system and project style
 
-### post-merge-cleanup Skill (`/cleanup`)
+### cleanup Skill
 
 **Purpose:** Automates the post-PR merge cleanup workflow with safety checks and dependency updates.
 
-**Location:** `.opencode/agents/post-merge-cleanup.md`
+**Location:** `.opencode/skills/cleanup/SKILL.md`
 
 **Capabilities:**
 - Verifies branch is merged to develop before deletion
@@ -619,9 +619,14 @@ Can you update the troubleshooting guide for Docker networking?
 
 **Usage:**
 
-After your PR is merged:
+After your PR is merged, ask OpenCode to load and use the cleanup skill:
 ```
-/cleanup
+Load the cleanup skill and help me clean up my merged branch
+```
+
+Or be more specific:
+```
+My PR was just merged. Use the cleanup skill to switch to develop and clean up the feature branch.
 ```
 
 The skill will guide you through the cleanup process with clear prompts and confirmations.
@@ -642,13 +647,10 @@ The skill will guide you through the cleanup process with clear prompts and conf
 ```
 
 **Configuration:**
-- **Mode**: Subagent (invokable via `/cleanup`)
-- **Temperature**: 0.1 (very precise for git operations)
-- **Tools**: Bash only (read-only for git operations)
-- **Permissions**: 
-  - Git commands auto-approved
-  - npm install auto-approved
-  - Other commands require approval
+- **Type**: OpenCode Skill (loaded via skill tool)
+- **Category**: git workflow
+- **License**: MIT
+- **Audience**: developers
 
 **Safety Features:**
 - Never force-deletes unmerged branches (uses `git branch -d`)
@@ -658,7 +660,7 @@ The skill will guide you through the cleanup process with clear prompts and conf
 - Gracefully handles errors with actionable guidance
 
 **Best Practices:**
-- Run `/cleanup` immediately after PR merge confirmation
+- Use immediately after PR merge confirmation
 - Let it handle dependency updates automatically
 - Review the summary to confirm everything succeeded
 - Use batch cleanup option to remove old merged branches periodically

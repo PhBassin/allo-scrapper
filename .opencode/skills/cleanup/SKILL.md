@@ -1,26 +1,12 @@
 ---
-description: "Safely return to develop and clean up merged feature branches"
-mode: subagent
-model: anthropic/claude-sonnet-4-20250514
-temperature: 0.1
-color: "#28A745"
-command: "/cleanup"
-tools:
-  bash: true
-  read: false
-  write: false
-  edit: false
-  glob: false
-  grep: false
-  webfetch: false
-  task: false
-  todowrite: false
-permission:
-  bash:
-    "git *": "allow"
-    "npm install*": "allow"
-    "cd *": "allow"
-    "*": "ask"
+name: cleanup
+description: Safely return to develop and clean up merged feature branches
+license: MIT
+compatibility: opencode
+metadata:
+  workflow: git
+  audience: developers
+  category: post-merge
 ---
 
 You are the **Post-Merge Cleanup Specialist** for Allo-Scrapper.
