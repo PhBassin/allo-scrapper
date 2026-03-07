@@ -11,6 +11,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.0.0-beta.3] - 2026-03-07
+
+### Added
+
+- **Admin Cinema Management UI (Issues #256-263, #282)** — Complete CRUD interface for managing cinemas from admin panel
+  - New `AddCinemaModal` component with smart (auto-scrape URL) and manual modes (#268, #259)
+  - New `EditCinemaModal` component for editing cinema details (#269, #260)
+  - New `DeleteCinemaDialog` component with confirmation (#270, #261)
+  - New `CinemasPage` admin page with cinema list and search (#271, #262)
+  - Cinema location editing: address, city, postal code, screen count (#283, #282)
+  - Cinema API client and Cinema type updates (#265, #258)
+  - Admin protection on all cinema mutation routes (#264, #257)
+  - SSRF guard with post-construction URL validation (#264)
+  - Wired CinemasPage to router and admin navigation (#272, #263)
+
+- **OpenCode Agents & Skills** — Developer workflow automation
+  - Created `docs-writer` specialized agent for documentation maintenance (#303, #302)
+  - Added `/cleanup` skill for post-merge workflow automation
+  - Enabled skill tool in project config
+
+### Performance
+
+- **JSON Parse Cache with LRU Eviction (#325, #324)** — 60% faster cached queries
+  - Implemented JSON parse cache utility with `lru-cache` package
+  - Added comprehensive tests with performance benchmarks
+  - Configurable via `JSON_PARSE_CACHE_SIZE` environment variable
+  - Applied to all cinema/movie/showtime database queries
+  - Memoized `filteredCinemas` in admin cinemas page (#309)
+  - Cached `Intl.DateTimeFormat` instances for faster renders (#299)
+
+### Documentation
+
+- **Phase 3 Documentation Improvements** — 21 new/updated files post-beta.2
+  - Added rate limiting reference documentation (#321)
+  - Fixed 20 broken internal documentation links (#316)
+  - Created system architecture documentation (#319)
+  - Added development setup guide (#319)
+  - Created database schema and migrations reference (#318)
+  - Created 4 troubleshooting documentation files (#317)
+  - Added scripts reference documentation (#319)
+  - Removed 18 backward compatibility symlinks (#308)
+  - Updated testing documentation with accurate counts (#305)
+  - Fixed critical API documentation errors (#305)
+  - Enhanced JSON parse cache documentation
+  - Documented Redis scraper mode differences (#306)
+  - Added METRICS_PORT configuration (#306)
+  - Created user management and white-label branding guides (#306)
+
+### Fixed
+
+- Fixed API error message leakage (MEDIUM severity) (#310)
+- Fixed blurry horizontal line around scrape button (#254)
+- Improved rating display condition to avoid empty sections
+- Fixed Postgres volume persistence in Docker deployment (#303)
+
+### Changed
+
+- Removed cinema-config service (Postgres is source of truth) (#278-281)
+- Removed GET `/sync` endpoint, replaced with direct DB queries (#280)
+- Centralized password strength validation (#255)
+- Rewrote cinema route tests to mock DB queries directly (#279)
+
+### Chore
+
+- Bumped rollup from 4.57.1 to 4.59.0 in server (#300)
+- Bumped @tootallnate/once and jsdom in client (#320)
+- Bumped minimatch in client (#301)
+- Deleted obsolete .archived-docs directory (#306)
+- Created .opencode/agents directory structure
+
+---
+
 ## [3.0.0-beta.2] - 2026-03-01
 
 ### Documentation
