@@ -12,6 +12,7 @@ Complete environment variable reference and configuration guide for Allo-Scrappe
   - [Scraper Configuration](#scraper-configuration)
   - [Redis & Microservice Mode](#redis--microservice-mode)
   - [Monitoring & Observability](#monitoring--observability)
+  - [Performance & Caching](#performance--caching)
   - [Application Branding](#application-branding)
 - [Configuration Examples](#configuration-examples)
 - [Security Best Practices](#security-best-practices)
@@ -233,6 +234,35 @@ These variables are **required** for the application to function properly.
 - **⚠️ Important**: Change default in production
 
 See [Monitoring Guide](../guides/deployment/monitoring.md) for complete observability stack setup.
+
+---
+
+### Performance & Caching
+
+#### `JSON_PARSE_CACHE_SIZE`
+- **Description**: Maximum number of cached JSON parse results
+- **Default**: `10000`
+- **Example**: `50000`, `100000`
+- **Memory impact**: 
+  - 10,000 entries ≈ 1-2 MB
+  - 50,000 entries ≈ 5-10 MB
+  - 100,000 entries ≈ 10-20 MB
+- **Use case**: 
+  - **Default (10,000)**: Suitable for most deployments (hundreds of films, dozens of cinemas)
+  - **Large (50,000+)**: High-traffic deployments with thousands of films or very frequent API calls
+  - **Small (5,000)**: Memory-constrained environments (e.g., Raspberry Pi, low-tier VPS)
+- **Notes**: 
+  - Caches parsed JSON values from database queries (genres, actors, experiences)
+  - Uses LRU eviction strategy (no performance spikes from cache clearing)
+  - Monitor cache effectiveness via `getJSONParseCacheStats()` in code
+  - Typical hit rate: 95-99% for production workloads
+- **When to increase**:
+  - Low cache hit rate (<90%) in logs
+  - High volume of unique films/cinemas
+  - Frequent API calls with many concurrent users
+- **When to decrease**:
+  - Memory constraints
+  - Small deployments (few cinemas, limited films)
 
 ---
 

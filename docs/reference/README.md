@@ -64,6 +64,20 @@ System design, architecture diagrams, and technical decisions.
 
 ---
 
+### [Performance Optimization](./performance.md)
+Performance tuning, caching strategies, and monitoring.
+
+**Contents:**
+- JSON parse caching system
+- Database query optimization
+- Performance monitoring and metrics
+- Tuning guidelines
+- Troubleshooting performance issues
+
+**Best for:** Performance tuning, cache configuration, production optimization
+
+---
+
 ## Quick Reference
 
 ### API Endpoints
