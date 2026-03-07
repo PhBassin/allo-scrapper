@@ -75,4 +75,23 @@ describe('getCorsOptions', () => {
       expect(callback).toHaveBeenCalledWith(null, true);
     }
   });
+
+  it('should include blocked origin and allowed origins in error message', () => {
+    process.env.ALLOWED_ORIGINS = 'http://example.com,http://test.com';
+    const options = getCorsOptions();
+
+    const originCheck = options.origin;
+    const callback = vi.fn();
+
+    if (typeof originCheck === 'function') {
+      // @ts-ignore
+      originCheck('http://blocked-site.com', callback);
+      
+      const error = callback.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toContain('http://blocked-site.com');
+      expect(error.message).toContain('ALLOWED_ORIGINS');
+      expect(error.message).toContain('http://example.com,http://test.com');
+    }
+  });
 });
