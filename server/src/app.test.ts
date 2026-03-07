@@ -151,4 +151,46 @@ describe('App - Theme Endpoint', () => {
       expect(res.body.error).toBe('API endpoint not found');
     });
   });
+
+  describe('Content Security Policy', () => {
+    it('should allow Google Fonts stylesheets in CSP style-src-elem', async () => {
+      const res = await request(app)
+        .get('/api/health')
+        .expect(200);
+
+      const cspHeader = res.headers['content-security-policy'];
+      expect(cspHeader).toBeDefined();
+      
+      // CSP should allow fonts.googleapis.com for loading stylesheets
+      expect(cspHeader).toMatch(/style-src-elem[^;]*https:\/\/fonts\.googleapis\.com/);
+    });
+
+    it('should allow Google Fonts CDN in CSP font-src', async () => {
+      const res = await request(app)
+        .get('/api/health')
+        .expect(200);
+
+      const cspHeader = res.headers['content-security-policy'];
+      expect(cspHeader).toBeDefined();
+      
+      // CSP should allow fonts.gstatic.com for loading font files
+      expect(cspHeader).toMatch(/font-src[^;]*https:\/\/fonts\.gstatic\.com/);
+    });
+
+    it('should maintain existing CSP directives', async () => {
+      const res = await request(app)
+        .get('/api/health')
+        .expect(200);
+
+      const cspHeader = res.headers['content-security-policy'];
+      expect(cspHeader).toBeDefined();
+      
+      // Verify existing directives are preserved
+      expect(cspHeader).toContain("default-src 'self'");
+      expect(cspHeader).toMatch(/style-src[^;]*'self'/);
+      expect(cspHeader).toMatch(/style-src[^;]*'unsafe-inline'/);
+      expect(cspHeader).toMatch(/font-src[^;]*'self'/);
+      expect(cspHeader).toMatch(/font-src[^;]*data:/);
+    });
+  });
 });
