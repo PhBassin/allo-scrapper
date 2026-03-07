@@ -26,7 +26,7 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 5. DOCS    → Update README.md / AGENTS.md if API or behaviour changed
 6. COMMIT  → Atomic commits with Conventional Commits format
 7. PR      → Open Pull Request referencing the issue, wait for review
-             → After merge: switch back to develop, pull latest
+             → After merge: use `/cleanup` skill or manually switch back to develop, pull latest
 ```
 
 **Conditional steps (not always required):**
@@ -246,9 +246,25 @@ Closes #<issue-number>"
 - [ ] Issue referenced in PR body
 
 **After merge:**
+
+Use the `/cleanup` skill for automated post-merge cleanup:
+```bash
+/cleanup
+```
+
+This will:
+- ✅ Verify branch is merged
+- ✅ Stash uncommitted changes (if any)
+- ✅ Switch to develop and pull latest
+- ✅ Update dependencies (if package-lock.json changed)
+- ✅ Delete the local feature branch
+- ✅ Offer to clean up other merged branches
+
+**Manual alternative:**
 ```bash
 git checkout develop
 git pull origin develop
+git branch -d feature/<issue-number>-<short-description>
 ```
 
 ---
@@ -585,6 +601,67 @@ Can you update the troubleshooting guide for Docker networking?
 - Let it validate links and syntax automatically
 - Provide context about feature changes when updating docs
 - Trust its adherence to Divio system and project style
+
+### post-merge-cleanup Skill (`/cleanup`)
+
+**Purpose:** Automates the post-PR merge cleanup workflow with safety checks and dependency updates.
+
+**Location:** `.opencode/agents/post-merge-cleanup.md`
+
+**Capabilities:**
+- Verifies branch is merged to develop before deletion
+- Safely stashes uncommitted changes with descriptive messages
+- Switches to develop and pulls latest changes
+- Automatically runs `npm install` if package-lock.json changed
+- Deletes local feature branch (uses safe `-d` flag)
+- Offers batch cleanup of other merged branches
+- Provides clear summaries instead of verbose git output
+
+**Usage:**
+
+After your PR is merged:
+```
+/cleanup
+```
+
+The skill will guide you through the cleanup process with clear prompts and confirmations.
+
+**Example output:**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Post-Merge Cleanup Complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📍 Current branch: develop
+🔄 Pulled 5 new commits from origin/develop
+📦 Dependencies updated (npm install ran)
+🗑️  Deleted local branch: feature/324-improve-json-parse-cache
+
+ℹ️  Remote branch still exists: origin/feature/324-improve-json-parse-cache
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Configuration:**
+- **Mode**: Subagent (invokable via `/cleanup`)
+- **Temperature**: 0.1 (very precise for git operations)
+- **Tools**: Bash only (read-only for git operations)
+- **Permissions**: 
+  - Git commands auto-approved
+  - npm install auto-approved
+  - Other commands require approval
+
+**Safety Features:**
+- Never force-deletes unmerged branches (uses `git branch -d`)
+- Verifies branch is in `git branch --merged develop` before deletion
+- Stashes uncommitted changes instead of losing them
+- Prevents cleanup from develop/main branches
+- Gracefully handles errors with actionable guidance
+
+**Best Practices:**
+- Run `/cleanup` immediately after PR merge confirmation
+- Let it handle dependency updates automatically
+- Review the summary to confirm everything succeeded
+- Use batch cleanup option to remove old merged branches periodically
 
 ---
 
