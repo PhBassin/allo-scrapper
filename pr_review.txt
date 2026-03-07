@@ -1,0 +1,368 @@
+## Review: Performance Optimization Analysis
+
+Thanks for tackling this optimization! The concept is sound—memoizing repeated JSON.parse calls makes theoretical sense. However, there are several concerns that need to be addressed before merging.
+
+---
+
+## 🚨 Critical Issues
+
+### 1. **No Test Coverage (TDD Violation)**
+
+The project's mandatory workflow (AGENTS.md Step 3) requires tests **before** implementation. Currently,  has **zero test coverage**:
+
+```bash
+# Verified with:
+grep -r "parseJSONMemoized" server/**/*.test.ts
+# Returns: No matches
+```
+
+**Required test cases:**
+- ✅ Cache hit returns shallow copy (verify mutations don't affect cache)
+- ✅ Cache miss populates cache correctly
+- ✅ `null` / `undefined` input returns `[]`
+- ✅ Invalid JSON returns `[]` and logs warning
+- ✅ Cache size limit triggers eviction
+- ✅ Non-array cached values are handled correctly
+
+**Action Required:** Add comprehensive unit tests for `parseJSONMemoized` before merging.
+
+---
+
+### 2. **Problematic Cache Eviction Strategy**
+
+```typescript
+if (jsonParseCache.size >= 10000) {
+  jsonParseCache.clear();  // ❌ Clears ENTIRE cache at once
+}
+```
+
+**Problem:** This creates a "cache cliff" where hitting entry 10,001 **nukes all 10,000 cached entries**. The next 10,000 requests will have 0% hit rate until the cache rebuilds.
+
+**Impact:** Sudden CPU spike every ~10k unique JSON strings, defeating the optimization's purpose.
+
+**Recommended fix:**
+```typescript
+// Option A: Use LRU library (e.g., lru-cache npm package)
+import LRU from 'lru-cache';
+const jsonParseCache = new LRU({ max: 10000 });
+
+// Option B: Delete oldest 50% when limit reached
+if (jsonParseCache.size >= 10000) {
+  const keysToDelete = Array.from(jsonParseCache.keys()).slice(0, 5000);
+  keysToDelete.forEach(key => jsonParseCache.delete(key));
+}
+```
+
+**Action Required:** Implement gradual eviction strategy (LRU preferred).
+
+---
+
+### 3. **No Performance Benchmarks**
+
+The PR description states:
+
+> "You can profile the CPU usage of the Express process before and after this change under load."
+
+This is a **suggestion**, not evidence. For a performance-focused PR, we need **actual measurements**:
+
+**Required benchmarks:**
+- `GET /api/films` response time (before/after) with 1000+ films
+- Cache hit rate in production-like scenarios
+- Memory overhead of the cache
+
+**Questions to answer:**
+1. What % of JSON strings are actually duplicated in practice?
+2. What's the CPU time saved per request under realistic load?
+3. Does cache eviction cause observable latency spikes?
+
+**Action Required:** Include before/after benchmark results in PR description.
+
+---
+
+## ⚠️ Medium-Priority Issues
+
+### 4. **Shallow Copy May Not Be Sufficient**
+
+```typescript
+return Array.isArray(cached) ? [...cached] : cached;
+```
+
+**Current use case:** String arrays like `["Animation", "Family"]` are safe with shallow copy.
+
+**Future risk:** If these fields ever contain objects (e.g., `[{name: "Actor", id: 123}]`), the shallow copy won't prevent mutations:
+
+```typescript
+const actors1 = parseJSONMemoized('[{"name":"Actor 1"}]');
+const actors2 = parseJSONMemoized('[{"name":"Actor 1"}]');
+actors1[0].name = "Modified";  // ❌ Affects actors2[0].name too
+```
+
+**Recommendation:** Use `structuredClone(cached)` for deep cloning (Node 17+):
+
+```typescript
+if (jsonParseCache.has(jsonStr)) {
+  return structuredClone(jsonParseCache.get(jsonStr));
+}
+```
+
+---
+
+### 5. **No Observability**
+
+Module-level cache has no visibility into:
+- Cache hit rate
+- Cache size growth
+- Eviction frequency
+
+**Recommended additions:**
+```typescript
+let cacheHits = 0;
+let cacheMisses = 0;
+
+export function getJSONParseCacheStats() {
+  return {
+    size: jsonParseCache.size,
+    hits: cacheHits,
+    misses: cacheMisses,
+    hitRate: cacheHits / (cacheHits + cacheMisses)
+  };
+}
+
+// Expose via GET /api/metrics or similar
+```
+
+---
+
+### 6. **Test Isolation**
+
+Module-level cache persists across test runs, which can cause **flaky tests**.
+
+**Recommended addition:**
+```typescript
+export function resetJSONParseCache() {
+  jsonParseCache.clear();
+  cacheHits = 0;
+  cacheMisses = 0;
+}
+
+// In tests:
+beforeEach(() => resetJSONParseCache());
+```
+
+---
+
+## 📋 Summary
+
+| Issue | Severity | Status |
+|-------|----------|--------|
+| Missing unit tests | 🚨 Critical | Must fix |
+| Cache eviction cliff | 🚨 Critical | Must fix |
+| No performance benchmarks | 🚨 Critical | Must fix |
+| Shallow copy limitation | ⚠️ Medium | Recommended |
+| No observability | ⚠️ Medium | Recommended |
+| Test isolation | ⚠️ Medium | Recommended |
+
+---
+
+## ✅ What's Good
+
+- Clear performance rationale
+- Consistent application across all 13 usages
+- Proper error handling with logging
+- All existing tests pass
+- Conventional commit format
+
+---
+
+## Verdict
+
+**Requesting changes** before merge. The optimization is theoretically sound, but needs:
+1. ✅ Comprehensive unit tests (TDD compliance)
+2. ✅ LRU or gradual cache eviction
+3. ✅ Performance benchmarks proving it's worth the added complexity
+
+Once these are addressed, this will be a solid performance improvement. Thanks for the contribution!
+## Review: Performance Optimization Analysis
+
+Thanks for tackling this optimization! The concept is sound—memoizing repeated JSON.parse calls makes theoretical sense. However, there are several concerns that need to be addressed before merging.
+
+---
+
+## 🚨 Critical Issues
+
+### 1. **No Test Coverage (TDD Violation)**
+
+The project's mandatory workflow (AGENTS.md Step 3) requires tests **before** implementation. Currently, `parseJSONMemoized` has **zero test coverage**:
+
+```bash
+# Verified with:
+grep -r "parseJSONMemoized" server/**/*.test.ts
+# Returns: No matches
+```
+
+**Required test cases:**
+- ✅ Cache hit returns shallow copy (verify mutations don't affect cache)
+- ✅ Cache miss populates cache correctly
+- ✅ `null` / `undefined` input returns `[]`
+- ✅ Invalid JSON returns `[]` and logs warning
+- ✅ Cache size limit triggers eviction
+- ✅ Non-array cached values are handled correctly
+
+**Action Required:** Add comprehensive unit tests for `parseJSONMemoized` before merging.
+
+---
+
+### 2. **Problematic Cache Eviction Strategy**
+
+```typescript
+if (jsonParseCache.size >= 10000) {
+  jsonParseCache.clear();  // ❌ Clears ENTIRE cache at once
+}
+```
+
+**Problem:** This creates a "cache cliff" where hitting entry 10,001 **nukes all 10,000 cached entries**. The next 10,000 requests will have 0% hit rate until the cache rebuilds.
+
+**Impact:** Sudden CPU spike every ~10k unique JSON strings, defeating the optimization's purpose.
+
+**Recommended fix:**
+```typescript
+// Option A: Use LRU library (e.g., lru-cache npm package)
+import LRU from 'lru-cache';
+const jsonParseCache = new LRU({ max: 10000 });
+
+// Option B: Delete oldest 50% when limit reached
+if (jsonParseCache.size >= 10000) {
+  const keysToDelete = Array.from(jsonParseCache.keys()).slice(0, 5000);
+  keysToDelete.forEach(key => jsonParseCache.delete(key));
+}
+```
+
+**Action Required:** Implement gradual eviction strategy (LRU preferred).
+
+---
+
+### 3. **No Performance Benchmarks**
+
+The PR description states:
+
+> "You can profile the CPU usage of the Express process before and after this change under load."
+
+This is a **suggestion**, not evidence. For a performance-focused PR, we need **actual measurements**:
+
+**Required benchmarks:**
+- `GET /api/films` response time (before/after) with 1000+ films
+- Cache hit rate in production-like scenarios
+- Memory overhead of the cache
+
+**Questions to answer:**
+1. What % of JSON strings are actually duplicated in practice?
+2. What's the CPU time saved per request under realistic load?
+3. Does cache eviction cause observable latency spikes?
+
+**Action Required:** Include before/after benchmark results in PR description.
+
+---
+
+## ⚠️ Medium-Priority Issues
+
+### 4. **Shallow Copy May Not Be Sufficient**
+
+```typescript
+return Array.isArray(cached) ? [...cached] : cached;
+```
+
+**Current use case:** String arrays like `["Animation", "Family"]` are safe with shallow copy.
+
+**Future risk:** If these fields ever contain objects (e.g., `[{name: "Actor", id: 123}]`), the shallow copy won't prevent mutations:
+
+```typescript
+const actors1 = parseJSONMemoized('[{"name":"Actor 1"}]');
+const actors2 = parseJSONMemoized('[{"name":"Actor 1"}]');
+actors1[0].name = "Modified";  // ❌ Affects actors2[0].name too
+```
+
+**Recommendation:** Use `structuredClone(cached)` for deep cloning (Node 17+):
+
+```typescript
+if (jsonParseCache.has(jsonStr)) {
+  return structuredClone(jsonParseCache.get(jsonStr));
+}
+```
+
+---
+
+### 5. **No Observability**
+
+Module-level cache has no visibility into:
+- Cache hit rate
+- Cache size growth
+- Eviction frequency
+
+**Recommended additions:**
+```typescript
+let cacheHits = 0;
+let cacheMisses = 0;
+
+export function getJSONParseCacheStats() {
+  return {
+    size: jsonParseCache.size,
+    hits: cacheHits,
+    misses: cacheMisses,
+    hitRate: cacheHits / (cacheHits + cacheMisses)
+  };
+}
+
+// Expose via GET /api/metrics or similar
+```
+
+---
+
+### 6. **Test Isolation**
+
+Module-level cache persists across test runs, which can cause **flaky tests**.
+
+**Recommended addition:**
+```typescript
+export function resetJSONParseCache() {
+  jsonParseCache.clear();
+  cacheHits = 0;
+  cacheMisses = 0;
+}
+
+// In tests:
+beforeEach(() => resetJSONParseCache());
+```
+
+---
+
+## 📋 Summary
+
+| Issue | Severity | Status |
+|-------|----------|--------|
+| Missing unit tests | 🚨 Critical | Must fix |
+| Cache eviction cliff | 🚨 Critical | Must fix |
+| No performance benchmarks | 🚨 Critical | Must fix |
+| Shallow copy limitation | ⚠️ Medium | Recommended |
+| No observability | ⚠️ Medium | Recommended |
+| Test isolation | ⚠️ Medium | Recommended |
+
+---
+
+## ✅ What's Good
+
+- Clear performance rationale
+- Consistent application across all 13 usages
+- Proper error handling with logging
+- All existing tests pass
+- Conventional commit format
+
+---
+
+## Verdict
+
+**Requesting changes** before merge. The optimization is theoretically sound, but needs:
+1. ✅ Comprehensive unit tests (TDD compliance)
+2. ✅ LRU or gradual cache eviction
+3. ✅ Performance benchmarks proving it's worth the added complexity
+
+Once these are addressed, this will be a solid performance improvement. Thanks for the contribution!

@@ -1,6 +1,95 @@
-import { describe, it, expect, vi } from 'vitest';
-import { getShowtimesByFilmAndWeek, getWeeklyShowtimes, getCinemaConfigs, addCinema, updateCinemaConfig, deleteCinema, upsertCinema, searchFilms } from './queries.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { getShowtimesByFilmAndWeek, getWeeklyShowtimes, getCinemaConfigs, addCinema, updateCinemaConfig, deleteCinema, upsertCinema, searchFilms, parseJSONMemoized, resetJSONParseCache, getJSONParseCacheStats } from './queries.js';
 import { type DB } from './client.js';
+
+describe('Queries - parseJSONMemoized', () => {
+  beforeEach(() => {
+    resetJSONParseCache();
+  });
+
+  it('Cache miss populates cache correctly', () => {
+    const jsonStr = '["Action", "Comedy"]';
+    const result = parseJSONMemoized(jsonStr);
+    expect(result).toEqual(['Action', 'Comedy']);
+
+    const stats = getJSONParseCacheStats();
+    expect(stats.hits).toBe(0);
+    expect(stats.misses).toBe(1);
+    expect(stats.size).toBe(1);
+  });
+
+  it('Cache hit returns shallow copy (verify mutations do not affect cache)', () => {
+    const jsonStr = '["Drama"]';
+    // 1st call (miss)
+    const result1 = parseJSONMemoized(jsonStr);
+    expect(result1).toEqual(['Drama']);
+
+    // Mutate the returned copy
+    result1.push('Romance');
+
+    // 2nd call (hit)
+    const result2 = parseJSONMemoized(jsonStr);
+    // Should NOT contain 'Romance'
+    expect(result2).toEqual(['Drama']);
+
+    const stats = getJSONParseCacheStats();
+    expect(stats.hits).toBe(1);
+    expect(stats.misses).toBe(1);
+    expect(stats.size).toBe(1);
+  });
+
+  it('null / undefined input returns []', () => {
+    expect(parseJSONMemoized(null)).toEqual([]);
+    expect(parseJSONMemoized(undefined)).toEqual([]);
+    expect(parseJSONMemoized('')).toEqual([]);
+
+    const stats = getJSONParseCacheStats();
+    expect(stats.hits).toBe(0);
+    expect(stats.misses).toBe(0); // Should return early, no miss or hit recorded
+    expect(stats.size).toBe(0);
+  });
+
+  it('Invalid JSON returns [] and logs warning', () => {
+    const jsonStr = '["Invalid, json}';
+    const result = parseJSONMemoized(jsonStr);
+    expect(result).toEqual([]);
+
+    const stats = getJSONParseCacheStats();
+    expect(stats.misses).toBe(1);
+    expect(stats.size).toBe(0); // Does not cache invalid json
+  });
+
+  it('Cache size limit triggers eviction', () => {
+    // Fill the cache up to the limit (10000)
+    for (let i = 0; i < 10000; i++) {
+      parseJSONMemoized(`["Item ${i}"]`);
+    }
+
+    let stats = getJSONParseCacheStats();
+    expect(stats.size).toBe(10000);
+    expect(stats.misses).toBe(10000);
+
+    // 10001st item triggers eviction
+    parseJSONMemoized(`["Item 10000"]`);
+
+    stats = getJSONParseCacheStats();
+    // 10000 - 5000 + 1 = 5001
+    expect(stats.size).toBe(5001);
+  });
+
+  it('Non-array cached values are handled correctly', () => {
+    const jsonStr = '{"key": "value"}';
+    const result1 = parseJSONMemoized(jsonStr);
+    expect(result1).toEqual({ key: 'value' });
+
+    // Mutate the returned copy
+    result1.key = 'mutated';
+
+    // 2nd call (hit) should return the original cached shallow copy
+    const result2 = parseJSONMemoized(jsonStr);
+    expect(result2).toEqual({ key: 'value' });
+  });
+});
 
 describe('Queries - Showtimes', () => {
   describe('getShowtimesByFilmAndWeek', () => {

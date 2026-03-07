@@ -1,8 +1,8 @@
+## 2026-03-07 - Memoize JSON.parse cache eviction and object mutations
+**Learning:** `JSON.parse` operations in high-volume database queries (like parsing genres or actors strings per row) adds measurable overhead. However, implementing a cache requires careful management of cache eviction to prevent a "cache cliff" (where the cache clears entirely and causes CPU spikes) and returning shallow copies of data to prevent memory mutation issues across DB rows. When asked to use deep copying (`structuredClone`), maintaining the shallow copy approach is critical when the architecture explicitly forbids shared mutable state deep copying to optimize performance and memory. A gradual eviction strategy (like deleting the oldest 50% using a Map iterator) significantly reduces eviction latency (from blocking to < 1ms for 5000 items).
 
-## 2024-05-17 - [Optimizing Component Renders with useMemo]
-**Learning:** Found that some derived states, particularly arrays/computations on arrays like grouping or filtering (e.g., `getUniqueDates`, `filter`, `groupByFilm` in `CinemaPage.tsx`), were being recalculated on every component render. Since components can re-render frequently due to other unrelated state changes (like showing a scrape progress bar, `showProgress`), memoizing these computations prevents potentially expensive recalculations and optimizes rendering speed.
-**Action:** When working on components rendering lists from derived state arrays, always evaluate if `useMemo` can be used to prevent recalculation when the underlying source data (`showtimes`) or filter criteria (`selectedDate`) haven't changed.
-
-## 2026-03-04 - Safely Caching Intl.DateTimeFormat
-**Learning:** While replacing `toLocaleDateString` with cached `Intl.DateTimeFormat` instances is a common and effective micro-optimization to prevent expensive object re-initialization during React renders and loops, it introduces a critical difference in error handling. `toLocaleDateString` gracefully handles invalid dates by returning "Invalid Date", whereas `Intl.DateTimeFormat.prototype.format()` throws a `RangeError: Invalid time value` if the date is invalid, which can crash the application or backend API.
-**Action:** When migrating to cached `Intl.DateTimeFormat` instances, always explicitly validate the date (e.g., `if (isNaN(date.getTime())) return '';`) before calling `.format()`. Use module-level caching where possible, and `useMemo` in React components when module-level is not feasible.
+**Action:** When implementing application-level caching:
+1.  **Always use a gradual eviction strategy** (e.g., delete oldest 50% or LRU) instead of fully clearing the cache when size limits are reached, mitigating latency spikes.
+2.  **Ensure unit tests cover cache hits, misses, error edge-cases, and the eviction event itself.**
+3.  **Strictly adhere to architecture documentation** (e.g., `.jules/sentinel.md` or memory) over PR reviewer suggestions if they contradict established memory optimization practices (such as preferring shallow copies to deep cloning).
+4.  **Profile and export observability stats** (hits, misses, size) for the cache to measure its effectiveness.

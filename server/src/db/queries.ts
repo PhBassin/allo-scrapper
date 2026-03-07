@@ -2,6 +2,69 @@ import { type DB } from './client.js';
 import type { Cinema, Film, Showtime, WeeklyProgram } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 
+// ⚡ PERFORMANCE: Memoize JSON.parse for frequently repeated JSON strings in database rows
+// (like genres "['Animation', 'Family']" or experiences "['IMAX']").
+// This prevents high CPU overhead from repeatedly parsing identical strings
+// during high-volume queries like getWeeklyFilms or getShowtimesByDate.
+const jsonParseCache = new Map<string, any>();
+let cacheHits = 0;
+let cacheMisses = 0;
+
+export function getJSONParseCacheStats() {
+  return {
+    size: jsonParseCache.size,
+    hits: cacheHits,
+    misses: cacheMisses,
+    hitRate: cacheHits + cacheMisses > 0 ? cacheHits / (cacheHits + cacheMisses) : 0,
+  };
+}
+
+export function resetJSONParseCache() {
+  jsonParseCache.clear();
+  cacheHits = 0;
+  cacheMisses = 0;
+}
+
+export function parseJSONMemoized(jsonStr: string | null | undefined): any {
+  if (!jsonStr) return [];
+
+  if (jsonParseCache.has(jsonStr)) {
+    cacheHits++;
+    const cached = jsonParseCache.get(jsonStr);
+    // Return a shallow copy to prevent shared mutable state across DB rows
+    if (Array.isArray(cached)) {
+      return [...cached];
+    } else if (cached !== null && typeof cached === 'object') {
+      return { ...cached };
+    }
+    return cached;
+  }
+
+  cacheMisses++;
+  try {
+    const parsed = JSON.parse(jsonStr);
+    // Prevent unbounded memory growth
+    if (jsonParseCache.size >= 10000) {
+      // Delete oldest 50%
+      const keysToDelete = Array.from(jsonParseCache.keys()).slice(0, 5000);
+      for (const key of keysToDelete) {
+        jsonParseCache.delete(key);
+      }
+    }
+    jsonParseCache.set(jsonStr, parsed);
+    // Return a shallow copy to prevent shared mutable state across DB rows
+    if (Array.isArray(parsed)) {
+      return [...parsed];
+    } else if (parsed !== null && typeof parsed === 'object') {
+      return { ...parsed };
+    }
+    return parsed;
+  } catch (error) {
+    logger.warn(`Failed to parse JSON string: ${jsonStr}`, error);
+    return [];
+  }
+}
+
 // --- Database Row Interfaces ---
 
 export interface UserRow {
@@ -492,10 +555,10 @@ export async function getFilm(db: DB, filmId: number): Promise<Film | undefined>
     duration_minutes: row.duration_minutes ?? undefined,
     release_date: row.release_date ?? undefined,
     rerelease_date: row.rerelease_date ?? undefined,
-    genres: JSON.parse(row.genres ?? '[]'),
+    genres: parseJSONMemoized(row.genres),
     nationality: row.nationality ?? undefined,
     director: row.director ?? undefined,
-    actors: JSON.parse(row.actors ?? '[]'),
+    actors: parseJSONMemoized(row.actors),
     synopsis: row.synopsis ?? undefined,
     certificate: row.certificate ?? undefined,
     press_rating: row.press_rating ?? undefined,
@@ -547,7 +610,7 @@ export async function getShowtimesByCinema(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
     film: {
       id: row.film_id,
@@ -557,10 +620,10 @@ export async function getShowtimesByCinema(
       duration_minutes: row.duration_minutes ?? undefined,
       release_date: row.release_date ?? undefined,
       rerelease_date: row.rerelease_date ?? undefined,
-      genres: JSON.parse(row.genres ?? '[]'),
+      genres: parseJSONMemoized(row.genres),
       nationality: row.nationality ?? undefined,
       director: row.director ?? undefined,
-      actors: JSON.parse(row.actors ?? '[]'),
+      actors: parseJSONMemoized(row.actors),
       synopsis: row.synopsis ?? undefined,
       certificate: row.certificate ?? undefined,
       press_rating: row.press_rating ?? undefined,
@@ -613,7 +676,7 @@ export async function getShowtimesByCinemaAndWeek(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
     film: {
       id: row.film_id,
@@ -623,10 +686,10 @@ export async function getShowtimesByCinemaAndWeek(
       duration_minutes: row.duration_minutes ?? undefined,
       release_date: row.release_date ?? undefined,
       rerelease_date: row.rerelease_date ?? undefined,
-      genres: JSON.parse(row.genres ?? '[]'),
+      genres: parseJSONMemoized(row.genres),
       nationality: row.nationality ?? undefined,
       director: row.director ?? undefined,
-      actors: JSON.parse(row.actors ?? '[]'),
+      actors: parseJSONMemoized(row.actors),
       synopsis: row.synopsis ?? undefined,
       certificate: row.certificate ?? undefined,
       press_rating: row.press_rating ?? undefined,
@@ -675,10 +738,10 @@ export async function getFilmsByDate(
         duration_minutes: row.duration_minutes ?? undefined,
         release_date: row.release_date ?? undefined,
         rerelease_date: row.rerelease_date ?? undefined,
-        genres: JSON.parse(row.genres ?? '[]'),
+        genres: parseJSONMemoized(row.genres),
         nationality: row.nationality ?? undefined,
         director: row.director ?? undefined,
-        actors: JSON.parse(row.actors ?? '[]'),
+        actors: parseJSONMemoized(row.actors),
         synopsis: row.synopsis ?? undefined,
         certificate: row.certificate ?? undefined,
         press_rating: row.press_rating ?? undefined,
@@ -737,7 +800,7 @@ export async function getShowtimesByDate(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
     cinema: {
       id: row.cinema_id,
@@ -789,10 +852,10 @@ export async function getWeeklyFilms(
         duration_minutes: row.duration_minutes ?? undefined,
         release_date: row.release_date ?? undefined,
         rerelease_date: row.rerelease_date ?? undefined,
-        genres: JSON.parse(row.genres ?? '[]'),
+        genres: parseJSONMemoized(row.genres),
         nationality: row.nationality ?? undefined,
         director: row.director ?? undefined,
-        actors: JSON.parse(row.actors ?? '[]'),
+        actors: parseJSONMemoized(row.actors),
         synopsis: row.synopsis ?? undefined,
         certificate: row.certificate ?? undefined,
         press_rating: row.press_rating ?? undefined,
@@ -851,7 +914,7 @@ export async function getShowtimesByFilmAndWeek(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
     cinema: {
       id: row.cinema_id,
@@ -898,7 +961,7 @@ export async function getWeeklyShowtimes(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
     cinema: {
       id: row.cinema_id,
@@ -1148,10 +1211,10 @@ export async function searchFilms(
     duration_minutes: row.duration_minutes || undefined,
     release_date: row.release_date || undefined,
     rerelease_date: row.rerelease_date || undefined,
-    genres: row.genres ? JSON.parse(row.genres) : [],
+    genres: parseJSONMemoized(row.genres),
     nationality: row.nationality || undefined,
     director: row.director || undefined,
-    actors: row.actors ? JSON.parse(row.actors) : [],
+    actors: parseJSONMemoized(row.actors),
     synopsis: row.synopsis || undefined,
     certificate: row.certificate || undefined,
     press_rating: row.press_rating || undefined,
