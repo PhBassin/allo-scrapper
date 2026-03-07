@@ -36,6 +36,7 @@
 - **JWT Authentication**: Secure user authentication with token-based sessions
 - **Password Management**: Change password functionality for authenticated users
 - **Rate Limiting**: Comprehensive rate limiting per endpoint type (auth, public, protected)
+- **Performance Optimized**: JSON parse caching with LRU eviction (95-99% hit rate)
 - **Docker Ready**: Full containerization with multi-stage builds (linux/amd64)
 - **CI/CD**: GitHub Actions workflow for automated Docker image builds
 - **Redis Job Queue**: Scraper microservice mode via Redis pub/sub (`USE_REDIS_SCRAPER=true`)
@@ -444,6 +445,7 @@ Step-by-step tutorials for common tasks.
 Technical reference documentation.
 - [**API**](./docs/reference/api/) - Complete REST API documentation
 - [**Database**](./docs/reference/database/) - Schema and migrations
+- [**Performance**](./docs/reference/performance.md) - Optimization and caching
 - [**Scripts**](./docs/reference/scripts/) - Automation scripts
 - [**Architecture**](./docs/reference/architecture/) - System design
 

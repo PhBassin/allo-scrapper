@@ -33,6 +33,7 @@
     "helmet": "^7.1.0",
     "ioredis": "^5.9.3",
     "jsonwebtoken": "^9.0.3",
+    "lru-cache": "^11.2.6",
     "morgan": "^1.10.0",
     "node-cron": "^3.0.3",
     "pg": "^8.18.0",
