@@ -45,7 +45,7 @@ describe('AdminPage', () => {
       renderWithRouter('/admin');
       
       // Cinemas tab should be active
-      const cinemasTab = screen.getByRole('button', { name: /cinemas/i });
+      const cinemasTab = screen.getByRole('tab', { name: 'Cinemas' });
       expect(cinemasTab).toHaveClass('border-primary');
       
       // Cinemas content should be visible
@@ -57,7 +57,7 @@ describe('AdminPage', () => {
     it('should display Rapports tab when URL has ?tab=rapports', () => {
       renderWithRouter('/admin?tab=rapports');
       
-      const rapportsTab = screen.getByRole('button', { name: /rapports/i });
+      const rapportsTab = screen.getByRole('tab', { name: 'Rapports' });
       expect(rapportsTab).toHaveClass('border-primary');
       expect(screen.getByTestId('reports-content')).toBeInTheDocument();
     });
@@ -65,7 +65,7 @@ describe('AdminPage', () => {
     it('should display Users tab when URL has ?tab=users', () => {
       renderWithRouter('/admin?tab=users');
       
-      const usersTab = screen.getByRole('button', { name: /users/i });
+      const usersTab = screen.getByRole('tab', { name: 'Users' });
       expect(usersTab).toHaveClass('border-primary');
       expect(screen.getByTestId('users-content')).toBeInTheDocument();
     });
@@ -73,7 +73,7 @@ describe('AdminPage', () => {
     it('should display Settings tab when URL has ?tab=settings', () => {
       renderWithRouter('/admin?tab=settings');
       
-      const settingsTab = screen.getByRole('button', { name: /settings/i });
+      const settingsTab = screen.getByRole('tab', { name: 'Settings' });
       expect(settingsTab).toHaveClass('border-primary');
       expect(screen.getByTestId('settings-content')).toBeInTheDocument();
     });
@@ -81,7 +81,7 @@ describe('AdminPage', () => {
     it('should display System tab when URL has ?tab=system', () => {
       renderWithRouter('/admin?tab=system');
       
-      const systemTab = screen.getByRole('button', { name: /system/i });
+      const systemTab = screen.getByRole('tab', { name: 'System' });
       expect(systemTab).toHaveClass('border-primary');
       expect(screen.getByTestId('system-content')).toBeInTheDocument();
     });
@@ -89,7 +89,7 @@ describe('AdminPage', () => {
     it('should fallback to Cinemas tab when invalid tab param is provided', () => {
       renderWithRouter('/admin?tab=invalid');
       
-      const cinemasTab = screen.getByRole('button', { name: /cinemas/i });
+      const cinemasTab = screen.getByRole('tab', { name: 'Cinemas' });
       expect(cinemasTab).toHaveClass('border-primary');
       expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
     });
@@ -100,7 +100,7 @@ describe('AdminPage', () => {
       renderWithRouter('/admin');
       
       // Click on Users tab
-      const usersTab = screen.getByRole('button', { name: /users/i });
+      const usersTab = screen.getByRole('tab', { name: 'Users' });
       fireEvent.click(usersTab);
       
       // URL should be updated
@@ -114,7 +114,7 @@ describe('AdminPage', () => {
       expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
       
       // Click on Settings tab
-      const settingsTab = screen.getByRole('button', { name: /settings/i });
+      const settingsTab = screen.getByRole('tab', { name: 'Settings' });
       fireEvent.click(settingsTab);
       
       // Should now show Settings
@@ -127,11 +127,11 @@ describe('AdminPage', () => {
     it('should display icons for each tab', () => {
       renderWithRouter('/admin');
       
-      const cinemasTab = screen.getByRole('button', { name: /cinemas/i });
-      const rapportsTab = screen.getByRole('button', { name: /rapports/i });
-      const usersTab = screen.getByRole('button', { name: /users/i });
-      const settingsTab = screen.getByRole('button', { name: /settings/i });
-      const systemTab = screen.getByRole('button', { name: /system/i });
+      const cinemasTab = screen.getByRole('tab', { name: 'Cinemas' });
+      const rapportsTab = screen.getByRole('tab', { name: 'Rapports' });
+      const usersTab = screen.getByRole('tab', { name: 'Users' });
+      const settingsTab = screen.getByRole('tab', { name: 'Settings' });
+      const systemTab = screen.getByRole('tab', { name: 'System' });
       
       // Each tab should have an SVG icon
       expect(cinemasTab.querySelector('svg')).toBeInTheDocument();
@@ -146,8 +146,8 @@ describe('AdminPage', () => {
     it('should apply active styles to the current tab', () => {
       renderWithRouter('/admin?tab=settings');
       
-      const settingsTab = screen.getByRole('button', { name: /settings/i });
-      const cinemasTab = screen.getByRole('button', { name: /cinemas/i });
+      const settingsTab = screen.getByRole('tab', { name: 'Settings' });
+      const cinemasTab = screen.getByRole('tab', { name: 'Cinemas' });
       
       // Settings tab should have active classes
       expect(settingsTab).toHaveClass('border-primary', 'text-primary');
@@ -162,13 +162,13 @@ describe('AdminPage', () => {
     it('should display tabs in correct order: Cinemas, Rapports, Users, Settings, System', () => {
       renderWithRouter('/admin');
       
-      const tabs = screen.getAllByRole('button');
+      const tabs = screen.getAllByRole('tab');
       
-      expect(tabs[0]).toHaveTextContent(/cinemas/i);
-      expect(tabs[1]).toHaveTextContent(/rapports/i);
-      expect(tabs[2]).toHaveTextContent(/users/i);
-      expect(tabs[3]).toHaveTextContent(/settings/i);
-      expect(tabs[4]).toHaveTextContent(/system/i);
+      expect(tabs[0]).toHaveTextContent('Cinemas');
+      expect(tabs[1]).toHaveTextContent('Rapports');
+      expect(tabs[2]).toHaveTextContent('Users');
+      expect(tabs[3]).toHaveTextContent('Settings');
+      expect(tabs[4]).toHaveTextContent('System');
     });
   });
 });
