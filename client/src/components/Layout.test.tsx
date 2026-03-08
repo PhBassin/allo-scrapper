@@ -9,6 +9,7 @@ import { SettingsContext } from '../contexts/SettingsContext';
 const mockAuthContext = {
   isAuthenticated: true,
   isAdmin: true,
+  token: 'mock-token',
   user: { id: 1, username: 'admin', role: 'admin' as const },
   login: vi.fn(),
   logout: vi.fn(),
@@ -18,6 +19,7 @@ const mockAuthContext = {
 const mockNonAdminAuthContext = {
   isAuthenticated: true,
   isAdmin: false,
+  token: 'mock-token',
   user: { id: 2, username: 'user', role: 'user' as const },
   login: vi.fn(),
   logout: vi.fn(),
@@ -25,15 +27,34 @@ const mockNonAdminAuthContext = {
 };
 
 const mockSettingsContext = {
-  publicSettings: {
-    site_name: 'Test Cinema',
-    footer_text: 'Test Footer',
-    footer_links: [],
-  },
-  loadPublicSettings: vi.fn(),
-};
+      publicSettings: {
+        site_name: 'Test Cinema App',
+        logo_base64: null,
+        favicon_base64: null,
+        color_primary: '#1976d2',
+        color_secondary: '#dc004e',
+        color_accent: '#ff9800',
+        color_background: '#ffffff',
+        color_text: '#000000',
+        color_text_secondary: '#666666',
+        color_border: '#e0e0e0',
+        color_success: '#4caf50',
+        color_error: '#f44336',
+        font_family_heading: 'Roboto',
+        font_family_body: 'Roboto',
+        footer_text: 'Test Footer',
+        footer_links: [],
+      },
+      adminSettings: null,
+      isLoading: false,
+      isLoadingPublic: false,
+      error: null,
+      refreshPublicSettings: vi.fn(),
+      refreshAdminSettings: vi.fn(),
+      updateSettings: vi.fn(),
+    };
 
-const renderWithProviders = (authContext = mockAuthContext) => {
+const renderWithProviders = (authContext: typeof mockAuthContext | typeof mockNonAdminAuthContext = mockAuthContext) => {
   return render(
     <BrowserRouter>
       <AuthContext.Provider value={authContext}>
