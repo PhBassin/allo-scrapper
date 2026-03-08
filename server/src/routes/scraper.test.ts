@@ -61,6 +61,18 @@ vi.mock('../db/queries.js', () => ({
 // ---- helpers ---------------------------------------------------------------
 
 import { scrapeManager } from '../services/scrape-manager.js';
+import { db } from '../db/client.js';
+
+let mockApp: any;
+
+beforeEach(() => {
+  mockApp = {
+    get: vi.fn((key: string) => {
+      if (key === 'db') return db;
+      return undefined;
+    })
+  };
+});
 
 function buildMockRes() {
   const res: any = {
@@ -73,7 +85,7 @@ function buildMockRes() {
 }
 
 function buildMockReq(overrides: object = {}) {
-  return { on: vi.fn(), ...overrides } as any;
+  return { on: vi.fn(), app: mockApp, ...overrides } as any;
 }
 
 // Helper to get the last handler in the route stack (actual route handler, after middleware)

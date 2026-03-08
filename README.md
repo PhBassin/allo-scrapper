@@ -15,6 +15,7 @@
 
 - [Features](#-features)
 - [Architecture](#-architecture)
+- [White-Label Branding](#-white-label-branding)
 - [Quick Start](#-quick-start)
 - [Documentation](#-documentation)
 - [Contributing](#-contributing)
@@ -30,9 +31,12 @@
 - **Modern UI**: React SPA with Vite for fast development
 - **Real-time Progress**: Server-Sent Events (SSE) for live scraping updates
 - **Weekly Reports**: Track cinema programs and identify new releases
+- **White-Label Branding**: Complete customization (site name, logo, colors, fonts, footer) via admin panel
+- **User Management**: Role-based access control (admin/user) with comprehensive user CRUD
 - **JWT Authentication**: Secure user authentication with token-based sessions
 - **Password Management**: Change password functionality for authenticated users
 - **Rate Limiting**: Comprehensive rate limiting per endpoint type (auth, public, protected)
+- **Performance Optimized**: JSON parse caching with LRU eviction (95-99% hit rate)
 - **Docker Ready**: Full containerization with multi-stage builds (linux/amd64)
 - **CI/CD**: GitHub Actions workflow for automated Docker image builds
 - **Redis Job Queue**: Scraper microservice mode via Redis pub/sub (`USE_REDIS_SCRAPER=true`)
@@ -89,6 +93,155 @@
 6. Client receives JSON responses and renders UI
 
 > See [MONITORING.md](./MONITORING.md) for the full observability stack documentation.
+
+---
+
+## 🎨 White-Label Branding
+
+Allo-Scrapper supports complete white-label customization through a comprehensive admin panel. Transform the application to match your brand identity with custom colors, fonts, logo, and more.
+
+### Admin Panel Access
+
+1. Navigate to `/admin/settings` (requires admin role)
+2. **Default credentials:**
+   - Username: `admin`
+   - Password: `admin`
+
+⚠️ **Important:** Change the default admin password immediately after first login (click your username → "Change Password").
+
+### Customization Options
+
+The admin panel provides five tabs for complete branding control:
+
+#### 1. General Settings
+- **Site Name**: Displayed in header, page title, and footer
+- **Logo**: Custom logo image (PNG/JPG/SVG, max 200KB, min 100x100px)
+- **Favicon**: Browser tab icon (ICO/PNG, max 50KB, 32x32 or 64x64px)
+
+#### 2. Color Scheme
+Customize 9 color variables with live preview:
+- **Primary**: Main brand color (buttons, links, highlights)
+- **Secondary**: Header, footer background
+- **Accent**: Call-to-action elements
+- **Background**: Page background
+- **Surface**: Card backgrounds
+- **Text Primary**: Main text color
+- **Text Secondary**: Muted text (labels, captions)
+- **Success**: Success messages and indicators
+- **Error**: Error messages and alerts
+
+All colors must be valid hex codes (e.g., `#FECC00`, `#1F2937`, `#FFF`).
+
+#### 3. Typography
+- **Heading Font**: Choose from 15+ Google Fonts for headings (h1-h6)
+- **Body Font**: Choose font for body text and UI elements
+- **Live Preview**: See font changes in real-time
+
+**Available Google Fonts:**
+Inter, Roboto, Open Sans, Lato, Montserrat, Poppins, Raleway, Nunito, PT Sans, Source Sans Pro, Work Sans, Archivo, Manrope, DM Sans, Plus Jakarta Sans
+
+#### 4. Footer Customization
+- **Footer Text**: Custom message with dynamic placeholders:
+  - `{site_name}` → Site name from General settings
+  - `{year}` → Current year
+- **Footer Links**: Add unlimited custom links (e.g., Privacy Policy, Contact, About)
+  - Each link: Label + URL
+  - Drag to reorder
+
+#### 5. Email Branding
+- **From Name**: Sender name for system emails
+- **From Address**: Sender email address
+- **Header Color**: Email template header background
+- **Footer Text**: Email template footer message
+
+### Configuration Management
+
+**Export Settings** (backup):
+```bash
+# Using admin panel: Click "Export Configuration" button
+
+# Using API:
+TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
+
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:3000/api/settings/export > settings-backup.json
+```
+
+**Import Settings** (restore from backup):
+```bash
+# Using admin panel: Click "Import Configuration" button and select JSON file
+
+# Using API:
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @settings-backup.json \
+  http://localhost:3000/api/settings/import
+```
+
+**Reset to Defaults**:
+- Click "Reset to Defaults" button in admin panel
+- Restores original Allo-Scrapper branding
+
+### User Role Management
+
+The system supports two roles:
+
+| Role | Permissions |
+|------|-------------|
+| **admin** | Full access: Settings, user management, reports, scraping control |
+| **user** | Limited access: View cinema schedules only |
+
+**Safety Features:**
+- Cannot delete the last admin user
+- Cannot demote the last admin to user role
+- Admin authentication required to create new users
+- Self-deletion prevention
+
+**Managing Users** (admin only):
+1. Navigate to `/admin/users`
+2. Create, edit, delete users
+3. Change user roles
+4. Reset user passwords (generates secure random password)
+
+### API Access
+
+Settings and user management are available via REST API:
+
+- **Settings API**: `/api/settings/*` - See [API.md](./API.md#settings-management)
+- **Users API**: `/api/users/*` - See [API.md](./API.md#user-management)
+- **Theme CSS**: `/api/theme.css` - Dynamically generated CSS with theme variables
+
+For complete API documentation, see [API.md](./API.md).
+
+### Best Practices
+
+1. **Backup before major changes**: Use export feature before making significant branding changes
+2. **Test in staging first**: If using multi-environment setup
+3. **Use high contrast colors**: Ensure accessibility (WCAG AA minimum)
+4. **Optimize images**: Compress logo/favicon before upload to stay under size limits
+5. **Change default password**: Critical security step for production deployments
+6. **Create backup admin**: Have at least 2 admin users before deleting/demoting accounts
+
+### Troubleshooting
+
+**Images not uploading:**
+- Check file size (Logo: 200KB max, Favicon: 50KB max)
+- Verify format (PNG, JPG, SVG for logo; ICO, PNG for favicon)
+- Ensure dimensions meet minimums (Logo: 100x100px+, Favicon: 32x32 or 64x64)
+
+**Settings not saving:**
+- Check browser console for error messages
+- Verify JWT token is valid (try logging out and back in)
+- Check network tab for API errors
+
+**Theme not applying:**
+- Hard refresh browser (Ctrl+F5 or Cmd+Shift+R)
+- Clear browser cache
+- Check `/api/theme.css` endpoint directly
+
+For detailed user guide and screenshots, see [ADMIN_PANEL.md](./ADMIN_PANEL.md).
 
 ---
 
@@ -154,6 +307,53 @@ docker compose exec ics-web npm run db:migrate
 curl -X POST http://localhost:3000/api/scraper/trigger
 ```
 
+### Option C: Local Development (No Docker)
+
+For active development without Docker:
+
+**Prerequisites:**
+- Node.js 20.19+ or 22.12+
+- PostgreSQL 15+
+- Redis (optional, only if `USE_REDIS_SCRAPER=true`)
+
+**Setup:**
+```bash
+# Clone repository
+git clone https://github.com/PhBassin/allo-scrapper.git
+cd allo-scrapper
+
+# Install server dependencies (IMPORTANT: run from server/ directory)
+cd server
+npm install
+
+# Install client dependencies
+cd ../client
+npm install
+
+# Setup environment and database
+cd ../server
+cp .env.example .env
+# Edit .env with your PostgreSQL credentials
+npm run db:migrate
+
+# Run development servers (in separate terminals)
+# Terminal 1 - API server
+cd server && npm run dev    # API on http://localhost:3000
+
+# Terminal 2 - Frontend dev server
+cd client && npm run dev    # UI on http://localhost:5173
+```
+
+**⚠️ Important:** Always run `npm install` from the `server/` directory, not the root. The `sharp` image processing library requires native binaries that may not install correctly if run from the wrong directory.
+
+**Troubleshooting:**
+If you encounter `Cannot find package 'sharp'` errors:
+```bash
+cd server
+rm -rf node_modules
+npm install
+```
+
 For production deployment and advanced configuration, see [DEPLOYMENT.md](./DEPLOYMENT.md) and [DOCKER.md](./DOCKER.md).
 
 ---
@@ -192,31 +392,84 @@ The app name is set in `.github/workflows/docker-build-push.yml` as a build argu
 
 For complete environment variable documentation, see [SETUP.md](./SETUP.md).
 
+### Dynamic White-Label Theme
+
+The application supports **runtime theme customization** via the admin panel, allowing you to change branding, colors, fonts, and footer without rebuilding the Docker image.
+
+**Features:**
+- ✅ **Site Name & Logo** - Customize the site name and upload a custom logo
+- ✅ **Favicon** - Upload a custom favicon
+- ✅ **Color Palette** - Customize primary, secondary, accent, and UI colors
+- ✅ **Typography** - Choose custom fonts from Google Fonts
+- ✅ **Footer** - Custom footer text and links
+
+**How It Works:**
+1. Admin logs in and navigates to `/admin/settings`
+2. Customizes branding in the admin panel (5 tabs: General, Colors, Typography, Footer, Email)
+3. Changes apply **immediately** via `/api/theme.css` dynamic stylesheet
+4. Settings stored in database (`app_settings` table)
+5. Changes persist across container restarts
+
+**Loading Strategy:**
+- App shows loading screen while fetching settings from `/api/settings`
+- Theme.css is injected dynamically via `useTheme` hook
+- Hardcoded defaults used if API fails (graceful degradation)
+- Logo, favicon, and document title update dynamically
+
+**For Admin Panel Documentation:**
+See [API.md](./API.md) for Settings API reference (`/api/settings/*` endpoints).
+
 ---
 
 ## 📚 Documentation
 
-### Core Documentation
-- **[API.md](./API.md)** - Complete REST API reference with all endpoints
-- **[SETUP.md](./SETUP.md)** - Development setup and environment variables
-- **[DATABASE.md](./DATABASE.md)** - Database schema, tables, and queries
-- **[SCRAPER.md](./SCRAPER.md)** - Cinema configuration and scraping behavior
+**📖 [Browse Full Documentation →](./docs/)**
 
-### Operations & Deployment
-- **[DOCKER.md](./DOCKER.md)** - Docker deployment, optimization, and profiles
-- **[NETWORKING.md](./NETWORKING.md)** - LAN access and CORS configuration
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Production deployment guide
-- **[MONITORING.md](./MONITORING.md)** - Observability stack (Prometheus, Grafana, Loki, Tempo)
+> **Tip for AI Agents:** Use the `@docs-writer` OpenCode agent for all documentation tasks. It's specialized in maintaining our Divio-structured docs with automatic validation.
 
-### Development & CI/CD
-- **[TESTING.md](./TESTING.md)** - Unit tests, E2E tests, and coverage
-- **[CICD.md](./CICD.md)** - GitHub Actions, releases, and tag strategy
-- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines
-- **[AGENTS.md](./AGENTS.md)** - AI agent workflow and instructions
+Our documentation is organized into the following categories:
 
-### Reference
-- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and solutions
-- **[CHANGELOG.md](./CHANGELOG.md)** - Version history and release notes
+### 🚀 [Getting Started](./docs/getting-started/)
+New to Allo-Scrapper? Start here for quick setup and configuration.
+- [Quick Start](./docs/getting-started/quick-start.md) - Get running in 5 minutes
+- [Installation](./docs/getting-started/installation.md) - Detailed setup instructions
+- [Configuration](./docs/getting-started/configuration.md) - Environment variables
+
+### 📖 [Guides](./docs/guides/)
+Step-by-step tutorials for common tasks.
+- [**Deployment**](./docs/guides/deployment/) - Production deployment, Docker, backups, monitoring
+- [**Development**](./docs/guides/development/) - Local setup, testing, contributing, CI/CD
+- [**Administration**](./docs/guides/administration/) - Admin panel, white-label, user management
+
+### 📋 [Reference](./docs/reference/)
+Technical reference documentation.
+- [**API**](./docs/reference/api/) - Complete REST API documentation
+- [**Database**](./docs/reference/database/) - Schema and migrations
+- [**Performance**](./docs/reference/performance.md) - Optimization and caching
+- [**Scripts**](./docs/reference/scripts/) - Automation scripts
+- [**Architecture**](./docs/reference/architecture/) - System design
+
+### 🔧 [Troubleshooting](./docs/troubleshooting/)
+Solutions to common issues.
+- [Common Issues](./docs/troubleshooting/common-issues.md)
+- [Database](./docs/troubleshooting/database.md) | [Docker](./docs/troubleshooting/docker.md) | [Networking](./docs/troubleshooting/networking.md) | [Scraper](./docs/troubleshooting/scraper.md)
+
+### 📦 [Project](./docs/project/)
+Project meta-documentation.
+- [Changelog](./docs/project/changelog.md) - Version history
+- [Security](./docs/project/security.md) - Security policies
+- [AI Agents](./docs/project/agents.md) - Guidelines for AI coding agents
+
+### 🔗 Backward Compatibility
+
+All documentation has been migrated to the `/docs/` directory. Root-level `.md` files are now **symlinks** that redirect to the new locations for backward compatibility with existing external links and bookmarks.
+
+**Original Files** → **New Locations:**
+- `SETUP.md` → [`docs/getting-started/installation.md`](./docs/getting-started/installation.md)
+- `DEPLOYMENT.md` → [`docs/guides/deployment/production.md`](./docs/guides/deployment/production.md)
+- `API.md` → [`docs/reference/api/README.md`](./docs/reference/api/README.md)
+- `AGENTS.md` → [`docs/project/agents.md`](./docs/project/agents.md)
+- And more... (see [full documentation structure](./docs/README.md))
 
 ---
 

@@ -7,6 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-ics}
     volumes:
+      - postgres-data:/var/lib/postgresql/data
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
@@ -36,7 +37,10 @@ services:
       context: .
       args:
         VITE_APP_NAME: ${VITE_APP_NAME:-Allo-Scrapper}
-    user: root
+    # Run as host user to allow volume writes while maintaining security
+    # Set DOCKER_UID and DOCKER_GID in .env to match your host user
+    # Defaults to 1000:1000 (standard Linux first user)
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
     #pull_policy: always
     restart: unless-stopped
     ports:
@@ -274,6 +278,7 @@ networks:
     driver: bridge
 
 volumes:
+  postgres-data:
   loki-data:
   prometheus-data:
   tempo-data:

@@ -48,14 +48,13 @@ This directory contains automated workflows for CI/CD and maintenance tasks.
 
 ### 2. 🧹 `cleanup-docker-images.yml` - Docker Image Cleanup
 
-**Purpose**: Periodic cleanup of old Docker images from ghcr.io registry
+**Purpose**: Manual cleanup of old Docker images from ghcr.io registry
 
 **Triggers**:
-- Push to `main` branch (automatic)
-- Manual trigger with dry-run control
+- Manual trigger only (workflow_dispatch)
 
 **Cleanup Policy**:
-- **Keep**: 10 versions maximum
+- **Keep**: 30 versions maximum (configurable)
 - **Delete**: Only untagged versions (SHA-based images without explicit tags)
 - **Protected**: All tagged versions (v*, latest, branch names, etc.)
 
@@ -68,14 +67,113 @@ This directory contains automated workflows for CI/CD and maintenance tasks.
   3. Click "Run workflow"
   4. Set `dry-run` to `false`
 
-**When to Disable Dry-Run**:
-- After verifying dry-run logs show correct behavior
-- When you're confident the cleanup policy is correct
-- When you understand which images will be deleted
+**When to Use**:
+- One-time cleanup of accumulated untagged images
+- Emergency cleanup when registry is full
+- Testing cleanup policies before automation
 
 ---
 
-### 3. 🔄 `sync-main-to-develop.yml` - Branch Synchronization
+### 3. 🧹 `ghcr-cleanup.yml` - Tag Lifecycle Management
+
+**Purpose**: Automated cleanup of short-lived Docker image tags while preserving important releases
+
+**Status**: ✅ **ENABLED** (runs weekly on schedule)
+
+**Triggers**:
+- **Automatic**: Every Sunday at 3:00 AM UTC
+- **Manual**: Via workflow_dispatch
+
+**Cleanup Policy**:
+
+| Tag Pattern | Retention | Examples |
+|-------------|-----------|----------|
+| `x.x.x*` (semver) | ✅ Forever | `3.0.0-beta.4`, `3.0`, `2.1.0` |
+| `latest`, `stable` | ✅ Forever | Special release tags |
+| `develop`, `main` | ✅ Forever | Branch tracking tags |
+| `pr-*` (last 5) | ✅ Forever | `pr-330`, `pr-329`, `pr-328`, ... |
+| `pr-*` (older) | 🗑️ 7 days | `pr-320`, `pr-315` (if > 7 days old) |
+| `sha-*` | 🗑️ 7 days | `sha-99e4de7`, `sha-abc1234` |
+| Untagged | 🗑️ 7 days | Digest-only images |
+
+**How It Works**:
+1. Scans all package versions in GitHub Container Registry
+2. Classifies each version by tag pattern
+3. Identifies the last 5 PR tags by PR number (keeps them regardless of age)
+4. Deletes old `sha-*`, old `pr-*` (not in last 5), and untagged images > 7 days old
+5. Preserves all semantic version tags and special tags forever
+
+**Dry-Run Mode**:
+
+The workflow starts in **dry-run mode** for safety:
+- Shows what **would** be deleted without actually deleting
+- Review logs to verify correct behavior
+- To enable actual deletion:
+  1. Edit `.github/workflows/ghcr-cleanup.yml`
+  2. Change `DRY_RUN: 'true'` to `DRY_RUN: 'false'`
+  3. Commit and push
+
+**Example Output** (dry-run mode):
+
+```
+Scanned: 45 package versions
+
+✅ KEEP: 3.0.0-beta.4 (protected semver)
+✅ KEEP: latest (protected special tag)
+✅ KEEP: pr-330 (recent PR, #1 of 5)
+✅ KEEP: sha-a9efa33 (too recent, age: 2 hours)
+🗑️  DELETE: pr-320 (age: 10 days, not in last 5 PRs)
+🗑️  DELETE: sha-99e4de7 (age: 14 days)
+
+Summary:
+- Protected: 35 versions
+- Would delete: 10 versions (DRY-RUN)
+```
+
+**Manual Trigger**:
+
+```bash
+# Run cleanup manually (uses dry-run setting from workflow)
+gh workflow run ghcr-cleanup.yml
+
+# Or via GitHub UI:
+# Actions → GHCR Cleanup → Run workflow
+```
+
+**Adjusting Retention**:
+
+Edit `.github/workflows/ghcr-cleanup.yml` environment variables:
+
+```yaml
+env:
+  RETENTION_DAYS: 7        # Change to desired days
+  KEEP_RECENT_PRS: 5       # Change number of recent PRs to keep
+  DRY_RUN: 'true'          # Set to 'false' to enable deletion
+```
+
+**Disabling Cleanup**:
+
+To temporarily disable:
+1. Comment out the `schedule:` section in the workflow
+2. Or add condition: `if: false` to the job
+
+**Monitoring**:
+
+- Check workflow runs: Actions tab → "GHCR Cleanup" workflow
+- Review job summaries for detailed breakdown
+- Weekly runs appear automatically every Sunday
+
+**Safety Features**:
+- ✅ Dry-run enabled by default
+- ✅ 7-day minimum age before deletion
+- ✅ Protected tag patterns (regex-based)
+- ✅ Always keeps last 5 PR builds
+- ✅ Detailed logging and summaries
+- ✅ Manual trigger for testing
+
+---
+
+### 4. 🔄 `sync-main-to-develop.yml` - Branch Synchronization
 
 **Purpose**: Automatically sync main branch into develop
 
@@ -214,4 +312,4 @@ To re-enable:
 
 ---
 
-**Last Updated**: 2026-02-20
+**Last Updated**: 2026-03-08

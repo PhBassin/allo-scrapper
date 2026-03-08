@@ -1,10 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getCinemas, getCinemaSchedule, triggerCinemaScrape, getScrapeStatus } from '../api/client';
 import type { Cinema, ShowtimeWithFilm } from '../types';
 import ShowtimeList from '../components/ShowtimeList';
 import ScrapeButton from '../components/ScrapeButton';
 import ScrapeProgress from '../components/ScrapeProgress';
+import CinemaDateSelector from '../components/CinemaDateSelector';
 
 interface FilmGroup {
   film: {
@@ -94,14 +95,21 @@ export default function CinemaPage() {
     return Array.from(filmMap.values());
   };
 
-  const formatDateLabel = (dateStr: string) => {
+  // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instances to prevent expensive
+  // re-initialization during frequent renders
+  const formatterWeekday = useMemo(() => new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }), []);
+  const formatterMonth = useMemo(() => new Intl.DateTimeFormat('fr-FR', { month: 'short' }), []);
+
+  const formatDateLabel = useCallback((dateStr: string) => {
+    if (!dateStr) return { weekday: '', day: 0, month: '' };
     const date = new Date(dateStr + 'T00:00:00');
+    if (isNaN(date.getTime())) return { weekday: 'Invalid', day: 0, month: 'Date' };
     return {
-      weekday: date.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', ''),
+      weekday: formatterWeekday.format(date).replace('.', ''),
       day: date.getDate(),
-      month: date.toLocaleDateString('fr-FR', { month: 'short' }),
+      month: formatterMonth.format(date),
     };
-  };
+  }, [formatterWeekday, formatterMonth]);
 
   const handleScrapeStart = () => {
     setShowProgress(true);
@@ -150,7 +158,7 @@ export default function CinemaPage() {
             buttonText="🔄 Scraper uniquement ce cinéma"
             loadingText="Scraping en cours..."
             successText="Scraping démarré !"
-            className="bg-white/95 backdrop-blur-sm shadow-md rounded-lg p-2"
+            className="bg-white/95 shadow-md rounded-lg p-2"
           />
         </div>
       )}
@@ -179,7 +187,7 @@ export default function CinemaPage() {
           </p>
         )}
         
-        {cinema.screen_count && (
+        {cinema.screen_count != null && cinema.screen_count > 0 && (
           <p className="text-gray-600">
             🎬 {cinema.screen_count} salle{cinema.screen_count > 1 ? 's' : ''}
           </p>
@@ -187,43 +195,13 @@ export default function CinemaPage() {
       </div>
 
       {/* Date Selector */}
-      {dates.length > 0 && (
-        <div className="mb-8 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="flex gap-2 min-w-max">
-            {dates.map((date) => {
-              const label = formatDateLabel(date);
-              const isActive = date === selectedDate;
-              const dateShowtimes = showtimes.filter(s => s.date === date);
-              const hasShowtimes = dateShowtimes.length > 0;
-
-              return (
-                <button
-                  key={date}
-                  onClick={() => setSelectedDate(date)}
-                  className={`
-                    px-4 py-3 rounded-xl border-2 transition-all text-center min-w-[90px] group cursor-pointer active:scale-95
-                    ${isActive 
-                      ? 'border-primary bg-yellow-50 text-black shadow-sm' 
-                      : 'border-transparent bg-white text-gray-600 hover:bg-gray-50'
-                    }
-                    ${!hasShowtimes && !isActive ? 'opacity-50' : ''}
-                  `}
-                >
-                  <div className={`text-xs uppercase font-bold mb-0.5 ${isActive ? 'text-primary-dark' : 'text-gray-400 group-hover:text-gray-600'}`}>
-                    {label.weekday}
-                  </div>
-                  <div className="text-lg font-bold leading-none">
-                    {label.day}
-                  </div>
-                  <div className="text-[10px] text-gray-400 mt-1">
-                    {label.month}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <CinemaDateSelector
+        dates={dates}
+        selectedDate={selectedDate}
+        showtimes={showtimes}
+        onSelectDate={setSelectedDate}
+        formatDateLabel={formatDateLabel}
+      />
 
       {/* Films List for Selected Date */}
       <div className="min-h-[300px]">
@@ -269,22 +247,22 @@ export default function CinemaPage() {
                       </div>
 
                       {/* Ratings */}
-                      {(film.press_rating || film.audience_rating) && (
+                      {(film.press_rating != null && film.press_rating > 0) || (film.audience_rating != null && film.audience_rating > 0) ? (
                         <div className="flex gap-3 mb-4">
-                          {film.press_rating && (
+                          {film.press_rating != null && film.press_rating > 0 && (
                             <div className="flex items-center gap-1">
                               <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Presse</span>
                               <span className="font-bold text-sm">★ {film.press_rating.toFixed(1)}</span>
                             </div>
                           )}
-                          {film.audience_rating && (
+                          {film.audience_rating != null && film.audience_rating > 0 && (
                             <div className="flex items-center gap-1">
                               <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Spectateurs</span>
                               <span className="font-bold text-sm">★ {film.audience_rating.toFixed(1)}</span>
                             </div>
                           )}
                         </div>
-                      )}
+                      ) : null}
                     </div>
 
                     <div className="pt-2 border-t border-gray-100">

@@ -1,12 +1,14 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { db } from '../db/client.js';
 import { getUserByUsername, createUser, updateUserPassword } from '../db/queries.js';
+import type { DB } from '../db/client.js';
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/admin.js';
+import { validatePasswordStrength } from '../utils/security.js';
 
 const router = express.Router();
 
@@ -24,12 +26,14 @@ export interface AuthResponse {
     user: {
         id: number;
         username: string;
+        role: 'admin' | 'user';
     };
 }
 
 // POST /api/auth/login - Login user
 router.post('/login', authLimiter, async (req, res) => {
     try {
+        const db: DB = req.app.get('db');
         const { username, password } = req.body;
 
         if (!username || !password) {
@@ -67,7 +71,8 @@ router.post('/login', authLimiter, async (req, res) => {
                 token,
                 user: {
                     id: user.id,
-                    username: user.username
+                    username: user.username,
+                    role: user.role as 'admin' | 'user'
                 }
             }
         };
@@ -83,9 +88,10 @@ router.post('/login', authLimiter, async (req, res) => {
     }
 });
 
-// POST /api/auth/register - Register a new user (can be disabled or protected later)
-router.post('/register', registerLimiter, async (req, res) => {
+// POST /api/auth/register - Register a new user (admin-only)
+router.post('/register', registerLimiter, requireAuth, requireAdmin, async (req, res) => {
     try {
+        const db: DB = req.app.get('db');
         const { username, password } = req.body;
 
         if (!username || !password) {
@@ -116,7 +122,8 @@ router.post('/register', registerLimiter, async (req, res) => {
                 message: 'User registered successfully',
                 user: {
                     id: user.id,
-                    username: user.username
+                    username: user.username,
+                    role: user.role as 'admin' | 'user'
                 }
             }
         };
@@ -135,6 +142,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 // POST /api/auth/change-password - Change user password (protected)
 router.post('/change-password', requireAuth, authLimiter, async (req: AuthRequest, res) => {
     try {
+        const db: DB = req.app.get('db');
         const { currentPassword, newPassword } = req.body;
 
         // Validate required fields
@@ -147,11 +155,11 @@ router.post('/change-password', requireAuth, authLimiter, async (req: AuthReques
         }
 
         // Validate password strength (OWASP/NIST best practices)
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]).{8,}$/;
-        if (!passwordRegex.test(newPassword)) {
+        const passwordError = validatePasswordStrength(newPassword);
+        if (passwordError) {
             const response: ApiResponse = {
                 success: false,
-                error: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character',
+                error: passwordError,
             };
             return res.status(400).json(response);
         }

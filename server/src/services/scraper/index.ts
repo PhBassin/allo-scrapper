@@ -12,7 +12,7 @@ import { parseTheaterPage } from './theater-parser.js';
 import { parseShowtimesJson } from './theater-json-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import { getScrapeDates, getWeekStartForDate, type ScrapeMode } from '../../utils/date.js';
-import { extractCinemaIdFromUrl, cleanCinemaUrl, isValidAllocineUrl } from './utils.js';
+import { extractCinemaIdFromUrl, cleanCinemaUrl, isValidAllocineUrl, ALLOCINE_BASE_URL } from './utils.js';
 import type { ProgressTracker, ScrapeSummary } from '../progress-tracker.js';
 import type { CinemaConfig, WeeklyProgram, Cinema } from '../../types/scraper.js';
 import { logger } from '../../utils/logger.js';
@@ -157,7 +157,7 @@ export async function addCinemaAndScrape(
 ): Promise<Cinema> {
   // 1. Validate URL first!
   if (!isValidAllocineUrl(url)) {
-    throw new Error('Invalid Allocine URL. Must be https://www.allocine.fr/...');
+    throw new Error(`Invalid Allocine URL. Must be ${ALLOCINE_BASE_URL}/...`);
   }
 
   // 2. Extract ID and clean URL
@@ -195,10 +195,7 @@ export async function addCinemaAndScrape(
 
   await closeBrowser();
 
-  // 5. Sync cinemas to JSON file after successful scrape
-  const { syncCinemasFromDatabase } = await import('../cinema-config.js');
-  await syncCinemasFromDatabase(db);
-  logger.info('✅ Cinema added and synced to JSON file');
+  logger.info('✅ Cinema added successfully');
 
   return cinema;
 }

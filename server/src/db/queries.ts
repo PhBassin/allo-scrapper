@@ -1,6 +1,7 @@
 import { type DB } from './client.js';
 import type { Cinema, Film, Showtime, WeeklyProgram } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
+import { parseJSONMemoized } from '../utils/json-parse-cache.js';
 
 // --- Database Row Interfaces ---
 
@@ -8,6 +9,7 @@ export interface UserRow {
   id: number;
   username: string;
   password_hash: string;
+  role: string;
   created_at: string;
 }
 
@@ -98,7 +100,7 @@ export interface ShowtimeWithCinemaRow extends ShowtimeRow {
 
 export async function getUserByUsername(db: DB, username: string): Promise<UserRow | undefined> {
   const result = await db.query<UserRow>(
-    'SELECT id, username, password_hash, created_at FROM users WHERE username = $1',
+    'SELECT id, username, password_hash, role, created_at FROM users WHERE username = $1',
     [username]
   );
   return result.rows[0];
@@ -167,12 +169,19 @@ export async function addCinema(
   return result.rows[0];
 }
 
-// Mettre à jour la configuration d'un cinéma (nom et/ou URL)
+// Mettre à jour la configuration d'un cinéma
 export async function updateCinemaConfig(
   db: DB,
   id: string,
-  updates: { name?: string; url?: string }
-): Promise<{ id: string; name: string; url: string } | undefined> {
+  updates: {
+    name?: string;
+    url?: string;
+    address?: string;
+    postal_code?: string;
+    city?: string;
+    screen_count?: number;
+  }
+): Promise<Cinema | undefined> {
   const fields: string[] = [];
   const values: unknown[] = [];
   let paramIndex = 1;
@@ -185,13 +194,42 @@ export async function updateCinemaConfig(
     fields.push(`url = $${paramIndex++}`);
     values.push(updates.url);
   }
+  if (updates.address !== undefined) {
+    fields.push(`address = $${paramIndex++}`);
+    values.push(updates.address);
+  }
+  if (updates.postal_code !== undefined) {
+    fields.push(`postal_code = $${paramIndex++}`);
+    values.push(updates.postal_code);
+  }
+  if (updates.city !== undefined) {
+    fields.push(`city = $${paramIndex++}`);
+    values.push(updates.city);
+  }
+  if (updates.screen_count !== undefined) {
+    fields.push(`screen_count = $${paramIndex++}`);
+    values.push(updates.screen_count);
+  }
 
   values.push(id);
-  const result = await db.query<{ id: string; name: string; url: string }>(
-    `UPDATE cinemas SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING id, name, url`,
+  const result = await db.query<CinemaRow>(
+    `UPDATE cinemas SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
     values
   );
-  return result.rows[0];
+
+  const row = result.rows[0];
+  if (!row) return undefined;
+
+  return {
+    id: row.id,
+    name: row.name,
+    address: row.address ?? undefined,
+    postal_code: row.postal_code ?? undefined,
+    city: row.city ?? undefined,
+    screen_count: row.screen_count ?? undefined,
+    image_url: row.image_url ?? undefined,
+    url: row.url ?? undefined,
+  };
 }
 
 // Supprimer un cinéma (et ses séances via CASCADE)
@@ -455,10 +493,10 @@ export async function getFilm(db: DB, filmId: number): Promise<Film | undefined>
     duration_minutes: row.duration_minutes ?? undefined,
     release_date: row.release_date ?? undefined,
     rerelease_date: row.rerelease_date ?? undefined,
-    genres: JSON.parse(row.genres ?? '[]'),
+    genres: parseJSONMemoized(row.genres),
     nationality: row.nationality ?? undefined,
     director: row.director ?? undefined,
-    actors: JSON.parse(row.actors ?? '[]'),
+    actors: parseJSONMemoized(row.actors),
     synopsis: row.synopsis ?? undefined,
     certificate: row.certificate ?? undefined,
     press_rating: row.press_rating ?? undefined,
@@ -510,7 +548,7 @@ export async function getShowtimesByCinema(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
     film: {
       id: row.film_id,
@@ -520,10 +558,10 @@ export async function getShowtimesByCinema(
       duration_minutes: row.duration_minutes ?? undefined,
       release_date: row.release_date ?? undefined,
       rerelease_date: row.rerelease_date ?? undefined,
-      genres: JSON.parse(row.genres ?? '[]'),
+      genres: parseJSONMemoized(row.genres),
       nationality: row.nationality ?? undefined,
       director: row.director ?? undefined,
-      actors: JSON.parse(row.actors ?? '[]'),
+      actors: parseJSONMemoized(row.actors),
       synopsis: row.synopsis ?? undefined,
       certificate: row.certificate ?? undefined,
       press_rating: row.press_rating ?? undefined,
@@ -576,7 +614,7 @@ export async function getShowtimesByCinemaAndWeek(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
     film: {
       id: row.film_id,
@@ -586,10 +624,10 @@ export async function getShowtimesByCinemaAndWeek(
       duration_minutes: row.duration_minutes ?? undefined,
       release_date: row.release_date ?? undefined,
       rerelease_date: row.rerelease_date ?? undefined,
-      genres: JSON.parse(row.genres ?? '[]'),
+      genres: parseJSONMemoized(row.genres),
       nationality: row.nationality ?? undefined,
       director: row.director ?? undefined,
-      actors: JSON.parse(row.actors ?? '[]'),
+      actors: parseJSONMemoized(row.actors),
       synopsis: row.synopsis ?? undefined,
       certificate: row.certificate ?? undefined,
       press_rating: row.press_rating ?? undefined,
@@ -638,10 +676,10 @@ export async function getFilmsByDate(
         duration_minutes: row.duration_minutes ?? undefined,
         release_date: row.release_date ?? undefined,
         rerelease_date: row.rerelease_date ?? undefined,
-        genres: JSON.parse(row.genres ?? '[]'),
+        genres: parseJSONMemoized(row.genres),
         nationality: row.nationality ?? undefined,
         director: row.director ?? undefined,
-        actors: JSON.parse(row.actors ?? '[]'),
+        actors: parseJSONMemoized(row.actors),
         synopsis: row.synopsis ?? undefined,
         certificate: row.certificate ?? undefined,
         press_rating: row.press_rating ?? undefined,
@@ -700,7 +738,7 @@ export async function getShowtimesByDate(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
     cinema: {
       id: row.cinema_id,
@@ -752,10 +790,10 @@ export async function getWeeklyFilms(
         duration_minutes: row.duration_minutes ?? undefined,
         release_date: row.release_date ?? undefined,
         rerelease_date: row.rerelease_date ?? undefined,
-        genres: JSON.parse(row.genres ?? '[]'),
+        genres: parseJSONMemoized(row.genres),
         nationality: row.nationality ?? undefined,
         director: row.director ?? undefined,
-        actors: JSON.parse(row.actors ?? '[]'),
+        actors: parseJSONMemoized(row.actors),
         synopsis: row.synopsis ?? undefined,
         certificate: row.certificate ?? undefined,
         press_rating: row.press_rating ?? undefined,
@@ -814,7 +852,7 @@ export async function getShowtimesByFilmAndWeek(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
     cinema: {
       id: row.cinema_id,
@@ -861,7 +899,7 @@ export async function getWeeklyShowtimes(
     datetime_iso: row.datetime_iso,
     version: row.version ?? '',
     format: row.format ?? undefined,
-    experiences: JSON.parse(row.experiences ?? '[]'),
+    experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
     cinema: {
       id: row.cinema_id,
@@ -1111,10 +1149,10 @@ export async function searchFilms(
     duration_minutes: row.duration_minutes || undefined,
     release_date: row.release_date || undefined,
     rerelease_date: row.rerelease_date || undefined,
-    genres: row.genres ? JSON.parse(row.genres) : [],
+    genres: parseJSONMemoized(row.genres),
     nationality: row.nationality || undefined,
     director: row.director || undefined,
-    actors: row.actors ? JSON.parse(row.actors) : [],
+    actors: parseJSONMemoized(row.actors),
     synopsis: row.synopsis || undefined,
     certificate: row.certificate || undefined,
     press_rating: row.press_rating || undefined,

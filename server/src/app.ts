@@ -5,10 +5,12 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Registry, collectDefaultMetrics } from 'prom-client';
+import { createHash } from 'crypto';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
 import { generalLimiter } from './middleware/rate-limit.js';
+import { generateThemeCSS } from './services/theme-generator.js';
 
 // Import routes
 import filmsRouter from './routes/films.js';
@@ -16,6 +18,9 @@ import cinemasRouter from './routes/cinemas.js';
 import scraperRouter from './routes/scraper.js';
 import reportsRouter from './routes/reports.js';
 import authRouter from './routes/auth.js';
+import settingsRouter from './routes/settings.js';
+import usersRouter from './routes/users.js';
+import systemRouter from './routes/system.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +34,9 @@ collectDefaultMetrics({ register: serverRegistry, prefix: 'ics_web_' });
 export function createApp() {
   const app = express();
 
+  // Trust the first proxy to ensure accurate IP resolution for rate limiting
+  app.set('trust proxy', 1);
+
   // Middleware
   app.use(
     helmet({
@@ -37,9 +45,10 @@ export function createApp() {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
+          styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
           imgSrc: ["'self'", "data:", "https://*.acsta.net", "https://*.allocine.fr"],
           connectSrc: ["'self'"],
-          fontSrc: ["'self'", "data:"],
+          fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
           upgradeInsecureRequests: null,
         },
       },
@@ -59,6 +68,9 @@ export function createApp() {
   app.use('/api/cinemas', cinemasRouter);
   app.use('/api/scraper', scraperRouter);
   app.use('/api/reports', reportsRouter);
+  app.use('/api/settings', settingsRouter);
+  app.use('/api/users', usersRouter);
+  app.use('/api/system', systemRouter);
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
@@ -69,13 +81,54 @@ export function createApp() {
     });
   });
 
+  // Theme CSS endpoint (public, with ETag caching)
+  app.get('/api/theme.css', async (req, res) => {
+    try {
+      const db = req.app.get('db');
+      
+      if (!db) {
+        logger.error('Database connection not found in app context');
+        res.set('Content-Type', 'text/css; charset=utf-8');
+        return res.send(':root { --color-primary: #FECC00; --color-secondary: #1F2937; }');
+      }
+      
+      const css = await generateThemeCSS(db);
+      
+      // Generate ETag from CSS content (MD5 hash)
+      const etag = createHash('md5').update(css, 'utf8').digest('hex');
+      
+      // Check If-None-Match header for HTTP caching
+      const clientEtag = req.headers['if-none-match'];
+      if (clientEtag && clientEtag === etag) {
+        // Client has latest version, return 304 Not Modified
+        return res.status(304).end();
+      }
+      
+      // Set caching headers
+      res.set({
+        'Content-Type': 'text/css; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+        'ETag': etag,
+      });
+      
+      return res.send(css);
+    } catch (err) {
+      logger.error('Error serving theme CSS', { error: err });
+      
+      // Return minimal fallback CSS on error (don't fail hard)
+      res.set('Content-Type', 'text/css; charset=utf-8');
+      return res.send(':root { --color-primary: #FECC00; --color-secondary: #1F2937; }');
+    }
+  });
+
   // Prometheus metrics endpoint
   app.get('/metrics', async (_req, res) => {
     try {
       res.set('Content-Type', serverRegistry.contentType);
       res.end(await serverRegistry.metrics());
     } catch (err) {
-      res.status(500).end(String(err));
+      logger.error('Error generating metrics', { error: err });
+      res.status(500).end('Internal server error');
     }
   });
 
@@ -85,7 +138,7 @@ export function createApp() {
     app.use(express.static(publicPath));
 
     // Serve index.html for all non-API routes (SPA support)
-    app.get('*', (_req, res) => {
+    app.get('*', generalLimiter, (_req, res) => {
       res.sendFile(path.join(publicPath, 'index.html'));
     });
   }

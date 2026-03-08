@@ -4,15 +4,33 @@ import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import CinemaPage from './pages/CinemaPage';
 import FilmPage from './pages/FilmPage';
-import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import AdminPage from './pages/admin/AdminPage';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
+import { SettingsProvider, SettingsContext } from './contexts/SettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import RequireAdmin from './components/RequireAdmin';
+import { useTheme } from './hooks/useTheme';
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <p className="mt-4 text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
 
 function AppRoutes() {
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
+  const { isLoadingPublic } = useContext(SettingsContext);
+
+  // Apply theme globally
+  useTheme();
 
   useEffect(() => {
     const handleUnauthorized = (event: Event) => {
@@ -35,6 +53,11 @@ function AppRoutes() {
     };
   }, [logout, navigate]);
 
+  // Show loading screen while fetching initial settings
+  if (isLoadingPublic) {
+    return <LoadingScreen />;
+  }
+
   return (
     <Layout>
       <Routes>
@@ -51,19 +74,11 @@ function AppRoutes() {
         <Route path="/cinema/:id" element={<CinemaPage />} />
         <Route path="/film/:id" element={<FilmPage />} />
         <Route
-          path="/reports"
+          path="/admin"
           element={
-            <ProtectedRoute>
-              <ReportsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/reports/:reportId"
-          element={
-            <ProtectedRoute>
-              <ReportsPage />
-            </ProtectedRoute>
+            <RequireAdmin>
+              <AdminPage />
+            </RequireAdmin>
           }
         />
       </Routes>
@@ -74,9 +89,11 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <SettingsProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </SettingsProvider>
     </AuthProvider>
   );
 }

@@ -4,7 +4,7 @@ import { progressTracker } from '../services/progress-tracker.js';
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 import { getCinemas } from '../db/queries.js';
-import { db } from '../db/client.js';
+import type { DB } from '../db/client.js';
 import { requireAuth } from '../middleware/auth.js';
 import { scraperLimiter } from '../middleware/rate-limit.js';
 
@@ -14,6 +14,8 @@ const USE_REDIS_SCRAPER = process.env.USE_REDIS_SCRAPER === 'true';
 
 // POST /api/scraper/trigger - Start a manual scrape
 router.post('/trigger', requireAuth, scraperLimiter, async (req, res) => {
+  const db: DB = req.app.get('db');
+
   try {
     // Extract and validate cinemaId and filmId from request body
     const { cinemaId, filmId } = req.body as { cinemaId?: string; filmId?: number };
@@ -91,7 +93,7 @@ router.post('/trigger', requireAuth, scraperLimiter, async (req, res) => {
     logger.error('Error starting scrape:', error);
     const response: ApiResponse = {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to start scrape',
+      error: 'Failed to start scrape',
     };
     return res.status(500).json(response);
   }
@@ -118,7 +120,7 @@ router.get('/status', async (_req, res) => {
     logger.error('Error fetching scrape status:', error);
     const response: ApiResponse = {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch scrape status',
+      error: 'Failed to fetch scrape status',
     };
     res.status(500).json(response);
   }

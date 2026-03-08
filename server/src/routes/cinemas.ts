@@ -1,24 +1,20 @@
 import express from 'express';
-import { db } from '../db/client.js';
-import { getCinemas, getShowtimesByCinemaAndWeek } from '../db/queries.js';
+import type { DB } from '../db/client.js';
+import { getCinemas, getShowtimesByCinemaAndWeek, addCinema, updateCinemaConfig, deleteCinema } from '../db/queries.js';
 import { getWeekStart } from '../utils/date.js';
 import { addCinemaAndScrape } from '../services/scraper/index.js';
 import { isValidAllocineUrl } from '../services/scraper/utils.js';
-import {
-  addCinemaWithSync,
-  updateCinemaWithSync,
-  deleteCinemaWithSync,
-  syncCinemasFromDatabase,
-} from '../services/cinema-config.js';
 import type { ApiResponse } from '../types/api.js';
 import { publicLimiter, protectedLimiter } from '../middleware/rate-limit.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/admin.js';
 
 const router = express.Router();
 
 // GET /api/cinemas - Get all cinemas
-router.get('/', publicLimiter, async (_req, res, next) => {
+router.get('/', publicLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const cinemas = await getCinemas(db);
 
     const response: ApiResponse = {
@@ -33,8 +29,9 @@ router.get('/', publicLimiter, async (_req, res, next) => {
 });
 
 // POST /api/cinemas - Add a new cinema
-router.post('/', requireAuth, protectedLimiter, async (req, res, next) => {
+router.post('/', requireAuth, requireAdmin, protectedLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const { id, name, url } = req.body;
 
     // Smart add via URL only
@@ -112,7 +109,7 @@ router.post('/', requireAuth, protectedLimiter, async (req, res, next) => {
       return res.status(400).json(response);
     }
 
-    const cinema = await addCinemaWithSync(db, { id, name, url });
+    const cinema = await addCinema(db, { id, name, url });
 
     const response: ApiResponse = {
       success: true,
@@ -132,20 +129,23 @@ router.post('/', requireAuth, protectedLimiter, async (req, res, next) => {
   }
 });
 
-// PUT /api/cinemas/:id - Update a cinema's name and/or URL
-router.put('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
+// PUT /api/cinemas/:id - Update a cinema's configuration
+router.put('/:id', requireAuth, requireAdmin, protectedLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const cinemaId = req.params.id;
-    const { name, url } = req.body;
+    const { name, url, address, postal_code, city, screen_count } = req.body;
 
-    if (!name && !url) {
+    // At least one field must be provided
+    if (!name && !url && !address && postal_code === undefined && !city && screen_count === undefined) {
       const response: ApiResponse = {
         success: false,
-        error: 'At least one field must be provided: name, url',
+        error: 'At least one field must be provided: name, url, address, postal_code, city, screen_count',
       };
       return res.status(400).json(response);
     }
 
+    // Validate name
     if (name && (typeof name !== 'string' || name.length > 100)) {
       const response: ApiResponse = {
         success: false,
@@ -154,6 +154,7 @@ router.put('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
       return res.status(400).json(response);
     }
 
+    // Validate url
     if (url && (typeof url !== 'string' || url.length > 2048)) {
       const response: ApiResponse = {
         success: false,
@@ -170,11 +171,86 @@ router.put('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
       return res.status(400).json(response);
     }
 
-    const updates: { name?: string; url?: string } = {};
+    // Validate address
+    if (address !== undefined && (typeof address !== 'string' || address.length > 200)) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Address must be at most 200 characters',
+      };
+      return res.status(400).json(response);
+    }
+
+    // Validate postal_code
+    if (postal_code !== undefined) {
+      if (typeof postal_code !== 'string' || postal_code.length > 10) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Postal code must be at most 10 characters',
+        };
+        return res.status(400).json(response);
+      }
+      // Alphanumeric validation
+      if (postal_code && !/^[a-zA-Z0-9]+$/.test(postal_code)) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Postal code must be alphanumeric',
+        };
+        return res.status(400).json(response);
+      }
+    }
+
+    // Validate city
+    if (city !== undefined && (typeof city !== 'string' || city.length > 100)) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'City must be at most 100 characters',
+      };
+      return res.status(400).json(response);
+    }
+
+    // Validate screen_count
+    if (screen_count !== undefined && screen_count !== null) {
+      if (typeof screen_count !== 'number') {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Screen count must be a number',
+        };
+        return res.status(400).json(response);
+      }
+      if (!Number.isInteger(screen_count)) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Screen count must be an integer',
+        };
+        return res.status(400).json(response);
+      }
+      if (screen_count < 1 || screen_count > 50) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Screen count must be between 1 and 50',
+        };
+        return res.status(400).json(response);
+      }
+    }
+
+    // Build updates object
+    const updates: {
+      name?: string;
+      url?: string;
+      address?: string;
+      postal_code?: string;
+      city?: string;
+      screen_count?: number;
+    } = {};
+
     if (name) updates.name = name;
     if (url) updates.url = url;
+    if (address !== undefined) updates.address = address || undefined;
+    if (postal_code !== undefined) updates.postal_code = postal_code || undefined;
+    if (city !== undefined) updates.city = city || undefined;
+    if (screen_count !== undefined) updates.screen_count = screen_count ?? undefined;
 
-    const cinema = await updateCinemaWithSync(db, cinemaId, updates);
+    const cinema = await updateCinemaConfig(db, cinemaId, updates);
 
     if (!cinema) {
       const response: ApiResponse = {
@@ -196,10 +272,11 @@ router.put('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
 });
 
 // DELETE /api/cinemas/:id - Delete a cinema (cascades to showtimes and weekly_programs)
-router.delete('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
+router.delete('/:id', requireAuth, requireAdmin, protectedLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const cinemaId = req.params.id;
-    const deleted = await deleteCinemaWithSync(db, cinemaId);
+    const deleted = await deleteCinema(db, cinemaId);
 
     if (!deleted) {
       const response: ApiResponse = {
@@ -215,28 +292,10 @@ router.delete('/:id', requireAuth, protectedLimiter, async (req, res, next) => {
   }
 });
 
-// GET /api/cinemas/sync - Manual sync from database to JSON file
-router.get('/sync', requireAuth, protectedLimiter, async (_req, res, next) => {
-  try {
-    const count = await syncCinemasFromDatabase(db);
-
-    const response: ApiResponse = {
-      success: true,
-      data: {
-        count,
-        message: `Synced ${count} cinema(s) to JSON file`,
-      },
-    };
-
-    return res.json(response);
-  } catch (error) {
-    return next(error);
-  }
-});
-
 // GET /api/cinemas/:id - Get cinema schedule
 router.get('/:id', publicLimiter, async (req, res, next) => {
   try {
+    const db: DB = req.app.get('db');
     const cinemaId = req.params.id;
     const weekStart = getWeekStart();
 

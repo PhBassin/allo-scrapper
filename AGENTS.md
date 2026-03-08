@@ -16,22 +16,22 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 
 ## MANDATORY Workflow
 
-**You MUST follow this workflow for every task:**
+**You MUST follow this workflow for every task, in order:**
 
 ```
-1. ISSUE     → Verify or create a GitHub issue
-2. BRANCH    → Create a new feature branch from develop
-3. PLAN      → Break down into atomic tasks
-4. TDD       → Write tests BEFORE code
-5. IMPLEMENT → Minimal code to pass tests
-6. DOCKER    → Verify Docker build succeeds
-7. COMMIT    → Atomic commits with Conventional Commits format
-8. E2E       → Run integration tests (E2E) if frontend changes
-9. DOCS      → Update README if API/features change
-10. PR       → Open Pull Request referencing the issue
-11. REVIEW   → Wait for review/approval before merging
-12. CLEANUP  → Switch back to develop and pull latest changes after PR is merged
+1. ISSUE   → Verify or create a GitHub issue
+2. BRANCH  → Create a dedicated feature branch from develop for this issue
+3. RED     → Write failing tests first (commit before implementing)
+4. GREEN   → Write minimal code to make tests pass
+5. DOCS    → Update README.md / AGENTS.md if API or behaviour changed
+6. COMMIT  → Atomic commits with Conventional Commits format
+7. PR      → Open Pull Request referencing the issue, wait for review
+             → After merge: use cleanup skill or manually switch back to develop, pull latest
 ```
+
+**Conditional steps (not always required):**
+- **Docker build** — run `docker compose build` before pushing if Dockerfile or dependencies changed
+- **E2E tests** — Playwright infrastructure exists (`e2e/`) but E2E tests are currently out of scope
 
 ---
 
@@ -42,59 +42,60 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 Before writing any code:
 
 1. **Search for existing issues** related to the task
-2. **Create an issue** if none exists using the appropriate template:
-   - `bug_report` - For bugs
-   - `feature_request` - For new features
-   - `task` - For technical tasks/chores
-3. **Note the issue number** - you will need it for commits and the PR
+2. **Create an issue** if none exists using the appropriate label:
+   - `bug` — For bugs
+   - `enhancement` — For new features
+   - `documentation` — For docs/chores
 
-**Command to search issues:**
 ```bash
+# Search issues
 gh issue list --state open
 gh issue list --state all --search "keyword"
 gh issue view <number>
-```
 
-**Command to create issue:**
-```bash
-# Bug
-gh issue create --title "fix: description" --body "Details..." --label bug
-
-# Feature
+# Create issue
 gh issue create --title "feat: description" --body "Details..." --label enhancement
-
-# Task
-gh issue create --title "chore: description" --body "Details..." --label task
+gh issue create --title "fix: description" --body "Details..." --label bug
+gh issue create --title "docs: description" --body "Details..." --label documentation
 ```
 
-**Important:** Always verify the issue exists before creating a PR. If you reference a non-existent issue, the PR will not be properly linked.
+**Note the issue number** — you will need it for the branch name, commits, and PR.
 
 ---
 
-## Step 2: Plan
+## Step 2: Branch
 
-Before implementation:
+**One branch per issue. No exceptions.**
 
-1. **Break down** the task into atomic, testable units
-2. **Identify files** that will be modified
-3. **List tests** that need to be written
-4. **Consider edge cases** and error scenarios
+```bash
+git checkout develop
+git pull origin develop
+git checkout -b feature/<issue-number>-<short-description>
+```
 
-Document your plan before proceeding.
+**Examples:**
+- `feature/259-add-cinema-modal`
+- `feature/42-fix-parser-bug`
+- `feature/266-optimize-agents-md`
+
+**Rules:**
+- Always branch from `develop`, never from `main` or another feature branch
+- One issue = one branch = one PR
+- NEVER push directly to `develop` or `main`
 
 ---
 
-## Step 3: Test-Driven Development (TDD)
+## Step 3: RED — Write Failing Tests First
 
 **CRITICAL: Write tests BEFORE implementation.**
 
-### TDD Cycle
+Write the test, run it, confirm it fails, then commit:
 
-```
-1. RED    → Write a failing test for the expected behavior
-2. GREEN  → Write minimal code to make the test pass
-3. REFACTOR → Improve code while keeping tests green
-4. REPEAT
+```bash
+cd server
+npm run test:run   # confirm test fails (RED)
+
+git commit -m "test(scope): add test for <feature>"
 ```
 
 ### Test Commands
@@ -107,6 +108,9 @@ npm test
 
 # Single run
 npm run test:run
+
+# Single file
+npx vitest run src/services/scraper/theater-parser.test.ts
 
 # With coverage report
 npm run test:coverage
@@ -130,37 +134,42 @@ server/tests/fixtures/                              # HTML fixtures
 ### Adding Test Fixtures
 
 For scraper tests, use real HTML fixtures:
+
 ```bash
-# Fetch HTML for a cinema
-curl "https://www.example-cinema-site.com/seance/salle_gen_csalle=CXXXX.html" \
+curl "https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html" \
   -o server/tests/fixtures/cinema-cxxxx-page.html
 ```
 
 ---
 
-## Step 4: Implement
+## Step 4: GREEN — Implement
 
-After tests are written:
+After the failing test is committed:
 
 1. Write **minimal code** to pass the failing tests
 2. Run tests frequently: `npm test`
 3. Ensure all tests pass before committing
 
----
-
-## Step 5: Verify Docker Build
-
-**Before committing, verify the Docker build succeeds.**
-
 ```bash
-docker compose build
+cd server && npm run test:run   # all green
 ```
 
-If the build fails, fix the issue before proceeding to commit.
+---
+
+## Step 5: DOCS — Update Documentation
+
+Before committing, update documentation if any of the following changed:
+
+- **Public API** — new or modified endpoints → update `README.md` API section
+- **Behaviour change** — changed defaults, config, env vars → update `README.md`
+- **Agent workflow** — new gotchas, lessons learned, or workflow changes → update `AGENTS.md`
+- **White-label / settings schema** — update `WHITE-LABEL.md`
+
+If nothing changed for external consumers or future agents, skip this step.
 
 ---
 
-## Step 7: Atomic Commits
+## Step 6: Atomic Commits
 
 **Each commit = one logical, self-contained change.**
 
@@ -201,114 +210,25 @@ If the build fails, fix the issue before proceeding to commit.
 | `docker` | Docker/deployment |
 | `observability` | Logging, metrics, tracing |
 
-### Commit Examples
-
-```bash
-# Test commit (do this FIRST)
-git commit -m "test(parser): add test for cinema with special characters"
-
-# Implementation commit
-git commit -m "feat(parser): handle cinema names with special characters
-
-refs #45"
-
-# Bug fix with issue close
-git commit -m "fix(api): return 404 for unknown cinema IDs
-
-closes #42"
-```
-
 ### Commit Order
 
 For a typical feature:
-1. `test(scope): add test for <feature>`
-2. `feat(scope): implement <feature>`
-3. `docs: update README with <feature>` (if applicable)
-
----
-
-## Step 8: Integration Testing (E2E)
-
-**When frontend changes are made, run E2E tests to verify end-to-end functionality.**
-
-### What Requires E2E Testing
-
-Run Playwright E2E tests when you modify:
-- React components that interact with the backend API
-- User workflows (button clicks, form submissions, navigation)
-- Real-time features (SSE, WebSockets, live updates)
-- Critical user paths (scraping, viewing schedules, reports)
-
-### E2E Test Commands
 
 ```bash
-# Full integration test (starts Docker, runs tests, cleans up)
-./scripts/integration-test.sh
+git commit -m "test(scope): add test for <feature>"       # RED — always first
+git commit -m "feat(scope): implement <feature>
 
-# Or manually:
-# 1. Ensure Docker is running
-docker compose up --build -d
-
-# 2. Wait for services to be ready
-sleep 10
-
-# 3. Run Playwright tests
-npx playwright test
-
-# 4. View test report (if failures)
-npx playwright show-report
-```
-
-### E2E Test Guidelines
-
-1. **Use real scrapes, not mocks** - Integration tests verify actual backend behavior
-2. **Run tests sequentially** - Config already set to `workers: 1` to avoid scrape conflicts
-3. **Use data-testid selectors** - More stable than text-based selectors
-4. **Handle timing** - Scrapes may complete quickly; use appropriate timeouts
-5. **Clean state** - Restart Docker between test sessions if needed: `docker compose restart web`
-
-### Known Limitations
-
-- Scrapes complete quickly in Docker, so some timing-sensitive tests may need adjustments
-- Tests work best when run individually or after a clean Docker restart
-- If tests interfere with each other, restart services: `docker compose restart web`
-
-### Test Locations
-
-```
-e2e/                        # Playwright E2E tests
-├── scrape-progress.spec.ts # Progress window tests
-└── ...                     # Future E2E tests
-
-playwright.config.ts        # Playwright configuration
-scripts/integration-test.sh # Automated full-stack test script
+refs #<issue>"                                             # GREEN
+git commit -m "docs: update README with <feature>"        # DOCS — if applicable
 ```
 
 ---
 
-## Step 9: Documentation
-
-### Update README.md When:
-
-- Adding new API endpoints
-- Changing environment variables
-- Modifying database schema
-- Adding user-facing features
-
-### Update DEPLOYMENT.md When:
-
-- Changing Docker configuration
-- Modifying deployment process
-
----
-
-## Step 10: Pull Request
-
-### Create PR
+## Step 7: Pull Request
 
 ```bash
 # Push branch
-git push -u origin feature/your-feature
+git push -u origin feature/<issue-number>-<short-description>
 
 # Create PR
 gh pr create --title "feat(scope): description" --body "## Summary
@@ -318,14 +238,34 @@ gh pr create --title "feat(scope): description" --body "## Summary
 Closes #<issue-number>"
 ```
 
-### PR Checklist
-
-Before requesting review:
+**Before requesting review:**
 - [ ] All tests pass (`npm run test:run`)
 - [ ] Code coverage maintained
 - [ ] Conventional Commits used
 - [ ] Documentation updated (if applicable)
-- [ ] Issue referenced in PR
+- [ ] Issue referenced in PR body
+
+**After merge:**
+
+Use the cleanup skill for automated post-merge cleanup:
+```
+Load the cleanup skill and help me clean up my merged branch
+```
+
+This will:
+- ✅ Verify branch is merged
+- ✅ Stash uncommitted changes (if any)
+- ✅ Switch to develop and pull latest
+- ✅ Update dependencies (if package-lock.json changed)
+- ✅ Delete the local feature branch
+- ✅ Offer to clean up other merged branches
+
+**Manual alternative:**
+```bash
+git checkout develop
+git pull origin develop
+git branch -d feature/<issue-number>-<short-description>
+```
 
 ---
 
@@ -339,13 +279,14 @@ allo-scrapper/
 │   │   ├── db/                 # Database queries and schema
 │   │   ├── routes/             # API route handlers
 │   │   ├── services/
-│   │   │   ├── scraper/        # In-process scraping logic (legacy mode)
-│   │   │   │   ├── index.ts        # Orchestrator
+│   │   │   ├── scraper/        # In-process scraping logic
+│   │   │   │   ├── index.ts            # Orchestrator
 │   │   │   │   ├── theater-parser.ts   # HTML parsing
 │   │   │   │   └── http-client.ts      # HTTP requests
-│   │   │   ├── redis-client.ts  # Redis job publisher (USE_REDIS_SCRAPER mode)
-│   │   │   ├── scrape-manager.ts# Scrape session management
-│   │   │   └── progress-tracker.ts  # SSE event system
+│   │   │   ├── redis-client.ts         # Redis job publisher
+│   │   │   ├── scrape-manager.ts       # Scrape session management
+│   │   │   └── progress-tracker.ts     # SSE event system
+│   │   ├── middleware/         # Auth, admin, rate-limit middleware
 │   │   ├── types/              # TypeScript definitions
 │   │   └── utils/
 │   │       ├── logger.ts       # Winston structured logger (service=ics-web)
@@ -357,7 +298,6 @@ allo-scrapper/
 │   │   ├── db/                 # Direct DB access (same schema)
 │   │   ├── redis/              # RedisJobConsumer + RedisProgressPublisher
 │   │   ├── scraper/            # Scraping logic (mirrors server/services/scraper)
-│   │   ├── types/
 │   │   └── utils/
 │   │       ├── logger.ts       # Winston logger (service=ics-scraper)
 │   │       ├── metrics.ts      # prom-client metrics (port 9091)
@@ -366,14 +306,15 @@ allo-scrapper/
 ├── client/                     # React frontend
 ├── docker/                     # Docker/monitoring configuration
 │   ├── grafana/
-│   │   ├── datasources/        # Auto-provisioned datasources (Prometheus, Loki, Tempo)
+│   │   ├── datasources/        # Auto-provisioned datasources
 │   │   └── dashboards/         # Auto-provisioned dashboards
 │   ├── loki-config.yml
 │   ├── promtail-config.yml
 │   ├── prometheus.yml
 │   └── tempo.yml
-├── e2e/                        # Playwright E2E tests
+├── e2e/                        # Playwright E2E tests (out of scope for now)
 ├── .github/                    # GitHub config (issues, workflows)
+├── WHITE-LABEL.md              # White-label branding system docs
 ├── MONITORING.md               # Observability stack documentation
 ├── CONTRIBUTING.md             # Human contributor guide
 └── AGENTS.md                   # This file
@@ -388,7 +329,15 @@ allo-scrapper/
 ```bash
 # Install git hooks (pre-push: tsc + tests)
 ./scripts/install-hooks.sh
+
+# Install dependencies (CRITICAL: run from server/ directory)
+cd server && npm install
+
+# Install client dependencies
+cd ../client && npm install
 ```
+
+**⚠️ Always run `npm install` from `server/` directory, not root.** See "Native Dependencies" gotcha below.
 
 ### Development
 
@@ -399,7 +348,7 @@ npm run dev
 # Run server tests
 cd server && npm test
 
-# Run single test file
+# Single test file
 cd server && npx vitest run src/services/scraper/theater-parser.test.ts
 
 # Check test coverage
@@ -415,54 +364,28 @@ cd scraper && npm test
 ### Docker
 
 ```bash
-# Build all images
-docker compose build
-
-# Start base stack (app + DB + Redis)
-docker compose up -d
-
-# Start with scraper microservice
-docker compose --profile scraper up -d
-
-# Start with full monitoring (Prometheus, Grafana, Loki, Tempo)
-docker compose --profile monitoring up -d
-
-# Start everything
-docker compose --profile monitoring --profile scraper up -d
+docker compose build                                          # Build all images
+docker compose up -d                                         # Base stack (app + DB + Redis)
+docker compose --profile scraper up -d                       # With scraper microservice
+docker compose --profile monitoring up -d                    # With Prometheus/Grafana/Loki/Tempo
+docker compose --profile monitoring --profile scraper up -d  # Everything
 ```
 
 ### Git
 
 ```bash
-# Check status
 git status
-
-# View recent commits
 git log --oneline -10
-
-# Create feature branch
-git checkout -b feature/your-feature develop
-
-# Amend last commit (before push only)
-git commit --amend
+git checkout -b feature/<issue-number>-<short-desc> develop
 ```
 
 ### GitHub CLI
 
 ```bash
-# List open issues
 gh issue list
-
-# View issue details
 gh issue view 42
-
-# Create issue
 gh issue create
-
-# Create PR
 gh pr create
-
-# View PR checks
 gh pr checks
 ```
 
@@ -472,78 +395,308 @@ gh pr checks
 
 ### Adding a New Cinema
 
-**Recommended workflow: API-first, then git commit.**
+Use the admin UI at `/admin/cinemas`. It handles scraping and DB persistence automatically.
 
-The `server/src/config/` directory is volume-mounted in Docker, so changes made via the API are immediately visible on the host filesystem and can be committed to git.
-
-**Step 1 — Add via API** (smart URL-based add with auto-scrape):
+If scripting via API:
 ```bash
 curl -X POST http://localhost:3000/api/cinemas \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"url":"https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html"}'
 ```
-This extracts the cinema ID, scrapes metadata and showtimes, and updates both the database and `server/src/config/cinemas.json`.
 
-**Step 2 — Verify the change is visible on host:**
-```bash
-cat server/src/config/cinemas.json
-git status
-# → modified: server/src/config/cinemas.json
-git diff server/src/config/cinemas.json
-```
+No file commit is needed — Postgres is the source of truth. `cinemas.json` is only a one-time bootstrap seed and is never written to by the application.
 
-**Step 3 — Commit and push** (Conventional Commits format):
-```bash
-git add server/src/config/cinemas.json
-git commit -m "feat(cinema): add <cinema name> (CXXXX)"
-git push
-```
-
-**Alternative — Manual edit** (development/testing only):
-1. Edit `server/src/config/cinemas.json` directly on the host
-2. Restart: `docker compose restart ics-web`
-3. Resync DB from JSON: `curl http://localhost:3000/api/cinemas/sync`
-4. Commit: `git add server/src/config/cinemas.json && git commit -m "feat(cinema): add <cinema>"`
-
-**For parser changes** (write tests before adding the cinema):
-1. Fetch HTML fixture for tests
-2. Write parser tests with the fixture
-3. Verify existing tests still pass
-4. Then add cinema via API and follow the git workflow above
-5. Test commit: `test(parser): add tests for <cinema> (CXXXX)`
-6. Cinema commit: `feat(cinema): add <cinema> (CXXXX)`
+For parser changes, write tests first (see Step 3).
 
 ### Fixing a Parser Bug
 
-1. Create failing test that reproduces the bug
-2. Fix the parser code
-3. Verify test passes
-4. Commit: `fix(parser): <description>`
+1. Fetch HTML fixture: `curl "..." -o server/tests/fixtures/cinema-cxxxx-page.html`
+2. Write failing test reproducing the bug
+3. Fix the parser
+4. Verify test passes
+5. Commit: `fix(parser): <description>`
 
-### Adding API Endpoint
+### Adding an API Endpoint
 
 1. Write test for expected behavior
 2. Add route handler
-3. Update README API documentation
-4. Commit: `feat(api): add <endpoint>`
+3. Update README.md API section
+4. Commit: `test(api): ...` then `feat(api): add <endpoint>`
+
+---
+
+## White-Label System
+
+The white-label branding system supports full customization via an admin panel and REST API.
+
+**Key files:**
+- `server/src/db/settings-queries.ts` — Settings CRUD
+- `server/src/db/user-queries.ts` — User management
+- `server/src/routes/settings.ts` — Settings API (`/api/settings/*`)
+- `server/src/routes/users.ts` — Users API (`/api/users/*`)
+- `server/src/services/theme-generator.ts` — Dynamic CSS (`/api/theme.css`)
+- `client/src/pages/admin/SettingsPage.tsx` — Admin UI
+- `client/src/contexts/SettingsContext.tsx` — Frontend state
+
+See [WHITE-LABEL.md](./WHITE-LABEL.md) for full documentation, schema change instructions, and troubleshooting.
+
+---
+
+## Gotchas / Lessons Learned
+
+Hard-won discoveries from previous sessions. Read before starting any task.
+
+### CodeQL: Rate-Limiting False Positives
+
+CodeQL raises `js/missing-rate-limiting` alerts on mutation routes even when `express-rate-limit` middleware is correctly applied via imported named exports. CodeQL cannot trace the middleware through the import chain.
+
+**Action:** Dismiss these alerts via GitHub API with reason `"false positive"` after each push that shifts line numbers:
+```bash
+gh api repos/PhBassin/allo-scrapper/code-scanning/alerts/<id> \
+  -X PATCH -f state=dismissed -f dismissed_reason="false positive" \
+  -f dismissed_comment="Rate limiting applied via protectedLimiter middleware"
+```
+
+### CodeQL: SSRF (`js/request-forgery`)
+
+CodeQL flags HTTP requests built with string concatenation as SSRF-vulnerable.
+
+**Fix:** Use `new URL(path, base)` to construct URLs, then validate the hostname *after* construction. CodeQL must see the hostname check after the `new URL()` call to recognize it as safe.
+
+### `DELETE` Routes Return 204 — No Body
+
+`DELETE /api/cinemas/:id` returns `204 No Content`. Do NOT access `.data` on the response.
+
+```typescript
+// WRONG — throws on 204
+const result = await apiClient.delete(`/cinemas/${id}`);
+console.log(result.data); // undefined / error
+
+// CORRECT
+await apiClient.delete(`/cinemas/${id}`);
+```
+
+### Modal Stale State — Use `key` to Force Remount
+
+When reusing a modal component for different items (e.g. editing different cinemas), stale state persists across renders. Fix by setting `key` to the item's ID on the parent to force a full remount:
+
+```tsx
+<EditCinemaModal key={selectedCinema.id} cinema={selectedCinema} />
+```
+
+### Zero Values — Use `!= null` Not `||`
+
+Avoid `||` for optional numeric fields — it treats `0` as falsy and substitutes the default:
+
+```typescript
+// WRONG — shows dash for 0 screens
+const count = cinema.screen_count || '—';
+
+// CORRECT
+const count = cinema.screen_count != null ? cinema.screen_count : '—';
+```
+
+### Name Validation — Always `.trim()`
+
+Reject whitespace-only strings explicitly:
+
+```typescript
+if (!name.trim()) throw new Error('Name is required');
+```
+
+### Frontend `Cinema` Type — Include `url`
+
+The `Cinema` interface in `client/src/types/index.ts` must include `url?: string`. It's easy to miss when the backend adds fields — keep the frontend type in sync.
+
+### Pre-Push Hook
+
+A git pre-push hook runs `tsc --noEmit` + `vitest run` before every push. Fix all TypeScript errors and test failures before pushing — the hook will block the push otherwise.
+
+### Native Dependencies — `sharp` Package
+
+The `sharp` package is a native binary dependency used for image validation and compression in the white-label branding system (`server/src/utils/image-validator.ts`). It requires platform-specific binaries during installation.
+
+**Problem:** Tests fail with `Error: Cannot find package 'sharp'` if:
+- `npm install` was run from the wrong directory (root instead of `server/`)
+- Installation was interrupted mid-process
+- `node_modules/` was deleted or corrupted
+
+**Affected files:**
+- `server/src/routes/settings.ts` — imports `image-validator.ts`
+- `server/src/utils/image-validator.ts` — direct import
+- `server/src/utils/image-validator.test.ts` — test file
+
+**Solution:** Always run `npm install` from the `server/` directory:
+
+```bash
+cd server && npm install
+```
+
+If tests still fail after `npm install`:
+
+```bash
+cd server
+rm -rf node_modules
+npm install
+```
+
+**Why this happens:** `sharp` downloads native binaries during postinstall scripts. Running `npm install` from the root directory or interrupting the installation can result in incomplete or missing binaries, even though `package.json` and `package-lock.json` are correct.
+
+### CORS LAN Access — Update `ALLOWED_ORIGINS` for Network Access
+
+When accessing the app from another machine on your LAN (e.g., `http://192.168.1.100:3000`), browsers send that IP as the origin, which must be explicitly allowed in CORS configuration.
+
+**Symptom:** Error in logs:
+```
+Error: CORS blocked request from origin 'http://192.168.1.100:3000'. 
+Add this origin to ALLOWED_ORIGINS in your .env file. 
+Current ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+```
+
+**Fix:** Add the LAN IP to `ALLOWED_ORIGINS` in `.env`:
+```bash
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://192.168.1.100:3000
+```
+
+Then restart the server:
+```bash
+docker compose restart web
+```
+
+**Important:**
+- Each unique origin (protocol + hostname + port) must be listed explicitly
+- Don't use wildcards (`*`) in production — security risk
+- The error message now shows both the blocked origin and current allowed origins for easier debugging
+- See `docs/guides/deployment/networking.md` for comprehensive CORS documentation
 
 ---
 
 ## Important Reminders
 
-1. **NEVER skip tests** - TDD is mandatory
+1. **NEVER skip tests** — TDD is mandatory; write tests before code
 2. **NEVER mix unrelated changes** in one commit
-3. **ALWAYS reference issues** in commits/PRs
-4. **ALWAYS update docs** when changing public APIs
-5. **ALWAYS run tests** before committing
-6. **NEVER push directly to develop** - Always create a feature branch, create a PR, and ask for review
+3. **ALWAYS create one branch per issue** — feature branches from `develop` only
+4. **ALWAYS reference issues** in commits and PRs
+5. **ALWAYS update docs** when changing public APIs
+6. **NEVER push directly to `develop` or `main`** — always use a feature branch and PR
+
+---
+
+## Custom OpenCode Agents
+
+This project includes specialized OpenCode agents to assist with specific tasks.
+
+### docs-writer Agent
+
+**Purpose:** Maintains and writes project documentation following the Divio documentation system.
+
+**Location:** `.opencode/agents/docs-writer.md`
+
+**Capabilities:**
+- Creates and updates documentation in `docs/` and root markdown files
+- Follows Divio principles (tutorials, guides, reference, troubleshooting)
+- Validates markdown syntax using markdownlint
+- Checks for broken links automatically
+- Verifies code examples against current codebase
+- Can research external references (official docs)
+- Delegates to explore agent for code understanding
+
+**Usage:**
+
+Direct invocation:
+```
+@docs-writer Update the API documentation for /api/cinemas endpoint
+```
+
+Automatic delegation (when asking about documentation):
+```
+Can you update the troubleshooting guide for Docker networking?
+```
+
+**Configuration:**
+- **Mode**: Subagent (invokable, not primary)
+- **Temperature**: 0.2 (precise and consistent)
+- **Tools**: Full file access, webfetch, task delegation, bash validation
+- **Permissions**: 
+  - Bash commands require approval (except validation tools)
+  - External fetches require approval
+  - Can delegate to explore agent automatically
+
+**Best Practices:**
+- Use for all documentation updates and creation
+- Let it validate links and syntax automatically
+- Provide context about feature changes when updating docs
+- Trust its adherence to Divio system and project style
+
+### cleanup Skill
+
+**Purpose:** Automates the post-PR merge cleanup workflow with safety checks and dependency updates.
+
+**Location:** `.opencode/skills/cleanup/SKILL.md`
+
+**Capabilities:**
+- Verifies branch is merged to develop before deletion
+- Safely stashes uncommitted changes with descriptive messages
+- Switches to develop and pulls latest changes
+- Automatically runs `npm install` if package-lock.json changed
+- Deletes local feature branch (uses safe `-d` flag)
+- Offers batch cleanup of other merged branches
+- Provides clear summaries instead of verbose git output
+
+**Usage:**
+
+After your PR is merged, ask OpenCode to load and use the cleanup skill:
+```
+Load the cleanup skill and help me clean up my merged branch
+```
+
+Or be more specific:
+```
+My PR was just merged. Use the cleanup skill to switch to develop and clean up the feature branch.
+```
+
+The skill will guide you through the cleanup process with clear prompts and confirmations.
+
+**Example output:**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Post-Merge Cleanup Complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📍 Current branch: develop
+🔄 Pulled 5 new commits from origin/develop
+📦 Dependencies updated (npm install ran)
+🗑️  Deleted local branch: feature/324-improve-json-parse-cache
+
+ℹ️  Remote branch still exists: origin/feature/324-improve-json-parse-cache
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Configuration:**
+- **Type**: OpenCode Skill (loaded via skill tool)
+- **Category**: git workflow
+- **License**: MIT
+- **Audience**: developers
+
+**Safety Features:**
+- Never force-deletes unmerged branches (uses `git branch -d`)
+- Verifies branch is in `git branch --merged develop` before deletion
+- Stashes uncommitted changes instead of losing them
+- Prevents cleanup from develop/main branches
+- Gracefully handles errors with actionable guidance
+
+**Best Practices:**
+- Use immediately after PR merge confirmation
+- Let it handle dependency updates automatically
+- Review the summary to confirm everything succeeded
+- Use batch cleanup option to remove old merged branches periodically
 
 ---
 
 ## Questions?
 
 If unclear about requirements:
-1. Check existing code patterns
-2. Review `CONTRIBUTING.md` for detailed guidelines
-3. Check `server/tests/README.md` for testing specifics
-4. Ask for clarification before proceeding
+1. Check existing code patterns in the relevant directory
+2. Check `server/tests/README.md` for testing specifics
+3. Ask for clarification before proceeding

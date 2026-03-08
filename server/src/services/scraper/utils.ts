@@ -1,5 +1,7 @@
 import type { Showtime } from '../../types/scraper.js';
 
+export const ALLOCINE_BASE_URL = 'https://www.allocine.fr';
+
 /**
  * Determines whether a scraped page is a stale/fallback response.
  *

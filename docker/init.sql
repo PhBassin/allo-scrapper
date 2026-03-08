@@ -96,15 +96,6 @@ CREATE TABLE IF NOT EXISTS scrape_reports (
 CREATE INDEX IF NOT EXISTS idx_scrape_reports_started_at ON scrape_reports(started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_scrape_reports_status ON scrape_reports(status);
 
--- Table: users (for authentication)
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  username VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
--- Seed default admin user (password: admin)
-INSERT INTO users (username, password_hash)
-VALUES ('admin', '$2b$10$X1jI1OAR61W6fUxWcM.wD.vuMMVkDT3HdkHxC5.3KJZ0ZfPwW9gP6')
-ON CONFLICT (username) DO NOTHING;
+-- NOTE: users table and default admin seed have been moved to migrations
+-- - Migration 003: Creates users table
+-- - Migration 007: Seeds default admin user with random password

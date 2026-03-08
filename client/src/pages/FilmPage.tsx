@@ -101,22 +101,22 @@ export default function FilmPage() {
               </div>
 
               {/* Ratings */}
-              {(film.press_rating || film.audience_rating) && (
+              {(film.press_rating != null && film.press_rating > 0) || (film.audience_rating != null && film.audience_rating > 0) ? (
                 <div className="flex gap-4 pt-2 border-t border-gray-100">
-                  {film.press_rating && (
+                  {film.press_rating != null && film.press_rating > 0 && (
                     <div className="text-center">
                       <div className="text-[10px] font-bold text-gray-400 uppercase">Presse</div>
                       <div className="font-bold text-lg">★ {film.press_rating.toFixed(1)}</div>
                     </div>
                   )}
-                  {film.audience_rating && (
+                  {film.audience_rating != null && film.audience_rating > 0 && (
                     <div className="text-center">
                       <div className="text-[10px] font-bold text-gray-400 uppercase">Public</div>
                       <div className="font-bold text-lg">★ {film.audience_rating.toFixed(1)}</div>
                     </div>
                   )}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

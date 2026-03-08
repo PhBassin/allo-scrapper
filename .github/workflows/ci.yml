@@ -16,6 +16,8 @@ jobs:
   build-and-test:
     name: TypeScript build & tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository

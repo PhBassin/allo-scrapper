@@ -1,6 +1,7 @@
 import type { FilmShowtimeData, Film, Showtime } from '../../types/scraper.js';
 import { logger } from '../../utils/logger.js';
 import { decodeHtmlEntities, decodeHtmlEntitiesArray } from '../../utils/html-decode.js';
+import { ALLOCINE_BASE_URL } from './utils.js';
 
 // ── Allociné internal API response types ──────────────────────────────────────
 
@@ -300,7 +301,7 @@ export function parseShowtimesJson(
       audience_rating,
       release_date,
       rerelease_date,
-      source_url: `https://www.allocine.fr/film/fichefilm_gen_cfilm=${filmId}.html`,
+      source_url: `${ALLOCINE_BASE_URL}/film/fichefilm_gen_cfilm=${filmId}.html`,
     };
 
     const showtimes = mapShowtimes(result.showtimes ?? {}, filmId, cinemaId, date);

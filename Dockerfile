@@ -95,6 +95,9 @@ COPY --from=backend-builder --chown=nodejs:nodejs /app/server/dist ./dist
 # Copy backend config files (cinemas.json) with correct ownership
 COPY --chown=nodejs:nodejs server/src/config ./dist/config
 
+# Copy database migrations with correct ownership
+COPY --chown=nodejs:nodejs migrations ./migrations
+
 # Copy built frontend from builder with correct ownership
 COPY --from=frontend-builder --chown=nodejs:nodejs /app/client/dist ./public
 
