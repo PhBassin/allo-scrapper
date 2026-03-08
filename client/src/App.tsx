@@ -4,13 +4,9 @@ import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import CinemaPage from './pages/CinemaPage';
 import FilmPage from './pages/FilmPage';
-import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
-import CinemasPage from './pages/admin/CinemasPage';
-import SettingsPage from './pages/admin/SettingsPage';
-import UsersPage from './pages/admin/UsersPage';
-import SystemPage from './pages/admin/SystemPage';
+import AdminPage from './pages/admin/AdminPage';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
 import { SettingsProvider, SettingsContext } from './contexts/SettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -78,50 +74,10 @@ function AppRoutes() {
         <Route path="/cinema/:id" element={<CinemaPage />} />
         <Route path="/film/:id" element={<FilmPage />} />
         <Route
-          path="/reports"
-          element={
-            <ProtectedRoute>
-              <ReportsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/reports/:reportId"
-          element={
-            <ProtectedRoute>
-              <ReportsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/cinemas"
+          path="/admin"
           element={
             <RequireAdmin>
-              <CinemasPage />
-            </RequireAdmin>
-          }
-        />
-        <Route
-          path="/admin/settings"
-          element={
-            <RequireAdmin>
-              <SettingsPage />
-            </RequireAdmin>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <RequireAdmin>
-              <UsersPage />
-            </RequireAdmin>
-          }
-        />
-        <Route
-          path="/admin/system"
-          element={
-            <RequireAdmin>
-              <SystemPage />
+              <AdminPage />
             </RequireAdmin>
           }
         />
