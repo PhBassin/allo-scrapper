@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { getScrapeReports, getScrapeReportById } from '../api/client';
 import type { ScrapeReport, PaginatedResponse } from '../types';
 
 export default function ReportsPage() {
-  const { reportId } = useParams<{ reportId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [reports, setReports] = useState<PaginatedResponse<ScrapeReport> | null>(null);
   const [selectedReport, setSelectedReport] = useState<ScrapeReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Get page from URL query params, default to 1
+  // Get reportId and page from URL query params
+  const reportId = searchParams.get('reportId');
   const page = parseInt(searchParams.get('page') || '1', 10);
   const pageSize = 10;
 
@@ -116,7 +116,7 @@ export default function ReportsPage() {
       <div>
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-          <Link to="/reports" className="hover:text-primary hover:underline">← Rapports</Link>
+          <Link to="/admin?tab=rapports" className="hover:text-primary hover:underline">← Rapports</Link>
           <span>/</span>
           <span>Rapport #{selectedReport.id}</span>
         </div>
@@ -221,7 +221,7 @@ export default function ReportsPage() {
             {reports.items.map((report: ScrapeReport) => (
               <Link
                 key={report.id}
-                to={`/reports/${report.id}`}
+                to={`/admin?tab=rapports&reportId=${report.id}`}
                 className="card p-5 block hover:shadow-lg transition border border-gray-100"
               >
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

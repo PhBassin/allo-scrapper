@@ -87,7 +87,7 @@ describe('ReportsPage - URL params adaptation', () => {
       renderWithRouter('/admin?tab=rapports&reportId=123');
       
       await waitFor(() => {
-        expect(screen.getByText(/Rapport #123/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Rapport #123/i })).toBeInTheDocument();
       });
       
       expect(client.getScrapeReportById).toHaveBeenCalledWith(123);
@@ -114,7 +114,7 @@ describe('ReportsPage - URL params adaptation', () => {
       await waitFor(() => {
         const breadcrumbLink = screen.getByText(/← Rapports/i);
         expect(breadcrumbLink).toBeInTheDocument();
-        expect(breadcrumbLink.closest('a')).toHaveAttribute('to', '/admin?tab=rapports');
+        expect(breadcrumbLink.closest('a')).toHaveAttribute('href', '/admin?tab=rapports');
       });
     });
   });
