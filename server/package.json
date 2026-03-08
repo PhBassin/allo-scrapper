@@ -1,6 +1,6 @@
 {
   "name": "allo-scrapper-server",
-  "version": "3.0.0-beta.3",
+  "version": "3.0.0",
   "description": "Backend Express API for Allo-Scrapper",
   "type": "module",
   "main": "dist/index.js",
