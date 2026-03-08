@@ -543,6 +543,33 @@ npm install
 
 **Why this happens:** `sharp` downloads native binaries during postinstall scripts. Running `npm install` from the root directory or interrupting the installation can result in incomplete or missing binaries, even though `package.json` and `package-lock.json` are correct.
 
+### CORS LAN Access — Update `ALLOWED_ORIGINS` for Network Access
+
+When accessing the app from another machine on your LAN (e.g., `http://192.168.1.100:3000`), browsers send that IP as the origin, which must be explicitly allowed in CORS configuration.
+
+**Symptom:** Error in logs:
+```
+Error: CORS blocked request from origin 'http://192.168.1.100:3000'. 
+Add this origin to ALLOWED_ORIGINS in your .env file. 
+Current ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+```
+
+**Fix:** Add the LAN IP to `ALLOWED_ORIGINS` in `.env`:
+```bash
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://192.168.1.100:3000
+```
+
+Then restart the server:
+```bash
+docker compose restart web
+```
+
+**Important:**
+- Each unique origin (protocol + hostname + port) must be listed explicitly
+- Don't use wildcards (`*`) in production — security risk
+- The error message now shows both the blocked origin and current allowed origins for easier debugging
+- See `docs/guides/deployment/networking.md` for comprehensive CORS documentation
+
 ---
 
 ## Important Reminders

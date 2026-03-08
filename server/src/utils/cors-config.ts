@@ -16,7 +16,14 @@ export const getCorsOptions = (): CorsOptions => {
       if (allowedOrigins.indexOf(origin) !== -1) {
         return callback(null, true);
       } else {
-        return callback(new Error('Not allowed by CORS'));
+        return callback(
+          new Error(
+            `CORS blocked request from origin '${origin}'. ` +
+            `Add this origin to ALLOWED_ORIGINS in your .env file. ` +
+            `Current ALLOWED_ORIGINS: ${allowedOrigins.join(',')}. ` +
+            `See docs/guides/deployment/networking.md for details.`
+          )
+        );
       }
     },
     credentials: true,
