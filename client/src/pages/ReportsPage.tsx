@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getScrapeReports, getScrapeReportById } from '../api/client';
 import type { ScrapeReport, PaginatedResponse } from '../types';
@@ -41,15 +41,21 @@ export default function ReportsPage() {
     loadReports();
   }, [reportId, page]);
 
+  // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
+  // re-initialization during loop renders for the reports list.
+  const dateFormatter = useMemo(() => new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }), []);
+
   const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toLocaleString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    if (isNaN(date.getTime())) return '';
+    return dateFormatter.format(date);
   };
 
   const formatDuration = (ms: number) => {
