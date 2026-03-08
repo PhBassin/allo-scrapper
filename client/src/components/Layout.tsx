@@ -67,9 +67,9 @@ export default function Layout({ children, title }: LayoutProps) {
               <Link to="/" className="hover:text-primary transition">
                 Accueil
               </Link>
-              {isAuthenticated && (
-                <Link to="/reports" className="hover:text-primary transition">
-                  Rapports
+              {isAuthenticated && isAdmin && (
+                <Link to="/admin?tab=cinemas" className="hover:text-primary transition">
+                  Admin
                 </Link>
               )}
               <div className="border-l border-gray-600 h-6"></div>
