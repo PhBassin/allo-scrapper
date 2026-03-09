@@ -8,39 +8,24 @@ import { MemoryRouter } from 'react-router-dom';
 vi.mock('../api/client', () => ({
   getWeeklyFilms: vi.fn(),
   getCinemas: vi.fn(),
-  getScrapeStatus: vi.fn(),
-}));
-
-// Mock child components to avoid complex rendering and their side effects
-vi.mock('../components/ScrapeButton', () => ({
-  default: ({ onScrapeStart }: { onScrapeStart: () => void }) => (
-    <button onClick={onScrapeStart}>Mock Scrape Button</button>
-  ),
-}));
-
-vi.mock('../components/ScrapeProgress', () => ({
-  default: () => <div data-testid="scrape-progress">Scrape Progress Component</div>,
+  addCinema: vi.fn(),
 }));
 
 describe('HomePage', () => {
   let mockGetWeeklyFilms: ReturnType<typeof vi.fn>;
   let mockGetCinemas: ReturnType<typeof vi.fn>;
-  let mockGetScrapeStatus: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     mockGetWeeklyFilms = vi.fn();
     mockGetCinemas = vi.fn();
-    mockGetScrapeStatus = vi.fn();
 
     // Re-bind mocks
     (clientApi.getWeeklyFilms as any) = mockGetWeeklyFilms;
     (clientApi.getCinemas as any) = mockGetCinemas;
-    (clientApi.getScrapeStatus as any) = mockGetScrapeStatus;
 
     // Default successful responses
     mockGetWeeklyFilms.mockResolvedValue({ films: [], weekStart: '2023-01-01' });
     mockGetCinemas.mockResolvedValue([]);
-    mockGetScrapeStatus.mockResolvedValue({ isRunning: false });
   });
 
   afterEach(() => {
@@ -57,39 +42,36 @@ describe('HomePage', () => {
     await waitFor(() => {
       expect(mockGetWeeklyFilms).toHaveBeenCalled();
       expect(mockGetCinemas).toHaveBeenCalled();
-      expect(mockGetScrapeStatus).toHaveBeenCalled();
     });
   });
 
-  it('should NOT show ScrapeProgress if no scrape is running', async () => {
-    mockGetScrapeStatus.mockResolvedValue({ isRunning: false });
-
+  it('should NOT show ScrapeProgress on the home page', async () => {
     render(
       <MemoryRouter>
         <HomePage />
       </MemoryRouter>
     );
 
-    // Wait for loading to finish
     await waitFor(() => {
-        expect(mockGetScrapeStatus).toHaveBeenCalled();
+      expect(mockGetWeeklyFilms).toHaveBeenCalled();
     });
 
+    // Scraping UI has been moved to admin — should never appear on HomePage
     expect(screen.queryByTestId('scrape-progress')).not.toBeInTheDocument();
   });
 
-  it('should show ScrapeProgress if scrape IS running', async () => {
-    mockGetScrapeStatus.mockResolvedValue({ isRunning: true });
-
+  it('should NOT show a scrape button on the home page', async () => {
     render(
       <MemoryRouter>
         <HomePage />
       </MemoryRouter>
     );
 
-    // Wait for loading to finish and component to update
     await waitFor(() => {
-      expect(screen.getByTestId('scrape-progress')).toBeInTheDocument();
+      expect(mockGetWeeklyFilms).toHaveBeenCalled();
     });
+
+    // Scraping UI has been moved to admin — no scrape button on public pages
+    expect(screen.queryByTestId('scrape-all-button')).not.toBeInTheDocument();
   });
 });

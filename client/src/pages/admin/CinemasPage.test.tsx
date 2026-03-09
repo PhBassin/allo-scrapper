@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import CinemasPage from './CinemasPage';
@@ -19,6 +19,31 @@ vi.mock('../../api/client', () => ({
   triggerCinemaScrape: vi.fn(),
   getScrapeStatus: vi.fn(),
   subscribeToProgress: vi.fn(),
+}));
+
+// Mock ScrapeButton: renders a real button with the testId so tests can click it
+vi.mock('../../components/ScrapeButton', () => ({
+  default: ({
+    onTrigger,
+    onScrapeStart,
+    testId,
+    buttonText = 'Scraper',
+  }: {
+    onTrigger: () => Promise<void>;
+    onScrapeStart?: () => void;
+    testId?: string;
+    buttonText?: string;
+  }) => (
+    <button
+      data-testid={testId}
+      onClick={async () => {
+        await onTrigger();
+        onScrapeStart?.();
+      }}
+    >
+      {buttonText}
+    </button>
+  ),
 }));
 
 // Mock child modal components to keep tests focused
@@ -122,6 +147,7 @@ describe('CinemasPage - Scrape All button', () => {
   });
 
   it('hides ScrapeProgress and refreshes cinemas after scrape completes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const updatedCinemas = [
       ...mockCinemas,
       { id: 'C0999', name: 'New Cinema', city: 'Lyon', screen_count: 5, address: null, postal_code: null },
@@ -144,7 +170,12 @@ describe('CinemasPage - Scrape All button', () => {
     // Simulate scrape completion
     fireEvent.click(screen.getByText('Simulate Complete'));
 
-    // Progress should eventually disappear and cinemas should reload
+    // Advance the 2000ms setTimeout
+    act(() => {
+      vi.advanceTimersByTime(2500);
+    });
+
+    // Progress should disappear and cinemas should reload
     await waitFor(() => {
       expect(screen.queryByTestId('scrape-progress')).not.toBeInTheDocument();
     });
@@ -152,6 +183,8 @@ describe('CinemasPage - Scrape All button', () => {
     await waitFor(() => {
       expect(cinemasApi.getCinemas).toHaveBeenCalledTimes(2);
     });
+
+    vi.useRealTimers();
   });
 });
 

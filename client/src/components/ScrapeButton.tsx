@@ -8,6 +8,7 @@ interface ScrapeButtonProps {
   buttonText?: string;
   loadingText?: string;
   successText?: string;
+  testId?: string;
 }
 
 export default function ScrapeButton({
@@ -17,6 +18,7 @@ export default function ScrapeButton({
   buttonText = '🔄 Lancer le scraping manuel',
   loadingText = 'Scraping en cours...',
   successText = 'Scraping démarré !',
+  testId,
 }: ScrapeButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +63,7 @@ export default function ScrapeButton({
       <button
         onClick={handleClick}
         disabled={isLoading}
+        data-testid={testId}
         className={`
           px-6 py-3 rounded-lg font-semibold text-black
           transition-all duration-200 

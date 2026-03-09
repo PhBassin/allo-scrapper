@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getCinemas, createCinema, updateCinema, deleteCinema } from '../../api/cinemas';
 import type { CinemaCreate, CinemaUpdate } from '../../api/cinemas';
+import { triggerScrape, triggerCinemaScrape, getScrapeStatus } from '../../api/client';
 import type { Cinema } from '../../types';
 import AddCinemaModal from '../../components/admin/AddCinemaModal';
 import EditCinemaModal from '../../components/admin/EditCinemaModal';
 import DeleteCinemaDialog from '../../components/admin/DeleteCinemaDialog';
+import ScrapeButton from '../../components/ScrapeButton';
+import ScrapeProgress from '../../components/ScrapeProgress';
 
 const SUCCESS_DISMISS_MS = 5000;
 
@@ -16,6 +19,10 @@ const CinemasPage: React.FC = () => {
 
   // Search
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Scraping state
+  const [showProgress, setShowProgress] = useState(false);
+  const [scrapingCinemaId, setScrapingCinemaId] = useState<string | null>(null);
 
   // Modal / dialog state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -42,6 +49,18 @@ const CinemasPage: React.FC = () => {
   useEffect(() => {
     fetchCinemas();
   }, [fetchCinemas]);
+
+  // ── Check if scrape is already running on mount ───────────────────────────────
+
+  useEffect(() => {
+    getScrapeStatus().then((status) => {
+      if (status.isRunning) {
+        setShowProgress(true);
+      }
+    }).catch(() => {
+      // Non-critical — ignore errors checking status
+    });
+  }, []);
 
   // ── Success message auto-dismiss ─────────────────────────────────────────────
 
@@ -82,6 +101,20 @@ const CinemasPage: React.FC = () => {
     }
   };
 
+  // ── Scraping handlers ────────────────────────────────────────────────────────
+
+  const handleScrapeStart = useCallback(() => {
+    setShowProgress(true);
+  }, []);
+
+  const handleScrapeComplete = useCallback(() => {
+    setTimeout(() => {
+      setShowProgress(false);
+      setScrapingCinemaId(null);
+      fetchCinemas();
+    }, 2000);
+  }, [fetchCinemas]);
+
   // ── Filtering ────────────────────────────────────────────────────────────────
 
   // ⚡ PERFORMANCE: Memoize the filtered cinemas list to prevent expensive
@@ -114,14 +147,31 @@ const CinemasPage: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Cinema Management</h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          data-testid="add-cinema-button"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
-        >
-          Add Cinema
-        </button>
+        <div className="flex items-center gap-3">
+          <ScrapeButton
+            onTrigger={async () => { await triggerScrape(); }}
+            onScrapeStart={handleScrapeStart}
+            buttonText="Scraper tous les cinémas"
+            loadingText="Scraping..."
+            successText="Scraping démarré !"
+            testId="scrape-all-button"
+          />
+          <button
+            onClick={() => setShowAddModal(true)}
+            data-testid="add-cinema-button"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
+          >
+            Add Cinema
+          </button>
+        </div>
       </div>
+
+      {/* Scrape Progress */}
+      {showProgress && (
+        <div className="mb-6">
+          <ScrapeProgress onComplete={handleScrapeComplete} />
+        </div>
+      )}
 
       {/* Success Message */}
       {successMessage && (
@@ -197,26 +247,38 @@ const CinemasPage: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => setCinemaToEdit(cinema)}
-                        data-testid={`edit-cinema-${cinema.id}`}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          setCinemaToDelete(cinema);
-                          setDeleteError(null);
-                        }}
-                        data-testid={`delete-cinema-${cinema.id}`}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+                     <div className="flex justify-end gap-2">
+                       <button
+                         onClick={() => {
+                           setScrapingCinemaId(cinema.id);
+                           triggerCinemaScrape(cinema.id)
+                             .then(() => handleScrapeStart())
+                             .catch(() => setScrapingCinemaId(null));
+                         }}
+                         data-testid={`scrape-cinema-${cinema.id}`}
+                         className="text-green-600 hover:text-green-900"
+                       >
+                         Scraper
+                       </button>
+                       <button
+                         onClick={() => setCinemaToEdit(cinema)}
+                         data-testid={`edit-cinema-${cinema.id}`}
+                         className="text-blue-600 hover:text-blue-900"
+                       >
+                         Edit
+                       </button>
+                       <button
+                         onClick={() => {
+                           setCinemaToDelete(cinema);
+                           setDeleteError(null);
+                         }}
+                         data-testid={`delete-cinema-${cinema.id}`}
+                         className="text-red-600 hover:text-red-900"
+                       >
+                         Delete
+                       </button>
+                     </div>
+                   </td>
                 </tr>
               ))}
             </tbody>
