@@ -3,7 +3,7 @@ import { logger } from '../utils/logger.js';
 import {
   upsertCinema,
   upsertFilm,
-  upsertShowtime,
+  upsertShowtimes,
   upsertWeeklyPrograms,
   getFilm,
   getCinemaConfigs,
@@ -29,18 +29,23 @@ export class NoopProgressPublisher implements ProgressPublisher {
 /**
  * Load the theater page once to extract metadata (cinema name, city, etc.)
  * and the list of dates that actually have published showtimes.
+ *
+ * The URL from the cinema config is merged into the parsed cinema object before
+ * upserting, so it is preserved in the database (the HTML parser does not
+ * extract the Allociné URL itself).
  */
-async function loadTheaterMetadata(
+export async function loadTheaterMetadata(
   db: DB,
   cinema: CinemaConfig
 ): Promise<{ availableDates: string[]; cinema: Cinema }> {
   const { html, availableDates } = await fetchTheaterPage(cinema.url);
 
   const pageData = parseTheaterPage(html, cinema.id);
-  await upsertCinema(db, pageData.cinema);
-  logger.info('Cinema metadata upserted', { cinema: pageData.cinema.name });
+  const mergedCinema: Cinema = { ...pageData.cinema, url: cinema.url };
+  await upsertCinema(db, mergedCinema);
+  logger.info('Cinema metadata upserted', { cinema: mergedCinema.name });
 
-  return { availableDates, cinema: pageData.cinema };
+  return { availableDates, cinema: mergedCinema };
 }
 
 // Scraper un cinéma pour une date donnée
@@ -96,9 +101,7 @@ async function scrapeTheater(
         await upsertFilm(db, film);
         logger.info('Film upserted', { title: film.title });
 
-        for (const showtime of filmData.showtimes) {
-          await upsertShowtime(db, showtime);
-        }
+        await upsertShowtimes(db, filmData.showtimes);
         logger.info('Showtimes upserted', { count: filmData.showtimes.length });
 
         weeklyPrograms.push({
