@@ -1,10 +1,8 @@
 import { useEffect, useState, useContext, useCallback, useMemo } from 'react';
 
-import { getWeeklyFilms, getFilmsByDate, getCinemas, getScrapeStatus, addCinema, triggerScrape } from '../api/client';
+import { getWeeklyFilms, getFilmsByDate, getCinemas, addCinema } from '../api/client';
 import type { FilmWithShowtimes, Cinema } from '../types';
 import FilmCard from '../components/FilmCard';
-import ScrapeButton from '../components/ScrapeButton';
-import ScrapeProgress from '../components/ScrapeProgress';
 import DaySelector from '../components/DaySelector';
 import FilmSearchBar from '../components/FilmSearchBar';
 import ScrollToTop from '../components/ScrollToTop';
@@ -18,7 +16,6 @@ export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showProgress, setShowProgress] = useState(false);
   const { isAuthenticated } = useContext(AuthContext);
 
   const loadData = async (date?: string | null) => {
@@ -26,20 +23,14 @@ export default function HomePage() {
       setIsLoading(true);
       setError(null);
       
-      const [filmsData, cinemasData, scrapeStatus] = await Promise.all([
+      const [filmsData, cinemasData] = await Promise.all([
         date ? getFilmsByDate(date) : getWeeklyFilms(),
         getCinemas(),
-        getScrapeStatus()
       ]);
       
       setFilms(filmsData.films);
       setWeekStart(filmsData.weekStart);
       setCinemas(cinemasData);
-
-      // Check if scrape is running
-      if (scrapeStatus.isRunning) {
-        setShowProgress(true);
-      }
     } catch (err: any) {
       setError(err.message || 'Failed to load data');
     } finally {
@@ -54,9 +45,6 @@ export default function HomePage() {
   const handleDateSelect = useCallback((date: string | null) => {
     setSelectedDate(date);
   }, []);
-
-  // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
-  // re-initialization during renders
   const formatterDate = useMemo(() => new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'long',
@@ -78,31 +66,17 @@ export default function HomePage() {
     return formatDate(end.toISOString());
   };
 
-  const handleScrapeStart = () => {
-    setShowProgress(true);
-  };
-
-  const handleScrapeComplete = () => {
-    // Hide progress and reload data after a delay to avoid flickering
-    setTimeout(() => {
-      setShowProgress(false);
-      loadData(selectedDate);
-    }, 2000);
-  };
-
   const handleAddCinema = useCallback(async () => {
     const url = window.prompt("Entrez l'URL Allociné du cinéma à ajouter (ex: https://www.allocine.fr/seance/salle_affich-salle=C0013.html):");
     if (!url) return;
 
     try {
-      setShowProgress(true);
       await addCinema(url);
-      // Data will reload when progress completes via handleScrapeComplete
+      await loadData(selectedDate);
     } catch (err: any) {
-      setShowProgress(false);
       setError(err.message || 'Erreur lors de l\'ajout du cinéma');
     }
-  }, []);
+  }, [selectedDate]);
 
   if (isLoading) {
     return (
@@ -124,21 +98,6 @@ export default function HomePage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Scrape Button - Above sticky header */}
-      <div className="flex justify-end mb-6">
-        <ScrapeButton 
-          onTrigger={async () => { await triggerScrape(); }}
-          onScrapeStart={handleScrapeStart} 
-        />
-      </div>
-
-      {/* Scrape Progress - Above sticky header */}
-      {showProgress && (
-        <div className="mb-6">
-          <ScrapeProgress onComplete={handleScrapeComplete} />
-        </div>
-      )}
-
       {/* Title and Date Info - Above sticky header */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-3">
@@ -196,7 +155,7 @@ export default function HomePage() {
               {selectedDate ? 'Aucun film programmé pour cette date.' : 'Aucun film programmé pour le moment.'}
             </p>
             <p className="text-gray-400 text-sm max-w-md mx-auto">
-              Utilisez le bouton de mise à jour pour collecter les données des cinémas et afficher le programme.
+              Les données des cinémas sont mises à jour automatiquement ou depuis l'interface d'administration.
             </p>
           </div>
         )}
