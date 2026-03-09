@@ -110,10 +110,22 @@ npm test
 npm run test:run
 
 # Single file
-npx vitest run src/services/scraper/theater-parser.test.ts
+npx vitest run src/utils/url.test.ts
 
 # With coverage report
 npm run test:coverage
+```
+
+For scraper microservice tests:
+
+```bash
+cd scraper
+
+# Watch mode
+npm test
+
+# Single run
+npm run test:run
 ```
 
 ### Coverage Targets
@@ -126,18 +138,19 @@ npm run test:coverage
 ### Test File Locations
 
 ```
-server/src/services/scraper/theater-parser.test.ts  # Parser tests
-server/src/utils/date.test.ts                       # Utility tests
-server/tests/fixtures/                              # HTML fixtures
+scraper/src/scraper/theater-parser.test.ts  # Parser tests (scraper microservice)
+server/src/utils/date.test.ts               # Server utility tests
+server/src/utils/url.test.ts                # URL utility tests
+scraper/tests/unit/                         # Scraper unit tests
 ```
 
 ### Adding Test Fixtures
 
-For scraper tests, use real HTML fixtures:
+For scraper parser tests, use real HTML fixtures in the scraper package:
 
 ```bash
 curl "https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html" \
-  -o server/tests/fixtures/cinema-cxxxx-page.html
+  -o scraper/tests/fixtures/cinema-cxxxx-page.html
 ```
 
 ---
@@ -273,31 +286,30 @@ git branch -d feature/<issue-number>-<short-description>
 
 ```
 allo-scrapper/
-├── server/                     # Express.js backend
+├── server/                     # Express.js backend (API + frontend only — no scraping)
 │   ├── src/
 │   │   ├── config/             # Configuration (cinemas.json)
 │   │   ├── db/                 # Database queries and schema
 │   │   ├── routes/             # API route handlers
 │   │   ├── services/
-│   │   │   ├── scraper/        # In-process scraping logic
-│   │   │   │   ├── index.ts            # Orchestrator
-│   │   │   │   ├── theater-parser.ts   # HTML parsing
-│   │   │   │   └── http-client.ts      # HTTP requests
 │   │   │   ├── redis-client.ts         # Redis job publisher
-│   │   │   ├── scrape-manager.ts       # Scrape session management
-│   │   │   └── progress-tracker.ts     # SSE event system
+│   │   │   ├── progress-tracker.ts     # SSE event system
+│   │   │   ├── theme-generator.ts      # Dynamic CSS (/api/theme.css)
+│   │   │   └── system-info.ts          # System info helpers
 │   │   ├── middleware/         # Auth, admin, rate-limit middleware
 │   │   ├── types/              # TypeScript definitions
 │   │   └── utils/
 │   │       ├── logger.ts       # Winston structured logger (service=ics-web)
-│   │       └── date.ts         # Date utilities
-│   └── tests/
-│       └── fixtures/           # Test HTML files
+│   │       ├── date.ts         # Date utilities
+│   │       └── url.ts          # URL validation/parsing (isValidAllocineUrl, etc.)
 ├── scraper/                    # Standalone scraper microservice
 │   ├── src/
 │   │   ├── db/                 # Direct DB access (same schema)
 │   │   ├── redis/              # RedisJobConsumer + RedisProgressPublisher
-│   │   ├── scraper/            # Scraping logic (mirrors server/services/scraper)
+│   │   ├── scraper/            # All scraping/parsing logic
+│   │   │   ├── index.ts            # Orchestrator
+│   │   │   ├── theater-parser.ts   # HTML parsing
+│   │   │   └── http-client.ts      # HTTP requests
 │   │   └── utils/
 │   │       ├── logger.ts       # Winston logger (service=ics-scraper)
 │   │       ├── metrics.ts      # prom-client metrics (port 9091)
@@ -315,7 +327,6 @@ allo-scrapper/
 ├── e2e/                        # Playwright E2E tests (out of scope for now)
 ├── .github/                    # GitHub config (issues, workflows)
 ├── WHITE-LABEL.md              # White-label branding system docs
-├── MONITORING.md               # Observability stack documentation
 ├── CONTRIBUTING.md             # Human contributor guide
 └── AGENTS.md                   # This file
 ```
@@ -365,10 +376,9 @@ cd scraper && npm test
 
 ```bash
 docker compose build                                          # Build all images
-docker compose up -d                                         # Base stack (app + DB + Redis)
-docker compose --profile scraper up -d                       # With scraper microservice
+docker compose up -d                                         # Default stack (web + DB + Redis + scraper)
 docker compose --profile monitoring up -d                    # With Prometheus/Grafana/Loki/Tempo
-docker compose --profile monitoring --profile scraper up -d  # Everything
+docker compose --profile monitoring up -d                    # Everything (monitoring + default stack)
 ```
 
 ### Git
@@ -407,13 +417,15 @@ curl -X POST http://localhost:3000/api/cinemas \
 
 No file commit is needed — Postgres is the source of truth. `cinemas.json` is only a one-time bootstrap seed and is never written to by the application.
 
+The API inserts a minimal cinema record immediately and publishes an `add_cinema` Redis job. The scraper microservice picks it up asynchronously and enriches the cinema with showtimes and film data.
+
 For parser changes, write tests first (see Step 3).
 
 ### Fixing a Parser Bug
 
-1. Fetch HTML fixture: `curl "..." -o server/tests/fixtures/cinema-cxxxx-page.html`
-2. Write failing test reproducing the bug
-3. Fix the parser
+1. Fetch HTML fixture: `curl "..." -o scraper/tests/fixtures/cinema-cxxxx-page.html`
+2. Write failing test in `scraper/src/scraper/theater-parser.test.ts`
+3. Fix the parser in `scraper/src/scraper/theater-parser.ts`
 4. Verify test passes
 5. Commit: `fix(parser): <description>`
 
