@@ -16,6 +16,17 @@ vi.mock('../db/queries.js', () => ({
   addCinema: vi.fn(),
   updateCinemaConfig: vi.fn(),
   deleteCinema: vi.fn(),
+  createScrapeReport: vi.fn().mockResolvedValue(42),
+}));
+
+vi.mock('../services/redis-client.js', () => ({
+  getRedisClient: vi.fn().mockReturnValue({
+    publishAddCinemaJob: vi.fn().mockResolvedValue(1),
+  }),
+}));
+
+vi.mock('../utils/logger.js', () => ({
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
 vi.mock('../utils/date.js', () => ({
@@ -49,6 +60,49 @@ describe('Routes - Cinemas', () => {
       send: vi.fn().mockReturnThis(),
     };
     mockNext = vi.fn();
+  });
+
+  describe('POST / (URL-only smart add — delegates to Redis)', () => {
+    it('should accept URL-only body, insert cinema, publish add_cinema job, return 201', async () => {
+      const cinemaUrl = 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html';
+      mockReq = { body: { url: cinemaUrl }, app: mockApp };
+
+      const created = { id: 'C0099', name: 'C0099', url: cinemaUrl };
+      (queries.addCinema as any).mockResolvedValue(created);
+
+      const { getRedisClient } = await import('../services/redis-client.js');
+      const mockPublishAddCinemaJob = vi.fn().mockResolvedValue(1);
+      (getRedisClient as any).mockReturnValue({ publishAddCinemaJob: mockPublishAddCinemaJob });
+
+      const handler = getRouteHandler('/', 'post');
+      await handler(mockReq, mockRes, mockNext);
+
+      expect(queries.addCinema).toHaveBeenCalled();
+      expect(mockPublishAddCinemaJob).toHaveBeenCalledWith(expect.any(Number), cinemaUrl);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    });
+
+    it('should return 400 when URL is invalid', async () => {
+      mockReq = { body: { url: 'https://evil.com/fake' }, app: mockApp };
+
+      const handler = getRouteHandler('/', 'post');
+      await handler(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false, error: expect.stringContaining('Invalid Allocine URL') })
+      );
+    });
+
+    it('should return 400 when URL is too long', async () => {
+      mockReq = { body: { url: 'https://www.allocine.fr/' + 'a'.repeat(2048) }, app: mockApp };
+
+      const handler = getRouteHandler('/', 'post');
+      await handler(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
   });
 
   describe('POST /', () => {
