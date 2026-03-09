@@ -14,6 +14,7 @@ import { parseTheaterPage } from './theater-parser.js';
 import { parseShowtimesJson } from './theater-json-parser.js';
 import { parseFilmPage } from './film-parser.js';
 import { getScrapeDates, getWeekStartForDate, type ScrapeMode } from '../utils/date.js';
+import { isValidAllocineUrl, extractCinemaIdFromUrl, cleanCinemaUrl } from './utils.js';
 import type { CinemaConfig, WeeklyProgram, Cinema, ProgressEvent, ScrapeSummary } from '../types/scraper.js';
 
 // Progress publisher interface – allows injecting Redis publisher or a no-op
@@ -46,6 +47,49 @@ export async function loadTheaterMetadata(
   logger.info('Cinema metadata upserted', { cinema: mergedCinema.name });
 
   return { availableDates, cinema: mergedCinema };
+}
+
+/**
+ * Add a new cinema by URL and scrape all available showtimes for it.
+ * Validates the URL, extracts the cinema ID, fetches metadata from the
+ * Allociné page, then scrapes every available date.
+ */
+export async function addCinemaAndScrape(
+  db: DB,
+  url: string,
+  progress?: ProgressPublisher
+): Promise<Cinema> {
+  if (!isValidAllocineUrl(url)) {
+    throw new Error(`Invalid Allociné URL: ${url}`);
+  }
+
+  const cinemaId = extractCinemaIdFromUrl(url);
+  if (!cinemaId) {
+    throw new Error(`Could not extract cinema ID from URL: ${url}`);
+  }
+
+  const cleanedUrl = cleanCinemaUrl(url);
+  const tempConfig: CinemaConfig = { id: cinemaId, name: cinemaId, url: cleanedUrl };
+
+  logger.info(`Adding new cinema from ${url}...`);
+  const { availableDates, cinema } = await loadTheaterMetadata(db, tempConfig);
+
+  const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
+  logger.info(`Scraping ${availableDates.length} available date(s)...`, { cinema: cinema.name });
+
+  for (const date of availableDates) {
+    try {
+      await scrapeTheater(db, tempConfig, date, movieDelayMs, progress);
+    } catch (error) {
+      logger.error('Failed to scrape date', { date, cinema: cinema.name, error });
+      // Continue with other dates
+    }
+  }
+
+  await closeBrowser();
+  logger.info('Cinema added successfully', { cinema: cinema.name, id: cinema.id });
+
+  return cinema;
 }
 
 // Scraper un cinéma pour une date donnée

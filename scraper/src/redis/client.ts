@@ -6,8 +6,14 @@ import { logger } from '../utils/logger.js';
 // Types
 // ---------------------------------------------------------------------------
 
-export interface ScrapeJob {
+interface BaseScrapeJob {
   reportId: number;
+  /** OpenTelemetry trace context propagated from the HTTP request */
+  traceContext?: Record<string, string>;
+}
+
+export interface ScrapeJobScrape extends BaseScrapeJob {
+  type: 'scrape';
   triggerType: 'manual' | 'cron';
   options?: {
     mode?: 'weekly' | 'from_today' | 'from_today_limited';
@@ -15,9 +21,21 @@ export interface ScrapeJob {
     cinemaId?: string;
     filmId?: number;
   };
-  /** OpenTelemetry trace context propagated from the HTTP request */
-  traceContext?: Record<string, string>;
 }
+
+export interface ScrapeJobAddCinema extends BaseScrapeJob {
+  type: 'add_cinema';
+  triggerType: 'manual';
+  /** The Allociné cinema URL to add and scrape */
+  url: string;
+}
+
+/**
+ * Discriminated union of all job types the scraper can process.
+ * Use `job.type` (or check for presence of the field for legacy jobs) to
+ * narrow to a concrete job variant.
+ */
+export type ScrapeJob = ScrapeJobScrape | ScrapeJobAddCinema;
 
 // ---------------------------------------------------------------------------
 // RedisProgressPublisher – implements ProgressPublisher interface
@@ -77,7 +95,7 @@ export class RedisJobConsumer {
           continue;
         }
 
-        logger.info('[RedisJobConsumer] Received job', { reportId: job.reportId, trigger: job.triggerType });
+        logger.info('[RedisJobConsumer] Received job', { reportId: job.reportId, type: job.type, trigger: job.triggerType });
 
         try {
           await handler(job);
