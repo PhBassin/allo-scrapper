@@ -17,6 +17,7 @@ vi.mock('../services/progress-tracker.js', () => ({
     addListener: vi.fn(),
     removeListener: vi.fn(),
     getListenerCount: vi.fn().mockReturnValue(0),
+    reset: vi.fn(),
   },
 }));
 
@@ -269,6 +270,52 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
       expect.objectContaining({
         success: true,
         data: expect.objectContaining({ reportId: 99, queueDepth: 1 }),
+      })
+    );
+  });
+
+  it('POST /trigger calls progressTracker.reset() before queuing the job', async () => {
+    const { default: router } = await import('./scraper.js');
+    const { progressTracker } = await import('../services/progress-tracker.js');
+    const { getRedisClient } = await import('../services/redis-client.js');
+    const { createScrapeReport } = await import('../db/queries.js');
+
+    (createScrapeReport as any).mockResolvedValue(99);
+    (getRedisClient as any).mockReturnValue({
+      publishJob: vi.fn().mockResolvedValue(1),
+    });
+
+    const req = buildMockReq({ body: {} });
+    const res = buildMockRes();
+
+    const layer = router.stack.find(
+      (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+    );
+    await getRouteHandler(layer)(req, res, vi.fn());
+
+    expect(progressTracker.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it('GET /status returns isRunning=true when latest report has status "running"', async () => {
+    const { default: router } = await import('./scraper.js');
+    const { getLatestScrapeReport } = await import('../db/queries.js');
+
+    (getLatestScrapeReport as any).mockResolvedValue({ id: 42, status: 'running' });
+
+    const req = buildMockReq();
+    const res = buildMockRes();
+
+    const layer = router.stack.find(
+      (l: any) => l.route?.path === '/status' && l.route?.methods?.get
+    );
+    await getRouteHandler(layer)(req, res, vi.fn());
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({
+          isRunning: true,
+        }),
       })
     );
   });
