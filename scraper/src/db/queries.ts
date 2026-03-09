@@ -257,6 +257,57 @@ export async function upsertShowtime(db: DB, showtime: Showtime): Promise<void> 
   );
 }
 
+/**
+ * Batch insert/update multiple showtimes in a single SQL query.
+ * Significantly more performant than calling upsertShowtime() in a loop.
+ */
+export async function upsertShowtimes(db: DB, showtimes: Showtime[]): Promise<void> {
+  if (showtimes.length === 0) return;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const values: any[] = [];
+  const valueSets: string[] = [];
+  let paramIndex = 1;
+
+  for (const showtime of showtimes) {
+    valueSets.push(
+      `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9})`
+    );
+    values.push(
+      showtime.id,
+      showtime.film_id,
+      showtime.cinema_id,
+      showtime.date,
+      showtime.time,
+      showtime.datetime_iso,
+      showtime.version || null,
+      showtime.format || null,
+      JSON.stringify(showtime.experiences),
+      showtime.week_start
+    );
+    paramIndex += 10;
+  }
+
+  await db.query(
+    `
+      INSERT INTO showtimes (
+        id, film_id, cinema_id, date, time, datetime_iso,
+        version, format, experiences, week_start
+      )
+      VALUES ${valueSets.join(', ')}
+      ON CONFLICT(id) DO UPDATE SET
+        date = EXCLUDED.date,
+        time = EXCLUDED.time,
+        datetime_iso = EXCLUDED.datetime_iso,
+        version = EXCLUDED.version,
+        format = EXCLUDED.format,
+        experiences = EXCLUDED.experiences,
+        week_start = EXCLUDED.week_start
+    `,
+    values
+  );
+}
+
 // Insertion ou mise à jour de plusieurs programmes hebdomadaires
 export async function upsertWeeklyPrograms(db: DB, programs: WeeklyProgram[]): Promise<void> {
   if (programs.length === 0) return;

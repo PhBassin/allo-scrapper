@@ -3,7 +3,7 @@ import { logger } from '../utils/logger.js';
 import {
   upsertCinema,
   upsertFilm,
-  upsertShowtime,
+  upsertShowtimes,
   upsertWeeklyPrograms,
   getFilm,
   getCinemaConfigs,
@@ -96,9 +96,7 @@ async function scrapeTheater(
         await upsertFilm(db, film);
         logger.info('Film upserted', { title: film.title });
 
-        for (const showtime of filmData.showtimes) {
-          await upsertShowtime(db, showtime);
-        }
+        await upsertShowtimes(db, filmData.showtimes);
         logger.info('Showtimes upserted', { count: filmData.showtimes.length });
 
         weeklyPrograms.push({
