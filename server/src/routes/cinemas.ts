@@ -1,13 +1,14 @@
 import express from 'express';
 import type { DB } from '../db/client.js';
-import { getCinemas, getShowtimesByCinemaAndWeek, addCinema, updateCinemaConfig, deleteCinema } from '../db/queries.js';
+import { getCinemas, getShowtimesByCinemaAndWeek, addCinema, updateCinemaConfig, deleteCinema, createScrapeReport } from '../db/queries.js';
 import { getWeekStart } from '../utils/date.js';
-import { addCinemaAndScrape } from '../services/scraper/index.js';
-import { isValidAllocineUrl } from '../services/scraper/utils.js';
+import { isValidAllocineUrl, extractCinemaIdFromUrl, cleanCinemaUrl } from '../utils/url.js';
+import { getRedisClient } from '../services/redis-client.js';
 import type { ApiResponse } from '../types/api.js';
 import { publicLimiter, protectedLimiter } from '../middleware/rate-limit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -52,7 +53,26 @@ router.post('/', requireAuth, requireAdmin, protectedLimiter, async (req, res, n
         return res.status(400).json(response);
       }
 
-      const cinema = await addCinemaAndScrape(url);
+      // Extract cinema ID and clean URL for DB insertion
+      const cinemaId = extractCinemaIdFromUrl(url);
+      if (!cinemaId) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Could not extract cinema ID from URL. URL format should be like https://www.allocine.fr/seance/salle_gen_csalle=C0013.html',
+        };
+        return res.status(400).json(response);
+      }
+
+      const cleanedUrl = cleanCinemaUrl(url);
+
+      // Insert cinema into DB with minimal info (scraper will enrich it)
+      const cinema = await addCinema(db, { id: cinemaId, name: cinemaId, url: cleanedUrl });
+
+      // Publish add_cinema job to Redis — scraper handles fetching metadata and showtimes
+      const reportId = await createScrapeReport(db, 'manual');
+      await getRedisClient().publishAddCinemaJob(reportId, cleanedUrl);
+      logger.info(`🎬 add_cinema job queued for ${cleanedUrl} (reportId=${reportId})`);
+
       const response: ApiResponse = {
         success: true,
         data: cinema,
