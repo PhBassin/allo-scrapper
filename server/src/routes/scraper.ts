@@ -43,6 +43,7 @@ router.post('/trigger', requireAuth, scraperLimiter, async (req, res) => {
       const reportId = await createScrapeReport(db, 'manual');
 
       const queueDepth = await getRedisClient().publishJob({
+        type: 'scrape',
         reportId,
         triggerType: 'manual',
         options: {
