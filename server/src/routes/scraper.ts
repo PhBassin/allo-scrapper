@@ -35,6 +35,10 @@ router.post('/trigger', requireAuth, scraperLimiter, async (req, res) => {
 
     const reportId = await createScrapeReport(db, 'manual');
 
+    // Reset stale events so new SSE subscribers don't receive previous session's
+    // completed/failed events and immediately dismiss the progress panel.
+    progressTracker.reset();
+
     const queueDepth = await getRedisClient().publishJob({
       type: 'scrape',
       reportId,
@@ -72,7 +76,7 @@ router.get('/status', async (_req, res) => {
     const response: ApiResponse = {
       success: true,
       data: {
-        isRunning: false,
+        isRunning: latestReport?.status === 'running',
         latestReport,
       },
     };
