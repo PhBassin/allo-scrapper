@@ -22,7 +22,7 @@ const CinemasPage: React.FC = () => {
 
   // Scraping state
   const [showProgress, setShowProgress] = useState(false);
-  const [scrapingCinemaId, setScrapingCinemaId] = useState<string | null>(null);
+  const [_scrapingCinemaId, setScrapingCinemaId] = useState<string | null>(null);
 
   // Modal / dialog state
   const [showAddModal, setShowAddModal] = useState(false);

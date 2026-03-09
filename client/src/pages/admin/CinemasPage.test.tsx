@@ -87,8 +87,8 @@ const renderWithAuth = (ui: React.ReactElement) =>
   );
 
 const mockCinemas = [
-  { id: 'C0153', name: 'UGC Ciné Cité Paris', city: 'Paris', screen_count: 12, address: null, postal_code: null },
-  { id: 'C0002', name: 'Pathé Wepler', city: 'Paris', screen_count: 8, address: null, postal_code: null },
+  { id: 'C0153', name: 'UGC Ciné Cité Paris', city: 'Paris', screen_count: 12 },
+  { id: 'C0002', name: 'Pathé Wepler', city: 'Paris', screen_count: 8 },
 ];
 
 describe('CinemasPage - Scrape All button', () => {
@@ -150,7 +150,7 @@ describe('CinemasPage - Scrape All button', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const updatedCinemas = [
       ...mockCinemas,
-      { id: 'C0999', name: 'New Cinema', city: 'Lyon', screen_count: 5, address: null, postal_code: null },
+      { id: 'C0999', name: 'New Cinema', city: 'Lyon', screen_count: 5 },
     ];
     vi.mocked(cinemasApi.getCinemas)
       .mockResolvedValueOnce(mockCinemas)
