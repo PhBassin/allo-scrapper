@@ -4,6 +4,9 @@ server/node_modules/
 client/node_modules/
 package-lock.json
 **/package-lock.json
+# Track lock files for Docker builds (npm ci requires package-lock.json)
+!server/package-lock.json
+!scraper/package-lock.json
 
 # Build outputs
 dist/

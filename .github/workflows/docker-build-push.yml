@@ -15,16 +15,42 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  WEB_IMAGE: ${{ github.repository }}
+  SCRAPER_IMAGE: ${{ github.repository }}-scraper
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
+  # ============================================================================
+  # Build each image on each native architecture runner (no QEMU)
+  # Matrix: 2 images × 2 platforms = 4 parallel jobs
+  # Each job pushes by digest only (no tags) to avoid race conditions
+  # ============================================================================
+  build:
+    name: Build ${{ matrix.image }} (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
-      attestations: write
-      id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: web
+            dockerfile: Dockerfile
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - image: web
+            dockerfile: Dockerfile
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+          - image: scraper
+            dockerfile: Dockerfile.scraper
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - image: scraper
+            dockerfile: Dockerfile.scraper
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Checkout repository
@@ -41,11 +67,119 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve image name
+        id: image
+        run: |
+          if [ "${{ matrix.image }}" = "web" ]; then
+            echo "name=$(echo '${{ env.REGISTRY }}/${{ env.WEB_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          else
+            echo "name=$(echo '${{ env.REGISTRY }}/${{ env.SCRAPER_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          fi
+
+      # Sanitize platform string for use as artifact name (linux/amd64 → linux-amd64)
+      - name: Sanitize platform
+        id: platform
+        run: echo "tag=$(echo '${{ matrix.platform }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+
+      - name: Set push flag
+        id: push
+        run: |
+          if [[ "${{ github.event_name }}" != "pull_request" || "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platform }}
+          # Push digest only — tags are applied in the merge job
+          outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=${{ steps.push.outputs.enabled }}
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ steps.platform.outputs.tag }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ steps.platform.outputs.tag }}
+          build-args: |
+            VITE_APP_NAME=Allo-Scrapper
+
+      - name: Export digest
+        if: steps.push.outputs.enabled == 'true'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest artifact
+        if: steps.push.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.image }}-${{ steps.platform.outputs.tag }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ============================================================================
+  # Merge per-platform digests into a single multi-arch manifest with tags
+  # One merge job per image
+  # ============================================================================
+  merge:
+    name: Merge ${{ matrix.image }} manifests
+    runs-on: ubuntu-latest
+    needs: build
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      !contains(needs.build.result, 'failure') &&
+      !contains(needs.build.result, 'cancelled')
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: web
+          - image: scraper
+
+    steps:
+      - name: Download amd64 digest
+        uses: actions/download-artifact@v4
+        with:
+          name: digests-${{ matrix.image }}-linux-amd64
+          path: /tmp/digests
+
+      - name: Download arm64 digest
+        uses: actions/download-artifact@v4
+        with:
+          name: digests-${{ matrix.image }}-linux-arm64
+          path: /tmp/digests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image name
+        id: image
+        run: |
+          if [ "${{ matrix.image }}" = "web" ]; then
+            echo "name=$(echo '${{ env.REGISTRY }}/${{ env.WEB_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          else
+            echo "name=$(echo '${{ env.REGISTRY }}/${{ env.SCRAPER_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          fi
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ steps.image.outputs.name }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -56,78 +190,118 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=stable,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
 
-      - name: Build and push Docker image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository) }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
-          build-args: |
-            VITE_APP_NAME=Allo-Scrapper
-
-      - name: Generate artifact attestation
-        if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository)
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
-
-      - name: Output image details
+      - name: Create and push multi-arch manifest
+        id: merge
         run: |
-          # Normalize registry path to lowercase (GHCR requirement)
-          IMAGE_PATH=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
-          
-          echo "### Docker Image Built Successfully! 🚀" >> $GITHUB_STEP_SUMMARY
+          IMAGE="${{ steps.image.outputs.name }}"
+          # Build --tag flags from metadata-action output (one tag per line)
+          TAGS=$(echo "${{ steps.meta.outputs.tags }}" | sed 's/^/--tag /' | tr '\n' ' ')
+          # Build digest references from downloaded digest files
+          DIGESTS=$(ls /tmp/digests | sed "s|^|${IMAGE}@sha256:|" | tr '\n' ' ')
+          # Create the multi-arch manifest
+          docker buildx imagetools create $TAGS $DIGESTS
+          # Inspect the first tag to capture the merged index digest for attestation
+          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -1)
+          docker buildx imagetools inspect "${FIRST_TAG}" \
+            --format '{{json .Manifest.Digest}}' | tr -d '"' > /tmp/merged-digest-${{ matrix.image }}.txt
+          echo "digest=$(cat /tmp/merged-digest-${{ matrix.image }}.txt)" >> $GITHUB_OUTPUT
+
+      - name: Upload merged digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-digest-${{ matrix.image }}
+          path: /tmp/merged-digest-${{ matrix.image }}.txt
+          retention-days: 1
+
+      - name: Summary
+        run: |
+          IMAGE="${{ steps.image.outputs.name }}"
+          echo "### ${{ matrix.image }} image built for linux/amd64 + linux/arm64 🚀" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${IMAGE_PATH}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${IMAGE}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms:** \`linux/amd64\`, \`linux/arm64\`" >> $GITHUB_STEP_SUMMARY
           echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Highlight PR tag for easy testing
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            PR_TAG=$(echo "${{ steps.meta.outputs.tags }}" | grep "pr-" | head -1)
             echo "---" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🎯 Test This Pull Request:" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Test this PR:" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-            echo "# Pull the image" >> $GITHUB_STEP_SUMMARY
-            echo "docker pull ${IMAGE_PATH}:pr-${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "# Run it locally" >> $GITHUB_STEP_SUMMARY
-            echo "docker run -p 3000:3000 ${IMAGE_PATH}:pr-${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+            echo "docker pull ${PR_TAG}" >> $GITHUB_STEP_SUMMARY
+            echo "docker run --platform linux/arm64 -p 3000:3000 ${PR_TAG}" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "💡 **Tip:** See [CONTRIBUTING.md](https://github.com/${{ github.repository }}/blob/develop/CONTRIBUTING.md#testing-your-changes-with-docker) for more testing options." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
           fi
-          
-          echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Tag Strategy:**" >> $GITHUB_STEP_SUMMARY
-          echo "- \`:latest\` — tracks \`develop\` branch (continuous development)" >> $GITHUB_STEP_SUMMARY
-          echo "- \`:stable\` — tracks \`main\` branch and version tags (production)" >> $GITHUB_STEP_SUMMARY
-          echo "- \`:pr-<number>\` — Pull Request builds (for testing)" >> $GITHUB_STEP_SUMMARY
-          echo "- \`:sha-<commit>\` — Specific commit (for precise rollback)" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Generate build provenance attestations for both images
+  # ============================================================================
+  attest:
+    name: Attest ${{ matrix.image }} image
+    runs-on: ubuntu-latest
+    needs: merge
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      !contains(needs.merge.result, 'failure') &&
+      !contains(needs.merge.result, 'cancelled')
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: web
+          - image: scraper
+
+    steps:
+      - name: Download merged digest
+        uses: actions/download-artifact@v4
+        with:
+          name: merged-digest-${{ matrix.image }}
+          path: /tmp
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image name
+        id: image
+        run: |
+          if [ "${{ matrix.image }}" = "web" ]; then
+            echo "name=$(echo '${{ env.REGISTRY }}/${{ env.WEB_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          else
+            echo "name=$(echo '${{ env.REGISTRY }}/${{ env.SCRAPER_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Read merged digest
+        id: digest
+        run: echo "value=$(cat /tmp/merged-digest-${{ matrix.image }}.txt)" >> $GITHUB_OUTPUT
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.digest.outputs.value }}
+          push-to-registry: true
 
   # ⚠️ TEMPORARILY DISABLED
   # Post-build Docker image cleanup is disabled for manual control.
   # To re-enable: uncomment the entire cleanup-after-production-build job below.
   # cleanup-after-production-build:
   #   runs-on: ubuntu-latest
-  #   needs: build-and-push
+  #   needs: merge
   #   if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
   #   permissions:
   #     packages: write
-  #   
+  #
   #   steps:
   #     - name: Delete old untagged images (DRY-RUN)
   #       uses: actions/delete-package-versions@v5
