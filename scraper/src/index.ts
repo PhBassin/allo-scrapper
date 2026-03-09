@@ -6,7 +6,7 @@ import { registry, scrapeJobsTotal, scrapeDurationSeconds, filmsScrapedTotal, sh
 import { initTracing } from './utils/tracer.js';
 
 import { runScraper } from './scraper/index.js';
-import { getRedisPublisher, getRedisConsumer, disconnectRedis, type ScrapeJob } from './redis/client.js';
+import { getRedisPublisher, getRedisConsumer, disconnectRedis, type ScrapeJob, type ScrapeJobScrape } from './redis/client.js';
 import { db } from './db/client.js';
 import { createScrapeReport, updateScrapeReport } from './db/queries.js';
 
@@ -56,6 +56,8 @@ const RUN_MODE: RunMode = (process.env.RUN_MODE as RunMode) ?? 'oneshot';
 
 async function executeJob(job: ScrapeJob): Promise<void> {
   const publisher = getRedisPublisher();
+  // Support legacy jobs that predate the discriminated union (no 'type' field)
+  const jobType = ('type' in job) ? job.type : 'scrape';
 
   // Update report status
   try {
@@ -68,7 +70,8 @@ async function executeJob(job: ScrapeJob): Promise<void> {
   const durationTimer = scrapeDurationSeconds.startTimer({ cinema: 'all' });
 
   try {
-    const summary = await runScraper(publisher, job.options);
+    const scrapeJob = job as ScrapeJobScrape;
+    const summary = await runScraper(publisher, scrapeJob.options);
 
     const status = summary.failed_cinemas === 0
       ? 'success'
