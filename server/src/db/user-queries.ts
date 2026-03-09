@@ -130,8 +130,10 @@ export function generateRandomPassword(): string {
   }
 
   // Shuffle the password to avoid predictable pattern (first 4 chars always ULDS)
-  return password
-    .split('')
-    .sort(() => crypto.randomInt(0, 2) - 0.5)
-    .join('');
+  const chars = password.split('');
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
 }
