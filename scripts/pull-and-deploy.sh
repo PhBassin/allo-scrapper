@@ -1,14 +1,16 @@
 #!/bin/bash
-# Pull latest Docker image and restart containers
+# Pull latest Docker images and restart containers
 # Usage: ./scripts/pull-and-deploy.sh [tag]
 
 set -e
 
 TAG="${1:-latest}"
-REGISTRY="ghcr.io/phbassin/allo-scrapper"
+WEB_IMAGE="ghcr.io/phbassin/allo-scrapper"
+SCRAPER_IMAGE="ghcr.io/phbassin/allo-scrapper-scraper"
 
-echo "🔄 Pulling Docker image: ${REGISTRY}:${TAG}"
-docker pull "${REGISTRY}:${TAG}"
+echo "🔄 Pulling Docker images: ${TAG}"
+docker pull "${WEB_IMAGE}:${TAG}"
+docker pull "${SCRAPER_IMAGE}:${TAG}"
 
 echo "🔄 Stopping current containers..."
 docker compose down
@@ -34,4 +36,4 @@ else
 fi
 
 echo ""
-echo "📝 View logs with: docker compose logs -f web"
+echo "📝 View logs with: docker compose logs -f"

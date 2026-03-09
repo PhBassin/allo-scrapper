@@ -93,15 +93,13 @@ The application is automatically built and published to GitHub Container Registr
 
 ### Platform Support
 
-Docker images are built for **linux/amd64** only. ARM64 (Apple Silicon, Raspberry Pi) is not supported via pre-built images due to QEMU emulation instability during `npm ci` on GitHub Actions runners. 
+Docker images are built for **linux/amd64 and linux/arm64** using GitHub's native ARM64 runners (no QEMU emulation). Both the web image and the scraper image support both architectures.
 
-**If you need to run on ARM64**, build the image locally on your ARM64 machine:
-
-```bash
-docker build -t allo-scrapper .
-```
+Docker automatically selects the correct variant for your machine when you `docker pull`.
 
 ### Available Images
+
+**Web application:**
 
 > **v1.1.0+ tag strategy:**
 > - **`:stable`** — production-ready builds from `main` branch and version tags. Use this in production.
@@ -114,6 +112,12 @@ docker build -t allo-scrapper .
 - `ghcr.io/phbassin/allo-scrapper:v1.1.0` - Specific version
 - `ghcr.io/phbassin/allo-scrapper:main` - Latest commit on main branch
 - `ghcr.io/phbassin/allo-scrapper:develop` - Latest commit on develop branch
+
+**Scraper microservice:**
+
+- `ghcr.io/phbassin/allo-scrapper-scraper:stable` - Latest production-ready release **[recommended for production]**
+- `ghcr.io/phbassin/allo-scrapper-scraper:latest` - Latest development build
+- `ghcr.io/phbassin/allo-scrapper-scraper:v1.x.x` - Specific version
 
 ### Migration Guide: v1.0.0 → v1.1.0
 

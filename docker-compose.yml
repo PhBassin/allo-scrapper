@@ -84,6 +84,7 @@ services:
 
   # Scraper microservice – long-running consumer (processes jobs from Redis queue)
   ics-scraper:
+    #image: ghcr.io/phbassin/allo-scrapper-scraper:${IMAGE_TAG:-stable}
     build:
       context: .
       dockerfile: Dockerfile.scraper
@@ -113,6 +114,7 @@ services:
 
   # Scraper cron – scheduled automatic scraping (no Redis job queue needed)
   ics-scraper-cron:
+    #image: ghcr.io/phbassin/allo-scrapper-scraper:${IMAGE_TAG:-stable}
     build:
       context: .
       dockerfile: Dockerfile.scraper

@@ -7,26 +7,36 @@ name: GHCR Cleanup - Tag Lifecycle Management
 # - Preserves special tags forever (latest, stable, develop, main)
 # - Runs weekly on Sunday at 3:00 AM UTC
 # - Manual trigger available via workflow_dispatch
+# - Cleans both allo-scrapper (web) and allo-scrapper-scraper images
 on:
   schedule:
     - cron: '0 3 * * 0'  # Runs weekly on Sunday at 3:00 AM UTC
   workflow_dispatch:
 
 env:
-  PACKAGE_NAME: allo-scrapper
   RETENTION_DAYS: 7
   KEEP_RECENT_PRS: 5
   DRY_RUN: 'false'  # Set to 'false' to enable actual deletion
 
 jobs:
   cleanup:
+    name: Cleanup ${{ matrix.package_name }}
     runs-on: ubuntu-latest
     permissions:
       packages: write
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package_name: allo-scrapper
+          - package_name: allo-scrapper-scraper
+
     steps:
       - name: Delete short-lived tags and old images
         uses: actions/github-script@v7
+        env:
+          PACKAGE_NAME: ${{ matrix.package_name }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
