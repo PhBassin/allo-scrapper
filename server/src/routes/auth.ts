@@ -29,6 +29,7 @@ export interface AuthResponse {
         username: string;
         role_id: number;
         role_name: string;
+        permissions: string[];
     };
 }
 
@@ -85,6 +86,7 @@ router.post('/login', authLimiter, async (req, res) => {
                     username: user.username,
                     role_id: user.role_id,
                     role_name: user.role_name,
+                    permissions,
                 }
             }
         };
