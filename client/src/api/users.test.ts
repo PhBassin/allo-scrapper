@@ -21,8 +21,8 @@ describe('Users API Client', () => {
   describe('getUsers', () => {
     it('should fetch all users with default pagination', async () => {
       const mockUsers: UserPublic[] = [
-        { id: 1, username: 'admin', role: 'admin', created_at: '2024-01-01T00:00:00Z' },
-        { id: 2, username: 'user1', role: 'user', created_at: '2024-01-02T00:00:00Z' },
+        { id: 1, username: 'admin', role_id: 1, role_name: 'admin', created_at: '2024-01-01T00:00:00Z' },
+        { id: 2, username: 'user1', role_id: 2, role_name: 'user', created_at: '2024-01-02T00:00:00Z' },
       ];
 
       vi.mocked(apiClient.get).mockResolvedValueOnce({
@@ -40,7 +40,7 @@ describe('Users API Client', () => {
 
     it('should fetch users with custom pagination', async () => {
       const mockUsers: UserPublic[] = [
-        { id: 3, username: 'user2', role: 'user', created_at: '2024-01-03T00:00:00Z' },
+        { id: 3, username: 'user2', role_id: 2, role_name: 'user', created_at: '2024-01-03T00:00:00Z' },
       ];
 
       vi.mocked(apiClient.get).mockResolvedValueOnce({
@@ -85,7 +85,8 @@ describe('Users API Client', () => {
       const mockUser: UserPublic = {
         id: 1,
         username: 'admin',
-        role: 'admin',
+        role_id: 1,
+        role_name: 'admin',
         created_at: '2024-01-01T00:00:00Z',
       };
 
@@ -119,13 +120,14 @@ describe('Users API Client', () => {
       const newUser: UserCreate = {
         username: 'newuser',
         password: 'SecurePass123!',
-        role: 'user',
+        role_id: 2,
       };
 
       const createdUser: UserPublic = {
         id: 3,
         username: 'newuser',
-        role: 'user',
+        role_id: 2,
+        role_name: 'user',
         created_at: '2024-01-04T00:00:00Z',
       };
 
@@ -151,7 +153,8 @@ describe('Users API Client', () => {
       const createdUser: UserPublic = {
         id: 4,
         username: 'defaultuser',
-        role: 'user',
+        role_id: 2,
+        role_name: 'user',
         created_at: '2024-01-05T00:00:00Z',
       };
 
@@ -164,7 +167,7 @@ describe('Users API Client', () => {
 
       const result = await createUser(newUser);
 
-      expect(result.role).toBe('user');
+      expect(result.role_name).toBe('user');
     });
 
     it('should throw error when username already exists', async () => {
@@ -205,7 +208,8 @@ describe('Users API Client', () => {
       const updatedUser: UserPublic = {
         id: 2,
         username: 'user1',
-        role: 'admin',
+        role_id: 1,
+        role_name: 'admin',
         created_at: '2024-01-02T00:00:00Z',
       };
 
@@ -216,9 +220,9 @@ describe('Users API Client', () => {
         },
       });
 
-      const result = await updateUserRole(2, 'admin');
+      const result = await updateUserRole(2, 1);
 
-      expect(apiClient.put).toHaveBeenCalledWith('/users/2/role', { role: 'admin' });
+      expect(apiClient.put).toHaveBeenCalledWith('/users/2/role', { role_id: 1 });
       expect(result).toEqual(updatedUser);
     });
 
@@ -226,7 +230,8 @@ describe('Users API Client', () => {
       const updatedUser: UserPublic = {
         id: 1,
         username: 'admin',
-        role: 'user',
+        role_id: 2,
+        role_name: 'user',
         created_at: '2024-01-01T00:00:00Z',
       };
 
@@ -237,9 +242,9 @@ describe('Users API Client', () => {
         },
       });
 
-      const result = await updateUserRole(1, 'user');
+      const result = await updateUserRole(1, 2);
 
-      expect(result.role).toBe('user');
+      expect(result.role_name).toBe('user');
     });
 
     it('should throw error when user not found', async () => {
@@ -250,7 +255,7 @@ describe('Users API Client', () => {
         },
       });
 
-      await expect(updateUserRole(999, 'admin')).rejects.toThrow('User not found');
+      await expect(updateUserRole(999, 1)).rejects.toThrow('User not found');
     });
   });
 
@@ -260,7 +265,8 @@ describe('Users API Client', () => {
         user: {
           id: 2,
           username: 'user1',
-          role: 'user' as const,
+          role_id: 2,
+          role_name: 'user',
           created_at: '2024-01-02T00:00:00Z',
         },
         newPassword: 'Abc123!@#$%^&*()',
