@@ -1,17 +1,9 @@
-export interface Permission {
-  id: number;
-  name: string;
-  description: string | null;
-  category: string;
-}
-
-export interface Role {
-  id: number;
-  name: string;
-  description: string | null;
-  is_system: boolean;
-}
-
-export interface RoleWithPermissions extends Role {
-  permissions: Permission[];
-}
+/**
+ * Role and Permission types
+ * 
+ * These types are now derived from Zod schemas to ensure
+ * runtime validation matches compile-time types.
+ * 
+ * @see ../schemas/role.ts for the source schemas
+ */
+export type { Permission, Role, RoleWithPermissions } from '../schemas/role';
