@@ -17,6 +17,7 @@ const mockRoles: RoleWithPermissions[] = [
     name: 'admin',
     description: 'Full access',
     is_system: true,
+    created_at: '2024-01-01T00:00:00.000Z',
     permissions: [],
   },
   {
@@ -24,6 +25,7 @@ const mockRoles: RoleWithPermissions[] = [
     name: 'operator',
     description: 'Operator access',
     is_system: true,
+    created_at: '2024-01-01T00:00:00.000Z',
     permissions: [],
   },
   {
@@ -31,6 +33,7 @@ const mockRoles: RoleWithPermissions[] = [
     name: 'viewer',
     description: 'Read only',
     is_system: false,
+    created_at: '2024-01-01T00:00:00.000Z',
     permissions: [],
   },
 ];

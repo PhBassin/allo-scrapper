@@ -13,11 +13,11 @@ function validateResponse<T>(schema: z.ZodSchema<T>, data: unknown, context: str
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error(`[API Validation Error] ${context}:`, {
-        errors: error.errors,
+        issues: error.issues,
         receivedData: data,
       });
       throw new Error(
-        `Invalid data received from server (${context}): ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+        `Invalid data received from server (${context}): ${error.issues.map((e: z.ZodIssue) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
       );
     }
     throw error;
