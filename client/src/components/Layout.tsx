@@ -10,7 +10,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, title }: LayoutProps) {
-  const { isAuthenticated, isAdmin, user, logout } = useContext(AuthContext);
+  const { isAuthenticated, user, logout } = useContext(AuthContext);
   const { publicSettings } = useContext(SettingsContext);
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -67,7 +67,7 @@ export default function Layout({ children, title }: LayoutProps) {
               <Link to="/" className="hover:text-primary transition">
                 Accueil
               </Link>
-              {isAuthenticated && isAdmin && (
+              {isAuthenticated && user?.permissions && user.permissions.length > 0 && (
                 <Link to="/admin?tab=cinemas" className="hover:text-primary transition">
                   Admin
                 </Link>
