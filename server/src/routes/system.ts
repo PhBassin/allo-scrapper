@@ -13,7 +13,7 @@ import {
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 import { requireAuth } from '../middleware/auth.js';
-import { requireAdmin } from '../middleware/admin.js';
+import { requirePermission } from '../middleware/permission.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
@@ -22,7 +22,7 @@ const router = express.Router();
  * GET /api/system/info (admin only)
  * Returns complete system information including app, server, and database stats
  */
-router.get('/info', protectedLimiter, requireAuth, requireAdmin, async (req, res) => {
+router.get('/info', protectedLimiter, requireAuth, requirePermission('system:info'), async (req, res) => {
   try {
     const db: DB = req.app.get('db');
 
@@ -58,7 +58,7 @@ router.get('/info', protectedLimiter, requireAuth, requireAdmin, async (req, res
  * GET /api/system/migrations (admin only)
  * Returns applied and pending migrations
  */
-router.get('/migrations', protectedLimiter, requireAuth, requireAdmin, async (req, res) => {
+router.get('/migrations', protectedLimiter, requireAuth, requirePermission('system:migrations'), async (req, res) => {
   try {
     const db: DB = req.app.get('db');
 
@@ -89,7 +89,7 @@ router.get('/migrations', protectedLimiter, requireAuth, requireAdmin, async (re
  * GET /api/system/health (admin only)
  * Returns system health status with all checks
  */
-router.get('/health', protectedLimiter, requireAuth, requireAdmin, async (req, res) => {
+router.get('/health', protectedLimiter, requireAuth, requirePermission('system:health'), async (req, res) => {
   try {
     const db: DB = req.app.get('db');
 

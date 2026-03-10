@@ -9,21 +9,21 @@ import { SettingsContext } from '../contexts/SettingsContext';
 const mockAuthContext = {
   isAuthenticated: true,
   isAdmin: true,
+  hasPermission: vi.fn(() => true),
   token: 'mock-token',
-  user: { id: 1, username: 'admin', role: 'admin' as const },
+  user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', permissions: ['scraper:trigger', 'cinemas:create'] },
   login: vi.fn(),
   logout: vi.fn(),
-  checkAuth: vi.fn(),
 };
 
 const mockNonAdminAuthContext = {
   isAuthenticated: true,
   isAdmin: false,
+  hasPermission: vi.fn(() => false),
   token: 'mock-token',
-  user: { id: 2, username: 'user', role: 'user' as const },
+  user: { id: 2, username: 'user', role_id: 2, role_name: 'user', permissions: [] },
   login: vi.fn(),
   logout: vi.fn(),
-  checkAuth: vi.fn(),
 };
 
 const mockSettingsContext = {

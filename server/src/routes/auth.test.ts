@@ -22,6 +22,10 @@ vi.mock('../db/client.js', () => ({
 
 vi.mock('../db/queries.js');
 
+vi.mock('../db/role-queries.js', () => ({
+    getPermissionNamesByRoleId: vi.fn().mockResolvedValue(['settings:read', 'reports:list']),
+}));
+
 // Mock the auth middleware with proper JWT verification using test secret
 vi.mock('../middleware/auth.js', () => ({
     requireAuth: vi.fn((req: AuthRequest, res, next) => {
@@ -50,6 +54,10 @@ vi.mock('../middleware/auth.js', () => ({
     AuthRequest: {} as any,
 }));
 
+vi.mock('../middleware/permission.js', () => ({
+    requirePermission: (..._perms: string[]) => vi.fn((req: any, res: any, next: any) => next()),
+}));
+
 const app = express();
 app.use(express.json());
 app.set('db', db); // Register mock db for dependency injection
@@ -66,6 +74,9 @@ describe('Auth Routes', () => {
                 id: 1,
                 username: 'admin',
                 password_hash: await bcrypt.hash('password123', 10),
+                role_id: 1,
+                role_name: 'admin',
+                is_system_role: true,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
@@ -81,11 +92,38 @@ describe('Auth Routes', () => {
             expect(response.body.data.user.password_hash).toBeUndefined(); // Should not expose hash
         });
 
+        it('should return permissions in the user object for valid credentials', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'admin',
+                password_hash: await bcrypt.hash('password123', 10),
+                role_id: 1,
+                role_name: 'admin',
+                is_system_role: true,
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+
+            const response = await request(app)
+                .post('/api/auth/login')
+                .send({ username: 'admin', password: 'password123' });
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+            expect(response.body.data.user.permissions).toBeDefined();
+            expect(Array.isArray(response.body.data.user.permissions)).toBe(true);
+            // Mock getPermissionNamesByRoleId returns ['settings:read', 'reports:list'] (see line 26)
+            expect(response.body.data.user.permissions).toEqual(['settings:read', 'reports:list']);
+        });
+
         it('should return 401 for invalid password', async () => {
             const mockUser = {
                 id: 1,
                 username: 'admin',
                 password_hash: await bcrypt.hash('password123', 10),
+                role_id: 1,
+                role_name: 'admin',
+                is_system_role: true,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
@@ -188,6 +226,9 @@ describe('Auth Routes', () => {
                 id: 1,
                 username: 'testuser',
                 password_hash: await bcrypt.hash('OldPass123!', 10),
+                role_id: 2,
+                role_name: 'user',
+                is_system_role: false,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
@@ -207,6 +248,9 @@ describe('Auth Routes', () => {
                 id: 1,
                 username: 'testuser',
                 password_hash: await bcrypt.hash('OldPass123!', 10),
+                role_id: 2,
+                role_name: 'user',
+                is_system_role: false,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
@@ -226,6 +270,9 @@ describe('Auth Routes', () => {
                 id: 1,
                 username: 'testuser',
                 password_hash: await bcrypt.hash('OldPass123!', 10),
+                role_id: 2,
+                role_name: 'user',
+                is_system_role: false,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
@@ -245,6 +292,9 @@ describe('Auth Routes', () => {
                 id: 1,
                 username: 'testuser',
                 password_hash: await bcrypt.hash('OldPass123!', 10),
+                role_id: 2,
+                role_name: 'user',
+                is_system_role: false,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
@@ -264,6 +314,9 @@ describe('Auth Routes', () => {
                 id: 1,
                 username: 'testuser',
                 password_hash: await bcrypt.hash('OldPass123!', 10),
+                role_id: 2,
+                role_name: 'user',
+                is_system_role: false,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
@@ -283,6 +336,9 @@ describe('Auth Routes', () => {
                 id: 1,
                 username: 'testuser',
                 password_hash: await bcrypt.hash('OldPass123!', 10),
+                role_id: 2,
+                role_name: 'user',
+                is_system_role: false,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
@@ -302,6 +358,9 @@ describe('Auth Routes', () => {
                 id: 1,
                 username: 'testuser',
                 password_hash: await bcrypt.hash('OldPass123!', 10),
+                role_id: 2,
+                role_name: 'user',
+                is_system_role: false,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
@@ -327,6 +386,9 @@ describe('Auth Routes', () => {
                 id: 1,
                 username: 'testuser',
                 password_hash: await bcrypt.hash('OldPass123!', 10),
+                role_id: 2,
+                role_name: 'user',
+                is_system_role: false,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
@@ -352,6 +414,9 @@ describe('Auth Routes', () => {
                 id: 1,
                 username: 'testuser',
                 password_hash: await bcrypt.hash('OldPass123!', 10),
+                role_id: 2,
+                role_name: 'user',
+                is_system_role: false,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
@@ -371,6 +436,9 @@ describe('Auth Routes', () => {
                 id: 1,
                 username: 'testuser',
                 password_hash: await bcrypt.hash('OldPass123!', 10),
+                role_id: 2,
+                role_name: 'user',
+                is_system_role: false,
                 created_at: new Date().toISOString()
             };
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);

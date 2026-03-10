@@ -10,7 +10,7 @@ import AdminPage from './pages/admin/AdminPage';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
 import { SettingsProvider, SettingsContext } from './contexts/SettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import RequireAdmin from './components/RequireAdmin';
+import RequirePermission from './components/RequirePermission';
 import { useTheme } from './hooks/useTheme';
 
 function LoadingScreen() {
@@ -76,9 +76,9 @@ function AppRoutes() {
         <Route
           path="/admin"
           element={
-            <RequireAdmin>
+            <RequirePermission anyOf={['cinemas:read', 'users:read', 'scraper:trigger', 'settings:read']}>
               <AdminPage />
-            </RequireAdmin>
+            </RequirePermission>
           }
         />
       </Routes>

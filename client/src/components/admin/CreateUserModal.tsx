@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import type { UserCreate, UserRole } from '../../api/users';
+import type { UserCreate } from '../../api/users';
+import type { RoleWithPermissions } from '../../types/role';
+
+const DEFAULT_ROLES: Pick<RoleWithPermissions, 'id' | 'name'>[] = [
+  { id: 1, name: 'admin' },
+  { id: 2, name: 'user' },
+];
 
 interface CreateUserModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreate: (data: UserCreate) => Promise<void>;
+  roles?: RoleWithPermissions[];
 }
 
 interface FormErrors {
@@ -49,10 +56,11 @@ function validatePassword(password: string): string | null {
   return null;
 }
 
-const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCreate }) => {
+const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCreate, roles: rolesProp }) => {
+  const roles = rolesProp ?? DEFAULT_ROLES;
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('user');
+  const [roleId, setRoleId] = useState<number>(roles[0]?.id ?? 0);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -74,11 +82,11 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate all fields
     const usernameError = validateUsername(username);
     const passwordError = validatePassword(password);
-    
+
     if (usernameError || passwordError) {
       setErrors({
         username: usernameError || undefined,
@@ -91,15 +99,15 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
     setSubmitError(null);
 
     try {
-      await onCreate({ username, password, role });
-      
+      await onCreate({ username, password, role_id: roleId });
+
       // Reset form
       setUsername('');
       setPassword('');
-      setRole('user');
+      setRoleId(roles[0]?.id ?? 0);
       setErrors({});
       setSubmitError(null);
-      
+
       // Close modal
       onClose();
     } catch (error) {
@@ -181,20 +189,23 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
             )}
           </div>
 
-          {/* Role Field */}
+          {/* Role Field — dynamic dropdown */}
           <div className="mb-4">
             <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
               Role
             </label>
             <select
               id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
+              value={roleId}
+              onChange={(e) => setRoleId(Number(e.target.value))}
               disabled={isSubmitting}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
+              {roles.map(role => (
+                <option key={role.id} value={role.id}>
+                  {role.name}
+                </option>
+              ))}
             </select>
           </div>
 
