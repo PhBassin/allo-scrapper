@@ -37,6 +37,16 @@ vi.mock('../middleware/auth.js', () => ({
     }
   },
 }));
+vi.mock('../middleware/permission.js', () => ({
+  requirePermission: (..._perms: string[]) => async (req: any, res: any, next: any) => {
+    // In tests, only user with id=1 (admin) passes permission checks
+    if (req.user?.id === 1) {
+      next();
+    } else {
+      res.status(403).json({ success: false, error: 'Permission denied' });
+    }
+  },
+}));
 vi.mock('../middleware/admin.js', () => ({
   requireAdmin: async (req: any, res: any, next: any) => {
     // Admin check: only user with id=1 is admin
@@ -108,7 +118,7 @@ describe('User Management Routes', () => {
 
       expect(response.status).toBe(403);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('Admin required');
+      expect(response.body.error).toBe('Permission denied');
     });
 
     it('should support limit query parameter', async () => {

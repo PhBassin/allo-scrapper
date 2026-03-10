@@ -12,8 +12,8 @@ import { validateImage } from '../utils/image-validator.js';
 import type { ApiResponse } from '../types/api.js';
 import type { AppSettingsUpdate, AppSettingsExport } from '../types/settings.js';
 import { logger } from '../utils/logger.js';
-import { requireAuth } from '../middleware/auth.js';
-import { requireAdmin, type AuthRequest } from '../middleware/admin.js';
+import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/permission.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
@@ -58,7 +58,7 @@ router.get('/', async (req, res) => {
  * GET /api/settings/admin (admin only)
  * Returns full settings including email configuration
  */
-router.get('/admin', protectedLimiter, requireAuth, requireAdmin, async (req, res) => {
+router.get('/admin', protectedLimiter, requireAuth, requirePermission('settings:read'), async (req, res) => {
   try {
     const db: DB = req.app.get('db');
     const settings = await getSettings(db);
@@ -90,7 +90,7 @@ router.get('/admin', protectedLimiter, requireAuth, requireAdmin, async (req, re
  * PUT /api/settings (admin only)
  * Update settings
  */
-router.put('/', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
+router.put('/', protectedLimiter, requireAuth, requirePermission('settings:update'), async (req: AuthRequest, res) => {
   try {
     const db: DB = req.app.get('db');
     const updates: AppSettingsUpdate = req.body;
@@ -190,7 +190,7 @@ router.put('/', protectedLimiter, requireAuth, requireAdmin, async (req: AuthReq
  * POST /api/settings/reset (admin only)
  * Reset settings to default values
  */
-router.post('/reset', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/reset', protectedLimiter, requireAuth, requirePermission('settings:reset'), async (req: AuthRequest, res) => {
   try {
     const db: DB = req.app.get('db');
     const defaultSettings = await resetSettings(db, req.user!.id);
@@ -226,7 +226,7 @@ router.post('/reset', protectedLimiter, requireAuth, requireAdmin, async (req: A
  * POST /api/settings/export (admin only)
  * Export settings as JSON for backup
  */
-router.post('/export', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/export', protectedLimiter, requireAuth, requirePermission('settings:export'), async (req: AuthRequest, res) => {
   try {
     const db: DB = req.app.get('db');
     const exportData = await exportSettings(db);
@@ -262,7 +262,7 @@ router.post('/export', protectedLimiter, requireAuth, requireAdmin, async (req: 
  * POST /api/settings/import (admin only)
  * Import settings from JSON backup
  */
-router.post('/import', protectedLimiter, requireAuth, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/import', protectedLimiter, requireAuth, requirePermission('settings:import'), async (req: AuthRequest, res) => {
   try {
     const db: DB = req.app.get('db');
     const importData: AppSettingsExport = req.body;

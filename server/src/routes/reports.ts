@@ -5,12 +5,13 @@ import type { ApiResponse, PaginatedResponse, GetReportsQuery } from '../types/a
 import type { ScrapeReport } from '../db/queries.js';
 import { logger } from '../utils/logger.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/permission.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
 
 // GET /api/reports - Get all scrape reports (paginated)
-router.get('/', requireAuth, protectedLimiter, async (req, res) => {
+router.get('/', requireAuth, requirePermission('reports:list'), protectedLimiter, async (req, res) => {
   try {
     const db: DB = req.app.get('db');
     const query = req.query as GetReportsQuery;
@@ -61,7 +62,7 @@ router.get('/', requireAuth, protectedLimiter, async (req, res) => {
 });
 
 // GET /api/reports/:id - Get a specific report
-router.get('/:id', requireAuth, protectedLimiter, async (req, res) => {
+router.get('/:id', requireAuth, requirePermission('reports:view'), protectedLimiter, async (req, res) => {
   try {
     const db: DB = req.app.get('db');
     const reportId = parseInt(req.params.id);

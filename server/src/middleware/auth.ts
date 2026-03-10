@@ -11,6 +11,9 @@ export interface AuthRequest extends Request {
     user?: {
         id: number;
         username: string;
+        role_name: string;
+        is_system_role: boolean;
+        permissions: string[];
     };
 }
 
@@ -28,7 +31,13 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
     const token = authHeader.split(' ')[1];
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { id: number; username: string };
+        const decoded = jwt.verify(token, JWT_SECRET) as {
+            id: number;
+            username: string;
+            role_name: string;
+            is_system_role: boolean;
+            permissions: string[];
+        };
         req.user = decoded;
         next();
     } catch (error) {

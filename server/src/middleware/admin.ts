@@ -5,6 +5,10 @@ import type { AuthRequest } from './auth.js';
 import { logger } from '../utils/logger.js';
 
 /**
+ * @deprecated Use requirePermission() from './permission.js' instead.
+ * This middleware queries the old `role` TEXT column which no longer exists after migration 008.
+ * Kept temporarily while references are migrated; will be removed in a future cleanup.
+ *
  * Middleware to require admin role
  * Must be used after requireAuth middleware
  */
