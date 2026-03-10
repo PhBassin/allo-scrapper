@@ -357,21 +357,36 @@ const RoleManagementPage: React.FC = () => {
     data: { name: string; description?: string },
     permissionIds: number[]
   ) => {
-    const created = await rolesApi.create(data);
-    if (permissionIds.length > 0) {
-      await rolesApi.setPermissions(created.id, permissionIds);
+    try {
+      const created = await rolesApi.create(data);
+      if (permissionIds.length > 0) {
+        await rolesApi.setPermissions(created.id, permissionIds);
+      }
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to create role:', error);
+      throw error; // Re-throw to be caught by ErrorBoundary
     }
-    await fetchData();
   };
 
   const handleSavePermissions = async (roleId: number, permissionIds: number[]) => {
-    await rolesApi.setPermissions(roleId, permissionIds);
-    await fetchData();
+    try {
+      await rolesApi.setPermissions(roleId, permissionIds);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to update role permissions:', error);
+      throw error; // Re-throw to be caught by ErrorBoundary
+    }
   };
 
   const handleDelete = async (roleId: number) => {
-    await rolesApi.delete(roleId);
-    await fetchData();
+    try {
+      await rolesApi.delete(roleId);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to delete role:', error);
+      throw error; // Re-throw to be caught by ErrorBoundary
+    }
   };
 
   if (loading) {

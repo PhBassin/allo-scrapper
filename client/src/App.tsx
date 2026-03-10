@@ -11,6 +11,7 @@ import { AuthProvider, AuthContext } from './contexts/AuthContext';
 import { SettingsProvider, SettingsContext } from './contexts/SettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequirePermission from './components/RequirePermission';
+import ErrorBoundary from './components/ErrorBoundary';
 import { useTheme } from './hooks/useTheme';
 
 function LoadingScreen() {
@@ -88,13 +89,15 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <SettingsProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </SettingsProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <SettingsProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </SettingsProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
