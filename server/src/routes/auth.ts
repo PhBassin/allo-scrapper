@@ -153,7 +153,7 @@ router.post('/register', registerLimiter, requireAuth, requirePermission('users:
 });
 
 // POST /api/auth/change-password - Change user password (protected)
-router.post('/change-password', requireAuth, authLimiter, async (req: AuthRequest, res) => {
+router.post('/change-password', authLimiter, requireAuth, async (req: AuthRequest, res) => {
     try {
         const db: DB = req.app.get('db');
         const { currentPassword, newPassword } = req.body;

@@ -13,7 +13,7 @@ import { scraperLimiter } from '../middleware/rate-limit.js';
 const router = express.Router();
 
 // POST /api/scraper/trigger - Start a manual scrape (delegates to Redis microservice)
-router.post('/trigger', requireAuth, requirePermission('scraper:trigger'), scraperLimiter, async (req, res) => {
+router.post('/trigger', scraperLimiter, requireAuth, requirePermission('scraper:trigger'), async (req, res) => {
   const dbConn: DB = req.app.get('db');
 
   try {
