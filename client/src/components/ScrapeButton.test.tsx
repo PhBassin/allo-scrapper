@@ -6,10 +6,11 @@ import { AuthContext } from '../contexts/AuthContext';
 const mockAuthContext = {
   isAuthenticated: true,
   token: 'mock-token',
-  user: { id: 1, username: 'testuser', role: 'user' as const },
+  user: { id: 1, username: 'testuser', role_id: 2, role_name: 'user', permissions: [] },
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: false,
+  hasPermission: vi.fn(() => false),
 };
 
 const renderWithAuth = (ui: React.ReactElement) => {
