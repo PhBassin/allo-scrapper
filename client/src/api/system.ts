@@ -123,9 +123,23 @@ export function formatUptime(seconds: number): string {
   return parts.length > 0 ? parts.join(' ') : '< 1m';
 }
 
+// ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
+// object re-initialization during repeated calls or lists renders
+const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: 'numeric',
+  second: 'numeric',
+});
+
 /**
  * Format date string to locale date/time
  */
 export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleString();
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
+  return dateTimeFormatter.format(date);
 }
