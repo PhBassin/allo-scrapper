@@ -12,6 +12,10 @@ vi.mock('../middleware/auth.js', () => ({
   requireAuth: vi.fn((req, res, next) => next())
 }));
 
+vi.mock('../middleware/permission.js', () => ({
+  requirePermission: (..._perms: string[]) => vi.fn((req: any, res: any, next: any) => next()),
+}));
+
 vi.mock('../services/progress-tracker.js', () => ({
   progressTracker: {
     addListener: vi.fn(),

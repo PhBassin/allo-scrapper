@@ -33,6 +33,14 @@ vi.mock('../utils/date.js', () => ({
   getWeekStart: vi.fn().mockReturnValue('2026-02-18')
 }));
 
+vi.mock('../middleware/auth.js', () => ({
+  requireAuth: (req: any, res: any, next: any) => next(),
+}));
+
+vi.mock('../middleware/permission.js', () => ({
+  requirePermission: (..._perms: string[]) => (req: any, res: any, next: any) => next(),
+}));
+
 // Helper to get the actual route handler (skips middleware like rate limiters)
 function getRouteHandler(path: string, method: 'get' | 'post' | 'put' | 'delete') {
   const route = router.stack.find(s => s.route?.path === path && s.route?.methods[method])?.route;

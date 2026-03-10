@@ -7,12 +7,13 @@ import { getCinemas, createScrapeReport, getLatestScrapeReport } from '../db/que
 import type { DB } from '../db/client.js';
 import { db } from '../db/client.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/permission.js';
 import { scraperLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
 
 // POST /api/scraper/trigger - Start a manual scrape (delegates to Redis microservice)
-router.post('/trigger', requireAuth, scraperLimiter, async (req, res) => {
+router.post('/trigger', requireAuth, requirePermission('scraper:trigger'), scraperLimiter, async (req, res) => {
   const dbConn: DB = req.app.get('db');
 
   try {

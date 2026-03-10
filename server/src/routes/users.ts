@@ -1,7 +1,7 @@
 import express from 'express';
 import type { DB } from '../db/client.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
-import { requireAdmin } from '../middleware/admin.js';
+import { requirePermission } from '../middleware/permission.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
 import type { ApiResponse } from '../types/api.js';
 import type { UserPublic } from '../types/user.js';
@@ -31,7 +31,7 @@ router.get(
   '/',
   protectedLimiter,
   requireAuth,
-  requireAdmin,
+  requirePermission('users:list'),
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
@@ -89,7 +89,7 @@ router.get(
   '/:id',
   protectedLimiter,
   requireAuth,
-  requireAdmin,
+  requirePermission('users:list'),
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
@@ -144,7 +144,7 @@ router.post(
   '/',
   protectedLimiter,
   requireAuth,
-  requireAdmin,
+  requirePermission('users:create'),
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
@@ -258,7 +258,7 @@ router.put(
   '/:id/role',
   protectedLimiter,
   requireAuth,
-  requireAdmin,
+  requirePermission('users:update'),
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
@@ -366,7 +366,7 @@ router.post(
   '/:id/reset-password',
   protectedLimiter,
   requireAuth,
-  requireAdmin,
+  requirePermission('users:update'),
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
@@ -440,7 +440,7 @@ router.delete(
   '/:id',
   protectedLimiter,
   requireAuth,
-  requireAdmin,
+  requirePermission('users:delete'),
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
