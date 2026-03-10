@@ -22,17 +22,6 @@ vi.mock('../utils/date.js', () => ({
   getWeekStart: vi.fn().mockReturnValue('2026-02-18')
 }));
 
-vi.mock('../middleware/auth.js', () => ({
-  requireAuth: function requireAuth(req: any, res: any, next: any) { next(); },
-}));
-
-vi.mock('../middleware/permission.js', () => ({
-  requirePermission: (..._perms: string[]) => {
-    function requirePermission(req: any, res: any, next: any) { next(); }
-    return requirePermission;
-  },
-}));
-
 // Helper to get the actual route handler (skips middleware like rate limiters)
 function getRouteHandler(path: string, method: 'get' | 'post' | 'put' | 'delete') {
   const route = router.stack.find(s => s.route?.path === path && s.route?.methods[method])?.route;
@@ -89,35 +78,35 @@ describe('Routes - Cinemas - Security', () => {
     expect(mockRes.json).not.toHaveBeenCalled();
   });
 
-  describe('Middleware - Permission protection on mutation routes', () => {
-    it('POST / should require both requireAuth and requirePermission middleware', () => {
+  describe('Middleware - Admin protection on mutation routes', () => {
+    it('POST / should require both requireAuth and requireAdmin middleware', () => {
       const names = getMiddlewareNames('/', 'post');
       expect(names).toContain('requireAuth');
-      expect(names).toContain('requirePermission');
+      expect(names).toContain('requireAdmin');
     });
 
-    it('PUT /:id should require both requireAuth and requirePermission middleware', () => {
+    it('PUT /:id should require both requireAuth and requireAdmin middleware', () => {
       const names = getMiddlewareNames('/:id', 'put');
       expect(names).toContain('requireAuth');
-      expect(names).toContain('requirePermission');
+      expect(names).toContain('requireAdmin');
     });
 
-    it('DELETE /:id should require both requireAuth and requirePermission middleware', () => {
+    it('DELETE /:id should require both requireAuth and requireAdmin middleware', () => {
       const names = getMiddlewareNames('/:id', 'delete');
       expect(names).toContain('requireAuth');
-      expect(names).toContain('requirePermission');
+      expect(names).toContain('requireAdmin');
     });
 
     it('GET / should NOT require authentication', () => {
       const names = getMiddlewareNames('/', 'get');
       expect(names).not.toContain('requireAuth');
-      expect(names).not.toContain('requirePermission');
+      expect(names).not.toContain('requireAdmin');
     });
 
     it('GET /:id should NOT require authentication', () => {
       const names = getMiddlewareNames('/:id', 'get');
       expect(names).not.toContain('requireAuth');
-      expect(names).not.toContain('requirePermission');
+      expect(names).not.toContain('requireAdmin');
     });
   });
 });

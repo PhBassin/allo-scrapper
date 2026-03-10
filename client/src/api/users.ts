@@ -5,22 +5,23 @@ import type { ApiResponse } from '../types';
 // USER TYPES
 // ============================================================================
 
+export type UserRole = 'admin' | 'user';
+
 export interface UserPublic {
   id: number;
   username: string;
-  role_id: number;
-  role_name: string;
+  role: UserRole;
   created_at: string;
 }
 
 export interface UserCreate {
   username: string;
   password: string;
-  role_id?: number;
+  role?: UserRole;
 }
 
 export interface UserRoleUpdate {
-  role_id: number;
+  role: UserRole;
 }
 
 export interface PasswordResetResult {
@@ -37,18 +38,18 @@ export interface PasswordResetResult {
  * @param params Optional pagination parameters
  * @returns Array of users without password hashes
  */
-export async function getUsers(params?: {
-  limit?: number;
-  offset?: number
+export async function getUsers(params?: { 
+  limit?: number; 
+  offset?: number 
 }): Promise<UserPublic[]> {
   const response = await apiClient.get<ApiResponse<UserPublic[]>>('/users', {
     params: params || {},
   });
-
+  
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch users');
   }
-
+  
   return response.data.data;
 }
 
@@ -59,42 +60,42 @@ export async function getUsers(params?: {
  */
 export async function getUserById(id: number): Promise<UserPublic> {
   const response = await apiClient.get<ApiResponse<UserPublic>>(`/users/${id}`);
-
+  
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch user');
   }
-
+  
   return response.data.data;
 }
 
 /**
  * Create a new user (admin only)
- * @param data User creation data (username, password, role_id)
+ * @param data User creation data (username, password, role)
  * @returns Created user without password hash
  */
 export async function createUser(data: UserCreate): Promise<UserPublic> {
   const response = await apiClient.post<ApiResponse<UserPublic>>('/users', data);
-
+  
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to create user');
   }
-
+  
   return response.data.data;
 }
 
 /**
  * Update user role (admin only)
  * @param id User ID
- * @param roleId New role ID (integer)
+ * @param role New role ('admin' or 'user')
  * @returns Updated user
  */
-export async function updateUserRole(id: number, roleId: number): Promise<UserPublic> {
-  const response = await apiClient.put<ApiResponse<UserPublic>>(`/users/${id}/role`, { role_id: roleId });
-
+export async function updateUserRole(id: number, role: UserRole): Promise<UserPublic> {
+  const response = await apiClient.put<ApiResponse<UserPublic>>(`/users/${id}/role`, { role });
+  
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to update user role');
   }
-
+  
   return response.data.data;
 }
 
@@ -106,11 +107,11 @@ export async function updateUserRole(id: number, roleId: number): Promise<UserPu
  */
 export async function resetUserPassword(id: number): Promise<PasswordResetResult> {
   const response = await apiClient.post<ApiResponse<PasswordResetResult>>(`/users/${id}/reset-password`);
-
+  
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to reset password');
   }
-
+  
   return response.data.data;
 }
 
@@ -123,7 +124,7 @@ export async function resetUserPassword(id: number): Promise<PasswordResetResult
  */
 export async function deleteUser(id: number): Promise<void> {
   const response = await apiClient.delete<ApiResponse<void>>(`/users/${id}`);
-
+  
   if (!response.data.success) {
     throw new Error(response.data.error || 'Failed to delete user');
   }

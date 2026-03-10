@@ -3,6 +3,7 @@ import request from 'supertest';
 import express from 'express';
 import usersRouter from './users.js';
 import type { DB } from '../db/client.js';
+import type { UserRole } from '../types/user.js';
 
 // Mock dependencies
 vi.mock('../db/client.js', () => ({
@@ -37,16 +38,6 @@ vi.mock('../middleware/auth.js', () => ({
     }
   },
 }));
-vi.mock('../middleware/permission.js', () => ({
-  requirePermission: (..._perms: string[]) => async (req: any, res: any, next: any) => {
-    // In tests, only user with id=1 (admin) passes permission checks
-    if (req.user?.id === 1) {
-      next();
-    } else {
-      res.status(403).json({ success: false, error: 'Permission denied' });
-    }
-  },
-}));
 vi.mock('../middleware/admin.js', () => ({
   requireAdmin: async (req: any, res: any, next: any) => {
     // Admin check: only user with id=1 is admin
@@ -64,15 +55,6 @@ vi.mock('../middleware/rate-limit.js', () => ({
 import * as userQueries from '../db/user-queries.js';
 import { db } from '../db/client.js';
 
-// Helper: mock user in new role_id/role_name format
-const makeUser = (id: number, username: string, roleId: number, roleName: string, createdAt = '2024-01-01T00:00:00Z') => ({
-  id,
-  username,
-  role_id: roleId,
-  role_name: roleName,
-  created_at: createdAt,
-});
-
 describe('User Management Routes', () => {
   let app: express.Application;
   const mockDb: DB = db as DB;
@@ -88,8 +70,8 @@ describe('User Management Routes', () => {
   describe('GET /api/users', () => {
     it('should return all users without passwords (200)', async () => {
       const mockUsers = [
-        makeUser(1, 'admin', 1, 'admin', '2024-01-01T00:00:00Z'),
-        makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z'),
+        { id: 1, username: 'admin', role: 'admin', created_at: '2024-01-01T00:00:00Z' },
+        { id: 2, username: 'user1', role: 'user', created_at: '2024-01-02T00:00:00Z' },
       ];
 
       vi.mocked(userQueries.getAllUsers).mockResolvedValue(mockUsers);
@@ -118,7 +100,7 @@ describe('User Management Routes', () => {
 
       expect(response.status).toBe(403);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('Permission denied');
+      expect(response.body.error).toBe('Admin required');
     });
 
     it('should support limit query parameter', async () => {
@@ -169,7 +151,12 @@ describe('User Management Routes', () => {
 
   describe('GET /api/users/:id', () => {
     it('should return user by ID without password (200)', async () => {
-      const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
+      const mockUser = {
+        id: 2,
+        username: 'user1',
+        role: 'user',
+        created_at: '2024-01-02T00:00:00Z',
+      };
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
 
@@ -234,13 +221,15 @@ describe('User Management Routes', () => {
   });
 
   describe('POST /api/users', () => {
-    it('should create user with provided role_id (201)', async () => {
-      const newUser = makeUser(3, 'newuser', 2, 'operator', '2024-01-03T00:00:00Z');
+    it('should create user with provided role (201)', async () => {
+      const newUser = {
+        id: 3,
+        username: 'newuser',
+        role: 'user' as UserRole,
+        created_at: '2024-01-03T00:00:00Z',
+      };
 
-      // First call: role validation check
-      vi.mocked(db.query)
-        .mockResolvedValueOnce({ rows: [{ id: 2 }], rowCount: 1 } as any) // role exists
-        .mockResolvedValueOnce({ rows: [newUser], rowCount: 1 } as any);  // INSERT
+      vi.mocked(db.query).mockResolvedValue({ rows: [newUser], rowCount: 1 } as any);
 
       const response = await request(app)
         .post('/api/users')
@@ -248,7 +237,7 @@ describe('User Management Routes', () => {
         .send({
           username: 'newuser',
           password: 'Test1234!',
-          role_id: '2',
+          role: 'user',
         });
 
       expect(response.status).toBe(201);
@@ -256,7 +245,16 @@ describe('User Management Routes', () => {
       expect(response.body.data).toEqual(newUser);
     });
 
-    it('should return 400 if role_id is not provided', async () => {
+    it('should create user with default role=user if not provided', async () => {
+      const newUser = {
+        id: 3,
+        username: 'newuser',
+        role: 'user' as UserRole,
+        created_at: '2024-01-03T00:00:00Z',
+      };
+
+      vi.mocked(db.query).mockResolvedValue({ rows: [newUser], rowCount: 1 } as any);
+
       const response = await request(app)
         .post('/api/users')
         .set('Authorization', 'Bearer valid-admin-token')
@@ -265,8 +263,8 @@ describe('User Management Routes', () => {
           password: 'Test1234!',
         });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('role_id');
+      expect(response.status).toBe(201);
+      expect(response.body.data.role).toBe('user');
     });
 
     it('should validate username is required', async () => {
@@ -322,13 +320,10 @@ describe('User Management Routes', () => {
     });
 
     it('should validate username is unique', async () => {
-      // Mock role check to pass, then INSERT to throw duplicate key error
+      // Mock db.query to throw duplicate key error
       const duplicateError: any = new Error('duplicate key value violates unique constraint');
       duplicateError.code = '23505';
-
-      vi.mocked(db.query)
-        .mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 } as any) // role check
-        .mockRejectedValueOnce(duplicateError);                              // INSERT fails
+      vi.mocked(db.query).mockRejectedValue(duplicateError);
 
       const response = await request(app)
         .post('/api/users')
@@ -336,7 +331,6 @@ describe('User Management Routes', () => {
         .send({
           username: 'existinguser',
           password: 'Test1234!',
-          role_id: '1',
         });
 
       expect(response.status).toBe(409);
@@ -370,20 +364,18 @@ describe('User Management Routes', () => {
       expect(response.body.error).toContain('Password');
     });
 
-    it('should return 400 when role_id does not exist in DB', async () => {
-      vi.mocked(db.query).mockResolvedValueOnce({ rows: [], rowCount: 0 } as any); // role not found
-
+    it('should validate role is admin or user', async () => {
       const response = await request(app)
         .post('/api/users')
         .set('Authorization', 'Bearer valid-admin-token')
         .send({
           username: 'newuser',
           password: 'Test1234!',
-          role_id: '999',
+          role: 'superadmin',
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('role_id');
+      expect(response.body.error).toBe('Invalid role. Must be "admin" or "user"');
     });
 
     it('should return 401 for unauthenticated', async () => {
@@ -410,9 +402,7 @@ describe('User Management Routes', () => {
     });
 
     it('should return 500 on database error', async () => {
-      vi.mocked(db.query)
-        .mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 } as any) // role check
-        .mockRejectedValueOnce(new Error('Database error'));                // INSERT fails
+      vi.mocked(db.query).mockRejectedValue(new Error('Database error'));
 
       const response = await request(app)
         .post('/api/users')
@@ -420,7 +410,6 @@ describe('User Management Routes', () => {
         .send({
           username: 'newuser',
           password: 'Test1234!',
-          role_id: '1',
         });
 
       expect(response.status).toBe(500);
@@ -429,37 +418,45 @@ describe('User Management Routes', () => {
 
   describe('PUT /api/users/:id/role', () => {
     it('should update user role successfully (200)', async () => {
-      const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
-      const updatedUser = makeUser(2, 'user1', 1, 'admin', '2024-01-02T00:00:00Z');
+      const mockUser = {
+        id: 2,
+        username: 'user1',
+        role: 'user' as UserRole,
+        created_at: '2024-01-02T00:00:00Z',
+      };
+      const updatedUser = { ...mockUser, role: 'admin' as UserRole };
 
-      vi.mocked(db.query).mockResolvedValueOnce({ rows: [{ id: 1, name: 'admin' }], rowCount: 1 } as any); // role check
-      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(mockUser);    // targetUser check
-      vi.mocked(userQueries.getAdminCount).mockResolvedValue(2);              // admin count
+      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(mockUser); // First call to check user exists
+      vi.mocked(userQueries.getAdminCount).mockResolvedValue(2); // More than 1 admin
       vi.mocked(userQueries.updateUserRole).mockResolvedValue(undefined);
-      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(updatedUser);  // updated user
+      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(updatedUser); // Second call to fetch updated user
 
       const response = await request(app)
         .put('/api/users/2/role')
         .set('Authorization', 'Bearer valid-admin-token')
-        .send({ role_id: 1 });
+        .send({ role: 'admin' });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.role_name).toBe('admin');
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 2, 1);
+      expect(response.body.data.role).toBe('admin');
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 2, 'admin');
     });
 
     it('should prevent last admin from demoting self (403)', async () => {
-      const mockAdminUser = makeUser(1, 'admin', 1, 'admin', '2024-01-01T00:00:00Z');
+      const mockAdminUser = {
+        id: 1,
+        username: 'admin',
+        role: 'admin',
+        created_at: '2024-01-01T00:00:00Z',
+      };
 
-      vi.mocked(db.query).mockResolvedValueOnce({ rows: [{ id: 2, name: 'operator' }], rowCount: 1 } as any); // role check
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockAdminUser);
       vi.mocked(userQueries.getAdminCount).mockResolvedValue(1); // Only 1 admin
 
       const response = await request(app)
         .put('/api/users/1/role')
         .set('Authorization', 'Bearer valid-admin-token')
-        .send({ role_id: 2 });
+        .send({ role: 'user' });
 
       expect(response.status).toBe(403);
       expect(response.body.error).toBe('Cannot demote the last admin user');
@@ -467,72 +464,77 @@ describe('User Management Routes', () => {
     });
 
     it('should allow admin to demote other admins (if not last)', async () => {
-      const mockAdminUser = makeUser(3, 'admin2', 1, 'admin', '2024-01-03T00:00:00Z');
-      const updatedUser = makeUser(3, 'admin2', 2, 'operator', '2024-01-03T00:00:00Z');
+      const mockAdminUser = {
+        id: 3,
+        username: 'admin2',
+        role: 'admin' as UserRole,
+        created_at: '2024-01-03T00:00:00Z',
+      };
+      const updatedUser = { ...mockAdminUser, role: 'user' as UserRole };
 
-      vi.mocked(db.query).mockResolvedValueOnce({ rows: [{ id: 2, name: 'operator' }], rowCount: 1 } as any); // role check
       vi.mocked(userQueries.getUserById).mockResolvedValueOnce(mockAdminUser); // Check user exists
-      vi.mocked(userQueries.getAdminCount).mockResolvedValue(2);               // 2 admins
+      vi.mocked(userQueries.getAdminCount).mockResolvedValue(2); // 2 admins
       vi.mocked(userQueries.updateUserRole).mockResolvedValue(undefined);
-      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(updatedUser);   // Fetch updated user
+      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(updatedUser); // Fetch updated user
 
       const response = await request(app)
         .put('/api/users/3/role')
         .set('Authorization', 'Bearer valid-admin-token')
-        .send({ role_id: 2 });
+        .send({ role: 'user' });
 
       expect(response.status).toBe(200);
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 3, 2);
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 3, 'user');
     });
 
     it('should allow admin to promote users to admin', async () => {
-      const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
-      const updatedUser = makeUser(2, 'user1', 1, 'admin', '2024-01-02T00:00:00Z');
+      const mockUser = {
+        id: 2,
+        username: 'user1',
+        role: 'user' as UserRole,
+        created_at: '2024-01-02T00:00:00Z',
+      };
+      const updatedUser = { ...mockUser, role: 'admin' as UserRole };
 
-      vi.mocked(db.query).mockResolvedValueOnce({ rows: [{ id: 1, name: 'admin' }], rowCount: 1 } as any); // role check
-      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(mockUser);    // Check user exists
+      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(mockUser); // Check user exists
       vi.mocked(userQueries.updateUserRole).mockResolvedValue(undefined);
       vi.mocked(userQueries.getUserById).mockResolvedValueOnce(updatedUser); // Fetch updated user
 
       const response = await request(app)
         .put('/api/users/2/role')
         .set('Authorization', 'Bearer valid-admin-token')
-        .send({ role_id: 1 });
+        .send({ role: 'admin' });
 
       expect(response.status).toBe(200);
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 2, 1);
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 2, 'admin');
     });
 
     it('should return 404 for non-existent user', async () => {
-      vi.mocked(db.query).mockResolvedValueOnce({ rows: [{ id: 1, name: 'admin' }], rowCount: 1 } as any); // role check
       vi.mocked(userQueries.getUserById).mockResolvedValue(undefined);
 
       const response = await request(app)
         .put('/api/users/999/role')
         .set('Authorization', 'Bearer valid-admin-token')
-        .send({ role_id: 1 });
+        .send({ role: 'admin' });
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('User not found');
     });
 
-    it('should return 400 for invalid role_id (non-existent)', async () => {
-      vi.mocked(db.query).mockResolvedValueOnce({ rows: [], rowCount: 0 } as any); // role not found
-
+    it('should return 400 for invalid role', async () => {
       const response = await request(app)
         .put('/api/users/2/role')
         .set('Authorization', 'Bearer valid-admin-token')
-        .send({ role_id: 999 });
+        .send({ role: 'superadmin' });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('role_id');
+      expect(response.body.error).toBe('Invalid role. Must be "admin" or "user"');
     });
 
     it('should return 400 for invalid ID format', async () => {
       const response = await request(app)
         .put('/api/users/invalid/role')
         .set('Authorization', 'Bearer valid-admin-token')
-        .send({ role_id: 1 });
+        .send({ role: 'admin' });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('Invalid user ID');
@@ -541,7 +543,7 @@ describe('User Management Routes', () => {
     it('should return 401 for unauthenticated', async () => {
       const response = await request(app)
         .put('/api/users/2/role')
-        .send({ role_id: 1 });
+        .send({ role: 'admin' });
 
       expect(response.status).toBe(401);
     });
@@ -550,7 +552,7 @@ describe('User Management Routes', () => {
       const response = await request(app)
         .put('/api/users/2/role')
         .set('Authorization', 'Bearer valid-user-token')
-        .send({ role_id: 1 });
+        .send({ role: 'admin' });
 
       expect(response.status).toBe(403);
     });
@@ -561,7 +563,7 @@ describe('User Management Routes', () => {
       const response = await request(app)
         .put('/api/users/2/role')
         .set('Authorization', 'Bearer valid-admin-token')
-        .send({ role_id: 1 });
+        .send({ role: 'admin' });
 
       expect(response.status).toBe(500);
     });
@@ -569,7 +571,12 @@ describe('User Management Routes', () => {
 
   describe('POST /api/users/:id/reset-password', () => {
     it('should generate random password and update user (200)', async () => {
-      const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
+      const mockUser = {
+        id: 2,
+        username: 'user1',
+        role: 'user' as UserRole,
+        created_at: '2024-01-02T00:00:00Z',
+      };
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
       vi.mocked(userQueries.generateRandomPassword).mockReturnValue('RandomPass123!@#');
@@ -586,7 +593,12 @@ describe('User Management Routes', () => {
     });
 
     it('should return new password in response for admin to share', async () => {
-      const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
+      const mockUser = {
+        id: 2,
+        username: 'user1',
+        role: 'user',
+        created_at: '2024-01-02T00:00:00Z',
+      };
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
       vi.mocked(userQueries.generateRandomPassword).mockReturnValue('NewPass456!@#');
@@ -601,7 +613,12 @@ describe('User Management Routes', () => {
     });
 
     it('should hash password before storing', async () => {
-      const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
+      const mockUser = {
+        id: 2,
+        username: 'user1',
+        role: 'user',
+        created_at: '2024-01-02T00:00:00Z',
+      };
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
       vi.mocked(userQueries.generateRandomPassword).mockReturnValue('RandomPass123!@#');
@@ -665,7 +682,12 @@ describe('User Management Routes', () => {
 
   describe('DELETE /api/users/:id', () => {
     it('should delete user successfully (204)', async () => {
-      const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
+      const mockUser = {
+        id: 2,
+        username: 'user1',
+        role: 'user',
+        created_at: '2024-01-02T00:00:00Z',
+      };
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
       vi.mocked(userQueries.deleteUser).mockResolvedValue(true);
@@ -679,7 +701,12 @@ describe('User Management Routes', () => {
     });
 
     it('should prevent deletion of last admin (403)', async () => {
-      const mockAdminUser = makeUser(2, 'admin2', 1, 'admin', '2024-01-02T00:00:00Z');
+      const mockAdminUser = {
+        id: 2,
+        username: 'admin2',
+        role: 'admin' as UserRole,
+        created_at: '2024-01-02T00:00:00Z',
+      };
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockAdminUser);
       vi.mocked(userQueries.getAdminCount).mockResolvedValue(1); // Only 1 admin
@@ -694,7 +721,12 @@ describe('User Management Routes', () => {
     });
 
     it('should prevent admin from deleting themselves (403)', async () => {
-      const mockAdminUser = makeUser(1, 'admin', 1, 'admin', '2024-01-01T00:00:00Z');
+      const mockAdminUser = {
+        id: 1,
+        username: 'admin',
+        role: 'admin',
+        created_at: '2024-01-01T00:00:00Z',
+      };
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockAdminUser);
       vi.mocked(userQueries.getAdminCount).mockResolvedValue(2); // 2 admins
@@ -709,7 +741,12 @@ describe('User Management Routes', () => {
     });
 
     it('should allow deletion of non-admin users', async () => {
-      const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
+      const mockUser = {
+        id: 2,
+        username: 'user1',
+        role: 'user',
+        created_at: '2024-01-02T00:00:00Z',
+      };
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
       vi.mocked(userQueries.deleteUser).mockResolvedValue(true);
@@ -723,7 +760,12 @@ describe('User Management Routes', () => {
     });
 
     it('should allow deletion of other admin if not last', async () => {
-      const mockAdminUser = makeUser(3, 'admin2', 1, 'admin', '2024-01-03T00:00:00Z');
+      const mockAdminUser = {
+        id: 3,
+        username: 'admin2',
+        role: 'admin',
+        created_at: '2024-01-03T00:00:00Z',
+      };
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockAdminUser);
       vi.mocked(userQueries.getAdminCount).mockResolvedValue(2); // 2 admins

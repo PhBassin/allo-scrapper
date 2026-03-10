@@ -73,11 +73,10 @@ vi.mock('../../components/ScrapeProgress', () => ({
 const mockAuthContext = {
   isAuthenticated: true,
   token: 'mock-token',
-  user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', permissions: ['cinemas:read', 'cinemas:create', 'scraper:trigger'] },
+  user: { id: 1, username: 'admin', role: 'admin' as const },
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: true,
-  hasPermission: vi.fn(() => true),
 };
 
 const renderWithAuth = (ui: React.ReactElement) =>

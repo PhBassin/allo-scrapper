@@ -1,10 +1,10 @@
 import express from 'express';
 import type { DB } from '../db/client.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
-import { requirePermission } from '../middleware/permission.js';
+import { requireAdmin } from '../middleware/admin.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
 import type { ApiResponse } from '../types/api.js';
-import type { UserPublic } from '../types/user.js';
+import type { UserPublic, UserRole } from '../types/user.js';
 import {
   getAllUsers,
   getUserById,
@@ -31,7 +31,7 @@ router.get(
   '/',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:list'),
+  requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
@@ -89,7 +89,7 @@ router.get(
   '/:id',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:list'),
+  requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
@@ -144,12 +144,12 @@ router.post(
   '/',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:create'),
+  requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
 
-      const { username, password, role_id } = req.body;
+      const { username, password, role } = req.body;
 
       // Validate required fields
       if (!username || !password) {
@@ -179,26 +179,12 @@ router.post(
         return;
       }
 
-      // Validate role_id (required)
-      if (!role_id || isNaN(parseInt(role_id, 10))) {
+      // Validate role (default to 'user' if not provided)
+      const userRole: UserRole = role || 'user';
+      if (userRole !== 'admin' && userRole !== 'user') {
         res.status(400).json({
           success: false,
-          error: 'role_id is required and must be a valid integer',
-        } as ApiResponse);
-        return;
-      }
-
-      const roleId = parseInt(role_id, 10);
-
-      // Verify role_id exists
-      const roleCheck = await db.query<{ id: number }>(
-        'SELECT id FROM roles WHERE id = $1',
-        [roleId]
-      );
-      if (roleCheck.rows.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid role_id: role does not exist',
+          error: 'Invalid role. Must be "admin" or "user"',
         } as ApiResponse);
         return;
       }
@@ -208,11 +194,8 @@ router.post(
 
       // Create user with direct DB query
       const result = await db.query<UserPublic>(
-        `INSERT INTO users (username, password_hash, role_id) VALUES ($1, $2, $3)
-         RETURNING id, username, role_id,
-           (SELECT name FROM roles WHERE id = $3) as role_name,
-           created_at`,
-        [username, passwordHash, roleId]
+        'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role, created_at',
+        [username, passwordHash, userRole]
       );
       const newUser = result.rows[0];
 
@@ -221,8 +204,7 @@ router.post(
         adminUsername: req.user!.username,
         newUserId: newUser.id,
         newUsername: newUser.username,
-        newUserRoleId: newUser.role_id,
-        newUserRoleName: newUser.role_name,
+        newUserRole: newUser.role,
       });
 
       res.status(201).json({
@@ -258,13 +240,13 @@ router.put(
   '/:id/role',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:update'),
+  requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
 
       const userId = parseInt(req.params.id, 10);
-      const { role_id } = req.body;
+      const { role } = req.body;
 
       // Validate user ID
       if (isNaN(userId)) {
@@ -275,33 +257,18 @@ router.put(
         return;
       }
 
-      // Validate role_id
-      if (!role_id) {
+      // Validate role
+      if (!role) {
         res.status(400).json({
           success: false,
-          error: 'role_id is required',
+          error: 'Role is required',
         } as ApiResponse);
         return;
       }
-
-      const roleId = parseInt(role_id, 10);
-      if (isNaN(roleId)) {
+      if (role !== 'admin' && role !== 'user') {
         res.status(400).json({
           success: false,
-          error: 'role_id must be a valid integer',
-        } as ApiResponse);
-        return;
-      }
-
-      // Verify role exists and get its name
-      const roleCheck = await db.query<{ id: number; name: string }>(
-        'SELECT id, name FROM roles WHERE id = $1',
-        [roleId]
-      );
-      if (roleCheck.rows.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid role_id: role does not exist',
+          error: 'Invalid role. Must be "admin" or "user"',
         } as ApiResponse);
         return;
       }
@@ -317,7 +284,7 @@ router.put(
       }
 
       // Safety guard: Prevent demoting the last admin
-      if (targetUser.role_name === 'admin' && roleCheck.rows[0].name !== 'admin') {
+      if (targetUser.role === 'admin' && role === 'user') {
         const adminCount = await getAdminCount(db);
         if (adminCount <= 1) {
           res.status(403).json({
@@ -329,7 +296,7 @@ router.put(
       }
 
       // Update role
-      await updateUserRole(db, userId, roleId);
+      await updateUserRole(db, userId, role);
 
       // Fetch updated user
       const updatedUser = await getUserById(db, userId);
@@ -339,8 +306,8 @@ router.put(
         adminUsername: req.user!.username,
         targetUserId: userId,
         targetUsername: updatedUser!.username,
-        oldRoleName: targetUser.role_name,
-        newRoleId: roleId,
+        oldRole: targetUser.role,
+        newRole: role,
       });
 
       res.json({
@@ -366,7 +333,7 @@ router.post(
   '/:id/reset-password',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:update'),
+  requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
@@ -440,7 +407,7 @@ router.delete(
   '/:id',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:delete'),
+  requireAdmin,
   async (req: AuthRequest, res: express.Response): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
@@ -476,7 +443,7 @@ router.delete(
       }
 
       // Safety guard: Prevent deleting the last admin
-      if (targetUser.role_name === 'admin') {
+      if (targetUser.role === 'admin') {
         const adminCount = await getAdminCount(db);
         if (adminCount <= 1) {
           res.status(403).json({
@@ -503,7 +470,7 @@ router.delete(
         adminUsername: req.user!.username,
         deletedUserId: userId,
         deletedUsername: targetUser.username,
-        deletedUserRoleName: targetUser.role_name,
+        deletedUserRole: targetUser.role,
       });
 
       res.status(204).send();

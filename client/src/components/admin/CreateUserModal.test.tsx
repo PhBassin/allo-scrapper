@@ -54,7 +54,7 @@ describe('CreateUserModal', () => {
 
       expect(usernameInput.value).toBe('');
       expect(passwordInput.value).toBe('');
-      expect(roleSelect.value).toBe('1'); // default role — first in DEFAULT_ROLES (admin id=1)
+      expect(roleSelect.value).toBe('user'); // default role
     });
 
     it('should render cancel and create buttons', () => {
@@ -291,7 +291,7 @@ describe('CreateUserModal', () => {
         expect(mockOnCreate).toHaveBeenCalledWith({
           username: 'newuser123',
           password: 'SecurePass123!',
-          role_id: 1,
+          role: 'user',
         });
       });
     });
@@ -322,7 +322,7 @@ describe('CreateUserModal', () => {
         expect(mockOnCreate).toHaveBeenCalledWith({
           username: 'adminuser',
           password: 'AdminPass123!',
-          role_id: 1,
+          role: 'admin',
         });
       });
     });

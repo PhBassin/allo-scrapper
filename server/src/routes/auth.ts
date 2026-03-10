@@ -2,13 +2,12 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getUserByUsername, createUser, updateUserPassword } from '../db/queries.js';
-import { getPermissionNamesByRoleId } from '../db/role-queries.js';
 import type { DB } from '../db/client.js';
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
-import { requirePermission } from '../middleware/permission.js';
+import { requireAdmin } from '../middleware/admin.js';
 import { validatePasswordStrength } from '../utils/security.js';
 
 const router = express.Router();
@@ -27,8 +26,7 @@ export interface AuthResponse {
     user: {
         id: number;
         username: string;
-        role_id: number;
-        role_name: string;
+        role: 'admin' | 'user';
     };
 }
 
@@ -61,17 +59,8 @@ router.post('/login', authLimiter, async (req, res) => {
             return res.status(401).json(response);
         }
 
-        // Load permissions for this role
-        const permissions = await getPermissionNamesByRoleId(db, user.role_id);
-
         const token = jwt.sign(
-            {
-                id: user.id,
-                username: user.username,
-                role_name: user.role_name,
-                is_system_role: user.is_system_role,
-                permissions,
-            },
+            { id: user.id, username: user.username },
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }
         );
@@ -83,8 +72,7 @@ router.post('/login', authLimiter, async (req, res) => {
                 user: {
                     id: user.id,
                     username: user.username,
-                    role_id: user.role_id,
-                    role_name: user.role_name,
+                    role: user.role as 'admin' | 'user'
                 }
             }
         };
@@ -100,8 +88,8 @@ router.post('/login', authLimiter, async (req, res) => {
     }
 });
 
-// POST /api/auth/register - Register a new user (requires users:create permission)
-router.post('/register', registerLimiter, requireAuth, requirePermission('users:create'), async (req, res) => {
+// POST /api/auth/register - Register a new user (admin-only)
+router.post('/register', registerLimiter, requireAuth, requireAdmin, async (req, res) => {
     try {
         const db: DB = req.app.get('db');
         const { username, password } = req.body;
@@ -135,8 +123,7 @@ router.post('/register', registerLimiter, requireAuth, requirePermission('users:
                 user: {
                     id: user.id,
                     username: user.username,
-                    role_id: user.role_id,
-                    role_name: user.role_name,
+                    role: user.role as 'admin' | 'user'
                 }
             }
         };
@@ -153,7 +140,7 @@ router.post('/register', registerLimiter, requireAuth, requirePermission('users:
 });
 
 // POST /api/auth/change-password - Change user password (protected)
-router.post('/change-password', authLimiter, requireAuth, async (req: AuthRequest, res) => {
+router.post('/change-password', requireAuth, authLimiter, async (req: AuthRequest, res) => {
     try {
         const db: DB = req.app.get('db');
         const { currentPassword, newPassword } = req.body;

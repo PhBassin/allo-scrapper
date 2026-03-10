@@ -5,9 +5,8 @@ import SettingsPage from './SettingsPage';
 import UsersPage from './UsersPage';
 import SystemPage from './SystemPage';
 import ReportsPage from '../ReportsPage';
-import RoleManagementPage from '../../components/admin/RoleManagementPage';
 
-type TabId = 'cinemas' | 'rapports' | 'users' | 'roles' | 'settings' | 'system';
+type TabId = 'cinemas' | 'rapports' | 'users' | 'settings' | 'system';
 
 interface Tab {
   id: TabId;
@@ -44,15 +43,6 @@ const tabs: Tab[] = [
     ),
   },
   {
-    id: 'roles',
-    label: 'Roles',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-      </svg>
-    ),
-  },
-  {
     id: 'settings',
     label: 'Settings',
     icon: (
@@ -78,9 +68,9 @@ const AdminPage: React.FC = () => {
   const currentTab = searchParams.get('tab') || 'cinemas';
 
   // Validate tab and fallback to default
-  const validTabs: TabId[] = ['cinemas', 'rapports', 'users', 'roles', 'settings', 'system'];
-  const activeTab: TabId = validTabs.includes(currentTab as TabId)
-    ? (currentTab as TabId)
+  const validTabs: TabId[] = ['cinemas', 'rapports', 'users', 'settings', 'system'];
+  const activeTab: TabId = validTabs.includes(currentTab as TabId) 
+    ? (currentTab as TabId) 
     : 'cinemas';
 
   const handleTabClick = (tabId: TabId) => {
@@ -124,7 +114,6 @@ const AdminPage: React.FC = () => {
         {activeTab === 'cinemas' && <CinemasPage />}
         {activeTab === 'rapports' && <ReportsPage />}
         {activeTab === 'users' && <UsersPage />}
-        {activeTab === 'roles' && <RoleManagementPage />}
         {activeTab === 'settings' && <SettingsPage />}
         {activeTab === 'system' && <SystemPage />}
       </div>

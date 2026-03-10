@@ -26,9 +26,6 @@ vi.mock('../middleware/auth.js', () => ({
 vi.mock('../middleware/rate-limit.js', () => ({
   protectedLimiter: (req: any, res: any, next: any) => next(),
 }));
-vi.mock('../middleware/permission.js', () => ({
-  requirePermission: (..._perms: string[]) => (req: any, res: any, next: any) => next(),
-}));
 vi.mock('../middleware/admin.js', () => ({
   requireAdmin: async (req: any, res: any, next: any) => {
     if (req.user?.id === 1) {

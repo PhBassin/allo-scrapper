@@ -21,7 +21,6 @@ import authRouter from './routes/auth.js';
 import settingsRouter from './routes/settings.js';
 import usersRouter from './routes/users.js';
 import systemRouter from './routes/system.js';
-import rolesRouter from './routes/roles.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,7 +71,6 @@ export function createApp() {
   app.use('/api/settings', settingsRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/system', systemRouter);
-  app.use('/api/roles', rolesRouter);
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {

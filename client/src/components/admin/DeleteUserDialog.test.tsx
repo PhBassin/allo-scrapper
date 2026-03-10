@@ -11,8 +11,7 @@ describe('DeleteUserDialog', () => {
   const mockUser: UserPublic = {
     id: 1,
     username: 'testuser',
-    role_id: 2,
-    role_name: 'user',
+    role: 'user',
     created_at: '2024-01-01T00:00:00.000Z',
   };
 
@@ -77,7 +76,7 @@ describe('DeleteUserDialog', () => {
     });
 
     it('should display different styling for admin users', () => {
-      const adminUser: UserPublic = { ...mockUser, role_id: 1, role_name: 'admin' };
+      const adminUser: UserPublic = { ...mockUser, role: 'admin' };
       
       render(
         <DeleteUserDialog

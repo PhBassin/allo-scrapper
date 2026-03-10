@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { DB } from './client.js';
-import type { UserPublic } from '../types/user.js';
+import type { UserPublic, UserRole } from '../types/user.js';
 import {
   getAllUsers,
   getUserById,
@@ -20,10 +20,10 @@ describe('User Management Queries', () => {
   });
 
   describe('getAllUsers', () => {
-    it('should return all users with role_id and role_name (no password_hash)', async () => {
+    it('should return all users without password_hash', async () => {
       const mockUsers: UserPublic[] = [
-        { id: 1, username: 'admin', role_id: 1, role_name: 'admin', created_at: '2024-01-01T00:00:00Z' },
-        { id: 2, username: 'user1', role_id: 2, role_name: 'operator', created_at: '2024-01-02T00:00:00Z' },
+        { id: 1, username: 'admin', role: 'admin', created_at: '2024-01-01T00:00:00Z' },
+        { id: 2, username: 'user1', role: 'user', created_at: '2024-01-02T00:00:00Z' },
       ];
 
       vi.mocked(mockDb.query).mockResolvedValue({ rows: mockUsers, rowCount: 2 } as any);
@@ -32,23 +32,8 @@ describe('User Management Queries', () => {
 
       expect(result).toEqual(mockUsers);
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('JOIN roles'),
+        expect.stringContaining('SELECT id, username, role, created_at'),
         [100, 0]
-      );
-    });
-
-    it('should select role_id and role_name via JOIN', async () => {
-      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
-
-      await getAllUsers(mockDb);
-
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('role_id'),
-        expect.any(Array)
-      );
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('role_name'),
-        expect.any(Array)
       );
     });
 
@@ -117,12 +102,11 @@ describe('User Management Queries', () => {
   });
 
   describe('getUserById', () => {
-    it('should return user by ID with role_id and role_name (no password_hash)', async () => {
+    it('should return user by ID without password_hash', async () => {
       const mockUser: UserPublic = {
         id: 1,
         username: 'admin',
-        role_id: 1,
-        role_name: 'admin',
+        role: 'admin',
         created_at: '2024-01-01T00:00:00Z',
       };
 
@@ -132,7 +116,7 @@ describe('User Management Queries', () => {
 
       expect(result).toEqual(mockUser);
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('JOIN roles'),
+        'SELECT id, username, role, created_at FROM users WHERE id = $1',
         [1]
       );
     });
@@ -149,8 +133,7 @@ describe('User Management Queries', () => {
       const mockUser: UserPublic = {
         id: 42,
         username: 'testuser',
-        role_id: 2,
-        role_name: 'operator',
+        role: 'user',
         created_at: '2024-01-01T00:00:00Z',
       };
 
@@ -164,32 +147,40 @@ describe('User Management Queries', () => {
   });
 
   describe('updateUserRole', () => {
-    it('should update user role using role_id (number)', async () => {
+    it('should update user role to admin', async () => {
       vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
 
-      await updateUserRole(mockDb, 2, 1);
+      await updateUserRole(mockDb, 2, 'admin');
 
       expect(mockDb.query).toHaveBeenCalledWith(
-        'UPDATE users SET role_id = $1 WHERE id = $2',
-        [1, 2]
+        'UPDATE users SET role = $1 WHERE id = $2',
+        ['admin', 2]
       );
     });
 
-    it('should update user role with different role_id', async () => {
+    it('should update user role to user', async () => {
       vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
 
-      await updateUserRole(mockDb, 5, 2);
+      await updateUserRole(mockDb, 1, 'user');
 
       expect(mockDb.query).toHaveBeenCalledWith(
-        'UPDATE users SET role_id = $1 WHERE id = $2',
-        [2, 5]
+        'UPDATE users SET role = $1 WHERE id = $2',
+        ['user', 1]
       );
     });
 
-    it('should not throw for any numeric role_id', async () => {
-      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
+    it('should throw error for invalid role', async () => {
+      await expect(
+        updateUserRole(mockDb, 1, 'invalid' as UserRole)
+      ).rejects.toThrow('Invalid role');
+    });
 
-      await expect(updateUserRole(mockDb, 1, 99)).resolves.not.toThrow();
+    it('should not call database for invalid role', async () => {
+      await expect(
+        updateUserRole(mockDb, 1, 'superadmin' as UserRole)
+      ).rejects.toThrow();
+
+      expect(mockDb.query).not.toHaveBeenCalled();
     });
   });
 
@@ -232,7 +223,7 @@ describe('User Management Queries', () => {
   });
 
   describe('getAdminCount', () => {
-    it('should return correct admin count using role_name join', async () => {
+    it('should return correct admin count', async () => {
       vi.mocked(mockDb.query).mockResolvedValue({
         rows: [{ count: '3' }],
         rowCount: 1,
@@ -242,7 +233,7 @@ describe('User Management Queries', () => {
 
       expect(result).toBe(3);
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('admin')
+        "SELECT COUNT(*) as count FROM users WHERE role = 'admin'"
       );
     });
 

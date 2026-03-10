@@ -1,13 +1,13 @@
-// User types — role_id-based system (replaces old role TEXT column)
+// User and role types
 
-// Database row interface (with JOIN on roles table)
+export type UserRole = 'admin' | 'user';
+
+// Database row interface (extends UserRow from queries.ts)
 export interface UserRowWithRole {
   id: number;
   username: string;
   password_hash: string;
-  role_id: number;
-  role_name: string;
-  is_system_role: boolean;
+  role: UserRole;
   created_at: string;
 }
 
@@ -15,8 +15,7 @@ export interface UserRowWithRole {
 export interface UserPublic {
   id: number;
   username: string;
-  role_id: number;
-  role_name: string;
+  role: UserRole;
   created_at: string;
 }
 
@@ -24,12 +23,12 @@ export interface UserPublic {
 export interface UserCreate {
   username: string;
   password: string;
-  role_id: number; // Obligatoire, doit être un ID de rôle valide
+  role?: UserRole; // defaults to 'user'
 }
 
 // User update payload
 export interface UserUpdate {
   username?: string;
   password?: string;
-  role_id?: number;
+  role?: UserRole;
 }

@@ -53,7 +53,7 @@ const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({
           </p>
 
           <div className="mb-4">
-            <RoleBadge roleName={user.role_name} />
+            <RoleBadge role={user.role} />
           </div>
 
           <div className="bg-red-50 border border-red-200 rounded-md p-3">

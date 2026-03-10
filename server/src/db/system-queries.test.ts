@@ -85,7 +85,6 @@ describe('System Queries', () => {
             { version: '005_add_user_roles.sql' },
             { version: '006_fix_app_settings_schema.sql' },
             { version: '007_seed_default_admin.sql' },
-            { version: '008_permission_based_roles.sql' },
           ],
         }),
       } as unknown as DB;

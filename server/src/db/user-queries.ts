@@ -1,10 +1,9 @@
 import { type DB } from './client.js';
-import { type UserPublic } from '../types/user.js';
+import { type UserPublic, type UserRole } from '../types/user.js';
 import crypto from 'crypto';
 
 /**
  * Get all users without passwords (for admin panel)
- * Uses JOIN on roles table to get role_name
  * @param db - Database client
  * @param options - Pagination options (limit, offset)
  * @returns Array of users without password hashes
@@ -17,10 +16,10 @@ export async function getAllUsers(
   const offset = options?.offset ?? 0;
 
   const result = await db.query<UserPublic>(
-    `SELECT u.id, u.username, u.role_id, r.name as role_name, u.created_at
-     FROM users u
-     JOIN roles r ON r.id = u.role_id
-     ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+    `SELECT id, username, role, created_at 
+     FROM users 
+     ORDER BY created_at DESC 
+     LIMIT $1 OFFSET $2`,
     [limit, offset]
   );
 
@@ -29,7 +28,6 @@ export async function getAllUsers(
 
 /**
  * Get user by ID without password
- * Uses JOIN on roles table to get role_name
  * @param db - Database client
  * @param userId - User ID
  * @returns User without password hash, or undefined if not found
@@ -39,10 +37,7 @@ export async function getUserById(
   userId: number
 ): Promise<UserPublic | undefined> {
   const result = await db.query<UserPublic>(
-    `SELECT u.id, u.username, u.role_id, r.name as role_name, u.created_at
-     FROM users u
-     JOIN roles r ON r.id = u.role_id
-     WHERE u.id = $1`,
+    'SELECT id, username, role, created_at FROM users WHERE id = $1',
     [userId]
   );
 
@@ -50,19 +45,25 @@ export async function getUserById(
 }
 
 /**
- * Update user role by role ID
+ * Update user role
  * @param db - Database client
  * @param userId - User ID
- * @param roleId - New role ID (must reference a valid role in the roles table)
+ * @param newRole - New role ('admin' or 'user')
+ * @throws Error if role is invalid
  */
 export async function updateUserRole(
   db: DB,
   userId: number,
-  roleId: number
+  newRole: UserRole
 ): Promise<void> {
+  // Validate role
+  if (newRole !== 'admin' && newRole !== 'user') {
+    throw new Error(`Invalid role: ${newRole}. Must be 'admin' or 'user'.`);
+  }
+
   await db.query(
-    'UPDATE users SET role_id = $1 WHERE id = $2',
-    [roleId, userId]
+    'UPDATE users SET role = $1 WHERE id = $2',
+    [newRole, userId]
   );
 }
 
@@ -86,16 +87,12 @@ export async function deleteUser(
 
 /**
  * Get count of admin users (for last admin protection)
- * Uses JOIN on roles table to find users with role name 'admin'
  * @param db - Database client
- * @returns Number of users with role_name='admin'
+ * @returns Number of users with role='admin'
  */
 export async function getAdminCount(db: DB): Promise<number> {
   const result = await db.query<{ count: string }>(
-    `SELECT COUNT(*) as count
-     FROM users u
-     JOIN roles r ON r.id = u.role_id
-     WHERE r.name = 'admin'`
+    "SELECT COUNT(*) as count FROM users WHERE role = 'admin'"
   );
 
   return parseInt(result.rows[0]?.count ?? '0', 10);
@@ -109,7 +106,7 @@ export async function getAdminCount(db: DB): Promise<number> {
  * - At least one lowercase letter
  * - At least one digit
  * - At least one special character
- *
+ * 
  * @returns Random 16-character password
  */
 export function generateRandomPassword(): string {
