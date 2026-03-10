@@ -92,6 +92,30 @@ describe('Auth Routes', () => {
             expect(response.body.data.user.password_hash).toBeUndefined(); // Should not expose hash
         });
 
+        it('should return permissions in the user object for valid credentials', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'admin',
+                password_hash: await bcrypt.hash('password123', 10),
+                role_id: 1,
+                role_name: 'admin',
+                is_system_role: true,
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+
+            const response = await request(app)
+                .post('/api/auth/login')
+                .send({ username: 'admin', password: 'password123' });
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+            expect(response.body.data.user.permissions).toBeDefined();
+            expect(Array.isArray(response.body.data.user.permissions)).toBe(true);
+            // Mock getPermissionNamesByRoleId returns ['settings:read', 'reports:list'] (see line 26)
+            expect(response.body.data.user.permissions).toEqual(['settings:read', 'reports:list']);
+        });
+
         it('should return 401 for invalid password', async () => {
             const mockUser = {
                 id: 1,
