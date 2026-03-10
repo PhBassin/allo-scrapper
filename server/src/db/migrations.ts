@@ -147,6 +147,11 @@ export async function applyMigration(db: DB, filename: string): Promise<void> {
     await handleAdminSeed(db);
   }
 
+  // Special handling for permission-based roles migration
+  if (filename === '008_permission_based_roles.sql') {
+    await handleAdminRoleIdSeed(db);
+  }
+
   logger.info(`Migration ${filename} completed successfully`);
 }
 
@@ -232,6 +237,10 @@ export async function runMigrations(db: DB): Promise<void> {
  * - If no admins exist and 'admin' username doesn't exist: create new admin
  * - If any admin exists: skip
  * 
+ * NOTE: This function only runs when migration 007 is applied, which means
+ * the old `role` TEXT column is still present. Migration 008 will later
+ * convert this to `role_id`.
+ * 
  * @param db - Database client
  */
 async function handleAdminSeed(db: DB): Promise<void> {
@@ -269,6 +278,70 @@ async function handleAdminSeed(db: DB): Promise<void> {
   await db.query(
     `INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)`,
     ['admin', passwordHash, 'admin']
+  );
+
+  // Log password prominently
+  logger.warn('═══════════════════════════════════════════════════════════');
+  logger.warn('🔐 DEFAULT ADMIN USER CREATED');
+  logger.warn('═══════════════════════════════════════════════════════════');
+  logger.warn('Username: admin');
+  logger.warn(`Password: ${password}`);
+  logger.warn('═══════════════════════════════════════════════════════════');
+  logger.warn('⚠️  SECURITY WARNING:');
+  logger.warn('1. Save this password immediately');
+  logger.warn('2. Change it after first login');
+  logger.warn('3. This password will NOT be shown again');
+  logger.warn('═══════════════════════════════════════════════════════════');
+}
+
+/**
+ * Handle admin user creation/verification after migration 008
+ * (permission-based roles migration)
+ *
+ * After migration 008:
+ * - The `role` TEXT column is dropped, `role_id` INTEGER is used instead
+ * - The admin role has id=1 (seeded in the migration SQL itself)
+ * - This function ensures an admin user exists with role_id pointing to the admin role
+ *
+ * If migration 007 already ran (admin user exists), migration 008's SQL
+ * already migrated role → role_id, so we only need to verify and log.
+ * If no admin exists (fresh DB after 008 skip of 007), we create one here.
+ *
+ * @param db - Database client
+ */
+async function handleAdminRoleIdSeed(db: DB): Promise<void> {
+  // Get admin role ID
+  const adminRoleResult = await db.query<{ id: number }>(
+    `SELECT id FROM roles WHERE name = 'admin'`
+  );
+
+  if (adminRoleResult.rows.length === 0) {
+    logger.error('Admin role not found after migration 008 — this should not happen');
+    return;
+  }
+
+  const adminRoleId = adminRoleResult.rows[0].id;
+
+  // Check if any admin user exists
+  const adminCountResult = await db.query<{ count: string }>(
+    `SELECT COUNT(*) as count FROM users WHERE role_id = $1`,
+    [adminRoleId]
+  );
+  const adminCount = parseInt(adminCountResult.rows[0].count);
+
+  if (adminCount > 0) {
+    logger.info(`Admin user already exists (count: ${adminCount}), skipping seed`);
+    return;
+  }
+
+  // No admin user exists — create one (only possible on a completely fresh DB
+  // where migration 007 was never applied)
+  const password = generateRandomPassword();
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  await db.query(
+    `INSERT INTO users (username, password_hash, role_id) VALUES ($1, $2, $3)`,
+    ['admin', passwordHash, adminRoleId]
   );
 
   // Log password prominently

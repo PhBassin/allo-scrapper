@@ -3,7 +3,9 @@ import React, { createContext, useState, useEffect, type ReactNode } from 'react
 export interface User {
     id: number;
     username: string;
-    role: 'admin' | 'user';
+    role_id: number;
+    role_name: string;       // e.g. 'admin', 'operator'
+    permissions: string[];   // e.g. ['scraper:trigger', 'cinemas:create', ...]
 }
 
 interface AuthContextType {
@@ -11,6 +13,7 @@ interface AuthContextType {
     token: string | null;
     user: User | null;
     isAdmin: boolean;
+    hasPermission: (permission: string) => boolean;
     login: (token: string, user: User) => void;
     logout: () => void;
 }
@@ -20,6 +23,7 @@ export const AuthContext = createContext<AuthContextType>({
     token: null,
     user: null,
     isAdmin: false,
+    hasPermission: () => false,
     login: () => { },
     logout: () => { },
 });
@@ -36,12 +40,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     const isAuthenticated = !!token;
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role_name === 'admin';
+
+    const hasPermission = (permission: string): boolean => {
+        if (!user) return false;
+        if (isAdmin) return true;  // Admin bypass client-side too
+        return user.permissions.includes(permission);
+    };
 
     useEffect(() => {
         if (token) {
             localStorage.setItem('token', token);
-            // Optional: Set default auth header here too, but interceptor usually handles it better
         } else {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
@@ -67,7 +76,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, token, user, isAdmin, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, token, user, isAdmin, hasPermission, login, logout }}>
             {children}
         </AuthContext.Provider>
     );

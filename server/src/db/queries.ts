@@ -9,7 +9,9 @@ export interface UserRow {
   id: number;
   username: string;
   password_hash: string;
-  role: string;
+  role_id: number;
+  role_name: string;
+  is_system_role: boolean;
   created_at: string;
 }
 
@@ -100,7 +102,11 @@ export interface ShowtimeWithCinemaRow extends ShowtimeRow {
 
 export async function getUserByUsername(db: DB, username: string): Promise<UserRow | undefined> {
   const result = await db.query<UserRow>(
-    'SELECT id, username, password_hash, role, created_at FROM users WHERE username = $1',
+    `SELECT u.id, u.username, u.password_hash, u.role_id,
+            r.name AS role_name, r.is_system AS is_system_role, u.created_at
+     FROM users u
+     JOIN roles r ON r.id = u.role_id
+     WHERE u.username = $1`,
     [username]
   );
   return result.rows[0];
@@ -108,7 +114,13 @@ export async function getUserByUsername(db: DB, username: string): Promise<UserR
 
 export async function createUser(db: DB, username: string, passwordHash: string): Promise<UserRow> {
   const result = await db.query<UserRow>(
-    'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username, password_hash, created_at',
+    `INSERT INTO users (username, password_hash)
+     VALUES ($1, $2)
+     RETURNING id, username, password_hash,
+       role_id,
+       (SELECT name FROM roles WHERE id = role_id) AS role_name,
+       (SELECT is_system FROM roles WHERE id = role_id) AS is_system_role,
+       created_at`,
     [username, passwordHash]
   );
   return result.rows[0];

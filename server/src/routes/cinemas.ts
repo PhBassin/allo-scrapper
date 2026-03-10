@@ -7,7 +7,7 @@ import { getRedisClient } from '../services/redis-client.js';
 import type { ApiResponse } from '../types/api.js';
 import { publicLimiter, protectedLimiter } from '../middleware/rate-limit.js';
 import { requireAuth } from '../middleware/auth.js';
-import { requireAdmin } from '../middleware/admin.js';
+import { requirePermission } from '../middleware/permission.js';
 import { logger } from '../utils/logger.js';
 
 const router = express.Router();
@@ -30,7 +30,7 @@ router.get('/', publicLimiter, async (req, res, next) => {
 });
 
 // POST /api/cinemas - Add a new cinema
-router.post('/', requireAuth, requireAdmin, protectedLimiter, async (req, res, next) => {
+router.post('/', protectedLimiter, requireAuth, requirePermission('cinemas:create'), async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
     const { id, name, url } = req.body;
@@ -150,7 +150,7 @@ router.post('/', requireAuth, requireAdmin, protectedLimiter, async (req, res, n
 });
 
 // PUT /api/cinemas/:id - Update a cinema's configuration
-router.put('/:id', requireAuth, requireAdmin, protectedLimiter, async (req, res, next) => {
+router.put('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:update'), async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
     const cinemaId = req.params.id;
@@ -292,7 +292,7 @@ router.put('/:id', requireAuth, requireAdmin, protectedLimiter, async (req, res,
 });
 
 // DELETE /api/cinemas/:id - Delete a cinema (cascades to showtimes and weekly_programs)
-router.delete('/:id', requireAuth, requireAdmin, protectedLimiter, async (req, res, next) => {
+router.delete('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:delete'), async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
     const cinemaId = req.params.id;
