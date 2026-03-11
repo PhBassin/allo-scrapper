@@ -35,6 +35,7 @@ const adminUser: User = {
   username: 'admin',
   role_id: 1,
   role_name: 'admin',
+  is_system_role: true,
   permissions: [],
 };
 
@@ -43,6 +44,7 @@ const operatorUser: User = {
   username: 'operator',
   role_id: 2,
   role_name: 'operator',
+  is_system_role: true,
   permissions: [
     'scraper:trigger',
     'scraper:trigger_single',
@@ -54,13 +56,23 @@ const operatorUser: User = {
   ],
 };
 
+// A custom role that happens to be named "admin" but is NOT a system role
+const fakeAdminUser: User = {
+  id: 3,
+  username: 'fakeadmin',
+  role_id: 99,
+  role_name: 'admin',
+  is_system_role: false,
+  permissions: ['cinemas:create', 'reports:list'],
+};
+
 const makeAuthContext = (user: User) => ({
   isAuthenticated: true,
   token: 'mock-token',
   user,
-  isAdmin: user.role_name === 'admin',
+  isAdmin: user.role_name === 'admin' && user.is_system_role === true,
   hasPermission: (permission: string) =>
-    user.role_name === 'admin' || user.permissions.includes(permission),
+    (user.role_name === 'admin' && user.is_system_role) || user.permissions.includes(permission),
   login: vi.fn(),
   logout: vi.fn(),
 });
@@ -309,6 +321,38 @@ describe('AdminPage', () => {
       renderWithRouter('/admin?tab=rapports', operatorUser);
 
       expect(screen.getByTestId('reports-content')).toBeInTheDocument();
+    });
+  });
+
+  describe('Non-system role named "admin" - is_system_role=false', () => {
+    it('should NOT grant all tabs to a custom role named admin with is_system_role=false', () => {
+      renderWithRouter('/admin', fakeAdminUser);
+
+      // Only tabs matching fakeAdminUser.permissions should be visible
+      // fakeAdminUser has cinemas:create and reports:list
+      const tabs = screen.getAllByRole('tab');
+      const tabLabels = tabs.map((t) => t.textContent);
+      expect(tabLabels).toContain('Cinemas');
+      expect(tabLabels).toContain('Rapports');
+      // Should NOT have all-access tabs like Users, Roles, Settings, System
+      expect(tabLabels).not.toContain('Users');
+      expect(tabLabels).not.toContain('Roles');
+      expect(tabLabels).not.toContain('Settings');
+      expect(tabLabels).not.toContain('System');
+    });
+
+    it('should redirect a non-system "admin" role away from users tab', () => {
+      renderWithRouter('/admin?tab=users', fakeAdminUser);
+
+      expect(screen.queryByTestId('users-content')).not.toBeInTheDocument();
+      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+    });
+
+    it('should redirect a non-system "admin" role away from roles tab', () => {
+      renderWithRouter('/admin?tab=roles', fakeAdminUser);
+
+      expect(screen.queryByTestId('roles-content')).not.toBeInTheDocument();
+      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
     });
   });
 });
