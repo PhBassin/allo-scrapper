@@ -37,7 +37,7 @@ router.get(
       const db: DB = req.app.get('db');
 
       // Parse pagination params
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
+      let limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
       const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
 
       // Validate pagination params
@@ -55,6 +55,9 @@ router.get(
         } as ApiResponse);
         return;
       }
+
+      // Security: Validate and clamp pagination parameters to prevent DoS
+      if (limit > 100) limit = 100;
 
       const users = await getAllUsers(db, { limit, offset });
 
