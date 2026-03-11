@@ -31,7 +31,7 @@
     "express": "^5.2.1",
     "he": "^1.2.0",
     "ioredis": "^5.10.0",
-    "node-cron": "^3.0.3",
+    "node-cron": "^4.2.1",
     "pg": "^8.20.0",
     "playwright": "^1.58.2",
     "prom-client": "^15.1.0",
