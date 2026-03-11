@@ -104,7 +104,7 @@ const AdminPage: React.FC = () => {
               aria-selected={activeTab === tab.id}
               onClick={() => handleTabClick(tab.id)}
               className={`
-                flex items-center gap-2 pb-4 border-b-2 font-medium transition-colors
+                flex items-center gap-2 pb-4 border-b-2 font-medium transition-colors cursor-pointer
                 ${
                   activeTab === tab.id
                     ? 'border-primary text-primary'

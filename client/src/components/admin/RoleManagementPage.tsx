@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { rolesApi } from '../../api/roles';
 import type { RoleWithPermissions, Permission } from '../../types/role';
+import Button from '../ui/Button';
+import LinkButton from '../ui/LinkButton';
 
 // Permission categories for grouped display
 const PERMISSION_CATEGORIES: Record<string, string[]> = {
@@ -51,20 +53,22 @@ const DeleteRoleDialog: React.FC<DeleteRoleDialogProps> = ({ role, onClose, onCo
           </div>
         )}
         <div className="flex justify-end gap-3">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={onClose}
             disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
             onClick={handleConfirm}
             disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
           >
             {isDeleting ? 'Deleting...' : 'Delete'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -160,20 +164,21 @@ const EditRolePermissionsModal: React.FC<EditRolePermissionsModalProps> = ({
           )}
         </div>
         <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={onClose}
             disabled={isSaving}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
             onClick={handleSave}
             disabled={isSaving}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
             {isSaving ? 'Saving...' : 'Save'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -297,21 +302,22 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({ allPermissions, onClo
             )}
           </div>
           <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
+              size="sm"
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               {isSubmitting ? 'Creating...' : 'Create'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -402,12 +408,9 @@ const RoleManagementPage: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Role Management</h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
-        >
+        <Button onClick={() => setShowCreate(true)}>
           Create Role
-        </button>
+        </Button>
       </div>
 
       {/* Error */}
@@ -469,20 +472,17 @@ const RoleManagementPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => setEditingRole(role)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
+                      <LinkButton onClick={() => setEditingRole(role)}>
                         Edit Permissions
-                      </button>
-                      <button
+                      </LinkButton>
+                      <LinkButton
+                        variant="danger"
                         onClick={() => setDeletingRole(role)}
                         disabled={role.is_system}
-                        className="text-red-600 hover:text-red-900 disabled:opacity-30 disabled:cursor-not-allowed"
                         title={role.is_system ? 'System roles cannot be deleted' : undefined}
                       >
                         Delete
-                      </button>
+                      </LinkButton>
                     </div>
                   </td>
                 </tr>

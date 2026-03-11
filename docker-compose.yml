@@ -32,11 +32,11 @@ services:
 
   # Production web server (serves both API and frontend)
   ics-web:
-    #image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-stable}
-    build:
-      context: .
-      args:
-        VITE_APP_NAME: ${VITE_APP_NAME:-Allo-Scrapper}
+    image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-stable}
+    # build:
+    #   context: .
+    #   args:
+    #     VITE_APP_NAME: ${VITE_APP_NAME:-Allo-Scrapper}
     # Run as host user to allow volume writes while maintaining security
     # Set DOCKER_UID and DOCKER_GID in .env to match your host user
     # Defaults to 1000:1000 (standard Linux first user)
@@ -84,10 +84,10 @@ services:
 
   # Scraper microservice – long-running consumer (processes jobs from Redis queue)
   ics-scraper:
-    #image: ghcr.io/phbassin/allo-scrapper-scraper:${IMAGE_TAG:-stable}
-    build:
-      context: .
-      dockerfile: Dockerfile.scraper
+    image: ghcr.io/phbassin/allo-scrapper-scraper:${IMAGE_TAG:-stable}
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.scraper
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -114,10 +114,10 @@ services:
 
   # Scraper cron – scheduled automatic scraping (no Redis job queue needed)
   ics-scraper-cron:
-    #image: ghcr.io/phbassin/allo-scrapper-scraper:${IMAGE_TAG:-stable}
-    build:
-      context: .
-      dockerfile: Dockerfile.scraper
+    image: ghcr.io/phbassin/allo-scrapper-scraper:${IMAGE_TAG:-stable}
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.scraper
     restart: unless-stopped
     environment:
       NODE_ENV: production

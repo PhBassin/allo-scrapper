@@ -5,6 +5,7 @@ import ColorPicker from '../../components/admin/ColorPicker';
 import FontSelector from '../../components/admin/FontSelector';
 import ImageUpload from '../../components/admin/ImageUpload';
 import FooterLinksEditor from '../../components/admin/FooterLinksEditor';
+import Button from '../../components/ui/Button';
 
 type Tab = 'general' | 'colors' | 'typography' | 'footer' | 'email';
 
@@ -160,7 +161,7 @@ const SettingsPage: React.FC = () => {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`
-                                        py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                                        py-4 px-1 border-b-2 font-medium text-sm transition-colors cursor-pointer
                                         ${activeTab === tab.id
                                             ? 'border-blue-500 text-blue-600'
                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -336,13 +337,14 @@ const SettingsPage: React.FC = () => {
                     {/* Footer actions */}
                     <div className="border-t border-gray-200 p-6 bg-gray-50 flex items-center justify-between">
                         <div className="flex gap-2">
-                            <button
+                            <Button
+                                variant="secondary"
+                                size="sm"
                                 onClick={handleExport}
                                 disabled={isLoading}
-                                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Export
-                            </button>
+                            </Button>
                             <label className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer">
                                 Import
                                 <input
@@ -352,13 +354,14 @@ const SettingsPage: React.FC = () => {
                                     className="hidden"
                                 />
                             </label>
-                            <button
+                            <Button
+                                variant="danger"
+                                size="sm"
                                 onClick={handleReset}
                                 disabled={isLoading}
-                                className="px-4 py-2 text-sm text-red-700 border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Reset to Defaults
-                            </button>
+                            </Button>
                         </div>
 
                         <div className="flex items-center gap-4">
@@ -368,13 +371,12 @@ const SettingsPage: React.FC = () => {
                             {saveStatus === 'success' && (
                                 <p className="text-sm text-green-600">✓ Settings saved successfully</p>
                             )}
-                            <button
+                            <Button
                                 onClick={handleSave}
                                 disabled={!hasChanges || isLoading || saveStatus === 'saving'}
-                                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                             >
                                 {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
