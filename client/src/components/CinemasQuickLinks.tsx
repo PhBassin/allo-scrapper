@@ -4,11 +4,11 @@ import type { Cinema } from '../types';
 
 interface CinemasQuickLinksProps {
   cinemas: Cinema[];
-  isAuthenticated: boolean;
+  canAddCinema: boolean;
   onAddCinema: () => void;
 }
 
-function CinemasQuickLinks({ cinemas, isAuthenticated, onAddCinema }: CinemasQuickLinksProps) {
+function CinemasQuickLinks({ cinemas, canAddCinema, onAddCinema }: CinemasQuickLinksProps) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm mb-10">
       <h2 className="text-xs font-bold text-gray-400 uppercase mb-3 px-1">Accès rapide par cinéma</h2>
@@ -22,7 +22,7 @@ function CinemasQuickLinks({ cinemas, isAuthenticated, onAddCinema }: CinemasQui
             {cinema.name}
           </Link>
         ))}
-        {isAuthenticated && (
+        {canAddCinema && (
           <button
             onClick={onAddCinema}
             className="px-3 py-1.5 bg-white border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-primary hover:text-primary transition font-semibold cursor-pointer active:scale-95"
@@ -36,5 +36,5 @@ function CinemasQuickLinks({ cinemas, isAuthenticated, onAddCinema }: CinemasQui
 }
 
 // ⚡ PERFORMANCE: Memoize component to prevent re-renders when parent re-renders
-// but cinemas and isAuthenticated haven't changed.
+// but cinemas and canAddCinema haven't changed.
 export default memo(CinemasQuickLinks);

@@ -23,9 +23,9 @@ export default function ScrapeButton({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const { isAuthenticated } = useContext(AuthContext);
+  const { isAuthenticated, hasPermission } = useContext(AuthContext);
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !hasPermission('scraper:trigger')) {
     return null;
   }
 
