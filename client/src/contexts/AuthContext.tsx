@@ -5,6 +5,7 @@ export interface User {
     username: string;
     role_id: number;
     role_name: string;       // e.g. 'admin', 'operator'
+    is_system_role: boolean; // true only for built-in system roles (admin, operator)
     permissions: string[];   // e.g. ['scraper:trigger', 'cinemas:create', ...]
 }
 
@@ -40,7 +41,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     const isAuthenticated = !!token;
-    const isAdmin = user?.role_name === 'admin';
+    const isAdmin = user?.role_name === 'admin' && user?.is_system_role === true;
 
     const hasPermission = (permission: string): boolean => {
         if (!user) return false;

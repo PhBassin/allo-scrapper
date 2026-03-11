@@ -381,31 +381,54 @@ describe('Routes - Roles', () => {
     });
   });
 
-  // Permission guards — read routes must require roles:read, not users:list
-  describe('Permission guards', () => {
-    it('GET / should require roles:read permission', async () => {
-      const { requirePermission } = await import('../middleware/permission.js');
-      await import('./roles.js');
-      expect(requirePermission).toHaveBeenCalledWith('roles:read');
-    });
+});
 
-    it('GET /permissions should require roles:read permission', async () => {
-      const { requirePermission } = await import('../middleware/permission.js');
-      await import('./roles.js');
-      // requirePermission is called once per route registration; both GET / and GET /permissions
-      // should use roles:read — assert it was called with that value at least twice
-      const calls = (requirePermission as any).mock.calls.map((c: string[]) => c[0]);
-      expect(calls.filter((p: string) => p === 'roles:read').length).toBeGreaterThanOrEqual(2);
-    });
+// Permission guards — isolated describe so vi.resetModules() doesn't pollute other tests
+describe('Routes - Roles / Permission guards', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.doMock('../middleware/auth.js', () => ({
+      requireAuth: vi.fn((_req: any, _res: any, next: any) => next()),
+    }));
+    vi.doMock('../middleware/permission.js', () => ({
+      requirePermission: vi.fn((..._perms: string[]) => vi.fn((_req: any, _res: any, next: any) => next())),
+    }));
+    vi.doMock('../utils/logger.js', () => ({
+      logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
+    }));
+    vi.doMock('../db/role-queries.js', () => ({
+      getAllRoles: vi.fn(),
+      getRoleById: vi.fn(),
+      createRole: vi.fn(),
+      updateRole: vi.fn(),
+      deleteRole: vi.fn(),
+      setRolePermissions: vi.fn(),
+      getAllPermissions: vi.fn(),
+    }));
+  });
 
-    it('GET / should NOT require users:list permission', async () => {
-      const { requirePermission } = await import('../middleware/permission.js');
-      await import('./roles.js');
-      const calls = (requirePermission as any).mock.calls.map((c: string[]) => c[0]);
-      // The read-only routes (GET / and GET /permissions) must use roles:read, not users:list
-      // users:list may still appear for write routes — so we check the two read slots
-      const rolesReadCount = calls.filter((p: string) => p === 'roles:read').length;
-      expect(rolesReadCount).toBeGreaterThanOrEqual(2);
-    });
+  it('GET / should require roles:read permission', async () => {
+    const { requirePermission } = await import('../middleware/permission.js');
+    await import('./roles.js');
+    expect(requirePermission).toHaveBeenCalledWith('roles:read');
+  });
+
+  it('GET /permissions should require roles:read permission', async () => {
+    const { requirePermission } = await import('../middleware/permission.js');
+    await import('./roles.js');
+    // requirePermission is called once per route registration; both GET / and GET /permissions
+    // should use roles:read — assert it was called with that value at least twice
+    const calls = (requirePermission as any).mock.calls.map((c: string[]) => c[0]);
+    expect(calls.filter((p: string) => p === 'roles:read').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('GET / should NOT require users:list permission', async () => {
+    const { requirePermission } = await import('../middleware/permission.js');
+    await import('./roles.js');
+    const calls = (requirePermission as any).mock.calls.map((c: string[]) => c[0]);
+    // The read-only routes (GET / and GET /permissions) must use roles:read, not users:list
+    // users:list may still appear for write routes — so we check the two read slots
+    const rolesReadCount = calls.filter((p: string) => p === 'roles:read').length;
+    expect(rolesReadCount).toBeGreaterThanOrEqual(2);
   });
 });

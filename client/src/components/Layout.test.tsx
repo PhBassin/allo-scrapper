@@ -11,7 +11,7 @@ const mockAuthContext = {
   isAdmin: true,
   hasPermission: vi.fn(() => true),
   token: 'mock-token',
-  user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', permissions: ['scraper:trigger', 'cinemas:create'] },
+  user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['scraper:trigger', 'cinemas:create'] },
   login: vi.fn(),
   logout: vi.fn(),
 };
@@ -21,7 +21,7 @@ const mockNonAdminAuthContext = {
   isAdmin: false,
   hasPermission: vi.fn(() => false),
   token: 'mock-token',
-  user: { id: 2, username: 'user', role_id: 2, role_name: 'user', permissions: [] },
+  user: { id: 2, username: 'user', role_id: 2, role_name: 'user', is_system_role: false, permissions: [] },
   login: vi.fn(),
   logout: vi.fn(),
 };

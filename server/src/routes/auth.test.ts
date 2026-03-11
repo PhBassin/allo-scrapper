@@ -92,6 +92,48 @@ describe('Auth Routes', () => {
             expect(response.body.data.user.password_hash).toBeUndefined(); // Should not expose hash
         });
 
+        it('should return is_system_role in the user object for valid credentials', async () => {
+            const mockUser = {
+                id: 1,
+                username: 'admin',
+                password_hash: await bcrypt.hash('password123', 10),
+                role_id: 1,
+                role_name: 'admin',
+                is_system_role: true,
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+
+            const response = await request(app)
+                .post('/api/auth/login')
+                .send({ username: 'admin', password: 'password123' });
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+            expect(response.body.data.user.is_system_role).toBe(true);
+        });
+
+        it('should return is_system_role=false for non-system role in the user object', async () => {
+            const mockUser = {
+                id: 2,
+                username: 'operator',
+                password_hash: await bcrypt.hash('password123', 10),
+                role_id: 2,
+                role_name: 'operator',
+                is_system_role: false,
+                created_at: new Date().toISOString()
+            };
+            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+
+            const response = await request(app)
+                .post('/api/auth/login')
+                .send({ username: 'operator', password: 'password123' });
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+            expect(response.body.data.user.is_system_role).toBe(false);
+        });
+
         it('should return permissions in the user object for valid credentials', async () => {
             const mockUser = {
                 id: 1,
