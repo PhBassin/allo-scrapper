@@ -20,7 +20,8 @@ WORKDIR /app/client
 COPY client/package*.json ./
 
 # Install dependencies with aggressive cleanup
-RUN npm ci && \
+# Note: --legacy-peer-deps required for ESLint 10 peer dependency compatibility
+RUN npm ci --legacy-peer-deps && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/* /var/tmp/*
 
@@ -46,6 +47,7 @@ COPY server/package*.json ./
 COPY server/tsconfig.json ./
 
 # Install dependencies (including dev dependencies for build) with aggressive cleanup
+# Note: --legacy-peer-deps not needed for server (no peer dependency conflicts)
 RUN npm ci && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/* /var/tmp/*
