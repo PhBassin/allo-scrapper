@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import {
   generalLimiter,
   authLimiter,
@@ -9,6 +10,10 @@ import {
   scraperLimiter,
   publicLimiter,
 } from './rate-limit.js';
+
+// Helper: sign a minimal JWT for rate-limit key tests (secret doesn't matter — we use jwt.decode)
+const makeToken = (userId: number): string =>
+  jwt.sign({ id: userId, username: `user${userId}` }, 'test-secret');
 
 describe('Rate Limiting Middleware', () => {
   let app: express.Application;
@@ -128,6 +133,85 @@ describe('Rate Limiting Middleware', () => {
       const response = await request(app).get('/public');
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
+    });
+  });
+
+  describe('protectedLimiter — per-user key generation', () => {
+    it('should use user id as rate-limit key so two users on same IP have independent quotas', async () => {
+      // Create a tight-limit app to make exhaustion testable without 60 requests
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      const { default: rateLimit } = await import('express-rate-limit');
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      const tightLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 2,
+        skip: () => false,
+        keyGenerator: authenticatedKeyGenerator,
+      });
+      tightApp.get('/p', tightLimiter, (_req, res) => res.json({ ok: true }));
+
+      const token1 = makeToken(1);
+      const token2 = makeToken(2);
+      const sameIp = '1.2.3.4';
+
+      // Exhaust user 1's quota (2 requests)
+      await request(tightApp).get('/p').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp);
+      await request(tightApp).get('/p').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp);
+      const exhausted = await request(tightApp).get('/p').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp);
+      expect(exhausted.status).toBe(429);
+
+      // User 2 on same IP should still have full quota
+      const user2res = await request(tightApp).get('/p').set('Authorization', `Bearer ${token2}`).set('X-Forwarded-For', sameIp);
+      expect(user2res.status).toBe(200);
+    });
+
+    it('should fall back to IP when no Authorization header is present', async () => {
+      app.get('/protected-fallback', protectedLimiter, (_req, res) => {
+        res.json({ success: true });
+      });
+      const response = await request(app)
+        .get('/protected-fallback')
+        .set('X-Forwarded-For', '5.6.7.8');
+      expect(response.status).toBe(200);
+    });
+
+    it('should fall back to IP when Authorization header contains a malformed token', async () => {
+      app.get('/protected-malformed', protectedLimiter, (_req, res) => {
+        res.json({ success: true });
+      });
+      const response = await request(app)
+        .get('/protected-malformed')
+        .set('Authorization', 'Bearer not.a.valid.jwt');
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe('scraperLimiter — per-user key generation', () => {
+    it('should use user id as rate-limit key so two users on same IP have independent quotas', async () => {
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      const { default: rateLimit } = await import('express-rate-limit');
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      const tightLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 2,
+        skip: () => false,
+        keyGenerator: authenticatedKeyGenerator,
+      });
+      tightApp.post('/scrape', tightLimiter, (_req, res) => res.json({ ok: true }));
+
+      const token1 = makeToken(10);
+      const token2 = makeToken(11);
+      const sameIp = '2.3.4.5';
+
+      await request(tightApp).post('/scrape').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp).send({});
+      await request(tightApp).post('/scrape').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp).send({});
+      const exhausted = await request(tightApp).post('/scrape').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp).send({});
+      expect(exhausted.status).toBe(429);
+
+      const user2res = await request(tightApp).post('/scrape').set('Authorization', `Bearer ${token2}`).set('X-Forwarded-For', sameIp).send({});
+      expect(user2res.status).toBe(200);
     });
   });
 
