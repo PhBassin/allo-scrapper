@@ -1,5 +1,8 @@
 import React from 'react';
 import type { FooterLink } from '../../api/settings';
+import Button from '../ui/Button';
+import LinkButton from '../ui/LinkButton';
+import IconButton from '../ui/IconButton';
 
 interface FooterLinksEditorProps {
     value: FooterLink[];
@@ -51,27 +54,27 @@ const FooterLinksEditor: React.FC<FooterLinksEditorProps> = ({
                 <label className="text-sm font-medium text-gray-700">
                     Footer Links
                 </label>
-                <button
+                <Button
+                    size="sm"
                     type="button"
                     onClick={handleAdd}
                     disabled={disabled}
-                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
                     + Add Link
-                </button>
+                </Button>
             </div>
 
             {value.length === 0 ? (
                 <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
                     <p className="text-gray-500">No footer links yet</p>
-                    <button
+                    <LinkButton
                         type="button"
                         onClick={handleAdd}
                         disabled={disabled}
-                        className="mt-2 text-blue-600 hover:text-blue-700 underline"
+                        className="mt-2 underline"
                     >
                         Add your first link
-                    </button>
+                    </LinkButton>
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -82,28 +85,28 @@ const FooterLinksEditor: React.FC<FooterLinksEditorProps> = ({
                         >
                             {/* Reorder buttons */}
                             <div className="flex flex-col gap-1">
-                                <button
+                                <IconButton
                                     type="button"
                                     onClick={() => handleMoveUp(index)}
                                     disabled={disabled || index === 0}
-                                    className="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
-                                    title="Move up"
+                                    className="p-1"
+                                    aria-label="Move up"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                                     </svg>
-                                </button>
-                                <button
+                                </IconButton>
+                                <IconButton
                                     type="button"
                                     onClick={() => handleMoveDown(index)}
                                     disabled={disabled || index === value.length - 1}
-                                    className="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
-                                    title="Move down"
+                                    className="p-1"
+                                    aria-label="Move down"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
-                                </button>
+                                </IconButton>
                             </div>
 
                             {/* Input fields */}
@@ -133,17 +136,18 @@ const FooterLinksEditor: React.FC<FooterLinksEditorProps> = ({
                             </div>
 
                             {/* Remove button */}
-                            <button
+                            <IconButton
+                                variant="danger"
                                 type="button"
                                 onClick={() => handleRemove(index)}
                                 disabled={disabled}
-                                className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                                title="Remove link"
+                                className="p-2 hover:bg-red-50 rounded"
+                                aria-label="Remove link"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
-                            </button>
+                            </IconButton>
                         </div>
                     ))}
                 </div>

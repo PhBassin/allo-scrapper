@@ -8,6 +8,8 @@ import EditCinemaModal from '../../components/admin/EditCinemaModal';
 import DeleteCinemaDialog from '../../components/admin/DeleteCinemaDialog';
 import ScrapeButton from '../../components/ScrapeButton';
 import ScrapeProgress from '../../components/ScrapeProgress';
+import Button from '../../components/ui/Button';
+import LinkButton from '../../components/ui/LinkButton';
 
 const SUCCESS_DISMISS_MS = 5000;
 
@@ -156,13 +158,12 @@ const CinemasPage: React.FC = () => {
             successText="Scraping démarré !"
             testId="scrape-all-button"
           />
-          <button
+          <Button
             onClick={() => setShowAddModal(true)}
             data-testid="add-cinema-button"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
           >
             Add Cinema
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -248,7 +249,8 @@ const CinemasPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                      <div className="flex justify-end gap-2">
-                       <button
+                       <LinkButton
+                         variant="success"
                          onClick={() => {
                            setScrapingCinemaId(cinema.id);
                            triggerCinemaScrape(cinema.id)
@@ -256,27 +258,25 @@ const CinemasPage: React.FC = () => {
                              .catch(() => setScrapingCinemaId(null));
                          }}
                          data-testid={`scrape-cinema-${cinema.id}`}
-                         className="text-green-600 hover:text-green-900"
                        >
                          Scraper
-                       </button>
-                       <button
+                       </LinkButton>
+                       <LinkButton
                          onClick={() => setCinemaToEdit(cinema)}
                          data-testid={`edit-cinema-${cinema.id}`}
-                         className="text-blue-600 hover:text-blue-900"
                        >
                          Edit
-                       </button>
-                       <button
+                       </LinkButton>
+                       <LinkButton
+                         variant="danger"
                          onClick={() => {
                            setCinemaToDelete(cinema);
                            setDeleteError(null);
                          }}
                          data-testid={`delete-cinema-${cinema.id}`}
-                         className="text-red-600 hover:text-red-900"
                        >
                          Delete
-                       </button>
+                       </LinkButton>
                      </div>
                    </td>
                 </tr>

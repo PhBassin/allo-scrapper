@@ -7,6 +7,8 @@ import RoleBadge from '../../components/admin/RoleBadge';
 import CreateUserModal from '../../components/admin/CreateUserModal';
 import DeleteUserDialog from '../../components/admin/DeleteUserDialog';
 import PasswordResetDialog from '../../components/admin/PasswordResetDialog';
+import Button from '../../components/ui/Button';
+import LinkButton from '../../components/ui/LinkButton';
 
 // ────────────────────────────────────────────────────────────────
 // ChangeRoleModal — select a new role from a dropdown
@@ -69,20 +71,19 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ user, roles, onClose,
         )}
 
         <div className="flex justify-end gap-3">
-          <button
+          <Button
+            variant="secondary"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
             {isSubmitting ? 'Saving...' : 'Confirm'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -205,12 +206,9 @@ const UsersPage: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
-        >
+        <Button onClick={() => setShowCreateModal(true)}>
           Create User
-        </button>
+        </Button>
       </div>
 
       {/* Error Message */}
@@ -261,24 +259,23 @@ const UsersPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
-                        <button
+                        <LinkButton
                           onClick={() => setUserForRoleChange(user)}
-                          className="text-blue-600 hover:text-blue-900"
                         >
                           Change Role
-                        </button>
-                        <button
+                        </LinkButton>
+                        <LinkButton
+                          variant="warning"
                           onClick={() => handleResetPassword(user.id)}
-                          className="text-yellow-600 hover:text-yellow-900"
                         >
                           Reset Password
-                        </button>
-                        <button
+                        </LinkButton>
+                        <LinkButton
+                          variant="danger"
                           onClick={() => setUserToDelete(user)}
-                          className="text-red-600 hover:text-red-900"
                         >
                           Delete
-                        </button>
+                        </LinkButton>
                       </div>
                     </td>
                   </tr>
