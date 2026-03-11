@@ -6,11 +6,11 @@ import { AuthContext } from '../contexts/AuthContext';
 const mockAuthContext = {
   isAuthenticated: true,
   token: 'mock-token',
-  user: { id: 1, username: 'testuser', role_id: 2, role_name: 'user', permissions: [] },
+  user: { id: 1, username: 'testuser', role_id: 2, role_name: 'operator', permissions: ['scraper:trigger'] },
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: false,
-  hasPermission: vi.fn(() => false),
+  hasPermission: vi.fn((p: string) => p === 'scraper:trigger'),
 };
 
 const renderWithAuth = (ui: React.ReactElement) => {
@@ -118,5 +118,43 @@ describe('ScrapeButton', () => {
     await waitFor(() => {
       expect(button).toHaveClass('cursor-not-allowed');
     });
+  });
+
+  it('should NOT render when user lacks scraper:trigger permission', () => {
+    const noPermContext = {
+      ...mockAuthContext,
+      hasPermission: vi.fn(() => false),
+    };
+
+    render(
+      <AuthContext.Provider value={noPermContext}>
+        <ScrapeButton onTrigger={mockOnTrigger} testId="scrape-button" />
+      </AuthContext.Provider>
+    );
+
+    expect(screen.queryByTestId('scrape-button')).not.toBeInTheDocument();
+  });
+
+  it('should render when user has scraper:trigger permission', () => {
+    mockOnTrigger.mockResolvedValue(undefined);
+    renderWithAuth(<ScrapeButton onTrigger={mockOnTrigger} testId="scrape-button" />);
+
+    expect(screen.getByTestId('scrape-button')).toBeInTheDocument();
+  });
+
+  it('should NOT render when user is unauthenticated', () => {
+    const unauthContext = {
+      ...mockAuthContext,
+      isAuthenticated: false,
+      hasPermission: vi.fn(() => false),
+    };
+
+    render(
+      <AuthContext.Provider value={unauthContext}>
+        <ScrapeButton onTrigger={mockOnTrigger} testId="scrape-button" />
+      </AuthContext.Provider>
+    );
+
+    expect(screen.queryByTestId('scrape-button')).not.toBeInTheDocument();
   });
 });
