@@ -286,7 +286,7 @@ jobs:
         run: echo "value=$(cat /tmp/merged-digest-${{ matrix.image }}.txt)" >> $GITHUB_OUTPUT
 
       - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ steps.image.outputs.name }}
           subject-digest: ${{ steps.digest.outputs.value }}
