@@ -13,3 +13,7 @@
 **Vulnerability:** Weak shuffling of generated passwords using `Array.prototype.sort(() => crypto.randomInt(0, 2) - 0.5)`. This introduces bias, leading to an uneven distribution of characters where the first 4 specific characters (Uppercase, Lowercase, Digit, Special) might remain in predictable positions, reducing the password's entropy and strength.
 **Learning:** `Array.prototype.sort()` is designed for sorting, not shuffling. Its implementation (often TimSort or QuickSort) makes it non-uniform for shuffling, even with a cryptographically secure random number generator in the comparison function.
 **Prevention:** Use a cryptographically secure algorithm like Fisher-Yates shuffle combined with a secure random number generator (e.g., `crypto.randomInt`) for security-sensitive shuffling tasks such as password generation.
+## 2026-03-11 - [Add input length limits for users pagination]
+**Vulnerability:** The `limit` query parameter on `GET /api/users` lacked an upper bound.
+**Learning:** This exposes the application to Denial of Service (DoS) attacks if a malicious user requests millions of records, causing high memory and DB strain.
+**Prevention:** Always validate and safely clamp all unbounded inputs related to database pagination arrays/limits (e.g., max 100 limits).

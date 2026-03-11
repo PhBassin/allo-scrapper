@@ -132,6 +132,17 @@ describe('User Management Routes', () => {
       expect(userQueries.getAllUsers).toHaveBeenCalledWith(db, { limit: 50, offset: 0 });
     });
 
+    it('should clamp limit query parameter to 100 max', async () => {
+      vi.mocked(userQueries.getAllUsers).mockResolvedValue([]);
+
+      const response = await request(app)
+        .get('/api/users?limit=1000')
+        .set('Authorization', 'Bearer valid-admin-token');
+
+      expect(response.status).toBe(200);
+      expect(userQueries.getAllUsers).toHaveBeenCalledWith(db, { limit: 100, offset: 0 });
+    });
+
     it('should support offset query parameter', async () => {
       vi.mocked(userQueries.getAllUsers).mockResolvedValue([]);
 
