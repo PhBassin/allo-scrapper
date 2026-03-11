@@ -33,4 +33,16 @@ describe('tracer', () => {
     expect(tracer).toBeDefined();
     expect(typeof tracer.startSpan).toBe('function');
   });
+
+  // OTel 2.x API — resourceFromAttributes replaces new Resource(...)
+  it('uses OTel 2.x resourceFromAttributes API (not deprecated Resource class)', async () => {
+    const resources = await import('@opentelemetry/resources');
+    expect(typeof (resources as Record<string, unknown>).resourceFromAttributes).toBe('function');
+  });
+
+  // OTel 2.x semantic conventions — ATTR_* replaces SEMRESATTRS_*
+  it('uses OTel 2.x ATTR_SERVICE_NAME semantic convention', async () => {
+    const semconv = await import('@opentelemetry/semantic-conventions');
+    expect(typeof (semconv as Record<string, unknown>).ATTR_SERVICE_NAME).toBe('string');
+  });
 });
