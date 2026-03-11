@@ -324,6 +324,52 @@ describe('AdminPage', () => {
     });
   });
 
+  describe('roles:read permission - decoupled from users:list', () => {
+    const rolesReadOnlyUser: User = {
+      id: 10,
+      username: 'roles-viewer',
+      role_id: 10,
+      role_name: 'roles-viewer',
+      is_system_role: false,
+      permissions: ['roles:read'],
+    };
+
+    const usersListOnlyUser: User = {
+      id: 11,
+      username: 'users-lister',
+      role_id: 11,
+      role_name: 'users-lister',
+      is_system_role: false,
+      permissions: ['users:list'],
+    };
+
+    it('should show Roles tab for a user with roles:read but NOT users:list', () => {
+      renderWithRouter('/admin', rolesReadOnlyUser);
+
+      expect(screen.getByRole('tab', { name: 'Roles' })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Users' })).not.toBeInTheDocument();
+    });
+
+    it('should show Users tab but NOT Roles tab for a user with users:list but NOT roles:read', () => {
+      renderWithRouter('/admin', usersListOnlyUser);
+
+      expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Roles' })).not.toBeInTheDocument();
+    });
+
+    it('should allow navigation to Roles tab with roles:read permission', () => {
+      renderWithRouter('/admin?tab=roles', rolesReadOnlyUser);
+
+      expect(screen.getByTestId('roles-content')).toBeInTheDocument();
+    });
+
+    it('should redirect user with only users:list away from roles tab', () => {
+      renderWithRouter('/admin?tab=roles', usersListOnlyUser);
+
+      expect(screen.queryByTestId('roles-content')).not.toBeInTheDocument();
+    });
+  });
+
   describe('Non-system role named "admin" - is_system_role=false', () => {
     it('should NOT grant all tabs to a custom role named admin with is_system_role=false', () => {
       renderWithRouter('/admin', fakeAdminUser);

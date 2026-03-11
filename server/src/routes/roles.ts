@@ -18,14 +18,14 @@ const router = express.Router();
 
 /**
  * GET /api/permissions
- * List all available permissions (requires users:list)
+ * List all available permissions (requires roles:read)
  * Registered before /:id to avoid conflict
  */
 router.get(
   '/permissions',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:list'),
+  requirePermission('roles:read'),
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
@@ -42,13 +42,13 @@ router.get(
 
 /**
  * GET /api/roles
- * List all roles with their permissions (requires users:list)
+ * List all roles with their permissions (requires roles:read)
  */
 router.get(
   '/',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:list'),
+  requirePermission('roles:read'),
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
@@ -65,13 +65,13 @@ router.get(
 
 /**
  * GET /api/roles/:id
- * Get a specific role with its permissions (requires users:list)
+ * Get a specific role with its permissions (requires roles:read)
  */
 router.get(
   '/:id',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:list'),
+  requirePermission('roles:read'),
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
