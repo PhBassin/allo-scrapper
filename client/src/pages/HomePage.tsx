@@ -16,7 +16,7 @@ export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated } = useContext(AuthContext);
+  const { isAuthenticated, hasPermission } = useContext(AuthContext);
 
   const loadData = async (date?: string | null) => {
     try {
@@ -139,7 +139,7 @@ export default function HomePage() {
       {/* Quick Cinema Links - Below sticky header */}
       <CinemasQuickLinks
         cinemas={cinemas}
-        isAuthenticated={isAuthenticated}
+        canAddCinema={isAuthenticated && hasPermission('cinemas:create')}
         onAddCinema={handleAddCinema}
       />
 

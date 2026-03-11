@@ -77,12 +77,12 @@ const mockAuthContext = {
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: true,
-  hasPermission: vi.fn(() => true),
+  hasPermission: vi.fn<(p: string) => boolean>(() => true),
 };
 
-const renderWithAuth = (ui: React.ReactElement) =>
+const renderWithAuth = (ui: React.ReactElement, authOverrides?: Partial<typeof mockAuthContext>) =>
   render(
-    <AuthContext.Provider value={mockAuthContext}>
+    <AuthContext.Provider value={{ ...mockAuthContext, ...authOverrides }}>
       <MemoryRouter>{ui}</MemoryRouter>
     </AuthContext.Provider>
   );
@@ -250,5 +250,102 @@ describe('CinemasPage - Scraping buttons not on public pages', () => {
 
     // Scrape All button is present in admin
     expect(screen.getByTestId('scrape-all-button')).toBeInTheDocument();
+  });
+});
+
+describe('CinemasPage - permission-based button visibility', () => {
+  beforeEach(() => {
+    vi.mocked(cinemasApi.getCinemas).mockResolvedValue(mockCinemas);
+    vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ isRunning: false });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('hides "Add Cinema" button when user lacks cinemas:create permission', async () => {
+    renderWithAuth(<CinemasPage />, {
+      hasPermission: vi.fn((p: string) => p !== 'cinemas:create'),
+    });
+
+    await screen.findByText('UGC Ciné Cité Paris');
+
+    expect(screen.queryByTestId('add-cinema-button')).not.toBeInTheDocument();
+  });
+
+  it('shows "Add Cinema" button when user has cinemas:create permission', async () => {
+    renderWithAuth(<CinemasPage />, {
+      hasPermission: vi.fn(() => true),
+    });
+
+    await screen.findByText('UGC Ciné Cité Paris');
+
+    expect(screen.getByTestId('add-cinema-button')).toBeInTheDocument();
+  });
+
+  it('hides per-row "Edit" button when user lacks cinemas:update permission', async () => {
+    renderWithAuth(<CinemasPage />, {
+      hasPermission: vi.fn((p: string) => p !== 'cinemas:update'),
+    });
+
+    await screen.findByText('UGC Ciné Cité Paris');
+
+    expect(screen.queryByTestId('edit-cinema-C0153')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('edit-cinema-C0002')).not.toBeInTheDocument();
+  });
+
+  it('shows per-row "Edit" button when user has cinemas:update permission', async () => {
+    renderWithAuth(<CinemasPage />, {
+      hasPermission: vi.fn(() => true),
+    });
+
+    await screen.findByText('UGC Ciné Cité Paris');
+
+    expect(screen.getByTestId('edit-cinema-C0153')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-cinema-C0002')).toBeInTheDocument();
+  });
+
+  it('hides per-row "Delete" button when user lacks cinemas:delete permission', async () => {
+    renderWithAuth(<CinemasPage />, {
+      hasPermission: vi.fn((p: string) => p !== 'cinemas:delete'),
+    });
+
+    await screen.findByText('UGC Ciné Cité Paris');
+
+    expect(screen.queryByTestId('delete-cinema-C0153')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('delete-cinema-C0002')).not.toBeInTheDocument();
+  });
+
+  it('shows per-row "Delete" button when user has cinemas:delete permission', async () => {
+    renderWithAuth(<CinemasPage />, {
+      hasPermission: vi.fn(() => true),
+    });
+
+    await screen.findByText('UGC Ciné Cité Paris');
+
+    expect(screen.getByTestId('delete-cinema-C0153')).toBeInTheDocument();
+    expect(screen.getByTestId('delete-cinema-C0002')).toBeInTheDocument();
+  });
+
+  it('hides per-row "Scraper" button when user lacks scraper:trigger_single permission', async () => {
+    renderWithAuth(<CinemasPage />, {
+      hasPermission: vi.fn((p: string) => p !== 'scraper:trigger_single'),
+    });
+
+    await screen.findByText('UGC Ciné Cité Paris');
+
+    expect(screen.queryByTestId('scrape-cinema-C0153')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('scrape-cinema-C0002')).not.toBeInTheDocument();
+  });
+
+  it('shows per-row "Scraper" button when user has scraper:trigger_single permission', async () => {
+    renderWithAuth(<CinemasPage />, {
+      hasPermission: vi.fn(() => true),
+    });
+
+    await screen.findByText('UGC Ciné Cité Paris');
+
+    expect(screen.getByTestId('scrape-cinema-C0153')).toBeInTheDocument();
+    expect(screen.getByTestId('scrape-cinema-C0002')).toBeInTheDocument();
   });
 });

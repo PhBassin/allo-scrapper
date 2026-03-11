@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import AdminPage from './AdminPage';
+import { AuthContext } from '../../contexts/AuthContext';
+import type { User } from '../../contexts/AuthContext';
 
 // Mock child pages
 vi.mock('./CinemasPage', () => ({
@@ -28,13 +30,50 @@ vi.mock('../../components/admin/RoleManagementPage', () => ({
   default: () => <div data-testid="roles-content">Roles Page</div>,
 }));
 
-// Helper to render with router
-const renderWithRouter = (initialRoute = '/admin') => {
+const adminUser: User = {
+  id: 1,
+  username: 'admin',
+  role_id: 1,
+  role_name: 'admin',
+  permissions: [],
+};
+
+const operatorUser: User = {
+  id: 2,
+  username: 'operator',
+  role_id: 2,
+  role_name: 'operator',
+  permissions: [
+    'scraper:trigger',
+    'scraper:trigger_single',
+    'cinemas:create',
+    'cinemas:update',
+    'cinemas:delete',
+    'reports:list',
+    'reports:view',
+  ],
+};
+
+const makeAuthContext = (user: User) => ({
+  isAuthenticated: true,
+  token: 'mock-token',
+  user,
+  isAdmin: user.role_name === 'admin',
+  hasPermission: (permission: string) =>
+    user.role_name === 'admin' || user.permissions.includes(permission),
+  login: vi.fn(),
+  logout: vi.fn(),
+});
+
+// Helper to render with router and optional auth context
+const renderWithRouter = (initialRoute = '/admin', user: User = adminUser) => {
   window.history.pushState({}, 'Test', initialRoute);
   return render(
-    <BrowserRouter>
-      <AdminPage />
-    </BrowserRouter>
+    <AuthContext.Provider value={makeAuthContext(user)}>
+      <BrowserRouter>
+        <AdminPage />
+      </BrowserRouter>
+    </AuthContext.Provider>
   );
 };
 
@@ -182,8 +221,8 @@ describe('AdminPage', () => {
     });
   });
 
-  describe('Tab order', () => {
-    it('should display tabs in correct order: Cinemas, Rapports, Users, Roles, Settings, System', () => {
+  describe('Tab order (admin)', () => {
+    it('should display all 6 tabs in correct order for admin: Cinemas, Rapports, Users, Roles, Settings, System', () => {
       renderWithRouter('/admin');
 
       const tabs = screen.getAllByRole('tab');
@@ -194,6 +233,82 @@ describe('AdminPage', () => {
       expect(tabs[3]).toHaveTextContent('Roles');
       expect(tabs[4]).toHaveTextContent('Settings');
       expect(tabs[5]).toHaveTextContent('System');
+    });
+  });
+
+  describe('Operator role - tab visibility', () => {
+    it('should only show Cinemas and Rapports tabs for operator', () => {
+      renderWithRouter('/admin', operatorUser);
+
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs).toHaveLength(2);
+      expect(tabs[0]).toHaveTextContent('Cinemas');
+      expect(tabs[1]).toHaveTextContent('Rapports');
+    });
+
+    it('should NOT show Users tab for operator', () => {
+      renderWithRouter('/admin', operatorUser);
+
+      expect(screen.queryByRole('tab', { name: 'Users' })).not.toBeInTheDocument();
+    });
+
+    it('should NOT show Roles tab for operator', () => {
+      renderWithRouter('/admin', operatorUser);
+
+      expect(screen.queryByRole('tab', { name: 'Roles' })).not.toBeInTheDocument();
+    });
+
+    it('should NOT show Settings tab for operator', () => {
+      renderWithRouter('/admin', operatorUser);
+
+      expect(screen.queryByRole('tab', { name: 'Settings' })).not.toBeInTheDocument();
+    });
+
+    it('should NOT show System tab for operator', () => {
+      renderWithRouter('/admin', operatorUser);
+
+      expect(screen.queryByRole('tab', { name: 'System' })).not.toBeInTheDocument();
+    });
+
+    it('should show Cinemas content by default for operator', () => {
+      renderWithRouter('/admin', operatorUser);
+
+      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+    });
+
+    it('should redirect operator from a forbidden tab (users) to cinemas', () => {
+      renderWithRouter('/admin?tab=users', operatorUser);
+
+      // Should fall back to cinemas content since users tab is not allowed
+      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      expect(screen.queryByTestId('users-content')).not.toBeInTheDocument();
+    });
+
+    it('should redirect operator from a forbidden tab (roles) to cinemas', () => {
+      renderWithRouter('/admin?tab=roles', operatorUser);
+
+      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      expect(screen.queryByTestId('roles-content')).not.toBeInTheDocument();
+    });
+
+    it('should redirect operator from a forbidden tab (settings) to cinemas', () => {
+      renderWithRouter('/admin?tab=settings', operatorUser);
+
+      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      expect(screen.queryByTestId('settings-content')).not.toBeInTheDocument();
+    });
+
+    it('should redirect operator from a forbidden tab (system) to cinemas', () => {
+      renderWithRouter('/admin?tab=system', operatorUser);
+
+      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      expect(screen.queryByTestId('system-content')).not.toBeInTheDocument();
+    });
+
+    it('should allow operator to navigate to rapports tab', () => {
+      renderWithRouter('/admin?tab=rapports', operatorUser);
+
+      expect(screen.getByTestId('reports-content')).toBeInTheDocument();
     });
   });
 });

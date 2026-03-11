@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { getCinemas, createCinema, updateCinema, deleteCinema } from '../../api/cinemas';
 import type { CinemaCreate, CinemaUpdate } from '../../api/cinemas';
 import { triggerScrape, triggerCinemaScrape, getScrapeStatus } from '../../api/client';
@@ -10,10 +10,18 @@ import ScrapeButton from '../../components/ScrapeButton';
 import ScrapeProgress from '../../components/ScrapeProgress';
 import Button from '../../components/ui/Button';
 import LinkButton from '../../components/ui/LinkButton';
+import { AuthContext } from '../../contexts/AuthContext';
 
 const SUCCESS_DISMISS_MS = 5000;
 
 const CinemasPage: React.FC = () => {
+  const { hasPermission } = useContext(AuthContext);
+  const canScrapeAll = hasPermission('scraper:trigger');
+  const canScrapeSingle = hasPermission('scraper:trigger_single');
+  const canCreate = hasPermission('cinemas:create');
+  const canUpdate = hasPermission('cinemas:update');
+  const canDelete = hasPermission('cinemas:delete');
+
   const [cinemas, setCinemas] = useState<Cinema[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -150,20 +158,24 @@ const CinemasPage: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Cinema Management</h1>
         <div className="flex items-center gap-3">
-          <ScrapeButton
-            onTrigger={async () => { await triggerScrape(); }}
-            onScrapeStart={handleScrapeStart}
-            buttonText="Scraper tous les cinémas"
-            loadingText="Scraping..."
-            successText="Scraping démarré !"
-            testId="scrape-all-button"
-          />
-          <Button
-            onClick={() => setShowAddModal(true)}
-            data-testid="add-cinema-button"
-          >
-            Add Cinema
-          </Button>
+          {canScrapeAll && (
+            <ScrapeButton
+              onTrigger={async () => { await triggerScrape(); }}
+              onScrapeStart={handleScrapeStart}
+              buttonText="Scraper tous les cinémas"
+              loadingText="Scraping..."
+              successText="Scraping démarré !"
+              testId="scrape-all-button"
+            />
+          )}
+          {canCreate && (
+            <Button
+              onClick={() => setShowAddModal(true)}
+              data-testid="add-cinema-button"
+            >
+              Add Cinema
+            </Button>
+          )}
         </div>
       </div>
 
@@ -249,34 +261,40 @@ const CinemasPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                      <div className="flex justify-end gap-2">
-                       <LinkButton
-                         variant="success"
-                         onClick={() => {
-                           setScrapingCinemaId(cinema.id);
-                           triggerCinemaScrape(cinema.id)
-                             .then(() => handleScrapeStart())
-                             .catch(() => setScrapingCinemaId(null));
-                         }}
-                         data-testid={`scrape-cinema-${cinema.id}`}
-                       >
-                         Scraper
-                       </LinkButton>
-                       <LinkButton
-                         onClick={() => setCinemaToEdit(cinema)}
-                         data-testid={`edit-cinema-${cinema.id}`}
-                       >
-                         Edit
-                       </LinkButton>
-                       <LinkButton
-                         variant="danger"
-                         onClick={() => {
-                           setCinemaToDelete(cinema);
-                           setDeleteError(null);
-                         }}
-                         data-testid={`delete-cinema-${cinema.id}`}
-                       >
-                         Delete
-                       </LinkButton>
+                       {canScrapeSingle && (
+                         <LinkButton
+                           variant="success"
+                           onClick={() => {
+                             setScrapingCinemaId(cinema.id);
+                             triggerCinemaScrape(cinema.id)
+                               .then(() => handleScrapeStart())
+                               .catch(() => setScrapingCinemaId(null));
+                           }}
+                           data-testid={`scrape-cinema-${cinema.id}`}
+                         >
+                           Scraper
+                         </LinkButton>
+                       )}
+                       {canUpdate && (
+                         <LinkButton
+                           onClick={() => setCinemaToEdit(cinema)}
+                           data-testid={`edit-cinema-${cinema.id}`}
+                         >
+                           Edit
+                         </LinkButton>
+                       )}
+                       {canDelete && (
+                         <LinkButton
+                           variant="danger"
+                           onClick={() => {
+                             setCinemaToDelete(cinema);
+                             setDeleteError(null);
+                           }}
+                           data-testid={`delete-cinema-${cinema.id}`}
+                         >
+                           Delete
+                         </LinkButton>
+                       )}
                      </div>
                    </td>
                 </tr>
