@@ -69,7 +69,7 @@ export default function ScrapeButton({
           transition-all duration-200 
           ${isLoading
             ? 'bg-gray-300 cursor-not-allowed'
-            : 'bg-primary hover:bg-yellow-500 active:scale-95'
+            : 'bg-primary hover:bg-yellow-500 active:scale-95 cursor-pointer'
           }
           ${success ? 'ring-2 ring-green-500' : ''}
         `}
