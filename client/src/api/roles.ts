@@ -55,7 +55,7 @@ export const rolesApi = {
 
   // List all available permissions
   getAllPermissions: (): Promise<Permission[]> =>
-    apiClient.get('/permissions').then(r => 
-      validateResponse(z.array(PermissionSchema), r.data.data, 'GET /permissions')
+    apiClient.get('/roles/permissions').then(r => 
+      validateResponse(z.array(PermissionSchema), r.data.data, 'GET /roles/permissions')
     ),
 };

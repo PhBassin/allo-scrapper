@@ -134,6 +134,14 @@ export function createApp() {
     }
   });
 
+  // 404 handler for API routes (must be BEFORE SPA fallback)
+  app.use('/api/*', (_req, res) => {
+    res.status(404).json({
+      success: false,
+      error: 'API endpoint not found',
+    });
+  });
+
   // Serve React static files in production
   if (process.env.NODE_ENV === 'production') {
     const publicPath = path.join(__dirname, '../public');
@@ -144,14 +152,6 @@ export function createApp() {
       res.sendFile(path.join(publicPath, 'index.html'));
     });
   }
-
-  // 404 handler for API routes
-  app.use('/api/*', (_req, res) => {
-    res.status(404).json({
-      success: false,
-      error: 'API endpoint not found',
-    });
-  });
 
   // Error handler
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
