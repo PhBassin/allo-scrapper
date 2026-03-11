@@ -99,4 +99,24 @@ describe('ScrapeButton', () => {
       expect(screen.getByText('Server exploded')).toBeInTheDocument();
     });
   });
+
+  it('should have cursor-pointer class when enabled', () => {
+    mockOnTrigger.mockResolvedValue(undefined);
+    renderWithAuth(<ScrapeButton onTrigger={mockOnTrigger} testId="scrape-button" />);
+
+    const button = screen.getByTestId('scrape-button');
+    expect(button).toHaveClass('cursor-pointer');
+  });
+
+  it('should have cursor-not-allowed class when loading', async () => {
+    mockOnTrigger.mockImplementation(() => new Promise(() => {})); // Never resolves
+    renderWithAuth(<ScrapeButton onTrigger={mockOnTrigger} testId="scrape-button" />);
+
+    const button = screen.getByTestId('scrape-button');
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(button).toHaveClass('cursor-not-allowed');
+    });
+  });
 });
