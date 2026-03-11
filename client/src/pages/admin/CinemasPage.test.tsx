@@ -77,7 +77,7 @@ const mockAuthContext = {
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: true,
-  hasPermission: vi.fn(() => true),
+  hasPermission: vi.fn<(p: string) => boolean>(() => true),
 };
 
 const renderWithAuth = (ui: React.ReactElement, authOverrides?: Partial<typeof mockAuthContext>) =>
