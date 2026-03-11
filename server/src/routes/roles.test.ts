@@ -359,7 +359,8 @@ describe('Routes - Roles', () => {
     });
   });
 
-  // GET /api/permissions (served from roles router)
+  // GET /api/roles/permissions
+  // Note: This route is mounted at /api/roles, so the full path is /api/roles/permissions
   describe('GET /permissions', () => {
     it('should return all available permissions', async () => {
       const { getAllPermissions } = await import('../db/role-queries.js');
