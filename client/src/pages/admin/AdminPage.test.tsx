@@ -370,6 +370,65 @@ describe('AdminPage', () => {
     });
   });
 
+  describe('System tab - requires all three system permissions', () => {
+    const systemInfoOnlyUser: User = {
+      id: 20,
+      username: 'sysinfo-only',
+      role_id: 20,
+      role_name: 'sysinfo-only',
+      is_system_role: false,
+      permissions: ['system:info'],
+    };
+
+    const systemInfoAndMigrationsUser: User = {
+      id: 21,
+      username: 'sysinfo-migrations',
+      role_id: 21,
+      role_name: 'sysinfo-migrations',
+      is_system_role: false,
+      permissions: ['system:info', 'system:migrations'],
+    };
+
+    const allSystemPermissionsUser: User = {
+      id: 22,
+      username: 'full-system',
+      role_id: 22,
+      role_name: 'full-system',
+      is_system_role: false,
+      permissions: ['system:info', 'system:migrations', 'system:health'],
+    };
+
+    it('should NOT show System tab for a user with only system:info', () => {
+      renderWithRouter('/admin', systemInfoOnlyUser);
+
+      expect(screen.queryByRole('tab', { name: 'System' })).not.toBeInTheDocument();
+    });
+
+    it('should NOT show System tab for a user with system:info and system:migrations but missing system:health', () => {
+      renderWithRouter('/admin', systemInfoAndMigrationsUser);
+
+      expect(screen.queryByRole('tab', { name: 'System' })).not.toBeInTheDocument();
+    });
+
+    it('should show System tab for a user with all three system permissions', () => {
+      renderWithRouter('/admin', allSystemPermissionsUser);
+
+      expect(screen.getByRole('tab', { name: 'System' })).toBeInTheDocument();
+    });
+
+    it('should redirect a user with only system:info away from ?tab=system', () => {
+      renderWithRouter('/admin?tab=system', systemInfoOnlyUser);
+
+      expect(screen.queryByTestId('system-content')).not.toBeInTheDocument();
+    });
+
+    it('should allow navigation to System tab for user with all three system permissions', () => {
+      renderWithRouter('/admin?tab=system', allSystemPermissionsUser);
+
+      expect(screen.getByTestId('system-content')).toBeInTheDocument();
+    });
+  });
+
   describe('Non-system role named "admin" - is_system_role=false', () => {
     it('should NOT grant all tabs to a custom role named admin with is_system_role=false', () => {
       renderWithRouter('/admin', fakeAdminUser);
