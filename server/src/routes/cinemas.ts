@@ -153,7 +153,7 @@ router.post('/', protectedLimiter, requireAuth, requirePermission('cinemas:creat
 router.put('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:update'), async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
-    const cinemaId = req.params.id;
+    const cinemaId = req.params.id as string;
     const { name, url, address, postal_code, city, screen_count } = req.body;
 
     // At least one field must be provided
@@ -295,7 +295,7 @@ router.put('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:upd
 router.delete('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:delete'), async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
-    const cinemaId = req.params.id;
+    const cinemaId = req.params.id as string;
     const deleted = await deleteCinema(db, cinemaId);
 
     if (!deleted) {
@@ -316,7 +316,7 @@ router.delete('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:
 router.get('/:id', publicLimiter, async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
-    const cinemaId = req.params.id;
+    const cinemaId = req.params.id as string;
     const weekStart = getWeekStart();
 
     const showtimes = await getShowtimesByCinemaAndWeek(db, cinemaId, weekStart);

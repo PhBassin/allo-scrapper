@@ -97,7 +97,7 @@ router.get(
     try {
       const db: DB = req.app.get('db');
 
-      const userId = parseInt(req.params.id, 10);
+      const userId = parseInt(req.params.id as string, 10);
 
       if (isNaN(userId)) {
         res.status(400).json({
@@ -266,7 +266,7 @@ router.put(
     try {
       const db: DB = req.app.get('db');
 
-      const userId = parseInt(req.params.id, 10);
+      const userId = parseInt(req.params.id as string, 10);
       const { role_id } = req.body;
 
       // Validate user ID
@@ -374,7 +374,7 @@ router.post(
     try {
       const db: DB = req.app.get('db');
 
-      const userId = parseInt(req.params.id, 10);
+      const userId = parseInt(req.params.id as string, 10);
 
       // Validate user ID
       if (isNaN(userId)) {
@@ -448,7 +448,7 @@ router.delete(
     try {
       const db: DB = req.app.get('db');
 
-      const userId = parseInt(req.params.id, 10);
+      const userId = parseInt(req.params.id as string, 10);
 
       // Validate user ID
       if (isNaN(userId)) {

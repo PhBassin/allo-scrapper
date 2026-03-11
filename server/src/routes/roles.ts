@@ -75,7 +75,7 @@ router.get(
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
-      const roleId = parseInt(req.params.id, 10);
+      const roleId = parseInt(req.params.id as string, 10);
 
       if (isNaN(roleId)) {
         const response: ApiResponse = { success: false, error: 'Invalid role ID' };
@@ -149,7 +149,7 @@ router.put(
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
-      const roleId = parseInt(req.params.id, 10);
+      const roleId = parseInt(req.params.id as string, 10);
 
       if (isNaN(roleId)) {
         const response: ApiResponse = { success: false, error: 'Invalid role ID' };
@@ -189,7 +189,7 @@ router.delete(
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
-      const roleId = parseInt(req.params.id, 10);
+      const roleId = parseInt(req.params.id as string, 10);
 
       if (isNaN(roleId)) {
         const response: ApiResponse = { success: false, error: 'Invalid role ID' };
@@ -247,7 +247,7 @@ router.put(
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
-      const roleId = parseInt(req.params.id, 10);
+      const roleId = parseInt(req.params.id as string, 10);
 
       if (isNaN(roleId)) {
         const response: ApiResponse = { success: false, error: 'Invalid role ID' };
