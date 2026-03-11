@@ -35,7 +35,7 @@ async function startServer() {
     app.set('db', db);
 
     // Start server
-    const server = app.listen(PORT, () => {
+    const server = app.listen(Number(PORT), () => {
       logger.info(`✅ Server running on port ${PORT}`);
       logger.info(`📍 API available at http://localhost:${PORT}/api`);
       logger.info(`📍 Health check: http://localhost:${PORT}/api/health`);

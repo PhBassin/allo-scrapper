@@ -106,7 +106,7 @@ router.get('/search', publicLimiter, async (req, res, next) => {
 router.get('/:id', publicLimiter, async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
-    const filmId = parseInt(req.params.id);
+    const filmId = parseInt(req.params.id as string);
     const weekStart = getWeekStart();
 
     if (isNaN(filmId)) {

@@ -65,7 +65,7 @@ router.get('/', protectedLimiter, requireAuth, requirePermission('reports:list')
 router.get('/:id', protectedLimiter, requireAuth, requirePermission('reports:view'), async (req, res) => {
   try {
     const db: DB = req.app.get('db');
-    const reportId = parseInt(req.params.id);
+    const reportId = parseInt(req.params.id as string);
 
     if (isNaN(reportId)) {
       const response: ApiResponse = {
