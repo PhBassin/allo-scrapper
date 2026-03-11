@@ -9,6 +9,7 @@ const adminUser: User = {
   username: 'admin',
   role_id: 1,
   role_name: 'admin',
+  is_system_role: true,
   permissions: ['users:list', 'users:create', 'scraper:trigger'],
 };
 
@@ -17,6 +18,7 @@ const operatorUser: User = {
   username: 'operator',
   role_id: 2,
   role_name: 'operator',
+  is_system_role: true,
   permissions: ['scraper:trigger', 'cinemas:create'],
 };
 
@@ -72,7 +74,7 @@ describe('AuthContext', () => {
   });
 
   describe('isAdmin', () => {
-    it('should be true when role_name is admin', () => {
+    it('should be true when role_name is admin AND is_system_role is true', () => {
       localStorage.setItem('token', 'fake-token');
       localStorage.setItem('user', JSON.stringify(adminUser));
 
@@ -88,6 +90,27 @@ describe('AuthContext', () => {
     it('should be false when role_name is not admin', () => {
       localStorage.setItem('token', 'fake-token');
       localStorage.setItem('user', JSON.stringify(operatorUser));
+
+      render(
+        <AuthProvider>
+          <ContextConsumer />
+        </AuthProvider>
+      );
+
+      expect(screen.getByTestId('isAdmin').textContent).toBe('false');
+    });
+
+    it('should be false when role_name is admin but is_system_role is false', () => {
+      const fakeAdmin: User = {
+        id: 99,
+        username: 'fakeadmin',
+        role_id: 99,
+        role_name: 'admin',
+        is_system_role: false,
+        permissions: ['cinemas:create'],
+      };
+      localStorage.setItem('token', 'fake-token');
+      localStorage.setItem('user', JSON.stringify(fakeAdmin));
 
       render(
         <AuthProvider>

@@ -6,7 +6,7 @@ import { AuthContext } from '../contexts/AuthContext';
 const mockAuthContext = {
   isAuthenticated: true,
   token: 'mock-token',
-  user: { id: 1, username: 'testuser', role_id: 2, role_name: 'operator', permissions: ['scraper:trigger'] },
+  user: { id: 1, username: 'testuser', role_id: 2, role_name: 'operator', is_system_role: true, permissions: ['scraper:trigger'] },
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: false,
