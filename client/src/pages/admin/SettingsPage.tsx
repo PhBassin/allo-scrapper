@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { SettingsContext } from '../../contexts/SettingsContext';
+import { AuthContext } from '../../contexts/AuthContext';
 import { downloadSettingsExport, uploadSettingsImport, resetSettings, type AppSettingsUpdate, type FooterLink } from '../../api/settings';
 import ColorPicker from '../../components/admin/ColorPicker';
 import FontSelector from '../../components/admin/FontSelector';
@@ -11,10 +12,17 @@ type Tab = 'general' | 'colors' | 'typography' | 'footer' | 'email';
 
 const SettingsPage: React.FC = () => {
     const { adminSettings, refreshAdminSettings, updateSettings, isLoading } = useContext(SettingsContext);
+    const { hasPermission } = useContext(AuthContext);
     const [activeTab, setActiveTab] = useState<Tab>('general');
     const [hasChanges, setHasChanges] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    // Permission checks
+    const canUpdate = hasPermission('settings:update');
+    const canReset = hasPermission('settings:reset');
+    const canExport = hasPermission('settings:export');
+    const canImport = hasPermission('settings:import');
 
     // Form state
     const [formData, setFormData] = useState<AppSettingsUpdate>({});
@@ -186,6 +194,7 @@ const SettingsPage: React.FC = () => {
                                         type="text"
                                         value={formData.site_name || ''}
                                         onChange={(e) => handleFieldChange('site_name', e.target.value)}
+                                        disabled={!canUpdate}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         placeholder="My Cinema Site"
                                     />
@@ -195,6 +204,7 @@ const SettingsPage: React.FC = () => {
                                     label="Logo"
                                     value={formData.logo_base64 || null}
                                     onChange={(value) => handleFieldChange('logo_base64', value)}
+                                    disabled={!canUpdate}
                                     maxSizeKB={200}
                                 />
 
@@ -202,6 +212,7 @@ const SettingsPage: React.FC = () => {
                                     label="Favicon"
                                     value={formData.favicon_base64 || null}
                                     onChange={(value) => handleFieldChange('favicon_base64', value)}
+                                    disabled={!canUpdate}
                                     maxSizeKB={50}
                                 />
                             </div>
@@ -213,46 +224,55 @@ const SettingsPage: React.FC = () => {
                                     label="Primary Color"
                                     value={formData.color_primary || '#FECC00'}
                                     onChange={(value) => handleFieldChange('color_primary', value)}
+                                    disabled={!canUpdate}
                                 />
                                 <ColorPicker
                                     label="Secondary Color"
                                     value={formData.color_secondary || '#1E40AF'}
                                     onChange={(value) => handleFieldChange('color_secondary', value)}
+                                    disabled={!canUpdate}
                                 />
                                 <ColorPicker
                                     label="Accent Color"
                                     value={formData.color_accent || '#10B981'}
                                     onChange={(value) => handleFieldChange('color_accent', value)}
+                                    disabled={!canUpdate}
                                 />
                                 <ColorPicker
                                     label="Background Color"
                                     value={formData.color_background || '#FFFFFF'}
                                     onChange={(value) => handleFieldChange('color_background', value)}
+                                    disabled={!canUpdate}
                                 />
                                 <ColorPicker
                                     label="Text Color"
                                     value={formData.color_text || '#1F2937'}
                                     onChange={(value) => handleFieldChange('color_text', value)}
+                                    disabled={!canUpdate}
                                 />
                                 <ColorPicker
                                     label="Secondary Text Color"
                                     value={formData.color_text_secondary || '#6B7280'}
                                     onChange={(value) => handleFieldChange('color_text_secondary', value)}
+                                    disabled={!canUpdate}
                                 />
                                 <ColorPicker
                                     label="Border Color"
                                     value={formData.color_border || '#E5E7EB'}
                                     onChange={(value) => handleFieldChange('color_border', value)}
+                                    disabled={!canUpdate}
                                 />
                                 <ColorPicker
                                     label="Success Color"
                                     value={formData.color_success || '#10B981'}
                                     onChange={(value) => handleFieldChange('color_success', value)}
+                                    disabled={!canUpdate}
                                 />
                                 <ColorPicker
                                     label="Error Color"
                                     value={formData.color_error || '#EF4444'}
                                     onChange={(value) => handleFieldChange('color_error', value)}
+                                    disabled={!canUpdate}
                                 />
                             </div>
                         )}
@@ -263,12 +283,14 @@ const SettingsPage: React.FC = () => {
                                     label="Heading Font"
                                     value={formData.font_family_heading || 'Playfair Display'}
                                     onChange={(value) => handleFieldChange('font_family_heading', value)}
+                                    disabled={!canUpdate}
                                     type="heading"
                                 />
                                 <FontSelector
                                     label="Body Font"
                                     value={formData.font_family_body || 'Roboto'}
                                     onChange={(value) => handleFieldChange('font_family_body', value)}
+                                    disabled={!canUpdate}
                                     type="body"
                                 />
                             </div>
@@ -283,6 +305,7 @@ const SettingsPage: React.FC = () => {
                                     <textarea
                                         value={formData.footer_text || ''}
                                         onChange={(e) => handleFieldChange('footer_text', e.target.value)}
+                                        disabled={!canUpdate}
                                         rows={3}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         placeholder="© 2024 My Cinema Site. All rights reserved."
@@ -292,6 +315,7 @@ const SettingsPage: React.FC = () => {
                                 <FooterLinksEditor
                                     value={formData.footer_links || []}
                                     onChange={(value) => handleFieldChange('footer_links', value as FooterLink[])}
+                                    disabled={!canUpdate}
                                 />
                             </div>
                         )}
@@ -306,6 +330,7 @@ const SettingsPage: React.FC = () => {
                                         type="text"
                                         value={formData.email_from_name || ''}
                                         onChange={(e) => handleFieldChange('email_from_name', e.target.value)}
+                                        disabled={!canUpdate}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         placeholder="My Cinema Site"
                                     />
@@ -319,6 +344,7 @@ const SettingsPage: React.FC = () => {
                                         type="email"
                                         value={formData.email_from_address || ''}
                                         onChange={(e) => handleFieldChange('email_from_address', e.target.value)}
+                                        disabled={!canUpdate}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         placeholder="noreply@example.com"
                                     />
@@ -328,6 +354,7 @@ const SettingsPage: React.FC = () => {
                                     label="Email Logo"
                                     value={formData.email_logo_base64 || null}
                                     onChange={(value) => handleFieldChange('email_logo_base64', value)}
+                                    disabled={!canUpdate}
                                     maxSizeKB={200}
                                 />
                             </div>
@@ -337,31 +364,39 @@ const SettingsPage: React.FC = () => {
                     {/* Footer actions */}
                     <div className="border-t border-gray-200 p-6 bg-gray-50 flex items-center justify-between">
                         <div className="flex gap-2">
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={handleExport}
-                                disabled={isLoading}
-                            >
-                                Export
-                            </Button>
-                            <label className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer">
-                                Import
-                                <input
-                                    type="file"
-                                    accept="application/json"
-                                    onChange={handleImport}
-                                    className="hidden"
-                                />
-                            </label>
-                            <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={handleReset}
-                                disabled={isLoading}
-                            >
-                                Reset to Defaults
-                            </Button>
+                            {canExport && (
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={handleExport}
+                                    disabled={isLoading}
+                                    data-testid="export-settings-button"
+                                >
+                                    Export
+                                </Button>
+                            )}
+                            {canImport && (
+                                <label className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer" data-testid="import-settings-button">
+                                    Import
+                                    <input
+                                        type="file"
+                                        accept="application/json"
+                                        onChange={handleImport}
+                                        className="hidden"
+                                    />
+                                </label>
+                            )}
+                            {canReset && (
+                                <Button
+                                    variant="danger"
+                                    size="sm"
+                                    onClick={handleReset}
+                                    disabled={isLoading}
+                                    data-testid="reset-settings-button"
+                                >
+                                    Reset to Defaults
+                                </Button>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-4">
@@ -371,12 +406,15 @@ const SettingsPage: React.FC = () => {
                             {saveStatus === 'success' && (
                                 <p className="text-sm text-green-600">✓ Settings saved successfully</p>
                             )}
-                            <Button
-                                onClick={handleSave}
-                                disabled={!hasChanges || isLoading || saveStatus === 'saving'}
-                            >
-                                {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
-                            </Button>
+                            {canUpdate && (
+                                <Button
+                                    onClick={handleSave}
+                                    disabled={!hasChanges || isLoading || saveStatus === 'saving'}
+                                    data-testid="save-settings-button"
+                                >
+                                    {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
