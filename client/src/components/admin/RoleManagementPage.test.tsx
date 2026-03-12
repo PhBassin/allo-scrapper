@@ -49,30 +49,33 @@ const mockRoles = [
     name: 'admin',
     description: 'Administrator',
     is_system: true,
-    permissions: [{ id: 1, name: 'roles:list', description: 'List roles' }],
+    created_at: '2026-01-01T00:00:00Z',
+    permissions: [{ id: 1, name: 'roles:list', description: 'List roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' }],
   },
   {
     id: 2,
     name: 'auditor',
     description: 'Read-only access',
     is_system: true,
-    permissions: [{ id: 1, name: 'roles:list', description: 'List roles' }],
+    created_at: '2026-01-01T00:00:00Z',
+    permissions: [{ id: 1, name: 'roles:list', description: 'List roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' }],
   },
   {
     id: 3,
     name: 'custom_role',
     description: 'Custom role',
     is_system: false,
+    created_at: '2026-01-01T00:00:00Z',
     permissions: [],
   },
 ];
 
 const mockPermissions = [
-  { id: 1, name: 'roles:list', description: 'List roles' },
-  { id: 2, name: 'roles:read', description: 'Read role details' },
-  { id: 3, name: 'roles:create', description: 'Create roles' },
-  { id: 4, name: 'roles:update', description: 'Update roles' },
-  { id: 5, name: 'roles:delete', description: 'Delete roles' },
+  { id: 1, name: 'roles:list', description: 'List roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' },
+  { id: 2, name: 'roles:read', description: 'Read role details', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' },
+  { id: 3, name: 'roles:create', description: 'Create roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' },
+  { id: 4, name: 'roles:update', description: 'Update roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' },
+  { id: 5, name: 'roles:delete', description: 'Delete roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' },
 ];
 
 describe('RoleManagementPage - Permission-based button visibility', () => {
