@@ -6,6 +6,7 @@ import * as usersApi from '../../api/users';
 import * as rolesApi from '../../api/roles';
 import type { UserPublic } from '../../api/users';
 import type { RoleWithPermissions } from '../../types/role';
+import { AuthContext } from '../../contexts/AuthContext';
 
 // Mock the APIs
 vi.mock('../../api/users');
@@ -37,6 +38,30 @@ const mockRoles: RoleWithPermissions[] = [
     permissions: [],
   },
 ];
+
+const mockAuthContext = {
+  isAuthenticated: true,
+  token: 'mock-token',
+  user: {
+    id: 1,
+    username: 'admin',
+    role_id: 1,
+    role_name: 'admin',
+    is_system_role: true,
+    permissions: ['users:create', 'users:update', 'users:delete'],
+  },
+  login: vi.fn(),
+  logout: vi.fn(),
+  isAdmin: true,
+  hasPermission: vi.fn<(p: string) => boolean>(() => true),
+};
+
+const renderWithAuth = (ui: React.ReactElement, authOverrides?: Partial<typeof mockAuthContext>) =>
+  render(
+    <AuthContext.Provider value={{ ...mockAuthContext, ...authOverrides }}>
+      {ui}
+    </AuthContext.Provider>
+  );
 
 describe('UsersPage', () => {
   const mockUsers: UserPublic[] = [
@@ -71,19 +96,19 @@ describe('UsersPage', () => {
 
   describe('Initial Rendering', () => {
     it('should render page title', async () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       expect(await screen.findByRole('heading', { name: /user management/i })).toBeInTheDocument();
     });
 
     it('should display loading state initially', () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       expect(screen.getByText(/loading/i)).toBeInTheDocument();
     });
 
     it('should fetch users and roles on mount', async () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(usersApi.getUsers).toHaveBeenCalled();
@@ -96,7 +121,7 @@ describe('UsersPage', () => {
     });
 
     it('should display "Create User" button', async () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create user/i })).toBeInTheDocument();
@@ -106,7 +131,7 @@ describe('UsersPage', () => {
 
   describe('User List Display', () => {
     it('should display user table with correct columns', async () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('admin')).toBeInTheDocument();
@@ -120,7 +145,7 @@ describe('UsersPage', () => {
     });
 
     it('should display role badges using role_name dynamically', async () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('admin')).toBeInTheDocument();
@@ -133,7 +158,7 @@ describe('UsersPage', () => {
     });
 
     it('should display action buttons for each user', async () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('admin')).toBeInTheDocument();
@@ -152,7 +177,7 @@ describe('UsersPage', () => {
   describe('Create User Flow', () => {
     it('should open create modal when "Create User" button is clicked', async () => {
       const user = userEvent.setup();
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create user/i })).toBeInTheDocument();
@@ -166,7 +191,7 @@ describe('UsersPage', () => {
 
     it('should show role dropdown with roles from API in create modal', async () => {
       const user = userEvent.setup();
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create user/i })).toBeInTheDocument();
@@ -193,7 +218,7 @@ describe('UsersPage', () => {
         created_at: '2024-01-04T00:00:00.000Z',
       });
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create user/i })).toBeInTheDocument();
@@ -237,7 +262,7 @@ describe('UsersPage', () => {
         role_name: 'admin',
       });
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('user1')).toBeInTheDocument();
@@ -263,7 +288,7 @@ describe('UsersPage', () => {
       const user = userEvent.setup();
       vi.mocked(usersApi.updateUserRole).mockRejectedValue(new Error('Cannot change last admin role'));
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('admin')).toBeInTheDocument();
@@ -292,7 +317,7 @@ describe('UsersPage', () => {
         newPassword: 'NewRandomPass123!',
       });
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('user1')).toBeInTheDocument();
@@ -313,7 +338,7 @@ describe('UsersPage', () => {
   describe('Delete User Flow', () => {
     it('should open delete confirmation dialog when delete button is clicked', async () => {
       const user = userEvent.setup();
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('user1')).toBeInTheDocument();
@@ -330,7 +355,7 @@ describe('UsersPage', () => {
       const user = userEvent.setup();
       vi.mocked(usersApi.deleteUser).mockResolvedValue(undefined);
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('user1')).toBeInTheDocument();
@@ -358,7 +383,7 @@ describe('UsersPage', () => {
     it('should display error message if fetching users fails', async () => {
       vi.mocked(usersApi.getUsers).mockRejectedValue(new Error('Failed to fetch users'));
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText(/failed to fetch users/i)).toBeInTheDocument();
@@ -368,11 +393,121 @@ describe('UsersPage', () => {
     it('should display empty state when no users exist', async () => {
       vi.mocked(usersApi.getUsers).mockResolvedValue([]);
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText(/no users found/i)).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('permission-based button visibility', () => {
+    it('hides "Create User" button when user lacks users:create permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn((p: string) => p !== 'users:create'),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('create-user-button')).not.toBeInTheDocument();
+    });
+
+    it('shows "Create User" button when user has users:create permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn(() => true),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('create-user-button')).toBeInTheDocument();
+    });
+
+    it('hides "Change Role" buttons when user lacks users:update permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn((p: string) => p !== 'users:update'),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('change-role-1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('change-role-2')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('change-role-3')).not.toBeInTheDocument();
+    });
+
+    it('shows "Change Role" buttons when user has users:update permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn(() => true),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('change-role-1')).toBeInTheDocument();
+      expect(screen.getByTestId('change-role-2')).toBeInTheDocument();
+      expect(screen.getByTestId('change-role-3')).toBeInTheDocument();
+    });
+
+    it('hides "Reset Password" buttons when user lacks users:update permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn((p: string) => p !== 'users:update'),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('reset-password-1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('reset-password-2')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('reset-password-3')).not.toBeInTheDocument();
+    });
+
+    it('shows "Reset Password" buttons when user has users:update permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn(() => true),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('reset-password-1')).toBeInTheDocument();
+      expect(screen.getByTestId('reset-password-2')).toBeInTheDocument();
+      expect(screen.getByTestId('reset-password-3')).toBeInTheDocument();
+    });
+
+    it('hides "Delete" buttons when user lacks users:delete permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn((p: string) => p !== 'users:delete'),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('delete-user-1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('delete-user-2')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('delete-user-3')).not.toBeInTheDocument();
+    });
+
+    it('shows "Delete" buttons when user has users:delete permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn(() => true),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('delete-user-1')).toBeInTheDocument();
+      expect(screen.getByTestId('delete-user-2')).toBeInTheDocument();
+      expect(screen.getByTestId('delete-user-3')).toBeInTheDocument();
     });
   });
 });

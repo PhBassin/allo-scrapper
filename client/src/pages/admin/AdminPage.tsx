@@ -17,6 +17,8 @@ interface Tab {
   permission?: string;
   /** All listed permissions must be held for the tab to be visible */
   permissions?: string[];
+  /** At least one of the listed permissions must be held for the tab to be visible */
+  anyPermissions?: string[];
 }
 
 const tabs: Tab[] = [
@@ -75,7 +77,7 @@ const tabs: Tab[] = [
   {
     id: 'system',
     label: 'System',
-    permissions: ['system:info', 'system:health', 'system:migrations'],
+    anyPermissions: ['system:info', 'system:health', 'system:migrations'],
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
@@ -91,6 +93,9 @@ const AdminPage: React.FC = () => {
 
   // Filter tabs to only those the user has permission to see
   const visibleTabs = tabs.filter((tab) => {
+    if (tab.anyPermissions) {
+      return tab.anyPermissions.some((p) => hasPermission(p));
+    }
     if (tab.permissions) {
       return tab.permissions.every((p) => hasPermission(p));
     }

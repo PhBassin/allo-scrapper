@@ -1,9 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { getSystemInfo, getMigrations, getSystemHealth, formatUptime, formatDate } from '../../api/system';
 import type { SystemInfo, MigrationsInfo, SystemHealth } from '../../api/system';
+import { AuthContext } from '../../contexts/AuthContext';
 import Button from '../../components/ui/Button';
 
 const SystemPage: React.FC = () => {
+  const { hasPermission } = useContext(AuthContext);
+  
+  // Permission checks
+  const canViewInfo = hasPermission('system:info');
+  const canViewHealth = hasPermission('system:health');
+  const canViewMigrations = hasPermission('system:migrations');
+
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [migrations, setMigrations] = useState<MigrationsInfo | null>(null);
   const [health, setHealth] = useState<SystemHealth | null>(null);
@@ -16,9 +24,9 @@ const SystemPage: React.FC = () => {
     setError(null);
     try {
       const [infoData, migrationsData, healthData] = await Promise.all([
-        getSystemInfo(),
-        getMigrations(),
-        getSystemHealth(),
+        canViewInfo ? getSystemInfo() : Promise.resolve(null),
+        canViewMigrations ? getMigrations() : Promise.resolve(null),
+        canViewHealth ? getSystemHealth() : Promise.resolve(null),
       ]);
       setSystemInfo(infoData);
       setMigrations(migrationsData);
@@ -113,8 +121,8 @@ const SystemPage: React.FC = () => {
       </div>
 
       {/* Health Status Card */}
-      {health && (
-        <div className="mb-6 bg-white rounded-lg shadow p-6">
+      {canViewHealth && health && (
+        <div className="mb-6 bg-white rounded-lg shadow p-6" data-testid="health-status-card">
           <h2 className="text-lg font-semibold mb-4">System Health</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -156,8 +164,8 @@ const SystemPage: React.FC = () => {
       )}
 
       {/* System Info Grid */}
-      {systemInfo && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      {canViewInfo && systemInfo && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" data-testid="system-info-grid">
           {/* App Info Card */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">Application</h2>
@@ -234,8 +242,8 @@ const SystemPage: React.FC = () => {
       )}
 
       {/* Migrations Table */}
-      {migrations && (
-        <div className="bg-white rounded-lg shadow p-6">
+      {canViewMigrations && migrations && (
+        <div className="bg-white rounded-lg shadow p-6" data-testid="migrations-table">
           <h2 className="text-lg font-semibold mb-4">
             Database Migrations ({migrations.total} total)
           </h2>
