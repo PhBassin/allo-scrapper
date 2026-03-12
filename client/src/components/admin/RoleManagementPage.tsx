@@ -7,6 +7,7 @@ import LinkButton from '../ui/LinkButton';
 // Permission categories for grouped display
 const PERMISSION_CATEGORIES: Record<string, string[]> = {
   Utilisateurs: ['users:list', 'users:create', 'users:update', 'users:delete'],
+  Rôles: ['roles:list', 'roles:read', 'roles:create', 'roles:update', 'roles:delete'],
   Scraping: ['scraper:trigger', 'scraper:trigger_single'],
   Cinémas: ['cinemas:create', 'cinemas:update', 'cinemas:delete'],
   Paramètres: ['settings:read', 'settings:update', 'settings:reset', 'settings:export', 'settings:import'],
