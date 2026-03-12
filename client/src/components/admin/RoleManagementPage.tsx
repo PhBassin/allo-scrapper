@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { rolesApi } from '../../api/roles';
 import type { RoleWithPermissions, Permission } from '../../types/role';
+import { AuthContext } from '../../contexts/AuthContext';
 import Button from '../ui/Button';
 import LinkButton from '../ui/LinkButton';
 
@@ -330,6 +331,11 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({ allPermissions, onClo
 // RoleManagementPage (main)
 // ────────────────────────────────────────────────────────────────
 const RoleManagementPage: React.FC = () => {
+  const { hasPermission } = useContext(AuthContext);
+  const canCreate = hasPermission('roles:create');
+  const canUpdate = hasPermission('roles:update');
+  const canDelete = hasPermission('roles:delete');
+
   const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
   const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -409,9 +415,11 @@ const RoleManagementPage: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Role Management</h1>
-        <Button onClick={() => setShowCreate(true)}>
-          Create Role
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setShowCreate(true)} data-testid="create-role-button">
+            Create Role
+          </Button>
+        )}
       </div>
 
       {/* Error */}
@@ -473,17 +481,25 @@ const RoleManagementPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-2">
-                      <LinkButton onClick={() => setEditingRole(role)}>
-                        Edit Permissions
-                      </LinkButton>
-                      <LinkButton
-                        variant="danger"
-                        onClick={() => setDeletingRole(role)}
-                        disabled={role.is_system}
-                        title={role.is_system ? 'System roles cannot be deleted' : undefined}
-                      >
-                        Delete
-                      </LinkButton>
+                      {canUpdate && (
+                        <LinkButton
+                          onClick={() => setEditingRole(role)}
+                          data-testid={`edit-role-${role.id}`}
+                        >
+                          Edit Permissions
+                        </LinkButton>
+                      )}
+                      {canDelete && (
+                        <LinkButton
+                          variant="danger"
+                          onClick={() => setDeletingRole(role)}
+                          disabled={role.is_system}
+                          title={role.is_system ? 'System roles cannot be deleted' : undefined}
+                          data-testid={`delete-role-${role.id}`}
+                        >
+                          Delete
+                        </LinkButton>
+                      )}
                     </div>
                   </td>
                 </tr>
