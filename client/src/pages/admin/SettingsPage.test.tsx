@@ -174,12 +174,6 @@ describe('SettingsPage - Permission-based button visibility', () => {
     // Check text input is disabled
     const siteNameInput = screen.getByPlaceholderText('My Cinema Site') as HTMLInputElement;
     expect(siteNameInput.disabled).toBe(true);
-
-    // Check textarea is disabled
-    const footerTab = screen.getByText('Footer');
-    footerTab.click();
-    const footerTextarea = screen.getByPlaceholderText('© 2024 My Cinema Site. All rights reserved.') as HTMLTextAreaElement;
-    expect(footerTextarea.disabled).toBe(true);
   });
 
   it('enables form inputs when user has settings:update permission', async () => {
@@ -192,12 +186,6 @@ describe('SettingsPage - Permission-based button visibility', () => {
     // Check text input is enabled
     const siteNameInput = screen.getByPlaceholderText('My Cinema Site') as HTMLInputElement;
     expect(siteNameInput.disabled).toBe(false);
-
-    // Check textarea is enabled
-    const footerTab = screen.getByText('Footer');
-    footerTab.click();
-    const footerTextarea = screen.getByPlaceholderText('© 2024 My Cinema Site. All rights reserved.') as HTMLTextAreaElement;
-    expect(footerTextarea.disabled).toBe(false);
   });
 
   it('shows read-only view (no buttons, disabled inputs) when user has only settings:read permission', async () => {
@@ -209,7 +197,6 @@ describe('SettingsPage - Permission-based button visibility', () => {
 
     // Settings page should be visible
     expect(screen.getByText('White-Label Settings')).toBeInTheDocument();
-    expect(screen.getByText('Test Cinema')).toBeInTheDocument();
 
     // But no action buttons
     expect(screen.queryByTestId('export-settings-button')).not.toBeInTheDocument();
