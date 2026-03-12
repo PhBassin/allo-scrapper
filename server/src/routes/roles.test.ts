@@ -407,28 +407,70 @@ describe('Routes - Roles / Permission guards', () => {
     }));
   });
 
-  it('GET / should require roles:read permission', async () => {
+  // List endpoints should use roles:list
+  it('GET / should require roles:list permission', async () => {
+    const { requirePermission } = await import('../middleware/permission.js');
+    await import('./roles.js');
+    expect(requirePermission).toHaveBeenCalledWith('roles:list');
+  });
+
+  it('GET /permissions should require roles:list permission', async () => {
+    const { requirePermission } = await import('../middleware/permission.js');
+    await import('./roles.js');
+    const calls = (requirePermission as any).mock.calls.map((c: string[]) => c[0]);
+    expect(calls.filter((p: string) => p === 'roles:list').length).toBeGreaterThanOrEqual(2);
+  });
+
+  // Read single role should use roles:read
+  it('GET /:id should require roles:read permission', async () => {
     const { requirePermission } = await import('../middleware/permission.js');
     await import('./roles.js');
     expect(requirePermission).toHaveBeenCalledWith('roles:read');
   });
 
-  it('GET /permissions should require roles:read permission', async () => {
+  // CRUD operations should use dedicated roles:* permissions
+  it('POST / should require roles:create permission', async () => {
     const { requirePermission } = await import('../middleware/permission.js');
     await import('./roles.js');
-    // requirePermission is called once per route registration; both GET / and GET /permissions
-    // should use roles:read — assert it was called with that value at least twice
-    const calls = (requirePermission as any).mock.calls.map((c: string[]) => c[0]);
-    expect(calls.filter((p: string) => p === 'roles:read').length).toBeGreaterThanOrEqual(2);
+    expect(requirePermission).toHaveBeenCalledWith('roles:create');
   });
 
-  it('GET / should NOT require users:list permission', async () => {
+  it('PUT /:id should require roles:update permission', async () => {
+    const { requirePermission } = await import('../middleware/permission.js');
+    await import('./roles.js');
+    expect(requirePermission).toHaveBeenCalledWith('roles:update');
+  });
+
+  it('PUT /:id/permissions should require roles:update permission', async () => {
     const { requirePermission } = await import('../middleware/permission.js');
     await import('./roles.js');
     const calls = (requirePermission as any).mock.calls.map((c: string[]) => c[0]);
-    // The read-only routes (GET / and GET /permissions) must use roles:read, not users:list
-    // users:list may still appear for write routes — so we check the two read slots
-    const rolesReadCount = calls.filter((p: string) => p === 'roles:read').length;
-    expect(rolesReadCount).toBeGreaterThanOrEqual(2);
+    // roles:update should be called twice: once for PUT /:id, once for PUT /:id/permissions
+    expect(calls.filter((p: string) => p === 'roles:update').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('DELETE /:id should require roles:delete permission', async () => {
+    const { requirePermission } = await import('../middleware/permission.js');
+    await import('./roles.js');
+    expect(requirePermission).toHaveBeenCalledWith('roles:delete');
+  });
+
+  // Ensure we're NOT using users:* permissions for roles endpoints
+  it('should NOT use users:create for creating roles', async () => {
+    const { requirePermission } = await import('../middleware/permission.js');
+    await import('./roles.js');
+    expect(requirePermission).not.toHaveBeenCalledWith('users:create');
+  });
+
+  it('should NOT use users:update for updating roles', async () => {
+    const { requirePermission } = await import('../middleware/permission.js');
+    await import('./roles.js');
+    expect(requirePermission).not.toHaveBeenCalledWith('users:update');
+  });
+
+  it('should NOT use users:delete for deleting roles', async () => {
+    const { requirePermission } = await import('../middleware/permission.js');
+    await import('./roles.js');
+    expect(requirePermission).not.toHaveBeenCalledWith('users:delete');
   });
 });
