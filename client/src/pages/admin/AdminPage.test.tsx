@@ -370,7 +370,7 @@ describe('AdminPage', () => {
     });
   });
 
-  describe('System tab - requires all three system permissions', () => {
+  describe('System tab - requires at least one system permission', () => {
     const systemInfoOnlyUser: User = {
       id: 20,
       username: 'sysinfo-only',
@@ -380,34 +380,58 @@ describe('AdminPage', () => {
       permissions: ['system:info'],
     };
 
-    const systemInfoAndMigrationsUser: User = {
+    const systemHealthOnlyUser: User = {
       id: 21,
-      username: 'sysinfo-migrations',
+      username: 'syshealth-only',
       role_id: 21,
+      role_name: 'syshealth-only',
+      is_system_role: false,
+      permissions: ['system:health'],
+    };
+
+    const systemInfoAndMigrationsUser: User = {
+      id: 22,
+      username: 'sysinfo-migrations',
+      role_id: 22,
       role_name: 'sysinfo-migrations',
       is_system_role: false,
       permissions: ['system:info', 'system:migrations'],
     };
 
     const allSystemPermissionsUser: User = {
-      id: 22,
+      id: 23,
       username: 'full-system',
-      role_id: 22,
+      role_id: 23,
       role_name: 'full-system',
       is_system_role: false,
       permissions: ['system:info', 'system:migrations', 'system:health'],
     };
 
-    it('should NOT show System tab for a user with only system:info', () => {
+    const noSystemPermissionsUser: User = {
+      id: 24,
+      username: 'no-system',
+      role_id: 24,
+      role_name: 'no-system',
+      is_system_role: false,
+      permissions: ['users:list'],
+    };
+
+    it('should show System tab for a user with only system:info', () => {
       renderWithRouter('/admin', systemInfoOnlyUser);
 
-      expect(screen.queryByRole('tab', { name: 'System' })).not.toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'System' })).toBeInTheDocument();
     });
 
-    it('should NOT show System tab for a user with system:info and system:migrations but missing system:health', () => {
+    it('should show System tab for a user with only system:health', () => {
+      renderWithRouter('/admin', systemHealthOnlyUser);
+
+      expect(screen.getByRole('tab', { name: 'System' })).toBeInTheDocument();
+    });
+
+    it('should show System tab for a user with system:info and system:migrations', () => {
       renderWithRouter('/admin', systemInfoAndMigrationsUser);
 
-      expect(screen.queryByRole('tab', { name: 'System' })).not.toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'System' })).toBeInTheDocument();
     });
 
     it('should show System tab for a user with all three system permissions', () => {
@@ -416,16 +440,28 @@ describe('AdminPage', () => {
       expect(screen.getByRole('tab', { name: 'System' })).toBeInTheDocument();
     });
 
-    it('should redirect a user with only system:info away from ?tab=system', () => {
+    it('should NOT show System tab for a user with no system permissions', () => {
+      renderWithRouter('/admin', noSystemPermissionsUser);
+
+      expect(screen.queryByRole('tab', { name: 'System' })).not.toBeInTheDocument();
+    });
+
+    it('should allow navigation to System tab for user with only system:info', () => {
       renderWithRouter('/admin?tab=system', systemInfoOnlyUser);
 
-      expect(screen.queryByTestId('system-content')).not.toBeInTheDocument();
+      expect(screen.getByTestId('system-content')).toBeInTheDocument();
     });
 
     it('should allow navigation to System tab for user with all three system permissions', () => {
       renderWithRouter('/admin?tab=system', allSystemPermissionsUser);
 
       expect(screen.getByTestId('system-content')).toBeInTheDocument();
+    });
+
+    it('should redirect user with no system permissions away from ?tab=system', () => {
+      renderWithRouter('/admin?tab=system', noSystemPermissionsUser);
+
+      expect(screen.queryByTestId('system-content')).not.toBeInTheDocument();
     });
   });
 
