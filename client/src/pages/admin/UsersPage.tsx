@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { getUsers, createUser, updateUserRole, resetUserPassword, deleteUser } from '../../api/users';
 import type { UserPublic, UserCreate } from '../../api/users';
 import { rolesApi } from '../../api/roles';
 import type { RoleWithPermissions } from '../../types/role';
+import { AuthContext } from '../../contexts/AuthContext';
 import RoleBadge from '../../components/admin/RoleBadge';
 import CreateUserModal from '../../components/admin/CreateUserModal';
 import DeleteUserDialog from '../../components/admin/DeleteUserDialog';
@@ -94,6 +95,13 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ user, roles, onClose,
 // UsersPage
 // ────────────────────────────────────────────────────────────────
 const UsersPage: React.FC = () => {
+  const { hasPermission } = useContext(AuthContext);
+  
+  // Permission checks
+  const canCreate = hasPermission('users:create');
+  const canUpdate = hasPermission('users:update');
+  const canDelete = hasPermission('users:delete');
+
   const [users, setUsers] = useState<UserPublic[]>([]);
   const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,9 +214,11 @@ const UsersPage: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-        <Button onClick={() => setShowCreateModal(true)}>
-          Create User
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setShowCreateModal(true)} data-testid="create-user-button">
+            Create User
+          </Button>
+        )}
       </div>
 
       {/* Error Message */}
@@ -259,23 +269,32 @@ const UsersPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
-                        <LinkButton
-                          onClick={() => setUserForRoleChange(user)}
-                        >
-                          Change Role
-                        </LinkButton>
-                        <LinkButton
-                          variant="warning"
-                          onClick={() => handleResetPassword(user.id)}
-                        >
-                          Reset Password
-                        </LinkButton>
-                        <LinkButton
-                          variant="danger"
-                          onClick={() => setUserToDelete(user)}
-                        >
-                          Delete
-                        </LinkButton>
+                        {canUpdate && (
+                          <LinkButton
+                            onClick={() => setUserForRoleChange(user)}
+                            data-testid={`change-role-${user.id}`}
+                          >
+                            Change Role
+                          </LinkButton>
+                        )}
+                        {canUpdate && (
+                          <LinkButton
+                            variant="warning"
+                            onClick={() => handleResetPassword(user.id)}
+                            data-testid={`reset-password-${user.id}`}
+                          >
+                            Reset Password
+                          </LinkButton>
+                        )}
+                        {canDelete && (
+                          <LinkButton
+                            variant="danger"
+                            onClick={() => setUserToDelete(user)}
+                            data-testid={`delete-user-${user.id}`}
+                          >
+                            Delete
+                          </LinkButton>
+                        )}
                       </div>
                     </td>
                   </tr>

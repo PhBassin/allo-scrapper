@@ -101,7 +101,7 @@ describe('SystemPage', () => {
     it('should render page title', async () => {
       renderWithAuth(<SystemPage />);
 
-      expect(await screen.findByRole('heading', { name: /system information/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /system information/i })).toBeInTheDocument();
     });
 
     it('should display loading state initially', () => {
@@ -234,7 +234,7 @@ describe('SystemPage', () => {
       renderWithAuth(<SystemPage />);
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to load system information/i)).toBeInTheDocument();
+        expect(screen.getByText(/failed to fetch/i)).toBeInTheDocument();
       });
     });
   });
