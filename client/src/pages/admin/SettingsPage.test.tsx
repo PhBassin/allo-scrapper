@@ -32,6 +32,24 @@ const mockAuthContext = {
 };
 
 const mockSettingsContext = {
+  publicSettings: {
+    site_name: 'Test Cinema',
+    logo_base64: null,
+    favicon_base64: null,
+    color_primary: '#FECC00',
+    color_secondary: '#1E40AF',
+    color_accent: '#10B981',
+    color_background: '#FFFFFF',
+    color_text: '#1F2937',
+    color_text_secondary: '#6B7280',
+    color_border: '#E5E7EB',
+    color_success: '#10B981',
+    color_error: '#EF4444',
+    font_family_heading: 'Playfair Display',
+    font_family_body: 'Roboto',
+    footer_text: '© 2024 Test Cinema',
+    footer_links: [],
+  },
   adminSettings: {
     site_name: 'Test Cinema',
     logo_base64: null,
@@ -53,11 +71,12 @@ const mockSettingsContext = {
     email_from_address: 'noreply@test.com',
     email_logo_base64: null,
   },
-  settings: null,
-  updateSettings: vi.fn(),
-  refreshAdminSettings: vi.fn(),
-  refreshSettings: vi.fn(),
   isLoading: false,
+  isLoadingPublic: false,
+  error: null,
+  refreshPublicSettings: vi.fn(),
+  refreshAdminSettings: vi.fn(),
+  updateSettings: vi.fn(),
 };
 
 const renderWithContexts = (
