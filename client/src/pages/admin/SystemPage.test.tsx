@@ -44,8 +44,8 @@ const mockSystemInfo = {
 const mockMigrations = {
   total: 5,
   applied: [
-    { version: '001', appliedAt: '2024-01-01T00:00:00.000Z', status: 'applied' },
-    { version: '002', appliedAt: '2024-01-02T00:00:00.000Z', status: 'applied' },
+    { version: '001', appliedAt: '2024-01-01T00:00:00.000Z', status: 'applied' as const },
+    { version: '002', appliedAt: '2024-01-02T00:00:00.000Z', status: 'applied' as const },
   ],
   pending: [],
 };
@@ -59,6 +59,7 @@ const mockHealth = {
   uptime: 3600,
   scrapers: {
     activeJobs: 0,
+    lastScrapeTime: '2024-01-01T00:00:00.000Z',
     totalCinemas: 5,
   },
 };
