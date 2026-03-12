@@ -29,6 +29,7 @@ const mockSystemInfo = {
     memoryUsage: {
       heapUsed: '100 MB',
       heapTotal: '200 MB',
+      rss: '150 MB',
     },
   },
   database: {
@@ -43,14 +44,14 @@ const mockSystemInfo = {
 const mockMigrations = {
   total: 5,
   applied: [
-    { version: '001', appliedAt: '2024-01-01T00:00:00.000Z' },
-    { version: '002', appliedAt: '2024-01-02T00:00:00.000Z' },
+    { version: '001', appliedAt: '2024-01-01T00:00:00.000Z', status: 'applied' },
+    { version: '002', appliedAt: '2024-01-02T00:00:00.000Z', status: 'applied' },
   ],
   pending: [],
 };
 
 const mockHealth = {
-  status: 'healthy',
+  status: 'healthy' as const,
   checks: {
     database: true,
     migrations: true,
