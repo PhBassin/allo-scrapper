@@ -18,14 +18,14 @@ const router = express.Router();
 
 /**
  * GET /api/permissions
- * List all available permissions (requires roles:read)
+ * List all available permissions (requires roles:list)
  * Registered before /:id to avoid conflict
  */
 router.get(
   '/permissions',
   protectedLimiter,
   requireAuth,
-  requirePermission('roles:read'),
+  requirePermission('roles:list'),
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
@@ -42,13 +42,13 @@ router.get(
 
 /**
  * GET /api/roles
- * List all roles with their permissions (requires roles:read)
+ * List all roles with their permissions (requires roles:list)
  */
 router.get(
   '/',
   protectedLimiter,
   requireAuth,
-  requirePermission('roles:read'),
+  requirePermission('roles:list'),
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
@@ -100,13 +100,13 @@ router.get(
 
 /**
  * POST /api/roles
- * Create a new role (requires users:create)
+ * Create a new role (requires roles:create)
  */
 router.post(
   '/',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:create'),
+  requirePermission('roles:create'),
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
@@ -139,13 +139,13 @@ router.post(
 
 /**
  * PUT /api/roles/:id
- * Update a role's name/description (requires users:update)
+ * Update a role's name/description (requires roles:update)
  */
 router.put(
   '/:id',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:update'),
+  requirePermission('roles:update'),
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
@@ -177,7 +177,7 @@ router.put(
 
 /**
  * DELETE /api/roles/:id
- * Delete a role (requires users:delete)
+ * Delete a role (requires roles:delete)
  * - 403 if is_system=true
  * - 409 if users are assigned to this role
  */
@@ -185,7 +185,7 @@ router.delete(
   '/:id',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:delete'),
+  requirePermission('roles:delete'),
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
@@ -236,14 +236,14 @@ router.delete(
 
 /**
  * PUT /api/roles/:id/permissions
- * Replace all permissions for a role (requires users:update)
+ * Replace all permissions for a role (requires roles:update)
  * Body: { permission_ids: number[] }
  */
 router.put(
   '/:id/permissions',
   protectedLimiter,
   requireAuth,
-  requirePermission('users:update'),
+  requirePermission('roles:update'),
   async (req, res) => {
     try {
       const db: DB = req.app.get('db');
