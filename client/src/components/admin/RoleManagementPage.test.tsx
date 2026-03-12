@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import RoleManagementPage from './RoleManagementPage';
@@ -172,5 +173,158 @@ describe('RoleManagementPage - Permission-based button visibility', () => {
     expect(screen.queryByTestId('create-role-button')).not.toBeInTheDocument();
     expect(screen.queryByTestId('edit-role-1')).not.toBeInTheDocument();
     expect(screen.queryByTestId('delete-role-1')).not.toBeInTheDocument();
+  });
+
+  it('shows "View Permissions" button when user has only roles:read permission', async () => {
+    renderWithAuth(<RoleManagementPage />, {
+      hasPermission: vi.fn((p: string) => p === 'roles:list' || p === 'roles:read'),
+    });
+
+    await screen.findByText('admin');
+
+    // View buttons should be visible
+    expect(screen.getByTestId('view-role-1')).toBeInTheDocument();
+    expect(screen.getByTestId('view-role-2')).toBeInTheDocument();
+    expect(screen.getByTestId('view-role-3')).toBeInTheDocument();
+
+    // But Edit buttons should not
+    expect(screen.queryByTestId('edit-role-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('edit-role-2')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('edit-role-3')).not.toBeInTheDocument();
+  });
+
+  it('shows both "View Permissions" and "Edit Permissions" buttons when user has both permissions', async () => {
+    renderWithAuth(<RoleManagementPage />, {
+      hasPermission: vi.fn((p: string) => 
+        p === 'roles:list' || p === 'roles:read' || p === 'roles:update'
+      ),
+    });
+
+    await screen.findByText('admin');
+
+    // Both View and Edit buttons should be visible
+    expect(screen.getByTestId('view-role-1')).toBeInTheDocument();
+    expect(screen.getByTestId('view-role-2')).toBeInTheDocument();
+    expect(screen.getByTestId('view-role-3')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-role-1')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-role-2')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-role-3')).toBeInTheDocument();
+  });
+
+  it('shows only "Edit Permissions" button when user has roles:update but not roles:read', async () => {
+    renderWithAuth(<RoleManagementPage />, {
+      hasPermission: vi.fn((p: string) => p === 'roles:list' || p === 'roles:update'),
+    });
+
+    await screen.findByText('admin');
+
+    // Edit buttons should be visible
+    expect(screen.getByTestId('edit-role-1')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-role-2')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-role-3')).toBeInTheDocument();
+
+    // View buttons should not
+    expect(screen.queryByTestId('view-role-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('view-role-2')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('view-role-3')).not.toBeInTheDocument();
+  });
+});
+
+describe('RoleManagementPage - View Permissions modal', () => {
+  beforeEach(() => {
+    vi.mocked(rolesApi.getAll).mockResolvedValue(mockRoles);
+    vi.mocked(rolesApi.getAllPermissions).mockResolvedValue(mockPermissions);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('opens read-only modal when "View Permissions" button is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<RoleManagementPage />, {
+      hasPermission: vi.fn((p: string) => p === 'roles:list' || p === 'roles:read'),
+    });
+
+    await screen.findByText('admin');
+
+    const viewButton = screen.getByTestId('view-role-1');
+    await user.click(viewButton);
+
+    // Modal should open with "View Permissions" title
+    await waitFor(() => {
+      expect(screen.getByText(/View Permissions — admin/i)).toBeInTheDocument();
+    });
+  });
+
+  it('displays checkboxes as disabled in read-only mode', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<RoleManagementPage />, {
+      hasPermission: vi.fn((p: string) => p === 'roles:list' || p === 'roles:read'),
+    });
+
+    await screen.findByText('admin');
+
+    const viewButton = screen.getByTestId('view-role-1');
+    await user.click(viewButton);
+
+    // Wait for modal to open
+    await waitFor(() => {
+      expect(screen.getByText(/View Permissions — admin/i)).toBeInTheDocument();
+    });
+
+    // All checkboxes should be disabled
+    const checkboxes = screen.getAllByRole('checkbox');
+    checkboxes.forEach(checkbox => {
+      expect(checkbox).toBeDisabled();
+    });
+  });
+
+  it('does not show Save button in read-only mode', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<RoleManagementPage />, {
+      hasPermission: vi.fn((p: string) => p === 'roles:list' || p === 'roles:read'),
+    });
+
+    await screen.findByText('admin');
+
+    const viewButton = screen.getByTestId('view-role-1');
+    await user.click(viewButton);
+
+    // Wait for modal to open
+    await waitFor(() => {
+      expect(screen.getByText(/View Permissions — admin/i)).toBeInTheDocument();
+    });
+
+    // Save button should not be present
+    expect(screen.queryByText('Save')).not.toBeInTheDocument();
+    // But Close button should be present
+    expect(screen.getByText('Close')).toBeInTheDocument();
+  });
+
+  it('opens editable modal when "Edit Permissions" button is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<RoleManagementPage />, {
+      hasPermission: vi.fn(() => true),
+    });
+
+    await screen.findByText('admin');
+
+    const editButton = screen.getByTestId('edit-role-1');
+    await user.click(editButton);
+
+    // Modal should open with "Edit Permissions" title
+    await waitFor(() => {
+      expect(screen.getByText(/Edit Permissions — admin/i)).toBeInTheDocument();
+    });
+
+    // Checkboxes should NOT be disabled
+    const checkboxes = screen.getAllByRole('checkbox');
+    checkboxes.forEach(checkbox => {
+      expect(checkbox).not.toBeDisabled();
+    });
+
+    // Save button should be present
+    expect(screen.getByText('Save')).toBeInTheDocument();
   });
 });
