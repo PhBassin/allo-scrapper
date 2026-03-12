@@ -51,6 +51,7 @@ const mockSettingsContext = {
     footer_links: [],
   },
   adminSettings: {
+    id: 1,
     site_name: 'Test Cinema',
     logo_base64: null,
     favicon_base64: null,
@@ -70,6 +71,8 @@ const mockSettingsContext = {
     email_from_name: 'Test Cinema',
     email_from_address: 'noreply@test.com',
     email_logo_base64: null,
+    updated_at: '2024-01-01T00:00:00.000Z',
+    updated_by: 'admin',
   },
   isLoading: false,
   isLoadingPublic: false,
@@ -95,8 +98,8 @@ const renderWithContexts = (
 describe('SettingsPage - Permission-based button visibility', () => {
   beforeEach(() => {
     vi.mocked(downloadSettingsExport).mockResolvedValue(undefined);
-    vi.mocked(uploadSettingsImport).mockResolvedValue(undefined);
-    vi.mocked(resetSettings).mockResolvedValue(undefined);
+    vi.mocked(uploadSettingsImport).mockResolvedValue(mockSettingsContext.adminSettings!);
+    vi.mocked(resetSettings).mockResolvedValue(mockSettingsContext.adminSettings!);
   });
 
   afterEach(() => {
