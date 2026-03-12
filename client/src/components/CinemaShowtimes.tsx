@@ -43,40 +43,38 @@ export default function CinemaShowtimes({ cinemas, initialDate }: CinemaShowtime
   return (
     <div className="space-y-6">
       {/* Date Selector */}
-      {dates.length > 1 && (
-        <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="flex gap-2 min-w-max">
-            {dates.map((date) => {
-              const label = formatDateLabel(date);
-              const isActive = date === selectedDate;
+      <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex gap-2 min-w-max">
+          {dates.map((date) => {
+            const label = formatDateLabel(date);
+            const isActive = date === selectedDate;
 
-              return (
-                <button
-                  key={date}
-                  onClick={() => setSelectedDate(date)}
-                  className={`
-                    px-4 py-2 rounded-lg border-2 transition-all text-center min-w-[80px] cursor-pointer active:scale-95
-                    ${isActive 
-                      ? 'border-primary bg-yellow-50 text-black shadow-sm' 
-                      : 'border-transparent bg-white text-gray-600 hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <div className={`text-[10px] uppercase font-bold ${isActive ? 'text-primary-dark' : 'text-gray-400'}`}>
-                    {label.weekday}
-                  </div>
-                  <div className="text-lg font-bold leading-none">
-                    {label.day}
-                  </div>
-                  <div className="text-[10px] text-gray-400 mt-1">
-                    {label.month}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+            return (
+              <button
+                key={date}
+                onClick={() => setSelectedDate(date)}
+                className={`
+                  px-4 py-2 rounded-lg border-2 transition-all text-center min-w-[80px] cursor-pointer active:scale-95
+                  ${isActive 
+                    ? 'border-primary bg-yellow-50 text-black shadow-sm' 
+                    : 'border-transparent bg-white text-gray-600 hover:bg-gray-50'
+                  }
+                `}
+              >
+                <div className={`text-[10px] uppercase font-bold ${isActive ? 'text-primary-dark' : 'text-gray-400'}`}>
+                  {label.weekday}
+                </div>
+                <div className="text-lg font-bold leading-none">
+                  {label.day}
+                </div>
+                <div className="text-[10px] text-gray-400 mt-1">
+                  {label.month}
+                </div>
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
 
       {/* Cinemas List */}
       <div className="space-y-4">
