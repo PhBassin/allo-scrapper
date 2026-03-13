@@ -501,6 +501,164 @@ COMMIT;
 
 ---
 
+### 008_permission_based_roles.sql
+
+**Version:** 4.0.0  
+**Date:** 2026-03-13  
+**Breaking Change:** Yes (major RBAC implementation)
+
+**Description:**
+
+Implements comprehensive Role-Based Access Control (RBAC) system, replacing the binary admin/user role system with granular permissions.
+
+**Changes:**
+
+**New Tables:**
+```sql
+-- Roles table
+CREATE TABLE roles (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  is_system BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Permissions table  
+CREATE TABLE permissions (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  category TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Junction table
+CREATE TABLE role_permissions (
+  role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+  permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+  PRIMARY KEY (role_id, permission_id)
+);
+```
+
+**User Table Migration:**
+- Adds `role_id INTEGER REFERENCES roles(id) NOT NULL`
+- Migrates existing `role` TEXT values to role references
+- Drops old `role` column and constraints
+- Creates `idx_users_role_id` index
+
+**Seed Data:**
+- **24 permissions** across 6 categories (users, scraper, cinemas, settings, reports, system)
+- **Admin role**: System role with bypass privileges
+- **Operator role**: System role with 7 specific permissions
+
+**Permission Categories:**
+- `users` (4): list, create, update, delete
+- `scraper` (2): trigger, trigger_single  
+- `cinemas` (3): create, update, delete
+- `settings` (5): read, update, reset, export, import
+- `reports` (2): list, view
+- `system` (3): info, health, migrations
+
+**Rollback:**
+
+```sql
+BEGIN;
+-- Add back old role column
+ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user';
+
+-- Migrate role_id back to role names
+UPDATE users SET role = (
+  SELECT name FROM roles WHERE roles.id = users.role_id
+);
+
+-- Drop RBAC tables
+DROP TABLE role_permissions CASCADE;
+DROP TABLE permissions CASCADE;  
+DROP TABLE roles CASCADE;
+
+-- Drop new column
+ALTER TABLE users DROP COLUMN role_id;
+
+-- Restore old constraints
+ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'user'));
+CREATE INDEX idx_users_role ON users(role);
+COMMIT;
+```
+
+---
+
+### 009_add_roles_permission.sql
+
+**Version:** 4.0.1  
+**Date:** 2026-03-13  
+**Breaking Change:** No
+
+**Description:**
+
+Adds the `roles:read` permission to enable viewing individual role details via API.
+
+**Changes:**
+
+- Inserts `roles:read` permission in `roles` category
+- Brings total canonical permissions to 20
+
+**Permission Added:**
+```sql
+INSERT INTO permissions (name, description, category) 
+VALUES ('roles:read', 'Voir les détails d''un rôle', 'roles');
+```
+
+**Rollback:**
+
+```sql
+BEGIN;
+DELETE FROM role_permissions 
+WHERE permission_id = (SELECT id FROM permissions WHERE name = 'roles:read');
+
+DELETE FROM permissions WHERE name = 'roles:read';
+COMMIT;
+```
+
+---
+
+### 010_remove_phantom_permissions.sql
+
+**Version:** 4.0.2  
+**Date:** 2026-03-13  
+**Breaking Change:** No
+
+**Description:**
+
+Cleanup migration that removes any non-canonical permissions that may exist in the database from manual modifications or historical data.
+
+**Changes:**
+
+- Defines the canonical set of 20 permissions (at time of migration)
+- Removes any permissions not in the canonical list
+- Removes associated role_permissions entries
+- Logs removed permissions for audit trail
+
+**Canonical Permissions (20 total):**
+- users: list, create, update, delete (4)
+- scraper: trigger, trigger_single (2)  
+- cinemas: create, update, delete (3)
+- settings: read, update, reset, export, import (5)
+- reports: list, view (2)
+- system: info, health, migrations (3)
+- roles: read (1)
+
+**Safety:**
+- Uses transaction to ensure atomicity
+- Only removes non-canonical permissions
+- Preserves all legitimate permissions and role assignments
+
+**Rollback:**
+
+No automatic rollback available - this migration only removes invalid data. If legitimate permissions were accidentally removed, they would need to be manually re-added.
+
+---
+
 ## Creating New Migrations
 
 ### Step 1: Determine Migration Number

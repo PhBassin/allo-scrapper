@@ -67,15 +67,39 @@ Protected endpoints require JWT authentication:
 
 **⚠️ Important:** Change the default admin password in production environments.
 
-**Protected Endpoints:**
-- `POST /api/scraper/trigger` - Trigger manual scraping
-- `GET /api/reports` - View scrape reports
-- `GET /api/reports/:id` - View report details
-- `PUT /api/settings` - Update application settings (admin only)
-- `POST /api/settings/reset` - Reset settings to defaults (admin only)
-- `POST /api/users` - Create new user (admin only)
-- `PUT /api/users/:id/role` - Update user role (admin only)
-- `DELETE /api/users/:id` - Delete user (admin only)
+### JWT Payload
+
+JWTs contain user information and permissions for role-based access control:
+
+```json
+{
+  "id": 1,
+  "username": "admin",
+  "role_name": "admin",
+  "is_system_role": true,
+  "permissions": ["users:list", "users:create", "scraper:trigger", "..."]
+}
+```
+
+**Token Properties:**
+- **Expiry**: 24 hours
+- **Permissions**: Baked in at login time (re-login required for permission changes)
+- **Admin Bypass**: System admin role has access to all endpoints
+
+### Permission-Based Access
+
+Most endpoints now require specific permissions instead of just admin role:
+
+- `POST /api/scraper/trigger` - Requires `scraper:trigger` permission
+- `GET /api/reports` - Requires `reports:list` permission
+- `GET /api/reports/:id` - Requires `reports:view` permission
+- `PUT /api/settings` - Requires `settings:update` permission
+- `POST /api/settings/reset` - Requires `settings:reset` permission
+- `POST /api/users` - Requires `users:create` permission
+- `PUT /api/users/:id/role` - Requires `users:update` permission
+- `DELETE /api/users/:id` - Requires `users:delete` permission
+
+See [Roles & Permissions Reference](../roles-and-permissions.md) for complete permission list.
 
 **Example:**
 ```bash
@@ -218,33 +242,44 @@ curl -X POST http://localhost:3000/api/auth/login \
 | [Health](./health.md) | `/api/health` | GET | No |
 | [Cinemas](./cinemas.md) | `/api/cinemas` | GET | No |
 | [Cinemas](./cinemas.md) | `/api/cinemas/:id` | GET | No |
-| [Cinemas](./cinemas.md) | `/api/cinemas` | POST | No |
-| [Cinemas](./cinemas.md) | `/api/cinemas/:id` | PUT | No |
-| [Cinemas](./cinemas.md) | `/api/cinemas/:id` | DELETE | No |
+| [Cinemas](./cinemas.md) | `/api/cinemas` | POST | `cinemas:create` |
+| [Cinemas](./cinemas.md) | `/api/cinemas/:id` | PUT | `cinemas:update` |
+| [Cinemas](./cinemas.md) | `/api/cinemas/:id` | DELETE | `cinemas:delete` |
 | [Films](./films.md) | `/api/films` | GET | No |
 | [Films](./films.md) | `/api/films/:id` | GET | No |
 | [Films](./films.md) | `/api/films/search` | GET | No |
 | [Auth](./auth.md) | `/api/auth/login` | POST | No |
 | [Auth](./auth.md) | `/api/auth/register` | POST | No |
 | [Auth](./auth.md) | `/api/auth/change-password` | POST | Yes |
-| [Scraper](./scraper.md) | `/api/scraper/trigger` | POST | Yes |
+| [Scraper](./scraper.md) | `/api/scraper/trigger` | POST | `scraper:trigger` |
 | [Scraper](./scraper.md) | `/api/scraper/status` | GET | No |
 | [Scraper](./scraper.md) | `/api/scraper/progress` | GET (SSE) | No |
-| [Reports](./reports.md) | `/api/reports` | GET | Yes |
-| [Reports](./reports.md) | `/api/reports/:id` | GET | Yes |
+| [Reports](./reports.md) | `/api/reports` | GET | `reports:list` |
+| [Reports](./reports.md) | `/api/reports/:id` | GET | `reports:view` |
 | [Settings](./settings.md) | `/api/settings` | GET | No |
-| [Settings](./settings.md) | `/api/settings/admin` | GET | Yes (Admin) |
-| [Settings](./settings.md) | `/api/settings` | PUT | Yes (Admin) |
-| [Settings](./settings.md) | `/api/settings/reset` | POST | Yes (Admin) |
+| [Settings](./settings.md) | `/api/settings/admin` | GET | `settings:read` |
+| [Settings](./settings.md) | `/api/settings` | PUT | `settings:update` |
+| [Settings](./settings.md) | `/api/settings/reset` | POST | `settings:reset` |
+| [Settings](./settings.md) | `/api/settings/export` | GET | `settings:export` |
+| [Settings](./settings.md) | `/api/settings/import` | POST | `settings:import` |
 | [Settings](./settings.md) | `/api/theme.css` | GET | No |
-| [Users](./users.md) | `/api/users` | GET | Yes (Admin) |
-| [Users](./users.md) | `/api/users/:id` | GET | Yes (Admin) |
-| [Users](./users.md) | `/api/users` | POST | Yes (Admin) |
-| [Users](./users.md) | `/api/users/:id/role` | PUT | Yes (Admin) |
-| [Users](./users.md) | `/api/users/:id/reset-password` | POST | Yes (Admin) |
-| [Users](./users.md) | `/api/users/:id` | DELETE | Yes (Admin) |
-| [System](./system.md) | `/api/system/info` | GET | No |
-| [System](./system.md) | `/api/system/migrations` | GET | No |
+| [Users](./users.md) | `/api/users` | GET | `users:list` |
+| [Users](./users.md) | `/api/users/:id` | GET | `users:list` |
+| [Users](./users.md) | `/api/users` | POST | `users:create` |
+| [Users](./users.md) | `/api/users/:id/role` | PUT | `users:update` |
+| [Users](./users.md) | `/api/users/:id/reset-password` | POST | `users:update` |
+| [Users](./users.md) | `/api/users/:id` | DELETE | `users:delete` |
+| [System](./system.md) | `/api/system/info` | GET | `system:info` |
+| [System](./system.md) | `/api/system/health` | GET | `system:health` |
+| [System](./system.md) | `/api/system/migrations` | GET | `system:migrations` |
+| **Roles & Permissions Management** | | | |
+| [Roles](./roles.md) | `/api/roles/permissions` | GET | `roles:list` |
+| [Roles](./roles.md) | `/api/roles` | GET | `roles:list` |
+| [Roles](./roles.md) | `/api/roles/:id` | GET | `roles:read` |
+| [Roles](./roles.md) | `/api/roles` | POST | `roles:create` |
+| [Roles](./roles.md) | `/api/roles/:id` | PUT | `roles:update` |
+| [Roles](./roles.md) | `/api/roles/:id` | DELETE | `roles:delete` |
+| [Roles](./roles.md) | `/api/roles/:id/permissions` | PUT | `roles:update` |
 
 ---
 

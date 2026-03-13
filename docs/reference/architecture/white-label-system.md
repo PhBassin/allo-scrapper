@@ -407,28 +407,47 @@ Response: 200 OK
 ## User Role Management
 
 **Roles**:
-- `admin` - Full access (can edit settings, manage users, view all data)
-- `viewer` - Read-only access (can view data, cannot edit anything)
+- `admin` - Full access with bypass privileges (can edit settings, manage users, view all data)
+- `operator` - Operational access (scraping, cinema management, reports)
+- Custom roles - Configurable permission sets for specific job functions
 
-**Role Enforcement**:
+**Permission Enforcement**:
 ```typescript
-// Middleware: server/src/middleware/admin.ts
-export function requireAdmin(req, res, next) {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
+// Middleware: server/src/middleware/permission.ts
+export function requirePermission(...requiredPermissions: string[]) {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Admin bypass
+    if (req.user.role_name === 'admin' && req.user.is_system_role) {
+      return next();
+    }
+    
+    // Check permissions
+    const userPermissions = new Set(req.user.permissions);
+    const hasAll = requiredPermissions.every(p => userPermissions.has(p));
+    
+    if (!hasAll) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    
+    return next();
+  };
 }
 
 // Usage in routes:
-router.put('/settings', authenticateToken, requireAdmin, updateSettings);
+router.put('/settings', authenticateToken, requirePermission('settings:update'), updateSettings);
 ```
 
 **Settings Access**:
 - `GET /api/settings` - Public (no auth required)
-- `PUT /api/settings` - Admin only
-- `GET /api/settings/export` - Admin only
-- `POST /api/settings/import` - Admin only
+- `PUT /api/settings` - Requires `settings:update` permission
+- `GET /api/settings/export` - Requires `settings:export` permission
+- `POST /api/settings/import` - Requires `settings:import` permission
+- `GET /api/settings/admin` - Requires `settings:read` permission
+- `POST /api/settings/reset` - Requires `settings:reset` permission
 
 ---
 
