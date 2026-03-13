@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import type { ApiResponse } from '../types/api.js';
+import type { PermissionName } from '../types/role.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -13,7 +14,7 @@ export interface AuthRequest extends Request {
         username: string;
         role_name: string;
         is_system_role: boolean;
-        permissions: string[];
+        permissions: PermissionName[];
     };
 }
 
@@ -36,7 +37,7 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
             username: string;
             role_name: string;
             is_system_role: boolean;
-            permissions: string[];
+            permissions: PermissionName[];
         };
         req.user = decoded;
         next();

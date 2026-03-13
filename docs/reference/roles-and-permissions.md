@@ -271,7 +271,7 @@ interface JWTPayload {
   username: string;              // Username
   role_name: string;             // Role name (e.g., 'admin', 'operator')
   is_system_role: boolean;       // True for built-in system roles
-  permissions: string[];         // Array of permission names
+  permissions: PermissionName[]; // Array of valid permission names
 }
 ```
 
@@ -553,7 +553,7 @@ router.put('/settings', requireAuth, requirePermission('settings:update', 'setti
 #### Implementation Details
 
 ```typescript
-export function requirePermission(...requiredPermissions: string[]) {
+export function requirePermission(...requiredPermissions: PermissionName[]) {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ success: false, error: 'Authentication required' });
@@ -602,7 +602,7 @@ interface User {
   role_id: number;
   role_name: string;
   is_system_role: boolean;
-  permissions: string[];
+  permissions: PermissionName[];
 }
 
 interface AuthContextType {
@@ -610,7 +610,7 @@ interface AuthContextType {
   token: string | null;
   user: User | null;
   isAdmin: boolean;
-  hasPermission: (permission: string) => boolean;
+  hasPermission: (permission: PermissionName) => boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
 }
@@ -621,7 +621,7 @@ interface AuthContextType {
 Client-side permission checking with admin bypass:
 
 ```typescript
-const hasPermission = (permission: string): boolean => {
+const hasPermission = (permission: PermissionName): boolean => {
   if (!user) return false;
   
   // Admin bypass
@@ -658,9 +658,9 @@ Route-level permission protection component.
 ```typescript
 interface RequirePermissionProps {
   children: React.ReactNode;
-  permission?: string;      // Single permission required
-  anyOf?: string[];         // At least one of these permissions
-  allOf?: string[];         // All of these permissions required
+  permission?: PermissionName;  // Single permission required
+  anyOf?: PermissionName[];     // At least one of these permissions
+  allOf?: PermissionName[];     // All of these permissions required
 }
 ```
 

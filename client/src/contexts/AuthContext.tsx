@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, type ReactNode } from 'react';
+import type { PermissionName } from '../types/role';
 
 export interface User {
     id: number;
@@ -6,7 +7,7 @@ export interface User {
     role_id: number;
     role_name: string;       // e.g. 'admin', 'operator'
     is_system_role: boolean; // true only for built-in system roles (admin, operator)
-    permissions: string[];   // e.g. ['scraper:trigger', 'cinemas:create', ...]
+    permissions: PermissionName[]; // e.g. ['scraper:trigger', 'cinemas:create', ...]
 }
 
 interface AuthContextType {
@@ -14,7 +15,7 @@ interface AuthContextType {
     token: string | null;
     user: User | null;
     isAdmin: boolean;
-    hasPermission: (permission: string) => boolean;
+    hasPermission: (permission: PermissionName) => boolean;
     login: (token: string, user: User) => void;
     logout: () => void;
 }
@@ -43,7 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const isAuthenticated = !!token;
     const isAdmin = user?.role_name === 'admin' && user?.is_system_role === true;
 
-    const hasPermission = (permission: string): boolean => {
+    const hasPermission = (permission: PermissionName): boolean => {
         if (!user) return false;
         if (isAdmin) return true;  // Admin bypass client-side too
         return user.permissions.includes(permission);

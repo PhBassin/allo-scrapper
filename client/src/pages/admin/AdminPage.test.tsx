@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import AdminPage from './AdminPage';
 import { AuthContext } from '../../contexts/AuthContext';
 import type { User } from '../../contexts/AuthContext';
+import type { PermissionName } from '../../types/role';
 
 // Mock child pages
 vi.mock('./CinemasPage', () => ({
@@ -36,7 +37,7 @@ const adminUser: User = {
   role_id: 1,
   role_name: 'admin',
   is_system_role: true,
-  permissions: [],
+  permissions: [] as PermissionName[],
 };
 
 const operatorUser: User = {
@@ -53,7 +54,7 @@ const operatorUser: User = {
     'cinemas:delete',
     'reports:list',
     'reports:view',
-  ],
+  ] as PermissionName[],
 };
 
 // A custom role that happens to be named "admin" but is NOT a system role
@@ -63,7 +64,7 @@ const fakeAdminUser: User = {
   role_id: 99,
   role_name: 'admin',
   is_system_role: false,
-  permissions: ['cinemas:create', 'reports:list'],
+  permissions: ['cinemas:create', 'reports:list'] as PermissionName[],
 };
 
 const makeAuthContext = (user: User) => ({
@@ -71,7 +72,7 @@ const makeAuthContext = (user: User) => ({
   token: 'mock-token',
   user,
   isAdmin: user.role_name === 'admin' && user.is_system_role === true,
-  hasPermission: (permission: string) =>
+  hasPermission: (permission: PermissionName) =>
     (user.role_name === 'admin' && user.is_system_role) || user.permissions.includes(permission),
   login: vi.fn(),
   logout: vi.fn(),
@@ -331,7 +332,7 @@ describe('AdminPage', () => {
       role_id: 10,
       role_name: 'roles-viewer',
       is_system_role: false,
-      permissions: ['roles:list'],
+      permissions: ['roles:list'] as PermissionName[],
     };
 
     const usersListOnlyUser: User = {
@@ -340,7 +341,7 @@ describe('AdminPage', () => {
       role_id: 11,
       role_name: 'users-lister',
       is_system_role: false,
-      permissions: ['users:list'],
+      permissions: ['users:list'] as PermissionName[],
     };
 
     it('should show Roles tab for a user with roles:list but NOT users:list', () => {
@@ -377,7 +378,7 @@ describe('AdminPage', () => {
       role_id: 20,
       role_name: 'sysinfo-only',
       is_system_role: false,
-      permissions: ['system:info'],
+      permissions: ['system:info'] as PermissionName[],
     };
 
     const systemHealthOnlyUser: User = {
@@ -386,7 +387,7 @@ describe('AdminPage', () => {
       role_id: 21,
       role_name: 'syshealth-only',
       is_system_role: false,
-      permissions: ['system:health'],
+      permissions: ['system:health'] as PermissionName[],
     };
 
     const systemInfoAndMigrationsUser: User = {
@@ -395,7 +396,7 @@ describe('AdminPage', () => {
       role_id: 22,
       role_name: 'sysinfo-migrations',
       is_system_role: false,
-      permissions: ['system:info', 'system:migrations'],
+      permissions: ['system:info', 'system:migrations'] as PermissionName[],
     };
 
     const allSystemPermissionsUser: User = {
@@ -404,7 +405,7 @@ describe('AdminPage', () => {
       role_id: 23,
       role_name: 'full-system',
       is_system_role: false,
-      permissions: ['system:info', 'system:migrations', 'system:health'],
+      permissions: ['system:info', 'system:migrations', 'system:health'] as PermissionName[],
     };
 
     const noSystemPermissionsUser: User = {
@@ -413,7 +414,7 @@ describe('AdminPage', () => {
       role_id: 24,
       role_name: 'no-system',
       is_system_role: false,
-      permissions: ['users:list'],
+      permissions: ['users:list'] as PermissionName[],
     };
 
     it('should show System tab for a user with only system:info', () => {

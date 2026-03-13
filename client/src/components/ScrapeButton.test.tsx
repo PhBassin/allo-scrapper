@@ -2,15 +2,16 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ScrapeButton from './ScrapeButton';
 import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import { AuthContext } from '../contexts/AuthContext';
+import type { PermissionName } from '../types/role';
 
 const mockAuthContext = {
   isAuthenticated: true,
   token: 'mock-token',
-  user: { id: 1, username: 'testuser', role_id: 2, role_name: 'operator', is_system_role: true, permissions: ['scraper:trigger'] },
+  user: { id: 1, username: 'testuser', role_id: 2, role_name: 'operator', is_system_role: true, permissions: ['scraper:trigger'] as PermissionName[] },
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: false,
-  hasPermission: vi.fn((p: string) => p === 'scraper:trigger'),
+  hasPermission: vi.fn((p: PermissionName) => p === 'scraper:trigger'),
 };
 
 const renderWithAuth = (ui: React.ReactElement) => {

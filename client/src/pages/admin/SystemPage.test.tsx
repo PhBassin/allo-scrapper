@@ -3,6 +3,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import SystemPage from './SystemPage';
 import { AuthContext } from '../../contexts/AuthContext';
 import * as systemApi from '../../api/system';
+import type { PermissionName } from '../../types/role';
 
 // Mock API modules
 vi.mock('../../api/system', async () => {
@@ -73,12 +74,12 @@ const mockAuthContext = {
     role_id: 1,
     role_name: 'admin',
     is_system_role: true,
-    permissions: ['system:info', 'system:health', 'system:migrations'],
+    permissions: ['system:info', 'system:health', 'system:migrations'] as PermissionName[],
   },
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: true,
-  hasPermission: vi.fn<(p: string) => boolean>(() => true),
+  hasPermission: vi.fn<(p: PermissionName) => boolean>(() => true),
 };
 
 const renderWithAuth = (ui: React.ReactElement, authOverrides?: Partial<typeof mockAuthContext>) =>
@@ -126,7 +127,7 @@ describe('SystemPage', () => {
   describe('permission-based section visibility', () => {
     it('hides System Info grid when user lacks system:info permission', async () => {
       renderWithAuth(<SystemPage />, {
-        hasPermission: vi.fn((p: string) => p !== 'system:info'),
+        hasPermission: vi.fn((p: PermissionName) => p !== 'system:info'),
       });
 
       await waitFor(() => {
@@ -148,7 +149,7 @@ describe('SystemPage', () => {
 
     it('hides Health Status card when user lacks system:health permission', async () => {
       renderWithAuth(<SystemPage />, {
-        hasPermission: vi.fn((p: string) => p !== 'system:health'),
+        hasPermission: vi.fn((p: PermissionName) => p !== 'system:health'),
       });
 
       await waitFor(() => {
@@ -170,7 +171,7 @@ describe('SystemPage', () => {
 
     it('hides Migrations table when user lacks system:migrations permission', async () => {
       renderWithAuth(<SystemPage />, {
-        hasPermission: vi.fn((p: string) => p !== 'system:migrations'),
+        hasPermission: vi.fn((p: PermissionName) => p !== 'system:migrations'),
       });
 
       await waitFor(() => {
@@ -194,7 +195,7 @@ describe('SystemPage', () => {
   describe('permission-based API calls', () => {
     it('does not call getSystemInfo when user lacks system:info permission', async () => {
       renderWithAuth(<SystemPage />, {
-        hasPermission: vi.fn((p: string) => p !== 'system:info'),
+        hasPermission: vi.fn((p: PermissionName) => p !== 'system:info'),
       });
 
       await waitFor(() => {
@@ -206,7 +207,7 @@ describe('SystemPage', () => {
 
     it('does not call getSystemHealth when user lacks system:health permission', async () => {
       renderWithAuth(<SystemPage />, {
-        hasPermission: vi.fn((p: string) => p !== 'system:health'),
+        hasPermission: vi.fn((p: PermissionName) => p !== 'system:health'),
       });
 
       await waitFor(() => {
@@ -218,7 +219,7 @@ describe('SystemPage', () => {
 
     it('does not call getMigrations when user lacks system:migrations permission', async () => {
       renderWithAuth(<SystemPage />, {
-        hasPermission: vi.fn((p: string) => p !== 'system:migrations'),
+        hasPermission: vi.fn((p: PermissionName) => p !== 'system:migrations'),
       });
 
       await waitFor(() => {
