@@ -7,6 +7,7 @@ import SystemPage from './SystemPage';
 import ReportsPage from '../ReportsPage';
 import RoleManagementPage from '../../components/admin/RoleManagementPage';
 import { AuthContext } from '../../contexts/AuthContext';
+import type { PermissionName } from '../../types/role';
 
 type TabId = 'cinemas' | 'rapports' | 'users' | 'roles' | 'settings' | 'system';
 
@@ -14,11 +15,11 @@ interface Tab {
   id: TabId;
   label: string;
   icon: React.ReactNode;
-  permission?: string;
+  permission?: PermissionName;
   /** All listed permissions must be held for the tab to be visible */
-  permissions?: string[];
+  permissions?: PermissionName[];
   /** At least one of the listed permissions must be held for the tab to be visible */
-  anyPermissions?: string[];
+  anyPermissions?: PermissionName[];
 }
 
 const tabs: Tab[] = [

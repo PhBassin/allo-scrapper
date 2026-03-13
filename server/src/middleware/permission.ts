@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import type { AuthRequest } from './auth.js';
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
+import type { PermissionName } from '../types/role.js';
 
 /**
  * Middleware factory — require one or more permissions.
@@ -13,7 +14,7 @@ import { logger } from '../utils/logger.js';
  *   router.post('/trigger', requireAuth, requirePermission('scraper:trigger'), handler)
  *   router.delete('/:id', requireAuth, requirePermission('cinemas:delete'), handler)
  */
-export function requirePermission(...requiredPermissions: string[]) {
+export function requirePermission(...requiredPermissions: PermissionName[]) {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void | Response> => {
     if (!req.user) {
       const response: ApiResponse = { success: false, error: 'Authentication required' };

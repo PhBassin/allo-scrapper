@@ -5,7 +5,7 @@ import UsersPage from './UsersPage';
 import * as usersApi from '../../api/users';
 import * as rolesApi from '../../api/roles';
 import type { UserPublic } from '../../api/users';
-import type { RoleWithPermissions } from '../../types/role';
+import type { RoleWithPermissions, PermissionName } from '../../types/role';
 import { AuthContext } from '../../contexts/AuthContext';
 
 // Mock the APIs
@@ -48,12 +48,12 @@ const mockAuthContext = {
     role_id: 1,
     role_name: 'admin',
     is_system_role: true,
-    permissions: ['users:create', 'users:update', 'users:delete'],
+    permissions: ['users:create', 'users:update', 'users:delete'] as PermissionName[],
   },
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: true,
-  hasPermission: vi.fn<(p: string) => boolean>(() => true),
+  hasPermission: vi.fn<(p: PermissionName) => boolean>(() => true),
 };
 
 const renderWithAuth = (ui: React.ReactElement, authOverrides?: Partial<typeof mockAuthContext>) =>
@@ -404,7 +404,7 @@ describe('UsersPage', () => {
   describe('permission-based button visibility', () => {
     it('hides "Create User" button when user lacks users:create permission', async () => {
       renderWithAuth(<UsersPage />, {
-        hasPermission: vi.fn((p: string) => p !== 'users:create'),
+        hasPermission: vi.fn((p: PermissionName) => p !== 'users:create'),
       });
 
       await waitFor(() => {
@@ -428,7 +428,7 @@ describe('UsersPage', () => {
 
     it('hides "Change Role" buttons when user lacks users:update permission', async () => {
       renderWithAuth(<UsersPage />, {
-        hasPermission: vi.fn((p: string) => p !== 'users:update'),
+        hasPermission: vi.fn((p: PermissionName) => p !== 'users:update'),
       });
 
       await waitFor(() => {
@@ -456,7 +456,7 @@ describe('UsersPage', () => {
 
     it('hides "Reset Password" buttons when user lacks users:update permission', async () => {
       renderWithAuth(<UsersPage />, {
-        hasPermission: vi.fn((p: string) => p !== 'users:update'),
+        hasPermission: vi.fn((p: PermissionName) => p !== 'users:update'),
       });
 
       await waitFor(() => {
@@ -484,7 +484,7 @@ describe('UsersPage', () => {
 
     it('hides "Delete" buttons when user lacks users:delete permission', async () => {
       renderWithAuth(<UsersPage />, {
-        hasPermission: vi.fn((p: string) => p !== 'users:delete'),
+        hasPermission: vi.fn((p: PermissionName) => p !== 'users:delete'),
       });
 
       await waitFor(() => {

@@ -3,6 +3,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import SettingsPage from './SettingsPage';
 import { AuthContext } from '../../contexts/AuthContext';
 import { SettingsContext } from '../../contexts/SettingsContext';
+import type { PermissionName } from '../../types/role';
 
 // Mock API modules
 vi.mock('../../api/settings', () => ({
@@ -23,12 +24,12 @@ const mockAuthContext = {
     role_id: 1,
     role_name: 'admin',
     is_system_role: true,
-    permissions: ['settings:read', 'settings:update', 'settings:reset', 'settings:export', 'settings:import'],
+    permissions: ['settings:read', 'settings:update', 'settings:reset', 'settings:export', 'settings:import'] as PermissionName[],
   },
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: true,
-  hasPermission: vi.fn<(p: string) => boolean>(() => true),
+  hasPermission: vi.fn<(p: PermissionName) => boolean>(() => true),
 };
 
 const mockSettingsContext = {
@@ -108,7 +109,7 @@ describe('SettingsPage - Permission-based button visibility', () => {
 
   it('hides Export button when user lacks settings:export permission', async () => {
     renderWithContexts(<SettingsPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'settings:export'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'settings:export'),
     });
 
     await screen.findByText('White-Label Settings');
@@ -128,7 +129,7 @@ describe('SettingsPage - Permission-based button visibility', () => {
 
   it('hides Import button when user lacks settings:import permission', async () => {
     renderWithContexts(<SettingsPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'settings:import'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'settings:import'),
     });
 
     await screen.findByText('White-Label Settings');
@@ -148,7 +149,7 @@ describe('SettingsPage - Permission-based button visibility', () => {
 
   it('hides Reset button when user lacks settings:reset permission', async () => {
     renderWithContexts(<SettingsPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'settings:reset'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'settings:reset'),
     });
 
     await screen.findByText('White-Label Settings');
@@ -168,7 +169,7 @@ describe('SettingsPage - Permission-based button visibility', () => {
 
   it('hides Save button when user lacks settings:update permission', async () => {
     renderWithContexts(<SettingsPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'settings:update'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'settings:update'),
     });
 
     await screen.findByText('White-Label Settings');
@@ -188,7 +189,7 @@ describe('SettingsPage - Permission-based button visibility', () => {
 
   it('disables form inputs when user lacks settings:update permission', async () => {
     renderWithContexts(<SettingsPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'settings:update'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'settings:update'),
     });
 
     await screen.findByText('White-Label Settings');
@@ -212,7 +213,7 @@ describe('SettingsPage - Permission-based button visibility', () => {
 
   it('shows read-only view (no buttons, disabled inputs) when user has only settings:read permission', async () => {
     renderWithContexts(<SettingsPage />, {
-      hasPermission: vi.fn((p: string) => p === 'settings:read'),
+      hasPermission: vi.fn((p: PermissionName) => p === 'settings:read'),
     });
 
     await screen.findByText('White-Label Settings');

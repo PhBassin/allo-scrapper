@@ -5,6 +5,7 @@ import CinemasPage from './CinemasPage';
 import * as cinemasApi from '../../api/cinemas';
 import * as clientApi from '../../api/client';
 import { AuthContext } from '../../contexts/AuthContext';
+import type { PermissionName } from '../../types/role';
 
 // Mock API modules
 vi.mock('../../api/cinemas', () => ({
@@ -73,11 +74,11 @@ vi.mock('../../components/ScrapeProgress', () => ({
 const mockAuthContext = {
   isAuthenticated: true,
   token: 'mock-token',
-  user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['cinemas:read', 'cinemas:create', 'scraper:trigger'] },
+  user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['cinemas:read', 'cinemas:create', 'scraper:trigger'] as PermissionName[] },
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: true,
-  hasPermission: vi.fn<(p: string) => boolean>(() => true),
+  hasPermission: vi.fn<(p: PermissionName) => boolean>(() => true),
 };
 
 const renderWithAuth = (ui: React.ReactElement, authOverrides?: Partial<typeof mockAuthContext>) =>
@@ -265,7 +266,7 @@ describe('CinemasPage - permission-based button visibility', () => {
 
   it('hides "Add Cinema" button when user lacks cinemas:create permission', async () => {
     renderWithAuth(<CinemasPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'cinemas:create'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'cinemas:create'),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');
@@ -285,7 +286,7 @@ describe('CinemasPage - permission-based button visibility', () => {
 
   it('hides per-row "Edit" button when user lacks cinemas:update permission', async () => {
     renderWithAuth(<CinemasPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'cinemas:update'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'cinemas:update'),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');
@@ -307,7 +308,7 @@ describe('CinemasPage - permission-based button visibility', () => {
 
   it('hides per-row "Delete" button when user lacks cinemas:delete permission', async () => {
     renderWithAuth(<CinemasPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'cinemas:delete'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'cinemas:delete'),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');
@@ -329,7 +330,7 @@ describe('CinemasPage - permission-based button visibility', () => {
 
   it('hides per-row "Scraper" button when user lacks scraper:trigger_single permission', async () => {
     renderWithAuth(<CinemasPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'scraper:trigger_single'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'scraper:trigger_single'),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import RoleManagementPage from './RoleManagementPage';
 import { AuthContext } from '../../contexts/AuthContext';
+import type { PermissionName } from '../../types/role';
 
 // Mock API modules
 vi.mock('../../api/roles', () => ({
@@ -29,12 +30,12 @@ const mockAuthContext = {
     role_id: 1,
     role_name: 'admin',
     is_system_role: true,
-    permissions: ['roles:list', 'roles:read', 'roles:create', 'roles:update', 'roles:delete'],
+    permissions: ['roles:list', 'roles:read', 'roles:create', 'roles:update', 'roles:delete'] as PermissionName[],
   },
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: true,
-  hasPermission: vi.fn<(p: string) => boolean>(() => true),
+  hasPermission: vi.fn<(p: PermissionName) => boolean>(() => true),
 };
 
 const renderWithAuth = (ui: React.ReactElement, authOverrides?: Partial<typeof mockAuthContext>) =>
@@ -91,7 +92,7 @@ describe('RoleManagementPage - Permission-based button visibility', () => {
 
   it('hides "Create Role" button when user lacks roles:create permission', async () => {
     renderWithAuth(<RoleManagementPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'roles:create'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'roles:create'),
     });
 
     await screen.findByText('admin');
@@ -111,7 +112,7 @@ describe('RoleManagementPage - Permission-based button visibility', () => {
 
   it('hides per-row "Edit Permissions" button when user lacks roles:update permission', async () => {
     renderWithAuth(<RoleManagementPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'roles:update'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'roles:update'),
     });
 
     await screen.findByText('admin');
@@ -135,7 +136,7 @@ describe('RoleManagementPage - Permission-based button visibility', () => {
 
   it('hides per-row "Delete" button when user lacks roles:delete permission', async () => {
     renderWithAuth(<RoleManagementPage />, {
-      hasPermission: vi.fn((p: string) => p !== 'roles:delete'),
+      hasPermission: vi.fn((p: PermissionName) => p !== 'roles:delete'),
     });
 
     await screen.findByText('admin');
@@ -159,7 +160,7 @@ describe('RoleManagementPage - Permission-based button visibility', () => {
 
   it('shows only list view (no buttons) when user has only roles:list permission', async () => {
     renderWithAuth(<RoleManagementPage />, {
-      hasPermission: vi.fn((p: string) => p === 'roles:list'),
+      hasPermission: vi.fn((p: PermissionName) => p === 'roles:list'),
     });
 
     await screen.findByText('admin');
@@ -177,7 +178,7 @@ describe('RoleManagementPage - Permission-based button visibility', () => {
 
   it('shows "View Permissions" button when user has only roles:read permission', async () => {
     renderWithAuth(<RoleManagementPage />, {
-      hasPermission: vi.fn((p: string) => p === 'roles:list' || p === 'roles:read'),
+      hasPermission: vi.fn((p: PermissionName) => p === 'roles:list' || p === 'roles:read'),
     });
 
     await screen.findByText('admin');
@@ -195,7 +196,7 @@ describe('RoleManagementPage - Permission-based button visibility', () => {
 
   it('shows both "View Permissions" and "Edit Permissions" buttons when user has both permissions', async () => {
     renderWithAuth(<RoleManagementPage />, {
-      hasPermission: vi.fn((p: string) => 
+      hasPermission: vi.fn((p: PermissionName) => 
         p === 'roles:list' || p === 'roles:read' || p === 'roles:update'
       ),
     });
@@ -213,7 +214,7 @@ describe('RoleManagementPage - Permission-based button visibility', () => {
 
   it('shows only "Edit Permissions" button when user has roles:update but not roles:read', async () => {
     renderWithAuth(<RoleManagementPage />, {
-      hasPermission: vi.fn((p: string) => p === 'roles:list' || p === 'roles:update'),
+      hasPermission: vi.fn((p: PermissionName) => p === 'roles:list' || p === 'roles:update'),
     });
 
     await screen.findByText('admin');
@@ -243,7 +244,7 @@ describe('RoleManagementPage - View Permissions modal', () => {
   it('opens read-only modal when "View Permissions" button is clicked', async () => {
     const user = userEvent.setup();
     renderWithAuth(<RoleManagementPage />, {
-      hasPermission: vi.fn((p: string) => p === 'roles:list' || p === 'roles:read'),
+      hasPermission: vi.fn((p: PermissionName) => p === 'roles:list' || p === 'roles:read'),
     });
 
     await screen.findByText('admin');
@@ -260,7 +261,7 @@ describe('RoleManagementPage - View Permissions modal', () => {
   it('displays checkboxes as disabled in read-only mode', async () => {
     const user = userEvent.setup();
     renderWithAuth(<RoleManagementPage />, {
-      hasPermission: vi.fn((p: string) => p === 'roles:list' || p === 'roles:read'),
+      hasPermission: vi.fn((p: PermissionName) => p === 'roles:list' || p === 'roles:read'),
     });
 
     await screen.findByText('admin');
@@ -283,7 +284,7 @@ describe('RoleManagementPage - View Permissions modal', () => {
   it('does not show Save button in read-only mode', async () => {
     const user = userEvent.setup();
     renderWithAuth(<RoleManagementPage />, {
-      hasPermission: vi.fn((p: string) => p === 'roles:list' || p === 'roles:read'),
+      hasPermission: vi.fn((p: PermissionName) => p === 'roles:list' || p === 'roles:read'),
     });
 
     await screen.findByText('admin');

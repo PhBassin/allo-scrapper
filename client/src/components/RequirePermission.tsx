@@ -1,12 +1,13 @@
 import React, { useContext } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
+import type { PermissionName } from '../types/role';
 
 interface RequirePermissionProps {
     children: React.ReactNode;
-    permission?: string;   // If absent → just authenticated
-    anyOf?: string[];      // At least one of the permissions
-    allOf?: string[];      // All of the permissions
+    permission?: PermissionName; // If absent → just authenticated
+    anyOf?: PermissionName[];    // At least one of the permissions
+    allOf?: PermissionName[];    // All of the permissions
 }
 
 /**
