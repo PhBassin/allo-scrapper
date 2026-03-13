@@ -2,12 +2,11 @@ import express from 'express';
 import { getRedisClient } from '../services/redis-client.js';
 import { progressTracker } from '../services/progress-tracker.js';
 import type { ApiResponse } from '../types/api.js';
-import type { AuthRequest } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 import { getCinemas, createScrapeReport, getLatestScrapeReport } from '../db/queries.js';
 import type { DB } from '../db/client.js';
 import { db } from '../db/client.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { scraperLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
