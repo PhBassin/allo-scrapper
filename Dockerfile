@@ -107,14 +107,14 @@ COPY --from=backend-builder --chown=nodejs:nodejs /app/server/src/config ./serve
 # Copy database migrations
 COPY --chown=nodejs:nodejs migrations ./migrations
 
-# Copy built frontend from builder into server's dist/public so it can serve it
-COPY --from=frontend-builder --chown=nodejs:nodejs /app/client/dist ./server/dist/public
+# Copy built frontend from builder into server's public directory so it can serve it
+COPY --from=frontend-builder --chown=nodejs:nodejs /app/client/dist ./server/public
 
 USER root
 
 # Aggressive final cleanup
 RUN find /app/server/dist -name "*.d.ts" -delete && \
-    find /app/server/dist/public -name "*.map" -delete && \
+    find /app/server/public -name "*.map" -delete && \
     find /app -name "*.test.js" -delete && \
     find /app -name "*.spec.js" -delete || true
 
