@@ -161,7 +161,7 @@ describe('CreateUserModal', () => {
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/password must be at least 8 characters/i)).toBeInTheDocument();
+        expect(screen.getByText(/at least 8 characters/i)).toHaveClass('text-red-700');
       });
     });
 
@@ -180,7 +180,7 @@ describe('CreateUserModal', () => {
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/password must contain.*uppercase/i)).toBeInTheDocument();
+        expect(screen.getByText(/one uppercase letter/i)).toHaveClass('text-red-700');
       });
     });
 
@@ -199,7 +199,7 @@ describe('CreateUserModal', () => {
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/password must contain.*lowercase/i)).toBeInTheDocument();
+        expect(screen.getByText(/one lowercase letter/i)).toHaveClass('text-red-700');
       });
     });
 
@@ -218,7 +218,7 @@ describe('CreateUserModal', () => {
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/password must contain.*digit/i)).toBeInTheDocument();
+        expect(screen.getByText(/one digit/i)).toHaveClass('text-red-700');
       });
     });
 
@@ -237,7 +237,7 @@ describe('CreateUserModal', () => {
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/password must contain.*special character/i)).toBeInTheDocument();
+        expect(screen.getByText(/one special character/i)).toHaveClass('text-red-700');
       });
     });
 
