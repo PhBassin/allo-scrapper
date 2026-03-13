@@ -16,9 +16,9 @@ vi.mock('../../src/scraper/index.js', () => ({
   addCinemaAndScrape: mockAddCinemaAndScrape,
 }));
 
-vi.mock('../../src/db/queries.js', () => ({
+vi.mock('../../src/db/report-queries.js', () => ({
   createScrapeReport: vi.fn().mockResolvedValue(1),
-  updateScrapeReport: mockUpdateScrapeReport,
+  updateScrapeReport: (...args: any[]) => mockUpdateScrapeReport(...args),
 }));
 
 vi.mock('../../src/redis/client.js', () => ({

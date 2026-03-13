@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, bench } from 'vitest';
-import { upsertWeeklyProgram, upsertWeeklyPrograms, type WeeklyProgram } from './queries.js';
+import { upsertWeeklyProgram, upsertWeeklyPrograms } from './showtime-queries.js';
+import type { WeeklyProgram } from '../types/scraper.js';
 import { type DB } from './client.js';
 
 // Mock DB with simulated latency

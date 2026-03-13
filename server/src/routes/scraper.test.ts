@@ -39,7 +39,7 @@ vi.mock('../db/client.js', () => ({
   db: {},
 }));
 
-vi.mock('../db/queries.js', () => ({
+vi.mock('../db/report-queries.js', () => ({
   createScrapeReport: vi.fn().mockResolvedValue(99),
   updateScrapeReport: vi.fn(),
   getLatestScrapeReport: vi.fn().mockResolvedValue(null),
@@ -106,7 +106,7 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
   it('POST /trigger queues a job via Redis and returns reportId + queueDepth', async () => {
     const { default: router } = await import('./scraper.js');
     const { getRedisClient } = await import('../services/redis-client.js');
-    const { createScrapeReport } = await import('../db/queries.js');
+    const { createScrapeReport } = await import('../db/report-queries.js');
 
     (createScrapeReport as any).mockResolvedValue(99);
     (getRedisClient as any).mockReturnValue({
@@ -134,7 +134,7 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
 
   it('GET /status returns isRunning=false and latestReport', async () => {
     const { default: router } = await import('./scraper.js');
-    const { getLatestScrapeReport } = await import('../db/queries.js');
+    const { getLatestScrapeReport } = await import('../db/report-queries.js');
 
     (getLatestScrapeReport as any).mockResolvedValue(null);
 
@@ -160,7 +160,7 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
   it('POST /trigger with cinemaId queues cinema scrape job via Redis', async () => {
     const { default: router } = await import('./scraper.js');
     const { getRedisClient } = await import('../services/redis-client.js');
-    const { createScrapeReport } = await import('../db/queries.js');
+    const { createScrapeReport } = await import('../db/report-queries.js');
 
     (createScrapeReport as any).mockResolvedValue(99);
     const mockPublishJob = vi.fn().mockResolvedValue(1);
@@ -199,7 +199,7 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
   it('POST /trigger with W-prefix cinemaId queues cinema scrape job via Redis', async () => {
     const { default: router } = await import('./scraper.js');
     const { getRedisClient } = await import('../services/redis-client.js');
-    const { createScrapeReport } = await import('../db/queries.js');
+    const { createScrapeReport } = await import('../db/report-queries.js');
 
     (createScrapeReport as any).mockResolvedValue(99);
     const mockPublishJob = vi.fn().mockResolvedValue(1);
@@ -258,7 +258,7 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
   it('POST /trigger with both cinemaId and filmId queues job via Redis', async () => {
     const { default: router } = await import('./scraper.js');
     const { getRedisClient } = await import('../services/redis-client.js');
-    const { createScrapeReport } = await import('../db/queries.js');
+    const { createScrapeReport } = await import('../db/report-queries.js');
 
     (createScrapeReport as any).mockResolvedValue(99);
     const mockPublishJob = vi.fn().mockResolvedValue(1);
@@ -296,7 +296,7 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
     const { default: router } = await import('./scraper.js');
     const { progressTracker } = await import('../services/progress-tracker.js');
     const { getRedisClient } = await import('../services/redis-client.js');
-    const { createScrapeReport } = await import('../db/queries.js');
+    const { createScrapeReport } = await import('../db/report-queries.js');
 
     (createScrapeReport as any).mockResolvedValue(99);
     (getRedisClient as any).mockReturnValue({
@@ -316,7 +316,7 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
 
   it('GET /status returns isRunning=true when latest report has status "running"', async () => {
     const { default: router } = await import('./scraper.js');
-    const { getLatestScrapeReport } = await import('../db/queries.js');
+    const { getLatestScrapeReport } = await import('../db/report-queries.js');
 
     (getLatestScrapeReport as any).mockResolvedValue({ id: 42, status: 'running' });
 
@@ -342,7 +342,7 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
     it('should allow user with scraper:trigger to scrape all cinemas', async () => {
       const { default: router } = await import('./scraper.js');
       const { getRedisClient } = await import('../services/redis-client.js');
-      const { createScrapeReport } = await import('../db/queries.js');
+      const { createScrapeReport } = await import('../db/report-queries.js');
 
       (createScrapeReport as any).mockResolvedValue(99);
       (getRedisClient as any).mockReturnValue({
@@ -377,7 +377,7 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
     it('should allow user with scraper:trigger to scrape single cinema', async () => {
       const { default: router } = await import('./scraper.js');
       const { getRedisClient } = await import('../services/redis-client.js');
-      const { createScrapeReport } = await import('../db/queries.js');
+      const { createScrapeReport } = await import('../db/report-queries.js');
 
       (createScrapeReport as any).mockResolvedValue(99);
       (getRedisClient as any).mockReturnValue({
@@ -412,7 +412,7 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
     it('should allow user with scraper:trigger_single to scrape single cinema', async () => {
       const { default: router } = await import('./scraper.js');
       const { getRedisClient } = await import('../services/redis-client.js');
-      const { createScrapeReport } = await import('../db/queries.js');
+      const { createScrapeReport } = await import('../db/report-queries.js');
 
       (createScrapeReport as any).mockResolvedValue(99);
       (getRedisClient as any).mockReturnValue({
@@ -474,7 +474,7 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
     it('should allow admin to bypass all permission checks', async () => {
       const { default: router } = await import('./scraper.js');
       const { getRedisClient } = await import('../services/redis-client.js');
-      const { createScrapeReport } = await import('../db/queries.js');
+      const { createScrapeReport } = await import('../db/report-queries.js');
 
       (createScrapeReport as any).mockResolvedValue(99);
       (getRedisClient as any).mockReturnValue({

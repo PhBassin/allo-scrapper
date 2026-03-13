@@ -8,11 +8,14 @@ const mockFetchShowtimesJson = vi.fn();
 const mockParseTheaterPage = vi.fn();
 const mockParseShowtimesJson = vi.fn().mockReturnValue([]);
 
-vi.mock('../../../src/db/queries.js', () => ({
+vi.mock('../../../src/db/film-queries.js', () => ({
   upsertFilm: vi.fn(),
+  getFilm: vi.fn(),
+}));
+
+vi.mock('../../../src/db/showtime-queries.js', () => ({
   upsertShowtimes: vi.fn(),
   upsertWeeklyPrograms: vi.fn(),
-  getFilm: vi.fn(),
 }));
 
 vi.mock('../../../src/db/cinema-queries.js', () => ({

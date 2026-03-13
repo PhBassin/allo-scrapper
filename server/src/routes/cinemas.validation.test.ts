@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as queries from '../db/queries.js';
+import * as queries from '../db/showtime-queries.js';
 import * as cinemaQueries from '../db/cinema-queries.js';
 import router from './cinemas.js';
 import { db } from '../db/client.js';
@@ -7,12 +7,6 @@ import { db } from '../db/client.js';
 // Mock dependencies
 vi.mock('../db/client.js', () => ({
   db: { query: vi.fn() }
-}));
-
-vi.mock('../db/queries.js', () => ({
-  addCinema: vi.fn(),
-  updateCinemaConfig: vi.fn(),
-  deleteCinema: vi.fn(),
 }));
 
 vi.mock('../db/cinema-queries.js', () => ({

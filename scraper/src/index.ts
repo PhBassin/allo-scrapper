@@ -8,7 +8,7 @@ import { initTracing } from './utils/tracer.js';
 import { runScraper, addCinemaAndScrape } from './scraper/index.js';
 import { getRedisPublisher, getRedisConsumer, disconnectRedis, type ScrapeJob, type ScrapeJobScrape, type ScrapeJobAddCinema } from './redis/client.js';
 import { db } from './db/client.js';
-import { createScrapeReport, updateScrapeReport } from './db/queries.js';
+import { createScrapeReport, updateScrapeReport } from './db/report-queries.js';
 
 // ---------------------------------------------------------------------------
 // Metrics HTTP server (always-on, port 9091)

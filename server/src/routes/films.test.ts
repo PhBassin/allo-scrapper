@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { db } from '../db/client.js';
-import * as queries from '../db/queries.js';
+import * as queries from '../db/showtime-queries.js';
 import * as filmQueries from '../db/film-queries.js';
 import * as dateUtils from '../utils/date.js';
 import router from './films.js';
@@ -12,7 +12,7 @@ vi.mock('../db/client.js', () => ({
   }
 }));
 
-vi.mock('../db/queries.js', () => ({
+vi.mock('../db/showtime-queries.js', () => ({
   getShowtimesByDate: vi.fn(),
   getShowtimesByFilmAndWeek: vi.fn(),
   getWeeklyShowtimes: vi.fn(),

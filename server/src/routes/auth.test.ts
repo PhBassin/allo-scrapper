@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import authRouter from './auth.js';
 import { db } from '../db/client.js';
-import * as queries from '../db/queries.js';
+import * as queries from '../db/user-queries.js';
 import type { AuthRequest } from '../middleware/auth.js';
 
 const TEST_JWT_SECRET = 'test-secret';
@@ -20,7 +20,7 @@ vi.mock('../db/client.js', () => ({
     },
 }));
 
-vi.mock('../db/queries.js');
+vi.mock('../db/user-queries.js');
 
 vi.mock('../db/role-queries.js', () => ({
     getPermissionNamesByRoleId: vi.fn().mockResolvedValue(['settings:read', 'reports:list']),

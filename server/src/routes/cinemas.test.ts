@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as queries from '../db/queries.js';
+import * as showtimeQueries from '../db/showtime-queries.js';
 import * as cinemaQueries from '../db/cinema-queries.js';
+import * as reportQueries from '../db/report-queries.js';
 import router from './cinemas.js';
 import { db } from '../db/client.js';
 
@@ -11,8 +12,11 @@ vi.mock('../db/client.js', () => ({
   }
 }));
 
-vi.mock('../db/queries.js', () => ({
+vi.mock('../db/showtime-queries.js', () => ({
   getShowtimesByCinemaAndWeek: vi.fn(),
+}));
+
+vi.mock('../db/report-queries.js', () => ({
   createScrapeReport: vi.fn().mockResolvedValue(42),
 }));
 

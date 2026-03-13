@@ -3,7 +3,7 @@ import { logger } from '../utils/logger.js';
 import {
   upsertShowtimes,
   upsertWeeklyPrograms,
-} from '../db/queries.js';
+} from '../db/showtime-queries.js';
 import {
   upsertFilm,
   getFilm,
