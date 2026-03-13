@@ -6,19 +6,36 @@ import { logger } from '../utils/logger.js';
 import { getCinemas, createScrapeReport, getLatestScrapeReport } from '../db/queries.js';
 import type { DB } from '../db/client.js';
 import { db } from '../db/client.js';
-import { requireAuth } from '../middleware/auth.js';
-import { requirePermission } from '../middleware/permission.js';
+import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { scraperLimiter } from '../middleware/rate-limit.js';
 
 const router = express.Router();
 
 // POST /api/scraper/trigger - Start a manual scrape (delegates to Redis microservice)
-router.post('/trigger', scraperLimiter, requireAuth, requirePermission('scraper:trigger'), async (req, res) => {
+router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, res) => {
   const dbConn: DB = req.app.get('db');
 
   try {
     // Extract and validate cinemaId and filmId from request body
     const { cinemaId, filmId } = req.body as { cinemaId?: string; filmId?: number };
+
+    // Permission check: scraper:trigger for all-cinema scrape, scraper:trigger_single for single-cinema
+    // scraper:trigger is a superset (allows both all-cinema and single-cinema)
+    const requiredPermission = cinemaId ? 'scraper:trigger_single' : 'scraper:trigger';
+
+    // Admin bypass
+    if (!(req.user?.role_name === 'admin' && req.user?.is_system_role)) {
+      const userPermissions = new Set(req.user?.permissions || []);
+      
+      // User needs the specific permission OR scraper:trigger (which grants both)
+      if (!userPermissions.has(requiredPermission) && !userPermissions.has('scraper:trigger')) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Permission denied',
+        };
+        return res.status(403).json(response);
+      }
+    }
 
     // Validate cinemaId exists in database if provided
     if (cinemaId) {

@@ -91,6 +91,7 @@ describe('System Queries', () => {
             { version: '009_add_roles_permission.sql' },
             { version: '010_remove_phantom_permissions.sql' },
             { version: '011_add_roles_crud_permissions.sql' },
+            { version: '012_add_read_permissions.sql' },
           ],
         }),
       } as unknown as DB;

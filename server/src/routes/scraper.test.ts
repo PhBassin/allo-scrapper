@@ -78,7 +78,18 @@ function buildMockRes() {
 }
 
 function buildMockReq(overrides: object = {}) {
-  return { on: vi.fn(), app: mockApp, ...overrides } as any;
+  return { 
+    on: vi.fn(), 
+    app: mockApp, 
+    user: {
+      id: 1,
+      username: 'admin',
+      role_name: 'admin',
+      is_system_role: true,
+      permissions: [],
+    },
+    ...overrides 
+  } as any;
 }
 
 // Helper to get the last handler in the route stack (actual route handler, after middleware)
@@ -322,5 +333,174 @@ describe('Routes - Scraper (Redis mode — only mode)', () => {
         }),
       })
     );
+  });
+
+  describe('Permission Enforcement', () => {
+    it('should allow user with scraper:trigger to scrape all cinemas', async () => {
+      const { default: router } = await import('./scraper.js');
+      const { getRedisClient } = await import('../services/redis-client.js');
+      const { createScrapeReport } = await import('../db/queries.js');
+
+      (createScrapeReport as any).mockResolvedValue(99);
+      (getRedisClient as any).mockReturnValue({
+        publishJob: vi.fn().mockResolvedValue(1),
+      });
+
+      const req = buildMockReq({
+        body: {},
+        user: {
+          id: 1,
+          username: 'operator',
+          role_name: 'operator',
+          is_system_role: true,
+          permissions: ['scraper:trigger'],
+        },
+      });
+      const res = buildMockRes();
+
+      const layer = router.stack.find(
+        (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+      );
+      await getRouteHandler(layer)(req, res, vi.fn());
+
+      expect(res.status).not.toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+        })
+      );
+    });
+
+    it('should allow user with scraper:trigger to scrape single cinema', async () => {
+      const { default: router } = await import('./scraper.js');
+      const { getRedisClient } = await import('../services/redis-client.js');
+      const { createScrapeReport } = await import('../db/queries.js');
+
+      (createScrapeReport as any).mockResolvedValue(99);
+      (getRedisClient as any).mockReturnValue({
+        publishJob: vi.fn().mockResolvedValue(1),
+      });
+
+      const req = buildMockReq({
+        body: { cinemaId: 'C0153' },
+        user: {
+          id: 1,
+          username: 'operator',
+          role_name: 'operator',
+          is_system_role: true,
+          permissions: ['scraper:trigger'],
+        },
+      });
+      const res = buildMockRes();
+
+      const layer = router.stack.find(
+        (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+      );
+      await getRouteHandler(layer)(req, res, vi.fn());
+
+      expect(res.status).not.toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+        })
+      );
+    });
+
+    it('should allow user with scraper:trigger_single to scrape single cinema', async () => {
+      const { default: router } = await import('./scraper.js');
+      const { getRedisClient } = await import('../services/redis-client.js');
+      const { createScrapeReport } = await import('../db/queries.js');
+
+      (createScrapeReport as any).mockResolvedValue(99);
+      (getRedisClient as any).mockReturnValue({
+        publishJob: vi.fn().mockResolvedValue(1),
+      });
+
+      const req = buildMockReq({
+        body: { cinemaId: 'C0153' },
+        user: {
+          id: 2,
+          username: 'single_scraper',
+          role_name: 'custom_role',
+          is_system_role: false,
+          permissions: ['scraper:trigger_single'],
+        },
+      });
+      const res = buildMockRes();
+
+      const layer = router.stack.find(
+        (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+      );
+      await getRouteHandler(layer)(req, res, vi.fn());
+
+      expect(res.status).not.toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+        })
+      );
+    });
+
+    it('should deny user with only scraper:trigger_single from scraping all cinemas', async () => {
+      const { default: router } = await import('./scraper.js');
+
+      const req = buildMockReq({
+        body: {},
+        user: {
+          id: 2,
+          username: 'single_scraper',
+          role_name: 'custom_role',
+          is_system_role: false,
+          permissions: ['scraper:trigger_single'],
+        },
+      });
+      const res = buildMockRes();
+
+      const layer = router.stack.find(
+        (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+      );
+      await getRouteHandler(layer)(req, res, vi.fn());
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Permission denied',
+      });
+    });
+
+    it('should allow admin to bypass all permission checks', async () => {
+      const { default: router } = await import('./scraper.js');
+      const { getRedisClient } = await import('../services/redis-client.js');
+      const { createScrapeReport } = await import('../db/queries.js');
+
+      (createScrapeReport as any).mockResolvedValue(99);
+      (getRedisClient as any).mockReturnValue({
+        publishJob: vi.fn().mockResolvedValue(1),
+      });
+
+      const req = buildMockReq({
+        body: {},
+        user: {
+          id: 1,
+          username: 'admin',
+          role_name: 'admin',
+          is_system_role: true,
+          permissions: [],
+        },
+      });
+      const res = buildMockRes();
+
+      const layer = router.stack.find(
+        (l: any) => l.route?.path === '/trigger' && l.route?.methods?.post
+      );
+      await getRouteHandler(layer)(req, res, vi.fn());
+
+      expect(res.status).not.toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+        })
+      );
+    });
   });
 });
