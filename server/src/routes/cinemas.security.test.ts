@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as cinemaQueries from '../db/cinema-queries.js';
 import * as queries from '../db/queries.js';
 import router from './cinemas.js';
 import { db } from '../db/client.js';
@@ -11,8 +12,11 @@ vi.mock('../db/client.js', () => ({
 }));
 
 vi.mock('../db/queries.js', () => ({
-  getCinemas: vi.fn(),
   getShowtimesByCinemaAndWeek: vi.fn(),
+}));
+
+vi.mock('../db/cinema-queries.js', () => ({
+  getCinemas: vi.fn(),
   addCinema: vi.fn(),
   updateCinemaConfig: vi.fn(),
   deleteCinema: vi.fn(),
@@ -71,7 +75,7 @@ describe('Routes - Cinemas - Security', () => {
   it('should delegate error handling to next() and NOT expose sensitive details directly', async () => {
     // Simulate a database error with sensitive information
     const sensitiveError = new Error('SQL Error: Table "users" does not exist');
-    (queries.getCinemas as any).mockRejectedValue(sensitiveError);
+    (cinemaQueries.getCinemas as any).mockRejectedValue(sensitiveError);
 
     // Get the handler for GET /
     const handler = getRouteHandler('/', 'get');

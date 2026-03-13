@@ -1,6 +1,7 @@
 import express from 'express';
 import type { DB } from '../db/client.js';
-import { getWeeklyFilms, getFilmsByDate, getShowtimesByDate, getFilm, getShowtimesByFilmAndWeek, getWeeklyShowtimes, searchFilms } from '../db/queries.js';
+import { getShowtimesByDate, getShowtimesByFilmAndWeek, getWeeklyShowtimes } from '../db/queries.js';
+import { getWeeklyFilms, getFilmsByDate, getFilm, searchFilms } from '../db/film-queries.js';
 import { getWeekStart } from '../utils/date.js';
 import { groupShowtimesByCinema } from '../utils/showtimes.js';
 import type { ApiResponse } from '../types/api.js';

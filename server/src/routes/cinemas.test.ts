@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as queries from '../db/queries.js';
+import * as cinemaQueries from '../db/cinema-queries.js';
 import router from './cinemas.js';
 import { db } from '../db/client.js';
 
@@ -11,12 +12,15 @@ vi.mock('../db/client.js', () => ({
 }));
 
 vi.mock('../db/queries.js', () => ({
-  getCinemas: vi.fn(),
   getShowtimesByCinemaAndWeek: vi.fn(),
+  createScrapeReport: vi.fn().mockResolvedValue(42),
+}));
+
+vi.mock('../db/cinema-queries.js', () => ({
+  getCinemas: vi.fn(),
   addCinema: vi.fn(),
   updateCinemaConfig: vi.fn(),
   deleteCinema: vi.fn(),
-  createScrapeReport: vi.fn().mockResolvedValue(42),
 }));
 
 vi.mock('../services/redis-client.js', () => ({
@@ -76,7 +80,7 @@ describe('Routes - Cinemas', () => {
       mockReq = { body: { url: cinemaUrl }, app: mockApp };
 
       const created = { id: 'C0099', name: 'C0099', url: cinemaUrl };
-      (queries.addCinema as any).mockResolvedValue(created);
+      (cinemaQueries.addCinema as any).mockResolvedValue(created);
 
       const { getRedisClient } = await import('../services/redis-client.js');
       const mockPublishAddCinemaJob = vi.fn().mockResolvedValue(1);
@@ -85,7 +89,7 @@ describe('Routes - Cinemas', () => {
       const handler = getRouteHandler('/', 'post');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.addCinema).toHaveBeenCalled();
+      expect(cinemaQueries.addCinema).toHaveBeenCalled();
       expect(mockPublishAddCinemaJob).toHaveBeenCalledWith(expect.any(Number), cinemaUrl);
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
@@ -120,12 +124,12 @@ describe('Routes - Cinemas', () => {
         app: mockApp
       };
       const created = { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' };
-      (queries.addCinema as any).mockResolvedValue(created);
+      (cinemaQueries.addCinema as any).mockResolvedValue(created);
 
       const handler = getRouteHandler('/', 'post');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.addCinema).toHaveBeenCalledWith(expect.anything(), { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' });
+      expect(cinemaQueries.addCinema).toHaveBeenCalledWith(expect.anything(), { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' });
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: created }));
     });
@@ -170,7 +174,7 @@ describe('Routes - Cinemas', () => {
 
     it('should return 409 on duplicate cinema id', async () => {
       mockReq = { body: { id: 'W7504', name: 'Duplicate', url: 'https://www.allocine.fr/seance/salle_affich-salle=W7504.html' }, app: mockApp };
-      (queries.addCinema as any).mockRejectedValue(new Error('duplicate key value violates unique constraint'));
+      (cinemaQueries.addCinema as any).mockRejectedValue(new Error('duplicate key value violates unique constraint'));
 
       const handler = getRouteHandler('/', 'post');
       await handler(mockReq, mockRes, mockNext);
@@ -182,7 +186,7 @@ describe('Routes - Cinemas', () => {
     it('should call next(error) on unexpected error', async () => {
       mockReq = { body: { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' }, app: mockApp };
       const error = new Error('Unexpected DB error');
-      (queries.addCinema as any).mockRejectedValue(error);
+      (cinemaQueries.addCinema as any).mockRejectedValue(error);
 
       const handler = getRouteHandler('/', 'post');
       await handler(mockReq, mockRes, mockNext);
@@ -195,12 +199,12 @@ describe('Routes - Cinemas', () => {
     it('should update a cinema and return the updated record', async () => {
       mockReq = { params: { id: 'W7504' }, body: { name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' }, app: mockApp };
       const updated = { id: 'W7504', name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' };
-      (queries.updateCinemaConfig as any).mockResolvedValue(updated);
+      (cinemaQueries.updateCinemaConfig as any).mockResolvedValue(updated);
 
       const handler = getRouteHandler('/:id', 'put');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.updateCinemaConfig).toHaveBeenCalledWith(expect.anything(), 'W7504', { name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' });
+      expect(cinemaQueries.updateCinemaConfig).toHaveBeenCalledWith(expect.anything(), 'W7504', { name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' });
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: updated }));
     });
 
@@ -225,7 +229,7 @@ describe('Routes - Cinemas', () => {
 
     it('should return 404 when cinema not found', async () => {
       mockReq = { params: { id: 'UNKNOWN' }, body: { name: 'X' }, app: mockApp };
-      (queries.updateCinemaConfig as any).mockResolvedValue(undefined);
+      (cinemaQueries.updateCinemaConfig as any).mockResolvedValue(undefined);
 
       const handler = getRouteHandler('/:id', 'put');
       await handler(mockReq, mockRes, mockNext);
@@ -237,7 +241,7 @@ describe('Routes - Cinemas', () => {
     it('should call next(error) on unexpected error', async () => {
       mockReq = { params: { id: 'W7504' }, body: { name: 'X' }, app: mockApp };
       const error = new Error('DB Error');
-      (queries.updateCinemaConfig as any).mockRejectedValue(error);
+      (cinemaQueries.updateCinemaConfig as any).mockRejectedValue(error);
 
       const handler = getRouteHandler('/:id', 'put');
       await handler(mockReq, mockRes, mockNext);
@@ -249,19 +253,19 @@ describe('Routes - Cinemas', () => {
   describe('DELETE /:id', () => {
     it('should delete a cinema and return 204', async () => {
       mockReq = { params: { id: 'W7504' }, app: mockApp };
-      (queries.deleteCinema as any).mockResolvedValue(true);
+      (cinemaQueries.deleteCinema as any).mockResolvedValue(true);
 
       const handler = getRouteHandler('/:id', 'delete');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.deleteCinema).toHaveBeenCalledWith(expect.anything(), 'W7504');
+      expect(cinemaQueries.deleteCinema).toHaveBeenCalledWith(expect.anything(), 'W7504');
       expect(mockRes.status).toHaveBeenCalledWith(204);
       expect(mockRes.send).toHaveBeenCalledWith();
     });
 
     it('should return 404 when cinema not found', async () => {
       mockReq = { params: { id: 'UNKNOWN' }, app: mockApp };
-      (queries.deleteCinema as any).mockResolvedValue(false);
+      (cinemaQueries.deleteCinema as any).mockResolvedValue(false);
 
       const handler = getRouteHandler('/:id', 'delete');
       await handler(mockReq, mockRes, mockNext);
@@ -273,7 +277,7 @@ describe('Routes - Cinemas', () => {
     it('should call next(error) on unexpected error', async () => {
       mockReq = { params: { id: 'W7504' }, app: mockApp };
       const error = new Error('DB Error');
-      (queries.deleteCinema as any).mockRejectedValue(error);
+      (cinemaQueries.deleteCinema as any).mockRejectedValue(error);
 
       const handler = getRouteHandler('/:id', 'delete');
       await handler(mockReq, mockRes, mockNext);

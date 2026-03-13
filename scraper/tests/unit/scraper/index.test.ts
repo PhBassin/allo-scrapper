@@ -9,13 +9,16 @@ const mockParseTheaterPage = vi.fn();
 const mockParseShowtimesJson = vi.fn().mockReturnValue([]);
 
 vi.mock('../../../src/db/queries.js', () => ({
-  upsertCinema: mockUpsertCinema,
   upsertFilm: vi.fn(),
   upsertShowtimes: vi.fn(),
   upsertWeeklyPrograms: vi.fn(),
   getFilm: vi.fn(),
-  getCinemaConfigs: vi.fn(),
+}));
+
+vi.mock('../../../src/db/cinema-queries.js', () => ({
+  upsertCinema: (...args: any[]) => mockUpsertCinema(...args),
   getCinemas: vi.fn(),
+  getCinemaConfigs: vi.fn(),
 }));
 
 vi.mock('../../../src/scraper/http-client.js', () => ({

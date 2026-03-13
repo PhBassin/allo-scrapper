@@ -43,6 +43,9 @@ vi.mock('../db/queries.js', () => ({
   createScrapeReport: vi.fn().mockResolvedValue(99),
   updateScrapeReport: vi.fn(),
   getLatestScrapeReport: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('../db/cinema-queries.js', () => ({
   getCinemas: vi.fn().mockResolvedValue([
     { id: 'C0153', name: 'Cinéma Chaplin Denfert' },
     { id: 'W7515', name: 'Cinéma Chaplin Saint Lambert' },
