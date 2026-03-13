@@ -15,6 +15,7 @@ Complete REST API documentation with endpoints, schemas, and examples.
 - Reports and statistics
 - Settings management
 - User management
+- Roles and permissions management
 - System information
 - Rate limiting
 
@@ -27,10 +28,22 @@ Database schema, migrations, and queries.
 
 **Contents:**
 - Complete schema documentation
-- Table relationships
+- Table relationships (including RBAC tables)
 - Migration system
 - Query examples
 - Indexing strategy
+
+### [Roles & Permissions](./roles-and-permissions.md)
+Complete RBAC (Role-Based Access Control) system reference.
+
+**Contents:**
+- 24 granular permissions across 6 categories
+- System and custom roles
+- Admin bypass mechanism
+- JWT payload structure
+- Permission middleware
+- Client-side integration
+- API endpoints for role management
 
 **Best for:** Database administrators, backend developers
 
