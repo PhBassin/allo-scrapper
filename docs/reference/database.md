@@ -232,16 +232,23 @@ Stores user authentication credentials.
 | `id` | SERIAL | PRIMARY KEY | Auto-incrementing user ID |
 | `username` | VARCHAR(255) | UNIQUE, NOT NULL | Unique username |
 | `password_hash` | VARCHAR(255) | NOT NULL | bcrypt hashed password |
+| `role_id` | INTEGER | NOT NULL, FK → `roles(id)` | User's assigned role |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Account creation timestamp |
 
 **Indexes:**
 - Primary key on `id`
 - UNIQUE constraint on `username`
+- `idx_users_role_id` on `role_id`
 
 **Default User:**
 - Username: `admin`
 - Password: `admin` (bcrypt hashed)
+- Role: References admin role in `roles` table
 - Created automatically on first database initialization
+
+**RBAC Integration:**
+- Role is now a foreign key reference to `roles` table (migrated from TEXT in migration 008)
+- See [Roles & Permissions Reference](./roles-and-permissions.md) for complete RBAC table structures
 
 **Example:**
 ```sql

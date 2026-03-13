@@ -12,6 +12,9 @@ The database uses **PostgreSQL 15** with the following tables:
 - **weekly_programs** - Weekly film schedules per cinema
 - **scrape_reports** - Scraping job execution logs
 - **users** - Authentication and user management
+- **roles** - Role definitions for RBAC system
+- **permissions** - Permission definitions for RBAC system
+- **role_permissions** - Junction table linking roles to permissions
 - **app_settings** - White-label branding configuration
 - **schema_migrations** - Migration tracking system
 
@@ -323,7 +326,7 @@ WHERE errors IS NOT NULL
 
 ### users
 
-User authentication and authorization.
+User authentication and authorization with role-based access control.
 
 **Columns:**
 
@@ -332,31 +335,27 @@ User authentication and authorization.
 | `id` | `SERIAL` | PRIMARY KEY | Auto-incrementing user ID |
 | `username` | `VARCHAR(255)` | UNIQUE, NOT NULL | Username for login |
 | `password_hash` | `VARCHAR(255)` | NOT NULL | bcrypt password hash |
-| `role` | `TEXT` | NOT NULL, DEFAULT 'user' | User role (see values below) |
+| `role_id` | `INTEGER` | NOT NULL, FK → `roles(id)` | User's assigned role |
 | `created_at` | `TIMESTAMPTZ` | DEFAULT CURRENT_TIMESTAMP | Account creation time |
-
-**Role Values:**
-
-- `admin` - Full access (scraper control, settings, user management)
-- `user` - Read-only access (view data only)
 
 **Indexes:**
 
 | Index | Columns | Purpose |
 |-------|---------|---------|
-| `idx_users_role` | `role` | Filter users by role |
+| `idx_users_role_id` | `role_id` | Filter users by role |
 
 **Constraints:**
 
-- `users_role_check` - CHECK constraint: `role IN ('admin', 'user')`
 - UNIQUE constraint on `username`
+- Foreign key to `roles(id)`
 
 **Notes:**
 
 - Passwords are hashed with bcrypt (minimum 10 rounds)
 - Default admin user created by migration 007 with random password (logged once)
-- JWT authentication uses `id` and `role` in token payload
+- JWT authentication uses `id`, `role_name`, and `permissions` in token payload
 - Foreign key from `app_settings.updated_by` references `users(id)`
+- Role is now a foreign key reference instead of TEXT field (migrated in 008)
 
 **Sample Queries:**
 
@@ -372,6 +371,87 @@ SELECT role, COUNT(*) AS count
 FROM users
 GROUP BY role;
 ```
+
+---
+
+### roles
+
+Role definitions for the RBAC (Role-Based Access Control) system.
+
+**Columns:**
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | `SERIAL` | PRIMARY KEY | Auto-incrementing role ID |
+| `name` | `TEXT` | NOT NULL, UNIQUE | Role name (e.g., 'admin', 'operator') |
+| `description` | `TEXT` | | Human-readable description |
+| `is_system` | `BOOLEAN` | NOT NULL, DEFAULT false | True for built-in system roles |
+| `created_at` | `TIMESTAMPTZ` | DEFAULT CURRENT_TIMESTAMP | Creation timestamp |
+
+**Indexes:**
+
+| Index | Columns | Purpose |
+|-------|---------|---------|
+| `idx_roles_name` | `name` | Unique role name lookup |
+
+**Notes:**
+
+- System roles (`is_system = true`) cannot be modified or deleted
+- Admin role has special bypass behavior in permission middleware
+- Created in migration 008
+
+---
+
+### permissions
+
+Permission definitions for the RBAC system.
+
+**Columns:**
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | `SERIAL` | PRIMARY KEY | Auto-incrementing permission ID |
+| `name` | `TEXT` | NOT NULL, UNIQUE | Permission name (e.g., 'users:create') |
+| `description` | `TEXT` | | Human-readable description |
+| `category` | `TEXT` | NOT NULL | Permission category (e.g., 'users', 'scraper') |
+| `created_at` | `TIMESTAMPTZ` | DEFAULT CURRENT_TIMESTAMP | Creation timestamp |
+
+**Indexes:**
+
+| Index | Columns | Purpose |
+|-------|---------|---------|
+| `idx_permissions_name` | `name` | Unique permission name lookup |
+| `idx_permissions_category` | `category` | Group permissions by category |
+
+**Notes:**
+
+- 24 canonical permissions across 6 categories
+- Permission names follow `category:action` format
+- Created in migration 008
+
+---
+
+### role_permissions
+
+Junction table linking roles to permissions.
+
+**Columns:**
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `role_id` | `INTEGER` | NOT NULL, FK → `roles(id)` ON DELETE CASCADE | Role ID |
+| `permission_id` | `INTEGER` | NOT NULL, FK → `permissions(id)` ON DELETE CASCADE | Permission ID |
+
+**Constraints:**
+
+- PRIMARY KEY `(role_id, permission_id)` - Composite primary key
+- Foreign key cascades on role/permission deletion
+
+**Notes:**
+
+- Many-to-many relationship between roles and permissions
+- Admin role permissions handled via bypass (no DB entries)
+- Created in migration 008
 
 ---
 
@@ -499,6 +579,9 @@ films (1) ──< showtimes (N)
 cinemas (1) ──< weekly_programs (N)
 films (1) ──< weekly_programs (N)
 
+roles (1) ──< users (N)
+roles (1) ──< role_permissions (N) ──> permissions (N)
+
 users (1) ──< app_settings.updated_by (1)
 ```
 
@@ -510,6 +593,9 @@ users (1) ──< app_settings.updated_by (1)
 | showtimes | `film_id` | films | `id` | (none) |
 | weekly_programs | `cinema_id` | cinemas | `id` | CASCADE |
 | weekly_programs | `film_id` | films | `id` | (none) |
+| users | `role_id` | roles | `id` | (none) |
+| role_permissions | `role_id` | roles | `id` | CASCADE |
+| role_permissions | `permission_id` | permissions | `id` | CASCADE |
 | app_settings | `updated_by` | users | `id` | (none) |
 
 **Cascade Behavior:**
@@ -639,6 +725,9 @@ LIMIT 20;
 | 005 | 3.0.0 | 2026-03-01 | Add role column to users |
 | 006 | 3.0.1 | 2026-03-01 | Fix app_settings schema alignment |
 | 007 | 3.1.0 | 2026-03-01 | Seed default admin user |
+| 008 | 4.0.0 | 2026-03-13 | Implement RBAC system (roles, permissions, role_permissions) |
+| 009 | 4.0.1 | 2026-03-13 | Add roles:read permission |
+| 010 | 4.0.2 | 2026-03-13 | Remove phantom permissions cleanup |
 
 See [Database Migrations Guide](./migrations.md) for detailed migration documentation.
 
