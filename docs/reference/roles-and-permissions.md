@@ -115,15 +115,16 @@ roles (1) ──< role_permissions (N) ──> permissions (N)
 
 ### Complete Permission List
 
-The system defines **24 canonical permissions** across **6 categories**:
+The system defines **26 canonical permissions** across **6 categories**:
 
-#### Users (4 permissions)
+#### Users (5 permissions)
 | Permission | Description |
 |------------|-------------|
 | `users:list` | List all users |
 | `users:create` | Create new users |
 | `users:update` | Modify existing users |
 | `users:delete` | Delete users |
+| `users:read` | View user details |
 
 #### Scraper (2 permissions)
 | Permission | Description |
@@ -131,12 +132,13 @@ The system defines **24 canonical permissions** across **6 categories**:
 | `scraper:trigger` | Trigger global scraping job |
 | `scraper:trigger_single` | Trigger scraping for a single cinema |
 
-#### Cinemas (3 permissions)
+#### Cinemas (4 permissions)
 | Permission | Description |
 |------------|-------------|
 | `cinemas:create` | Add new cinemas |
 | `cinemas:update` | Modify cinema information |
 | `cinemas:delete` | Remove cinemas |
+| `cinemas:read` | View cinemas list and details |
 
 #### Settings (5 permissions)
 | Permission | Description |
@@ -200,12 +202,14 @@ The system comes with two predefined system roles:
 - **Name**: `operator`
 - **Description**: "Opérateur — scraping et gestion des cinémas"
 - **Type**: System role (`is_system = true`)
-- **Permissions**: 7 explicit permissions:
+- **Permissions**: 9 explicit permissions:
   - `scraper:trigger`
   - `scraper:trigger_single`
   - `cinemas:create`
   - `cinemas:update`
   - `cinemas:delete`
+  - `cinemas:read`
+  - `users:read`
   - `reports:list`
   - `reports:view`
 - **Cannot be**: Modified or deleted
@@ -232,7 +236,7 @@ The admin role has special bypass behavior for backwards compatibility and secur
 
 ### Dual Mechanism
 
-1. **JWT contains all permissions**: During login, admin users get ALL 24 permissions in their JWT payload
+1. **JWT contains all permissions**: During login, admin users get ALL 26 permissions in their JWT payload
 2. **Middleware short-circuits**: `requirePermission()` middleware bypasses permission checks for admin
 
 ### Bypass Logic
@@ -281,9 +285,9 @@ interface JWTPayload {
   "role_name": "admin",
   "is_system_role": true,
   "permissions": [
-    "users:list", "users:create", "users:update", "users:delete",
+    "users:list", "users:create", "users:update", "users:delete", "users:read",
     "scraper:trigger", "scraper:trigger_single",
-    "cinemas:create", "cinemas:update", "cinemas:delete",
+    "cinemas:create", "cinemas:update", "cinemas:delete", "cinemas:read",
     "settings:read", "settings:update", "settings:reset", "settings:export", "settings:import",
     "reports:list", "reports:view",
     "system:info", "system:health", "system:migrations",
@@ -305,6 +309,8 @@ interface JWTPayload {
     "cinemas:create",
     "cinemas:update",
     "cinemas:delete",
+    "cinemas:read",
+    "users:read",
     "reports:list",
     "reports:view"
   ]
@@ -696,13 +702,13 @@ interface RequirePermissionProps {
 
 #### Admin User Flow
 1. **Login**: Admin logs in with credentials
-2. **JWT issued**: Contains all 24 permissions
+2. **JWT issued**: Contains all 26 permissions
 3. **Access anything**: Admin bypass allows access to all features
 4. **No restrictions**: Can manage users, settings, roles, etc.
 
 #### Operator User Flow
 1. **Login**: Operator logs in with credentials
-2. **JWT issued**: Contains 7 specific permissions
+2. **JWT issued**: Contains 9 specific permissions
 3. **Limited access**: Can trigger scraping and manage cinemas
 4. **Blocked features**: Cannot access user management or settings
 
@@ -751,24 +757,30 @@ interface RequirePermissionProps {
 
 ### Client-Side Permission Checking
 
-#### scraper:trigger_single Only Client-Side
-**Issue**: `scraper:trigger_single` permission only enforced in React UI  
-**Impact**: API endpoint doesn't check this specific permission  
-**Security**: Not a security issue (API has other protections)
+#### scraper:trigger vs scraper:trigger_single
+**Behavior**: Split permission check for granular scraping control  
+**Implementation**: Server-side permission enforcement in `/api/scraper/trigger`  
+**Permission Logic**:
+- `scraper:trigger_single` required for single-cinema scraping (when `cinemaId` is present)
+- `scraper:trigger` required for all-cinema scraping (when no `cinemaId`)
+- `scraper:trigger` is a superset that allows both operations
 
 **Details**:
-- UI hides "Trigger Single" button without permission
-- API endpoint `/api/scraper/trigger` accepts cinema_id parameter
-- Backend doesn't distinguish between global and single-cinema triggers
+- UI shows "Trigger Single" button based on `scraper:trigger_single` permission
+- UI shows "Trigger All" button based on `scraper:trigger` permission
+- API endpoint `/api/scraper/trigger` enforces permissions inline before processing
+- Users with only `scraper:trigger_single` cannot trigger all-cinema scrapes (403 error)
 
-### Phantom Permissions Issue
+### Historical Issues (Now Fixed)
 
+#### Phantom Permissions (Fixed in #442)
 **Reference**: GitHub Issue #442  
-**Issue**: Non-canonical permissions may exist in database  
-**Cause**: Historical data or manual database modifications  
-**Solution**: Migration 010 cleans up phantom permissions
-
-**Canonical permissions**: Only the 24 permissions listed in this document are officially supported. Any other permissions in the database should be considered invalid.
+**Status**: ✅ **FIXED** (Migration 012)  
+**Issue**: `cinemas:read` and `users:read` were used in client code but didn't exist in database  
+**Solution**: 
+- Migration 012 added both permissions to the database
+- Added to operator role for workflow consistency
+- PermissionName TypeScript type updated to include all 26 permissions
 
 ### System Role Protection
 

@@ -549,13 +549,17 @@ CREATE TABLE role_permissions (
 
 **Seed Data:**
 - **24 permissions** across 6 categories (users, scraper, cinemas, settings, reports, system)
+  - Note: This count was increased to 26 in migration 012 (added users:read, cinemas:read)
 - **Admin role**: System role with bypass privileges
 - **Operator role**: System role with 7 specific permissions
+  - Note: Increased to 9 permissions in migration 012 (added cinemas:read, users:read)
 
 **Permission Categories:**
 - `users` (4): list, create, update, delete
+  - Note: Increased to 5 in migration 012 (added users:read)
 - `scraper` (2): trigger, trigger_single  
 - `cinemas` (3): create, update, delete
+  - Note: Increased to 4 in migration 012 (added cinemas:read)
 - `settings` (5): read, update, reset, export, import
 - `reports` (2): list, view
 - `system` (3): info, health, migrations
@@ -656,6 +660,94 @@ Cleanup migration that removes any non-canonical permissions that may exist in t
 **Rollback:**
 
 No automatic rollback available - this migration only removes invalid data. If legitimate permissions were accidentally removed, they would need to be manually re-added.
+
+---
+
+### 011_add_roles_crud_permissions.sql
+
+**Version:** 4.1.0  
+**Date:** 2026-03-13  
+**Breaking Change:** No
+
+**Description:**
+
+Adds full CRUD permissions for roles management. Previously, roles management endpoints used `users:*` permissions as a workaround. This migration adds dedicated roles permissions for better separation of concerns.
+
+**Changes:**
+
+- Inserts 4 new roles CRUD permissions: `roles:list`, `roles:create`, `roles:update`, `roles:delete`
+- Updates `roles:read` description for consistency
+- Brings total canonical permissions from 20 to 24
+
+**Permissions Added:**
+```sql
+INSERT INTO permissions (name, description, category) VALUES
+  ('roles:list',   'Lister les rôles',                    'roles'),
+  ('roles:create', 'Créer des rôles',                     'roles'),
+  ('roles:update', 'Modifier des rôles et permissions',   'roles'),
+  ('roles:delete', 'Supprimer des rôles',                 'roles');
+```
+
+**Rollback:**
+
+```sql
+BEGIN;
+DELETE FROM role_permissions 
+WHERE permission_id IN (
+  SELECT id FROM permissions 
+  WHERE name IN ('roles:list', 'roles:create', 'roles:update', 'roles:delete')
+);
+
+DELETE FROM permissions 
+WHERE name IN ('roles:list', 'roles:create', 'roles:update', 'roles:delete');
+COMMIT;
+```
+
+---
+
+### 012_add_read_permissions.sql
+
+**Version:** 4.2.0  
+**Date:** 2026-03-13  
+**Breaking Change:** No
+
+**Description:**
+
+Fixes phantom permissions issue (#442) by adding `cinemas:read` and `users:read` permissions that were referenced in client code but missing from the database. Also assigns these permissions to the operator role for consistency.
+
+**Changes:**
+
+- Inserts `cinemas:read` permission in `cinemas` category
+- Inserts `users:read` permission in `users` category
+- Assigns both permissions to operator role via `role_permissions` table
+- Brings total canonical permissions from 24 to 26
+- Updates operator role from 7 to 9 permissions
+
+**Permissions Added:**
+```sql
+INSERT INTO permissions (name, description, category) VALUES
+  ('cinemas:read', 'Voir la liste des cinémas', 'cinemas'),
+  ('users:read',   'Voir les détails utilisateur', 'users');
+```
+
+**Rationale:**
+
+These permissions were being checked in client code (`CinemasPage.tsx`, permission tests) but didn't exist in the database canonical permission list, creating inconsistency. Rather than removing these checks, we added the permissions to support fine-grained read access separate from write permissions.
+
+**Rollback:**
+
+```sql
+BEGIN;
+DELETE FROM role_permissions 
+WHERE permission_id IN (
+  SELECT id FROM permissions 
+  WHERE name IN ('cinemas:read', 'users:read')
+);
+
+DELETE FROM permissions 
+WHERE name IN ('cinemas:read', 'users:read');
+COMMIT;
+```
 
 ---
 
