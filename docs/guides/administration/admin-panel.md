@@ -580,7 +580,13 @@ Manage user accounts and roles.
 3. Click "Create User"
 
 **Password Requirements**:
+- Real-time visual validation with red/green indicators for each constraint
 - Minimum 8 characters
+- Must contain at least:
+  - One uppercase letter
+  - One lowercase letter
+  - One digit
+  - One special character
 - Recommended: Mix of letters, numbers, symbols
 - Hashed with bcrypt (never stored plaintext)
 

@@ -171,7 +171,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
                 onBlur={handlePasswordBlur}
                 disabled={isSubmitting}
                 className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                  errors.password ? 'border-red-500' : 'border-gray-300'
+                  errors.password && password.length === 0 ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Min 8 chars, uppercase, lowercase, digit, special"
               />
@@ -184,9 +184,76 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+            {errors.password && password.length === 0 && (
+              <p className="mt-1 text-sm text-red-600">Password is required</p>
             )}
+
+            {/* Password Validation Checklist */}
+            <div className="mt-2 text-sm">
+              <p className="text-gray-600 mb-1 font-medium">Constraints:</p>
+              <ul className="space-y-1">
+                <li className="flex items-center gap-2">
+                  {password.length >= 8 ? (
+                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  <span className={password.length >= 8 ? "text-green-700 font-medium" : "text-red-700"}>At least 8 characters</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  {/[A-Z]/.test(password) ? (
+                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  <span className={/[A-Z]/.test(password) ? "text-green-700 font-medium" : "text-red-700"}>One uppercase letter</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  {/[a-z]/.test(password) ? (
+                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  <span className={/[a-z]/.test(password) ? "text-green-700 font-medium" : "text-red-700"}>One lowercase letter</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  {/[0-9]/.test(password) ? (
+                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  <span className={/[0-9]/.test(password) ? "text-green-700 font-medium" : "text-red-700"}>One digit</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  {/[^A-Za-z0-9]/.test(password) ? (
+                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  <span className={/[^A-Za-z0-9]/.test(password) ? "text-green-700 font-medium" : "text-red-700"}>One special character</span>
+                </li>
+              </ul>
+            </div>
           </div>
 
           {/* Role Field — dynamic dropdown */}
