@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { db } from '../db/client.js';
-import * as queries from '../db/queries.js';
+import * as queries from '../db/showtime-queries.js';
+import * as filmQueries from '../db/film-queries.js';
 import * as dateUtils from '../utils/date.js';
 import router from './films.js';
 
@@ -11,14 +12,17 @@ vi.mock('../db/client.js', () => ({
   }
 }));
 
-vi.mock('../db/queries.js', () => ({
-  getWeeklyFilms: vi.fn(),
-  getFilmsByDate: vi.fn(),
+vi.mock('../db/showtime-queries.js', () => ({
   getShowtimesByDate: vi.fn(),
-  getFilm: vi.fn(),
   getShowtimesByFilmAndWeek: vi.fn(),
   getWeeklyShowtimes: vi.fn(),
-  searchFilms: vi.fn()
+}));
+
+vi.mock('../db/film-queries.js', () => ({
+  getWeeklyFilms: vi.fn(),
+  getFilmsByDate: vi.fn(),
+  getFilm: vi.fn(),
+  searchFilms: vi.fn(),
 }));
 
 vi.mock('../utils/date.js', () => ({
@@ -60,7 +64,7 @@ describe('Routes - Films', () => {
         { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
       ];
 
-      (queries.getWeeklyFilms as any).mockResolvedValue(mockFilms);
+      (filmQueries.getWeeklyFilms as any).mockResolvedValue(mockFilms);
       (queries.getWeeklyShowtimes as any).mockResolvedValue(mockShowtimes);
 
       // We need to call the handler. Express router makes it hard to call directly.
@@ -79,7 +83,7 @@ describe('Routes - Films', () => {
     it('should handle errors', async () => {
       mockReq = { query: {}, app: mockApp };
       const error = new Error('DB Error');
-      (queries.getWeeklyFilms as any).mockRejectedValue(error);
+      (filmQueries.getWeeklyFilms as any).mockRejectedValue(error);
 
       const handler = getRouteHandler('/', 'get');
       await handler(mockReq, mockRes, mockNext);
@@ -100,13 +104,13 @@ describe('Routes - Films', () => {
         { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' }, date: '2026-02-20' }
       ];
 
-      (queries.getFilmsByDate as any).mockResolvedValue(mockFilms);
+      (filmQueries.getFilmsByDate as any).mockResolvedValue(mockFilms);
       (queries.getShowtimesByDate as any).mockResolvedValue(mockShowtimes);
 
       const handler = getRouteHandler('/', 'get');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.getFilmsByDate).toHaveBeenCalledWith(db, '2026-02-20', '2026-02-18');
+      expect(filmQueries.getFilmsByDate).toHaveBeenCalledWith(db, '2026-02-20', '2026-02-18');
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
       expect(response.success).toBe(true);
@@ -135,7 +139,7 @@ describe('Routes - Films', () => {
         { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
       ];
 
-      (queries.getFilm as any).mockResolvedValue(mockFilm);
+      (filmQueries.getFilm as any).mockResolvedValue(mockFilm);
       (queries.getShowtimesByFilmAndWeek as any).mockResolvedValue(mockShowtimes);
 
       const handler = getRouteHandler('/:id', 'get');
@@ -157,7 +161,7 @@ describe('Routes - Films', () => {
 
     it('should return 404 for non-existent film', async () => {
       mockReq = { params: { id: '99' }, app: mockApp };
-      (queries.getFilm as any).mockResolvedValue(null);
+      (filmQueries.getFilm as any).mockResolvedValue(null);
 
       const handler = getRouteHandler('/:id', 'get');
       await handler(mockReq, mockRes, mockNext);
@@ -168,7 +172,7 @@ describe('Routes - Films', () => {
     it('should handle errors', async () => {
       mockReq = { params: { id: '1' }, app: mockApp };
       const error = new Error('DB Error');
-      (queries.getFilm as any).mockRejectedValue(error);
+      (filmQueries.getFilm as any).mockRejectedValue(error);
 
       const handler = getRouteHandler('/:id', 'get');
       await handler(mockReq, mockRes, mockNext);
@@ -190,12 +194,12 @@ describe('Routes - Films', () => {
         }
       ];
 
-      (queries.searchFilms as any).mockResolvedValue(mockFilms);
+      (filmQueries.searchFilms as any).mockResolvedValue(mockFilms);
 
       const handler = getRouteHandler('/search', 'get');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.searchFilms).toHaveBeenCalledWith(db, 'Matrix', 10);
+      expect(filmQueries.searchFilms).toHaveBeenCalledWith(db, 'Matrix', 10);
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
       expect(response.success).toBe(true);
@@ -230,7 +234,7 @@ describe('Routes - Films', () => {
 
     it('should return empty array when no results found', async () => {
       mockReq = { query: { q: 'xyz123notfound' }, app: mockApp };
-      (queries.searchFilms as any).mockResolvedValue([]);
+      (filmQueries.searchFilms as any).mockResolvedValue([]);
 
       const handler = getRouteHandler('/search', 'get');
       await handler(mockReq, mockRes, mockNext);
@@ -244,7 +248,7 @@ describe('Routes - Films', () => {
     it('should handle errors', async () => {
       mockReq = { query: { q: 'test' }, app: mockApp };
       const error = new Error('DB Error');
-      (queries.searchFilms as any).mockRejectedValue(error);
+      (filmQueries.searchFilms as any).mockRejectedValue(error);
 
       const handler = getRouteHandler('/search', 'get');
       await handler(mockReq, mockRes, mockNext);
@@ -255,12 +259,12 @@ describe('Routes - Films', () => {
 
     it('should trim whitespace from query', async () => {
       mockReq = { query: { q: '  Matrix  ' }, app: mockApp };
-      (queries.searchFilms as any).mockResolvedValue([]);
+      (filmQueries.searchFilms as any).mockResolvedValue([]);
 
       const handler = getRouteHandler('/search', 'get');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.searchFilms).toHaveBeenCalledWith(db, 'Matrix', 10);
+      expect(filmQueries.searchFilms).toHaveBeenCalledWith(db, 'Matrix', 10);
     });
   });
 });

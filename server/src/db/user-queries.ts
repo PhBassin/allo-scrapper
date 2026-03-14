@@ -2,6 +2,18 @@ import { type DB } from './client.js';
 import { type UserPublic } from '../types/user.js';
 import crypto from 'crypto';
 
+// --- Database Row Interfaces ---
+
+export interface UserRow {
+  id: number;
+  username: string;
+  password_hash: string;
+  role_id: number;
+  role_name: string;
+  is_system_role: boolean;
+  created_at: string;
+}
+
 /**
  * Get all users without passwords (for admin panel)
  * Uses JOIN on roles table to get role_name
@@ -99,6 +111,58 @@ export async function getAdminCount(db: DB): Promise<number> {
   );
 
   return parseInt(result.rows[0]?.count ?? '0', 10);
+}
+
+/**
+ * Get user by username with password hash
+ * @param db - Database client
+ * @param username - Username to search for
+ * @returns UserRow or undefined
+ */
+export async function getUserByUsername(db: DB, username: string): Promise<UserRow | undefined> {
+  const result = await db.query<UserRow>(
+    `SELECT u.id, u.username, u.password_hash, u.role_id,
+            r.name AS role_name, r.is_system AS is_system_role, u.created_at
+     FROM users u
+     JOIN roles r ON r.id = u.role_id
+     WHERE u.username = $1`,
+    [username]
+  );
+  return result.rows[0];
+}
+
+/**
+ * Create a new user
+ * @param db - Database client
+ * @param username - Username
+ * @param passwordHash - Hashed password
+ * @returns Created UserRow
+ */
+export async function createUser(db: DB, username: string, passwordHash: string): Promise<UserRow> {
+  const result = await db.query<UserRow>(
+    `INSERT INTO users (username, password_hash)
+     VALUES ($1, $2)
+     RETURNING id, username, password_hash,
+       role_id,
+       (SELECT name FROM roles WHERE id = role_id) AS role_name,
+       (SELECT is_system FROM roles WHERE id = role_id) AS is_system_role,
+       created_at`,
+    [username, passwordHash]
+  );
+  return result.rows[0];
+}
+
+/**
+ * Update user password
+ * @param db - Database client
+ * @param userId - User ID
+ * @param newPasswordHash - New hashed password
+ */
+export async function updateUserPassword(db: DB, userId: number, newPasswordHash: string): Promise<void> {
+  await db.query(
+    'UPDATE users SET password_hash = $1 WHERE id = $2',
+    [newPasswordHash, userId]
+  );
 }
 
 /**

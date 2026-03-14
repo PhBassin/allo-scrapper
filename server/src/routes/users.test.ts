@@ -11,7 +11,6 @@ vi.mock('../db/client.js', () => ({
   },
 }));
 vi.mock('../db/user-queries.js');
-vi.mock('../db/queries.js');
 vi.mock('bcryptjs', () => ({
   default: {
     hash: vi.fn().mockResolvedValue('$2b$10$hashedPasswordExample1234567890123456789012'),

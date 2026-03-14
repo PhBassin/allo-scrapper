@@ -1,6 +1,8 @@
 import express from 'express';
 import type { DB } from '../db/client.js';
-import { getCinemas, getShowtimesByCinemaAndWeek, addCinema, updateCinemaConfig, deleteCinema, createScrapeReport } from '../db/queries.js';
+import { getShowtimesByCinemaAndWeek } from '../db/showtime-queries.js';
+import { createScrapeReport } from '../db/report-queries.js';
+import { getCinemas, addCinema, updateCinemaConfig, deleteCinema } from '../db/cinema-queries.js';
 import { getWeekStart } from '../utils/date.js';
 import { isValidAllocineUrl, extractCinemaIdFromUrl, cleanCinemaUrl } from '../utils/url.js';
 import { getRedisClient } from '../services/redis-client.js';

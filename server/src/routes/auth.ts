@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { getUserByUsername, createUser, updateUserPassword } from '../db/queries.js';
+import { getUserByUsername, createUser, updateUserPassword } from '../db/user-queries.js';
 import { getPermissionNamesByRoleId } from '../db/role-queries.js';
 import type { DB } from '../db/client.js';
 import type { ApiResponse } from '../types/api.js';

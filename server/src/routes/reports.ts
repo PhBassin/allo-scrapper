@@ -1,8 +1,8 @@
 import express from 'express';
 import type { DB } from '../db/client.js';
-import { getScrapeReports, getScrapeReport } from '../db/queries.js';
+import { getScrapeReports, getScrapeReport } from '../db/report-queries.js';
 import type { ApiResponse, PaginatedResponse, GetReportsQuery } from '../types/api.js';
-import type { ScrapeReport } from '../db/queries.js';
+import type { ScrapeReport } from '../db/report-queries.js';
 import { logger } from '../utils/logger.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';

@@ -1,14 +1,18 @@
 import { db, type DB } from '../db/client.js';
 import { logger } from '../utils/logger.js';
 import {
-  upsertCinema,
-  upsertFilm,
   upsertShowtimes,
   upsertWeeklyPrograms,
+} from '../db/showtime-queries.js';
+import {
+  upsertFilm,
   getFilm,
+} from '../db/film-queries.js';
+import {
+  upsertCinema,
   getCinemaConfigs,
   getCinemas,
-} from '../db/queries.js';
+} from '../db/cinema-queries.js';
 import { fetchTheaterPage, fetchShowtimesJson, fetchFilmPage, delay, closeBrowser } from './http-client.js';
 import { parseTheaterPage } from './theater-parser.js';
 import { parseShowtimesJson } from './theater-json-parser.js';
