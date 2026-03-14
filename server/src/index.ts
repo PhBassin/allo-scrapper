@@ -13,6 +13,10 @@ async function startServer() {
   try {
     logger.info('🚀 Starting Allo-Scrapper Server...\n');
 
+    // Log JWT configuration
+    const jwtExpiration = process.env.JWT_EXPIRES_IN || '24h';
+    logger.info(`🔐 JWT expiration set to: ${jwtExpiration}`);
+
     // Initialize database
     logger.info('📦 Initializing database...');
     await initializeDatabase();

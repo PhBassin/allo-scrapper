@@ -5,6 +5,7 @@ import { getPermissionNamesByRoleId } from '../db/role-queries.js';
 import type { DB } from '../db/client.js';
 import { validatePasswordStrength } from '../utils/security.js';
 import { logger } from '../utils/logger.js';
+import { parseJwtExpiration } from '../utils/jwt-config.js';
 import type { PermissionName } from '../types/role.js';
 
 // Pre-computed hash for 'dummy' (cost 10) to prevent timing attacks
@@ -33,6 +34,9 @@ export class AuthService {
         throw new Error('JWT_SECRET environment variable is required');
     }
 
+    // Parse JWT expiration from env var (default: 24h)
+    const expiresIn = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '24h');
+
     const token = jwt.sign(
       {
         id: user.id,
@@ -42,7 +46,7 @@ export class AuthService {
         permissions,
       },
       secret,
-      { expiresIn: '24h' }
+      { expiresIn: expiresIn as any }
     );
 
     return {
