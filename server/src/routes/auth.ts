@@ -1,26 +1,14 @@
 import express from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { getUserByUsername, createUser, updateUserPassword } from '../db/user-queries.js';
-import { getPermissionNamesByRoleId } from '../db/role-queries.js';
 import type { DB } from '../db/client.js';
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
-import { validatePasswordStrength } from '../utils/security.js';
+import { AuthService } from '../services/auth-service.js';
+import type { PermissionName } from '../types/role.js';
 
 const router = express.Router();
-
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is required');
-}
-const JWT_EXPIRES_IN = '24h';
-
-// Pre-computed hash for 'dummy' (cost 10) to prevent timing attacks
-const DUMMY_HASH = '$2b$10$OjIEvY.r8hZtkpA2kEa0EeIJoxe2tgk/ANQghcJfuj5QA7h/lDEb2';
 
 export interface AuthResponse {
     token: string;
@@ -30,7 +18,7 @@ export interface AuthResponse {
         role_id: number;
         role_name: string;
         is_system_role: boolean;
-        permissions: string[];
+        permissions: PermissionName[];
     };
 }
 
@@ -38,69 +26,26 @@ export interface AuthResponse {
 router.post('/login', authLimiter, async (req, res) => {
     try {
         const db: DB = req.app.get('db');
+        const authService = new AuthService(db);
         const { username, password } = req.body;
 
-        if (!username || !password) {
-            const response: ApiResponse = {
-                success: false,
-                error: 'Username and password are required',
-            };
-            return res.status(400).json(response);
-        }
-
-        const user = await getUserByUsername(db, username);
-
-        // Use user's hash or dummy hash to ensure constant time comparison
-        const hashToCompare = user ? user.password_hash : DUMMY_HASH;
-
-        const isMatch = await bcrypt.compare(password, hashToCompare);
-
-        if (!user || !isMatch) {
-            const response: ApiResponse = {
-                success: false,
-                error: 'Invalid credentials',
-            };
-            return res.status(401).json(response);
-        }
-
-        // Load permissions for this role
-        const permissions = await getPermissionNamesByRoleId(db, user.role_id);
-
-        const token = jwt.sign(
-            {
-                id: user.id,
-                username: user.username,
-                role_name: user.role_name,
-                is_system_role: user.is_system_role,
-                permissions,
-            },
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN }
-        );
+        const authData = await authService.login(username, password);
 
         const response: ApiResponse<AuthResponse> = {
             success: true,
-            data: {
-                token,
-                user: {
-                    id: user.id,
-                    username: user.username,
-                    role_id: user.role_id,
-                    role_name: user.role_name,
-                    is_system_role: user.is_system_role,
-                    permissions,
-                }
-            }
+            data: authData
         };
 
         return res.json(response);
-    } catch (error) {
+    } catch (error: any) {
+        if (error.message === 'Username and password are required') {
+            return res.status(400).json({ success: false, error: error.message });
+        }
+        if (error.message === 'Invalid credentials') {
+            return res.status(401).json({ success: false, error: error.message });
+        }
         logger.error('Login error:', error);
-        const response: ApiResponse = {
-            success: false,
-            error: 'Authentication failed',
-        };
-        return res.status(500).json(response);
+        return res.status(500).json({ success: false, error: 'Authentication failed' });
     }
 });
 
@@ -108,51 +53,29 @@ router.post('/login', authLimiter, async (req, res) => {
 router.post('/register', registerLimiter, requireAuth, requirePermission('users:create'), async (req, res) => {
     try {
         const db: DB = req.app.get('db');
+        const authService = new AuthService(db);
         const { username, password } = req.body;
 
-        if (!username || !password) {
-            const response: ApiResponse = {
-                success: false,
-                error: 'Username and password are required',
-            };
-            return res.status(400).json(response);
-        }
-
-        const existingUser = await getUserByUsername(db, username);
-        if (existingUser) {
-            const response: ApiResponse = {
-                success: false,
-                error: 'Username already exists',
-            };
-            return res.status(409).json(response);
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
-
-        const user = await createUser(db, username, passwordHash);
+        const user = await authService.register(username, password);
 
         const response: ApiResponse = {
             success: true,
             data: {
                 message: 'User registered successfully',
-                user: {
-                    id: user.id,
-                    username: user.username,
-                    role_id: user.role_id,
-                    role_name: user.role_name,
-                }
+                user
             }
         };
 
         return res.status(201).json(response);
-    } catch (error) {
+    } catch (error: any) {
+        if (error.message === 'Username and password are required') {
+            return res.status(400).json({ success: false, error: error.message });
+        }
+        if (error.message === 'Username already exists') {
+            return res.status(409).json({ success: false, error: error.message });
+        }
         logger.error('Registration error:', error);
-        const response: ApiResponse = {
-            success: false,
-            error: 'Registration failed',
-        };
-        return res.status(500).json(response);
+        return res.status(500).json({ success: false, error: 'Registration failed' });
     }
 });
 
@@ -160,56 +83,10 @@ router.post('/register', registerLimiter, requireAuth, requirePermission('users:
 router.post('/change-password', authLimiter, requireAuth, async (req: AuthRequest, res) => {
     try {
         const db: DB = req.app.get('db');
+        const authService = new AuthService(db);
         const { currentPassword, newPassword } = req.body;
 
-        // Validate required fields
-        if (!currentPassword || !newPassword) {
-            const response: ApiResponse = {
-                success: false,
-                error: 'Current password and new password are required',
-            };
-            return res.status(400).json(response);
-        }
-
-        // Validate password strength (OWASP/NIST best practices)
-        const passwordError = validatePasswordStrength(newPassword);
-        if (passwordError) {
-            const response: ApiResponse = {
-                success: false,
-                error: passwordError,
-            };
-            return res.status(400).json(response);
-        }
-
-        // Get user from database (req.user is set by requireAuth middleware)
-        const user = await getUserByUsername(db, req.user!.username);
-
-        if (!user) {
-            const response: ApiResponse = {
-                success: false,
-                error: 'User not found',
-            };
-            return res.status(404).json(response);
-        }
-
-        // Verify current password
-        const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
-        if (!isMatch) {
-            const response: ApiResponse = {
-                success: false,
-                error: 'Current password is incorrect',
-            };
-            return res.status(401).json(response);
-        }
-
-        // Hash new password
-        const salt = await bcrypt.genSalt(10);
-        const newPasswordHash = await bcrypt.hash(newPassword, salt);
-
-        // Update password in database
-        await updateUserPassword(db, user.id, newPasswordHash);
-
-        logger.info(`Password changed for user: ${user.username}`);
+        await authService.changePassword(req.user!.username, currentPassword, newPassword);
 
         const response: ApiResponse = {
             success: true,
@@ -219,13 +96,20 @@ router.post('/change-password', authLimiter, requireAuth, async (req: AuthReques
         };
 
         return res.json(response);
-    } catch (error) {
+    } catch (error: any) {
+        if (error.message === 'Current password and new password are required' || 
+            error.message.includes('Password must')) {
+            return res.status(400).json({ success: false, error: error.message });
+        }
+        if (error.message === 'User not found') {
+            return res.status(404).json({ success: false, error: error.message });
+        }
+        if (error.message === 'Current password is incorrect') {
+            return res.status(401).json({ success: false, error: error.message });
+        }
+        
         logger.error('Change password error:', error);
-        const response: ApiResponse = {
-            success: false,
-            error: 'Failed to change password',
-        };
-        return res.status(500).json(response);
+        return res.status(500).json({ success: false, error: 'Failed to change password' });
     }
 });
 
