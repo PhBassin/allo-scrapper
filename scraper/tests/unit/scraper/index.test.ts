@@ -156,10 +156,10 @@ describe('addCinemaAndScrape', () => {
     const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
 
     await expect(addCinemaAndScrape({} as any, 'not-a-url')).rejects.toThrow(
-      /invalid allociné url/i
+      /no scraper strategy found for url/i
     );
     await expect(addCinemaAndScrape({} as any, 'https://www.google.com/path')).rejects.toThrow(
-      /invalid allociné url/i
+      /no scraper strategy found for url/i
     );
   });
 
@@ -168,7 +168,7 @@ describe('addCinemaAndScrape', () => {
 
     await expect(
       addCinemaAndScrape({} as any, 'https://evil.com/seance/salle_gen_csalle=C0072.html')
-    ).rejects.toThrow(/invalid allociné url/i);
+    ).rejects.toThrow(/no scraper strategy found for url/i);
   });
 
   it('should reject valid-looking URLs without a cinema ID', async () => {
