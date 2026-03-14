@@ -7,12 +7,6 @@ import { validatePasswordStrength } from '../utils/security.js';
 import { logger } from '../utils/logger.js';
 import type { PermissionName } from '../types/role.js';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required');
-}
-const JWT_EXPIRES_IN = '24h';
-
 // Pre-computed hash for 'dummy' (cost 10) to prevent timing attacks
 const DUMMY_HASH = '$2b$10$OjIEvY.r8hZtkpA2kEa0EeIJoxe2tgk/ANQghcJfuj5QA7h/lDEb2';
 
@@ -32,7 +26,12 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    const permissions = await getPermissionNamesByRoleId(this.db, user.role_id);
+    const permissions = await getPermissionNamesByRoleId(this.db, user.role_id) as PermissionName[];
+
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET environment variable is required');
+    }
 
     const token = jwt.sign(
       {
@@ -42,8 +41,8 @@ export class AuthService {
         is_system_role: user.is_system_role,
         permissions,
       },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+      secret,
+      { expiresIn: '24h' }
     );
 
     return {
