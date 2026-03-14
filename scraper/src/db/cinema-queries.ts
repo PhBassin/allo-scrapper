@@ -1,5 +1,5 @@
 import { type DB } from './client.js';
-import type { Cinema } from '../types/scraper.js';
+import type { Cinema, CinemaConfig } from '../types/scraper.js';
 
 // --- Database Row Interfaces ---
 
