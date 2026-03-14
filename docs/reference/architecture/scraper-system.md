@@ -72,43 +72,61 @@ Both modes share the same core scraping logic but differ in orchestration and co
 
 ### 1. Scraper Orchestrator
 
-**File**: `server/src/services/scraper/index.ts` (legacy) or `scraper/src/scraper/index.ts` (microservice)
+**File**: `scraper/src/scraper/index.ts`
 
 **Responsibilities**:
 - Load cinema configurations from database
-- Iterate through cinemas and dates
-- Coordinate HTTP fetching and parsing
-- Report progress via SSE or Redis
-- Handle errors and retries
-- Generate scrape summary
+- Identify the correct **Scraper Strategy** based on the cinema's source (e.g., "allocine")
+- Iterate through cinemas and dates, delegating to strategies
+- Coordinate progress reporting via Redis
+- Handle errors and generate scrape summary
 
 **Key Functions**:
 ```typescript
 // Main entry point
 export async function runScraper(
-  progress: ProgressTracker,
+  progress: ProgressPublisher,
   options: ScrapeOptions
 ): Promise<ScrapeSummary>
 
-// Per-cinema scraping
-async function scrapeTheater(
+// Add a new cinema by URL
+export async function addCinemaAndScrape(
   db: DB,
-  cinema: CinemaConfig,
-  date: string,
-  movieDelayMs: number,
-  progress?: ProgressTracker
-): Promise<{ filmsCount: number; showtimesCount: number }>
-
-// Load cinema metadata
-export async function loadTheaterMetadata(
-  db: DB,
-  cinemaConfig: CinemaConfig
-): Promise<{ availableDates: string[]; cinema: Cinema }>
+  url: string,
+  progress?: ProgressPublisher
+): Promise<Cinema>
 ```
 
 ---
 
-### 2. HTTP Client
+### 2. Scraper Strategies (Strategy Pattern)
+
+**Directory**: `scraper/src/scraper/strategies/`
+
+To support multiple movie data sources (AlloCiné, UGC, Pathé, etc.), the scraper uses the **Strategy Pattern**. Each source has its own implementation of the `IScraperStrategy` interface.
+
+**IScraperStrategy Interface**:
+```typescript
+export interface IScraperStrategy {
+  readonly sourceName: string;
+  canHandleUrl(url: string): boolean;
+  extractCinemaId(url: string): string | null;
+  cleanCinemaUrl(url: string): string;
+  loadTheaterMetadata(db: DB, cinema: CinemaConfig): Promise<{ availableDates: string[]; cinema: Cinema }>;
+  scrapeTheater(db: DB, cinema: CinemaConfig, date: string, movieDelayMs: number, progress?: ProgressPublisher): Promise<{ filmsCount: number; showtimesCount: number }>;
+}
+```
+
+**Available Strategies**:
+- `AllocineScraperStrategy`: The default strategy for AlloCiné (encapsulates existing v2.x logic).
+
+**Strategy Selection**:
+- **By URL**: When adding a new cinema, `StrategyFactory.getStrategyByUrl(url)` finds the matching strategy.
+- **By Source**: During a full scrape, `StrategyFactory.getStrategyBySource(cinema.source)` retrieves the strategy stored in the database.
+
+---
+
+### 3. HTTP Client
 
 **File**: `server/src/services/scraper/http-client.ts`
 
