@@ -1,3 +1,4 @@
+import { errorHandler } from '../middleware/error-handler.js';
 // IMPORTANT: Set JWT_SECRET BEFORE any imports
 // The auth middleware reads process.env.JWT_SECRET at module load time
 process.env.JWT_SECRET = 'test-secret';
@@ -62,6 +63,8 @@ const app = express();
 app.use(express.json());
 app.set('db', db); // Register mock db for dependency injection
 app.use('/api/auth', authRouter);
+app.use(errorHandler);
+    app.use(errorHandler);
 
 describe('Auth Routes', () => {
     beforeEach(() => {
@@ -493,7 +496,7 @@ describe('Auth Routes', () => {
 
             expect(response.status).toBe(500);
             expect(response.body.success).toBe(false);
-            expect(response.body.error).toBe('Failed to change password');
+            expect(response.body.error).toBe('Database error');
         });
     });
 });

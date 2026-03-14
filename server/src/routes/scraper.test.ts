@@ -1,3 +1,4 @@
+import { errorHandler } from '../middleware/error-handler.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
@@ -47,9 +48,7 @@ async function setupApp(mockUser: any = { role_name: 'admin', is_system_role: tr
   app.use('/api/scraper', scraperRouter);
   
   // Global error handler
-  app.use((err: any, req: any, res: any, next: any) => {
-    res.status(500).json({ success: false, error: err.message });
-  });
+  app.use(errorHandler);
   
   return app;
 }
@@ -112,7 +111,7 @@ describe('Routes - Scraper', () => {
       const response = await request(app).post('/api/scraper/trigger').send({});
       
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Failed to start scrape');
+      expect(response.body.error).toBe('Redis connection failed');
     });
   });
 

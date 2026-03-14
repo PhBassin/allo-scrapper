@@ -1,3 +1,4 @@
+import { errorHandler } from '../middleware/error-handler.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
@@ -50,9 +51,7 @@ async function setupApp() {
   const { default: cinemasRouter } = await import('./cinemas.js');
   app.use('/api/cinemas', cinemasRouter);
   
-  app.use((err: any, req: any, res: any, next: any) => {
-    res.status(500).json({ success: false, error: 'Internal Test Error' });
-  });
+  app.use(errorHandler);
 
   return app;
 }

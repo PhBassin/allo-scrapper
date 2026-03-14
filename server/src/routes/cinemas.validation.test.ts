@@ -47,7 +47,11 @@ describe('Routes - Cinemas - Validation', () => {
       json: vi.fn().mockReturnThis(),
       status: vi.fn().mockReturnThis()
     };
-    mockNext = vi.fn();
+    mockNext = vi.fn((err?: any) => {
+      if (err) {
+        mockRes.status(err.statusCode || 500).json({ success: false, error: err.message });
+      }
+    });
   });
 
   it('should reject POST with invalid ID format (non-alphanumeric)', async () => {

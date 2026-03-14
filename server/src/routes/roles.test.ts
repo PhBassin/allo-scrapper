@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AppError, NotFoundError, ValidationError, AuthError } from '../utils/errors.js';
 
 vi.mock('../middleware/auth.js', () => ({
   requireAuth: vi.fn((req, _res, next) => next()),
@@ -145,13 +146,11 @@ describe('Routes - Roles', () => {
       const req = { params: { id: '999' }, app: buildMockApp(mockDb) } as any;
       const res = buildMockRes();
 
-      await handler(req, res, vi.fn());
+      const next = vi.fn();
+      await handler(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({
-        success: false,
-        error: 'Role not found',
-      });
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+      expect(next.mock.calls[0][0].message).toBe('Role not found');
     });
   });
 
@@ -187,12 +186,10 @@ describe('Routes - Roles', () => {
       const req = { body: {}, app: buildMockApp(mockDb) } as any;
       const res = buildMockRes();
 
-      await handler(req, res, vi.fn());
+      const next = vi.fn();
+      await handler(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ success: false })
-      );
+      expect(next).toHaveBeenCalledWith(expect.any(ValidationError));
     });
   });
 
@@ -235,9 +232,10 @@ describe('Routes - Roles', () => {
       } as any;
       const res = buildMockRes();
 
-      await handler(req, res, vi.fn());
+      const next = vi.fn();
+      await handler(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(404);
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
     });
   });
 
@@ -271,13 +269,12 @@ describe('Routes - Roles', () => {
       const req = { params: { id: '1' }, app: buildMockApp(mockDb) } as any;
       const res = buildMockRes();
 
-      await handler(req, res, vi.fn());
+      const next = vi.fn();
+      await handler(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith({
-        success: false,
-        error: 'Cannot delete a system role',
-      });
+      expect(next).toHaveBeenCalledWith(expect.any(AuthError));
+      expect(next.mock.calls[0][0].statusCode).toBe(403);
+      expect(next.mock.calls[0][0].message).toBe('Cannot delete a system role');
     });
 
     it('should return 409 when role is assigned to users', async () => {
@@ -291,13 +288,12 @@ describe('Routes - Roles', () => {
       const req = { params: { id: '3' }, app: buildMockApp(mockDb) } as any;
       const res = buildMockRes();
 
-      await handler(req, res, vi.fn());
+      const next = vi.fn();
+      await handler(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(409);
-      expect(res.json).toHaveBeenCalledWith({
-        success: false,
-        error: 'Role is assigned to 3 user(s)',
-      });
+      expect(next).toHaveBeenCalledWith(expect.any(AppError));
+      expect(next.mock.calls[0][0].statusCode).toBe(409);
+      expect(next.mock.calls[0][0].message).toBe('Role is assigned to 3 user(s)');
     });
 
     it('should return 404 when role does not exist', async () => {
@@ -310,9 +306,10 @@ describe('Routes - Roles', () => {
       const req = { params: { id: '999' }, app: buildMockApp(mockDb) } as any;
       const res = buildMockRes();
 
-      await handler(req, res, vi.fn());
+      const next = vi.fn();
+      await handler(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(404);
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
     });
   });
 
@@ -353,9 +350,10 @@ describe('Routes - Roles', () => {
       } as any;
       const res = buildMockRes();
 
-      await handler(req, res, vi.fn());
+      const next = vi.fn();
+      await handler(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(400);
+      expect(next).toHaveBeenCalledWith(expect.any(ValidationError));
     });
   });
 

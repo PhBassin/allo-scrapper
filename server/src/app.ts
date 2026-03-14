@@ -11,6 +11,7 @@ import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
 import { generalLimiter } from './middleware/rate-limit.js';
 import { generateThemeCSS } from './services/theme-generator.js';
+import { errorHandler } from './middleware/error-handler.js';
 
 // Import routes
 import filmsRouter from './routes/films.js';
@@ -154,13 +155,7 @@ export function createApp() {
   }
 
   // Error handler
-  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    logger.error('Unhandled error', { error: err.message, stack: err.stack });
-    res.status(500).json({
-      success: false,
-      error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
-    });
-  });
+  app.use(errorHandler);
 
   return app;
 }
