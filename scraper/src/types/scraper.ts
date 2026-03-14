@@ -9,6 +9,7 @@ export interface Cinema {
   screen_count?: number;
   image_url?: string;
   url?: string; // Source website page URL for scraping
+  source?: string; // Scraper source (e.g., "allocine")
 }
 
 export interface Film {
@@ -57,6 +58,7 @@ export interface CinemaConfig {
   id: string;
   name: string;
   url: string;
+  source: string;
 }
 
 // Data parsed from cinema page
