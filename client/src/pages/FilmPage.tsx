@@ -1,41 +1,21 @@
-import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { getFilmById } from '../api/client';
-import type { FilmWithShowtimes } from '../types';
 import CinemaShowtimes from '../components/CinemaShowtimes';
 
 export default function FilmPage() {
   const { id } = useParams<{ id: string }>();
-  const [film, setFilm] = useState<FilmWithShowtimes | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  
+  const filmId = id ? Number(id) : NaN;
+  const isInvalidId = Number.isNaN(filmId);
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!id) return;
+  const { data: film, isLoading, error: queryError } = useQuery({
+    queryKey: ['film', filmId],
+    queryFn: () => getFilmById(filmId),
+    enabled: !isInvalidId
+  });
 
-      const filmId = Number(id);
-      if (Number.isNaN(filmId)) {
-        setError('Invalid film ID');
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const data = await getFilmById(filmId);
-        setFilm(data);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load film data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, [id]);
+  const error = isInvalidId ? 'Invalid film ID' : (queryError instanceof Error ? queryError.message : (queryError ? 'Failed to load film data' : null));
 
   if (isLoading) {
     return (

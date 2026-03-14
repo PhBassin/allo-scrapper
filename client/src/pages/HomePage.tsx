@@ -1,7 +1,6 @@
-import { useEffect, useState, useContext, useCallback, useMemo } from 'react';
-
+import { useState, useContext, useCallback, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getWeeklyFilms, getFilmsByDate, getCinemas, addCinema } from '../api/client';
-import type { FilmWithShowtimes, Cinema } from '../types';
 import FilmCard from '../components/FilmCard';
 import DaySelector from '../components/DaySelector';
 import FilmSearchBar from '../components/FilmSearchBar';
@@ -10,40 +9,28 @@ import { AuthContext } from '../contexts/AuthContext';
 import CinemasQuickLinks from '../components/CinemasQuickLinks';
 
 export default function HomePage() {
-  const [films, setFilms] = useState<FilmWithShowtimes[]>([]);
-  const [cinemas, setCinemas] = useState<Cinema[]>([]);
-  const [weekStart, setWeekStart] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const { isAuthenticated, hasPermission } = useContext(AuthContext);
 
-  const loadData = async (date?: string | null) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const [filmsData, cinemasData] = await Promise.all([
-        date ? getFilmsByDate(date) : getWeeklyFilms(),
-        getCinemas(),
-      ]);
-      
-      setFilms(filmsData.films);
-      setWeekStart(filmsData.weekStart);
-      setCinemas(cinemasData);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load data');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: cinemas = [], isLoading: isLoadingCinemas } = useQuery({
+    queryKey: ['cinemas'],
+    queryFn: getCinemas,
+  });
 
-  useEffect(() => {
-    loadData(selectedDate);
-  }, [selectedDate]);
+  const { data: filmsData, isLoading: isLoadingFilms, error: filmsError } = useQuery({
+    queryKey: ['films', selectedDate],
+    queryFn: () => selectedDate ? getFilmsByDate(selectedDate) : getWeeklyFilms(),
+  });
+
+  const films = filmsData?.films || [];
+  const weekStart = filmsData?.weekStart || '';
+
+  const isLoading = isLoadingCinemas || isLoadingFilms;
+  const error = filmsError instanceof Error ? filmsError.message : null;
 
   const handleDateSelect = useCallback((date: string | null) => {
-    setSelectedDate(date);
+    setSelectedDate(date || '');
   }, []);
   const formatterDate = useMemo(() => new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
@@ -66,17 +53,23 @@ export default function HomePage() {
     return formatDate(end.toISOString());
   };
 
+  const addCinemaMutation = useMutation({
+    mutationFn: addCinema,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
+      queryClient.invalidateQueries({ queryKey: ['films', selectedDate] });
+    },
+    onError: (err: any) => {
+      alert(err.message || 'Erreur lors de l\'ajout du cinéma');
+    }
+  });
+
   const handleAddCinema = useCallback(async () => {
     const url = window.prompt("Entrez l'URL Allociné du cinéma à ajouter (ex: https://www.allocine.fr/seance/salle_affich-salle=C0013.html):");
     if (!url) return;
 
-    try {
-      await addCinema(url);
-      await loadData(selectedDate);
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors de l\'ajout du cinéma');
-    }
-  }, [selectedDate]);
+    addCinemaMutation.mutate(url);
+  }, [addCinemaMutation]);
 
   if (isLoading) {
     return (
