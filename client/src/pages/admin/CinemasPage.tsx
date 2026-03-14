@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCinemas, createCinema, updateCinema, deleteCinema } from '../../api/cinemas';
 import type { CinemaCreate, CinemaUpdate } from '../../api/cinemas';
 import { triggerScrape, triggerCinemaScrape, getScrapeStatus } from '../../api/client';
@@ -22,9 +23,15 @@ const CinemasPage: React.FC = () => {
   const canUpdate = hasPermission('cinemas:update');
   const canDelete = hasPermission('cinemas:delete');
 
-  const [cinemas, setCinemas] = useState<Cinema[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: cinemas = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['cinemas'],
+    queryFn: getCinemas
+  });
+
+  const error = queryError instanceof Error ? queryError.message : null;
+
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Search
@@ -40,25 +47,6 @@ const CinemasPage: React.FC = () => {
   const [cinemaToDelete, setCinemaToDelete] = useState<Cinema | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  // ── Data fetching ────────────────────────────────────────────────────────────
-
-  const fetchCinemas = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getCinemas();
-      setCinemas(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch cinemas');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCinemas();
-  }, [fetchCinemas]);
 
   // ── Check if scrape is already running on mount ───────────────────────────────
 
@@ -82,33 +70,50 @@ const CinemasPage: React.FC = () => {
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
+  const createMutation = useMutation({
+    mutationFn: createCinema,
+    onSuccess: () => {
+      setShowAddModal(false);
+      setSuccessMessage('Cinema added successfully');
+      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
+    }
+  });
+
   const handleAdd = async (data: CinemaCreate) => {
-    await createCinema(data);
-    setShowAddModal(false);
-    setSuccessMessage('Cinema added successfully');
-    await fetchCinemas();
+    createMutation.mutate(data);
   };
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: CinemaUpdate }) => updateCinema(id, updates),
+    onSuccess: () => {
+      setCinemaToEdit(null);
+      setSuccessMessage('Cinema updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
+    }
+  });
 
   const handleUpdate = async (id: string, updates: CinemaUpdate) => {
-    await updateCinema(id, updates);
-    setCinemaToEdit(null);
-    setSuccessMessage('Cinema updated successfully');
-    await fetchCinemas();
+    updateMutation.mutate({ id, updates });
   };
 
-  const handleDelete = async (cinemaId: string) => {
-    try {
-      setIsDeleting(true);
-      setDeleteError(null);
-      await deleteCinema(cinemaId);
+  const deleteMutation = useMutation({
+    mutationFn: deleteCinema,
+    onSuccess: () => {
       setCinemaToDelete(null);
       setSuccessMessage('Cinema deleted successfully');
-      await fetchCinemas();
-    } catch (err) {
+      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
+      setIsDeleting(false);
+    },
+    onError: (err) => {
       setDeleteError(err instanceof Error ? err.message : 'Failed to delete cinema');
-    } finally {
       setIsDeleting(false);
     }
+  });
+
+  const handleDelete = async (cinemaId: string) => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    deleteMutation.mutate(cinemaId);
   };
 
   // ── Scraping handlers ────────────────────────────────────────────────────────
@@ -121,9 +126,9 @@ const CinemasPage: React.FC = () => {
     setTimeout(() => {
       setShowProgress(false);
       setScrapingCinemaId(null);
-      fetchCinemas();
+      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
     }, 2000);
-  }, [fetchCinemas]);
+  }, [queryClient]);
 
   // ── Filtering ────────────────────────────────────────────────────────────────
 

@@ -1,45 +1,40 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getScrapeReports, getScrapeReportById } from '../api/client';
-import type { ScrapeReport, PaginatedResponse } from '../types';
+import type { ScrapeReport } from '../types';
 
 export default function ReportsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [reports, setReports] = useState<PaginatedResponse<ScrapeReport> | null>(null);
-  const [selectedReport, setSelectedReport] = useState<ScrapeReport | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
   // Get reportId and page from URL query params
   const reportId = searchParams.get('reportId');
   const page = parseInt(searchParams.get('page') || '1', 10);
   const pageSize = 10;
 
-  useEffect(() => {
-    const loadReports = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        if (reportId) {
-          // Load specific report
-          const report = await getScrapeReportById(Number(reportId));
-          setSelectedReport(report);
-        } else {
-          // Load reports list - RESET selectedReport to force list view
-          setSelectedReport(null);
-          const data = await getScrapeReports({ page, pageSize });
-          setReports(data);
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load reports');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const {
+    data: reports,
+    isLoading: isLoadingReports,
+    error: errorReportsQuery
+  } = useQuery({
+    queryKey: ['reports', page],
+    queryFn: () => getScrapeReports({ page, pageSize }),
+    enabled: !reportId,
+  });
 
-    loadReports();
-  }, [reportId, page]);
+  const {
+    data: selectedReport,
+    isLoading: isLoadingReport,
+    error: errorReportQuery
+  } = useQuery({
+    queryKey: ['report', reportId],
+    queryFn: () => getScrapeReportById(Number(reportId)),
+    enabled: !!reportId,
+  });
+
+  const isLoading = reportId ? isLoadingReport : isLoadingReports;
+  const errorQuery = reportId ? errorReportQuery : errorReportsQuery;
+  const error = errorQuery instanceof Error ? errorQuery.message : null;
+
 
   // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
   // re-initialization during loop renders for the reports list.

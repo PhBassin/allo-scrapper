@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { getCinemas, getCinemaSchedule } from '../api/client';
-import type { Cinema, ShowtimeWithFilm } from '../types';
+import type { ShowtimeWithFilm } from '../types';
 import ShowtimeList from '../components/ShowtimeList';
 import CinemaDateSelector from '../components/CinemaDateSelector';
 
@@ -21,49 +22,43 @@ interface FilmGroup {
 
 export default function CinemaPage() {
   const { id } = useParams<{ id: string }>();
-  const [cinema, setCinema] = useState<Cinema | null>(null);
-  const [showtimes, setShowtimes] = useState<ShowtimeWithFilm[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
 
-  const loadData = async () => {
-    if (!id) return;
+  const { data: cinemasData, isLoading: cinemasLoading, error: cinemasError } = useQuery({
+    queryKey: ['cinemas'],
+    queryFn: getCinemas
+  });
 
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Fetch cinema details and schedule in parallel
-      const [cinemas, schedule] = await Promise.all([
-        getCinemas(),
-        getCinemaSchedule(id),
-      ]);
-      
-      const foundCinema = cinemas.find(c => c.id === id);
-      if (!foundCinema) {
-        throw new Error('Cinema not found');
-      }
-      
-      setCinema(foundCinema);
-      setShowtimes(schedule.showtimes);
+  const { data: scheduleData, isLoading: scheduleLoading, error: scheduleError } = useQuery({
+    queryKey: ['cinema-schedule', id],
+    queryFn: () => getCinemaSchedule(id!),
+    enabled: !!id
+  });
 
-      // Set default selected date (today or first available)
-      if (schedule.showtimes.length > 0) {
-        const today = new Date().toISOString().split('T')[0];
-        const dates = getUniqueDates(schedule.showtimes);
-        setSelectedDate(dates.includes(today) ? today : dates[0]);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load cinema data');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const isLoading = cinemasLoading || scheduleLoading;
+  const queryError = cinemasError || scheduleError;
+  const error = queryError instanceof Error ? queryError.message : (queryError ? 'Failed to load cinema data' : null);
 
+  // Validate if cinema was not found in cinemasData
+  if (!isLoading && cinemasData && !cinemasData.some(c => c.id === id)) {
+    // Setting an error message similar to before if cinema is not found
+    // however returning 'Cinema not found' directly in JSX handles it below
+  }
+
+  const cinema = cinemasData?.find(c => c.id === id) || null;
+  const showtimes = scheduleData?.showtimes || [];
+
+  // Set default selected date (today or first available) when schedule is loaded
   useEffect(() => {
-    loadData();
-  }, [id]);
+    if (showtimes.length > 0 && !selectedDate) {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const dates = new Set(showtimes.map(s => s.date));
+      const uniqueDates = Array.from(dates).sort();
+      
+      setSelectedDate(uniqueDates.includes(today) ? today : uniqueDates[0]);
+    }
+  }, [showtimes, selectedDate]);
 
   const getUniqueDates = (showtimes: ShowtimeWithFilm[]): string[] => {
     const dates = new Set(showtimes.map(s => s.date));
