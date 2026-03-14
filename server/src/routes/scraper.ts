@@ -1,20 +1,17 @@
 import express from 'express';
-import { getRedisClient } from '../services/redis-client.js';
-import { progressTracker } from '../services/progress-tracker.js';
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
-import { createScrapeReport, getLatestScrapeReport } from '../db/report-queries.js';
-import { getCinemas } from '../db/cinema-queries.js';
 import type { DB } from '../db/client.js';
-import { db } from '../db/client.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { scraperLimiter } from '../middleware/rate-limit.js';
+import { ScraperService } from '../services/scraper-service.js';
 
 const router = express.Router();
 
 // POST /api/scraper/trigger - Start a manual scrape (delegates to Redis microservice)
 router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, res) => {
   const dbConn: DB = req.app.get('db');
+  const scraperService = new ScraperService(dbConn);
 
   try {
     // Extract and validate cinemaId and filmId from request body
@@ -38,35 +35,7 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
       }
     }
 
-    // Validate cinemaId exists in database if provided
-    if (cinemaId) {
-      const cinemas = await getCinemas(dbConn);
-      const cinemaExists = cinemas.some(c => c.id === cinemaId);
-
-      if (!cinemaExists) {
-        const response: ApiResponse = {
-          success: false,
-          error: `Cinema not found: ${cinemaId}`,
-        };
-        return res.status(404).json(response);
-      }
-    }
-
-    const reportId = await createScrapeReport(db, 'manual');
-
-    // Reset stale events so new SSE subscribers don't receive previous session's
-    // completed/failed events and immediately dismiss the progress panel.
-    progressTracker.reset();
-
-    const queueDepth = await getRedisClient().publishJob({
-      type: 'scrape',
-      reportId,
-      triggerType: 'manual',
-      options: {
-        ...(cinemaId && { cinemaId }),
-        ...(filmId && { filmId }),
-      },
-    });
+    const { reportId, queueDepth } = await scraperService.triggerScrape({ cinemaId, filmId });
 
     const response: ApiResponse = {
       success: true,
@@ -77,7 +46,11 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
       },
     };
     return res.json(response);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.startsWith('Cinema not found')) {
+      return res.status(404).json({ success: false, error: error.message });
+    }
+    
     logger.error('Error starting scrape:', error);
     const response: ApiResponse = {
       success: false,
@@ -88,16 +61,16 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
 });
 
 // GET /api/scraper/status - Get current scrape status
-router.get('/status', async (_req, res) => {
+router.get('/status', async (req, res) => {
+  const dbConn: DB = req.app.get('db');
+  const scraperService = new ScraperService(dbConn);
+
   try {
-    const latestReport = await getLatestScrapeReport(db);
+    const statusData = await scraperService.getStatus();
 
     const response: ApiResponse = {
       success: true,
-      data: {
-        isRunning: latestReport?.status === 'running',
-        latestReport,
-      },
+      data: statusData,
     };
 
     res.json(response);
@@ -113,23 +86,14 @@ router.get('/status', async (_req, res) => {
 
 // GET /api/scraper/progress - SSE endpoint for real-time progress
 router.get('/progress', (req, res) => {
-  // Set headers for SSE
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
-
-  // Add listener to progress tracker
-  // progressTracker.emit() is called from the Redis subscriber in index.ts
-  progressTracker.addListener(res);
-
-  logger.info(`📡 SSE client connected (${progressTracker.getListenerCount()} total)`);
-
-  // Remove listener on client disconnect
-  req.on('close', () => {
-    progressTracker.removeListener(res);
-    logger.info(`📡 SSE client disconnected (${progressTracker.getListenerCount()} remaining)`);
+  const dbConn: DB = req.app.get('db');
+  const scraperService = new ScraperService(dbConn);
+  
+  const cleanup = scraperService.subscribeToProgress(res, () => {
+    // Optional additional cleanup on route level if needed
   });
+
+  req.on('close', cleanup);
 });
 
 export default router;
