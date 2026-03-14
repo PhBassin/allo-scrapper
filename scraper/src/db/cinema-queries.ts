@@ -12,14 +12,15 @@ export interface CinemaRow {
   screen_count: number | null;
   image_url: string | null;
   url: string | null;
+  source: string | null;
 }
 
 // Insertion ou mise à jour d'un cinéma
 export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
   await db.query(
     `
-      INSERT INTO cinemas (id, name, address, postal_code, city, screen_count, image_url, url)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO cinemas (id, name, address, postal_code, city, screen_count, image_url, url, source)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ON CONFLICT(id) DO UPDATE SET
         name = $2,
         address = $3,
@@ -27,7 +28,8 @@ export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
         city = $5,
         screen_count = $6,
         image_url = $7,
-        url = COALESCE($8, cinemas.url)
+        url = COALESCE($8, cinemas.url),
+        source = COALESCE($9, cinemas.source)
     `,
     [
       cinema.id,
@@ -38,6 +40,7 @@ export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
       cinema.screen_count ?? null,
       cinema.image_url ?? null,
       cinema.url ?? null,
+      cinema.source ?? null,
     ]
   );
 }
@@ -57,14 +60,15 @@ export async function getCinemas(db: DB): Promise<Cinema[]> {
     screen_count: row.screen_count ?? undefined,
     image_url: row.image_url ?? undefined,
     url: row.url ?? undefined,
+    source: row.source ?? undefined,
   }));
 }
 
 
 // Get cinemas configured for scraping (those with a URL)
-export async function getCinemaConfigs(db: DB): Promise<Array<{ id: string; name: string; url: string }>> {
-  const result = await db.query<{ id: string; name: string; url: string }>(
-    'SELECT id, name, url FROM cinemas WHERE url IS NOT NULL ORDER BY name'
+export async function getCinemaConfigs(db: DB): Promise<Array<CinemaConfig>> {
+  const result = await db.query<{ id: string; name: string; url: string; source: string }>(
+    'SELECT id, name, url, source FROM cinemas WHERE url IS NOT NULL ORDER BY name'
   );
   return result.rows;
 }
