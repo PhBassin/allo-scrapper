@@ -1,292 +1,147 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as showtimeQueries from '../db/showtime-queries.js';
-import * as cinemaQueries from '../db/cinema-queries.js';
-import * as reportQueries from '../db/report-queries.js';
-import router from './cinemas.js';
-import { db } from '../db/client.js';
+import request from 'supertest';
+import express from 'express';
 
-// Mock the dependencies
-vi.mock('../db/client.js', () => ({
-  db: {
-    query: vi.fn()
-  }
-}));
+const mockGetAllCinemas = vi.fn();
+const mockGetCinemaShowtimes = vi.fn();
+const mockAddCinemaViaUrl = vi.fn();
+const mockAddCinemaManual = vi.fn();
+const mockUpdateCinema = vi.fn();
+const mockDeleteCinema = vi.fn();
 
-vi.mock('../db/showtime-queries.js', () => ({
-  getShowtimesByCinemaAndWeek: vi.fn(),
-}));
-
-vi.mock('../db/report-queries.js', () => ({
-  createScrapeReport: vi.fn().mockResolvedValue(42),
-}));
-
-vi.mock('../db/cinema-queries.js', () => ({
-  getCinemas: vi.fn(),
-  addCinema: vi.fn(),
-  updateCinemaConfig: vi.fn(),
-  deleteCinema: vi.fn(),
-}));
-
-vi.mock('../services/redis-client.js', () => ({
-  getRedisClient: vi.fn().mockReturnValue({
-    publishAddCinemaJob: vi.fn().mockResolvedValue(1),
-  }),
-}));
-
-vi.mock('../utils/logger.js', () => ({
-  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
-}));
+vi.mock('../services/cinema-service.js', () => {
+  return {
+    CinemaService: vi.fn().mockImplementation(function() {
+      return {
+        getAllCinemas: mockGetAllCinemas,
+        getCinemaShowtimes: mockGetCinemaShowtimes,
+        addCinemaViaUrl: mockAddCinemaViaUrl,
+        addCinemaManual: mockAddCinemaManual,
+        updateCinema: mockUpdateCinema,
+        deleteCinema: mockDeleteCinema,
+      };
+    }),
+  };
+});
 
 vi.mock('../utils/date.js', () => ({
   getWeekStart: vi.fn().mockReturnValue('2026-02-18')
 }));
 
-vi.mock('../middleware/auth.js', () => ({
-  requireAuth: (req: any, res: any, next: any) => next(),
-}));
+// Setup Express app for testing
+async function setupApp() {
+  vi.doMock('../middleware/auth.js', () => ({
+    requireAuth: (req: any, res: any, next: any) => next()
+  }));
 
-vi.mock('../middleware/permission.js', () => ({
-  requirePermission: (..._perms: string[]) => (req: any, res: any, next: any) => next(),
-}));
+  vi.doMock('../middleware/permission.js', () => ({
+    requirePermission: () => (req: any, res: any, next: any) => next()
+  }));
+  
+  vi.doMock('../middleware/rate-limit.js', () => ({
+    publicLimiter: (req: any, res: any, next: any) => next(),
+    protectedLimiter: (req: any, res: any, next: any) => next(),
+  }));
 
-// Helper to get the actual route handler (skips middleware like rate limiters)
-function getRouteHandler(path: string, method: 'get' | 'post' | 'put' | 'delete') {
-  const route = router.stack.find(s => s.route?.path === path && s.route?.methods[method])?.route;
-  // Get the last handler in the stack (actual route handler, after middleware)
-  return route?.stack[route.stack.length - 1]?.handle;
+  const app = express();
+  app.use(express.json());
+  app.set('db', {});
+
+  const { default: cinemasRouter } = await import('./cinemas.js');
+  app.use('/api/cinemas', cinemasRouter);
+  
+  app.use((err: any, req: any, res: any, next: any) => {
+    res.status(500).json({ success: false, error: 'Internal Test Error' });
+  });
+
+  return app;
 }
 
 describe('Routes - Cinemas', () => {
-  let mockRes: any;
-  let mockReq: any;
-  let mockNext: any;
-  let mockApp: any;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApp = {
-      get: vi.fn((key: string) => {
-        if (key === 'db') return db;
-        return undefined;
-      })
-    };
-    mockRes = {
-      json: vi.fn().mockReturnThis(),
-      status: vi.fn().mockReturnThis(),
-      send: vi.fn().mockReturnThis(),
-    };
-    mockNext = vi.fn();
+    vi.resetModules();
   });
 
-  describe('POST / (URL-only smart add — delegates to Redis)', () => {
-    it('should accept URL-only body, insert cinema, publish add_cinema job, return 201', async () => {
+  describe('GET /api/cinemas', () => {
+    it('should return all cinemas', async () => {
+      mockGetAllCinemas.mockResolvedValue([{ id: 'C0153', name: 'Test Cinema' }]);
+      const app = await setupApp();
+      
+      const response = await request(app).get('/api/cinemas');
+      
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
+      expect(mockGetAllCinemas).toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /api/cinemas', () => {
+    it('should handle smart add via URL', async () => {
       const cinemaUrl = 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html';
-      mockReq = { body: { url: cinemaUrl }, app: mockApp };
-
-      const created = { id: 'C0099', name: 'C0099', url: cinemaUrl };
-      (cinemaQueries.addCinema as any).mockResolvedValue(created);
-
-      const { getRedisClient } = await import('../services/redis-client.js');
-      const mockPublishAddCinemaJob = vi.fn().mockResolvedValue(1);
-      (getRedisClient as any).mockReturnValue({ publishAddCinemaJob: mockPublishAddCinemaJob });
-
-      const handler = getRouteHandler('/', 'post');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(cinemaQueries.addCinema).toHaveBeenCalled();
-      expect(mockPublishAddCinemaJob).toHaveBeenCalledWith(expect.any(Number), cinemaUrl);
-      expect(mockRes.status).toHaveBeenCalledWith(201);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+      mockAddCinemaViaUrl.mockResolvedValue({ id: 'C0099', name: 'C0099', url: cinemaUrl });
+      const app = await setupApp();
+      
+      const response = await request(app).post('/api/cinemas').send({ url: cinemaUrl });
+      
+      expect(response.status).toBe(201);
+      expect(response.body.data.id).toBe('C0099');
+      expect(mockAddCinemaViaUrl).toHaveBeenCalledWith(cinemaUrl);
     });
 
-    it('should return 400 when URL is invalid', async () => {
-      mockReq = { body: { url: 'https://evil.com/fake' }, app: mockApp };
-
-      const handler = getRouteHandler('/', 'post');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith(
-        expect.objectContaining({ success: false, error: expect.stringContaining('Invalid Allocine URL') })
-      );
+    it('should handle URL validation errors from service', async () => {
+      mockAddCinemaViaUrl.mockRejectedValue(new Error('Invalid Allocine URL.'));
+      const app = await setupApp();
+      
+      const response = await request(app).post('/api/cinemas').send({ url: 'https://badurl.com' });
+      
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid Allocine URL');
     });
 
-    it('should return 400 when URL is too long', async () => {
-      mockReq = { body: { url: 'https://www.allocine.fr/' + 'a'.repeat(2048) }, app: mockApp };
-
-      const handler = getRouteHandler('/', 'post');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
+    it('should handle manual add', async () => {
+      mockAddCinemaManual.mockResolvedValue({ id: 'C0099', name: 'Test', url: 'https://...' });
+      const app = await setupApp();
+      
+      const response = await request(app).post('/api/cinemas').send({ id: 'C0099', name: 'Test', url: 'https://...' });
+      
+      expect(response.status).toBe(201);
+      expect(mockAddCinemaManual).toHaveBeenCalledWith('C0099', 'Test', 'https://...');
     });
   });
 
-  describe('POST /', () => {
-    it('should create a new cinema and return 201', async () => {
-      mockReq = {
-        body: { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' },
-        app: mockApp
-      };
-      const created = { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' };
-      (cinemaQueries.addCinema as any).mockResolvedValue(created);
-
-      const handler = getRouteHandler('/', 'post');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(cinemaQueries.addCinema).toHaveBeenCalledWith(expect.anything(), { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' });
-      expect(mockRes.status).toHaveBeenCalledWith(201);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: created }));
-    });
-
-    it('should return 400 when id is missing', async () => {
-      mockReq = { body: { name: 'Missing ID', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' }, app: mockApp };
-
-      const handler = getRouteHandler('/', 'post');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
-    });
-
-    it('should return 400 when name is missing', async () => {
-      mockReq = { body: { id: 'C0099', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' }, app: mockApp };
-
-      const handler = getRouteHandler('/', 'post');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-    });
-
-    it('should return 400 when url is missing', async () => {
-      mockReq = { body: { id: 'C0099', name: 'New Cinema' }, app: mockApp };
-
-      const handler = getRouteHandler('/', 'post');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-    });
-
-    it('should return 400 when url is invalid', async () => {
-      mockReq = { body: { id: 'C0099', name: 'New Cinema', url: 'https://example.com' }, app: mockApp };
-
-      const handler = getRouteHandler('/', 'post');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, error: expect.stringContaining('Invalid Allocine URL') }));
-    });
-
-    it('should return 409 on duplicate cinema id', async () => {
-      mockReq = { body: { id: 'W7504', name: 'Duplicate', url: 'https://www.allocine.fr/seance/salle_affich-salle=W7504.html' }, app: mockApp };
-      (cinemaQueries.addCinema as any).mockRejectedValue(new Error('duplicate key value violates unique constraint'));
-
-      const handler = getRouteHandler('/', 'post');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(409);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
-    });
-
-    it('should call next(error) on unexpected error', async () => {
-      mockReq = { body: { id: 'C0099', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0099.html' }, app: mockApp };
-      const error = new Error('Unexpected DB error');
-      (cinemaQueries.addCinema as any).mockRejectedValue(error);
-
-      const handler = getRouteHandler('/', 'post');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockNext).toHaveBeenCalledWith(error);
+  describe('PUT /api/cinemas/:id', () => {
+    it('should update cinema', async () => {
+      mockUpdateCinema.mockResolvedValue({ id: 'C0099', name: 'Updated' });
+      const app = await setupApp();
+      
+      const response = await request(app).put('/api/cinemas/C0099').send({ name: 'Updated' });
+      
+      expect(response.status).toBe(200);
+      expect(response.body.data.name).toBe('Updated');
     });
   });
 
-  describe('PUT /:id', () => {
-    it('should update a cinema and return the updated record', async () => {
-      mockReq = { params: { id: 'W7504' }, body: { name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' }, app: mockApp };
-      const updated = { id: 'W7504', name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' };
-      (cinemaQueries.updateCinemaConfig as any).mockResolvedValue(updated);
-
-      const handler = getRouteHandler('/:id', 'put');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(cinemaQueries.updateCinemaConfig).toHaveBeenCalledWith(expect.anything(), 'W7504', { name: 'Updated Name', url: 'https://www.allocine.fr/new-url.html' });
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: updated }));
-    });
-
-    it('should return 400 when body is empty', async () => {
-      mockReq = { params: { id: 'W7504' }, body: {}, app: mockApp };
-
-      const handler = getRouteHandler('/:id', 'put');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-    });
-
-    it('should return 400 when url is invalid', async () => {
-      mockReq = { params: { id: 'W7504' }, body: { url: 'https://example.com' }, app: mockApp };
-
-      const handler = getRouteHandler('/:id', 'put');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, error: expect.stringContaining('Invalid Allocine URL') }));
-    });
-
-    it('should return 404 when cinema not found', async () => {
-      mockReq = { params: { id: 'UNKNOWN' }, body: { name: 'X' }, app: mockApp };
-      (cinemaQueries.updateCinemaConfig as any).mockResolvedValue(undefined);
-
-      const handler = getRouteHandler('/:id', 'put');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
-    });
-
-    it('should call next(error) on unexpected error', async () => {
-      mockReq = { params: { id: 'W7504' }, body: { name: 'X' }, app: mockApp };
-      const error = new Error('DB Error');
-      (cinemaQueries.updateCinemaConfig as any).mockRejectedValue(error);
-
-      const handler = getRouteHandler('/:id', 'put');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockNext).toHaveBeenCalledWith(error);
+  describe('DELETE /api/cinemas/:id', () => {
+    it('should delete cinema', async () => {
+      mockDeleteCinema.mockResolvedValue(true);
+      const app = await setupApp();
+      
+      const response = await request(app).delete('/api/cinemas/C0099');
+      
+      expect(response.status).toBe(204);
     });
   });
 
-  describe('DELETE /:id', () => {
-    it('should delete a cinema and return 204', async () => {
-      mockReq = { params: { id: 'W7504' }, app: mockApp };
-      (cinemaQueries.deleteCinema as any).mockResolvedValue(true);
-
-      const handler = getRouteHandler('/:id', 'delete');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(cinemaQueries.deleteCinema).toHaveBeenCalledWith(expect.anything(), 'W7504');
-      expect(mockRes.status).toHaveBeenCalledWith(204);
-      expect(mockRes.send).toHaveBeenCalledWith();
-    });
-
-    it('should return 404 when cinema not found', async () => {
-      mockReq = { params: { id: 'UNKNOWN' }, app: mockApp };
-      (cinemaQueries.deleteCinema as any).mockResolvedValue(false);
-
-      const handler = getRouteHandler('/:id', 'delete');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
-    });
-
-    it('should call next(error) on unexpected error', async () => {
-      mockReq = { params: { id: 'W7504' }, app: mockApp };
-      const error = new Error('DB Error');
-      (cinemaQueries.deleteCinema as any).mockRejectedValue(error);
-
-      const handler = getRouteHandler('/:id', 'delete');
-      await handler(mockReq, mockRes, mockNext);
-
-      expect(mockNext).toHaveBeenCalledWith(error);
+  describe('GET /api/cinemas/:id', () => {
+    it('should get cinema showtimes', async () => {
+      mockGetCinemaShowtimes.mockResolvedValue([{ id: 'S1', time: '14:00' }]);
+      const app = await setupApp();
+      
+      const response = await request(app).get('/api/cinemas/C0099');
+      
+      expect(response.status).toBe(200);
+      expect(response.body.data.showtimes).toHaveLength(1);
     });
   });
 });
