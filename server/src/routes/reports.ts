@@ -3,15 +3,15 @@ import type { DB } from '../db/client.js';
 import { getScrapeReports, getScrapeReport } from '../db/report-queries.js';
 import type { ApiResponse, PaginatedResponse, GetReportsQuery } from '../types/api.js';
 import type { ScrapeReport } from '../db/report-queries.js';
-import { logger } from '../utils/logger.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 
 const router = express.Router();
 
 // GET /api/reports - Get all scrape reports (paginated)
-router.get('/', protectedLimiter, requireAuth, requirePermission('reports:list'), async (req, res) => {
+router.get('/', protectedLimiter, requireAuth, requirePermission('reports:list'), async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
     const query = req.query as GetReportsQuery;
@@ -52,37 +52,24 @@ router.get('/', protectedLimiter, requireAuth, requirePermission('reports:list')
 
     res.json(response);
   } catch (error) {
-    logger.error('Error fetching reports:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: 'Failed to fetch reports',
-    };
-    res.status(500).json(response);
+    next(error);
   }
 });
 
 // GET /api/reports/:id - Get a specific report
-router.get('/:id', protectedLimiter, requireAuth, requirePermission('reports:view'), async (req, res) => {
+router.get('/:id', protectedLimiter, requireAuth, requirePermission('reports:view'), async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
     const reportId = parseInt(req.params.id as string);
 
     if (isNaN(reportId)) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'Invalid report ID',
-      };
-      return res.status(400).json(response);
+      return next(new ValidationError('Invalid report ID'));
     }
 
     const report = await getScrapeReport(db, reportId);
 
     if (!report) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'Report not found',
-      };
-      return res.status(404).json(response);
+      return next(new NotFoundError('Report not found'));
     }
 
     const response: ApiResponse = {
@@ -90,14 +77,9 @@ router.get('/:id', protectedLimiter, requireAuth, requirePermission('reports:vie
       data: report,
     };
 
-    return res.json(response);
+    res.json(response);
   } catch (error) {
-    logger.error('Error fetching report:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: 'Failed to fetch report',
-    };
-    return res.status(500).json(response);
+    next(error);
   }
 });
 

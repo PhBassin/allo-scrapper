@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { NextFunction } from 'express';
 import type { DB } from '../db/client.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
@@ -16,6 +16,7 @@ import {
 import bcrypt from 'bcryptjs';
 import { logger } from '../utils/logger.js';
 import { validatePasswordStrength } from '../utils/security.js';
+import { ValidationError, NotFoundError, AuthError } from '../utils/errors.js';
 
 const router = express.Router();
 
@@ -32,7 +33,7 @@ router.get(
   protectedLimiter,
   requireAuth,
   requirePermission('users:list'),
-  async (req: AuthRequest, res: express.Response): Promise<void> => {
+  async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
 
@@ -42,18 +43,10 @@ router.get(
 
       // Validate pagination params
       if (isNaN(limit) || limit < 1) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid limit parameter',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('Invalid limit parameter'));
       }
       if (isNaN(offset) || offset < 0) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid offset parameter',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('Invalid offset parameter'));
       }
 
       // Security: Validate and clamp pagination parameters to prevent DoS
@@ -74,11 +67,7 @@ router.get(
         data: users,
       } as ApiResponse<UserPublic[]>);
     } catch (error) {
-      logger.error('Failed to list users', { error });
-      res.status(500).json({
-        success: false,
-        error: 'Failed to list users',
-      } as ApiResponse);
+      next(error);
     }
   }
 );
@@ -93,28 +82,20 @@ router.get(
   protectedLimiter,
   requireAuth,
   requirePermission('users:list'),
-  async (req: AuthRequest, res: express.Response): Promise<void> => {
+  async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
 
       const userId = parseInt(req.params.id as string, 10);
 
       if (isNaN(userId)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid user ID',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('Invalid user ID'));
       }
 
       const user = await getUserById(db, userId);
 
       if (!user) {
-        res.status(404).json({
-          success: false,
-          error: 'User not found',
-        } as ApiResponse);
-        return;
+        return next(new NotFoundError('User not found'));
       }
 
       logger.info('Admin retrieved user details', {
@@ -129,11 +110,7 @@ router.get(
         data: user,
       } as ApiResponse<UserPublic>);
     } catch (error) {
-      logger.error('Failed to get user', { error });
-      res.status(500).json({
-        success: false,
-        error: 'Failed to get user',
-      } as ApiResponse);
+      next(error);
     }
   }
 );
@@ -148,7 +125,7 @@ router.post(
   protectedLimiter,
   requireAuth,
   requirePermission('users:create'),
-  async (req: AuthRequest, res: express.Response): Promise<void> => {
+  async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
 
@@ -156,39 +133,23 @@ router.post(
 
       // Validate required fields
       if (!username || !password) {
-        res.status(400).json({
-          success: false,
-          error: 'Username and password are required',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('Username and password are required'));
       }
 
       // Validate username format
       if (!USERNAME_REGEX.test(username)) {
-        res.status(400).json({
-          success: false,
-          error: 'Username must be alphanumeric and 3-15 characters long',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('Username must be alphanumeric and 3-15 characters long'));
       }
 
       // Validate password
       const passwordError = validatePasswordStrength(password);
       if (passwordError) {
-        res.status(400).json({
-          success: false,
-          error: passwordError,
-        } as ApiResponse);
-        return;
+        return next(new ValidationError(passwordError));
       }
 
       // Validate role_id (required)
       if (!role_id || isNaN(parseInt(role_id, 10))) {
-        res.status(400).json({
-          success: false,
-          error: 'role_id is required and must be a valid integer',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('role_id is required and must be a valid integer'));
       }
 
       const roleId = parseInt(role_id, 10);
@@ -199,11 +160,7 @@ router.post(
         [roleId]
       );
       if (roleCheck.rows.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid role_id: role does not exist',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('Invalid role_id: role does not exist'));
       }
 
       // Hash password
@@ -235,18 +192,10 @@ router.post(
     } catch (error: any) {
       // Handle duplicate username error
       if (error.code === '23505' || error.message?.includes('duplicate key')) {
-        res.status(409).json({
-          success: false,
-          error: 'Username already exists',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('Username already exists'));
       }
 
-      logger.error('Failed to create user', { error });
-      res.status(500).json({
-        success: false,
-        error: 'Failed to create user',
-      } as ApiResponse);
+      next(error);
     }
   }
 );
@@ -262,7 +211,7 @@ router.put(
   protectedLimiter,
   requireAuth,
   requirePermission('users:update'),
-  async (req: AuthRequest, res: express.Response): Promise<void> => {
+  async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
 
@@ -271,29 +220,17 @@ router.put(
 
       // Validate user ID
       if (isNaN(userId)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid user ID',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('Invalid user ID'));
       }
 
       // Validate role_id
       if (!role_id) {
-        res.status(400).json({
-          success: false,
-          error: 'role_id is required',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('role_id is required'));
       }
 
       const roleId = parseInt(role_id, 10);
       if (isNaN(roleId)) {
-        res.status(400).json({
-          success: false,
-          error: 'role_id must be a valid integer',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('role_id must be a valid integer'));
       }
 
       // Verify role exists and get its name
@@ -302,32 +239,20 @@ router.put(
         [roleId]
       );
       if (roleCheck.rows.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid role_id: role does not exist',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('Invalid role_id: role does not exist'));
       }
 
       // Check if user exists
       const targetUser = await getUserById(db, userId);
       if (!targetUser) {
-        res.status(404).json({
-          success: false,
-          error: 'User not found',
-        } as ApiResponse);
-        return;
+        return next(new NotFoundError('User not found'));
       }
 
       // Safety guard: Prevent demoting the last admin
       if (targetUser.role_name === 'admin' && roleCheck.rows[0].name !== 'admin') {
         const adminCount = await getAdminCount(db);
         if (adminCount <= 1) {
-          res.status(403).json({
-            success: false,
-            error: 'Cannot demote the last admin user',
-          } as ApiResponse);
-          return;
+          return next(new AuthError('Cannot demote the last admin user', 403));
         }
       }
 
@@ -351,11 +276,7 @@ router.put(
         data: updatedUser,
       } as ApiResponse<UserPublic>);
     } catch (error) {
-      logger.error('Failed to update user role', { error });
-      res.status(500).json({
-        success: false,
-        error: 'Failed to update user role',
-      } as ApiResponse);
+      next(error);
     }
   }
 );
@@ -370,7 +291,7 @@ router.post(
   protectedLimiter,
   requireAuth,
   requirePermission('users:update'),
-  async (req: AuthRequest, res: express.Response): Promise<void> => {
+  async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
 
@@ -378,21 +299,13 @@ router.post(
 
       // Validate user ID
       if (isNaN(userId)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid user ID',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('Invalid user ID'));
       }
 
       // Check if user exists
       const targetUser = await getUserById(db, userId);
       if (!targetUser) {
-        res.status(404).json({
-          success: false,
-          error: 'User not found',
-        } as ApiResponse);
-        return;
+        return next(new NotFoundError('User not found'));
       }
 
       // Generate new password
@@ -422,11 +335,7 @@ router.post(
         },
       } as ApiResponse<{ user: UserPublic; newPassword: string }>);
     } catch (error) {
-      logger.error('Failed to reset password', { error });
-      res.status(500).json({
-        success: false,
-        error: 'Failed to reset password',
-      } as ApiResponse);
+      next(error);
     }
   }
 );
@@ -444,7 +353,7 @@ router.delete(
   protectedLimiter,
   requireAuth,
   requirePermission('users:delete'),
-  async (req: AuthRequest, res: express.Response): Promise<void> => {
+  async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
       const db: DB = req.app.get('db');
 
@@ -452,41 +361,25 @@ router.delete(
 
       // Validate user ID
       if (isNaN(userId)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid user ID',
-        } as ApiResponse);
-        return;
+        return next(new ValidationError('Invalid user ID'));
       }
 
       // Safety guard: Prevent self-deletion
       if (userId === req.user!.id) {
-        res.status(403).json({
-          success: false,
-          error: 'Cannot delete your own account',
-        } as ApiResponse);
-        return;
+        return next(new AuthError('Cannot delete your own account', 403));
       }
 
       // Check if user exists and get their role
       const targetUser = await getUserById(db, userId);
       if (!targetUser) {
-        res.status(404).json({
-          success: false,
-          error: 'User not found',
-        } as ApiResponse);
-        return;
+        return next(new NotFoundError('User not found'));
       }
 
       // Safety guard: Prevent deleting the last admin
       if (targetUser.role_name === 'admin') {
         const adminCount = await getAdminCount(db);
         if (adminCount <= 1) {
-          res.status(403).json({
-            success: false,
-            error: 'Cannot delete the last admin user',
-          } as ApiResponse);
-          return;
+          return next(new AuthError('Cannot delete the last admin user', 403));
         }
       }
 
@@ -494,11 +387,7 @@ router.delete(
       const deleted = await deleteUser(db, userId);
 
       if (!deleted) {
-        res.status(404).json({
-          success: false,
-          error: 'User not found',
-        } as ApiResponse);
-        return;
+        return next(new NotFoundError('User not found'));
       }
 
       logger.info('Admin deleted user', {
@@ -511,11 +400,7 @@ router.delete(
 
       res.status(204).send();
     } catch (error) {
-      logger.error('Failed to delete user', { error });
-      res.status(500).json({
-        success: false,
-        error: 'Failed to delete user',
-      } as ApiResponse);
+      next(error);
     }
   }
 );

@@ -1,15 +1,15 @@
-import express from 'express';
+import express, { Response, NextFunction } from 'express';
 import type { ApiResponse } from '../types/api.js';
-import { logger } from '../utils/logger.js';
 import type { DB } from '../db/client.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { scraperLimiter } from '../middleware/rate-limit.js';
 import { ScraperService } from '../services/scraper-service.js';
+import { AuthError, NotFoundError } from '../utils/errors.js';
 
 const router = express.Router();
 
 // POST /api/scraper/trigger - Start a manual scrape (delegates to Redis microservice)
-router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, res) => {
+router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
   const dbConn: DB = req.app.get('db');
   const scraperService = new ScraperService(dbConn);
 
@@ -27,11 +27,7 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
       
       // User needs the specific permission OR scraper:trigger (which grants both)
       if (!userPermissions.has(requiredPermission) && !userPermissions.has('scraper:trigger')) {
-        const response: ApiResponse = {
-          success: false,
-          error: 'Permission denied',
-        };
-        return res.status(403).json(response);
+        return next(new AuthError('Permission denied', 403));
       }
     }
 
@@ -45,23 +41,17 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
         queueDepth,
       },
     };
-    return res.json(response);
+    res.json(response);
   } catch (error: any) {
     if (error.message.startsWith('Cinema not found')) {
-      return res.status(404).json({ success: false, error: error.message });
+      return next(new NotFoundError(error.message));
     }
-    
-    logger.error('Error starting scrape:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: 'Failed to start scrape',
-    };
-    return res.status(500).json(response);
+    next(error);
   }
 });
 
 // GET /api/scraper/status - Get current scrape status
-router.get('/status', async (req, res) => {
+router.get('/status', async (req, res, next) => {
   const dbConn: DB = req.app.get('db');
   const scraperService = new ScraperService(dbConn);
 
@@ -75,25 +65,24 @@ router.get('/status', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    logger.error('Error fetching scrape status:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: 'Failed to fetch scrape status',
-    };
-    res.status(500).json(response);
+    next(error);
   }
 });
 
 // GET /api/scraper/progress - SSE endpoint for real-time progress
-router.get('/progress', (req, res) => {
-  const dbConn: DB = req.app.get('db');
-  const scraperService = new ScraperService(dbConn);
-  
-  const cleanup = scraperService.subscribeToProgress(res, () => {
-    // Optional additional cleanup on route level if needed
-  });
+router.get('/progress', (req, res, next) => {
+  try {
+    const dbConn: DB = req.app.get('db');
+    const scraperService = new ScraperService(dbConn);
+    
+    const cleanup = scraperService.subscribeToProgress(res, () => {
+      // Optional additional cleanup on route level if needed
+    });
 
-  req.on('close', cleanup);
+    req.on('close', cleanup);
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;

@@ -1,12 +1,12 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import type { DB } from '../db/client.js';
 import type { ApiResponse } from '../types/api.js';
-import { logger } from '../utils/logger.js';
 import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { AuthService } from '../services/auth-service.js';
 import type { PermissionName } from '../types/role.js';
+import { ValidationError, AuthError, NotFoundError } from '../utils/errors.js';
 
 const router = express.Router();
 
@@ -23,7 +23,7 @@ export interface AuthResponse {
 }
 
 // POST /api/auth/login - Login user
-router.post('/login', authLimiter, async (req, res) => {
+router.post('/login', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const db: DB = req.app.get('db');
         const authService = new AuthService(db);
@@ -36,21 +36,20 @@ router.post('/login', authLimiter, async (req, res) => {
             data: authData
         };
 
-        return res.json(response);
+        res.json(response);
     } catch (error: any) {
         if (error.message === 'Username and password are required') {
-            return res.status(400).json({ success: false, error: error.message });
+            return next(new ValidationError(error.message));
         }
         if (error.message === 'Invalid credentials') {
-            return res.status(401).json({ success: false, error: error.message });
+            return next(new AuthError(error.message));
         }
-        logger.error('Login error:', error);
-        return res.status(500).json({ success: false, error: 'Authentication failed' });
+        next(error);
     }
 });
 
 // POST /api/auth/register - Register a new user (requires users:create permission)
-router.post('/register', registerLimiter, requireAuth, requirePermission('users:create'), async (req, res) => {
+router.post('/register', registerLimiter, requireAuth, requirePermission('users:create'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const db: DB = req.app.get('db');
         const authService = new AuthService(db);
@@ -66,21 +65,20 @@ router.post('/register', registerLimiter, requireAuth, requirePermission('users:
             }
         };
 
-        return res.status(201).json(response);
+        res.status(201).json(response);
     } catch (error: any) {
         if (error.message === 'Username and password are required') {
-            return res.status(400).json({ success: false, error: error.message });
+            return next(new ValidationError(error.message));
         }
         if (error.message === 'Username already exists') {
-            return res.status(409).json({ success: false, error: error.message });
+            return next(new ValidationError(error.message)); // Conflict mapped to validation for now
         }
-        logger.error('Registration error:', error);
-        return res.status(500).json({ success: false, error: 'Registration failed' });
+        next(error);
     }
 });
 
 // POST /api/auth/change-password - Change user password (protected)
-router.post('/change-password', authLimiter, requireAuth, async (req: AuthRequest, res) => {
+router.post('/change-password', authLimiter, requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const db: DB = req.app.get('db');
         const authService = new AuthService(db);
@@ -95,21 +93,19 @@ router.post('/change-password', authLimiter, requireAuth, async (req: AuthReques
             },
         };
 
-        return res.json(response);
+        res.json(response);
     } catch (error: any) {
         if (error.message === 'Current password and new password are required' || 
             error.message.includes('Password must')) {
-            return res.status(400).json({ success: false, error: error.message });
+            return next(new ValidationError(error.message));
         }
         if (error.message === 'User not found') {
-            return res.status(404).json({ success: false, error: error.message });
+            return next(new NotFoundError(error.message));
         }
         if (error.message === 'Current password is incorrect') {
-            return res.status(401).json({ success: false, error: error.message });
+            return next(new AuthError(error.message));
         }
-        
-        logger.error('Change password error:', error);
-        return res.status(500).json({ success: false, error: 'Failed to change password' });
+        next(error);
     }
 });
 

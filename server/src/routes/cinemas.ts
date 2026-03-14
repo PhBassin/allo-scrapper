@@ -6,6 +6,7 @@ import type { ApiResponse } from '../types/api.js';
 import { publicLimiter, protectedLimiter } from '../middleware/rate-limit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 
 const router = express.Router();
 
@@ -44,16 +45,12 @@ router.post('/', protectedLimiter, requireAuth, requirePermission('cinemas:creat
         };
         return res.status(201).json(response);
       } catch (error: any) {
-        return res.status(400).json({ success: false, error: error.message });
+        return next(new ValidationError(error.message));
       }
     }
 
     if (!id || !name || !url) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'Missing required fields: id, name, url',
-      };
-      return res.status(400).json(response);
+      return next(new ValidationError('Missing required fields: id, name, url'));
     }
 
     try {
@@ -68,14 +65,12 @@ router.post('/', protectedLimiter, requireAuth, requirePermission('cinemas:creat
         error.message.includes('Invalid') || 
         error.message.includes('too long') || 
         error.message.includes('Missing') ||
-        error.message.includes('Name must be a string between')
+        error.message.includes('Name must be a string between') ||
+        error.message.includes('already exists')
       ) {
-        return res.status(400).json({ success: false, error: error.message });
+        return next(new ValidationError(error.message));
       }
-      if (error.message.includes('already exists')) {
-        return res.status(409).json({ success: false, error: error.message });
-      }
-      throw error; // Let generic error handler catch it
+      return next(error);
     }
   } catch (error) {
     return next(error);
@@ -98,9 +93,9 @@ router.put('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:upd
       return res.json(response);
     } catch (error: any) {
       if (error.message.includes('not found')) {
-        return res.status(404).json({ success: false, error: error.message });
+        return next(new NotFoundError(error.message));
       }
-      return res.status(400).json({ success: false, error: error.message });
+      return next(new ValidationError(error.message));
     }
   } catch (error) {
     return next(error);
@@ -118,7 +113,7 @@ router.delete('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:
       await cinemaService.deleteCinema(cinemaId);
       return res.status(204).send();
     } catch (error: any) {
-      return res.status(404).json({ success: false, error: error.message });
+      return next(new NotFoundError(error.message));
     }
   } catch (error) {
     return next(error);

@@ -4,6 +4,7 @@ import { FilmService } from '../services/film-service.js';
 import { getWeekStart } from '../utils/date.js';
 import type { ApiResponse } from '../types/api.js';
 import { publicLimiter } from '../middleware/rate-limit.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 
 const router = express.Router();
 
@@ -19,11 +20,7 @@ router.get('/', publicLimiter, async (req, res, next) => {
     if (dateParam) {
       const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
       if (!dateRegex.test(dateParam)) {
-        const response: ApiResponse = {
-          success: false,
-          error: 'Invalid date format. Use YYYY-MM-DD',
-        };
-        return res.status(400).json(response);
+        return next(new ValidationError('Invalid date format. Use YYYY-MM-DD'));
       }
     }
 
@@ -44,9 +41,9 @@ router.get('/', publicLimiter, async (req, res, next) => {
       },
     };
 
-    return res.json(response);
+    res.json(response);
   } catch (error) {
-    return next(error);
+    next(error);
   }
 });
 
@@ -59,11 +56,7 @@ router.get('/search', publicLimiter, async (req, res, next) => {
     
     // Validate query parameter
     if (!query || query.trim().length < 2) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'Search query must be at least 2 characters',
-      };
-      return res.status(400).json(response);
+      return next(new ValidationError('Search query must be at least 2 characters'));
     }
     
     const films = await filmService.search(query.trim(), 10);
@@ -76,9 +69,9 @@ router.get('/search', publicLimiter, async (req, res, next) => {
       },
     };
     
-    return res.json(response);
+    res.json(response);
   } catch (error) {
-    return next(error);
+    next(error);
   }
 });
 
@@ -91,21 +84,13 @@ router.get('/:id', publicLimiter, async (req, res, next) => {
     const weekStart = getWeekStart();
 
     if (isNaN(filmId)) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'Invalid film ID',
-      };
-      return res.status(400).json(response);
+      return next(new ValidationError('Invalid film ID'));
     }
 
     const filmWithShowtimes = await filmService.getFilmById(filmId, weekStart);
 
     if (!filmWithShowtimes) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'Film not found',
-      };
-      return res.status(404).json(response);
+      return next(new NotFoundError('Film not found'));
     }
 
     const response: ApiResponse = {
@@ -113,9 +98,9 @@ router.get('/:id', publicLimiter, async (req, res, next) => {
       data: filmWithShowtimes,
     };
 
-    return res.json(response);
+    res.json(response);
   } catch (error) {
-    return next(error);
+    next(error);
   }
 });
 

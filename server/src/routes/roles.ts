@@ -9,10 +9,10 @@ import {
   setRolePermissions,
 } from '../db/role-queries.js';
 import type { ApiResponse } from '../types/api.js';
-import { logger } from '../utils/logger.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
+import { ValidationError, NotFoundError, AuthError, AppError } from '../utils/errors.js';
 
 const router = express.Router();
 
@@ -26,16 +26,14 @@ router.get(
   protectedLimiter,
   requireAuth,
   requirePermission('roles:list'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
       const permissions = await getAllPermissions(db);
       const response: ApiResponse = { success: true, data: permissions };
-      return res.json(response);
+      res.json(response);
     } catch (error) {
-      logger.error('Error fetching permissions:', error);
-      const response: ApiResponse = { success: false, error: 'Failed to fetch permissions' };
-      return res.status(500).json(response);
+      next(error);
     }
   }
 );
@@ -49,16 +47,14 @@ router.get(
   protectedLimiter,
   requireAuth,
   requirePermission('roles:list'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
       const roles = await getAllRoles(db);
       const response: ApiResponse = { success: true, data: roles };
-      return res.json(response);
+      res.json(response);
     } catch (error) {
-      logger.error('Error fetching roles:', error);
-      const response: ApiResponse = { success: false, error: 'Failed to fetch roles' };
-      return res.status(500).json(response);
+      next(error);
     }
   }
 );
@@ -72,28 +68,24 @@ router.get(
   protectedLimiter,
   requireAuth,
   requirePermission('roles:read'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
       const roleId = parseInt(req.params.id as string, 10);
 
       if (isNaN(roleId)) {
-        const response: ApiResponse = { success: false, error: 'Invalid role ID' };
-        return res.status(400).json(response);
+        return next(new ValidationError('Invalid role ID'));
       }
 
       const role = await getRoleById(db, roleId);
       if (!role) {
-        const response: ApiResponse = { success: false, error: 'Role not found' };
-        return res.status(404).json(response);
+        return next(new NotFoundError('Role not found'));
       }
 
       const response: ApiResponse = { success: true, data: role };
-      return res.json(response);
+      res.json(response);
     } catch (error) {
-      logger.error('Error fetching role:', error);
-      const response: ApiResponse = { success: false, error: 'Failed to fetch role' };
-      return res.status(500).json(response);
+      next(error);
     }
   }
 );
@@ -107,32 +99,26 @@ router.post(
   protectedLimiter,
   requireAuth,
   requirePermission('roles:create'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
       const { name, description } = req.body;
 
       if (!name || typeof name !== 'string' || name.trim() === '') {
-        const response: ApiResponse = { success: false, error: 'Role name is required' };
-        return res.status(400).json(response);
+        return next(new ValidationError('Role name is required'));
       }
 
       const created = await createRole(db, { name: name.trim(), description });
       // Fetch with permissions
       const role = await getRoleById(db, created.id);
 
-      logger.info('Role created', { roleId: created.id, name: created.name });
-
       const response: ApiResponse = { success: true, data: role };
-      return res.status(201).json(response);
+      res.status(201).json(response);
     } catch (error: any) {
       if (error.code === '23505' || error.message?.includes('duplicate key')) {
-        const response: ApiResponse = { success: false, error: 'Role name already exists' };
-        return res.status(409).json(response);
+        return next(new ValidationError('Role name already exists'));
       }
-      logger.error('Error creating role:', error);
-      const response: ApiResponse = { success: false, error: 'Failed to create role' };
-      return res.status(500).json(response);
+      next(error);
     }
   }
 );
@@ -146,31 +132,27 @@ router.put(
   protectedLimiter,
   requireAuth,
   requirePermission('roles:update'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
       const roleId = parseInt(req.params.id as string, 10);
 
       if (isNaN(roleId)) {
-        const response: ApiResponse = { success: false, error: 'Invalid role ID' };
-        return res.status(400).json(response);
+        return next(new ValidationError('Invalid role ID'));
       }
 
       const { name, description } = req.body;
       const updated = await updateRole(db, roleId, { name, description });
 
       if (!updated) {
-        const response: ApiResponse = { success: false, error: 'Role not found' };
-        return res.status(404).json(response);
+        return next(new NotFoundError('Role not found'));
       }
 
       const role = await getRoleById(db, roleId);
       const response: ApiResponse = { success: true, data: role };
-      return res.json(response);
+      res.json(response);
     } catch (error) {
-      logger.error('Error updating role:', error);
-      const response: ApiResponse = { success: false, error: 'Failed to update role' };
-      return res.status(500).json(response);
+      next(error);
     }
   }
 );
@@ -186,25 +168,22 @@ router.delete(
   protectedLimiter,
   requireAuth,
   requirePermission('roles:delete'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
       const roleId = parseInt(req.params.id as string, 10);
 
       if (isNaN(roleId)) {
-        const response: ApiResponse = { success: false, error: 'Invalid role ID' };
-        return res.status(400).json(response);
+        return next(new ValidationError('Invalid role ID'));
       }
 
       const role = await getRoleById(db, roleId);
       if (!role) {
-        const response: ApiResponse = { success: false, error: 'Role not found' };
-        return res.status(404).json(response);
+        return next(new NotFoundError('Role not found'));
       }
 
       if (role.is_system) {
-        const response: ApiResponse = { success: false, error: 'Cannot delete a system role' };
-        return res.status(403).json(response);
+        return next(new AuthError('Cannot delete a system role', 403));
       }
 
       // Check if any users have this role
@@ -214,22 +193,14 @@ router.delete(
       );
       const userCount = parseInt(userCountResult.rows[0]?.count ?? '0', 10);
       if (userCount > 0) {
-        const response: ApiResponse = {
-          success: false,
-          error: `Role is assigned to ${userCount} user(s)`,
-        };
-        return res.status(409).json(response);
+        return next(new AppError(`Role is assigned to ${userCount} user(s)`, 409));
       }
 
       await db.query('DELETE FROM roles WHERE id = $1', [roleId]);
 
-      logger.info('Role deleted', { roleId, name: role.name });
-
-      return res.status(204).send();
+      res.status(204).send();
     } catch (error) {
-      logger.error('Error deleting role:', error);
-      const response: ApiResponse = { success: false, error: 'Failed to delete role' };
-      return res.status(500).json(response);
+      next(error);
     }
   }
 );
@@ -244,37 +215,32 @@ router.put(
   protectedLimiter,
   requireAuth,
   requirePermission('roles:update'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
       const roleId = parseInt(req.params.id as string, 10);
 
       if (isNaN(roleId)) {
-        const response: ApiResponse = { success: false, error: 'Invalid role ID' };
-        return res.status(400).json(response);
+        return next(new ValidationError('Invalid role ID'));
       }
 
       const { permission_ids } = req.body;
       if (!Array.isArray(permission_ids)) {
-        const response: ApiResponse = { success: false, error: 'permission_ids must be an array' };
-        return res.status(400).json(response);
+        return next(new ValidationError('permission_ids must be an array'));
       }
 
       const role = await getRoleById(db, roleId);
       if (!role) {
-        const response: ApiResponse = { success: false, error: 'Role not found' };
-        return res.status(404).json(response);
+        return next(new NotFoundError('Role not found'));
       }
 
       await setRolePermissions(db, roleId, permission_ids);
 
       const updated = await getRoleById(db, roleId);
       const response: ApiResponse = { success: true, data: updated };
-      return res.json(response);
+      res.json(response);
     } catch (error) {
-      logger.error('Error updating role permissions:', error);
-      const response: ApiResponse = { success: false, error: 'Failed to update permissions' };
-      return res.status(500).json(response);
+      next(error);
     }
   }
 );
