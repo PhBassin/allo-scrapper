@@ -48,7 +48,7 @@ export default function Layout({ children, title }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-secondary text-white shadow-lg">
+      <header className="bg-secondary text-white shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="text-2xl font-bold flex items-center gap-2">
