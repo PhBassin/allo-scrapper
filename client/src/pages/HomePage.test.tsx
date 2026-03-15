@@ -3,8 +3,36 @@ import HomePage from './HomePage';
 import * as clientApi from '../api/client';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthContext } from '../contexts/AuthContext';
 
 // Mock the API client
+const mockAuthContext = {
+  isAuthenticated: true,
+  user: { id: 1, username: 'testuser', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['cinemas:create', 'scraper:trigger'] as any[] },
+  logout: vi.fn(),
+  login: vi.fn(),
+  isAdmin: false,
+  hasPermission: vi.fn(() => true),
+  token: 'mock-token',
+};
+
+const renderWithClient = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={mockAuthContext}>
+        {ui}
+      </AuthContext.Provider>
+    </QueryClientProvider>
+  );
+};
 vi.mock('../api/client', () => ({
   getWeeklyFilms: vi.fn(),
   getCinemas: vi.fn(),
@@ -33,7 +61,7 @@ describe('HomePage', () => {
   });
 
   it('should load data on mount', async () => {
-    render(
+    renderWithClient(
       <MemoryRouter>
         <HomePage />
       </MemoryRouter>
@@ -46,7 +74,7 @@ describe('HomePage', () => {
   });
 
   it('should NOT show ScrapeProgress on the home page', async () => {
-    render(
+    renderWithClient(
       <MemoryRouter>
         <HomePage />
       </MemoryRouter>
@@ -61,7 +89,7 @@ describe('HomePage', () => {
   });
 
   it('should NOT show a scrape button on the home page', async () => {
-    render(
+    renderWithClient(
       <MemoryRouter>
         <HomePage />
       </MemoryRouter>

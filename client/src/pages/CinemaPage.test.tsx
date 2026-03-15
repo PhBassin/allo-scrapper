@@ -10,6 +10,36 @@ vi.mock('../api/client', () => ({
   getCinemaSchedule: vi.fn(),
 }));
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthContext } from '../contexts/AuthContext';
+
+const mockAuthContext = {
+  isAuthenticated: true,
+  user: { id: 1, username: 'testuser', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['cinemas:create', 'scraper:trigger'] as any[] },
+  logout: vi.fn(),
+  login: vi.fn(),
+  isAdmin: false,
+  hasPermission: vi.fn(() => true),
+  token: 'mock-token',
+};
+
+const renderWithClient = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={mockAuthContext}>
+        {ui}
+      </AuthContext.Provider>
+    </QueryClientProvider>
+  );
+};
+
 describe('CinemaPage - renders cinema details', () => {
   const mockCinema: Cinema = {
     id: 'C0153',
@@ -29,7 +59,7 @@ describe('CinemaPage - renders cinema details', () => {
   });
 
   it('renders the cinema name heading', async () => {
-    render(
+    renderWithClient(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -42,7 +72,7 @@ describe('CinemaPage - renders cinema details', () => {
   });
 
   it('does NOT render a scrape button (scraping moved to admin)', async () => {
-    render(
+    renderWithClient(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -57,7 +87,7 @@ describe('CinemaPage - renders cinema details', () => {
   });
 
   it('calls getCinemas and getCinemaSchedule on mount', async () => {
-    render(
+    renderWithClient(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -74,7 +104,7 @@ describe('CinemaPage - renders cinema details', () => {
   it('shows error message when cinema is not found', async () => {
     vi.mocked(clientApi.getCinemas).mockResolvedValue([]);
 
-    render(
+    renderWithClient(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />

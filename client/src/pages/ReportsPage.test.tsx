@@ -43,12 +43,23 @@ const mockReportDetail = {
   progress_log: [],
 };
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
 const renderWithRouter = (initialRoute = '/admin?tab=rapports') => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
   window.history.pushState({}, 'Test', initialRoute);
   return render(
-    <BrowserRouter>
-      <ReportsPage />
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <ReportsPage />
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 };
 

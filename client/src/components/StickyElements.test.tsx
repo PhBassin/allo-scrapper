@@ -12,6 +12,7 @@ vi.mock('../api/client', () => ({
   getFilmsByDate: vi.fn(),
   getCinemas: vi.fn(),
   getCinemaSchedule: vi.fn(),
+  addCinema: vi.fn(),
 }));
 
 const mockAuthContext = {

@@ -81,12 +81,24 @@ const mockAuthContext = {
   hasPermission: vi.fn<(p: PermissionName) => boolean>(() => true),
 };
 
-const renderWithAuth = (ui: React.ReactElement, authOverrides?: Partial<typeof mockAuthContext>) =>
-  render(
-    <AuthContext.Provider value={{ ...mockAuthContext, ...authOverrides }}>
-      <MemoryRouter>{ui}</MemoryRouter>
-    </AuthContext.Provider>
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const renderWithAuth = (ui: React.ReactElement, authOverrides?: Partial<typeof mockAuthContext>) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={{ ...mockAuthContext, ...authOverrides }}>
+        <MemoryRouter>{ui}</MemoryRouter>
+      </AuthContext.Provider>
+    </QueryClientProvider>
   );
+};
 
 const mockCinemas = [
   { id: 'C0153', name: 'UGC Ciné Cité Paris', city: 'Paris', screen_count: 12 },
