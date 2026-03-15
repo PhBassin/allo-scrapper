@@ -34,7 +34,7 @@ Allo-Scrapper uses a comprehensive Role-Based Access Control (RBAC) system that 
 - No flexibility for custom access levels
 
 **After (RBAC System):**
-- 24 granular permissions across 6 categories
+- 26 granular permissions across 7 categories
 - Database-driven role and permission management
 - Custom roles with specific permission sets
 - Admin bypass for backwards compatibility
@@ -115,7 +115,7 @@ roles (1) ──< role_permissions (N) ──> permissions (N)
 
 ### Complete Permission List
 
-The system defines **26 canonical permissions** across **6 categories**:
+The system defines **26 canonical permissions** across **7 categories**:
 
 #### Users (5 permissions)
 | Permission | Description |
@@ -327,6 +327,72 @@ interface JWTPayload {
 ### Re-login Requirement
 
 **Important**: Permissions are baked into the JWT at login time. If a user's role or permissions change, they must log out and log back in to receive an updated token with new permissions.
+
+### Client-Side Token Expiry Handling
+
+The React client (`AuthContext`) implements **proactive token expiry detection** to automatically log users out when their JWT expires, providing a seamless user experience.
+
+#### Implementation
+
+**Timer-Based Auto-Logout:**
+```typescript
+// In AuthContext.tsx
+const login = (token: string, user: User) => {
+  setToken(token);
+  setUser(user);
+  localStorage.setItem('token', token);
+  localStorage.setItem('user', JSON.stringify(user));
+
+  // Decode JWT to get expiry time
+  const decoded = jwtDecode<{ exp: number }>(token);
+  const expiresAt = decoded.exp * 1000; // Convert to milliseconds
+  const now = Date.now();
+  const timeUntilExpiry = expiresAt - now;
+
+  // Schedule auto-logout exactly when token expires
+  if (timeUntilExpiry > 0) {
+    const timerId = setTimeout(() => {
+      logout();
+      window.dispatchEvent(new CustomEvent('auth:unauthorized', { 
+        detail: { reason: 'session_expired' } 
+      }));
+    }, timeUntilExpiry);
+
+    // Store timer ID to clear on manual logout
+    setExpiryTimerId(timerId);
+  }
+};
+
+const logout = () => {
+  // Clear the expiry timer
+  if (expiryTimerId) {
+    clearTimeout(expiryTimerId);
+    setExpiryTimerId(null);
+  }
+  
+  setToken(null);
+  setUser(null);
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+};
+```
+
+#### Behavior
+
+1. **At Login**: Timer is set to fire exactly when JWT expires
+2. **On Expiry**: User is automatically logged out and redirected to `/login`
+3. **User Feedback**: Login page displays "Votre session a expiré. Veuillez vous reconnecter." message
+4. **Manual Logout**: Timer is cleared to prevent double-logout
+
+#### Benefits
+
+- **No Surprise 401 Errors**: Users never encounter failed API requests due to expired tokens
+- **Graceful UX**: Users see a clear "session expired" message instead of generic errors
+- **Consistent Behavior**: Expiry happens at the same moment for all tabs (via localStorage events)
+
+#### Configuration
+
+Token expiry duration is controlled by the `JWT_EXPIRES_IN` environment variable on the server (default: `24h`). The client automatically adapts to whatever expiry time is encoded in the JWT.
 
 ---
 
@@ -694,6 +760,68 @@ interface RequirePermissionProps {
 - **Admin users**: Always pass (admin bypass)
 - **Valid permissions**: Renders children normally
 
+### Admin Access Control
+
+#### ADMIN_PERMISSIONS Constant
+
+The system defines which permissions grant access to the `/admin` panel via the `ADMIN_PERMISSIONS` constant in `client/src/utils/adminPermissions.ts`.
+
+**Definition**:
+```typescript
+export const ADMIN_PERMISSIONS: PermissionName[] = [
+  // Users (5)
+  'users:list', 'users:create', 'users:update', 'users:delete', 'users:read',
+  
+  // Scraper (2)
+  'scraper:trigger', 'scraper:trigger_single',
+  
+  // Cinemas (4)
+  'cinemas:create', 'cinemas:update', 'cinemas:delete', 'cinemas:read',
+  
+  // Settings (5)
+  'settings:read', 'settings:update', 'settings:reset', 'settings:export', 'settings:import',
+  
+  // Reports (2)
+  'reports:list', 'reports:view',
+  
+  // System (3)
+  'system:info', 'system:health', 'system:migrations',
+  
+  // Roles (5)
+  'roles:list', 'roles:read', 'roles:create', 'roles:update', 'roles:delete'
+];
+```
+
+**Total**: All 26 permissions are included
+
+#### Usage in Routing
+
+The admin panel route uses this constant to determine access:
+
+```typescript
+// In App.tsx or routing configuration
+<Route
+  path="/admin/*"
+  element={
+    <RequirePermission anyOf={ADMIN_PERMISSIONS}>
+      <AdminLayout />
+    </RequirePermission>
+  }
+/>
+```
+
+**Access Logic**:
+- User needs **at least one** of the 26 permissions to access `/admin`
+- Admin users (via admin bypass) automatically have access
+- Users with no admin permissions are redirected to home page
+
+#### Why This Matters
+
+This ensures that **any** administrative permission grants access to the admin panel UI, while specific pages within the panel still require their respective permissions. For example:
+- User with `cinemas:update` can access `/admin` (can see the panel)
+- But they cannot access `/admin/users` (requires user management permissions)
+- Individual admin pages use their own `<RequirePermission>` checks
+
 ---
 
 ## User Flows
@@ -750,10 +878,18 @@ interface RequirePermissionProps {
 4. User must logout and login to get admin permissions
 ```
 
-#### 24-Hour Token Expiry
-**Issue**: Tokens expire after 24 hours  
-**Impact**: Users must re-authenticate daily  
+#### Token Expiry
+**Default**: Tokens expire after 24 hours (configurable via `JWT_EXPIRES_IN`)  
+**Client Behavior**: Proactive auto-logout at exact expiry time (see [Client-Side Token Expiry Handling](#client-side-token-expiry-handling))  
+**Impact**: Users see "session expired" message and must re-authenticate  
 **No refresh tokens**: Must enter credentials again
+
+**Configuration**:
+```env
+JWT_EXPIRES_IN=24h  # Default: 24 hours
+JWT_EXPIRES_IN=7d   # Alternative: 7 days
+JWT_EXPIRES_IN=30m  # Alternative: 30 minutes
+```
 
 ### Client-Side Permission Checking
 

@@ -53,7 +53,7 @@ This guide covers managing user accounts through the admin panel interface. For 
 **Type**: System role (`is_system = true`)  
 **Special Privileges**: Admin bypass - has access to ALL features regardless of explicit permissions
 
-**Effective Permissions**: All 24 permissions across all categories:
+**Effective Permissions**: All 26 permissions across all categories:
 - **User Management**: Create, edit, delete users; manage roles and permissions
 - **Settings Management**: Modify branding, colors, typography, footer, email settings
 - **Cinema Management**: Add, edit, remove cinemas; trigger scraping operations
@@ -69,7 +69,7 @@ This guide covers managing user accounts through the admin panel interface. For 
 ### Operator Role
 
 **Type**: System role (`is_system = true`)  
-**Explicit Permissions**: 7 specific permissions for operational tasks
+**Explicit Permissions**: 9 specific permissions for operational tasks
 
 **Permissions:**
 - `scraper:trigger` - Trigger global scraping operations
@@ -77,6 +77,8 @@ This guide covers managing user accounts through the admin panel interface. For 
 - `cinemas:create` - Add new cinemas to the system
 - `cinemas:update` - Modify existing cinema information
 - `cinemas:delete` - Remove cinemas from the system
+- `cinemas:read` - View cinemas list and details
+- `users:read` - View user details (read-only)
 - `reports:list` - View list of scraping reports
 - `reports:view` - View detailed scraping report information
 
@@ -88,7 +90,7 @@ This guide covers managing user accounts through the admin panel interface. For 
 ### Custom Roles
 
 **Type**: User-defined roles (`is_system = false`)  
-**Flexible Permissions**: Any combination of the 24 available permissions
+**Flexible Permissions**: Any combination of the 26 available permissions
 
 **Examples of Custom Roles:**
 
@@ -689,6 +691,6 @@ Custom roles provide flexibility to create specific permission sets for differen
 
 ---
 
-**Last updated:** March 4, 2026
+**Last updated:** March 15, 2026
 
 [← Back to Administration Guides](./README.md)
