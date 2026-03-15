@@ -25,7 +25,12 @@ const RequirePermission: React.FC<RequirePermissionProps> = ({ children, permiss
     const location = useLocation();
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        const isSessionExpired = sessionStorage.getItem('auth:expired') === '1';
+        if (isSessionExpired) {
+            sessionStorage.removeItem('auth:expired');
+        }
+
+        return <Navigate to="/login" state={{ from: location, reason: isSessionExpired ? 'session_expired' : undefined }} replace />;
     }
 
     if (permission && !hasPermission(permission)) {

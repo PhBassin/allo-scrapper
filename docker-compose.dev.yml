@@ -45,6 +45,7 @@ services:
       TZ: ${TZ:-Europe/Paris}
       SCRAPE_CRON_SCHEDULE: ${SCRAPE_CRON_SCHEDULE:-0 8 * * 3}
       SCRAPE_DELAY_MS: ${SCRAPE_DELAY_MS:-1000}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
     depends_on:
       db:
         condition: service_healthy

@@ -44,7 +44,8 @@ apiClient.interceptors.response.use(
       // This allows proper React Router navigation instead of window.location
       const event = new CustomEvent('auth:unauthorized', {
         detail: { 
-          originalPath: window.location.pathname 
+          originalPath: window.location.pathname,
+          reason: 'session_expired' as const,
         }
       });
       window.dispatchEvent(event);

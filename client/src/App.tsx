@@ -15,6 +15,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { useTheme } from './hooks/useTheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ADMIN_PERMISSIONS } from './utils/adminPermissions';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,14 +47,23 @@ function AppRoutes() {
 
   useEffect(() => {
     const handleUnauthorized = (event: Event) => {
-      const customEvent = event as CustomEvent<{ originalPath: string }>;
+      const customEvent = event as CustomEvent<{ originalPath: string; reason?: 'session_expired' }>;
+      const reason = customEvent.detail?.reason;
+      const isSessionExpired = reason === 'session_expired';
+
+      if (isSessionExpired) {
+        sessionStorage.setItem('auth:expired', '1');
+      }
       
       // Logout user
       logout();
       
       // Navigate to login with original path
       navigate('/login', { 
-        state: { from: { pathname: customEvent.detail.originalPath } },
+        state: {
+          from: { pathname: customEvent.detail.originalPath },
+          reason,
+        },
         replace: true 
       });
     };
@@ -88,7 +98,7 @@ function AppRoutes() {
         <Route
           path="/admin"
           element={
-            <RequirePermission anyOf={['cinemas:read', 'users:read', 'scraper:trigger', 'settings:read']}>
+            <RequirePermission anyOf={ADMIN_PERMISSIONS}>
               <AdminPage />
             </RequirePermission>
           }
