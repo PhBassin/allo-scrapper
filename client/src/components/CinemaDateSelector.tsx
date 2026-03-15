@@ -18,8 +18,9 @@ function CinemaDateSelector({ dates, selectedDate, showtimes, onSelectDate, form
         {dates.map((date) => {
           const label = formatDateLabel(date);
           const isActive = date === selectedDate;
-          const dateShowtimes = showtimes.filter(s => s.date === date);
-          const hasShowtimes = dateShowtimes.length > 0;
+          // ⚡ PERFORMANCE: Use .some() instead of .filter() to early exit when finding
+          // if a date has showtimes, changing O(N) to O(1) in best case and O(K) in average case.
+          const hasShowtimes = showtimes.some(s => s.date === date);
 
           return (
             <button
