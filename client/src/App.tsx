@@ -46,14 +46,23 @@ function AppRoutes() {
 
   useEffect(() => {
     const handleUnauthorized = (event: Event) => {
-      const customEvent = event as CustomEvent<{ originalPath: string }>;
+      const customEvent = event as CustomEvent<{ originalPath: string; reason?: 'session_expired' }>;
+      const reason = customEvent.detail?.reason;
+      const isSessionExpired = reason === 'session_expired';
+
+      if (isSessionExpired) {
+        sessionStorage.setItem('auth:expired', '1');
+      }
       
       // Logout user
       logout();
       
       // Navigate to login with original path
       navigate('/login', { 
-        state: { from: { pathname: customEvent.detail.originalPath } },
+        state: {
+          from: { pathname: customEvent.detail.originalPath },
+          reason,
+        },
         replace: true 
       });
     };
