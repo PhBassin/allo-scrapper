@@ -3,6 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import apiClient from '../api/client';
 
+interface LoginLocationState {
+    from?: {
+        pathname?: string;
+    };
+    reason?: 'session_expired';
+}
+
 const LoginPage: React.FC = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -12,8 +19,10 @@ const LoginPage: React.FC = () => {
     const { login } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
+    const locationState = location.state as LoginLocationState | null;
 
-    const from = location.state?.from?.pathname || '/';
+    const from = locationState?.from?.pathname || '/';
+    const sessionExpired = locationState?.reason === 'session_expired';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -47,6 +56,12 @@ const LoginPage: React.FC = () => {
         <div className="max-w-md mx-auto mt-10 px-4 sm:px-6">
             <div className="bg-white p-8 rounded-lg shadow-md">
                 <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Login</h2>
+
+                {sessionExpired && !error && (
+                    <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded text-sm" role="status">
+                        Your session expired. Please sign in again.
+                    </div>
+                )}
 
                 {error && (
                     <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded text-sm relative" role="alert">
