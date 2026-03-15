@@ -15,6 +15,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { useTheme } from './hooks/useTheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ADMIN_PERMISSIONS } from './utils/adminPermissions';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -97,7 +98,7 @@ function AppRoutes() {
         <Route
           path="/admin"
           element={
-            <RequirePermission anyOf={['cinemas:read', 'users:read', 'scraper:trigger', 'settings:read']}>
+            <RequirePermission anyOf={ADMIN_PERMISSIONS}>
               <AdminPage />
             </RequirePermission>
           }
