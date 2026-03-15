@@ -4,6 +4,16 @@ import { useContext } from 'react';
 import { AuthContext, AuthProvider } from './AuthContext';
 import type { User } from './AuthContext';
 
+function createTokenWithExp(exp: number): string {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  const payload = btoa(JSON.stringify({ exp })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return `${header}.${payload}.signature`;
+}
+
+function createValidToken(): string {
+  return createTokenWithExp(Math.floor(Date.now() / 1000) + 3600);
+}
+
 const adminUser: User = {
   id: 1,
   username: 'admin',
@@ -54,11 +64,57 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
       expect(screen.getByTestId('isAdmin').textContent).toBe('false');
     });
+
+    it('should treat expired token as unauthenticated', () => {
+      const expired = createTokenWithExp(Math.floor(Date.now() / 1000) - 60);
+      localStorage.setItem('token', expired);
+      localStorage.setItem('user', JSON.stringify(adminUser));
+
+      render(
+        <AuthProvider>
+          <ContextConsumer />
+        </AuthProvider>
+      );
+
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
+      expect(localStorage.getItem('token')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+    });
+
+    it('should keep valid token authenticated', () => {
+      const valid = createTokenWithExp(Math.floor(Date.now() / 1000) + 3600);
+      localStorage.setItem('token', valid);
+      localStorage.setItem('user', JSON.stringify(operatorUser));
+
+      render(
+        <AuthProvider>
+          <ContextConsumer />
+        </AuthProvider>
+      );
+
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
+      expect(screen.getByTestId('username').textContent).toBe('operator');
+    });
+
+    it('should treat malformed token as unauthenticated', () => {
+      localStorage.setItem('token', 'not-a-jwt');
+      localStorage.setItem('user', JSON.stringify(adminUser));
+
+      render(
+        <AuthProvider>
+          <ContextConsumer />
+        </AuthProvider>
+      );
+
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
+      expect(localStorage.getItem('token')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+    });
   });
 
   describe('User interface', () => {
     it('should expose role_id and role_name on the User type', () => {
-      localStorage.setItem('token', 'fake-token');
+      localStorage.setItem('token', createValidToken());
       localStorage.setItem('user', JSON.stringify(operatorUser));
 
       render(
@@ -75,7 +131,7 @@ describe('AuthContext', () => {
 
   describe('isAdmin', () => {
     it('should be true when role_name is admin AND is_system_role is true', () => {
-      localStorage.setItem('token', 'fake-token');
+      localStorage.setItem('token', createValidToken());
       localStorage.setItem('user', JSON.stringify(adminUser));
 
       render(
@@ -88,7 +144,7 @@ describe('AuthContext', () => {
     });
 
     it('should be false when role_name is not admin', () => {
-      localStorage.setItem('token', 'fake-token');
+      localStorage.setItem('token', createValidToken());
       localStorage.setItem('user', JSON.stringify(operatorUser));
 
       render(
@@ -109,7 +165,7 @@ describe('AuthContext', () => {
         is_system_role: false,
         permissions: ['cinemas:create'],
       };
-      localStorage.setItem('token', 'fake-token');
+      localStorage.setItem('token', createValidToken());
       localStorage.setItem('user', JSON.stringify(fakeAdmin));
 
       render(
@@ -124,7 +180,7 @@ describe('AuthContext', () => {
 
   describe('hasPermission', () => {
     it('should return true for admin regardless of permission string', () => {
-      localStorage.setItem('token', 'fake-token');
+      localStorage.setItem('token', createValidToken());
       localStorage.setItem('user', JSON.stringify(adminUser));
 
       render(
@@ -139,7 +195,7 @@ describe('AuthContext', () => {
     });
 
     it('should return true when permission is in user permissions list', () => {
-      localStorage.setItem('token', 'fake-token');
+      localStorage.setItem('token', createValidToken());
       localStorage.setItem('user', JSON.stringify(operatorUser));
 
       render(
@@ -152,7 +208,7 @@ describe('AuthContext', () => {
     });
 
     it('should return false when permission is not in user permissions list', () => {
-      localStorage.setItem('token', 'fake-token');
+      localStorage.setItem('token', createValidToken());
       localStorage.setItem('user', JSON.stringify(operatorUser));
 
       render(
@@ -204,7 +260,7 @@ describe('AuthContext', () => {
     });
 
     it('should clear auth after logout', async () => {
-      localStorage.setItem('token', 'tok');
+      localStorage.setItem('token', createValidToken());
       localStorage.setItem('user', JSON.stringify(adminUser));
 
       render(
