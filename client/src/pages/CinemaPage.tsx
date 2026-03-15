@@ -147,14 +147,16 @@ export default function CinemaPage() {
         )}
       </div>
 
-      {/* Date Selector */}
-      <CinemaDateSelector
-        dates={dates}
-        selectedDate={selectedDate}
-        showtimes={showtimes}
-        onSelectDate={setSelectedDate}
-        formatDateLabel={formatDateLabel}
-      />
+      {/* Date Selector - Sticky */}
+      <div className="sticky top-[64px] z-40 bg-gray-50/95 backdrop-blur-sm pt-4 pb-4 mb-6 shadow-sm -mx-4 px-4" data-testid="sticky-date-selector-container">
+        <CinemaDateSelector
+          dates={dates}
+          selectedDate={selectedDate}
+          showtimes={showtimes}
+          onSelectDate={setSelectedDate}
+          formatDateLabel={formatDateLabel}
+        />
+      </div>
 
       {/* Films List for Selected Date */}
       <div className="min-h-[300px]">

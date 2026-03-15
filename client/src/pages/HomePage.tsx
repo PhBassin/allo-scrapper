@@ -111,7 +111,7 @@ export default function HomePage() {
       </div>
 
       {/* Sticky Header Section - Compact */}
-      <div className="sticky top-0 z-40 bg-gray-50 pt-4 pb-4 mb-6">
+      <div className="sticky top-[64px] z-40 bg-gray-50/95 backdrop-blur-sm pt-4 pb-4 mb-6 shadow-sm -mx-4 px-4" data-testid="sticky-search-date-container">
         {/* Film Search Bar */}
         <div className="mb-4">
           <FilmSearchBar placeholder="Rechercher un film..." />
