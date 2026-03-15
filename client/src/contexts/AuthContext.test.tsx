@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { useContext } from 'react';
 import { AuthContext, AuthProvider } from './AuthContext';
@@ -276,6 +276,139 @@ describe('AuthContext', () => {
       });
 
       expect(screen.getByTestId('auth').textContent).toBe('false');
+    });
+  });
+
+  describe('Proactive token expiry', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should auto-logout when token expires without page refresh', () => {
+      // Create a token that expires in 2 seconds
+      const expireInTwoSeconds = Math.floor(Date.now() / 1000) + 2;
+      const shortLivedToken = createTokenWithExp(expireInTwoSeconds);
+      
+      localStorage.setItem('token', shortLivedToken);
+      localStorage.setItem('user', JSON.stringify(adminUser));
+      
+      const mockEventListener = vi.fn();
+      window.addEventListener('auth:unauthorized', mockEventListener);
+
+      render(
+        <AuthProvider>
+          <ContextConsumer />
+        </AuthProvider>
+      );
+
+      // Should be authenticated initially
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
+      expect(screen.getByTestId('username').textContent).toBe('admin');
+      
+      // Fast forward past expiry time
+      act(() => {
+        vi.advanceTimersByTime(2100);
+      });
+
+      // Should auto-logout and dispatch event
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
+      expect(screen.getByTestId('username').textContent).toBe('');
+      expect(mockEventListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          detail: expect.objectContaining({
+            reason: 'session_expired'
+          })
+        })
+      );
+      
+      // Token should be removed from localStorage
+      expect(localStorage.getItem('token')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+      
+      window.removeEventListener('auth:unauthorized', mockEventListener);
+    });
+
+    it('should reschedule timer on login', () => {
+      vi.useFakeTimers();
+      
+      render(
+        <AuthProvider>
+          <ContextConsumer />
+        </AuthProvider>
+      );
+
+      // Initially not authenticated
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
+      
+      // Login with token expiring in 2 seconds
+      const expireInTwoSeconds = Math.floor(Date.now() / 1000) + 2;
+      const shortLivedToken = createTokenWithExp(expireInTwoSeconds);
+      
+      act(() => {
+        localStorage.setItem('token', shortLivedToken);
+        localStorage.setItem('user', JSON.stringify(adminUser));
+        window.dispatchEvent(new Event('storage'));
+      });
+
+      // Should be authenticated now
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
+      
+      // Fast forward past expiry time
+      act(() => {
+        vi.advanceTimersByTime(2100);
+      });
+
+      // Should auto-logout
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
+    });
+
+    it('should clear timer on manual logout', () => {
+      // Create a token that expires in 10 seconds
+      const expireInTenSeconds = Math.floor(Date.now() / 1000) + 10;
+      const token = createTokenWithExp(expireInTenSeconds);
+      
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(adminUser));
+      
+      const mockEventListener = vi.fn();
+      window.addEventListener('auth:unauthorized', mockEventListener);
+
+      function LogoutButton() {
+        const { logout } = useContext(AuthContext);
+        return <button onClick={logout}>Logout</button>;
+      }
+
+      render(
+        <AuthProvider>
+          <ContextConsumer />
+          <LogoutButton />
+        </AuthProvider>
+      );
+
+      // Should be authenticated initially
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
+      
+      // Manual logout
+      act(() => {
+        screen.getByRole('button', { name: 'Logout' }).click();
+      });
+
+      // Should be logged out immediately
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
+      
+      // Fast forward past original expiry time
+      act(() => {
+        vi.advanceTimersByTime(10100);
+      });
+
+      // Event should NOT fire because timer was cleared
+      expect(mockEventListener).not.toHaveBeenCalled();
+      
+      window.removeEventListener('auth:unauthorized', mockEventListener);
     });
   });
 });
