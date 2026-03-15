@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, type ReactNode } from 'react';
+import React, { createContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import type { PermissionName } from '../types/role';
 
 interface JwtPayload {
@@ -30,6 +30,26 @@ function isTokenExpired(token: string): boolean {
         return payload.exp <= nowInSeconds;
     } catch {
         return true;
+    }
+}
+
+/**
+ * Extract the expiry timestamp (in seconds) from a JWT token
+ */
+function getTokenExpiry(token: string): number | null {
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+
+        const payloadJson = decodeBase64Url(parts[1]);
+        if (!payloadJson) return null;
+
+        const payload = JSON.parse(payloadJson) as JwtPayload;
+        if (typeof payload.exp !== 'number') return null;
+
+        return payload.exp;
+    } catch {
+        return null;
     }
 }
 
@@ -86,6 +106,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const savedUser = localStorage.getItem('user');
         return savedUser ? JSON.parse(savedUser) : null;
     });
+    const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const isAuthenticated = !!token;
     const isAdmin = user?.role_name === 'admin' && user?.is_system_role === true;
@@ -95,13 +116,54 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (isAdmin) return true;  // Admin bypass client-side too
         return user.permissions.includes(permission);
     };
+    
+    /**
+     * Clear any existing expiry timer
+     */
+    const clearExpiryTimer = () => {
+        if (expiryTimerRef.current !== null) {
+            clearTimeout(expiryTimerRef.current);
+            expiryTimerRef.current = null;
+        }
+    };
+    
+    /**
+     * Schedule auto-logout at token expiry time
+     */
+    const scheduleExpiryTimer = (tokenToCheck: string) => {
+        clearExpiryTimer();
+        
+        const expiry = getTokenExpiry(tokenToCheck);
+        if (expiry === null) return;
+        
+        const nowInSeconds = Math.floor(Date.now() / 1000);
+        const msUntilExpiry = (expiry - nowInSeconds) * 1000;
+        
+        // Only schedule if expiry is in the future
+        if (msUntilExpiry > 0) {
+            expiryTimerRef.current = setTimeout(() => {
+                // Auto-logout and notify
+                setToken(null);
+                setUser(null);
+                
+                // Dispatch auth:unauthorized event with session_expired reason
+                window.dispatchEvent(
+                    new CustomEvent('auth:unauthorized', {
+                        detail: { reason: 'session_expired' }
+                    })
+                );
+            }, msUntilExpiry);
+        }
+    };
 
     useEffect(() => {
         if (token) {
             localStorage.setItem('token', token);
+            scheduleExpiryTimer(token);
         } else {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            clearExpiryTimer();
         }
     }, [token]);
 
@@ -112,6 +174,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             localStorage.removeItem('user');
         }
     }, [user]);
+    
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            clearExpiryTimer();
+        };
+    }, []);
 
     const login = (newToken: string, newUser: User) => {
         setToken(newToken);
@@ -119,6 +188,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     const logout = () => {
+        clearExpiryTimer();
         setToken(null);
         setUser(null);
     };

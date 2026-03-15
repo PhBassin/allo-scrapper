@@ -335,9 +335,23 @@ describe('AuthContext', () => {
     it('should reschedule timer on login', () => {
       vi.useFakeTimers();
       
+      function LoginButton() {
+        const { login } = useContext(AuthContext);
+        return (
+          <button onClick={() => {
+            const expireInTwoSeconds = Math.floor(Date.now() / 1000) + 2;
+            const shortLivedToken = createTokenWithExp(expireInTwoSeconds);
+            login(shortLivedToken, adminUser);
+          }}>
+            Login
+          </button>
+        );
+      }
+      
       render(
         <AuthProvider>
           <ContextConsumer />
+          <LoginButton />
         </AuthProvider>
       );
 
@@ -345,13 +359,8 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
       
       // Login with token expiring in 2 seconds
-      const expireInTwoSeconds = Math.floor(Date.now() / 1000) + 2;
-      const shortLivedToken = createTokenWithExp(expireInTwoSeconds);
-      
       act(() => {
-        localStorage.setItem('token', shortLivedToken);
-        localStorage.setItem('user', JSON.stringify(adminUser));
-        window.dispatchEvent(new Event('storage'));
+        screen.getByRole('button', { name: 'Login' }).click();
       });
 
       // Should be authenticated now
