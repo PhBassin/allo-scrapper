@@ -23,6 +23,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: main  # Explicitly checkout main branch
           fetch-depth: 0  # Need full history for git describe
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -221,7 +222,7 @@ jobs:
           
           # Push commit and tag using git with auth
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git push origin main
+          git push origin HEAD:main
           git push origin "${NEW_TAG}"
           
           echo "Pushed commit and tag ${NEW_TAG}"
