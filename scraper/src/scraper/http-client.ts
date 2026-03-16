@@ -1,6 +1,6 @@
 // HTTP client for fetching cinema and film pages from source website
 
-import { chromium, type Browser } from 'playwright-core';
+import puppeteer, { type Browser } from 'puppeteer-core';
 import { logger } from '../utils/logger.js';
 import { ALLOCINE_BASE_URL } from './utils.js';
 
@@ -48,9 +48,9 @@ let _browser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (!_browser || !_browser.isConnected()) {
-    _browser = await chromium.launch({
+    _browser = await puppeteer.launch({
       headless: true,
-      executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',
+      executablePath: process.env.CHROME_PATH ?? '/usr/bin/chromium-headless-shell',
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
   }
@@ -70,7 +70,7 @@ export interface TheaterInitialData {
 }
 
 /**
- * Load the theater page once using Playwright to get:
+ * Load the theater page once using Puppeteer to get:
  * - Theater metadata (data-theater attribute)
  * - Available showtime dates (data-showtimes-dates attribute)
  *
@@ -79,12 +79,13 @@ export interface TheaterInitialData {
  */
 export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterInitialData> {
   const browser = await getBrowser();
-  const context = await browser.newContext({ userAgent: USER_AGENT });
+  const context = await browser.createBrowserContext();
   const page = await context.newPage();
 
   try {
+    await page.setUserAgent(USER_AGENT);
     logger.info('Loading theater page', { url: cinemaBaseUrl });
-    await page.goto(cinemaBaseUrl, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(cinemaBaseUrl, { waitUntil: 'networkidle0', timeout: 60000 });
 
     const html = await page.content();
 
