@@ -10,7 +10,7 @@
 # ----------------------------------------------------------------------------
 # Stage 1: Dependencies
 # ----------------------------------------------------------------------------
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ RUN npm ci --legacy-peer-deps && \
 # ----------------------------------------------------------------------------
 # Stage 2: Build Frontend
 # ----------------------------------------------------------------------------
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 
 ARG VITE_APP_NAME=Allo-Scrapper
 WORKDIR /app
@@ -51,7 +51,7 @@ RUN npm run build --workspace=client && \
 # ----------------------------------------------------------------------------
 # Stage 3: Build Backend
 # ----------------------------------------------------------------------------
-FROM node:20-alpine AS backend-builder
+FROM node:24-alpine AS backend-builder
 
 WORKDIR /app
 
@@ -74,7 +74,7 @@ RUN find ./server/dist -name "*.map" -delete && \
 # ----------------------------------------------------------------------------
 # Stage 4: Production Runtime
 # ----------------------------------------------------------------------------
-FROM node:20-alpine AS production
+FROM node:24-alpine AS production
 
 RUN apk add --no-cache dumb-init
 
