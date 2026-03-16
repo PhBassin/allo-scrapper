@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/client';
+import PasswordRequirements from '../components/PasswordRequirements';
 
 const ChangePasswordPage: React.FC = () => {
     const [currentPassword, setCurrentPassword] = useState('');
@@ -116,16 +117,7 @@ const ChangePasswordPage: React.FC = () => {
                             required
                             disabled={isLoading}
                         />
-                        <div className="mt-2 text-xs text-gray-600">
-                            <p className="font-semibold">Password must contain:</p>
-                            <ul className="list-disc list-inside mt-1">
-                                <li>At least 8 characters</li>
-                                <li>One uppercase letter</li>
-                                <li>One lowercase letter</li>
-                                <li>One number</li>
-                                <li>One special character (!@#$%^&*...)</li>
-                            </ul>
-                        </div>
+                        <PasswordRequirements password={newPassword} />
                     </div>
 
                     <div className="mb-6">
