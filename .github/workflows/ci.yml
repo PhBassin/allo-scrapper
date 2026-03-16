@@ -6,7 +6,12 @@ on:
       - develop
       - 'feat/**'
       - 'fix/**'
+      - 'docs/**'
       - 'chore/**'
+      - 'ci/**'
+      - 'refactor/**'
+      - 'test/**'
+      - 'perf/**'
   pull_request:
     branches:
       - main
