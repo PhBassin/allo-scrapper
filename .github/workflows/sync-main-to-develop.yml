@@ -28,7 +28,7 @@ jobs:
           fi
 
           git checkout -B develop origin/develop
-          if ! git merge --no-ff main -m "chore: sync main into develop"; then
+          if ! git merge --no-ff origin/main -m "chore: sync main into develop"; then
             echo "::error::Automatic sync failed due to merge conflicts. Resolve conflicts manually."
             git merge --abort || true
             exit 1
