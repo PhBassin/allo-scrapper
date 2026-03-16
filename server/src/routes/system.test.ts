@@ -26,6 +26,9 @@ vi.mock('../middleware/auth.js', () => ({
 vi.mock('../middleware/rate-limit.js', () => ({
   protectedLimiter: (req: any, res: any, next: any) => next(),
 }));
+vi.mock('../middleware/permission.js', () => ({
+  requirePermission: (..._perms: string[]) => (req: any, res: any, next: any) => next(),
+}));
 vi.mock('../middleware/admin.js', () => ({
   requireAdmin: async (req: any, res: any, next: any) => {
     if (req.user?.id === 1) {
@@ -42,8 +45,9 @@ import * as systemInfo from '../services/system-info.js';
 
 // Import router AFTER mocks are set up
 import systemRouter from './system.js';
+import { errorHandler } from '../middleware/error-handler.js';
 
-describe.skip('System Routes', () => {
+describe('Routes - System', () => {
   let app: express.Application;
   const mockDb: DB = {
     query: vi.fn(),
@@ -54,6 +58,7 @@ describe.skip('System Routes', () => {
     app.use(express.json());
     app.set('db', mockDb);
     app.use('/api/system', systemRouter);
+    app.use(errorHandler);
     
     // Clear mocks FIRST
     vi.clearAllMocks();
@@ -164,8 +169,8 @@ describe.skip('System Routes', () => {
   describe('GET /api/system/migrations (admin only)', () => {
     it('should return applied and pending migrations', async () => {
       const mockApplied = [
-        { version: '001_initial.sql', appliedAt: new Date('2026-03-01T10:00:00Z'), status: 'applied' as const },
-        { version: '002_users.sql', appliedAt: new Date('2026-03-01T10:01:00Z'), status: 'applied' as const },
+        { version: '001_initial.sql', appliedAt: new Date('2026-03-01T10:00:00Z').toISOString(), status: 'applied' as const },
+        { version: '002_users.sql', appliedAt: new Date('2026-03-01T10:01:00Z').toISOString(), status: 'applied' as const },
       ];
 
       const mockPending = [

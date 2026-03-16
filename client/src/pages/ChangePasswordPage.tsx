@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/client';
+import PasswordRequirements from '../components/PasswordRequirements';
 
 const ChangePasswordPage: React.FC = () => {
     const [currentPassword, setCurrentPassword] = useState('');
@@ -12,7 +13,7 @@ const ChangePasswordPage: React.FC = () => {
 
     const navigate = useNavigate();
 
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]).{8,}$/;
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-={}[\]|;:,.<>?]).{8,}$/;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -52,9 +53,14 @@ const ChangePasswordPage: React.FC = () => {
             } else {
                 setError(response.data.error || 'Failed to change password');
             }
-        } catch (err: any) {
-            if (err.response?.data?.error) {
-                setError(err.response.data.error);
+        } catch (err: unknown) {
+            if (err instanceof Error && 'response' in err) {
+                const axiosError = err as { response?: { data?: { error?: string } } };
+                if (axiosError.response?.data?.error) {
+                    setError(axiosError.response.data.error);
+                } else {
+                    setError('An unexpected error occurred. Please try again later.');
+                }
             } else {
                 setError('An unexpected error occurred. Please try again later.');
             }
@@ -116,16 +122,7 @@ const ChangePasswordPage: React.FC = () => {
                             required
                             disabled={isLoading}
                         />
-                        <div className="mt-2 text-xs text-gray-600">
-                            <p className="font-semibold">Password must contain:</p>
-                            <ul className="list-disc list-inside mt-1">
-                                <li>At least 8 characters</li>
-                                <li>One uppercase letter</li>
-                                <li>One lowercase letter</li>
-                                <li>One number</li>
-                                <li>One special character (!@#$%^&*...)</li>
-                            </ul>
-                        </div>
+                        <PasswordRequirements password={newPassword} />
                     </div>
 
                     <div className="mb-6">

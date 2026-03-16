@@ -126,6 +126,25 @@ These variables are **required** for the application to function properly.
 - **Example**: `My Cinema Portal`
 - **Notes**: Server-side only; does not affect frontend UI
 
+#### `JWT_EXPIRES_IN`
+- **Description**: JWT token expiration duration
+- **Default**: `24h` (24 hours)
+- **Format**: Any valid `jsonwebtoken` duration string
+- **Examples**: 
+  - `24h` - 24 hours (default)
+  - `7d` - 7 days
+  - `30m` - 30 minutes
+  - `1h` - 1 hour
+  - `168h` - 1 week (7 × 24 hours)
+- **Notes**: 
+  - Determines how long users stay logged in before needing to re-authenticate
+  - Client automatically logs users out when token expires (proactive expiry handling)
+  - Shorter durations = more secure but more frequent logins
+  - Longer durations = better UX but tokens remain valid longer if compromised
+  - No refresh tokens; users must re-enter credentials after expiry
+- **Security**: Balance security (shorter) vs convenience (longer) based on your threat model
+- **Production**: Consider `12h` or `24h` for internal tools, shorter for public-facing apps
+
 ---
 
 ### Scraper Configuration
@@ -301,6 +320,7 @@ POSTGRES_PASSWORD=postgres
 PORT=3000
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 JWT_SECRET=dev-secret-do-not-use-in-production
+JWT_EXPIRES_IN=24h
 LOG_LEVEL=debug
 TZ=Europe/Paris
 SCRAPE_CRON_SCHEDULE=0 8 * * 3
@@ -323,6 +343,7 @@ POSTGRES_PASSWORD=postgres
 PORT=3000
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 JWT_SECRET=dev-secret-do-not-use-in-production
+JWT_EXPIRES_IN=24h
 LOG_LEVEL=info
 TZ=Europe/Paris
 SCRAPE_CRON_SCHEDULE=0 8 * * 3
@@ -343,6 +364,7 @@ POSTGRES_PASSWORD=<STRONG_PASSWORD_HERE>
 PORT=3000
 ALLOWED_ORIGINS=https://cinema.example.com,https://www.cinema.example.com
 JWT_SECRET=<GENERATE_WITH_openssl_rand_-base64_32>
+JWT_EXPIRES_IN=24h
 LOG_LEVEL=warn
 TZ=Europe/Paris
 SCRAPE_CRON_SCHEDULE=0 3 * * *

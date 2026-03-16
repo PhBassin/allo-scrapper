@@ -6,10 +6,11 @@ Guide to managing users and access control through the admin panel.
 
 ## Overview
 
-Allo-Scrapper uses a role-based access control system with two distinct user roles:
+Allo-Scrapper uses a comprehensive Role-Based Access Control (RBAC) system with granular permissions and flexible role assignments:
 
-- **Admin**: Full system access including settings, user management, and all operations
-- **User**: Read-only access to view films, showtimes, and cinemas
+- **Admin**: Full system access with bypass privileges for all operations
+- **Operator**: Predefined role for scraping operations and cinema management (7 specific permissions)
+- **Custom Roles**: User-defined roles with specific permission combinations
 
 This guide covers managing user accounts through the admin panel interface. For API-based user management, see the [Users API Reference](../../reference/api/users.md).
 
@@ -49,35 +50,67 @@ This guide covers managing user accounts through the admin panel interface. For 
 
 ### Admin Role
 
-**Permissions:**
+**Type**: System role (`is_system = true`)  
+**Special Privileges**: Admin bypass - has access to ALL features regardless of explicit permissions
+
+**Effective Permissions**: All 26 permissions across all categories:
+- **User Management**: Create, edit, delete users; manage roles and permissions
 - **Settings Management**: Modify branding, colors, typography, footer, email settings
-- **User Management**: Create, edit, delete users; change roles; reset passwords
 - **Cinema Management**: Add, edit, remove cinemas; trigger scraping operations
 - **System Access**: View system diagnostics, database statistics, migration status
+- **Role Management**: Create and manage custom roles and permissions
 - **Configuration**: Export/import settings, reset to defaults
 
 **Use Cases:**
 - System administrators
 - IT staff responsible for application maintenance
-- Trusted personnel managing the cinema portal
+- Trusted personnel with full system control
 
-### User Role
+### Operator Role
+
+**Type**: System role (`is_system = true`)  
+**Explicit Permissions**: 9 specific permissions for operational tasks
 
 **Permissions:**
-- **Read-Only Access**: View films, showtimes, and cinema information
-- **Search and Filter**: Use all search and filtering features
-- **Basic Navigation**: Access all public pages and content
-
-**Restrictions:**
-- Cannot modify any settings or configuration
-- Cannot manage other users
-- Cannot access admin panel features
-- Cannot perform administrative operations
+- `scraper:trigger` - Trigger global scraping operations
+- `scraper:trigger_single` - Trigger scraping for individual cinemas
+- `cinemas:create` - Add new cinemas to the system
+- `cinemas:update` - Modify existing cinema information
+- `cinemas:delete` - Remove cinemas from the system
+- `cinemas:read` - View cinemas list and details
+- `users:read` - View user details (read-only)
+- `reports:list` - View list of scraping reports
+- `reports:view` - View detailed scraping report information
 
 **Use Cases:**
-- General staff viewing cinema schedules
-- Customer service representatives
-- Anyone needing read-only access to cinema data
+- Operations staff managing cinema data
+- Personnel responsible for scraping operations
+- Users who need cinema management without full admin access
+
+### Custom Roles
+
+**Type**: User-defined roles (`is_system = false`)  
+**Flexible Permissions**: Any combination of the 26 available permissions
+
+**Examples of Custom Roles:**
+
+**Cinema Manager**:
+- `cinemas:create`, `cinemas:update`, `cinemas:delete`
+- `reports:list`, `reports:view`
+
+**Reports Viewer**:
+- `reports:list`, `reports:view`
+- `system:info`, `system:health`
+
+**Settings Manager**:
+- `settings:read`, `settings:update`
+- `settings:export`, `settings:import`
+
+**Characteristics:**
+- Can be created, modified, and deleted by admin users
+- Cannot be deleted if users are assigned to them
+- Provide principle of least privilege access
+- Fully customizable permission combinations
 
 ---
 
@@ -97,7 +130,7 @@ This guide covers managing user accounts through the admin panel interface. For 
 3. **Fill Required Information**
    - **Username**: Enter unique username (see requirements below)
    - **Password**: Enter secure password (see requirements below)
-   - **Role**: Select either "admin" or "user" (defaults to "user")
+   - **Role**: Select from available roles via dropdown (admin, operator, or custom roles)
 
 4. **Submit Form**
    - Click **"Create User"** button
@@ -149,9 +182,10 @@ This guide covers managing user accounts through the admin panel interface. For 
 
 ### Default Role Assignment
 
-- **Default role**: "user" (read-only access)
-- **Admin role**: Must be explicitly selected during creation
+- **Default role**: Lowest privilege role available (typically a custom read-only role)
+- **Admin/Operator roles**: Must be explicitly selected during creation
 - **Role can be changed**: After creation via role update feature
+- **Custom roles**: Available in dropdown if created by admin
 
 ---
 
@@ -161,7 +195,8 @@ This guide covers managing user accounts through the admin panel interface. For 
 
 **User List Display:**
 - **Username**: Unique identifier for the user
-- **Role**: Current role (admin/user) with colored badges
+- **Role**: Current role name (admin/operator/custom) with colored badges
+- **Role Type**: System or custom role indicator
 - **Created Date**: When the account was created
 - **Actions**: Available operations (Edit, Delete)
 
@@ -183,20 +218,22 @@ This guide covers managing user accounts through the admin panel interface. For 
    - Role selection dropdown appears
 
 3. **Change Role**
-   - Select new role: "admin" or "user"
+   - Select new role from dropdown: admin, operator, or any custom role
    - Confirm the change
    - Role badge updates immediately
 
 **Security Considerations:**
 - **Last Admin Protection**: Cannot demote the last admin user to prevent system lockout
 - **Immediate Effect**: Role changes take effect immediately
-- **Session Impact**: User may need to logout/login to see new permissions
+- **Session Impact**: User MUST logout/login to receive updated permissions in JWT token
+- **System Role Protection**: Cannot modify or delete system roles (admin, operator)
 
 **Best Practices:**
-- **Principle of Least Privilege**: Assign minimal required role
-- **Regular Reviews**: Periodically audit user roles
-- **Document Changes**: Keep record of who has admin access
-- **Avoid Unnecessary Admins**: Limit admin accounts to essential personnel
+- **Principle of Least Privilege**: Assign minimal required permissions via appropriate role
+- **Use Custom Roles**: Create specific roles for job functions instead of using admin
+- **Regular Reviews**: Periodically audit user roles and permissions
+- **Document Changes**: Keep record of who has admin access and why
+- **Avoid Unnecessary Admins**: Limit admin accounts to essential personnel only
 
 ### Resetting Passwords
 
@@ -248,6 +285,70 @@ This guide covers managing user accounts through the admin panel interface. For 
 - User account and all associated data permanently removed
 - Cannot be undone or recovered
 - User will immediately lose access to the system
+
+### Managing Custom Roles
+
+Custom roles provide flexibility to create specific permission sets for different job functions without granting full admin access.
+
+#### Creating Custom Roles
+
+**Access**: Admin users only  
+**Location**: Role Management section in admin panel
+
+**Steps**:
+1. Navigate to admin panel → "Roles" section
+2. Click "Create New Role" button
+3. Fill in role details:
+   - **Name**: Descriptive role name (e.g., "Cinema Manager")
+   - **Description**: Purpose and scope of the role
+4. Select permissions from available categories:
+   - Users, Scraper, Cinemas, Settings, Reports, System, Roles
+5. Save the role
+
+#### Assigning Permissions to Roles
+
+**Permission Categories**:
+- **Users** (4): List, create, update, delete user accounts
+- **Scraper** (2): Trigger global or single-cinema scraping
+- **Cinemas** (3): Create, update, delete cinema information
+- **Settings** (5): Read, update, reset, export, import application settings
+- **Reports** (2): List and view scraping reports
+- **System** (3): View system info, health, and migration status
+- **Roles** (5): List, read, create, update, delete roles and permissions
+
+**Best Practices**:
+- Start with minimal permissions and add as needed
+- Group related permissions together (e.g., cinema management)
+- Test role functionality before assigning to users
+- Document the purpose of each custom role
+
+#### System vs Custom Role Differences
+
+**System Roles** (`admin`, `operator`):
+- Cannot be modified or deleted
+- Predefined permission sets
+- Admin has special bypass privileges
+- Protected from accidental changes
+
+**Custom Roles**:
+- Can be created, modified, and deleted
+- Flexible permission combinations
+- No special bypass privileges
+- Can be deleted only if no users assigned
+
+#### Role Deletion Rules
+
+**Cannot Delete**:
+- System roles (admin, operator)
+- Roles with assigned users
+
+**Can Delete**:
+- Custom roles with no assigned users
+
+**Process**:
+1. Reassign all users from the role to other roles
+2. Confirm no users are assigned to the role
+3. Delete the role via admin panel
 
 ---
 
@@ -590,6 +691,6 @@ This guide covers managing user accounts through the admin panel interface. For 
 
 ---
 
-**Last updated:** March 4, 2026
+**Last updated:** March 15, 2026
 
 [← Back to Administration Guides](./README.md)

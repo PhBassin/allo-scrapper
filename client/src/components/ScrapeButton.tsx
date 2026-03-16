@@ -8,6 +8,7 @@ interface ScrapeButtonProps {
   buttonText?: string;
   loadingText?: string;
   successText?: string;
+  testId?: string;
 }
 
 export default function ScrapeButton({
@@ -17,13 +18,14 @@ export default function ScrapeButton({
   buttonText = '🔄 Lancer le scraping manuel',
   loadingText = 'Scraping en cours...',
   successText = 'Scraping démarré !',
+  testId,
 }: ScrapeButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const { isAuthenticated } = useContext(AuthContext);
+  const { isAuthenticated, hasPermission } = useContext(AuthContext);
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !hasPermission('scraper:trigger')) {
     return null;
   }
 
@@ -42,14 +44,19 @@ export default function ScrapeButton({
 
       // Reset success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      if (err.response?.status === 409) {
-        // Scrape already running, just show progress
-        if (onScrapeStart) {
-          onScrapeStart();
+    } catch (err: unknown) {
+      if (err instanceof Error && 'response' in err) {
+        const axiosError = err as { response?: { status?: number; data?: { error?: string } } };
+        if (axiosError.response?.status === 409) {
+          // Scrape already running, just show progress
+          if (onScrapeStart) {
+            onScrapeStart();
+          }
+        } else {
+          setError(axiosError.response?.data?.error || 'Erreur lors du démarrage du scraping');
         }
       } else {
-        setError(err.response?.data?.error || 'Erreur lors du démarrage du scraping');
+        setError('Erreur lors du démarrage du scraping');
       }
     } finally {
       setIsLoading(false);
@@ -61,12 +68,13 @@ export default function ScrapeButton({
       <button
         onClick={handleClick}
         disabled={isLoading}
+        data-testid={testId}
         className={`
           px-6 py-3 rounded-lg font-semibold text-black
           transition-all duration-200 
           ${isLoading
             ? 'bg-gray-300 cursor-not-allowed'
-            : 'bg-primary hover:bg-yellow-500 active:scale-95'
+            : 'bg-primary hover:bg-yellow-500 active:scale-95 cursor-pointer'
           }
           ${success ? 'ring-2 ring-green-500' : ''}
         `}

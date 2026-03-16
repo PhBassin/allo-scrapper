@@ -32,7 +32,7 @@ Complete guide for setting up a local development environment for Allo-Scrapper.
 
 | Software | Minimum Version | Installation |
 |----------|----------------|--------------|
-| **Node.js** | 20.x | [Download](https://nodejs.org/) |
+| **Node.js** | 24.x | [Download](https://nodejs.org/) |
 | **npm** | 10.x | Included with Node.js |
 | **Git** | 2.x | [Download](https://git-scm.com/) |
 | **Docker** | 24.x | [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker Engine |

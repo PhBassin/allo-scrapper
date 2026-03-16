@@ -1,9 +1,8 @@
 name: Sync main to develop
 
+# Disabled: automatic sync causes merge conflicts and complicates release workflow
+# Run manually when needed via workflow_dispatch
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:

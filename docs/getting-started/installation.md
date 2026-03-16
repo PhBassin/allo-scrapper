@@ -127,14 +127,14 @@ docker compose exec ics-web npm run db:migrate
 
 **Ubuntu/Debian:**
 ```bash
-# Install Node.js 20.x via NodeSource
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+# Install Node.js 24.x via NodeSource
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt-get install -y nodejs
 ```
 
 **macOS:**
 ```bash
-brew install node@20
+brew install node@24
 ```
 
 **Windows:**
@@ -142,7 +142,7 @@ brew install node@20
 
 Verify installation:
 ```bash
-node --version  # Should be 20.x or higher
+node --version  # Should be 24.x or higher
 npm --version   # Should be 10.x or higher
 ```
 

@@ -22,8 +22,8 @@ function createMockDb(): DB {
 vi.mock('../utils/logger.js', () => ({
   logger: {
     info: vi.fn(),
-    warn: vi.fn(),
     error: vi.fn(),
+    warn: vi.fn(),
     debug: vi.fn(),
   },
 }));

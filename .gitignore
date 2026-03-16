@@ -2,8 +2,9 @@
 node_modules/
 server/node_modules/
 client/node_modules/
-package-lock.json
-**/package-lock.json
+scraper/node_modules/
+# Track root lock file for Docker builds (npm ci requires package-lock.json)
+!package-lock.json
 
 # Build outputs
 dist/
@@ -15,6 +16,7 @@ client/dist/
 .env
 .env.*
 !.env.example
+.env-*
 
 # Database
 data/

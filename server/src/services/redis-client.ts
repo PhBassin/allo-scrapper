@@ -6,8 +6,14 @@ import { logger } from '../utils/logger.js';
 // Types
 // ---------------------------------------------------------------------------
 
-export interface ScrapeJob {
+interface BaseScrapeJob {
   reportId: number;
+  /** OpenTelemetry trace context propagated from the HTTP request */
+  traceContext?: Record<string, string>;
+}
+
+export interface ScrapeJobScrape extends BaseScrapeJob {
+  type: 'scrape';
   triggerType: 'manual' | 'cron';
   options?: {
     mode?: 'weekly' | 'from_today' | 'from_today_limited';
@@ -15,9 +21,19 @@ export interface ScrapeJob {
     cinemaId?: string;
     filmId?: number;
   };
-  /** OpenTelemetry trace context propagated from the HTTP request */
-  traceContext?: Record<string, string>;
 }
+
+export interface ScrapeJobAddCinema extends BaseScrapeJob {
+  type: 'add_cinema';
+  triggerType: 'manual';
+  /** The Allociné cinema URL to add and scrape */
+  url: string;
+}
+
+/**
+ * Discriminated union of all job types the scraper can process.
+ */
+export type ScrapeJob = ScrapeJobScrape | ScrapeJobAddCinema;
 
 // ---------------------------------------------------------------------------
 // RedisClient
@@ -38,6 +54,12 @@ export class RedisClient {
 
   /** Push a scrape job onto the queue. Returns the new queue length. */
   async publishJob(job: ScrapeJob): Promise<number> {
+    return this.publisher.rpush('scrape:jobs', JSON.stringify(job));
+  }
+
+  /** Push an add_cinema job onto the queue. Returns the new queue length. */
+  async publishAddCinemaJob(reportId: number, url: string, traceContext?: Record<string, string>): Promise<number> {
+    const job: ScrapeJobAddCinema = { type: 'add_cinema', triggerType: 'manual', reportId, url, ...(traceContext && { traceContext }) };
     return this.publisher.rpush('scrape:jobs', JSON.stringify(job));
   }
 

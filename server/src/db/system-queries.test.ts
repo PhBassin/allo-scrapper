@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import fs from 'fs/promises';
+import path from 'path';
 import type { DB } from './client.js';
 import {
   getAppliedMigrations,
@@ -85,6 +87,12 @@ describe('System Queries', () => {
             { version: '005_add_user_roles.sql' },
             { version: '006_fix_app_settings_schema.sql' },
             { version: '007_seed_default_admin.sql' },
+            { version: '008_permission_based_roles.sql' },
+            { version: '009_add_roles_permission.sql' },
+            { version: '010_remove_phantom_permissions.sql' },
+            { version: '011_add_roles_crud_permissions.sql' },
+            { version: '012_add_read_permissions.sql' },
+            { version: '013_add_cinema_source.sql' },
           ],
         }),
       } as unknown as DB;
@@ -227,6 +235,26 @@ describe('System Queries', () => {
       } as unknown as DB;
 
       await expect(getPendingMigrations(mockDb)).rejects.toThrow('Database error');
+    });
+  });
+
+  describe('Migration 010 - remove phantom permissions', () => {
+    it('should have migration file 010_remove_phantom_permissions.sql', async () => {
+      const migrationsDir = path.resolve(process.cwd(), '../migrations');
+      const files = await fs.readdir(migrationsDir);
+      expect(files).toContain('010_remove_phantom_permissions.sql');
+    });
+
+    it('migration 010 should DELETE permissions not in canonical list', async () => {
+      const migrationsDir = path.resolve(process.cwd(), '../migrations');
+      const content = await fs.readFile(
+        path.join(migrationsDir, '010_remove_phantom_permissions.sql'),
+        'utf-8'
+      );
+      // Must contain a DELETE statement targeting non-canonical permissions
+      expect(content).toMatch(/DELETE\s+FROM\s+permissions/i);
+      // Must reference canonical permission names or use NOT IN
+      expect(content).toMatch(/NOT\s+IN/i);
     });
   });
 });

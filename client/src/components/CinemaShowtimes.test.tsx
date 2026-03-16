@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
@@ -67,5 +68,52 @@ describe('CinemaShowtimes Component', () => {
     
     expect(screen.getByText('16:00')).toBeInTheDocument();
     expect(screen.queryByText('14:00')).not.toBeInTheDocument();
+  });
+
+  it('displays date selector even when there is only one date', () => {
+    const singleDateCinemas: CinemaWithShowtimes[] = [
+      {
+        id: 'C1',
+        name: 'Cinema 1',
+        address: 'Address 1',
+        city: 'Paris',
+        showtimes: [
+          { id: 's1', date: '2026-02-18', time: '14:00', experiences: [] },
+          { id: 's2', date: '2026-02-18', time: '16:00', experiences: [] }
+        ]
+      } as any
+    ];
+
+    renderWithRouter(<CinemaShowtimes cinemas={singleDateCinemas} />);
+    
+    // Date selector should be visible
+    expect(screen.getByText('18')).toBeInTheDocument(); // Day number
+    
+    // Showtimes should be visible
+    expect(screen.getByText('14:00')).toBeInTheDocument();
+    expect(screen.getByText('16:00')).toBeInTheDocument();
+  });
+
+  it('displays the correct date label when there is only one date', () => {
+    const singleDateCinemas: CinemaWithShowtimes[] = [
+      {
+        id: 'C1',
+        name: 'Cinema 1',
+        address: 'Address 1',
+        city: 'Paris',
+        showtimes: [
+          { id: 's1', date: '2026-02-18', time: '14:00', experiences: [] }
+        ]
+      } as any
+    ];
+
+    renderWithRouter(<CinemaShowtimes cinemas={singleDateCinemas} />);
+    
+    // Should display the date button with correct format
+    const dateButton = screen.getByText('18').closest('button');
+    expect(dateButton).toBeInTheDocument();
+    
+    // Button should have active styling (since it's the only date)
+    expect(dateButton).toHaveClass('border-primary');
   });
 });

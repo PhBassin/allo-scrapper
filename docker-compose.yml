@@ -32,11 +32,11 @@ services:
 
   # Production web server (serves both API and frontend)
   ics-web:
-    #image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-stable}
-    build:
-      context: .
-      args:
-        VITE_APP_NAME: ${VITE_APP_NAME:-Allo-Scrapper}
+    image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-stable}
+    # build:
+    #   context: .
+    #   args:
+    #     VITE_APP_NAME: ${VITE_APP_NAME:-Allo-Scrapper}
     # Run as host user to allow volume writes while maintaining security
     # Set DOCKER_UID and DOCKER_GID in .env to match your host user
     # Defaults to 1000:1000 (standard Linux first user)
@@ -48,7 +48,7 @@ services:
     volumes:
       # Mount cinema config so API changes to cinemas.json are visible on host
       # This enables: git add server/src/config/cinemas.json && git commit && git push
-      - ./server/src/config:/app/dist/config
+      - ./server/src/config:/app/server/dist/config
     environment:
       NODE_ENV: production
       POSTGRES_HOST: ics-db
@@ -58,12 +58,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       PORT: 3000
       TZ: ${TZ:-Europe/Paris}
-      SCRAPE_CRON_SCHEDULE: ${SCRAPE_CRON_SCHEDULE:-0 8 * * 3}
       SCRAPE_DELAY_MS: ${SCRAPE_DELAY_MS:-1000}
       SCRAPE_MODE: ${SCRAPE_MODE:-weekly}
       SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
-      # Feature flag: set to "true" to delegate scraping to scraper microservice via Redis
-      USE_REDIS_SCRAPER: ${USE_REDIS_SCRAPER:-false}
       REDIS_URL: redis://ics-redis:6379
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -71,6 +68,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://ics-tempo:4317}
       # Authentication configuration (required for v2.0.0+)
       JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
     depends_on:
       ics-db:
         condition: service_healthy
@@ -87,9 +85,10 @@ services:
 
   # Scraper microservice – long-running consumer (processes jobs from Redis queue)
   ics-scraper:
-    build:
-      context: .
-      dockerfile: Dockerfile.scraper
+    image: ghcr.io/phbassin/allo-scrapper-scraper:${IMAGE_TAG:-stable}
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.scraper
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -113,14 +112,13 @@ services:
         condition: service_healthy
     networks:
       - ics-network
-    profiles:
-      - scraper
 
   # Scraper cron – scheduled automatic scraping (no Redis job queue needed)
   ics-scraper-cron:
-    build:
-      context: .
-      dockerfile: Dockerfile.scraper
+    image: ghcr.io/phbassin/allo-scrapper-scraper:${IMAGE_TAG:-stable}
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.scraper
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -145,8 +143,6 @@ services:
         condition: service_healthy
     networks:
       - ics-network
-    profiles:
-      - scraper
 
   # ---------------------------------------------------------------------------
   # Monitoring stack (Loki + Promtail + Prometheus + Grafana)

@@ -5,10 +5,10 @@ import { logger } from './utils/logger.js';
 import { registry, scrapeJobsTotal, scrapeDurationSeconds, filmsScrapedTotal, showtimesScrapedTotal } from './utils/metrics.js';
 import { initTracing } from './utils/tracer.js';
 
-import { runScraper } from './scraper/index.js';
-import { getRedisPublisher, getRedisConsumer, disconnectRedis, type ScrapeJob } from './redis/client.js';
+import { runScraper, addCinemaAndScrape } from './scraper/index.js';
+import { getRedisPublisher, getRedisConsumer, disconnectRedis, type ScrapeJob, type ScrapeJobScrape, type ScrapeJobAddCinema } from './redis/client.js';
 import { db } from './db/client.js';
-import { createScrapeReport, updateScrapeReport } from './db/queries.js';
+import { createScrapeReport, updateScrapeReport } from './db/report-queries.js';
 
 // ---------------------------------------------------------------------------
 // Metrics HTTP server (always-on, port 9091)
@@ -54,8 +54,10 @@ const RUN_MODE: RunMode = (process.env.RUN_MODE as RunMode) ?? 'oneshot';
 // Job executor
 // ---------------------------------------------------------------------------
 
-async function executeJob(job: ScrapeJob): Promise<void> {
+export async function executeJob(job: ScrapeJob): Promise<void> {
   const publisher = getRedisPublisher();
+  // Support legacy jobs that predate the discriminated union (no 'type' field)
+  const jobType = ('type' in job) ? job.type : 'scrape';
 
   // Update report status
   try {
@@ -64,11 +66,34 @@ async function executeJob(job: ScrapeJob): Promise<void> {
     logger.warn(`[scraper] Could not update report ${job.reportId}:`, err);
   }
 
-  const startTime = Date.now();
+  // --- add_cinema branch ---
+  if (jobType === 'add_cinema') {
+    const addCinemaJob = job as ScrapeJobAddCinema;
+    try {
+      await addCinemaAndScrape(db, addCinemaJob.url, publisher);
+      await updateScrapeReport(db, job.reportId, {
+        status: 'success',
+        completed_at: new Date().toISOString(),
+      });
+      logger.info(`[scraper] add_cinema job ${job.reportId} completed successfully`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error(`[scraper] add_cinema job ${job.reportId} failed:`, err);
+      await updateScrapeReport(db, job.reportId, {
+        status: 'failed',
+        completed_at: new Date().toISOString(),
+        errors: [{ cinema_name: 'System', error: errorMessage }],
+      }).catch(() => {});
+    }
+    return;
+  }
+
+  // --- scrape branch ---
   const durationTimer = scrapeDurationSeconds.startTimer({ cinema: 'all' });
 
   try {
-    const summary = await runScraper(publisher, job.options);
+    const scrapeJob = job as ScrapeJobScrape;
+    const summary = await runScraper(publisher, scrapeJob.options);
 
     const status = summary.failed_cinemas === 0
       ? 'success'

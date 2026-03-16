@@ -11,6 +11,7 @@ import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
 import { generalLimiter } from './middleware/rate-limit.js';
 import { generateThemeCSS } from './services/theme-generator.js';
+import { errorHandler } from './middleware/error-handler.js';
 
 // Import routes
 import filmsRouter from './routes/films.js';
@@ -21,6 +22,7 @@ import authRouter from './routes/auth.js';
 import settingsRouter from './routes/settings.js';
 import usersRouter from './routes/users.js';
 import systemRouter from './routes/system.js';
+import rolesRouter from './routes/roles.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,6 +73,7 @@ export function createApp() {
   app.use('/api/settings', settingsRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/system', systemRouter);
+  app.use('/api/roles', rolesRouter);
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
@@ -132,33 +135,27 @@ export function createApp() {
     }
   });
 
-  // Serve React static files in production
-  if (process.env.NODE_ENV === 'production') {
-    const publicPath = path.join(__dirname, '../public');
-    app.use(express.static(publicPath));
-
-    // Serve index.html for all non-API routes (SPA support)
-    app.get('*', generalLimiter, (_req, res) => {
-      res.sendFile(path.join(publicPath, 'index.html'));
-    });
-  }
-
-  // 404 handler for API routes
-  app.use('/api/*', (_req, res) => {
+  // 404 handler for API routes (must be BEFORE SPA fallback)
+  app.use('/api/{*splat}', (_req, res) => {
     res.status(404).json({
       success: false,
       error: 'API endpoint not found',
     });
   });
 
-  // Error handler
-  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    logger.error('Unhandled error', { error: err.message, stack: err.stack });
-    res.status(500).json({
-      success: false,
-      error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
+  // Serve React static files in production
+  if (process.env.NODE_ENV === 'production') {
+    const publicPath = path.join(__dirname, '../public');
+    app.use(express.static(publicPath));
+
+    // Serve index.html for all non-API routes (SPA support)
+    app.get('{*splat}', generalLimiter, (_req, res) => {
+      res.sendFile(path.join(publicPath, 'index.html'));
     });
-  });
+  }
+
+  // Error handler
+  app.use(errorHandler);
 
   return app;
 }

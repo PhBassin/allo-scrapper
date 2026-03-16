@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getCinemas, getCinemaSchedule, triggerCinemaScrape, getScrapeStatus } from '../api/client';
-import type { Cinema, ShowtimeWithFilm } from '../types';
+import { useQuery } from '@tanstack/react-query';
+import { getCinemas, getCinemaSchedule } from '../api/client';
+import type { ShowtimeWithFilm } from '../types';
 import ShowtimeList from '../components/ShowtimeList';
-import ScrapeButton from '../components/ScrapeButton';
-import ScrapeProgress from '../components/ScrapeProgress';
 import CinemaDateSelector from '../components/CinemaDateSelector';
 
 interface FilmGroup {
@@ -23,56 +22,40 @@ interface FilmGroup {
 
 export default function CinemaPage() {
   const { id } = useParams<{ id: string }>();
-  const [cinema, setCinema] = useState<Cinema | null>(null);
-  const [showtimes, setShowtimes] = useState<ShowtimeWithFilm[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [showProgress, setShowProgress] = useState(false);
 
-  const loadData = async () => {
-    if (!id) return;
+  const { data: cinemasData, isLoading: cinemasLoading, error: cinemasError } = useQuery({
+    queryKey: ['cinemas'],
+    queryFn: getCinemas
+  });
 
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Fetch cinema details and schedule in parallel
-      const [cinemas, schedule, scrapeStatus] = await Promise.all([
-        getCinemas(),
-        getCinemaSchedule(id),
-        getScrapeStatus()
-      ]);
-      
-      const foundCinema = cinemas.find(c => c.id === id);
-      if (!foundCinema) {
-        throw new Error('Cinema not found');
-      }
-      
-      setCinema(foundCinema);
-      setShowtimes(schedule.showtimes);
+  const { data: scheduleData, isLoading: scheduleLoading, error: scheduleError } = useQuery({
+    queryKey: ['cinema-schedule', id],
+    queryFn: () => getCinemaSchedule(id!),
+    enabled: !!id
+  });
 
-      // Check if scrape is running
-      if (scrapeStatus.isRunning) {
-        setShowProgress(true);
-      }
+  const isLoading = cinemasLoading || scheduleLoading;
+  const queryError = cinemasError || scheduleError;
+  const error = queryError instanceof Error ? queryError.message : (queryError ? 'Failed to load cinema data' : null);
 
-      // Set default selected date (today or first available)
-      if (schedule.showtimes.length > 0) {
-        const today = new Date().toISOString().split('T')[0];
-        const dates = getUniqueDates(schedule.showtimes);
-        setSelectedDate(dates.includes(today) ? today : dates[0]);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load cinema data');
-    } finally {
-      setIsLoading(false);
-    }
+  // Validate if cinema was not found in cinemasData
+  if (!isLoading && cinemasData && !cinemasData.some(c => c.id === id)) {
+    // Setting an error message similar to before if cinema is not found
+    // however returning 'Cinema not found' directly in JSX handles it below
+  }
+
+  const cinema = cinemasData?.find(c => c.id === id) || null;
+  const showtimes = useMemo(() => scheduleData?.showtimes || [], [scheduleData?.showtimes]);
+
+  const getInitialSelectedDate = (showtimes: ShowtimeWithFilm[]): string => {
+    if (showtimes.length === 0) return '';
+    const today = new Date().toISOString().split('T')[0];
+    const dates = new Set(showtimes.map(s => s.date));
+    const uniqueDates = Array.from(dates).sort();
+    return uniqueDates.includes(today) ? today : uniqueDates[0];
   };
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => getInitialSelectedDate(showtimes));
 
   const getUniqueDates = (showtimes: ShowtimeWithFilm[]): string[] => {
     const dates = new Set(showtimes.map(s => s.date));
@@ -111,18 +94,6 @@ export default function CinemaPage() {
     };
   }, [formatterWeekday, formatterMonth]);
 
-  const handleScrapeStart = () => {
-    setShowProgress(true);
-  };
-
-  const handleScrapeComplete = () => {
-    // Hide progress and reload data after a delay to avoid flickering
-    setTimeout(() => {
-      setShowProgress(false);
-      loadData();
-    }, 2000);
-  };
-
   // ⚡ PERFORMANCE: Memoize derived state calculations to prevent expensive
   // array operations (getUniqueDates, filter, groupByFilm) on every render,
   // especially when showtimes array is large or during unrelated state updates (like scrape progress).
@@ -149,27 +120,6 @@ export default function CinemaPage() {
 
   return (
     <div>
-      {/* Scrape Button (Sticky) */}
-      {cinema && (
-        <div className="sticky top-20 z-10 mb-6 flex justify-end">
-          <ScrapeButton
-            onTrigger={async () => { await triggerCinemaScrape(id!); }}
-            onScrapeStart={handleScrapeStart}
-            buttonText="🔄 Scraper uniquement ce cinéma"
-            loadingText="Scraping en cours..."
-            successText="Scraping démarré !"
-            className="bg-white/95 shadow-md rounded-lg p-2"
-          />
-        </div>
-      )}
-
-      {/* Scrape Progress */}
-      {showProgress && (
-        <div className="mb-8">
-          <ScrapeProgress onComplete={handleScrapeComplete} />
-        </div>
-      )}
-
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <Link to="/" className="hover:text-primary hover:underline">← Accueil</Link>
@@ -194,14 +144,16 @@ export default function CinemaPage() {
         )}
       </div>
 
-      {/* Date Selector */}
-      <CinemaDateSelector
-        dates={dates}
-        selectedDate={selectedDate}
-        showtimes={showtimes}
-        onSelectDate={setSelectedDate}
-        formatDateLabel={formatDateLabel}
-      />
+      {/* Date Selector - Sticky */}
+      <div className="sticky top-[64px] z-40 bg-gray-50/95 backdrop-blur-sm pt-4 pb-4 mb-6 shadow-sm -mx-4 px-4" data-testid="sticky-date-selector-container">
+        <CinemaDateSelector
+          dates={dates}
+          selectedDate={selectedDate}
+          showtimes={showtimes}
+          onSelectDate={setSelectedDate}
+          formatDateLabel={formatDateLabel}
+        />
+      </div>
 
       {/* Films List for Selected Date */}
       <div className="min-h-[300px]">

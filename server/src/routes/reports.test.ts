@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import router from './reports.js';
-import * as queries from '../db/queries.js';
+import * as reportQueries from '../db/report-queries.js';
 import { db } from '../db/client.js';
 
 // Mock dependencies
@@ -13,15 +13,16 @@ vi.mock('../db/client.js', () => ({
   }
 }));
 
-vi.mock('../db/queries.js', () => ({
+vi.mock('../db/report-queries.js', () => ({
   getScrapeReports: vi.fn(),
-  getScrapeReport: vi.fn(),
+  getScrapeReport: vi.fn()
 }));
 
 vi.mock('../utils/logger.js', () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
+    warn: vi.fn(),
   }
 }));
 
@@ -62,14 +63,14 @@ describe('Routes - Reports', () => {
         app: mockApp
       };
 
-      (queries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
+      (reportQueries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
 
       const handler = getRouteHandler('/', 'get');
       expect(handler).toBeDefined();
       await handler(mockReq, mockRes, mockNext);
 
       // Verify that getScrapeReports was called with clamped limit
-      expect(queries.getScrapeReports).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      expect(reportQueries.getScrapeReports).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
         limit: 100 // Should be clamped to 100
       }));
     });
@@ -80,12 +81,12 @@ describe('Routes - Reports', () => {
         app: mockApp
       };
 
-      (queries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
+      (reportQueries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
 
       const handler = getRouteHandler('/', 'get');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.getScrapeReports).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      expect(reportQueries.getScrapeReports).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
         limit: 20
       }));
     });
@@ -98,12 +99,12 @@ describe('Routes - Reports', () => {
         app: mockApp
       };
 
-      (queries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
+      (reportQueries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
 
       const handler = getRouteHandler('/', 'get');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(queries.getScrapeReports).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      expect(reportQueries.getScrapeReports).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
         offset: 0 // (1 - 1) * 20 = 0
       }));
     });

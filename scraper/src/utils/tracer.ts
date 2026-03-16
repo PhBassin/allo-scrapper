@@ -1,8 +1,9 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
-import { Resource } from '@opentelemetry/resources';
-import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 import { trace, type Tracer } from '@opentelemetry/api';
 
 const SERVICE_NAME = `${process.env.APP_NAME ?? 'Allo-Scrapper'}-scraper`;
@@ -26,16 +27,14 @@ export function initTracing(): void {
   const exporter = new OTLPTraceExporter({ url: endpoint });
 
   _sdk = new NodeSDK({
-    resource: new Resource({
-      [SEMRESATTRS_SERVICE_NAME]: SERVICE_NAME,
-      [SEMRESATTRS_SERVICE_VERSION]: SERVICE_VERSION,
+    resource: resourceFromAttributes({
+      [ATTR_SERVICE_NAME]: SERVICE_NAME,
+      [ATTR_SERVICE_VERSION]: SERVICE_VERSION,
     }),
     traceExporter: exporter,
     instrumentations: [
-      getNodeAutoInstrumentations({
-        // Disable noisy fs instrumentation
-        '@opentelemetry/instrumentation-fs': { enabled: false },
-      }),
+      new HttpInstrumentation(),
+      new PgInstrumentation(),
     ],
   });
 

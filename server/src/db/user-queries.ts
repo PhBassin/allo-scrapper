@@ -1,9 +1,22 @@
 import { type DB } from './client.js';
-import { type UserPublic, type UserRole } from '../types/user.js';
+import { type UserPublic } from '../types/user.js';
 import crypto from 'crypto';
+
+// --- Database Row Interfaces ---
+
+export interface UserRow {
+  id: number;
+  username: string;
+  password_hash: string;
+  role_id: number;
+  role_name: string;
+  is_system_role: boolean;
+  created_at: string;
+}
 
 /**
  * Get all users without passwords (for admin panel)
+ * Uses JOIN on roles table to get role_name
  * @param db - Database client
  * @param options - Pagination options (limit, offset)
  * @returns Array of users without password hashes
@@ -16,10 +29,10 @@ export async function getAllUsers(
   const offset = options?.offset ?? 0;
 
   const result = await db.query<UserPublic>(
-    `SELECT id, username, role, created_at 
-     FROM users 
-     ORDER BY created_at DESC 
-     LIMIT $1 OFFSET $2`,
+    `SELECT u.id, u.username, u.role_id, r.name as role_name, u.created_at
+     FROM users u
+     JOIN roles r ON r.id = u.role_id
+     ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
     [limit, offset]
   );
 
@@ -28,6 +41,7 @@ export async function getAllUsers(
 
 /**
  * Get user by ID without password
+ * Uses JOIN on roles table to get role_name
  * @param db - Database client
  * @param userId - User ID
  * @returns User without password hash, or undefined if not found
@@ -37,7 +51,10 @@ export async function getUserById(
   userId: number
 ): Promise<UserPublic | undefined> {
   const result = await db.query<UserPublic>(
-    'SELECT id, username, role, created_at FROM users WHERE id = $1',
+    `SELECT u.id, u.username, u.role_id, r.name as role_name, u.created_at
+     FROM users u
+     JOIN roles r ON r.id = u.role_id
+     WHERE u.id = $1`,
     [userId]
   );
 
@@ -45,25 +62,19 @@ export async function getUserById(
 }
 
 /**
- * Update user role
+ * Update user role by role ID
  * @param db - Database client
  * @param userId - User ID
- * @param newRole - New role ('admin' or 'user')
- * @throws Error if role is invalid
+ * @param roleId - New role ID (must reference a valid role in the roles table)
  */
 export async function updateUserRole(
   db: DB,
   userId: number,
-  newRole: UserRole
+  roleId: number
 ): Promise<void> {
-  // Validate role
-  if (newRole !== 'admin' && newRole !== 'user') {
-    throw new Error(`Invalid role: ${newRole}. Must be 'admin' or 'user'.`);
-  }
-
   await db.query(
-    'UPDATE users SET role = $1 WHERE id = $2',
-    [newRole, userId]
+    'UPDATE users SET role_id = $1 WHERE id = $2',
+    [roleId, userId]
   );
 }
 
@@ -87,15 +98,71 @@ export async function deleteUser(
 
 /**
  * Get count of admin users (for last admin protection)
+ * Uses JOIN on roles table to find users with role name 'admin'
  * @param db - Database client
- * @returns Number of users with role='admin'
+ * @returns Number of users with role_name='admin'
  */
 export async function getAdminCount(db: DB): Promise<number> {
   const result = await db.query<{ count: string }>(
-    "SELECT COUNT(*) as count FROM users WHERE role = 'admin'"
+    `SELECT COUNT(*) as count
+     FROM users u
+     JOIN roles r ON r.id = u.role_id
+     WHERE r.name = 'admin'`
   );
 
   return parseInt(result.rows[0]?.count ?? '0', 10);
+}
+
+/**
+ * Get user by username with password hash
+ * @param db - Database client
+ * @param username - Username to search for
+ * @returns UserRow or undefined
+ */
+export async function getUserByUsername(db: DB, username: string): Promise<UserRow | undefined> {
+  const result = await db.query<UserRow>(
+    `SELECT u.id, u.username, u.password_hash, u.role_id,
+            r.name AS role_name, r.is_system AS is_system_role, u.created_at
+     FROM users u
+     JOIN roles r ON r.id = u.role_id
+     WHERE u.username = $1`,
+    [username]
+  );
+  return result.rows[0];
+}
+
+/**
+ * Create a new user
+ * @param db - Database client
+ * @param username - Username
+ * @param passwordHash - Hashed password
+ * @returns Created UserRow
+ */
+export async function createUser(db: DB, username: string, passwordHash: string): Promise<UserRow> {
+  const result = await db.query<UserRow>(
+    `INSERT INTO users (username, password_hash)
+     VALUES ($1, $2)
+     RETURNING id, username, password_hash,
+       role_id,
+       (SELECT name FROM roles WHERE id = role_id) AS role_name,
+       (SELECT is_system FROM roles WHERE id = role_id) AS is_system_role,
+       created_at`,
+    [username, passwordHash]
+  );
+  return result.rows[0];
+}
+
+/**
+ * Update user password
+ * @param db - Database client
+ * @param userId - User ID
+ * @param newPasswordHash - New hashed password
+ */
+export async function updateUserPassword(db: DB, userId: number, newPasswordHash: string): Promise<void> {
+  await db.query(
+    'UPDATE users SET password_hash = $1 WHERE id = $2',
+    [newPasswordHash, userId]
+  );
 }
 
 /**
@@ -106,7 +173,7 @@ export async function getAdminCount(db: DB): Promise<number> {
  * - At least one lowercase letter
  * - At least one digit
  * - At least one special character
- * 
+ *
  * @returns Random 16-character password
  */
 export function generateRandomPassword(): string {
@@ -130,8 +197,10 @@ export function generateRandomPassword(): string {
   }
 
   // Shuffle the password to avoid predictable pattern (first 4 chars always ULDS)
-  return password
-    .split('')
-    .sort(() => crypto.randomInt(0, 2) - 0.5)
-    .join('');
+  const chars = password.split('');
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
 }

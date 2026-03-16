@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-03-16
+
+### Added
+
+**Node.js 24 LTS:**
+- Migrated from Node.js 22 to Node.js 24 LTS
+- Updated engine requirements to `>=24.0.0`
+
+**Scraper Microservice:**
+- Replaced Playwright with Puppeteer for browser automation
+- Migrated from `playwright-core` to `puppeteer-core`
+- Added arm64 native support using Debian's `chromium-headless-shell` package
+
+### Changed
+
+**Docker Optimization:**
+- Scraper image reduced from ~1.38 GB to ~1.20 GB (13% smaller)
+- Simplified Dockerfile: removed architecture-conditional logic
+- Using `chromium-headless-shell` from apt instead of `@puppeteer/browsers`
+
+**OpenTelemetry:**
+- Replaced auto-instrumentation with targeted packages
+- Reduced dependency footprint
+
+**TypeScript:**
+- Disabled declaration and declarationMap generation for scraper
+
+### Fixed
+
+**Security:**
+- Security vulnerability fixes from dependabot
+- JWT expiry enforcement in route guards and Docker runtime
+- RBAC permission count updated to 26 across 7 categories
+
+**Performance:**
+- Parallel DB queries in FilmService
+- Optimized Docker build time with npm cache
+
+### Database
+
+**Migrations Added:**
+- `008_permission_based_roles.sql` - Roles and permissions tables
+- `009_add_roles_permission.sql` - Role management permission
+- `010_remove_phantom_permissions.sql` - Clean non-canonical permissions
+- `011_add_roles_crud_permissions.sql` - Full CRUD for roles
+- `012_add_read_permissions.sql` - Read permissions for cinemas and users
+- `013_add_cinema_source.sql` - Source column for cinema scraping strategy
+
 ## [3.0.1] - 2026-03-08
 
 ### Changed
@@ -158,6 +206,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - React frontend
 
 [3.0.0]: https://github.com/PhBassin/allo-scrapper/compare/v2.1.1...v3.0.0
+[4.0.0]: https://github.com/PhBassin/allo-scrapper/compare/v3.0.1...v4.0.0
 [3.0.0-beta.4]: https://github.com/PhBassin/allo-scrapper/compare/v3.0.0-beta.3...v3.0.0-beta.4
 [3.0.0-beta.3]: https://github.com/PhBassin/allo-scrapper/compare/v3.0.0-beta.2...v3.0.0-beta.3
 [3.0.0-beta.2]: https://github.com/PhBassin/allo-scrapper/compare/v3.0.0-beta.1...v3.0.0-beta.2

@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS cinemas (
   city TEXT,
   screen_count INTEGER,
   image_url TEXT,
-  url TEXT
+  url TEXT,
+  source TEXT DEFAULT 'allocine'
 );
 
 -- Table: films

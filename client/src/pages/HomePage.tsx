@@ -1,10 +1,7 @@
-import { useEffect, useState, useContext, useCallback, useMemo } from 'react';
-
-import { getWeeklyFilms, getFilmsByDate, getCinemas, getScrapeStatus, addCinema, triggerScrape } from '../api/client';
-import type { FilmWithShowtimes, Cinema } from '../types';
+import { useState, useContext, useCallback, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getWeeklyFilms, getFilmsByDate, getCinemas, addCinema } from '../api/client';
 import FilmCard from '../components/FilmCard';
-import ScrapeButton from '../components/ScrapeButton';
-import ScrapeProgress from '../components/ScrapeProgress';
 import DaySelector from '../components/DaySelector';
 import FilmSearchBar from '../components/FilmSearchBar';
 import ScrollToTop from '../components/ScrollToTop';
@@ -12,51 +9,29 @@ import { AuthContext } from '../contexts/AuthContext';
 import CinemasQuickLinks from '../components/CinemasQuickLinks';
 
 export default function HomePage() {
-  const [films, setFilms] = useState<FilmWithShowtimes[]>([]);
-  const [cinemas, setCinemas] = useState<Cinema[]>([]);
-  const [weekStart, setWeekStart] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showProgress, setShowProgress] = useState(false);
-  const { isAuthenticated } = useContext(AuthContext);
+  const queryClient = useQueryClient();
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const { isAuthenticated, hasPermission } = useContext(AuthContext);
 
-  const loadData = async (date?: string | null) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const [filmsData, cinemasData, scrapeStatus] = await Promise.all([
-        date ? getFilmsByDate(date) : getWeeklyFilms(),
-        getCinemas(),
-        getScrapeStatus()
-      ]);
-      
-      setFilms(filmsData.films);
-      setWeekStart(filmsData.weekStart);
-      setCinemas(cinemasData);
+  const { data: cinemas = [], isLoading: isLoadingCinemas } = useQuery({
+    queryKey: ['cinemas'],
+    queryFn: getCinemas,
+  });
 
-      // Check if scrape is running
-      if (scrapeStatus.isRunning) {
-        setShowProgress(true);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load data');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: filmsData, isLoading: isLoadingFilms, error: filmsError } = useQuery({
+    queryKey: ['films', selectedDate],
+    queryFn: () => selectedDate ? getFilmsByDate(selectedDate) : getWeeklyFilms(),
+  });
 
-  useEffect(() => {
-    loadData(selectedDate);
-  }, [selectedDate]);
+  const films = filmsData?.films || [];
+  const weekStart = filmsData?.weekStart || '';
+
+  const isLoading = isLoadingCinemas || isLoadingFilms;
+  const error = filmsError instanceof Error ? filmsError.message : null;
 
   const handleDateSelect = useCallback((date: string | null) => {
-    setSelectedDate(date);
+    setSelectedDate(date || '');
   }, []);
-
-  // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
-  // re-initialization during renders
   const formatterDate = useMemo(() => new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'long',
@@ -78,31 +53,23 @@ export default function HomePage() {
     return formatDate(end.toISOString());
   };
 
-  const handleScrapeStart = () => {
-    setShowProgress(true);
-  };
-
-  const handleScrapeComplete = () => {
-    // Hide progress and reload data after a delay to avoid flickering
-    setTimeout(() => {
-      setShowProgress(false);
-      loadData(selectedDate);
-    }, 2000);
-  };
+  const addCinemaMutation = useMutation({
+    mutationFn: addCinema,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
+      queryClient.invalidateQueries({ queryKey: ['films', selectedDate] });
+    },
+    onError: (err: Error) => {
+      alert(err.message || 'Erreur lors de l\'ajout du cinéma');
+    }
+  });
 
   const handleAddCinema = useCallback(async () => {
     const url = window.prompt("Entrez l'URL Allociné du cinéma à ajouter (ex: https://www.allocine.fr/seance/salle_affich-salle=C0013.html):");
     if (!url) return;
 
-    try {
-      setShowProgress(true);
-      await addCinema(url);
-      // Data will reload when progress completes via handleScrapeComplete
-    } catch (err: any) {
-      setShowProgress(false);
-      setError(err.message || 'Erreur lors de l\'ajout du cinéma');
-    }
-  }, []);
+    addCinemaMutation.mutate(url);
+  }, [addCinemaMutation]);
 
   if (isLoading) {
     return (
@@ -124,21 +91,6 @@ export default function HomePage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Scrape Button - Above sticky header */}
-      <div className="flex justify-end mb-6">
-        <ScrapeButton 
-          onTrigger={async () => { await triggerScrape(); }}
-          onScrapeStart={handleScrapeStart} 
-        />
-      </div>
-
-      {/* Scrape Progress - Above sticky header */}
-      {showProgress && (
-        <div className="mb-6">
-          <ScrapeProgress onComplete={handleScrapeComplete} />
-        </div>
-      )}
-
       {/* Title and Date Info - Above sticky header */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-3">
@@ -159,7 +111,7 @@ export default function HomePage() {
       </div>
 
       {/* Sticky Header Section - Compact */}
-      <div className="sticky top-0 z-40 bg-gray-50 pt-4 pb-4 mb-6">
+      <div className="sticky top-[64px] z-40 bg-gray-50/95 backdrop-blur-sm pt-4 pb-4 mb-6 shadow-sm -mx-4 px-4" data-testid="sticky-search-date-container">
         {/* Film Search Bar */}
         <div className="mb-4">
           <FilmSearchBar placeholder="Rechercher un film..." />
@@ -180,7 +132,7 @@ export default function HomePage() {
       {/* Quick Cinema Links - Below sticky header */}
       <CinemasQuickLinks
         cinemas={cinemas}
-        isAuthenticated={isAuthenticated}
+        canAddCinema={isAuthenticated && hasPermission('cinemas:create')}
         onAddCinema={handleAddCinema}
       />
 
@@ -196,7 +148,7 @@ export default function HomePage() {
               {selectedDate ? 'Aucun film programmé pour cette date.' : 'Aucun film programmé pour le moment.'}
             </p>
             <p className="text-gray-400 text-sm max-w-md mx-auto">
-              Utilisez le bouton de mise à jour pour collecter les données des cinémas et afficher le programme.
+              Les données des cinémas sont mises à jour automatiquement ou depuis l'interface d'administration.
             </p>
           </div>
         )}

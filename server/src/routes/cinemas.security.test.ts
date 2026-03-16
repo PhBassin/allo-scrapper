@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as queries from '../db/queries.js';
+import * as cinemaQueries from '../db/cinema-queries.js';
+import * as showtimeQueries from '../db/showtime-queries.js';
 import router from './cinemas.js';
 import { db } from '../db/client.js';
 
@@ -10,9 +11,12 @@ vi.mock('../db/client.js', () => ({
   }
 }));
 
-vi.mock('../db/queries.js', () => ({
-  getCinemas: vi.fn(),
+vi.mock('../db/showtime-queries.js', () => ({
   getShowtimesByCinemaAndWeek: vi.fn(),
+}));
+
+vi.mock('../db/cinema-queries.js', () => ({
+  getCinemas: vi.fn(),
   addCinema: vi.fn(),
   updateCinemaConfig: vi.fn(),
   deleteCinema: vi.fn(),
@@ -20,6 +24,17 @@ vi.mock('../db/queries.js', () => ({
 
 vi.mock('../utils/date.js', () => ({
   getWeekStart: vi.fn().mockReturnValue('2026-02-18')
+}));
+
+vi.mock('../middleware/auth.js', () => ({
+  requireAuth: function requireAuth(req: any, res: any, next: any) { next(); },
+}));
+
+vi.mock('../middleware/permission.js', () => ({
+  requirePermission: (..._perms: string[]) => {
+    function requirePermission(req: any, res: any, next: any) { next(); }
+    return requirePermission;
+  },
 }));
 
 // Helper to get the actual route handler (skips middleware like rate limiters)
@@ -60,7 +75,7 @@ describe('Routes - Cinemas - Security', () => {
   it('should delegate error handling to next() and NOT expose sensitive details directly', async () => {
     // Simulate a database error with sensitive information
     const sensitiveError = new Error('SQL Error: Table "users" does not exist');
-    (queries.getCinemas as any).mockRejectedValue(sensitiveError);
+    (cinemaQueries.getCinemas as any).mockRejectedValue(sensitiveError);
 
     // Get the handler for GET /
     const handler = getRouteHandler('/', 'get');
@@ -78,35 +93,35 @@ describe('Routes - Cinemas - Security', () => {
     expect(mockRes.json).not.toHaveBeenCalled();
   });
 
-  describe('Middleware - Admin protection on mutation routes', () => {
-    it('POST / should require both requireAuth and requireAdmin middleware', () => {
+  describe('Middleware - Permission protection on mutation routes', () => {
+    it('POST / should require both requireAuth and requirePermission middleware', () => {
       const names = getMiddlewareNames('/', 'post');
       expect(names).toContain('requireAuth');
-      expect(names).toContain('requireAdmin');
+      expect(names).toContain('requirePermission');
     });
 
-    it('PUT /:id should require both requireAuth and requireAdmin middleware', () => {
+    it('PUT /:id should require both requireAuth and requirePermission middleware', () => {
       const names = getMiddlewareNames('/:id', 'put');
       expect(names).toContain('requireAuth');
-      expect(names).toContain('requireAdmin');
+      expect(names).toContain('requirePermission');
     });
 
-    it('DELETE /:id should require both requireAuth and requireAdmin middleware', () => {
+    it('DELETE /:id should require both requireAuth and requirePermission middleware', () => {
       const names = getMiddlewareNames('/:id', 'delete');
       expect(names).toContain('requireAuth');
-      expect(names).toContain('requireAdmin');
+      expect(names).toContain('requirePermission');
     });
 
     it('GET / should NOT require authentication', () => {
       const names = getMiddlewareNames('/', 'get');
       expect(names).not.toContain('requireAuth');
-      expect(names).not.toContain('requireAdmin');
+      expect(names).not.toContain('requirePermission');
     });
 
     it('GET /:id should NOT require authentication', () => {
       const names = getMiddlewareNames('/:id', 'get');
       expect(names).not.toContain('requireAuth');
-      expect(names).not.toContain('requireAdmin');
+      expect(names).not.toContain('requirePermission');
     });
   });
 });

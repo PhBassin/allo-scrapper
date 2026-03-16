@@ -53,6 +53,7 @@ Click your username in the top-right corner to access admin-only features:
 
 - **Admin Settings** (`/admin/settings`) - Branding, colors, typography, footer, email
 - **Users** (`/admin/users`) - User management and role assignment
+- **Role Management** (`/admin/roles`) - Create and manage custom roles and permissions
 - **System** (`/admin/system`) - System diagnostics and monitoring
 
 ---
@@ -573,13 +574,19 @@ Manage user accounts and roles.
 
 1. Click "+ Create User" button
 2. Fill in form:
-   - **Username**: 3-50 characters, alphanumeric + underscore/hyphen
+   - **Username**: 3-15 characters, alphanumeric only
    - **Password**: Minimum 8 characters
-   - **Role**: Select "admin" or "user"
+   - **Role**: Select from dropdown (admin, operator, or custom roles)
 3. Click "Create User"
 
 **Password Requirements**:
+- Real-time visual validation with red/green indicators for each constraint
 - Minimum 8 characters
+- Must contain at least:
+  - One uppercase letter
+  - One lowercase letter
+  - One digit
+  - One special character
 - Recommended: Mix of letters, numbers, symbols
 - Hashed with bcrypt (never stored plaintext)
 
@@ -587,7 +594,7 @@ Manage user accounts and roles.
 
 1. Click "Edit" button next to user
 2. Available actions:
-   - **Change Role**: Switch between admin/user
+   - **Change Role**: Select from dropdown of available roles (admin, operator, custom roles)
    - **Reset Password**: Generate new secure password (shown once)
 
 **Safety Guards**:

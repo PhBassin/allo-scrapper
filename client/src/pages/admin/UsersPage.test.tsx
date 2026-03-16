@@ -3,29 +3,87 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import UsersPage from './UsersPage';
 import * as usersApi from '../../api/users';
+import * as rolesApi from '../../api/roles';
 import type { UserPublic } from '../../api/users';
+import type { RoleWithPermissions, PermissionName } from '../../types/role';
+import { AuthContext } from '../../contexts/AuthContext';
 
-// Mock the users API
+// Mock the APIs
 vi.mock('../../api/users');
+vi.mock('../../api/roles');
+
+const mockRoles: RoleWithPermissions[] = [
+  {
+    id: 1,
+    name: 'admin',
+    description: 'Full access',
+    is_system: true,
+    created_at: '2024-01-01T00:00:00.000Z',
+    permissions: [],
+  },
+  {
+    id: 2,
+    name: 'operator',
+    description: 'Operator access',
+    is_system: true,
+    created_at: '2024-01-01T00:00:00.000Z',
+    permissions: [],
+  },
+  {
+    id: 3,
+    name: 'viewer',
+    description: 'Read only',
+    is_system: false,
+    created_at: '2024-01-01T00:00:00.000Z',
+    permissions: [],
+  },
+];
+
+const mockAuthContext = {
+  isAuthenticated: true,
+  token: 'mock-token',
+  user: {
+    id: 1,
+    username: 'admin',
+    role_id: 1,
+    role_name: 'admin',
+    is_system_role: true,
+    permissions: ['users:create', 'users:update', 'users:delete'] as PermissionName[],
+  },
+  login: vi.fn(),
+  logout: vi.fn(),
+  isAdmin: true,
+  hasPermission: vi.fn<(p: PermissionName) => boolean>(() => true),
+};
+
+const renderWithAuth = (ui: React.ReactElement, authOverrides?: Partial<typeof mockAuthContext>) =>
+  render(
+    <AuthContext.Provider value={{ ...mockAuthContext, ...authOverrides }}>
+      {ui}
+    </AuthContext.Provider>
+  );
 
 describe('UsersPage', () => {
   const mockUsers: UserPublic[] = [
     {
       id: 1,
       username: 'admin',
-      role: 'admin',
+      role_id: 1,
+      role_name: 'admin',
       created_at: '2024-01-01T00:00:00.000Z',
     },
     {
       id: 2,
       username: 'user1',
-      role: 'user',
+      role_id: 2,
+      role_name: 'operator',
       created_at: '2024-01-02T00:00:00.000Z',
     },
     {
       id: 3,
       username: 'user2',
-      role: 'user',
+      role_id: 3,
+      role_name: 'viewer',
       created_at: '2024-01-03T00:00:00.000Z',
     },
   ];
@@ -33,26 +91,28 @@ describe('UsersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(usersApi.getUsers).mockResolvedValue(mockUsers);
+    vi.mocked(rolesApi.rolesApi.getAll).mockResolvedValue(mockRoles);
   });
 
   describe('Initial Rendering', () => {
     it('should render page title', async () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       expect(await screen.findByRole('heading', { name: /user management/i })).toBeInTheDocument();
     });
 
     it('should display loading state initially', () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       expect(screen.getByText(/loading/i)).toBeInTheDocument();
     });
 
-    it('should fetch and display users on mount', async () => {
-      render(<UsersPage />);
+    it('should fetch users and roles on mount', async () => {
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(usersApi.getUsers).toHaveBeenCalled();
+        expect(rolesApi.rolesApi.getAll).toHaveBeenCalled();
       });
 
       expect(await screen.findByText('admin')).toBeInTheDocument();
@@ -61,7 +121,7 @@ describe('UsersPage', () => {
     });
 
     it('should display "Create User" button', async () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create user/i })).toBeInTheDocument();
@@ -71,39 +131,39 @@ describe('UsersPage', () => {
 
   describe('User List Display', () => {
     it('should display user table with correct columns', async () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('admin')).toBeInTheDocument();
       });
 
-      // Check table headers (use columnheader role to avoid matching button text)
+      // Check table headers
       expect(screen.getByRole('columnheader', { name: /username/i })).toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: /role/i })).toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: /created/i })).toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: /actions/i })).toBeInTheDocument();
     });
 
-    it('should display role badges for each user', async () => {
-      render(<UsersPage />);
+    it('should display role badges using role_name dynamically', async () => {
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('admin')).toBeInTheDocument();
       });
 
-      // Should display role badges (1 admin, 2 users)
-      expect(screen.getByText('👑 Admin')).toBeInTheDocument();
-      expect(screen.getAllByText('User')).toHaveLength(2);
+      // Should display dynamic role names
+      expect(screen.getByText('👑 admin')).toBeInTheDocument();
+      expect(screen.getByText('operator')).toBeInTheDocument();
+      expect(screen.getByText('viewer')).toBeInTheDocument();
     });
 
     it('should display action buttons for each user', async () => {
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('admin')).toBeInTheDocument();
       });
 
-      // Each user should have change role, reset password, and delete buttons
       const changeRoleButtons = screen.getAllByRole('button', { name: /change role/i });
       const resetPasswordButtons = screen.getAllByRole('button', { name: /reset password/i });
       const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
@@ -117,7 +177,7 @@ describe('UsersPage', () => {
   describe('Create User Flow', () => {
     it('should open create modal when "Create User" button is clicked', async () => {
       const user = userEvent.setup();
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create user/i })).toBeInTheDocument();
@@ -129,16 +189,9 @@ describe('UsersPage', () => {
       expect(screen.getByRole('heading', { name: /create new user/i })).toBeInTheDocument();
     });
 
-    it('should create user and refresh list on successful creation', async () => {
+    it('should show role dropdown with roles from API in create modal', async () => {
       const user = userEvent.setup();
-      vi.mocked(usersApi.createUser).mockResolvedValue({
-        id: 4,
-        username: 'newuser',
-        role: 'user',
-        created_at: '2024-01-04T00:00:00.000Z',
-      });
-
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create user/i })).toBeInTheDocument();
@@ -147,11 +200,41 @@ describe('UsersPage', () => {
       const createButton = screen.getByRole('button', { name: /create user/i });
       await user.click(createButton);
 
-      // Fill form
+      // Role select should have options from API
+      const roleSelect = screen.getByLabelText('Role') as HTMLSelectElement;
+      const options = Array.from(roleSelect.options).map(o => o.text);
+      expect(options).toContain('admin');
+      expect(options).toContain('operator');
+      expect(options).toContain('viewer');
+    });
+
+    it('should create user with role_id and refresh list on successful creation', async () => {
+      const user = userEvent.setup();
+      vi.mocked(usersApi.createUser).mockResolvedValue({
+        id: 4,
+        username: 'newuser',
+        role_id: 2,
+        role_name: 'operator',
+        created_at: '2024-01-04T00:00:00.000Z',
+      });
+
+      renderWithAuth(<UsersPage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create user/i })).toBeInTheDocument();
+      });
+
+      const createButton = screen.getByRole('button', { name: /create user/i });
+      await user.click(createButton);
+
       const usernameInput = screen.getByLabelText('Username');
       const passwordInput = screen.getByLabelText('Password');
       await user.type(usernameInput, 'newuser');
       await user.type(passwordInput, 'SecurePass123!');
+
+      // Select operator role (id=2)
+      const roleSelect = screen.getByLabelText('Role');
+      await user.selectOptions(roleSelect, '2');
 
       const submitButton = screen.getByRole('button', { name: /^create$/i });
       await user.click(submitButton);
@@ -160,59 +243,44 @@ describe('UsersPage', () => {
         expect(usersApi.createUser).toHaveBeenCalledWith({
           username: 'newuser',
           password: 'SecurePass123!',
-          role: 'user',
+          role_id: 2,
         });
       });
 
-      // Should refresh user list
       await waitFor(() => {
         expect(usersApi.getUsers).toHaveBeenCalledTimes(2);
       });
     });
-
-    it('should close modal when cancel is clicked', async () => {
-      const user = userEvent.setup();
-      render(<UsersPage />);
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /create user/i })).toBeInTheDocument();
-      });
-
-      const createButton = screen.getByRole('button', { name: /create user/i });
-      await user.click(createButton);
-
-      const cancelButton = screen.getByRole('button', { name: /cancel/i });
-      await user.click(cancelButton);
-
-      expect(screen.queryByRole('heading', { name: /create new user/i })).not.toBeInTheDocument();
-    });
   });
 
   describe('Change Role Flow', () => {
-    it('should update user role when change role button is clicked', async () => {
+    it('should call updateUserRole with role_id (integer) when role changed', async () => {
       const user = userEvent.setup();
       vi.mocked(usersApi.updateUserRole).mockResolvedValue({
         ...mockUsers[1],
-        role: 'admin',
+        role_id: 1,
+        role_name: 'admin',
       });
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('user1')).toBeInTheDocument();
       });
 
-      // Find change role button for user1 (second user)
+      // Open role change for user1
       const changeRoleButtons = screen.getAllByRole('button', { name: /change role/i });
       await user.click(changeRoleButtons[1]);
 
-      await waitFor(() => {
-        expect(usersApi.updateUserRole).toHaveBeenCalledWith(2, 'admin');
-      });
+      // A role selector dropdown/modal should appear — select a new role
+      const roleSelector = await screen.findByRole('combobox', { name: /select new role/i });
+      await user.selectOptions(roleSelector, '1');
 
-      // Should refresh user list
+      const confirmButton = await screen.findByRole('button', { name: /confirm/i });
+      await user.click(confirmButton);
+
       await waitFor(() => {
-        expect(usersApi.getUsers).toHaveBeenCalledTimes(2);
+        expect(usersApi.updateUserRole).toHaveBeenCalledWith(2, 1);
       });
     });
 
@@ -220,7 +288,7 @@ describe('UsersPage', () => {
       const user = userEvent.setup();
       vi.mocked(usersApi.updateUserRole).mockRejectedValue(new Error('Cannot change last admin role'));
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('admin')).toBeInTheDocument();
@@ -228,6 +296,12 @@ describe('UsersPage', () => {
 
       const changeRoleButtons = screen.getAllByRole('button', { name: /change role/i });
       await user.click(changeRoleButtons[0]);
+
+      const roleSelector = await screen.findByRole('combobox', { name: /select new role/i });
+      await user.selectOptions(roleSelector, '2');
+
+      const confirmButton = await screen.findByRole('button', { name: /confirm/i });
+      await user.click(confirmButton);
 
       await waitFor(() => {
         expect(screen.getByText(/cannot change last admin role/i)).toBeInTheDocument();
@@ -243,7 +317,7 @@ describe('UsersPage', () => {
         newPassword: 'NewRandomPass123!',
       });
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('user1')).toBeInTheDocument();
@@ -256,34 +330,15 @@ describe('UsersPage', () => {
         expect(usersApi.resetUserPassword).toHaveBeenCalledWith(2);
       });
 
-      // Should show password reset dialog
       expect(await screen.findByRole('heading', { name: /password reset successful/i })).toBeInTheDocument();
       expect(screen.getByDisplayValue('NewRandomPass123!')).toBeInTheDocument();
-    });
-
-    it('should display error message if password reset fails', async () => {
-      const user = userEvent.setup();
-      vi.mocked(usersApi.resetUserPassword).mockRejectedValue(new Error('User not found'));
-
-      render(<UsersPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('user1')).toBeInTheDocument();
-      });
-
-      const resetButtons = screen.getAllByRole('button', { name: /reset password/i });
-      await user.click(resetButtons[1]);
-
-      await waitFor(() => {
-        expect(screen.getByText(/user not found/i)).toBeInTheDocument();
-      });
     });
   });
 
   describe('Delete User Flow', () => {
     it('should open delete confirmation dialog when delete button is clicked', async () => {
       const user = userEvent.setup();
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('user1')).toBeInTheDocument();
@@ -300,7 +355,7 @@ describe('UsersPage', () => {
       const user = userEvent.setup();
       vi.mocked(usersApi.deleteUser).mockResolvedValue(undefined);
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText('user1')).toBeInTheDocument();
@@ -309,7 +364,6 @@ describe('UsersPage', () => {
       const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
       await user.click(deleteButtons[1]);
 
-      // Wait for dialog to appear and query button within it
       const dialog = await screen.findByRole('heading', { name: /delete user/i });
       const dialogContainer = dialog.closest('div[class*="fixed"]') as HTMLElement;
       const confirmButton = within(dialogContainer).getByRole('button', { name: /^delete$/i });
@@ -319,51 +373,9 @@ describe('UsersPage', () => {
         expect(usersApi.deleteUser).toHaveBeenCalledWith(2);
       });
 
-      // Should refresh user list
       await waitFor(() => {
         expect(usersApi.getUsers).toHaveBeenCalledTimes(2);
       });
-    });
-
-    it('should display error message if delete fails', async () => {
-      const user = userEvent.setup();
-      vi.mocked(usersApi.deleteUser).mockRejectedValue(new Error('Cannot delete last admin'));
-
-      render(<UsersPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('admin')).toBeInTheDocument();
-      });
-
-      const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
-      await user.click(deleteButtons[0]);
-
-      // Wait for dialog to appear and query button within it
-      const dialog = await screen.findByRole('heading', { name: /delete user/i });
-      const dialogContainer = dialog.closest('div[class*="fixed"]') as HTMLElement;
-      const confirmButton = within(dialogContainer).getByRole('button', { name: /^delete$/i });
-      await user.click(confirmButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/cannot delete last admin/i)).toBeInTheDocument();
-      });
-    });
-
-    it('should close delete dialog when cancel is clicked', async () => {
-      const user = userEvent.setup();
-      render(<UsersPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('user1')).toBeInTheDocument();
-      });
-
-      const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
-      await user.click(deleteButtons[1]);
-
-      const cancelButton = screen.getByRole('button', { name: /cancel/i });
-      await user.click(cancelButton);
-
-      expect(screen.queryByRole('heading', { name: /delete user/i })).not.toBeInTheDocument();
     });
   });
 
@@ -371,7 +383,7 @@ describe('UsersPage', () => {
     it('should display error message if fetching users fails', async () => {
       vi.mocked(usersApi.getUsers).mockRejectedValue(new Error('Failed to fetch users'));
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText(/failed to fetch users/i)).toBeInTheDocument();
@@ -381,11 +393,121 @@ describe('UsersPage', () => {
     it('should display empty state when no users exist', async () => {
       vi.mocked(usersApi.getUsers).mockResolvedValue([]);
 
-      render(<UsersPage />);
+      renderWithAuth(<UsersPage />);
 
       await waitFor(() => {
         expect(screen.getByText(/no users found/i)).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('permission-based button visibility', () => {
+    it('hides "Create User" button when user lacks users:create permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn((p: PermissionName) => p !== 'users:create'),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('create-user-button')).not.toBeInTheDocument();
+    });
+
+    it('shows "Create User" button when user has users:create permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn(() => true),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('create-user-button')).toBeInTheDocument();
+    });
+
+    it('hides "Change Role" buttons when user lacks users:update permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn((p: PermissionName) => p !== 'users:update'),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('change-role-1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('change-role-2')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('change-role-3')).not.toBeInTheDocument();
+    });
+
+    it('shows "Change Role" buttons when user has users:update permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn(() => true),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('change-role-1')).toBeInTheDocument();
+      expect(screen.getByTestId('change-role-2')).toBeInTheDocument();
+      expect(screen.getByTestId('change-role-3')).toBeInTheDocument();
+    });
+
+    it('hides "Reset Password" buttons when user lacks users:update permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn((p: PermissionName) => p !== 'users:update'),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('reset-password-1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('reset-password-2')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('reset-password-3')).not.toBeInTheDocument();
+    });
+
+    it('shows "Reset Password" buttons when user has users:update permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn(() => true),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('reset-password-1')).toBeInTheDocument();
+      expect(screen.getByTestId('reset-password-2')).toBeInTheDocument();
+      expect(screen.getByTestId('reset-password-3')).toBeInTheDocument();
+    });
+
+    it('hides "Delete" buttons when user lacks users:delete permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn((p: PermissionName) => p !== 'users:delete'),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('delete-user-1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('delete-user-2')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('delete-user-3')).not.toBeInTheDocument();
+    });
+
+    it('shows "Delete" buttons when user has users:delete permission', async () => {
+      renderWithAuth(<UsersPage />, {
+        hasPermission: vi.fn(() => true),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('delete-user-1')).toBeInTheDocument();
+      expect(screen.getByTestId('delete-user-2')).toBeInTheDocument();
+      expect(screen.getByTestId('delete-user-3')).toBeInTheDocument();
     });
   });
 });

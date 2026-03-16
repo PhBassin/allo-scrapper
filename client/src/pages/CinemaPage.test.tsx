@@ -1,37 +1,47 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import CinemaPage from './CinemaPage';
 import * as clientApi from '../api/client';
-import type { Cinema, ShowtimeWithFilm } from '../types';
-import { AuthContext } from '../contexts/AuthContext';
-
-const mockAuthContext = {
-  isAuthenticated: true,
-  token: 'mock-token',
-  user: { id: 1, username: 'testuser', role: 'user' as const },
-  login: vi.fn(),
-  logout: vi.fn(),
-  isAdmin: false,
-};
-
-const renderWithAuth = (ui: React.ReactElement) => {
-  return render(
-    <AuthContext.Provider value={mockAuthContext}>
-      {ui}
-    </AuthContext.Provider>
-  );
-};
+import type { Cinema } from '../types';
 
 vi.mock('../api/client', () => ({
   getCinemas: vi.fn(),
   getCinemaSchedule: vi.fn(),
-  triggerCinemaScrape: vi.fn(),
-  getScrapeStatus: vi.fn(),
-  subscribeToProgress: vi.fn(),
 }));
 
-describe('CinemaPage - Cinema scrape button', () => {
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthContext } from '../contexts/AuthContext';
+
+const mockAuthContext = {
+  isAuthenticated: true,
+  user: { id: 1, username: 'testuser', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['cinemas:create', 'scraper:trigger'] as any[] },
+  logout: vi.fn(),
+  login: vi.fn(),
+  isAdmin: false,
+  hasPermission: vi.fn(() => true),
+  token: 'mock-token',
+};
+
+const renderWithClient = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={mockAuthContext}>
+        {ui}
+      </AuthContext.Provider>
+    </QueryClientProvider>
+  );
+};
+
+describe('CinemaPage - renders cinema details', () => {
   const mockCinema: Cinema = {
     id: 'C0153',
     name: 'UGC Test',
@@ -47,18 +57,23 @@ describe('CinemaPage - Cinema scrape button', () => {
     vi.clearAllMocks();
     vi.mocked(clientApi.getCinemas).mockResolvedValue([mockCinema]);
     vi.mocked(clientApi.getCinemaSchedule).mockResolvedValue(mockSchedule);
-    vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({
-      isRunning: false,
-      currentSession: undefined
-    });
-    vi.mocked(clientApi.triggerCinemaScrape).mockResolvedValue({
-      reportId: 1,
-      message: 'ok'
-    });
   });
 
-  it('renders cinema scrape button in sticky position', async () => {
-    renderWithAuth(
+  it('renders the cinema name heading', async () => {
+    renderWithClient(
+      <MemoryRouter initialEntries={['/cinema/C0153']}>
+        <Routes>
+          <Route path="/cinema/:id" element={<CinemaPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('heading', { name: 'UGC Test' });
+    expect(screen.getByRole('heading', { name: 'UGC Test' })).toBeInTheDocument();
+  });
+
+  it('does NOT render a scrape button (scraping moved to admin)', async () => {
+    renderWithClient(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -68,12 +83,12 @@ describe('CinemaPage - Cinema scrape button', () => {
 
     await screen.findByRole('heading', { name: 'UGC Test' });
 
-    const button = screen.getByRole('button', { name: /Scraper uniquement ce cinéma/i });
-    expect(button).toBeInTheDocument();
+    // Scraping controls have been moved to admin CinemasPage
+    expect(screen.queryByText(/Scraper uniquement ce cinéma/i)).not.toBeInTheDocument();
   });
 
-  it('triggers cinema scrape when button is clicked', async () => {
-    renderWithAuth(
+  it('calls getCinemas and getCinemaSchedule on mount', async () => {
+    renderWithClient(
       <MemoryRouter initialEntries={['/cinema/C0153']}>
         <Routes>
           <Route path="/cinema/:id" element={<CinemaPage />} />
@@ -83,211 +98,23 @@ describe('CinemaPage - Cinema scrape button', () => {
 
     await screen.findByRole('heading', { name: 'UGC Test' });
 
-    const scrapeButton = screen.getByRole('button', {
-      name: /Scraper uniquement ce cinéma/i
-    });
-    fireEvent.click(scrapeButton);
-
-    await waitFor(() => {
-      expect(clientApi.triggerCinemaScrape).toHaveBeenCalledWith('C0153');
-    });
-
-    expect(await screen.findByText(/Scraping démarré/i))
-      .toBeInTheDocument();
-  });
-
-  it('displays error message when scrape fails', async () => {
-    vi.mocked(clientApi.triggerCinemaScrape).mockRejectedValue({
-      response: {
-        status: 500,
-        data: { error: 'A scrape is already in progress' }
-      }
-    });
-
-    renderWithAuth(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
-        <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await screen.findByRole('heading', { name: 'UGC Test' });
-
-    fireEvent.click(screen.getByRole('button', {
-      name: /Scraper uniquement ce cinéma/i
-    }));
-
-    expect(await screen.findByText(/A scrape is already in progress/i))
-      .toBeInTheDocument();
-  });
-
-  it('disables button and shows loading state during scrape', async () => {
-    vi.mocked(clientApi.triggerCinemaScrape).mockImplementation(
-      () => new Promise(resolve => setTimeout(() => resolve({ reportId: 1, message: 'ok' }), 100))
-    );
-
-    renderWithAuth(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
-        <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await screen.findByRole('heading', { name: 'UGC Test' });
-
-    const button = screen.getByRole('button', {
-      name: /Scraper uniquement ce cinéma/i
-    });
-
-    fireEvent.click(button);
-
-    // During scrape: button should be disabled and show loading text
-    await waitFor(() => {
-      expect(button).toBeDisabled();
-      expect(button).toHaveTextContent(/Scraping en cours/i);
-    });
-  });
-});
-
-describe('CinemaPage - Scrape completion and data reload', () => {
-  const mockCinema: Cinema = {
-    id: 'C0153',
-    name: 'UGC Test',
-    city: 'Paris',
-    address: '1 rue Test',
-    postal_code: '75001',
-    screen_count: 10,
-  };
-
-  const mockSchedule = { showtimes: [], weekStart: '2026-02-23' };
-  const mockUpdatedSchedule = {
-    showtimes: [
-      {
-        id: '1',
-        cinema_id: 'C0153',
-        film_id: 1,
-        date: '2026-02-23',
-        time: '14:00',
-        datetime_iso: '2026-02-23T14:00:00Z',
-        version: 'VF',
-        format: '2D',
-        experiences: [],
-        week_start: '2026-02-23',
-        film: {
-          id: 1,
-          title: 'New Movie',
-          poster_url: 'https://example.com/poster.jpg',
-          genres: [],
-          actors: [],
-          source_url: 'https://example.com/film/1',
-        },
-      },
-    ] as ShowtimeWithFilm[],
-    weekStart: '2026-02-23',
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(clientApi.getCinemas).mockResolvedValue([mockCinema]);
-    vi.mocked(clientApi.getCinemaSchedule)
-      .mockResolvedValueOnce(mockSchedule) // Initial load
-      .mockResolvedValueOnce(mockUpdatedSchedule); // After scrape
-    vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({
-      isRunning: false,
-      currentSession: undefined
-    });
-    vi.mocked(clientApi.triggerCinemaScrape).mockResolvedValue({
-      reportId: 1,
-      message: 'ok'
-    });
-  });
-
-  it('reloads cinema data after scrape completion callback', async () => {
-    renderWithAuth(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
-        <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    // Wait for initial load
-    await screen.findByRole('heading', { name: 'UGC Test' });
-    expect(clientApi.getCinemaSchedule).toHaveBeenCalledTimes(1);
-
-    // Verify the mock setup is correct
-    expect(clientApi.getCinemaSchedule).toHaveBeenCalledWith('C0153');
-  });
-
-  it('keeps modal visible during data reload', async () => {
-    // This test verifies the integration between CinemaPage and ScrapeProgress
-    // The modal should remain visible until data is reloaded
-
-    renderWithAuth(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
-        <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await screen.findByRole('heading', { name: 'UGC Test' });
-
-    // Verify initial schedule load
-    expect(clientApi.getCinemaSchedule).toHaveBeenCalledWith('C0153');
-  });
-
-  it('does not hide modal if data reload fails', async () => {
-    vi.mocked(clientApi.getCinemaSchedule)
-      .mockResolvedValueOnce(mockSchedule) // Initial load succeeds
-      .mockRejectedValueOnce(new Error('Failed to reload cinema data')); // Reload fails
-
-    renderWithAuth(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
-        <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await screen.findByRole('heading', { name: 'UGC Test' });
-
-    // The test verifies that the error handling is in place
-    // In the actual implementation, if getCinemaSchedule fails in handleScrapeComplete,
-    // the modal should stay visible (early return in catch block)
-    expect(clientApi.getCinemaSchedule).toHaveBeenCalledWith('C0153');
-  });
-
-  it('calls getCinemas and getCinemaSchedule when handleScrapeComplete is triggered', async () => {
-    renderWithAuth(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
-        <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    // Wait for initial load
-    await screen.findByRole('heading', { name: 'UGC Test' });
     expect(clientApi.getCinemas).toHaveBeenCalledTimes(1);
-    expect(clientApi.getCinemaSchedule).toHaveBeenCalledTimes(1);
+    expect(clientApi.getCinemaSchedule).toHaveBeenCalledWith('C0153');
+  });
 
-    // Clear mocks to track reload calls
-    vi.mocked(clientApi.getCinemas).mockClear();
-    vi.mocked(clientApi.getCinemaSchedule).mockClear();
+  it('shows error message when cinema is not found', async () => {
+    vi.mocked(clientApi.getCinemas).mockResolvedValue([]);
 
-    // Simulate scrape completion by calling the component's handleScrapeComplete
-    // This will be indirectly tested via the ScrapeProgress component's onComplete callback
+    renderWithClient(
+      <MemoryRouter initialEntries={['/cinema/C0153']}>
+        <Routes>
+          <Route path="/cinema/:id" element={<CinemaPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
 
-    // Note: Since handleScrapeComplete is called by ScrapeProgress via onComplete callback,
-    // and we're not rendering the full ScrapeProgress component here,
-    // we need to verify that the pattern is correct by checking that:
-    // 1. Initial load calls getCinemas and getCinemaSchedule once
-    // 2. After implementation, a reload would call them again
-
-    // This is a structural test - after the refactoring, handleScrapeComplete
-    // should call loadData(), which will call both getCinemas and getCinemaSchedule
+    await waitFor(() => {
+      expect(screen.getByText(/Cinema not found/i)).toBeInTheDocument();
+    });
   });
 });

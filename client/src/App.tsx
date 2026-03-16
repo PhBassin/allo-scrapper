@@ -7,11 +7,26 @@ import FilmPage from './pages/FilmPage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import AdminPage from './pages/admin/AdminPage';
-import { AuthProvider, AuthContext } from './contexts/AuthContext';
-import { SettingsProvider, SettingsContext } from './contexts/SettingsContext';
+import { AuthContext } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthProvider';
+import { SettingsProvider } from './contexts/SettingsProvider';
+import { SettingsContext } from './contexts/SettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import RequireAdmin from './components/RequireAdmin';
+import RequirePermission from './components/RequirePermission';
+import ErrorBoundary from './components/ErrorBoundary';
 import { useTheme } from './hooks/useTheme';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ADMIN_PERMISSIONS } from './utils/adminPermissions';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function LoadingScreen() {
   return (
@@ -34,14 +49,23 @@ function AppRoutes() {
 
   useEffect(() => {
     const handleUnauthorized = (event: Event) => {
-      const customEvent = event as CustomEvent<{ originalPath: string }>;
+      const customEvent = event as CustomEvent<{ originalPath: string; reason?: 'session_expired' }>;
+      const reason = customEvent.detail?.reason;
+      const isSessionExpired = reason === 'session_expired';
+
+      if (isSessionExpired) {
+        sessionStorage.setItem('auth:expired', '1');
+      }
       
       // Logout user
       logout();
       
       // Navigate to login with original path
       navigate('/login', { 
-        state: { from: { pathname: customEvent.detail.originalPath } },
+        state: {
+          from: { pathname: customEvent.detail.originalPath },
+          reason,
+        },
         replace: true 
       });
     };
@@ -76,9 +100,9 @@ function AppRoutes() {
         <Route
           path="/admin"
           element={
-            <RequireAdmin>
+            <RequirePermission anyOf={ADMIN_PERMISSIONS}>
               <AdminPage />
-            </RequireAdmin>
+            </RequirePermission>
           }
         />
       </Routes>
@@ -88,13 +112,18 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <SettingsProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </SettingsProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <SettingsProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </SettingsProvider>
+        </AuthProvider>
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -25,10 +25,13 @@ services:
     image: node:20-alpine
     container_name: allo-scrapper-server-dev
     working_dir: /app
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install --legacy-peer-deps && npm run dev --workspace=allo-scrapper-server"
     volumes:
-      - ./server:/app          # Full server mount — includes src/config/cinemas.json (git-visible)
+      - .:/app
       - /app/node_modules
+      - /app/client/node_modules
+      - /app/server/node_modules
+      - /app/scraper/node_modules
     ports:
       - "${SERVER_PORT:-3000}:3000"
     environment:
@@ -42,6 +45,7 @@ services:
       TZ: ${TZ:-Europe/Paris}
       SCRAPE_CRON_SCHEDULE: ${SCRAPE_CRON_SCHEDULE:-0 8 * * 3}
       SCRAPE_DELAY_MS: ${SCRAPE_DELAY_MS:-1000}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
     depends_on:
       db:
         condition: service_healthy
@@ -54,10 +58,13 @@ services:
     image: node:20-alpine
     container_name: allo-scrapper-client-dev
     working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host"
+    command: sh -c "npm install --legacy-peer-deps && npm run dev --workspace=client -- --host"
     volumes:
-      - ./client:/app
+      - .:/app
       - /app/node_modules
+      - /app/client/node_modules
+      - /app/server/node_modules
+      - /app/scraper/node_modules
     ports:
       - "${CLIENT_PORT:-5173}:5173"
     environment:

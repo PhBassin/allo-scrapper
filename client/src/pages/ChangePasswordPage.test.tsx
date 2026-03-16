@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -50,8 +51,56 @@ describe('ChangePasswordPage', () => {
     expect(screen.getByText(/at least 8 characters/i)).toBeInTheDocument();
     expect(screen.getByText(/one uppercase letter/i)).toBeInTheDocument();
     expect(screen.getByText(/one lowercase letter/i)).toBeInTheDocument();
-    expect(screen.getByText(/one number/i)).toBeInTheDocument();
+    expect(screen.getByText(/one digit/i)).toBeInTheDocument();
     expect(screen.getByText(/one special character/i)).toBeInTheDocument();
+  });
+
+  it('should show dynamic validation icons that update as user types', async () => {
+    render(
+      <MemoryRouter>
+        <ChangePasswordPage />
+      </MemoryRouter>
+    );
+
+    const newPasswordInput = screen.getByLabelText(/^new password$/i);
+
+    // Initially all should show red icons
+    const uppercaseItem = screen.getByText(/one uppercase letter/i).closest('li');
+    expect(uppercaseItem?.querySelector('.text-red-500')).toBeInTheDocument();
+
+    // Type uppercase letter - should turn green
+    fireEvent.change(newPasswordInput, { target: { value: 'A' } });
+    await waitFor(() => {
+      expect(uppercaseItem?.querySelector('.text-green-500')).toBeInTheDocument();
+    });
+
+    // Type more - lowercase
+    fireEvent.change(newPasswordInput, { target: { value: 'Aa' } });
+    const lowercaseItem = screen.getByText(/one lowercase letter/i).closest('li');
+    await waitFor(() => {
+      expect(lowercaseItem?.querySelector('.text-green-500')).toBeInTheDocument();
+    });
+
+    // Type digit
+    fireEvent.change(newPasswordInput, { target: { value: 'Aa1' } });
+    const digitItem = screen.getByText(/one digit/i).closest('li');
+    await waitFor(() => {
+      expect(digitItem?.querySelector('.text-green-500')).toBeInTheDocument();
+    });
+
+    // Type special char
+    fireEvent.change(newPasswordInput, { target: { value: 'Aa1!' } });
+    const specialItem = screen.getByText(/one special character/i).closest('li');
+    await waitFor(() => {
+      expect(specialItem?.querySelector('.text-green-500')).toBeInTheDocument();
+    });
+
+    // Type more to reach 8 chars
+    fireEvent.change(newPasswordInput, { target: { value: 'Aa1!bbbb' } });
+    const lengthItem = screen.getByText(/at least 8 characters/i).closest('li');
+    await waitFor(() => {
+      expect(lengthItem?.querySelector('.text-green-500')).toBeInTheDocument();
+    });
   });
 
   it('should show error if passwords do not match', async () => {

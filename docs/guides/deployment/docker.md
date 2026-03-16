@@ -2,7 +2,7 @@
 
 Complete guide for Docker deployment, containerization, and optimization.
 
-**Last updated:** March 4, 2026
+**Last updated:** March 15, 2026
 
 **Related Guides:**
 - [Production Deployment](./production.md) - Full production setup
@@ -93,15 +93,13 @@ The application is automatically built and published to GitHub Container Registr
 
 ### Platform Support
 
-Docker images are built for **linux/amd64** only. ARM64 (Apple Silicon, Raspberry Pi) is not supported via pre-built images due to QEMU emulation instability during `npm ci` on GitHub Actions runners. 
+Docker images are built for **linux/amd64 and linux/arm64** using GitHub's native ARM64 runners (no QEMU emulation). Both the web image and the scraper image support both architectures.
 
-**If you need to run on ARM64**, build the image locally on your ARM64 machine:
-
-```bash
-docker build -t allo-scrapper .
-```
+Docker automatically selects the correct variant for your machine when you `docker pull`.
 
 ### Available Images
+
+**Web application:**
 
 > **v1.1.0+ tag strategy:**
 > - **`:stable`** — production-ready builds from `main` branch and version tags. Use this in production.
@@ -114,6 +112,12 @@ docker build -t allo-scrapper .
 - `ghcr.io/phbassin/allo-scrapper:v1.1.0` - Specific version
 - `ghcr.io/phbassin/allo-scrapper:main` - Latest commit on main branch
 - `ghcr.io/phbassin/allo-scrapper:develop` - Latest commit on develop branch
+
+**Scraper microservice:**
+
+- `ghcr.io/phbassin/allo-scrapper-scraper:stable` - Latest production-ready release **[recommended for production]**
+- `ghcr.io/phbassin/allo-scrapper-scraper:latest` - Latest development build
+- `ghcr.io/phbassin/allo-scrapper-scraper:v1.x.x` - Specific version
 
 ### Migration Guide: v1.0.0 → v1.1.0
 
@@ -383,6 +387,94 @@ docker run --rm \
 > **Note:** Redis data is not persisted by design. Redis serves as a message queue and pub/sub system, not as persistent storage.
 
 See [Backup & Restore](./backup-restore.md) for complete backup workflows.
+
+---
+
+## JWT Configuration
+
+### Token Expiry Management
+
+All three Docker Compose files (`docker-compose.yml`, `docker-compose.dev.yml`, `docker-compose.build.yml`) forward the `JWT_EXPIRES_IN` environment variable from your `.env` file to the application containers.
+
+**Configuration in `.env`:**
+```env
+JWT_EXPIRES_IN=24h  # Default: 24 hours
+```
+
+**Docker Compose behavior:**
+```yaml
+# In all compose files
+services:
+  ics-web:
+    environment:
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+```
+
+The `:-24h` syntax provides a fallback default of 24 hours if `JWT_EXPIRES_IN` is not set in your `.env` file.
+
+### Common Configurations
+
+**Production (Recommended):**
+```env
+JWT_EXPIRES_IN=24h  # Re-authenticate once per day
+```
+
+**Long Sessions (Internal Tools):**
+```env
+JWT_EXPIRES_IN=7d   # Re-authenticate once per week
+```
+
+**High Security (Public Apps):**
+```env
+JWT_EXPIRES_IN=1h   # Re-authenticate every hour
+```
+
+**Development:**
+```env
+JWT_EXPIRES_IN=24h  # Avoid frequent re-logins during development
+```
+
+### Applying Changes
+
+After modifying `JWT_EXPIRES_IN` in your `.env` file:
+
+```bash
+# Restart containers to pick up new environment variable
+docker compose restart ics-web
+
+# Or recreate containers (forces environment reload)
+docker compose up -d --force-recreate ics-web
+```
+
+**Important:** 
+- Existing JWT tokens remain valid until their original expiry time
+- Only newly issued tokens (new logins) use the updated `JWT_EXPIRES_IN` value
+- Users with active sessions must re-login to be affected by the new expiry duration
+
+### Client Behavior
+
+The React client implements **proactive token expiry handling**:
+- When a user logs in, the client decodes the JWT to extract the expiry timestamp
+- A `setTimeout` timer is scheduled to fire exactly when the token expires
+- When the timer fires, the user is automatically logged out with a "session expired" message
+- No failed API requests occur due to expired tokens
+
+This means users see a friendly "Votre session a expiré. Veuillez vous reconnecter." message instead of encountering 401 errors.
+
+### Verification
+
+Check the current JWT expiry configuration:
+
+```bash
+# View environment variables in running container
+docker compose exec ics-web printenv | grep JWT
+
+# Example output:
+# JWT_SECRET=your-secret-here
+# JWT_EXPIRES_IN=24h
+```
+
+See [Configuration Reference](../../getting-started/configuration.md#jwt_expires_in) for complete JWT configuration options.
 
 ---
 

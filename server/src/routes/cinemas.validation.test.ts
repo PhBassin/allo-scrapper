@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as queries from '../db/queries.js';
+import * as queries from '../db/showtime-queries.js';
+import * as cinemaQueries from '../db/cinema-queries.js';
 import router from './cinemas.js';
 import { db } from '../db/client.js';
 
@@ -8,7 +9,7 @@ vi.mock('../db/client.js', () => ({
   db: { query: vi.fn() }
 }));
 
-vi.mock('../db/queries.js', () => ({
+vi.mock('../db/cinema-queries.js', () => ({
   addCinema: vi.fn(),
   updateCinemaConfig: vi.fn(),
   deleteCinema: vi.fn(),
@@ -46,7 +47,11 @@ describe('Routes - Cinemas - Validation', () => {
       json: vi.fn().mockReturnThis(),
       status: vi.fn().mockReturnThis()
     };
-    mockNext = vi.fn();
+    mockNext = vi.fn((err?: any) => {
+      if (err) {
+        mockRes.status(err.statusCode || 500).json({ success: false, error: err.message });
+      }
+    });
   });
 
   it('should reject POST with invalid ID format (non-alphanumeric)', async () => {
@@ -67,7 +72,7 @@ describe('Routes - Cinemas - Validation', () => {
       success: false,
       error: expect.stringContaining('Invalid ID format. Must be alphanumeric string.')
     }));
-    expect(queries.addCinema).not.toHaveBeenCalled();
+    expect(cinemaQueries.addCinema).not.toHaveBeenCalled();
   });
 
   it('should reject POST with ID too long', async () => {
@@ -284,7 +289,7 @@ describe('Routes - Cinemas - Validation', () => {
   });
 
   it('should accept PUT with valid address only', async () => {
-    vi.mocked(queries.updateCinemaConfig).mockResolvedValue({
+    vi.mocked(cinemaQueries.updateCinemaConfig).mockResolvedValue({
       id: 'C001',
       name: 'Test Cinema',
       url: 'https://www.allocine.fr/test'
@@ -301,7 +306,7 @@ describe('Routes - Cinemas - Validation', () => {
     const handler = getRouteHandler('/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
-    expect(queries.updateCinemaConfig).toHaveBeenCalledWith(db, 'C001', {
+    expect(cinemaQueries.updateCinemaConfig).toHaveBeenCalledWith(db, 'C001', {
       address: '123 Main Street'
     });
     expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -310,7 +315,7 @@ describe('Routes - Cinemas - Validation', () => {
   });
 
   it('should accept PUT with valid city only', async () => {
-    vi.mocked(queries.updateCinemaConfig).mockResolvedValue({
+    vi.mocked(cinemaQueries.updateCinemaConfig).mockResolvedValue({
       id: 'C001',
       name: 'Test Cinema',
       url: 'https://www.allocine.fr/test'
@@ -327,7 +332,7 @@ describe('Routes - Cinemas - Validation', () => {
     const handler = getRouteHandler('/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
-    expect(queries.updateCinemaConfig).toHaveBeenCalledWith(db, 'C001', {
+    expect(cinemaQueries.updateCinemaConfig).toHaveBeenCalledWith(db, 'C001', {
       city: 'Paris'
     });
     expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -336,7 +341,7 @@ describe('Routes - Cinemas - Validation', () => {
   });
 
   it('should accept PUT with valid postal_code only', async () => {
-    vi.mocked(queries.updateCinemaConfig).mockResolvedValue({
+    vi.mocked(cinemaQueries.updateCinemaConfig).mockResolvedValue({
       id: 'C001',
       name: 'Test Cinema',
       url: 'https://www.allocine.fr/test'
@@ -353,7 +358,7 @@ describe('Routes - Cinemas - Validation', () => {
     const handler = getRouteHandler('/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
-    expect(queries.updateCinemaConfig).toHaveBeenCalledWith(db, 'C001', {
+    expect(cinemaQueries.updateCinemaConfig).toHaveBeenCalledWith(db, 'C001', {
       postal_code: '75001'
     });
     expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -362,7 +367,7 @@ describe('Routes - Cinemas - Validation', () => {
   });
 
   it('should accept PUT with valid screen_count only', async () => {
-    vi.mocked(queries.updateCinemaConfig).mockResolvedValue({
+    vi.mocked(cinemaQueries.updateCinemaConfig).mockResolvedValue({
       id: 'C001',
       name: 'Test Cinema',
       url: 'https://www.allocine.fr/test'
@@ -379,7 +384,7 @@ describe('Routes - Cinemas - Validation', () => {
     const handler = getRouteHandler('/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
-    expect(queries.updateCinemaConfig).toHaveBeenCalledWith(db, 'C001', {
+    expect(cinemaQueries.updateCinemaConfig).toHaveBeenCalledWith(db, 'C001', {
       screen_count: 10
     });
     expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -388,7 +393,7 @@ describe('Routes - Cinemas - Validation', () => {
   });
 
   it('should accept PUT with all location and screen fields together', async () => {
-    vi.mocked(queries.updateCinemaConfig).mockResolvedValue({
+    vi.mocked(cinemaQueries.updateCinemaConfig).mockResolvedValue({
       id: 'C001',
       name: 'Test Cinema',
       url: 'https://www.allocine.fr/test'
@@ -408,7 +413,7 @@ describe('Routes - Cinemas - Validation', () => {
     const handler = getRouteHandler('/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
-    expect(queries.updateCinemaConfig).toHaveBeenCalledWith(db, 'C001', {
+    expect(cinemaQueries.updateCinemaConfig).toHaveBeenCalledWith(db, 'C001', {
       address: '123 Main Street',
       postal_code: '75001',
       city: 'Paris',

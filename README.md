@@ -1,6 +1,6 @@
 # 🎬 Allo-Scrapper
 
-[![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-24+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-4.x-000000?logo=express&logoColor=white)](https://expressjs.com/)
 [![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=black)](https://react.dev/)
@@ -35,11 +35,12 @@
 - **User Management**: Role-based access control (admin/user) with comprehensive user CRUD
 - **JWT Authentication**: Secure user authentication with token-based sessions
 - **Password Management**: Change password functionality for authenticated users
+- **Session Expiry Handling**: Expired JWTs are invalidated client-side and protected routes redirect to login
 - **Rate Limiting**: Comprehensive rate limiting per endpoint type (auth, public, protected)
 - **Performance Optimized**: JSON parse caching with LRU eviction (95-99% hit rate)
 - **Docker Ready**: Full containerization with multi-stage builds (linux/amd64)
 - **CI/CD**: GitHub Actions workflow for automated Docker image builds
-- **Redis Job Queue**: Scraper microservice mode via Redis pub/sub (`USE_REDIS_SCRAPER=true`)
+- **Scraper Microservice**: Standalone scraper service communicates with the API via Redis job queue and pub/sub
 - **Observability**: Prometheus metrics, Grafana dashboards, Loki log aggregation, Tempo distributed tracing
 - **Production Ready**: Health checks, error handling, and database migrations
 
@@ -57,13 +58,12 @@
 ┌─────────────────┐    Redis pub/sub    ┌───────────────────┐
 │  Express.js API │◄───────────────────►│ Scraper           │
 │  (TypeScript)   │   scrape:jobs queue │ Microservice      │
-│                 │───────────────────►│ (ics-scraper)     │
-│  feature flag:  │                    │                   │
-│  USE_REDIS_     │    (legacy mode)   │  ┌─────────────┐  │
-│  SCRAPER=false  │◄───in-process──────┤  │ Cron        │  │
-│  → in-process   │                    │  │ (ics-scraper│  │
-│  SCRAPER=true   │                    │  │  -cron)     │  │
-│  → Redis queue  │                    │  └─────────────┘  │
+│  API + frontend │────────────────────►│ (ics-scraper)     │
+│  only — no      │                    │                   │
+│  scraping code  │                    │  ┌─────────────┐  │
+│                 │                    │  │ Cron        │  │
+│                 │                    │  │ (ics-scraper│  │
+│                 │                    │  │  -cron)     │  │
 └────────┬────────┘                    └────────┬──────────┘
          │ SQL                                  │ SQL
          └──────────────────┬───────────────────┘
@@ -75,7 +75,7 @@
               └─────────────────────────┘
 
               ┌─────────────────────────┐
-              │   Redis  (in-memory)    │  Message queue + pub/sub
+              │   Redis  (mandatory)    │  Job queue + progress pub/sub
               └─────────────────────────┘
 
   Monitoring (--profile monitoring):
@@ -87,12 +87,11 @@
 **Data Flow:**
 1. Client makes HTTP requests to Express API (`/api/*`)
 2. API routes handle business logic and validate requests
-3. Scraper fetches data from the source website — either in-process (default) or via a Redis job queue (`USE_REDIS_SCRAPER=true`)
-4. Progress events flow back to the API via Redis pub/sub → SSE → client
-5. PostgreSQL stores structured cinema, film, and showtime data
-6. Client receives JSON responses and renders UI
-
-> See [MONITORING.md](./MONITORING.md) for the full observability stack documentation.
+3. API publishes scrape jobs to Redis (`scrape:jobs` queue) — the scraper microservice picks them up
+4. Scraper fetches data from the source website and writes results directly to PostgreSQL
+5. Progress events flow back to the API via Redis pub/sub → SSE → client
+6. PostgreSQL stores structured cinema, film, and showtime data
+7. Client receives JSON responses and renders UI
 
 ---
 
@@ -314,7 +313,7 @@ For active development without Docker:
 **Prerequisites:**
 - Node.js 20.19+ or 22.12+
 - PostgreSQL 15+
-- Redis (optional, only if `USE_REDIS_SCRAPER=true`)
+- Redis (required for scraping operations)
 
 **Setup:**
 ```bash
@@ -333,8 +332,11 @@ npm install
 # Setup environment and database
 cd ../server
 cp .env.example .env
-# Edit .env with your PostgreSQL credentials
+# Edit .env with your PostgreSQL and Redis credentials
 npm run db:migrate
+
+# Start Redis (required — scraping will not work without it)
+# e.g. via Docker: docker run -d -p 6379:6379 redis:7-alpine
 
 # Run development servers (in separate terminals)
 # Terminal 1 - API server
@@ -342,6 +344,9 @@ cd server && npm run dev    # API on http://localhost:3000
 
 # Terminal 2 - Frontend dev server
 cd client && npm run dev    # UI on http://localhost:5173
+
+# Terminal 3 - Scraper microservice (for scraping to work locally)
+cd scraper && npm run dev
 ```
 
 **⚠️ Important:** Always run `npm install` from the `server/` directory, not the root. The `sharp` image processing library requires native binaries that may not install correctly if run from the wrong directory.

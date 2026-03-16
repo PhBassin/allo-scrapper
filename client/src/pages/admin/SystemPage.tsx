@@ -1,8 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { getSystemInfo, getMigrations, getSystemHealth, formatUptime, formatDate } from '../../api/system';
 import type { SystemInfo, MigrationsInfo, SystemHealth } from '../../api/system';
+import { AuthContext } from '../../contexts/AuthContext';
+import Button from '../../components/ui/Button';
 
 const SystemPage: React.FC = () => {
+  const { hasPermission } = useContext(AuthContext);
+  
+  // Permission checks
+  const canViewInfo = hasPermission('system:info');
+  const canViewHealth = hasPermission('system:health');
+  const canViewMigrations = hasPermission('system:migrations');
+
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [migrations, setMigrations] = useState<MigrationsInfo | null>(null);
   const [health, setHealth] = useState<SystemHealth | null>(null);
@@ -10,14 +19,14 @@ const SystemPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const [infoData, migrationsData, healthData] = await Promise.all([
-        getSystemInfo(),
-        getMigrations(),
-        getSystemHealth(),
+        canViewInfo ? getSystemInfo() : Promise.resolve(null),
+        canViewMigrations ? getMigrations() : Promise.resolve(null),
+        canViewHealth ? getSystemHealth() : Promise.resolve(null),
       ]);
       setSystemInfo(infoData);
       setMigrations(migrationsData);
@@ -27,11 +36,11 @@ const SystemPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [canViewInfo, canViewHealth, canViewMigrations]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Auto-refresh every 30 seconds if enabled
   useEffect(() => {
@@ -42,7 +51,7 @@ const SystemPage: React.FC = () => {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, [autoRefresh, loadData]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -75,12 +84,13 @@ const SystemPage: React.FC = () => {
         <h1 className="text-2xl font-bold mb-6">System Information</h1>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-800">{error}</p>
-          <button
+          <Button
+            variant="danger"
             onClick={loadData}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            className="mt-4"
           >
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -101,19 +111,18 @@ const SystemPage: React.FC = () => {
             />
             Auto-refresh (30s)
           </label>
-          <button
+          <Button
             onClick={loadData}
             disabled={isLoading}
-            className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-50"
           >
             {isLoading ? 'Refreshing...' : 'Refresh'}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Health Status Card */}
-      {health && (
-        <div className="mb-6 bg-white rounded-lg shadow p-6">
+      {canViewHealth && health && (
+        <div className="mb-6 bg-white rounded-lg shadow p-6" data-testid="health-status-card">
           <h2 className="text-lg font-semibold mb-4">System Health</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -155,8 +164,8 @@ const SystemPage: React.FC = () => {
       )}
 
       {/* System Info Grid */}
-      {systemInfo && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      {canViewInfo && systemInfo && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" data-testid="system-info-grid">
           {/* App Info Card */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">Application</h2>
@@ -233,8 +242,8 @@ const SystemPage: React.FC = () => {
       )}
 
       {/* Migrations Table */}
-      {migrations && (
-        <div className="bg-white rounded-lg shadow p-6">
+      {canViewMigrations && migrations && (
+        <div className="bg-white rounded-lg shadow p-6" data-testid="migrations-table">
           <h2 className="text-lg font-semibold mb-4">
             Database Migrations ({migrations.total} total)
           </h2>

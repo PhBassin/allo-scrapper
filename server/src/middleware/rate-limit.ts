@@ -1,4 +1,6 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import jwt from 'jsonwebtoken';
+import type { Request } from 'express';
 
 // Helper to parse env var as number with fallback
 const parseEnvInt = (key: string, defaultValue: number): number => {
@@ -11,6 +13,26 @@ const skipTest = (req: any) => !req.ip;
 
 // Window duration in milliseconds
 const WINDOW_MS = parseEnvInt('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000); // 15 min
+
+/**
+ * Key generator that buckets authenticated requests by user id.
+ * Falls back to req.ip for unauthenticated requests.
+ * Uses jwt.decode (not jwt.verify) — we only need the payload for bucketing;
+ * security verification is already handled by the requireAuth middleware.
+ */
+export const authenticatedKeyGenerator = (req: Request): string => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.decode(token) as { id?: number } | null;
+      if (decoded?.id) return `user:${decoded.id}`;
+    }
+  } catch {
+    // fall through to IP fallback
+  }
+  return ipKeyGenerator(req.ip ?? 'unknown');
+};
 
 // General API rate limiter (applies to all /api/* routes)
 export const generalLimiter = rateLimit({
@@ -53,6 +75,7 @@ export const protectedLimiter = rateLimit({
   windowMs: WINDOW_MS,
   max: parseEnvInt('RATE_LIMIT_PROTECTED_MAX', 60),
   skip: skipTest,
+  keyGenerator: authenticatedKeyGenerator,
   message: {
     success: false,
     error: 'Too many requests to this resource, please try again later.',
@@ -64,6 +87,7 @@ export const scraperLimiter = rateLimit({
   windowMs: WINDOW_MS,
   max: parseEnvInt('RATE_LIMIT_SCRAPER_MAX', 10),
   skip: skipTest,
+  keyGenerator: authenticatedKeyGenerator,
   message: {
     success: false,
     error: 'Too many scrape requests, please try again later.',

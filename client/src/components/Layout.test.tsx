@@ -5,25 +5,26 @@ import { BrowserRouter } from 'react-router-dom';
 import Layout from './Layout';
 import { AuthContext } from '../contexts/AuthContext';
 import { SettingsContext } from '../contexts/SettingsContext';
+import type { PermissionName } from '../types/role';
 
 const mockAuthContext = {
   isAuthenticated: true,
   isAdmin: true,
+  hasPermission: vi.fn<(p: PermissionName) => boolean>(() => true),
   token: 'mock-token',
-  user: { id: 1, username: 'admin', role: 'admin' as const },
+  user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['scraper:trigger', 'cinemas:create'] as PermissionName[] },
   login: vi.fn(),
   logout: vi.fn(),
-  checkAuth: vi.fn(),
 };
 
 const mockNonAdminAuthContext = {
   isAuthenticated: true,
   isAdmin: false,
+  hasPermission: vi.fn<(p: PermissionName) => boolean>(() => false),
   token: 'mock-token',
-  user: { id: 2, username: 'user', role: 'user' as const },
+  user: { id: 2, username: 'user', role_id: 2, role_name: 'user', is_system_role: false, permissions: [] as PermissionName[] },
   login: vi.fn(),
   logout: vi.fn(),
-  checkAuth: vi.fn(),
 };
 
 const mockSettingsContext = {

@@ -1,13 +1,109 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { getUsers, createUser, updateUserRole, resetUserPassword, deleteUser } from '../../api/users';
 import type { UserPublic, UserCreate } from '../../api/users';
+import { rolesApi } from '../../api/roles';
+import type { RoleWithPermissions } from '../../types/role';
+import { AuthContext } from '../../contexts/AuthContext';
 import RoleBadge from '../../components/admin/RoleBadge';
 import CreateUserModal from '../../components/admin/CreateUserModal';
 import DeleteUserDialog from '../../components/admin/DeleteUserDialog';
 import PasswordResetDialog from '../../components/admin/PasswordResetDialog';
+import Button from '../../components/ui/Button';
+import LinkButton from '../../components/ui/LinkButton';
 
+// ────────────────────────────────────────────────────────────────
+// ChangeRoleModal — select a new role from a dropdown
+// ────────────────────────────────────────────────────────────────
+interface ChangeRoleModalProps {
+  user: UserPublic;
+  roles: RoleWithPermissions[];
+  onClose: () => void;
+  onConfirm: (userId: number, newRoleId: number) => Promise<void>;
+}
+
+const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ user, roles, onClose, onConfirm }) => {
+  const [selectedRoleId, setSelectedRoleId] = useState<number>(user.role_id);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleConfirm = async () => {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await onConfirm(user.id, selectedRoleId);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to change role');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Change Role</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Select a new role for <strong>{user.username}</strong>
+        </p>
+
+        <label htmlFor="select-new-role" className="block text-sm font-medium text-gray-700 mb-1">
+          Select new role
+        </label>
+        <select
+          id="select-new-role"
+          aria-label="Select new role"
+          value={selectedRoleId}
+          onChange={e => setSelectedRoleId(Number(e.target.value))}
+          disabled={isSubmitting}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 mb-4 disabled:bg-gray-100"
+        >
+          {roles.map(role => (
+            <option key={role.id} value={role.id}>
+              {role.name}
+            </option>
+          ))}
+        </select>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Saving...' : 'Confirm'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ────────────────────────────────────────────────────────────────
+// UsersPage
+// ────────────────────────────────────────────────────────────────
 const UsersPage: React.FC = () => {
+  const { hasPermission } = useContext(AuthContext);
+  
+  // Permission checks
+  const canCreate = hasPermission('users:create');
+  const canUpdate = hasPermission('users:update');
+  const canDelete = hasPermission('users:delete');
+
   const [users, setUsers] = useState<UserPublic[]>([]);
+  const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,14 +116,19 @@ const UsersPage: React.FC = () => {
     username: string;
     newPassword: string;
   } | null>(null);
+  const [userForRoleChange, setUserForRoleChange] = useState<UserPublic | null>(null);
 
-  // Fetch users
-  const fetchUsers = async () => {
+  // Fetch users and roles
+  const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getUsers();
-      setUsers(data);
+      const [usersData, rolesData] = await Promise.all([
+        getUsers(),
+        rolesApi.getAll(),
+      ]);
+      setUsers(usersData);
+      setRoles(rolesData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch users');
     } finally {
@@ -36,26 +137,20 @@ const UsersPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchData();
   }, []);
 
   // Create user
   const handleCreateUser = async (data: UserCreate) => {
     await createUser(data);
     setShowCreateModal(false);
-    await fetchUsers();
+    await fetchData();
   };
 
-  // Change role
-  const handleChangeRole = async (userId: number, currentRole: 'admin' | 'user') => {
-    try {
-      setError(null);
-      const newRole = currentRole === 'admin' ? 'user' : 'admin';
-      await updateUserRole(userId, newRole);
-      await fetchUsers();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to change role');
-    }
+  // Change role — now uses role_id integer
+  const handleChangeRole = async (userId: number, newRoleId: number) => {
+    await updateUserRole(userId, newRoleId);
+    await fetchData();
   };
 
   // Reset password
@@ -79,7 +174,7 @@ const UsersPage: React.FC = () => {
       setDeleteError(null);
       await deleteUser(userId);
       setUserToDelete(null);
-      await fetchUsers();
+      await fetchData();
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Failed to delete user');
     } finally {
@@ -88,7 +183,7 @@ const UsersPage: React.FC = () => {
   };
 
   // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
-  // re-initialization during lists renders
+  // re-initialization during list renders
   const formatterDate = useMemo(() => new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
@@ -103,6 +198,9 @@ const UsersPage: React.FC = () => {
     return formatterDate.format(date);
   };
 
+  // Build a quick role lookup for isSystem flag
+  const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r])), [roles]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -116,12 +214,11 @@ const UsersPage: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
-        >
-          Create User
-        </button>
+        {canCreate && (
+          <Button onClick={() => setShowCreateModal(true)} data-testid="create-user-button">
+            Create User
+          </Button>
+        )}
       </div>
 
       {/* Error Message */}
@@ -157,42 +254,52 @@ const UsersPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{user.username}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <RoleBadge role={user.role} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{formatDate(user.created_at)}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => handleChangeRole(user.id, user.role)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title={`Change role to ${user.role === 'admin' ? 'user' : 'admin'}`}
-                      >
-                        Change Role
-                      </button>
-                      <button
-                        onClick={() => handleResetPassword(user.id)}
-                        className="text-yellow-600 hover:text-yellow-900"
-                      >
-                        Reset Password
-                      </button>
-                      <button
-                        onClick={() => setUserToDelete(user)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {users.map((user) => {
+                const role = roleMap.get(user.role_id);
+                return (
+                  <tr key={user.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{user.username}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <RoleBadge roleName={user.role_name} isSystem={role?.is_system} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{formatDate(user.created_at)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end gap-2">
+                        {canUpdate && (
+                          <LinkButton
+                            onClick={() => setUserForRoleChange(user)}
+                            data-testid={`change-role-${user.id}`}
+                          >
+                            Change Role
+                          </LinkButton>
+                        )}
+                        {canUpdate && (
+                          <LinkButton
+                            variant="warning"
+                            onClick={() => handleResetPassword(user.id)}
+                            data-testid={`reset-password-${user.id}`}
+                          >
+                            Reset Password
+                          </LinkButton>
+                        )}
+                        {canDelete && (
+                          <LinkButton
+                            variant="danger"
+                            onClick={() => setUserToDelete(user)}
+                            data-testid={`delete-user-${user.id}`}
+                          >
+                            Delete
+                          </LinkButton>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -203,7 +310,18 @@ const UsersPage: React.FC = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreate={handleCreateUser}
+        roles={roles}
       />
+
+      {/* Change Role Modal */}
+      {userForRoleChange && (
+        <ChangeRoleModal
+          user={userForRoleChange}
+          roles={roles}
+          onClose={() => setUserForRoleChange(null)}
+          onConfirm={handleChangeRole}
+        />
+      )}
 
       {/* Delete User Dialog */}
       {userToDelete && (

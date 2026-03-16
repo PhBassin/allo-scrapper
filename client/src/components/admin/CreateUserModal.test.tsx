@@ -54,7 +54,7 @@ describe('CreateUserModal', () => {
 
       expect(usernameInput.value).toBe('');
       expect(passwordInput.value).toBe('');
-      expect(roleSelect.value).toBe('user'); // default role
+      expect(roleSelect.value).toBe('1'); // default role — first in DEFAULT_ROLES (admin id=1)
     });
 
     it('should render cancel and create buttons', () => {
@@ -161,7 +161,7 @@ describe('CreateUserModal', () => {
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/password must be at least 8 characters/i)).toBeInTheDocument();
+        expect(screen.getByText(/at least 8 characters/i)).toHaveClass('text-red-700');
       });
     });
 
@@ -180,7 +180,7 @@ describe('CreateUserModal', () => {
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/password must contain.*uppercase/i)).toBeInTheDocument();
+        expect(screen.getByText(/one uppercase letter/i)).toHaveClass('text-red-700');
       });
     });
 
@@ -199,7 +199,7 @@ describe('CreateUserModal', () => {
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/password must contain.*lowercase/i)).toBeInTheDocument();
+        expect(screen.getByText(/one lowercase letter/i)).toHaveClass('text-red-700');
       });
     });
 
@@ -218,7 +218,7 @@ describe('CreateUserModal', () => {
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/password must contain.*digit/i)).toBeInTheDocument();
+        expect(screen.getByText(/one digit/i)).toHaveClass('text-red-700');
       });
     });
 
@@ -237,7 +237,7 @@ describe('CreateUserModal', () => {
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/password must contain.*special character/i)).toBeInTheDocument();
+        expect(screen.getByText(/one special character/i)).toHaveClass('text-red-700');
       });
     });
 
@@ -291,7 +291,7 @@ describe('CreateUserModal', () => {
         expect(mockOnCreate).toHaveBeenCalledWith({
           username: 'newuser123',
           password: 'SecurePass123!',
-          role: 'user',
+          role_id: 1,
         });
       });
     });
@@ -322,7 +322,7 @@ describe('CreateUserModal', () => {
         expect(mockOnCreate).toHaveBeenCalledWith({
           username: 'adminuser',
           password: 'AdminPass123!',
-          role: 'admin',
+          role_id: 1,
         });
       });
     });

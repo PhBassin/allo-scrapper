@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useContext, useState, useEffect, useRef } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { SettingsContext } from '../contexts/SettingsContext';
+import { ADMIN_PERMISSIONS } from '../utils/adminPermissions';
 
 interface LayoutProps {
   children: ReactNode;
@@ -10,7 +11,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, title }: LayoutProps) {
-  const { isAuthenticated, isAdmin, user, logout } = useContext(AuthContext);
+  const { isAuthenticated, user, logout, hasPermission } = useContext(AuthContext);
   const { publicSettings } = useContext(SettingsContext);
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -18,6 +19,9 @@ export default function Layout({ children, title }: LayoutProps) {
 
   const APP_NAME = publicSettings?.site_name || import.meta.env.VITE_APP_NAME || 'Allo-Scrapper';
   const logo = publicSettings?.logo_base64;
+  
+  // Check if user has at least one admin permission
+  const hasAdminAccess = isAuthenticated && ADMIN_PERMISSIONS.some(perm => hasPermission(perm));
 
   const handleLogout = () => {
     logout();
@@ -48,7 +52,7 @@ export default function Layout({ children, title }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-secondary text-white shadow-lg">
+      <header className="bg-secondary text-white shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="text-2xl font-bold flex items-center gap-2">
@@ -67,7 +71,7 @@ export default function Layout({ children, title }: LayoutProps) {
               <Link to="/" className="hover:text-primary transition">
                 Accueil
               </Link>
-              {isAuthenticated && isAdmin && (
+              {hasAdminAccess && (
                 <Link to="/admin?tab=cinemas" className="hover:text-primary transition">
                   Admin
                 </Link>

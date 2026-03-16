@@ -8,6 +8,7 @@ import type {
   ScrapeReport,
   PaginatedResponse,
   ScrapeStatus,
+  ProgressEvent,
 } from '../types';
 
 // Create axios instance
@@ -44,7 +45,8 @@ apiClient.interceptors.response.use(
       // This allows proper React Router navigation instead of window.location
       const event = new CustomEvent('auth:unauthorized', {
         detail: { 
-          originalPath: window.location.pathname 
+          originalPath: window.location.pathname,
+          reason: 'session_expired' as const,
         }
       });
       window.dispatchEvent(event);
@@ -177,7 +179,7 @@ export async function getScrapeStatus(): Promise<ScrapeStatus> {
   return response.data.data;
 }
 
-export function subscribeToProgress(onEvent: (event: any) => void, onError?: (error: Error) => void): () => void {
+export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onError?: (error: Error) => void): () => void {
   const eventSource = new EventSource(`${API_BASE_URL}/scraper/progress`);
 
   eventSource.onmessage = (event) => {

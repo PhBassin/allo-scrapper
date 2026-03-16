@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import settingsRouter from './settings.js';
+import { errorHandler } from '../middleware/error-handler.js';
 import type { DB } from '../db/client.js';
 
 // Mock dependencies
@@ -16,6 +17,9 @@ vi.mock('../middleware/auth.js', () => ({
       res.status(401).json({ success: false, error: 'Unauthorized' });
     }
   },
+}));
+vi.mock('../middleware/permission.js', () => ({
+  requirePermission: (..._perms: string[]) => (req: any, res: any, next: any) => next(),
 }));
 vi.mock('../middleware/admin.js', () => ({
   requireAdmin: async (req: any, res: any, next: any) => {
@@ -39,6 +43,7 @@ describe('Settings Routes', () => {
     app.use(express.json({ limit: '10mb' }));
     app.set('db', mockDb);
     app.use('/api/settings', settingsRouter);
+    app.use(errorHandler);
     vi.clearAllMocks();
   });
 
