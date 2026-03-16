@@ -35,8 +35,14 @@ jobs:
       - name: Get last version tag
         id: last_tag
         run: |
+<<<<<<< develop
+          # Get the last semver tag, or default to v0.0.0 if no tags exist
+          # --match 'v[0-9]*' filters out non-semver tags (e.g. 'stable', 'backup-*')
+          LAST_TAG=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo "v0.0.0")
+=======
           # Get the last tag, or default to v0.0.0 if no tags exist
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+>>>>>>> main
           echo "tag=${LAST_TAG}" >> $GITHUB_OUTPUT
           echo "Last tag: ${LAST_TAG}"
 
@@ -106,6 +112,15 @@ jobs:
           # Parse semantic version
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
           
+<<<<<<< develop
+          # Validate parsed version components are numeric
+          if ! [[ "$MAJOR" =~ ^[0-9]+$ && "$MINOR" =~ ^[0-9]+$ && "$PATCH" =~ ^[0-9]+$ ]]; then
+            echo "::error::Failed to parse semver from tag '${LAST_TAG}': MAJOR=${MAJOR}, MINOR=${MINOR}, PATCH=${PATCH}"
+            exit 1
+          fi
+          
+=======
+>>>>>>> main
           # Bump the appropriate component
           case "$BUMP_TYPE" in
             major)
@@ -227,6 +242,19 @@ jobs:
           
           echo "Pushed commit and tag ${NEW_TAG}"
 
+<<<<<<< develop
+      - name: Move stable tag to new release
+        run: |
+          NEW_TAG="${{ steps.new_version.outputs.tag }}"
+          
+          # Move the stable tag to point to this release commit
+          git tag -fa stable -m "Latest stable release: ${NEW_TAG}"
+          git push origin stable --force
+          
+          echo "Moved stable tag to ${NEW_TAG}"
+
+=======
+>>>>>>> main
       - name: Create GitHub release
         run: |
           NEW_TAG="${{ steps.new_version.outputs.tag }}"
