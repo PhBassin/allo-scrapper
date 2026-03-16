@@ -23,6 +23,16 @@ const router = express.Router();
 const LOGO_MAX_SIZE = 200000; // 200 KB
 const FAVICON_MAX_SIZE = 50000; // 50 KB
 
+// Input length limits for text fields (security: prevent DoS via large payloads)
+const INPUT_LIMITS = {
+  site_name: 100,
+  footer_text: 500,
+  email_from_name: 100,
+  email_from_address: 255,
+  font_family_heading: 100,
+  font_family_body: 100,
+} as const;
+
 /**
  * GET /api/settings (public)
  * Returns public settings for theming (no authentication required)
@@ -100,6 +110,14 @@ router.put('/', protectedLimiter, requireAuth, requirePermission('settings:updat
       }
       // Use compressed version
       updates.favicon_base64 = faviconValidation.compressedBase64!;
+    }
+
+    // Validate input lengths to prevent DoS via large payloads
+    for (const [field, limit] of Object.entries(INPUT_LIMITS)) {
+      const value = updates[field as keyof AppSettingsUpdate];
+      if (typeof value === 'string' && value.length > limit) {
+        return next(new ValidationError(`${field} exceeds maximum length of ${limit} characters`));
+      }
     }
 
     // Validate footer links to prevent stored XSS via javascript: or data: URIs
