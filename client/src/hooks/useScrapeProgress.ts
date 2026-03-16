@@ -12,7 +12,7 @@ export interface ProgressState {
 export function useScrapeProgress(onComplete?: (success: boolean) => void) {
   const [state, setState] = useState<ProgressState>({
     events: [],
-    isConnected: false,
+    isConnected: true,
   });
 
   // Use ref to keep stable callback reference and avoid re-subscribing
@@ -78,9 +78,6 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void) {
 
     // Store unsubscribe function in ref for early cleanup
     unsubscribeRef.current = unsubscribe;
-
-    // Mark as connected
-    setState((prev) => ({ ...prev, isConnected: true }));
 
     // Cleanup on unmount
     return () => {

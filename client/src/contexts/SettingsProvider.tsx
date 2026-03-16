@@ -1,34 +1,6 @@
-import React, { createContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { SettingsContext } from './SettingsContext';
 import { getPublicSettings, getAdminSettings, updateSettings as apiUpdateSettings, type AppSettings, type AppSettingsPublic, type AppSettingsUpdate } from '../api/settings';
-
-interface SettingsContextType {
-    // Public settings (available to all users)
-    publicSettings: AppSettingsPublic | null;
-    
-    // Full settings (admin only)
-    adminSettings: AppSettings | null;
-    
-    // Loading states
-    isLoading: boolean;
-    isLoadingPublic: boolean; // Specific flag for initial public settings load
-    error: string | null;
-    
-    // Actions
-    refreshPublicSettings: () => Promise<void>;
-    refreshAdminSettings: () => Promise<void>;
-    updateSettings: (updates: AppSettingsUpdate) => Promise<AppSettings>;
-}
-
-export const SettingsContext = createContext<SettingsContextType>({
-    publicSettings: null,
-    adminSettings: null,
-    isLoading: false,
-    isLoadingPublic: true,
-    error: null,
-    refreshPublicSettings: async () => {},
-    refreshAdminSettings: async () => {},
-    updateSettings: async () => { throw new Error('Not implemented'); },
-});
 
 interface SettingsProviderProps {
     children: ReactNode;
@@ -41,7 +13,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     const [isLoadingPublic, setIsLoadingPublic] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Fetch public settings (no auth required)
     const refreshPublicSettings = useCallback(async () => {
         setIsLoading(true);
         setError(null);
@@ -58,14 +29,12 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         }
     }, []);
 
-    // Fetch admin settings (admin only)
     const refreshAdminSettings = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
             const settings = await getAdminSettings();
             setAdminSettings(settings);
-            // Also update public settings subset
             setPublicSettings({
                 site_name: settings.site_name,
                 logo_base64: settings.logo_base64,
@@ -93,14 +62,12 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         }
     }, []);
 
-    // Update settings (admin only)
     const updateSettings = useCallback(async (updates: AppSettingsUpdate): Promise<AppSettings> => {
         setIsLoading(true);
         setError(null);
         try {
             const updatedSettings = await apiUpdateSettings(updates);
             setAdminSettings(updatedSettings);
-            // Also update public settings subset
             setPublicSettings({
                 site_name: updatedSettings.site_name,
                 logo_base64: updatedSettings.logo_base64,
@@ -129,7 +96,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         }
     }, []);
 
-    // Load public settings on mount
     useEffect(() => {
         refreshPublicSettings();
     }, [refreshPublicSettings]);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useSyncExternalStore } from 'react';
 
 interface FontSelectorProps {
     label: string;
@@ -8,7 +8,6 @@ interface FontSelectorProps {
     type?: 'heading' | 'body';
 }
 
-// Popular Google Fonts categorized by use case
 const POPULAR_FONTS = {
     heading: [
         'Playfair Display',
@@ -34,9 +33,25 @@ const POPULAR_FONTS = {
     ],
 };
 
-/**
- * Font selector with Google Fonts integration and live preview
- */
+function subscribeToFontLoad(callback: () => void): () => void {
+    document.fonts.ready.then(callback);
+    const interval = setInterval(() => {
+        if (document.fonts.status === 'loaded') {
+            clearInterval(interval);
+            callback();
+        }
+    }, 100);
+    return () => clearInterval(interval);
+}
+
+function useFontLoaded(fontFamily: string): boolean {
+    return useSyncExternalStore(
+        subscribeToFontLoad,
+        () => document.fonts.check(`12px "${fontFamily}"`),
+        () => false
+    );
+}
+
 const FontSelector: React.FC<FontSelectorProps> = ({ 
     label, 
     value, 
@@ -44,22 +59,12 @@ const FontSelector: React.FC<FontSelectorProps> = ({
     disabled = false,
     type = 'body'
 }) => {
-    const [fontLoaded, setFontLoaded] = useState(false);
     const fonts = POPULAR_FONTS[type];
+    const fontLoaded = useFontLoaded(value);
 
-    // Load selected font from Google Fonts
     useEffect(() => {
         if (!value) return;
 
-        setFontLoaded(false);
-
-        // Check if font is already loaded
-        if (document.fonts.check(`12px "${value}"`)) {
-            setFontLoaded(true);
-            return;
-        }
-
-        // Create link element to load font
         const linkId = `font-${value.replace(/\s+/g, '-')}`;
         let link = document.getElementById(linkId) as HTMLLinkElement;
 
@@ -70,16 +75,6 @@ const FontSelector: React.FC<FontSelectorProps> = ({
             link.href = `https://fonts.googleapis.com/css2?family=${value.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
             document.head.appendChild(link);
         }
-
-        // Wait for font to load
-        const fontFace = new FontFaceObserver(value);
-        fontFace.load().then(() => {
-            setFontLoaded(true);
-        }).catch(() => {
-            console.warn(`Failed to load font: ${value}`);
-            setFontLoaded(true); // Show anyway
-        });
-
     }, [value]);
 
     return (
@@ -116,45 +111,5 @@ const FontSelector: React.FC<FontSelectorProps> = ({
         </div>
     );
 };
-
-// Simple FontFaceObserver polyfill
-class FontFaceObserver {
-    private family: string;
-
-    constructor(family: string) {
-        this.family = family;
-    }
-
-    load(timeout = 3000): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const timeoutId = setTimeout(() => reject(new Error('Font load timeout')), timeout);
-
-            if ('fonts' in document) {
-                document.fonts.ready.then(() => {
-                    clearTimeout(timeoutId);
-                    // Check if our specific font is loaded
-                    if (document.fonts.check(`12px "${this.family}"`)) {
-                        resolve();
-                    } else {
-                        // Wait a bit more
-                        setTimeout(() => {
-                            if (document.fonts.check(`12px "${this.family}"`)) {
-                                resolve();
-                            } else {
-                                reject(new Error('Font not found'));
-                            }
-                        }, 500);
-                    }
-                });
-            } else {
-                // Fallback: just wait a bit
-                setTimeout(() => {
-                    clearTimeout(timeoutId);
-                    resolve();
-                }, 1000);
-            }
-        });
-    }
-}
 
 export default FontSelector;

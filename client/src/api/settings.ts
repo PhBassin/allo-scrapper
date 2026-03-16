@@ -170,7 +170,7 @@ export async function uploadSettingsImport(file: File): Promise<AppSettings> {
         const data = JSON.parse(content) as AppSettingsExport;
         const result = await importSettings(data);
         resolve(result);
-      } catch (error) {
+      } catch {
         reject(new Error('Invalid settings file format'));
       }
     };

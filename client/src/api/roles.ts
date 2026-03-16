@@ -17,7 +17,8 @@ function validateResponse<T>(schema: z.ZodSchema<T>, data: unknown, context: str
         receivedData: data,
       });
       throw new Error(
-        `Invalid data received from server (${context}): ${error.issues.map((e: z.ZodIssue) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+        `Invalid data received from server (${context}): ${error.issues.map((e: z.ZodIssue) => `${e.path.join('.')}: ${e.message}`).join(', ')}`,
+        { cause: error }
       );
     }
     throw error;

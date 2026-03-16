@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCinemas, getCinemaSchedule } from '../api/client';
@@ -22,7 +22,6 @@ interface FilmGroup {
 
 export default function CinemaPage() {
   const { id } = useParams<{ id: string }>();
-  const [selectedDate, setSelectedDate] = useState<string>('');
 
   const { data: cinemasData, isLoading: cinemasLoading, error: cinemasError } = useQuery({
     queryKey: ['cinemas'],
@@ -46,19 +45,17 @@ export default function CinemaPage() {
   }
 
   const cinema = cinemasData?.find(c => c.id === id) || null;
-  const showtimes = scheduleData?.showtimes || [];
+  const showtimes = useMemo(() => scheduleData?.showtimes || [], [scheduleData?.showtimes]);
 
-  // Set default selected date (today or first available) when schedule is loaded
-  useEffect(() => {
-    if (showtimes.length > 0 && !selectedDate) {
-      const today = new Date().toISOString().split('T')[0];
-      
-      const dates = new Set(showtimes.map(s => s.date));
-      const uniqueDates = Array.from(dates).sort();
-      
-      setSelectedDate(uniqueDates.includes(today) ? today : uniqueDates[0]);
-    }
-  }, [showtimes, selectedDate]);
+  const getInitialSelectedDate = (showtimes: ShowtimeWithFilm[]): string => {
+    if (showtimes.length === 0) return '';
+    const today = new Date().toISOString().split('T')[0];
+    const dates = new Set(showtimes.map(s => s.date));
+    const uniqueDates = Array.from(dates).sort();
+    return uniqueDates.includes(today) ? today : uniqueDates[0];
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string>(() => getInitialSelectedDate(showtimes));
 
   const getUniqueDates = (showtimes: ShowtimeWithFilm[]): string[] => {
     const dates = new Set(showtimes.map(s => s.date));

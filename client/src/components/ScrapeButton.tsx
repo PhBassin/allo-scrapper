@@ -44,14 +44,19 @@ export default function ScrapeButton({
 
       // Reset success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      if (err.response?.status === 409) {
-        // Scrape already running, just show progress
-        if (onScrapeStart) {
-          onScrapeStart();
+    } catch (err: unknown) {
+      if (err instanceof Error && 'response' in err) {
+        const axiosError = err as { response?: { status?: number; data?: { error?: string } } };
+        if (axiosError.response?.status === 409) {
+          // Scrape already running, just show progress
+          if (onScrapeStart) {
+            onScrapeStart();
+          }
+        } else {
+          setError(axiosError.response?.data?.error || 'Erreur lors du démarrage du scraping');
         }
       } else {
-        setError(err.response?.data?.error || 'Erreur lors du démarrage du scraping');
+        setError('Erreur lors du démarrage du scraping');
       }
     } finally {
       setIsLoading(false);
