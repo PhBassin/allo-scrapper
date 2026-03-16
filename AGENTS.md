@@ -257,6 +257,105 @@ Closes #<issue-number>"
 Use the cleanup skill for automated post-merge cleanup:
 ```
 
+---
+
+## Automated Versioning & Releases
+
+When PRs are merged to `main`, an automated workflow creates version tags and GitHub releases.
+
+### Version Label System
+
+**Add ONE of these labels to your PR** before merging to `main`:
+
+| Label | Version Bump | Example |
+|-------|-------------|---------|
+| `major` | Breaking changes | 4.0.1 → 5.0.0 |
+| `minor` | New features | 4.0.1 → 4.1.0 |
+| `patch` | Bug fixes | 4.0.1 → 4.0.2 |
+
+```bash
+# Example: Add minor label for new feature
+gh pr edit <pr-number> --add-label minor
+
+# Or set label when creating PR
+gh pr create --title "feat: new endpoint" --label minor
+```
+
+**Default Behavior**: If no label is present, defaults to `patch` bump.
+
+### Fallback: PR Title Patterns
+
+If no version label is found, the workflow checks PR title:
+
+- `BREAKING CHANGE:` or `[major]` → major bump
+- `feat:` or `feat(` → minor bump  
+- `fix:` or `fix(` → patch bump
+
+### What Happens Automatically
+
+1. **On PR merge to main**:
+   - Docker Build & Push workflow runs
+   
+2. **After successful Docker build**:
+   - Version Tag workflow triggers automatically
+   - Reads last git tag (e.g., `v4.0.1`)
+   - Determines bump type from PR label/title
+   - Calculates new version (e.g., `v4.0.2`)
+   
+3. **Changelog generation**:
+   - Parses all commits since last tag
+   - Groups by type: Added, Fixed, Changed, etc.
+   - Updates `CHANGELOG.md` with new entry
+   
+4. **Version bump commit**:
+   - Updates `package.json` version field
+   - Commits changes: `chore(release): bump version to vX.Y.Z [skip ci]`
+   - Creates annotated git tag `vX.Y.Z`
+   - Pushes to main
+   
+5. **GitHub release**:
+   - Creates release with generated changelog
+   - Docker build triggers again for the new tag
+   - Images tagged with version numbers
+
+### Example Workflow
+
+```bash
+# Developer workflow
+git checkout develop
+git checkout -b feature/123-new-api
+
+# ... make changes, tests, commits ...
+
+gh pr create --base main --head feature/123-new-api \
+  --title "feat(api): add batch operations endpoint" \
+  --label minor \
+  --body "Closes #123"
+
+# After PR is reviewed and merged:
+# ✅ Docker images build for main branch
+# ✅ Version bumped: v4.0.1 → v4.1.0
+# ✅ CHANGELOG.md updated
+# ✅ Git tag v4.1.0 created
+# ✅ GitHub release created
+# ✅ Docker images rebuilt with tags: v4.1.0, v4.1, v4, stable, latest
+```
+
+### Important Notes
+
+- **Only affects `main` branch** — merges to `develop` do not trigger versioning
+- **Requires successful Docker build** — version tag only created if builds pass
+- **Conventional commits recommended** — helps generate meaningful changelogs
+- **Manual rollback if needed**:
+  ```bash
+  # Delete tag if something went wrong
+  git tag -d v4.0.2
+  git push origin :refs/tags/v4.0.2
+  gh release delete v4.0.2
+  ```
+
+---
+
 ## Useful Commands
 
 ### Setup (run once after cloning)
