@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
   pull-requests: read
   actions: read
 
@@ -258,6 +259,40 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Retag Docker images with version
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          NEW_TAG="${{ steps.new_version.outputs.tag }}"
+          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          
+          # Parse version components for semver tags
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$NEW_VERSION"
+          
+          # Retag both web and scraper images
+          for IMAGE in "ghcr.io/${REPO}" "ghcr.io/${REPO}-scraper"; do
+            echo "Retagging ${IMAGE}..."
+            
+            # Add semver tags to the existing 'main' manifest
+            docker buildx imagetools create \
+              --tag "${IMAGE}:${NEW_VERSION}" \
+              --tag "${IMAGE}:${MAJOR}.${MINOR}" \
+              --tag "${IMAGE}:${MAJOR}" \
+              --tag "${IMAGE}:${NEW_TAG}" \
+              "${IMAGE}:main"
+            
+            echo "Tagged ${IMAGE} with: ${NEW_TAG}, ${NEW_VERSION}, ${MAJOR}.${MINOR}, ${MAJOR}"
+          done
+
       - name: Summary
         run: |
           NEW_TAG="${{ steps.new_version.outputs.tag }}"
@@ -275,4 +310,4 @@ jobs:
           echo "✅ Created git tag \`${NEW_TAG}\`" >> $GITHUB_STEP_SUMMARY
           echo "✅ Created GitHub release" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🐋 Docker images will be built for this tag automatically" >> $GITHUB_STEP_SUMMARY
+          echo "🐋 Docker images retagged with version tags" >> $GITHUB_STEP_SUMMARY
