@@ -1,0 +1,258 @@
+name: Version Tag & Release
+
+# Triggered after docker-build-push.yml completes successfully on main branch
+on:
+  workflow_run:
+    workflows: ["Docker Build & Push"]
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  create-version-tag:
+    name: Create Version Tag
+    runs-on: ubuntu-latest
+    # Only run if Docker build succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for git describe
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Get last version tag
+        id: last_tag
+        run: |
+          # Get the last tag, or default to v0.0.0 if no tags exist
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "tag=${LAST_TAG}" >> $GITHUB_OUTPUT
+          echo "Last tag: ${LAST_TAG}"
+
+      - name: Get merged PR number
+        id: pr
+        run: |
+          # Get the PR that was merged in the commit that triggered the workflow
+          PR_NUMBER=$(gh pr list --state merged --json number,mergeCommit --jq ".[] | select(.mergeCommit.oid==\"${{ github.event.workflow_run.head_sha }}\") | .number" | head -1)
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No merged PR found for commit ${{ github.event.workflow_run.head_sha }}"
+            echo "number=" >> $GITHUB_OUTPUT
+          else
+            echo "number=${PR_NUMBER}" >> $GITHUB_OUTPUT
+            echo "Found PR #${PR_NUMBER}"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine version bump type
+        id: bump
+        run: |
+          BUMP_TYPE="patch"  # Default to patch
+          
+          if [ -n "${{ steps.pr.outputs.number }}" ]; then
+            # Fetch PR labels
+            PR_LABELS=$(gh pr view ${{ steps.pr.outputs.number }} --json labels --jq '.labels[].name')
+            echo "PR Labels: ${PR_LABELS}"
+            
+            # Check for explicit version labels (highest priority)
+            if echo "$PR_LABELS" | grep -q "^major$"; then
+              BUMP_TYPE="major"
+            elif echo "$PR_LABELS" | grep -q "^minor$"; then
+              BUMP_TYPE="minor"
+            elif echo "$PR_LABELS" | grep -q "^patch$"; then
+              BUMP_TYPE="patch"
+            else
+              # Fallback: check PR title for patterns
+              PR_TITLE=$(gh pr view ${{ steps.pr.outputs.number }} --json title --jq '.title')
+              echo "PR Title: ${PR_TITLE}"
+              
+              if echo "$PR_TITLE" | grep -qiE "(BREAKING CHANGE:|\\[major\\])"; then
+                BUMP_TYPE="major"
+              elif echo "$PR_TITLE" | grep -qE "^feat(\(|:)"; then
+                BUMP_TYPE="minor"
+              elif echo "$PR_TITLE" | grep -qE "^fix(\(|:)"; then
+                BUMP_TYPE="patch"
+              fi
+            fi
+          else
+            echo "No PR found, defaulting to patch bump"
+          fi
+          
+          echo "type=${BUMP_TYPE}" >> $GITHUB_OUTPUT
+          echo "Version bump type: ${BUMP_TYPE}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calculate new version
+        id: new_version
+        run: |
+          LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+          BUMP_TYPE="${{ steps.bump.outputs.type }}"
+          
+          # Strip 'v' prefix for calculation
+          VERSION=${LAST_TAG#v}
+          
+          # Parse semantic version
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          
+          # Bump the appropriate component
+          case "$BUMP_TYPE" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          NEW_TAG="v${NEW_VERSION}"
+          
+          echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${NEW_TAG}" >> $GITHUB_OUTPUT
+          echo "New version: ${NEW_TAG}"
+
+      - name: Generate changelog entry
+        id: changelog
+        run: |
+          chmod +x .github/scripts/generate-changelog.sh
+          
+          LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+          NEW_TAG="${{ steps.new_version.outputs.tag }}"
+          
+          # Generate changelog content
+          CHANGELOG_CONTENT=$(.github/scripts/generate-changelog.sh "$LAST_TAG" "HEAD")
+          
+          # Save to file for next step
+          echo "$CHANGELOG_CONTENT" > /tmp/changelog-entry.md
+          
+          echo "Generated changelog entry"
+          cat /tmp/changelog-entry.md
+
+      - name: Update package.json version
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          
+          # Update root package.json
+          jq --arg version "$NEW_VERSION" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          echo "Updated package.json to version ${NEW_VERSION}"
+
+      - name: Update CHANGELOG.md
+        run: |
+          NEW_TAG="${{ steps.new_version.outputs.tag }}"
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+          TODAY=$(date +%Y-%m-%d)
+          
+          # Create new changelog entry with header
+          {
+            echo "## [${NEW_VERSION}] - ${TODAY}"
+            echo ""
+            cat /tmp/changelog-entry.md
+            echo ""
+          } > /tmp/new-changelog.md
+          
+          # Insert after the header (after line 6 which is the blank line after semver line)
+          head -n 7 CHANGELOG.md > /tmp/changelog-top.md
+          tail -n +8 CHANGELOG.md > /tmp/changelog-bottom.md
+          
+          # Combine: top + new entry + bottom
+          cat /tmp/changelog-top.md /tmp/new-changelog.md /tmp/changelog-bottom.md > CHANGELOG.md
+          
+          # Add version link at the bottom (find the line with [4.0.1] and add new one before it)
+          # Extract repo URL from existing links
+          REPO_URL=$(grep -m 1 "^\[.*\]: https://github.com" CHANGELOG.md | sed -E 's/\[.*\]: (https:\/\/github\.com\/[^\/]+\/[^\/]+).*/\1/')
+          
+          if [ -n "$REPO_URL" ]; then
+            # Add new version link after the last ## heading (before first version link)
+            LINE_NUM=$(grep -n "^\[.*\]: https://github.com" CHANGELOG.md | head -1 | cut -d: -f1)
+            if [ -n "$LINE_NUM" ]; then
+              # Insert before the first version link
+              head -n $((LINE_NUM - 1)) CHANGELOG.md > /tmp/changelog-with-link.md
+              echo "[${NEW_VERSION}]: ${REPO_URL}/compare/${LAST_TAG}...${NEW_TAG}" >> /tmp/changelog-with-link.md
+              tail -n +${LINE_NUM} CHANGELOG.md >> /tmp/changelog-with-link.md
+              mv /tmp/changelog-with-link.md CHANGELOG.md
+            fi
+          fi
+          
+          echo "Updated CHANGELOG.md"
+
+      - name: Commit version bump
+        run: |
+          NEW_TAG="${{ steps.new_version.outputs.tag }}"
+          
+          git add package.json CHANGELOG.md
+          git commit -m "chore(release): bump version to ${NEW_TAG} [skip ci]"
+          
+          echo "Committed version bump"
+
+      - name: Create git tag
+        run: |
+          NEW_TAG="${{ steps.new_version.outputs.tag }}"
+          
+          # Create annotated tag
+          git tag -a "${NEW_TAG}" -m "Release ${NEW_TAG}"
+          
+          echo "Created tag ${NEW_TAG}"
+
+      - name: Push changes and tag
+        run: |
+          NEW_TAG="${{ steps.new_version.outputs.tag }}"
+          
+          # Push commit and tag
+          git push origin main
+          git push origin "${NEW_TAG}"
+          
+          echo "Pushed commit and tag ${NEW_TAG}"
+
+      - name: Create GitHub release
+        run: |
+          NEW_TAG="${{ steps.new_version.outputs.tag }}"
+          
+          # Use changelog entry as release notes
+          gh release create "${NEW_TAG}" \
+            --title "Release ${NEW_TAG}" \
+            --notes-file /tmp/changelog-entry.md \
+            --verify-tag
+          
+          echo "Created GitHub release ${NEW_TAG}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          NEW_TAG="${{ steps.new_version.outputs.tag }}"
+          LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+          BUMP_TYPE="${{ steps.bump.outputs.type }}"
+          
+          echo "### 🎉 Version Tag Created!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Previous version:** \`${LAST_TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**New version:** \`${NEW_TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Bump type:** \`${BUMP_TYPE}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Updated \`package.json\`" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Updated \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Created git tag \`${NEW_TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Created GitHub release" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🐋 Docker images will be built for this tag automatically" >> $GITHUB_STEP_SUMMARY
