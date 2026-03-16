@@ -12,34 +12,49 @@ vi.mock('../../../src/utils/logger.js', () => ({
   },
 }));
 
-// Mock playwright to avoid launching a real browser
-vi.mock('playwright', () => ({
-  chromium: {
+// Mock puppeteer-core to avoid launching a real browser
+const mockPage = {
+  goto: vi.fn().mockResolvedValue(null),
+  content: vi.fn().mockResolvedValue('<html></html>'),
+  evaluate: vi.fn().mockResolvedValue([]),
+  close: vi.fn(),
+  setUserAgent: vi.fn().mockResolvedValue(undefined),
+};
+
+const mockContext = {
+  newPage: vi.fn().mockResolvedValue(mockPage),
+  close: vi.fn(),
+};
+
+vi.mock('puppeteer-core', () => ({
+  default: {
     launch: vi.fn().mockResolvedValue({
       isConnected: vi.fn().mockReturnValue(true),
-      newContext: vi.fn().mockResolvedValue({
-        newPage: vi.fn().mockResolvedValue({
-          goto: vi.fn().mockResolvedValue(null),
-          content: vi.fn().mockResolvedValue('<html></html>'),
-          evaluate: vi.fn().mockResolvedValue([]),
-          close: vi.fn(),
-        }),
-        close: vi.fn(),
-      }),
+      createBrowserContext: vi.fn().mockResolvedValue(mockContext),
       close: vi.fn(),
     }),
   },
 }));
 
-describe('http-client SSRF protections', () => {
+describe('http-client', () => {
   let fetchShowtimesJson: (cinemaId: string, date: string) => Promise<unknown>;
   let fetchFilmPage: (filmId: number) => Promise<string>;
+  let fetchTheaterPage: (cinemaBaseUrl: string) => Promise<{ html: string; availableDates: string[] }>;
 
   beforeEach(async () => {
     vi.resetModules();
+    // Reset mock call history between tests
+    mockPage.goto.mockClear();
+    mockPage.content.mockClear();
+    mockPage.evaluate.mockClear();
+    mockPage.setUserAgent.mockClear();
+    mockContext.newPage.mockClear();
+    mockContext.close.mockClear();
+
     const mod = await import('../../../src/scraper/http-client.js');
     fetchShowtimesJson = mod.fetchShowtimesJson;
     fetchFilmPage = mod.fetchFilmPage;
+    fetchTheaterPage = mod.fetchTheaterPage;
   });
 
   afterEach(() => {
@@ -209,6 +224,45 @@ describe('http-client SSRF protections', () => {
       const calledUrl: string = mockFetch.mock.calls[0][0];
       expect(calledUrl).toMatch(/^https:\/\/www\.allocine\.fr\//);
       expect(calledUrl).toContain('12345');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // fetchTheaterPage — Puppeteer-specific behaviour
+  // -------------------------------------------------------------------------
+  describe('fetchTheaterPage (Puppeteer integration)', () => {
+    it('should set user agent on the page before navigation', async () => {
+      await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
+
+      expect(mockPage.setUserAgent).toHaveBeenCalledOnce();
+      expect(mockPage.setUserAgent).toHaveBeenCalledWith(
+        expect.stringContaining('Mozilla/5.0')
+      );
+    });
+
+    it('should navigate with waitUntil networkidle0', async () => {
+      await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
+
+      expect(mockPage.goto).toHaveBeenCalledWith(
+        'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html',
+        expect.objectContaining({ waitUntil: 'networkidle0' })
+      );
+    });
+
+    it('should close context after fetching', async () => {
+      await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
+
+      expect(mockContext.close).toHaveBeenCalledOnce();
+    });
+
+    it('should return html and availableDates', async () => {
+      mockPage.content.mockResolvedValueOnce('<html>theater page</html>');
+      mockPage.evaluate.mockResolvedValueOnce(['2026-03-16', '2026-03-17']);
+
+      const result = await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
+
+      expect(result.html).toBe('<html>theater page</html>');
+      expect(result.availableDates).toEqual(['2026-03-16', '2026-03-17']);
     });
   });
 });

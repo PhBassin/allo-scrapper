@@ -1,27 +1,26 @@
 # ============================================================================
 # Dockerfile for the Scraper Microservice
 # ============================================================================
-# Stage 1: Dependencies
+# Stage 1: Dependencies (scraper workspace only)
 # Stage 2: Build TypeScript
-# Stage 3: Production Runtime (Node.js + Playwright Chromium)
+# Stage 3: Production Runtime (Node.js + chromium-headless-shell via apt)
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# Stage 1: Dependencies
+# Stage 1: Dependencies (scoped to scraper workspace only)
 # ----------------------------------------------------------------------------
 FROM node:24-alpine AS deps
 
 WORKDIR /app
 
-# Copy root package files
+# Copy only the package files required for workspace resolution
 COPY package.json package-lock.json ./
-# Copy workspace package files
 COPY client/package.json ./client/
 COPY server/package.json ./server/
 COPY scraper/package.json ./scraper/
 
-# Install all dependencies using legacy-peer-deps
-RUN npm ci --legacy-peer-deps && \
+# Install scraper workspace dependencies only
+RUN npm ci --workspace=allo-scrapper-scraper --legacy-peer-deps && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/* /var/tmp/*
 
@@ -44,18 +43,24 @@ COPY scraper/ ./scraper/
 RUN npm run build --workspace=allo-scrapper-scraper && \
     rm -rf node_modules/.cache
 
-# Remove source maps from dist
-RUN find ./scraper/dist -name "*.map" -delete 2>/dev/null || true
+# Remove source maps and declaration files from dist (not needed at runtime)
+RUN find ./scraper/dist \( -name "*.map" -o -name "*.d.ts" -o -name "*.d.ts.map" \) -delete 2>/dev/null || true
 
 # ----------------------------------------------------------------------------
 # Stage 3: Production Runtime
 # ----------------------------------------------------------------------------
-# Use Debian-based slim for Playwright compatibility
+# Use Debian-based slim for chromium-headless-shell compatibility (glibc required)
 FROM node:24-slim AS production
 
-# Install dumb-init for proper signal handling
+# Install dumb-init + chromium-headless-shell from Debian repos.
+# The apt package (~50-56 MB download) works on both amd64 and arm64,
+# and apt automatically resolves all required shared library dependencies
+# — no manual lib list needed.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends dumb-init && \
+    apt-get install -y --no-install-recommends \
+      dumb-init \
+      chromium-headless-shell \
+      fonts-liberation && \
     rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -81,22 +86,8 @@ RUN npm ci --omit=dev --workspace=allo-scrapper-scraper --legacy-peer-deps && \
 # Copy built application
 COPY --from=builder --chown=nodejs:nodejs /app/scraper/dist ./scraper/dist
 
-# Install Playwright browser (system deps need root)
-USER root
-ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
+ENV CHROME_PATH=/usr/bin/chromium-headless-shell
 
-RUN npx playwright-core install-deps chromium && \
-    rm -rf /tmp/* /var/tmp/* /root/.npm /root/.cache ~/.cache
-
-USER nodejs
-
-RUN npx playwright-core install --only-shell chromium && \
-    rm -rf ~/.npm ~/.cache /tmp/* 2>/dev/null || true
-
-USER nodejs
-
-# Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
 CMD ["node", "scraper/dist/index.js"]
-
