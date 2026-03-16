@@ -15,7 +15,7 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
 
   try {
     // Extract and validate cinemaId and filmId from request body
-    const { cinemaId, filmId } = req.body as { cinemaId?: string; filmId?: number };
+    const { cinemaId, filmId } = (req.body ?? {}) as { cinemaId?: string; filmId?: number };
 
     // Permission check: scraper:trigger for all-cinema scrape, scraper:trigger_single for single-cinema
     // scraper:trigger is a superset (allows both all-cinema and single-cinema)
