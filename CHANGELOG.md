@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.2] - 2026-03-16
+
+### Added
+
+- feat(ci): add automated version tagging workflow (#494) (872aab7)
+- feat(ci): add version tag workflow (974c7a4)
+
+### Fixed
+
+- fix(ci): resolve merge conflict markers in version-tag workflow (#508) (8f93cd3)
+- fix(ci): resolve merge conflict markers in version-tag workflow (#507) (71c9283)
+- fix(ci): resolve merge conflict markers in version-tag workflow (6091d53)
+- fix(ci): fix version-tag workflow for stable tag handling (#506) (ab0f92e)
+- fix(ci): filter non-semver tags and move stable tag on release (#505) (25bc5a1)
+- fix(ci): filter non-semver tags and move stable tag on release (83d03f2)
+- fix(ci): complete version-tag workflow fix (#503) (67ed1e9)
+- fix(ci): explicitly checkout main branch in version-tag workflow (#502) (b5683aa)
+- fix(ci): workflow_run branch filter fix (#500) (a856767)
+- fix(ci): add explicit branch check to version-tag workflow (#499) (938f2e8)
+- fix(ci): add explicit git auth for version-tag workflow (#497) (516e7f7)
+- fix(ci): add explicit git auth for version-tag workflow push (2eba644)
+- fix(ci): fix merge reference in sync-main-to-develop workflow (13c76e7)
+
+### Changed
+
+- Merge branch 'main' into develop (029a37a)
+- test: verify automated version tagging workflow (#496) (483f6ca)
+
+### Documentation
+
+- docs: add version labeling to contribution checklist (8b93f80)
+- docs(ci): document automated versioning workflow in AGENTS.md (1edaee9)
+
+### Maintenance
+
+- chore: sync develop to main (v4.0.1 + workflow fix) (#492) (4fa2c19)
+- chore: bump version to v4.0.1 (1b266a4)
+- chore: sync main into develop (9bc2966)
+
 ## [4.0.1] - 2026-03-16
 
 ### Fixed
@@ -211,6 +250,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.0.2]: https://github.com/PhBassin/allo-scrapper/compare/v4.0.1...v4.0.2
 [3.0.0]: https://github.com/PhBassin/allo-scrapper/compare/v2.1.1...v3.0.0
 [4.0.0]: https://github.com/PhBassin/allo-scrapper/compare/v3.0.1...v4.0.0
 [4.0.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.0.0...v4.0.1
