@@ -88,7 +88,7 @@ export interface ScrapeReport {
   total_films_scraped?: number;
   total_showtimes_scraped?: number;
   errors?: Array<{ cinema_name: string; error: string }>;
-  progress_log?: Array<{ timestamp: string; message: string; level: string }>;
+  progress_log?: Array<{ timestamp: string; message: string; level: string; type?: string }>;
 }
 
 // Progress Event types
