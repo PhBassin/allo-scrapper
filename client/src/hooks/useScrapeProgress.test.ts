@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { renderHook, act } from '@testing-library/react';
 import { useScrapeProgress } from './useScrapeProgress';
 import * as clientApi from '../api/client';

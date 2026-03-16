@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { getSystemInfo, getMigrations, getSystemHealth, formatUptime, formatDate } from '../../api/system';
 import type { SystemInfo, MigrationsInfo, SystemHealth } from '../../api/system';
 import { AuthContext } from '../../contexts/AuthContext';
@@ -19,7 +19,7 @@ const SystemPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -36,11 +36,11 @@ const SystemPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [canViewInfo, canViewHealth, canViewMigrations]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Auto-refresh every 30 seconds if enabled
   useEffect(() => {
@@ -51,7 +51,7 @@ const SystemPage: React.FC = () => {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, [autoRefresh, loadData]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

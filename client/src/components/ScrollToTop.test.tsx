@@ -53,7 +53,7 @@ describe('ScrollToTop', () => {
     });
     fireEvent.scroll(window);
 
-    let button = screen.getByRole('button', { name: /retour en haut/i });
+    const button = screen.getByRole('button', { name: /retour en haut/i });
     expect(button).toBeInTheDocument();
 
     // Scroll back to top

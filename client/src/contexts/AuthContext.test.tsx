@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { useContext } from 'react';
-import { AuthContext, AuthProvider } from './AuthContext';
-import type { User } from './AuthContext';
+import { AuthContext, type User } from './AuthContext';
+import { AuthProvider } from './AuthProvider';
 
 function createTokenWithExp(exp: number): string {
   const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');

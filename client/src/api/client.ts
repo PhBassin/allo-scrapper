@@ -8,6 +8,7 @@ import type {
   ScrapeReport,
   PaginatedResponse,
   ScrapeStatus,
+  ProgressEvent,
 } from '../types';
 
 // Create axios instance
@@ -178,7 +179,7 @@ export async function getScrapeStatus(): Promise<ScrapeStatus> {
   return response.data.data;
 }
 
-export function subscribeToProgress(onEvent: (event: any) => void, onError?: (error: Error) => void): () => void {
+export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onError?: (error: Error) => void): () => void {
   const eventSource = new EventSource(`${API_BASE_URL}/scraper/progress`);
 
   eventSource.onmessage = (event) => {

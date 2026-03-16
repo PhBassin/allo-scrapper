@@ -1,5 +1,6 @@
-import React, { createContext, useState, useEffect, useRef, type ReactNode } from 'react';
-import type { PermissionName } from '../types/role';
+import { useState, useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
+import { AuthContext, type User } from './AuthContext';
 
 interface JwtPayload {
     exp?: number;
@@ -33,9 +34,6 @@ function isTokenExpired(token: string): boolean {
     }
 }
 
-/**
- * Extract the expiry timestamp (in seconds) from a JWT token
- */
 function getTokenExpiry(token: string): number | null {
     try {
         const parts = token.split('.');
@@ -67,35 +65,6 @@ function getInitialToken(): string | null {
     return storedToken;
 }
 
-export interface User {
-    id: number;
-    username: string;
-    role_id: number;
-    role_name: string;       // e.g. 'admin', 'operator'
-    is_system_role: boolean; // true only for built-in system roles (admin, operator)
-    permissions: PermissionName[]; // e.g. ['scraper:trigger', 'cinemas:create', ...]
-}
-
-interface AuthContextType {
-    isAuthenticated: boolean;
-    token: string | null;
-    user: User | null;
-    isAdmin: boolean;
-    hasPermission: (permission: PermissionName) => boolean;
-    login: (token: string, user: User) => void;
-    logout: () => void;
-}
-
-export const AuthContext = createContext<AuthContextType>({
-    isAuthenticated: false,
-    token: null,
-    user: null,
-    isAdmin: false,
-    hasPermission: () => false,
-    login: () => { },
-    logout: () => { },
-});
-
 interface AuthProviderProps {
     children: ReactNode;
 }
@@ -111,25 +80,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const isAuthenticated = !!token;
     const isAdmin = user?.role_name === 'admin' && user?.is_system_role === true;
 
-    const hasPermission = (permission: PermissionName): boolean => {
+    const hasPermission = (permission: string): boolean => {
         if (!user) return false;
-        if (isAdmin) return true;  // Admin bypass client-side too
-        return user.permissions.includes(permission);
+        if (isAdmin) return true;
+        return user.permissions.includes(permission as never);
     };
-    
-    /**
-     * Clear any existing expiry timer
-     */
+
     const clearExpiryTimer = () => {
         if (expiryTimerRef.current !== null) {
             clearTimeout(expiryTimerRef.current);
             expiryTimerRef.current = null;
         }
     };
-    
-    /**
-     * Schedule auto-logout at token expiry time
-     */
+
     const scheduleExpiryTimer = (tokenToCheck: string) => {
         clearExpiryTimer();
         
@@ -139,14 +102,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const nowInSeconds = Math.floor(Date.now() / 1000);
         const msUntilExpiry = (expiry - nowInSeconds) * 1000;
         
-        // Only schedule if expiry is in the future
         if (msUntilExpiry > 0) {
             expiryTimerRef.current = setTimeout(() => {
-                // Auto-logout and notify
                 setToken(null);
                 setUser(null);
                 
-                // Dispatch auth:unauthorized event with session_expired reason
                 window.dispatchEvent(
                     new CustomEvent('auth:unauthorized', {
                         detail: { reason: 'session_expired' }
@@ -165,6 +125,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             localStorage.removeItem('user');
             clearExpiryTimer();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token]);
 
     useEffect(() => {
@@ -175,7 +136,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     }, [user]);
     
-    // Cleanup timer on unmount
     useEffect(() => {
         return () => {
             clearExpiryTimer();

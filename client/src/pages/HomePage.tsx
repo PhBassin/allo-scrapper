@@ -59,7 +59,7 @@ export default function HomePage() {
       queryClient.invalidateQueries({ queryKey: ['cinemas'] });
       queryClient.invalidateQueries({ queryKey: ['films', selectedDate] });
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       alert(err.message || 'Erreur lors de l\'ajout du cinéma');
     }
   });

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import { SettingsContext } from '../../contexts/SettingsContext';
 import { AuthContext } from '../../contexts/AuthContext';
-import { downloadSettingsExport, uploadSettingsImport, resetSettings, type AppSettingsUpdate, type FooterLink } from '../../api/settings';
+import { downloadSettingsExport, uploadSettingsImport, resetSettings, type AppSettings, type AppSettingsUpdate, type FooterLink } from '../../api/settings';
 import ColorPicker from '../../components/admin/ColorPicker';
 import FontSelector from '../../components/admin/FontSelector';
 import ImageUpload from '../../components/admin/ImageUpload';
@@ -9,6 +9,31 @@ import FooterLinksEditor from '../../components/admin/FooterLinksEditor';
 import Button from '../../components/ui/Button';
 
 type Tab = 'general' | 'colors' | 'typography' | 'footer' | 'email';
+
+const getInitialFormData = (settings: AppSettings | null): AppSettingsUpdate => {
+    if (!settings) return {};
+    return {
+        site_name: settings.site_name,
+        logo_base64: settings.logo_base64,
+        favicon_base64: settings.favicon_base64,
+        color_primary: settings.color_primary,
+        color_secondary: settings.color_secondary,
+        color_accent: settings.color_accent,
+        color_background: settings.color_background,
+        color_text: settings.color_text,
+        color_text_secondary: settings.color_text_secondary,
+        color_border: settings.color_border,
+        color_success: settings.color_success,
+        color_error: settings.color_error,
+        font_family_heading: settings.font_family_heading,
+        font_family_body: settings.font_family_body,
+        footer_text: settings.footer_text,
+        footer_links: settings.footer_links,
+        email_from_name: settings.email_from_name,
+        email_from_address: settings.email_from_address,
+        email_logo_base64: settings.email_logo_base64,
+    };
+};
 
 const SettingsPage: React.FC = () => {
     const { adminSettings, refreshAdminSettings, updateSettings, isLoading } = useContext(SettingsContext);
@@ -25,38 +50,16 @@ const SettingsPage: React.FC = () => {
     const canImport = hasPermission('settings:import');
 
     // Form state
-    const [formData, setFormData] = useState<AppSettingsUpdate>({});
+    const [formData, setFormData] = useState<AppSettingsUpdate>(() => getInitialFormData(adminSettings));
 
     // Load admin settings on mount
-    useEffect(() => {
+    React.useEffect(() => {
         refreshAdminSettings();
     }, [refreshAdminSettings]);
 
-    // Initialize form data when settings load
-    useEffect(() => {
-        if (adminSettings) {
-            setFormData({
-                site_name: adminSettings.site_name,
-                logo_base64: adminSettings.logo_base64,
-                favicon_base64: adminSettings.favicon_base64,
-                color_primary: adminSettings.color_primary,
-                color_secondary: adminSettings.color_secondary,
-                color_accent: adminSettings.color_accent,
-                color_background: adminSettings.color_background,
-                color_text: adminSettings.color_text,
-                color_text_secondary: adminSettings.color_text_secondary,
-                color_border: adminSettings.color_border,
-                color_success: adminSettings.color_success,
-                color_error: adminSettings.color_error,
-                font_family_heading: adminSettings.font_family_heading,
-                font_family_body: adminSettings.font_family_body,
-                footer_text: adminSettings.footer_text,
-                footer_links: adminSettings.footer_links,
-                email_from_name: adminSettings.email_from_name,
-                email_from_address: adminSettings.email_from_address,
-                email_logo_base64: adminSettings.email_logo_base64,
-            });
-        }
+    // Update form data when settings load
+    React.useEffect(() => {
+        setFormData(getInitialFormData(adminSettings));
     }, [adminSettings]);
 
     const handleFieldChange = <K extends keyof AppSettingsUpdate>(
