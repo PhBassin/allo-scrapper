@@ -62,6 +62,18 @@ describe('Routes - Scraper', () => {
   });
 
   describe('POST /api/scraper/trigger', () => {
+    it('should handle request without body (regression test for #488)', async () => {
+      const app = await setupApp({ role_name: 'admin', is_system_role: true, permissions: [] });
+      
+      // This is the bug case - sending request without any body
+      // Previously this caused "Cannot destructure property 'cinemaId' of 'req.body' as it is undefined"
+      const response = await request(app).post('/api/scraper/trigger');
+      
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(mockTriggerScrape).toHaveBeenCalledWith({});
+    });
+
     it('should return 403 if user lacks permissions', async () => {
       const app = await setupApp({ role_name: 'user', is_system_role: false, permissions: [] });
       
