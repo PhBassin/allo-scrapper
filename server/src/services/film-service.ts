@@ -8,14 +8,20 @@ export class FilmService {
   constructor(private db: DB) {}
 
   async getFilmsForWeek(weekStart: string): Promise<FilmWithShowtimes[]> {
-    const films = await getWeeklyFilms(this.db, weekStart);
-    const allShowtimes = await getWeeklyShowtimes(this.db, weekStart);
+    // ⚡ PERFORMANCE: Run independent DB queries concurrently to reduce total response time
+    const [films, allShowtimes] = await Promise.all([
+      getWeeklyFilms(this.db, weekStart),
+      getWeeklyShowtimes(this.db, weekStart)
+    ]);
     return this.mergeFilmsAndShowtimes(films, allShowtimes);
   }
 
   async getFilmsForDate(dateParam: string, weekStart: string): Promise<FilmWithShowtimes[]> {
-    const films = await getFilmsByDate(this.db, dateParam, weekStart);
-    const allShowtimes = await getShowtimesByDate(this.db, dateParam, weekStart);
+    // ⚡ PERFORMANCE: Run independent DB queries concurrently to reduce total response time
+    const [films, allShowtimes] = await Promise.all([
+      getFilmsByDate(this.db, dateParam, weekStart),
+      getShowtimesByDate(this.db, dateParam, weekStart)
+    ]);
     return this.mergeFilmsAndShowtimes(films, allShowtimes);
   }
 

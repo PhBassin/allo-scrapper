@@ -10,3 +10,6 @@
 ## 2026-03-15 - [Optimize Array Presence Checks in React Renders]
 **Learning:** Found an anti-pattern in `CinemaDateSelector.tsx` where `.filter(s => s.date === date).length > 0` was used inside a render loop. This forces JavaScript to iterate through the entire array and allocate memory for a new intermediate array just to perform a boolean check, resulting in unnecessary $O(N)$ operations during render.
 **Action:** When only checking if an element exists in a collection, always use `Array.prototype.some()`. It early-exits on the first match (making it $O(1)$ in best-case scenarios) and avoids allocating memory for intermediate arrays.
+## 2026-03-16 - [Parallelize DB queries in FilmService]
+**Learning:** Sequential database queries for fetching films and showtimes (e.g., `getWeeklyFilms` then `getWeeklyShowtimes`) create a performance bottleneck in `FilmService` since they are independent operations.
+**Action:** Use `Promise.all` to run independent DB queries concurrently, which reduces the total response time and improves API throughput for related endpoints.
