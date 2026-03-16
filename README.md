@@ -9,6 +9,8 @@
 
 **Cinema showtimes aggregator** that scrapes and centralizes movie screening schedules from the source website cinema pages. Built with Express.js, React, and PostgreSQL, fully containerized with Docker.
 
+> **Latest Version**: 4.0.1 | **Status**: Production Ready ✅
+
 ---
 
 ## 📋 Table of Contents
