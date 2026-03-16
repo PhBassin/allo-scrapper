@@ -268,6 +268,7 @@ Closes #<issue-number>"
 - [ ] Code coverage maintained
 - [ ] Conventional Commits used
 - [ ] Documentation updated (if applicable)
+- [ ] Version label added (`patch`, `minor`, or `major`)
 - [ ] Issue referenced in PR body
 
 **After merge:**
