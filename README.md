@@ -9,6 +9,8 @@
 
 **Cinema showtimes aggregator** that scrapes and centralizes movie screening schedules from the source website cinema pages. Built with Express.js, React, and PostgreSQL, fully containerized with Docker.
 
+> **Latest Version**: 4.0.1 | **Status**: Production Ready ✅
+
 ---
 
 ## 📋 Table of Contents
@@ -496,7 +498,15 @@ For AI coding agents, see [AGENTS.md](./AGENTS.md) for mandatory workflow and TD
 4. Follow Conventional Commits format
 5. Ensure all tests pass and Docker builds
 6. Create PR referencing the issue
-7. Wait for review before merging
+7. **Add version label** to PR (`major`, `minor`, or `patch`) when targeting `main`
+8. Wait for review before merging
+
+**Automated versioning** (PRs to `main` only):
+- Add label `major` (breaking changes), `minor` (features), or `patch` (fixes)
+- After merge + successful Docker build, version is auto-bumped and tagged
+- `CHANGELOG.md` auto-generated from conventional commits
+- GitHub release created automatically
+- See [AGENTS.md](./AGENTS.md#automated-versioning--releases) for details
 
 ---
 
