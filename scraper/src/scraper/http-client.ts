@@ -1,6 +1,6 @@
 // HTTP client for fetching cinema and film pages from source website
 
-import { chromium, type Browser } from 'playwright';
+import { chromium, type Browser } from 'playwright-core';
 import { logger } from '../utils/logger.js';
 import { ALLOCINE_BASE_URL } from './utils.js';
 
@@ -50,6 +50,7 @@ async function getBrowser(): Promise<Browser> {
   if (!_browser || !_browser.isConnected()) {
     _browser = await chromium.launch({
       headless: true,
+      executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
   }
