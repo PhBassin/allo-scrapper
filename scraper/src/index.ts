@@ -9,6 +9,7 @@ import { runScraper, addCinemaAndScrape } from './scraper/index.js';
 import { getRedisPublisher, getRedisConsumer, disconnectRedis, type ScrapeJob, type ScrapeJobScrape, type ScrapeJobAddCinema } from './redis/client.js';
 import { db } from './db/client.js';
 import { createScrapeReport, updateScrapeReport } from './db/report-queries.js';
+import { getEnabledSchedules, updateScheduleRunStatus } from './db/schedule-queries.js';
 
 // ---------------------------------------------------------------------------
 // Metrics HTTP server (always-on, port 9091)
@@ -195,66 +196,115 @@ async function runConsumer(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function runCron(): Promise<void> {
-  const cronSchedule = process.env.CRON_SCHEDULE ?? '0 6 * * *'; // Default: 6 AM daily
-  logger.info(`[scraper] Mode: cron, schedule: ${cronSchedule}`);
-
   const { default: cron } = await import('node-cron');
 
-  if (!cron.validate(cronSchedule)) {
-    throw new Error(`Invalid cron schedule: ${cronSchedule}`);
+  // Try to load schedules from database
+  let dbSchedules: { id: number; name: string; cron_expression: string }[] = [];
+  let useDatabaseSchedules = false;
+
+  try {
+    dbSchedules = await getEnabledSchedules(db);
+    useDatabaseSchedules = dbSchedules.length > 0;
+    if (useDatabaseSchedules) {
+      logger.info(`[scraper] Found ${dbSchedules.length} enabled schedule(s) in database`);
+    }
+  } catch (err) {
+    logger.warn('[scraper] Failed to load schedules from database, falling back to env var:', err);
   }
 
-  const task = cron.schedule(cronSchedule, async () => {
-    logger.info('[scraper] Cron triggered, starting scrape...');
+  // Determine which schedules to use
+  const schedules: { id?: number; name: string; cron_expression: string }[] = [];
 
-    let reportId: number;
-    try {
-      reportId = await createScrapeReport(db, 'cron');
-    } catch (err) {
-      logger.error('[scraper] Failed to create scrape report:', err);
-      return;
-    }
-
-    const publisher = getRedisPublisher();
-
-    try {
-      const summary = await runScraper(publisher);
-
-      const status = summary.failed_cinemas === 0
-        ? 'success'
-        : summary.successful_cinemas > 0
-          ? 'partial_success'
-          : 'failed';
-
-      await updateScrapeReport(db, reportId, {
-        status,
-        completed_at: new Date().toISOString(),
-        total_cinemas: summary.total_cinemas,
-        successful_cinemas: summary.successful_cinemas,
-        failed_cinemas: summary.failed_cinemas,
-        total_films_scraped: summary.total_films,
-        total_showtimes_scraped: summary.total_showtimes,
-        errors: summary.errors,
+  if (useDatabaseSchedules) {
+    for (const sched of dbSchedules) {
+      schedules.push({
+        id: sched.id,
+        name: sched.name,
+        cron_expression: sched.cron_expression,
       });
-
-      logger.info(`[scraper] Cron scrape completed: ${status}`);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error('[scraper] Cron scrape failed:', err);
-      await updateScrapeReport(db, reportId, {
-        status: 'failed',
-        completed_at: new Date().toISOString(),
-        errors: [{ cinema_name: 'System', error: errorMessage }],
-      }).catch(() => {});
     }
+  } else {
+    // Fallback to environment variable
+    const cronSchedule = process.env.CRON_SCHEDULE ?? '0 6 * * *';
+    schedules.push({
+      name: 'default',
+      cron_expression: cronSchedule,
+    });
+    logger.info(`[scraper] No database schedules found, using CRON_SCHEDULE: ${cronSchedule}`);
+  }
+
+  // Validate all cron expressions
+  const invalidSchedules = schedules.filter(s => !cron.validate(s.cron_expression));
+  if (invalidSchedules.length > 0) {
+    throw new Error(`Invalid cron schedule(s): ${invalidSchedules.map(s => `${s.name}: ${s.cron_expression}`).join(', ')}`);
+  }
+
+  // Create a cron task for each schedule
+  const tasks = schedules.map((schedule) => {
+    logger.info(`[scraper] Scheduling "${schedule.name}" with cron: ${schedule.cron_expression}`);
+
+    return cron.schedule(schedule.cron_expression, async () => {
+      logger.info(`[scraper] Cron triggered for "${schedule.name}", starting scrape...`);
+
+      let reportId: number;
+      try {
+        reportId = await createScrapeReport(db, 'cron');
+      } catch (err) {
+        logger.error('[scraper] Failed to create scrape report:', err);
+        return;
+      }
+
+      const publisher = getRedisPublisher();
+
+      try {
+        const summary = await runScraper(publisher);
+
+        const status = summary.failed_cinemas === 0
+          ? 'success'
+          : summary.successful_cinemas > 0
+            ? 'partial_success'
+            : 'failed';
+
+        await updateScrapeReport(db, reportId, {
+          status,
+          completed_at: new Date().toISOString(),
+          total_cinemas: summary.total_cinemas,
+          successful_cinemas: summary.successful_cinemas,
+          failed_cinemas: summary.failed_cinemas,
+          total_films_scraped: summary.total_films,
+          total_showtimes_scraped: summary.total_showtimes,
+          errors: summary.errors,
+        });
+
+        // Update schedule run status if this was a database schedule
+        if (schedule.id) {
+          await updateScheduleRunStatus(db, schedule.id, status);
+        }
+
+        logger.info(`[scraper] Cron scrape for "${schedule.name}" completed: ${status}`);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        logger.error(`[scraper] Cron scrape for "${schedule.name}" failed:`, err);
+        await updateScrapeReport(db, reportId, {
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          errors: [{ cinema_name: 'System', error: errorMessage }],
+        }).catch(() => {});
+
+        // Update schedule run status if this was a database schedule
+        if (schedule.id) {
+          await updateScheduleRunStatus(db, schedule.id, 'failed').catch(() => {});
+        }
+      }
+    });
   });
 
-  logger.info('[scraper] Cron task scheduled. Waiting...');
+  logger.info(`[scraper] ${tasks.length} cron task(s) scheduled. Waiting...`);
 
   // Graceful shutdown
   process.on('SIGTERM', async () => {
     logger.info('[scraper] SIGTERM received, stopping cron...');
-    task.stop();
+    tasks.forEach(task => task.stop());
     await disconnectRedis();
     await db.end();
     process.exit(0);
@@ -262,7 +312,7 @@ async function runCron(): Promise<void> {
 
   process.on('SIGINT', async () => {
     logger.info('[scraper] SIGINT received, stopping cron...');
-    task.stop();
+    tasks.forEach(task => task.stop());
     await disconnectRedis();
     await db.end();
     process.exit(0);
