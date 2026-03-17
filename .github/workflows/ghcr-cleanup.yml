@@ -16,7 +16,7 @@ on:
 env:
   RETENTION_DAYS: 7
   KEEP_RECENT_PRS: 5
-  DRY_RUN: 'false'  # Set to 'false' to enable actual deletion
+  DRY_RUN: 'true'  # Set to 'false' to enable actual deletion
 
 jobs:
   cleanup:
