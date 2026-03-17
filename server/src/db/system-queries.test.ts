@@ -95,6 +95,7 @@ describe('System Queries', () => {
             { version: '013_add_cinema_source.sql' },
             { version: '014_add_scrape_schedules.sql' },
             { version: '015_add_schedule_permissions.sql' },
+            { version: '016_add_admin_permissions.sql' },
           ],
         }),
       } as unknown as DB;
