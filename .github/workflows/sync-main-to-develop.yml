@@ -1,13 +1,21 @@
 name: Sync main to develop
 
-# Disabled: automatic sync causes merge conflicts and complicates release workflow
-# Run manually when needed via workflow_dispatch
+# Automatically triggered after Version Tag & Release completes successfully on main
+# Also supports manual runs via workflow_dispatch
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Version Tag & Release"]
+    types:
+      - completed
 
 jobs:
   sync-main-to-develop:
     runs-on: ubuntu-latest
+    # Only run if manually triggered OR if Version Tag workflow succeeded
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     permissions:
       contents: write
 

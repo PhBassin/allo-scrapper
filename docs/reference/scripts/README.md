@@ -59,6 +59,17 @@ Deployment and initialization scripts.
 
 ---
 
+### [Maintenance Scripts](./maintenance.md)
+Scripts for system and registry maintenance.
+
+**Scripts:**
+- `delete-ghcr-untagged.sh` - Batch delete untagged/SHA-only images
+- `cleanup-old-docker-images.sh` - Retention policy cleanup
+
+**Best for:** Cleaning up disk space, managing registry artifacts
+
+---
+
 ## Quick Reference
 
 ### Backup Examples

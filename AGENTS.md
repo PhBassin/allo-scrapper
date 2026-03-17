@@ -61,20 +61,38 @@ gh issue create --title "docs: description" --body "Details..." --label document
 
 **One branch per issue. No exceptions.**
 
+Branch naming follows conventional commit types:
+
 ```bash
 git checkout develop
 git pull origin develop
-git checkout -b feature/<issue-number>-<short-description>
+git checkout -b <type>/<issue-number>-<short-description>
 ```
 
+### Branch Types
+
+| Type | When to use | Version bump |
+|------|-------------|--------------|
+| `feat/` | New features | minor |
+| `fix/` | Bug fixes | patch |
+| `docs/` | Documentation only | patch |
+| `chore/` | Maintenance (deps, config) | patch |
+| `ci/` | CI/CD changes | patch |
+| `refactor/` | Code refactoring | patch |
+| `test/` | Adding/updating tests | patch |
+| `perf/` | Performance improvements | patch |
+
 **Examples:**
-- `feature/259-add-cinema-modal`
-- `feature/42-fix-parser-bug`
-- `feature/266-optimize-agents-md`
+- `feat/259-add-cinema-modal` — new feature (minor bump)
+- `fix/42-fix-parser-bug` — bug fix (patch bump)
+- `docs/266-update-agents-md` — documentation (patch bump)
+- `chore/100-update-deps` — dependency updates (patch bump)
+- `ci/150-add-workflow` — CI/CD change (patch bump)
 
 **Rules:**
 - Always branch from `develop`, never from `main` or another feature branch
 - One issue = one branch = one PR
+- Branch type should match your PR title prefix
 - NEVER push directly to `develop` or `main`
 
 ---
@@ -235,7 +253,7 @@ git commit -m "docs: update README with <feature>"        # DOCS — if applicab
 
 ```bash
 # Push branch
-git push -u origin feature/<issue-number>-<short-description>
+git push -u origin <type>/<issue-number>-<short-description>
 
 # Create PR
 gh pr create --title "feat(scope): description" --body "## Summary
@@ -250,6 +268,7 @@ Closes #<issue-number>"
 - [ ] Code coverage maintained
 - [ ] Conventional Commits used
 - [ ] Documentation updated (if applicable)
+- [ ] Version label added (`patch`, `minor`, or `major`)
 - [ ] Issue referenced in PR body
 
 **After merge:**
@@ -323,11 +342,11 @@ If no version label is found, the workflow checks PR title:
 ```bash
 # Developer workflow
 git checkout develop
-git checkout -b feature/123-new-api
+git checkout -b feat/123-new-api
 
 # ... make changes, tests, commits ...
 
-gh pr create --base main --head feature/123-new-api \
+gh pr create --base main --head feat/123-new-api \
   --title "feat(api): add batch operations endpoint" \
   --label minor \
   --body "Closes #123"
