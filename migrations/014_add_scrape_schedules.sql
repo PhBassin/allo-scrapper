@@ -46,9 +46,9 @@ CREATE TRIGGER update_scrape_schedules_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
--- Seed default schedule (matches legacy CRON_SCHEDULE default: Wednesday 8am)
+-- Seed default schedule (every Wednesday at 3am)
 INSERT INTO scrape_schedules (name, description, cron_expression, enabled)
-VALUES ('Weekly Wednesday Scrape', 'Default weekly scrape - every Wednesday at 8am', '0 8 * * 3', true)
+VALUES ('Weekly Wednesday Scrape', 'Default weekly scrape - every Wednesday at 3am', '0 3 * * 3', true)
 ON CONFLICT (name) DO NOTHING;
 
 -- Verify table exists
