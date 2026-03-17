@@ -14,12 +14,12 @@ interface ScheduleModalProps {
 }
 
 const CRON_PRESETS = [
-  { label: 'Every day at 8am', value: '0 8 * * *' },
-  { label: 'Every Wednesday at 8am', value: '0 8 * * 3' },
-  { label: 'Every Monday at 6am', value: '0 6 * * 1' },
+  { label: 'Every day at 3am', value: '0 3 * * *' },
+  { label: 'Every Wednesday at 3am', value: '0 3 * * 3' },
+  { label: 'Every Monday at 3am', value: '0 3 * * 1' },
   { label: 'Every 6 hours', value: '0 */6 * * *' },
   { label: 'Every 12 hours', value: '0 */12 * * *' },
-  { label: 'Weekly on Sunday', value: '0 8 * * 0' },
+  { label: 'Weekly on Sunday', value: '0 3 * * 0' },
 ];
 
 function validateCron(expression: string): string | null {
@@ -51,7 +51,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
     } else {
       setName('');
       setDescription('');
-      setCronExpression('0 8 * * 3');
+      setCronExpression('0 3 * * 3');
       setEnabled(true);
     }
     setErrors({});
@@ -147,7 +147,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
                 value={cronExpression}
                 onChange={(e) => setCronExpression(e.target.value)}
                 className={`w-full px-3 py-2 border rounded-md font-mono text-sm ${errors.cron ? 'border-red-500' : 'border-gray-300'}`}
-                placeholder="0 8 * * 3"
+                placeholder="0 3 * * 3"
                 disabled={isSubmitting}
               />
               {errors.cron && <p className="text-red-500 text-sm mt-1">{errors.cron}</p>}
