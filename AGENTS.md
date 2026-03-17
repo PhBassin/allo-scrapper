@@ -427,6 +427,103 @@ cd scraper && npm test
 
 ---
 
+## Database Migration Best Practices
+
+**CRITICAL: All database migrations must be idempotent** to avoid failures when starting fresh installations.
+
+### The Problem
+
+Schema drift can occur between:
+- `docker/init.sql` (used for fresh database initialization)
+- `migrations/*.sql` (used for incremental updates)
+
+If both sources create the same column/table/index, migrations will fail on fresh installs.
+
+### The Solution: Idempotent Migrations
+
+**Always check if a schema element exists before creating it.**
+
+#### Example: Adding a Column (Idempotent)
+
+```sql
+-- Migration: Add source column to cinemas table
+-- This migration is idempotent - safe to run multiple times
+
+BEGIN;
+
+-- Check if column exists before adding
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name='cinemas' AND column_name='source'
+    ) THEN
+        ALTER TABLE cinemas ADD COLUMN source VARCHAR(50) DEFAULT 'allocine';
+        RAISE NOTICE 'Column cinemas.source added successfully';
+    ELSE
+        RAISE NOTICE 'Column cinemas.source already exists, skipping';
+    END IF;
+END $$;
+
+-- Verify the change
+DO $$ 
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name='cinemas' AND column_name='source'
+    ) THEN
+        RAISE NOTICE 'Migration successful: cinemas.source exists';
+    ELSE
+        RAISE EXCEPTION 'Migration failed: cinemas.source does not exist';
+    END IF;
+END $$;
+
+COMMIT;
+```
+
+#### Example: Creating a Table (Idempotent)
+
+```sql
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL
+);
+```
+
+#### Example: Renaming a Column (Idempotent)
+
+See `migrations/001_neutralize_references.sql` for a complete example.
+
+### Migration Checklist
+
+Before committing a new migration:
+
+- [ ] Migration checks if schema element exists before modifying
+- [ ] Migration includes verification step at the end
+- [ ] Migration uses `BEGIN;` and `COMMIT;` for atomicity
+- [ ] Migration has clear NOTICE messages for success/skip cases
+- [ ] Migration tested manually on both fresh DB and existing DB
+
+### Testing Migrations
+
+```bash
+# Test on fresh database
+docker compose down -v
+docker compose up -d ics-db
+docker compose exec -T ics-db psql -U postgres -d ics < migrations/XXX_your_migration.sql
+
+# Test on database with existing schema element
+# (column/table already exists from init.sql or previous migration)
+docker compose exec -T ics-db psql -U postgres -d ics < migrations/XXX_your_migration.sql
+```
+
+Both commands should succeed without errors.
+
+---
+
 
 ## Questions?
 
