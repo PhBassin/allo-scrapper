@@ -1,6 +1,6 @@
 {
   "name": "allo-scrapper",
-  "version": "4.1.1",
+  "version": "4.1.2",
   "description": "Cinema showtimes aggregator - Full-stack Express.js + React application with PostgreSQL backend",
   "type": "module",
   "private": true,

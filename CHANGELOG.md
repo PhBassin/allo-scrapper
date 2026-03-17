@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.2] - 2026-03-17
+
+### Fixed
+
+- fix: Make migration 013 idempotent and document migration best practices (#522) (943ce60)
+- fix(db): make migration 013 idempotent to prevent fresh install failures (#520) (d1747c2)
+- fix(db): make migration 013 idempotent to prevent fresh install failures (bc061d6)
+
+### Changed
+
+- 🛡️ Sentinel: [HIGH] Fix hardcoded database password fallback (#521) (c9bcf70)
+- 🛡️ Sentinel: Remove hardcoded DB password fallback (51ab96a)
+
+### Documentation
+
+- docs: add database migration best practices section (bf4a753)
+
 ## [4.1.1] - 2026-03-17
 
 ### Added
@@ -282,6 +299,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.1.2]: https://github.com/PhBassin/allo-scrapper/compare/v4.1.1...v4.1.2
 [4.1.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.1.0...v4.1.1
 [4.1.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.0.2...v4.1.0
 [4.0.2]: https://github.com/PhBassin/allo-scrapper/compare/v4.0.1...v4.0.2
