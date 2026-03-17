@@ -25,7 +25,13 @@ vi.mock('../db/client.js', () => ({
 
 // Mock rate limiter to avoid issues in tests
 vi.mock('../middleware/rate-limit.js', () => ({
-  scraperLimiter: (req: any, res: any, next: any) => next()
+  scraperLimiter: (req: any, res: any, next: any) => next(),
+  protectedLimiter: (req: any, res: any, next: any) => next(),
+}));
+
+// Mock permission middleware
+vi.mock('../middleware/permission.js', () => ({
+  requirePermission: () => (req: any, res: any, next: any) => next(),
 }));
 
 // Setup Express app for testing
