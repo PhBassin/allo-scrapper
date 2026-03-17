@@ -6,7 +6,7 @@ dotenv.config();
 // Configuration de la connexion PostgreSQL
 const config = {
   user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || 'password',
+  password: process.env.POSTGRES_PASSWORD as string,
   host: process.env.POSTGRES_HOST || 'localhost',
   port: parseInt(process.env.POSTGRES_PORT || '5432'),
   database: process.env.POSTGRES_DB || 'its',
@@ -14,6 +14,10 @@ const config = {
 
 // Si une URL de base de données est fournie (ex: format Heroku ou Docker interne), elle est prioritaire
 const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString && !process.env.POSTGRES_PASSWORD) {
+  throw new Error('Either DATABASE_URL or POSTGRES_PASSWORD environment variable is required');
+}
 
 export const pool = new pg.Pool(
   connectionString ? { connectionString } : config
