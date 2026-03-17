@@ -9,6 +9,7 @@ import type {
   PaginatedResponse,
   ScrapeStatus,
   ProgressEvent,
+  ScrapeSchedule,
 } from '../types';
 
 // Create axios instance
@@ -202,6 +203,65 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
   return () => {
     eventSource.close();
   };
+}
+
+// ============================================================================
+// SCHEDULES API
+// ============================================================================
+
+export async function getSchedules(): Promise<ScrapeSchedule[]> {
+  const response = await apiClient.get<ApiResponse<ScrapeSchedule[]>>('/scraper/schedules');
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to fetch schedules');
+  }
+  return response.data.data;
+}
+
+export async function getSchedule(id: number): Promise<ScrapeSchedule> {
+  const response = await apiClient.get<ApiResponse<ScrapeSchedule>>(`/scraper/schedules/${id}`);
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to fetch schedule');
+  }
+  return response.data.data;
+}
+
+export interface CreateSchedulePayload {
+  name: string;
+  description?: string | null;
+  cron_expression: string;
+  enabled?: boolean;
+  target_cinemas?: string[] | null;
+}
+
+export async function createSchedule(payload: CreateSchedulePayload): Promise<ScrapeSchedule> {
+  const response = await apiClient.post<ApiResponse<ScrapeSchedule>>('/scraper/schedules', payload);
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to create schedule');
+  }
+  return response.data.data;
+}
+
+export interface UpdateSchedulePayload {
+  name?: string;
+  description?: string | null;
+  cron_expression?: string;
+  enabled?: boolean;
+  target_cinemas?: string[] | null;
+}
+
+export async function updateSchedule(id: number, payload: UpdateSchedulePayload): Promise<ScrapeSchedule> {
+  const response = await apiClient.put<ApiResponse<ScrapeSchedule>>(`/scraper/schedules/${id}`, payload);
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to update schedule');
+  }
+  return response.data.data;
+}
+
+export async function deleteSchedule(id: number): Promise<void> {
+  const response = await apiClient.delete<ApiResponse<void>>(`/scraper/schedules/${id}`);
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to delete schedule');
+  }
 }
 
 // ============================================================================
