@@ -10,7 +10,7 @@ import SchedulesPage from './SchedulesPage';
 import { AuthContext } from '../../contexts/AuthContext';
 import type { PermissionName } from '../../types/role';
 
-type TabId = 'cinemas' | 'rapports' | 'users' | 'roles' | 'settings' | 'system' | 'schedules';
+type TabId = 'cinemas' | 'schedules' | 'rapports' | 'users' | 'roles' | 'settings' | 'system';
 
 interface Tab {
   id: TabId;
@@ -27,11 +27,31 @@ const tabs: Tab[] = [
   {
     id: 'cinemas',
     label: 'Cinemas',
-    // Cinemas tab is visible to anyone with at least one cinema/scraper permission
+    // Cinemas tab is visible to anyone with at least one cinema/scraper permissions
     anyPermissions: ['cinemas:create', 'cinemas:read', 'cinemas:update', 'cinemas:delete', 'scraper:trigger', 'scraper:trigger_single'],
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'schedules',
+    label: 'Schedules',
+    anyPermissions: ['scraper:schedules:list', 'scraper:schedules:create', 'scraper:schedules:update', 'scraper:schedules:delete'],
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'rapports',
+    label: 'Rapports',
+    anyPermissions: ['reports:list', 'reports:view'],
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
       </svg>
     ),
   },
@@ -83,16 +103,6 @@ const tabs: Tab[] = [
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'schedules',
-    label: 'Schedules',
-    anyPermissions: ['scraper:schedules:list', 'scraper:schedules:create', 'scraper:schedules:update', 'scraper:schedules:delete'],
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
   },
@@ -167,12 +177,12 @@ const AdminPage: React.FC = () => {
       {/* Tab content */}
       <div role="tabpanel">
         {activeTab === 'cinemas' && <CinemasPage />}
+        {activeTab === 'schedules' && <SchedulesPage />}
         {activeTab === 'rapports' && <ReportsPage />}
         {activeTab === 'users' && <UsersPage />}
         {activeTab === 'roles' && <RoleManagementPage />}
         {activeTab === 'settings' && <SettingsPage />}
         {activeTab === 'system' && <SystemPage />}
-        {activeTab === 'schedules' && <SchedulesPage />}
       </div>
     </div>
   );

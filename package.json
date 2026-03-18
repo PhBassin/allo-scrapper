@@ -60,5 +60,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2"
+  },
+  "dependencies": {
+    "@rolldown/binding-win32-x64-msvc": "^1.0.0-rc.9"
   }
 }
