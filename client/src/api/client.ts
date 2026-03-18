@@ -258,10 +258,7 @@ export async function updateSchedule(id: number, payload: UpdateSchedulePayload)
 }
 
 export async function deleteSchedule(id: number): Promise<void> {
-  const response = await apiClient.delete<ApiResponse<void>>(`/scraper/schedules/${id}`);
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Failed to delete schedule');
-  }
+  await apiClient.delete(`/scraper/schedules/${id}`);
 }
 
 // ============================================================================
