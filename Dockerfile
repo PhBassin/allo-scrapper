@@ -22,7 +22,8 @@ COPY server/package.json ./server/
 COPY scraper/package.json ./scraper/
 
 # Install all dependencies using legacy-peer-deps for React hooks ESLint plugin
-RUN npm ci --legacy-peer-deps && \
+# Use --omit=optional to skip platform-specific optional deps (e.g., Windows bindings)
+RUN npm ci --legacy-peer-deps --omit=optional && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/* /var/tmp/*
 
@@ -93,7 +94,8 @@ COPY --chown=nodejs:nodejs server/package.json ./server/
 COPY --chown=nodejs:nodejs scraper/package.json ./scraper/
 
 # Install only production dependencies for the server workspace
-RUN npm ci --omit=dev --workspace=allo-scrapper-server --legacy-peer-deps && \
+# Use --omit=optional to skip platform-specific optional deps (e.g., Windows bindings)
+RUN npm ci --omit=dev --workspace=allo-scrapper-server --legacy-peer-deps --omit=optional && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/*
 
