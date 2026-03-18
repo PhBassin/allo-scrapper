@@ -36,7 +36,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install --legacy-peer-deps --include=optional
 
       - name: TypeScript type-check
         run: npx tsc --noEmit
