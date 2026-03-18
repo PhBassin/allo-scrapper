@@ -22,8 +22,9 @@ COPY server/package.json ./server/
 COPY scraper/package.json ./scraper/
 
 # Install all dependencies using legacy-peer-deps for React hooks ESLint plugin
-# Use --omit=optional to skip platform-specific optional deps
-RUN npm install --legacy-peer-deps --omit=optional && \
+# Remove package-lock.json to regenerate with correct platform-specific bindings
+RUN rm -f package-lock.json && \
+    npm install --legacy-peer-deps && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/* /var/tmp/*
 
