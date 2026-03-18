@@ -1,0 +1,1176 @@
+openapi: 3.0.0
+info:
+  title: Allo-Scrapper REST API
+  description: |
+    Cinema showtime aggregator API for scraping and managing cinema data.
+    
+    **Authentication**: All protected endpoints require a JWT token in the `Authorization: Bearer <token>` header.
+    
+    **Rate Limiting**: API enforces rate limits per endpoint group:
+    - Public endpoints: 100 requests/minute
+    - Protected endpoints: 60 requests/minute
+    - Scraper endpoints: 10 requests/minute
+  version: 3.0.0
+  contact:
+    name: Allo-Scrapper Project
+    url: https://github.com/phbassin/allo-scrapper
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+  - url: https://api.example.com/api
+    description: Production server (replace with your domain)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login
+
+  schemas:
+    # User & Auth
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: admin
+        password:
+          type: string
+          format: password
+          example: securepassword123
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          format: jwt
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: admin
+        role_id:
+          type: integer
+          example: 1
+        role_name:
+          type: string
+          example: admin
+        is_system_role:
+          type: boolean
+          example: true
+        permissions:
+          type: array
+          items:
+            type: string
+          example: [users:list, users:create, scraper:trigger]
+
+    CreateUserRequest:
+      type: object
+      required:
+        - username
+        - password
+        - role_id
+      properties:
+        username:
+          type: string
+          example: newuser
+        password:
+          type: string
+          format: password
+          example: securepassword123
+        role_id:
+          type: integer
+          example: 2
+
+    # Cinema
+    Cinema:
+      type: object
+      properties:
+        id:
+          type: string
+          example: c12345
+        name:
+          type: string
+          example: UGC Ciné Cité Paris
+        url:
+          type: string
+          example: https://www.allocine.fr/seance/salle_gen_csalle=C12345.html
+        source:
+          type: string
+          enum: [allocine, ugc, pathe]
+          example: allocine
+        created_at:
+          type: string
+          format: date-time
+          example: 2025-03-18T10:30:00Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2025-03-18T15:45:00Z
+
+    CreateCinemaRequest:
+      type: object
+      required:
+        - name
+        - url
+        - source
+      properties:
+        name:
+          type: string
+          example: New Cinema
+        url:
+          type: string
+          example: https://www.allocine.fr/seance/salle_gen_csalle=C99999.html
+        source:
+          type: string
+          enum: [allocine, ugc, pathe]
+          example: allocine
+
+    # Film
+    Film:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 12345
+        title:
+          type: string
+          example: Dune Part Two
+        release_date:
+          type: string
+          format: date
+          example: 2025-02-26
+        duration_minutes:
+          type: integer
+          example: 166
+        genres:
+          type: array
+          items:
+            type: string
+          example: [Science-Fiction, Adventure, Drama]
+        synopsys:
+          type: string
+          example: The second part of the epic adaptation...
+
+    # Schedule
+    Schedule:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        cinema_id:
+          type: string
+          example: c12345
+        film_id:
+          type: integer
+          example: 12345
+        format:
+          type: string
+          enum: [2D, 3D, IMAX, 4DX]
+          example: 2D
+        is_subtitle:
+          type: boolean
+          example: true
+        datetime:
+          type: string
+          format: date-time
+          example: 2025-03-20T19:30:00Z
+        price_cents:
+          type: integer
+          example: 1200
+        booking_url:
+          type: string
+          example: https://www.allocine.fr/booking/...
+
+    # Report
+    ScrapeReport:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        status:
+          type: string
+          enum: [pending, running, success, partial_success, failed]
+          example: success
+        triggerType:
+          type: string
+          enum: [manual, cron, api]
+          example: manual
+        created_at:
+          type: string
+          format: date-time
+          example: 2025-03-18T10:00:00Z
+        completed_at:
+          type: string
+          format: date-time
+          example: 2025-03-18T10:15:00Z
+        total_cinemas:
+          type: integer
+          example: 50
+        successful_cinemas:
+          type: integer
+          example: 48
+        failed_cinemas:
+          type: integer
+          example: 2
+        total_films_scraped:
+          type: integer
+          example: 1245
+        total_showtimes_scraped:
+          type: integer
+          example: 5432
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              cinema_name:
+                type: string
+              error:
+                type: string
+
+    # Settings
+    AppSettings:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        app_name:
+          type: string
+          example: Allo-Scrapper
+        app_logo_url:
+          type: string
+          example: data:image/png;base64,...
+        primary_color:
+          type: string
+          example: "#0066cc"
+        secondary_color:
+          type: string
+          example: "#00cc99"
+        footer_text:
+          type: string
+          example: "© 2025 Allo-Scrapper"
+
+    # Role
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: admin
+        description:
+          type: string
+          example: Administrator with full access
+        is_system:
+          type: boolean
+          example: true
+        permissions:
+          type: array
+          items:
+            type: string
+          example: [users:list, users:create, scraper:trigger]
+
+    # System
+    SystemHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          example: healthy
+        database:
+          type: string
+          enum: [up, down]
+          example: up
+        redis:
+          type: string
+          enum: [up, down]
+          example: up
+        uptime_seconds:
+          type: number
+          example: 86400
+
+    SystemInfo:
+      type: object
+      properties:
+        version:
+          type: string
+          example: 3.0.0
+        node_version:
+          type: string
+          example: 20.11.0
+        platform:
+          type: string
+          example: darwin
+        environment:
+          type: string
+          enum: [development, production]
+          example: production
+
+    # Error Response
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Not Found
+        message:
+          type: string
+          example: Cinema with ID c99999 not found
+        statusCode:
+          type: integer
+          example: 404
+
+  responses:
+    UnauthorizedError:
+      description: Missing or invalid JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ForbiddenError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ConflictError:
+      description: Resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequestsError:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      summary: User Login
+      tags: [Authentication]
+      security: []
+      description: Authenticate with username and password to receive a JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      examples:
+        curl:
+          summary: Example cURL request
+          value: |
+            curl -X POST http://localhost:3000/api/auth/login \
+              -H "Content-Type: application/json" \
+              -d '{
+                "username": "admin",
+                "password": "password123"
+              }'
+        javascript:
+          summary: Example JavaScript request
+          value: |
+            const response = await fetch('http://localhost:3000/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                username: 'admin',
+                password: 'password123'
+              })
+            });
+            const { token, user } = await response.json();
+
+  /auth/register:
+    post:
+      summary: Register New User
+      tags: [Authentication]
+      description: Create a new user account (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: Username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cinemas:
+    get:
+      summary: List All Cinemas
+      tags: [Cinemas]
+      security: []
+      description: Get list of all cinemas with pagination
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search cinema name
+      responses:
+        '200':
+          description: Cinemas list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cinemas:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Cinema'
+                  total:
+                    type: integer
+                    example: 150
+                  page:
+                    type: integer
+                    example: 1
+    post:
+      summary: Create Cinema
+      tags: [Cinemas]
+      description: Add a new cinema to the system (requires `cinemas:create` permission)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCinemaRequest'
+      responses:
+        '201':
+          description: Cinema created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cinema'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /cinemas/{id}:
+    get:
+      summary: Get Cinema Details
+      tags: [Cinemas]
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: c12345
+      responses:
+        '200':
+          description: Cinema details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cinema'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      summary: Update Cinema
+      tags: [Cinemas]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                url:
+                  type: string
+      responses:
+        '200':
+          description: Cinema updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cinema'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete Cinema
+      tags: [Cinemas]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Cinema deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /films:
+    get:
+      summary: List Films
+      tags: [Films]
+      security: []
+      description: Get films with optional filtering and pagination
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: cinema_id
+          in: query
+          schema:
+            type: string
+          description: Filter by cinema ID
+      responses:
+        '200':
+          description: Films list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  films:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Film'
+                  total:
+                    type: integer
+
+  /films/search:
+    get:
+      summary: Search Films
+      tags: [Films]
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query (title, genres, etc)
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Film'
+
+  /films/{id}:
+    get:
+      summary: Get Film Details
+      tags: [Films]
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Film details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Film'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /scraper/trigger:
+    post:
+      summary: Trigger Scraping
+      tags: [Scraper]
+      description: Enqueue a scraping job to process all cinemas (requires `scraper:trigger` permission)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                triggerType:
+                  type: string
+                  enum: [manual, api]
+                  default: manual
+      responses:
+        '200':
+          description: Scraping job created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reportId:
+                    type: integer
+                  status:
+                    type: string
+                    example: queued
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '429':
+          $ref: '#/components/responses/TooManyRequestsError'
+
+  /scraper/status:
+    get:
+      summary: Get Scraper Status
+      tags: [Scraper]
+      security: []
+      responses:
+        '200':
+          description: Scraper status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  running:
+                    type: boolean
+                  lastRun:
+                    type: string
+                    format: date-time
+                  queueDepth:
+                    type: integer
+
+  /scraper/reports:
+    get:
+      summary: List Scrape Reports
+      tags: [Scraper]
+      description: Get list of all scraping reports (requires `reports:list` permission)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Scrape reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScrapeReport'
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /scraper/reports/{id}:
+    get:
+      summary: Get Scrape Report
+      tags: [Scraper]
+      description: Get details of a specific scraping report (requires `reports:view` permission)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Scrape report details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScrapeReport'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /settings:
+    get:
+      summary: Get Public Settings
+      tags: [Settings]
+      security: []
+      description: Get public application settings (branding, colors, etc)
+      responses:
+        '200':
+          description: Public settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppSettings'
+    put:
+      summary: Update Settings
+      tags: [Settings]
+      description: Update application settings (admin only, requires `settings:update` permission)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                app_name:
+                  type: string
+                primary_color:
+                  type: string
+                  format: color
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppSettings'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /settings/admin:
+    get:
+      summary: Get Full Settings
+      tags: [Settings]
+      description: Get all application settings (admin only, requires `settings:read` permission)
+      responses:
+        '200':
+          description: Full settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppSettings'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /settings/reset:
+    post:
+      summary: Reset Settings to Defaults
+      tags: [Settings]
+      description: Restore default settings (admin only, requires `settings:reset` permission)
+      responses:
+        '200':
+          description: Settings reset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppSettings'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /system/health:
+    get:
+      summary: System Health Check
+      tags: [System]
+      security: []
+      description: Check system health status (database, redis, etc)
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemHealth'
+        '503':
+          description: System is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemHealth'
+
+  /system/info:
+    get:
+      summary: System Information
+      tags: [System]
+      description: Get system version and environment info (requires `system:info` permission)
+      responses:
+        '200':
+          description: System information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemInfo'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /roles:
+    get:
+      summary: List All Roles
+      tags: [Roles]
+      description: Get list of all roles (requires `roles:list` permission)
+      responses:
+        '200':
+          description: Roles list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    post:
+      summary: Create Role
+      tags: [Roles]
+      description: Create a new custom role (requires `roles:create` permission)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Role created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /roles/{id}:
+    get:
+      summary: Get Role Details
+      tags: [Roles]
+      description: Get details of a specific role (requires `roles:read` permission)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Role details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      summary: Update Role
+      tags: [Roles]
+      description: Update role and permissions (requires `roles:update` permission)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete Role
+      tags: [Roles]
+      description: Delete a custom role (requires `roles:delete` permission, cannot delete system roles)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Role deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /users:
+    get:
+      summary: List Users
+      tags: [Users]
+      description: Get list of users with pagination (requires `users:list` permission)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Users list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /users/{id}:
+    get:
+      summary: Get User Details
+      tags: [Users]
+      description: Get details of a specific user (requires `users:read` permission)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      summary: Update User Role
+      tags: [Users]
+      description: Change user's role (requires `users:update` permission)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role_id
+              properties:
+                role_id:
+                  type: integer
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete User
+      tags: [Users]
+      description: Delete a user account (requires `users:delete` permission, cannot delete last admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: User deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+tags:
+  - name: Authentication
+    description: User authentication and registration
+  - name: Cinemas
+    description: Cinema management and information
+  - name: Films
+    description: Film catalog and details
+  - name: Scraper
+    description: Scraping jobs and reports
+  - name: Settings
+    description: Application settings and configuration
+  - name: System
+    description: System health and information
+  - name: Roles
+    description: Role and permission management
+  - name: Users
+    description: User account management

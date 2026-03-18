@@ -1,10 +1,12 @@
 # 🎯 Scraper Configuration
 
+**Last updated:** March 18, 2026 | Status: Current ✅
+
 Complete guide for configuring and managing the cinema scraper.
 
 **Related Documentation:**
 - [Scraper API](./api/scraper.md) - Scraper API endpoints
-- [Database Reference](./database.md) - Data storage structure
+- [Database Reference](./database/) - Data storage structure
 - [Docker Deployment](../guides/deployment/docker.md) - Scraper microservice mode
 
 ---
@@ -378,7 +380,7 @@ See [Troubleshooting Guide](../troubleshooting/common-issues.md) for:
 ## Related Documentation
 
 - [Scraper API](./api/scraper.md) - Scraper API endpoints
-- [Database Reference](./database.md) - Data storage structure
+- [Database Reference](./database/) - Data storage structure
 - [Docker Deployment](../guides/deployment/docker.md) - Scraper microservice mode
 - [Troubleshooting](../troubleshooting/common-issues.md) - Scraper issues
 

@@ -2,6 +2,8 @@
 
 Complete guide to using the Allo-Scrapper admin panel for white-label branding and user management.
 
+**Last updated:** March 18, 2026 | Status: Current ✅
+
 ---
 
 ## 📋 Table of Contents
@@ -47,14 +49,29 @@ The admin panel provides comprehensive control over:
 
 ⚠️ **Security Alert**: Change the default admin password immediately after first login!
 
-### Step 2: Access Admin Features
+### Step 2: Access Admin Panel
 
-Click your username in the top-right corner to access admin-only features:
+Click your username in the top-right corner and select "Admin" or navigate directly to `/admin`.
 
-- **Admin Settings** (`/admin/settings`) - Branding, colors, typography, footer, email
-- **Users** (`/admin/users`) - User management and role assignment
-- **Role Management** (`/admin/roles`) - Create and manage custom roles and permissions
-- **System** (`/admin/system`) - System diagnostics and monitoring
+---
+
+## Admin Panel Overview
+
+The admin panel is organized into **7 main tabs**, each controlling different aspects of the application. Your access to tabs depends on your assigned role and permissions.
+
+### Available Admin Tabs
+
+| Tab | Purpose | Permissions Required | Description |
+|-----|---------|---------------------|-------------|
+| **Cinemas** | Manage cinema locations | `cinemas:*` or `scraper:*` | Add, edit, delete cinemas; view showtimes |
+| **Schedules** | Manage scraping schedules | `scraper:schedules:*` | Create and manage automated scraping schedules |
+| **Rapports** | View scrape reports | `reports:list` or `reports:view` | Review scraping session history and status |
+| **Users** | User account management | `users:*` | Create users, manage accounts, reset passwords |
+| **Roles** | Role and permission management | `roles:*` | Create custom roles, assign permissions |
+| **Settings** | Application branding & configuration | `settings:*` | Customize site name, colors, fonts, footer, theme |
+| **System** | System diagnostics | `system:*` | View system health, database status, migrations |
+
+**Note**: If you don't see a tab, you don't have the required permissions. Contact your admin to request access.
 
 ---
 
@@ -813,7 +830,7 @@ Manage user accounts and roles.
 - **Settings API**: [Settings API](../../reference/api/settings.md) - Settings endpoints
 - **Users API**: [Users API](../../reference/api/users.md) - User management endpoints
 - **Installation Guide**: [Installation](../../getting-started/installation.md) - Environment and configuration
-- **Database Schema**: [Database Reference](../../reference/database.md) - Data models
+- **Database Schema**: [Database Reference](../../reference/database/) - Data models
 - **Troubleshooting**: [Common Issues](../../troubleshooting/common-issues.md) - Common issues
 
 ### Support

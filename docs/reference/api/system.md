@@ -1,5 +1,7 @@
 # System Information API
 
+**Last updated:** March 18, 2026 | Status: Current ✅
+
 Monitor application health, server metrics, database statistics, and migration status.
 
 **Base Route**: `/api/system/*`  

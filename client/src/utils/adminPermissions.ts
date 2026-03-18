@@ -50,4 +50,10 @@ export const ADMIN_PERMISSIONS: PermissionName[] = [
   // Scraper permissions (visible in cinemas tab)
   'scraper:trigger',
   'scraper:trigger_single',
+  
+  // Schedule permissions
+  'scraper:schedules:list',
+  'scraper:schedules:create',
+  'scraper:schedules:update',
+  'scraper:schedules:delete',
 ];

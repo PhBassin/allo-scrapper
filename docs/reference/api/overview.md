@@ -1,5 +1,7 @@
 # API Overview
 
+**Last updated:** March 18, 2026 | Status: Current ✅
+
 Complete reference for the Allo-Scrapper REST API.
 
 **Related Documentation:**
@@ -13,7 +15,7 @@ Complete reference for the Allo-Scrapper REST API.
 - [Users](./users.md) - User management
 - [System](./system.md) - System information
 - [../../getting-started/configuration.md](../../getting-started/configuration.md) - Environment variables
-- [../../reference/database.md](../../reference/database.md) - Database schema
+- [../../reference/database/](../../reference/database/) - Database schema
 
 ---
 

@@ -1,5 +1,7 @@
 # Database Schema Reference
 
+**Last updated:** March 18, 2026 | Status: Current ✅
+
 Complete PostgreSQL schema reference for the Allo-Scrapper database.
 
 ## Overview
