@@ -2,6 +2,8 @@
 
 The white-label branding system allows complete customization of the application's appearance and branding through an admin panel and REST API.
 
+**Last updated:** March 18, 2026 | Status: Current ✅
+
 ---
 
 ## System Overview

@@ -1,5 +1,7 @@
 # Reports API
 
+**Last updated:** March 18, 2026 | Status: Current ✅
+
 **Authentication:** All endpoints require authentication (Bearer token)
 
 ## Reports
