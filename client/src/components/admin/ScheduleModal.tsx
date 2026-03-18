@@ -28,8 +28,7 @@ const DAYS_OF_WEEK = [
 
 const HOURS = Array.from({ length: 24 }, (_, i) => ({
   value: i,
-  label: i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`,
-  hour24: i.toString().padStart(2, '0'),
+  label: i.toString().padStart(2, '0'),
 }));
 
 const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => ({
