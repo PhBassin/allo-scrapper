@@ -52,248 +52,248 @@ jobs:
             core.info(`🔒 Keep recent PRs: ${keepRecentPRs}`);
             core.info(`🧪 Mode: ${dryRun ? 'DRY-RUN' : 'PRODUCTION'}`);
 
-              // Tag helpers
-  const isProtectedTag = (tags) => {
-    const protectedPatterns = [
-      /^v?\d+\.\d+/,                    // Semver: v3.0.0, 3.0, 3.0.0-beta.4
-      /^(latest|stable|develop|main)$/  // Special tags
-    ];
-    return tags.some(tag => protectedPatterns.some(pattern => pattern.test(tag)));
-  };
+            // Tag helpers
+            const isProtectedTag = (tags) => {
+              const protectedPatterns = [
+                /^v?\d+\.\d+/,                    // Semver: v3.0.0, 3.0, 3.0.0-beta.4
+                /^(latest|stable|develop|main)$/  // Special tags
+              ];
+              return tags.some(tag => protectedPatterns.some(pattern => pattern.test(tag)));
+            };
 
-  const isPRTag = (tags) => tags.some(tag => /^pr-\d+$/.test(tag));
+            const isPRTag = (tags) => tags.some(tag => /^pr-\d+$/.test(tag));
 
-  const extractPRNumber = (tags) => {
-    const prTag = tags.find(tag => /^pr-\d+$/.test(tag));
-    return prTag ? parseInt(prTag.split('-')[1], 10) : null;
-  };
+            const extractPRNumber = (tags) => {
+              const prTag = tags.find(tag => /^pr-\d+$/.test(tag));
+              return prTag ? parseInt(prTag.split('-')[1], 10) : null;
+            };
 
-  // Determine owner scope
-  const ownerInfo = await github.rest.users.getByUsername({ username: owner });
-  const scope = ownerInfo.data.type === 'Organization' ? 'orgs' : 'users';
+            // Determine owner scope
+            const ownerInfo = await github.rest.users.getByUsername({ username: owner });
+            const scope = ownerInfo.data.type === 'Organization' ? 'orgs' : 'users';
 
-  // Fetch all package versions with pagination
-  let page = 1;
-  let allVersions = [];
+            // Fetch all package versions with pagination
+            let page = 1;
+            let allVersions = [];
 
-  core.info('📦 Fetching package versions...');
-  while (true) {
-    let versions;
-    try {
-      const response = await github.request(
-        `GET /${scope}/{owner}/packages/container/{package_name}/versions`,
-        {
-          owner,
-          package_name: packageName,
-          per_page: 100,
-          page,
-        }
-      );
-      versions = response.data;
-    } catch (error) {
-      if (error.status === 404) {
-        core.warning(`Package ${packageName} not found for owner ${owner}. Nothing to clean.`);
-        return;
-      }
-      throw error;
-    }
+            core.info('📦 Fetching package versions...');
+            while (true) {
+              let versions;
+              try {
+                const response = await github.request(
+                  `GET /${scope}/{owner}/packages/container/{package_name}/versions`,
+                  {
+                    owner,
+                    package_name: packageName,
+                    per_page: 100,
+                    page,
+                  }
+                );
+                versions = response.data;
+              } catch (error) {
+                if (error.status === 404) {
+                  core.warning(`Package ${packageName} not found for owner ${owner}. Nothing to clean.`);
+                  return;
+                }
+                throw error;
+              }
 
-    if (!versions.length) break;
-    allVersions = allVersions.concat(versions);
-    page += 1;
-  }
-
-  core.info(`✅ Found ${allVersions.length} total versions`);
-
-  // Find recent PR numbers to preserve
-  const prVersions = allVersions
-    .filter(v => {
-      const tags = v.metadata?.container?.tags ?? [];
-      return isPRTag(tags);
-    })
-    .map(v => {
-      const tags = v.metadata?.container?.tags ?? [];
-      return { ...v, prNumber: extractPRNumber(tags) };
-    })
-    .filter(v => v.prNumber !== null)
-    .sort((a, b) => b.prNumber - a.prNumber);
-
-  const recentPRNumbers = prVersions.slice(0, keepRecentPRs).map(v => v.prNumber);
-  core.info(`🔒 Protected recent PRs: ${recentPRNumbers.join(', ') || '(none)'}`);
-
-  // Stats
-  const stats = {
-    scanned: 0,
-    protectedSemver: 0,
-    protectedSpecial: 0,
-    protectedRecentPR: 0,
-    protectedOtherTagged: 0,
-    keptTooRecentUntagged: 0,
-    deletedOldPR: 0,
-    deletedUntagged: 0
-  };
-
-  const toDelete = [];
-  const protectedSemverTags = [];
-  const protectedSpecialTags = [];
-  const protectedRecentPRTags = [];
-  const protectedOtherTaggedTags = [];
-  const deletedDetails = { pr: [], untagged: [] };
-
-  for (const version of allVersions) {
-    stats.scanned += 1;
-
-    const tags = version.metadata?.container?.tags ?? [];
-    const updatedAt = new Date(version.updated_at);
-    const isOld = updatedAt < cutoff;
-    const ageInDays = Math.floor((Date.now() - updatedAt.getTime()) / (24 * 60 * 60 * 1000));
-    const prNumber = extractPRNumber(tags);
-
-    let action = 'KEEP';
-    let reason = 'default keep';
-
-    if (isProtectedTag(tags)) {
-      action = 'KEEP';
-      reason = 'protected semver/special';
-
-      if (tags.some(t => /^v?\d+\.\d+/.test(t))) {
-        stats.protectedSemver += 1;
-        if (protectedSemverTags.length < 10) protectedSemverTags.push(tags.join(', '));
-      } else {
-        stats.protectedSpecial += 1;
-        if (protectedSpecialTags.length < 10) protectedSpecialTags.push(tags.join(', '));
-      }
-
-    } else if (isPRTag(tags) && prNumber && recentPRNumbers.includes(prNumber)) {
-      action = 'KEEP';
-      reason = `recent PR (#${prNumber}, in top ${keepRecentPRs})`;
-      stats.protectedRecentPR += 1;
-      if (protectedRecentPRTags.length < 10) protectedRecentPRTags.push(tags.join(', '));
-
-    } else if (isPRTag(tags) && isOld) {
-      action = 'DELETE';
-      reason = `old PR (#${prNumber}, age: ${ageInDays}d)`;
-      stats.deletedOldPR += 1;
-      toDelete.push(version);
-      if (deletedDetails.pr.length < 20) deletedDetails.pr.push(`pr-${prNumber} (${ageInDays}d old)`);
-
-    } else if (tags.length === 0 && isOld) {
-      action = 'DELETE';
-      reason = `untagged (age: ${ageInDays}d)`;
-      stats.deletedUntagged += 1;
-      toDelete.push(version);
-      if (deletedDetails.untagged.length < 20) deletedDetails.untagged.push(`version ${version.id} (${ageInDays}d old)`);
-
-    } else if (tags.length > 0) {
-      action = 'KEEP';
-      reason = 'tagged version preserved';
-      stats.protectedOtherTagged += 1;
-      if (protectedOtherTaggedTags.length < 10) protectedOtherTaggedTags.push(tags.join(', '));
-
-    } else {
-      // untagged but too recent
-      action = 'KEEP';
-      reason = `untagged but too recent (age: ${ageInDays}d)`;
-      stats.keptTooRecentUntagged += 1;
-    }
-
-    if (stats.scanned <= 20 || action === 'DELETE') {
-      const tagDisplay = tags.length > 0 ? tags.join(', ') : '(untagged)';
-      core.info(`${action === 'DELETE' ? '🗑️' : '✅'} ${action}: ${tagDisplay} - ${reason}`);
-    }
-  }
-
-  // Delete (or dry-run)
-  let actuallyDeleted = 0;
-  if (toDelete.length > 0) {
-    core.info(`\n${'='.repeat(60)}`);
-    core.info(`${dryRun ? '🧪 DRY-RUN:' : '🗑️ DELETING:'} ${toDelete.length} versions`);
-    core.info(`${'='.repeat(60)}\n`);
-
-    for (const version of toDelete) {
-      const tags = version.metadata?.container?.tags ?? [];
-      const tagDisplay = tags.length > 0 ? tags.join(', ') : '(untagged)';
-
-      if (!dryRun) {
-        try {
-          await github.request(
-            `DELETE /${scope}/{owner}/packages/container/{package_name}/versions/{package_version_id}`,
-            {
-              owner,
-              package_name: packageName,
-              package_version_id: version.id,
+              if (!versions.length) break;
+              allVersions = allVersions.concat(versions);
+              page += 1;
             }
-          );
-          actuallyDeleted += 1;
-          core.info(`✅ Deleted: ${tagDisplay} (ID: ${version.id})`);
-        } catch (error) {
-          core.error(`❌ Failed to delete ${tagDisplay} (ID: ${version.id}): ${error.message}`);
-        }
-      } else {
-        core.info(`[DRY-RUN] Would delete: ${tagDisplay} (ID: ${version.id})`);
-      }
-    }
-  }
 
-  const totalProtected =
-    stats.protectedSemver +
-    stats.protectedSpecial +
-    stats.protectedRecentPR +
-    stats.protectedOtherTagged +
-    stats.keptTooRecentUntagged;
+            core.info(`✅ Found ${allVersions.length} total versions`);
 
-  await core.summary
-    .addHeading(`${dryRun ? '🧪 DRY-RUN:' : '✅'} GHCR Cleanup Summary`)
-    .addRaw(`\n**Mode:** ${dryRun ? '🔍 DRY-RUN (no actual deletion)' : '✅ PRODUCTION (actual deletion)'}\n`)
-    .addRaw(`**Retention:** ${retentionDays} days\n`)
-    .addRaw(`**Keep recent PRs:** Last ${keepRecentPRs} PR tags\n`)
-    .addRaw(`**Cutoff date:** ${cutoff.toISOString()}\n`)
-    .addBreak()
-    .addHeading('📊 Statistics', 3)
-    .addTable([
-      [{ data: 'Category', header: true }, { data: 'Count', header: true }],
-      ['Total scanned', String(stats.scanned)],
-      ['Protected (semver)', String(stats.protectedSemver)],
-      ['Protected (special)', String(stats.protectedSpecial)],
-      ['Protected (recent PRs)', String(stats.protectedRecentPR)],
-      ['Protected (other tagged)', String(stats.protectedOtherTagged)],
-      ['Kept (untagged but too recent)', String(stats.keptTooRecentUntagged)],
-      ['**Total Protected**', `**${totalProtected}**`],
-      ['---', '---'],
-      ['Deleted (old PR tags)', String(stats.deletedOldPR)],
-      ['Deleted (untagged)', String(stats.deletedUntagged)],
-      ['**Total Deleted**', `**${dryRun ? '0 (dry-run)' : actuallyDeleted}**`],
-    ])
-    .addBreak()
-    .addHeading('✅ Protected', 3)
-    .addRaw(`**Semver tags (${stats.protectedSemver}):** ${protectedSemverTags.join(', ') || '(none)'}\n`)
-    .addBreak()
-    .addRaw(`**Special tags (${stats.protectedSpecial}):** ${protectedSpecialTags.join(', ') || '(none)'}\n`)
-    .addBreak()
-    .addRaw(`**Recent PRs (${stats.protectedRecentPR}):** ${protectedRecentPRTags.join(', ') || '(none)'}\n`)
-    .addBreak()
-    .addRaw(`**Other tagged (${stats.protectedOtherTagged}):** ${protectedOtherTaggedTags.join(', ') || '(none)'}\n`)
-    .addBreak()
-    .addHeading(`${dryRun ? '🗑️ Would Delete' : '✅ Deleted'} (>${retentionDays} days old)`, 3)
-    .addRaw(`**Old PR tags (${stats.deletedOldPR}):** ${deletedDetails.pr.join(', ') || '(none)'}\n`)
-    .addBreak()
-    .addRaw(`**Untagged images (${stats.deletedUntagged}):** ${deletedDetails.untagged.join(', ') || '(none)'}\n`)
-    .addBreak();
+            // Find recent PR numbers to preserve
+            const prVersions = allVersions
+              .filter(v => {
+                const tags = v.metadata?.container?.tags ?? [];
+                return isPRTag(tags);
+              })
+              .map(v => {
+                const tags = v.metadata?.container?.tags ?? [];
+                return { ...v, prNumber: extractPRNumber(tags) };
+              })
+              .filter(v => v.prNumber !== null)
+              .sort((a, b) => b.prNumber - a.prNumber);
 
-  if (dryRun) {
-    await core.summary
-      .addRaw('---\n')
-      .addRaw('💡 **To enable actual deletion:**\n')
-      .addRaw('1. Edit `.github/workflows/ghcr-cleanup.yml`\n')
-      .addRaw('2. Change `DRY_RUN: \'true\'` to `DRY_RUN: \'false\'`\n')
-      .addRaw('3. Commit and push\n');
-  }
+            const recentPRNumbers = prVersions.slice(0, keepRecentPRs).map(v => v.prNumber);
+            core.info(`🔒 Protected recent PRs: ${recentPRNumbers.join(', ') || '(none)'}`);
 
-  await core.summary.write();
+            // Stats
+            const stats = {
+              scanned: 0,
+              protectedSemver: 0,
+              protectedSpecial: 0,
+              protectedRecentPR: 0,
+              protectedOtherTagged: 0,
+              keptTooRecentUntagged: 0,
+              deletedOldPR: 0,
+              deletedUntagged: 0
+            };
 
-  core.info(`\n${'='.repeat(60)}`);
-  core.info(`✅ Cleanup complete!`);
-  core.info(`   Scanned: ${stats.scanned} versions`);
-  core.info(`   Protected: ${totalProtected} versions`);
-  core.info(`   ${dryRun ? 'Would delete' : 'Deleted'}: ${toDelete.length} versions`);
-  core.info(`${'='.repeat(60)}`);
+            const toDelete = [];
+            const protectedSemverTags = [];
+            const protectedSpecialTags = [];
+            const protectedRecentPRTags = [];
+            const protectedOtherTaggedTags = [];
+            const deletedDetails = { pr: [], untagged: [] };
+
+            for (const version of allVersions) {
+              stats.scanned += 1;
+
+              const tags = version.metadata?.container?.tags ?? [];
+              const updatedAt = new Date(version.updated_at);
+              const isOld = updatedAt < cutoff;
+              const ageInDays = Math.floor((Date.now() - updatedAt.getTime()) / (24 * 60 * 60 * 1000));
+              const prNumber = extractPRNumber(tags);
+
+              let action = 'KEEP';
+              let reason = 'default keep';
+
+              if (isProtectedTag(tags)) {
+                action = 'KEEP';
+                reason = 'protected semver/special';
+
+                if (tags.some(t => /^v?\d+\.\d+/.test(t))) {
+                  stats.protectedSemver += 1;
+                  if (protectedSemverTags.length < 10) protectedSemverTags.push(tags.join(', '));
+                } else {
+                  stats.protectedSpecial += 1;
+                  if (protectedSpecialTags.length < 10) protectedSpecialTags.push(tags.join(', '));
+                }
+
+              } else if (isPRTag(tags) && prNumber && recentPRNumbers.includes(prNumber)) {
+                action = 'KEEP';
+                reason = `recent PR (#${prNumber}, in top ${keepRecentPRs})`;
+                stats.protectedRecentPR += 1;
+                if (protectedRecentPRTags.length < 10) protectedRecentPRTags.push(tags.join(', '));
+
+              } else if (isPRTag(tags) && isOld) {
+                action = 'DELETE';
+                reason = `old PR (#${prNumber}, age: ${ageInDays}d)`;
+                stats.deletedOldPR += 1;
+                toDelete.push(version);
+                if (deletedDetails.pr.length < 20) deletedDetails.pr.push(`pr-${prNumber} (${ageInDays}d old)`);
+
+              } else if (tags.length === 0 && isOld) {
+                action = 'DELETE';
+                reason = `untagged (age: ${ageInDays}d)`;
+                stats.deletedUntagged += 1;
+                toDelete.push(version);
+                if (deletedDetails.untagged.length < 20) deletedDetails.untagged.push(`version ${version.id} (${ageInDays}d old)`);
+
+              } else if (tags.length > 0) {
+                action = 'KEEP';
+                reason = 'tagged version preserved';
+                stats.protectedOtherTagged += 1;
+                if (protectedOtherTaggedTags.length < 10) protectedOtherTaggedTags.push(tags.join(', '));
+
+              } else {
+                // untagged but too recent
+                action = 'KEEP';
+                reason = `untagged but too recent (age: ${ageInDays}d)`;
+                stats.keptTooRecentUntagged += 1;
+              }
+
+              if (stats.scanned <= 20 || action === 'DELETE') {
+                const tagDisplay = tags.length > 0 ? tags.join(', ') : '(untagged)';
+                core.info(`${action === 'DELETE' ? '🗑️' : '✅'} ${action}: ${tagDisplay} - ${reason}`);
+              }
+            }
+
+            // Delete (or dry-run)
+            let actuallyDeleted = 0;
+            if (toDelete.length > 0) {
+              core.info(`\n${'='.repeat(60)}`);
+              core.info(`${dryRun ? '🧪 DRY-RUN:' : '🗑️ DELETING:'} ${toDelete.length} versions`);
+              core.info(`${'='.repeat(60)}\n`);
+
+              for (const version of toDelete) {
+                const tags = version.metadata?.container?.tags ?? [];
+                const tagDisplay = tags.length > 0 ? tags.join(', ') : '(untagged)';
+
+                if (!dryRun) {
+                  try {
+                    await github.request(
+                      `DELETE /${scope}/{owner}/packages/container/{package_name}/versions/{package_version_id}`,
+                      {
+                        owner,
+                        package_name: packageName,
+                        package_version_id: version.id,
+                      }
+                    );
+                    actuallyDeleted += 1;
+                    core.info(`✅ Deleted: ${tagDisplay} (ID: ${version.id})`);
+                  } catch (error) {
+                    core.error(`❌ Failed to delete ${tagDisplay} (ID: ${version.id}): ${error.message}`);
+                  }
+                } else {
+                  core.info(`[DRY-RUN] Would delete: ${tagDisplay} (ID: ${version.id})`);
+                }
+              }
+            }
+
+            const totalProtected =
+              stats.protectedSemver +
+              stats.protectedSpecial +
+              stats.protectedRecentPR +
+              stats.protectedOtherTagged +
+              stats.keptTooRecentUntagged;
+
+            await core.summary
+              .addHeading(`${dryRun ? '🧪 DRY-RUN:' : '✅'} GHCR Cleanup Summary`)
+              .addRaw(`\n**Mode:** ${dryRun ? '🔍 DRY-RUN (no actual deletion)' : '✅ PRODUCTION (actual deletion)'}\n`)
+              .addRaw(`**Retention:** ${retentionDays} days\n`)
+              .addRaw(`**Keep recent PRs:** Last ${keepRecentPRs} PR tags\n`)
+              .addRaw(`**Cutoff date:** ${cutoff.toISOString()}\n`)
+              .addBreak()
+              .addHeading('📊 Statistics', 3)
+              .addTable([
+                [{ data: 'Category', header: true }, { data: 'Count', header: true }],
+                ['Total scanned', String(stats.scanned)],
+                ['Protected (semver)', String(stats.protectedSemver)],
+                ['Protected (special)', String(stats.protectedSpecial)],
+                ['Protected (recent PRs)', String(stats.protectedRecentPR)],
+                ['Protected (other tagged)', String(stats.protectedOtherTagged)],
+                ['Kept (untagged but too recent)', String(stats.keptTooRecentUntagged)],
+                ['**Total Protected**', `**${totalProtected}**`],
+                ['---', '---'],
+                ['Deleted (old PR tags)', String(stats.deletedOldPR)],
+                ['Deleted (untagged)', String(stats.deletedUntagged)],
+                ['**Total Deleted**', `**${dryRun ? '0 (dry-run)' : actuallyDeleted}**`],
+              ])
+              .addBreak()
+              .addHeading('✅ Protected', 3)
+              .addRaw(`**Semver tags (${stats.protectedSemver}):** ${protectedSemverTags.join(', ') || '(none)'}\n`)
+              .addBreak()
+              .addRaw(`**Special tags (${stats.protectedSpecial}):** ${protectedSpecialTags.join(', ') || '(none)'}\n`)
+              .addBreak()
+              .addRaw(`**Recent PRs (${stats.protectedRecentPR}):** ${protectedRecentPRTags.join(', ') || '(none)'}\n`)
+              .addBreak()
+              .addRaw(`**Other tagged (${stats.protectedOtherTagged}):** ${protectedOtherTaggedTags.join(', ') || '(none)'}\n`)
+              .addBreak()
+              .addHeading(`${dryRun ? '🗑️ Would Delete' : '✅ Deleted'} (>${retentionDays} days old)`, 3)
+              .addRaw(`**Old PR tags (${stats.deletedOldPR}):** ${deletedDetails.pr.join(', ') || '(none)'}\n`)
+              .addBreak()
+              .addRaw(`**Untagged images (${stats.deletedUntagged}):** ${deletedDetails.untagged.join(', ') || '(none)'}\n`)
+              .addBreak();
+
+            if (dryRun) {
+              await core.summary
+                .addRaw('---\n')
+                .addRaw('💡 **To enable actual deletion:**\n')
+                .addRaw('1. Edit `.github/workflows/ghcr-cleanup.yml`\n')
+                .addRaw('2. Change `DRY_RUN: \'true\'` to `DRY_RUN: \'false\'`\n')
+                .addRaw('3. Commit and push\n');
+            }
+
+            await core.summary.write();
+
+            core.info(`\n${'='.repeat(60)}`);
+            core.info(`✅ Cleanup complete!`);
+            core.info(`   Scanned: ${stats.scanned} versions`);
+            core.info(`   Protected: ${totalProtected} versions`);
+            core.info(`   ${dryRun ? 'Would delete' : 'Deleted'}: ${toDelete.length} versions`);
+            core.info(`${'='.repeat(60)}`);
