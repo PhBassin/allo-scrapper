@@ -12,6 +12,18 @@ interface BaseScrapeJob {
   traceContext?: Record<string, string>;
 }
 
+export interface ScheduleChangeEvent {
+  action: 'created' | 'updated' | 'deleted';
+  scheduleId: number;
+  schedule?: {
+    id: number;
+    name: string;
+    cron_expression: string;
+    enabled: boolean;
+    target_cinemas?: string[] | null;
+  };
+}
+
 export interface ScrapeJobScrape extends BaseScrapeJob {
   type: 'scrape';
   triggerType: 'manual' | 'cron';
@@ -90,6 +102,15 @@ export class RedisClient {
         logger.error('[RedisClient] Failed to parse progress event:', err);
       }
     });
+  }
+
+  // --------------------------------------------------------------------------
+  // Schedule change events (scraper:schedule:changed) – server → scraper
+  // --------------------------------------------------------------------------
+
+  /** Publish a schedule change event to notify the scraper of CRUD operations. */
+  async publishScheduleChange(event: ScheduleChangeEvent): Promise<void> {
+    await this.publisher.publish('scraper:schedule:changed', JSON.stringify(event));
   }
 
   // --------------------------------------------------------------------------

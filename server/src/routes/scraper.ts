@@ -5,6 +5,7 @@ import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { scraperLimiter, protectedLimiter } from '../middleware/rate-limit.js';
 import { ScraperService } from '../services/scraper-service.js';
+import { getRedisClient } from '../services/redis-client.js';
 import { AuthError, NotFoundError, ValidationError } from '../utils/errors.js';
 import {
   getAllSchedules,
@@ -147,7 +148,7 @@ router.post(
   protectedLimiter,
   requireAuth,
   requirePermission('scraper:schedules:create'),
-  async (req: AuthRequest, res, next) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const db: DB = req.app.get('db');
       const userId = req.user?.id;
@@ -174,6 +175,12 @@ router.post(
         target_cinemas,
       }, userId);
 
+      await getRedisClient().publishScheduleChange({
+        action: 'created',
+        scheduleId: created.id,
+        schedule: created,
+      });
+
       const response: ApiResponse = { success: true, data: created };
       res.status(201).json(response);
     } catch (error: any) {
@@ -191,7 +198,7 @@ router.put(
   protectedLimiter,
   requireAuth,
   requirePermission('scraper:schedules:update'),
-  async (req: AuthRequest, res, next) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const db: DB = req.app.get('db');
       const userId = req.user?.id;
@@ -220,6 +227,12 @@ router.put(
         target_cinemas,
       }, userId);
 
+      await getRedisClient().publishScheduleChange({
+        action: 'updated',
+        scheduleId: id,
+        schedule: updated ?? undefined,
+      });
+
       const response: ApiResponse = { success: true, data: updated };
       res.json(response);
     } catch (error: any) {
@@ -237,7 +250,7 @@ router.delete(
   protectedLimiter,
   requireAuth,
   requirePermission('scraper:schedules:delete'),
-  async (req, res, next) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const db: DB = req.app.get('db');
       const id = parseInt(req.params.id as string, 10);
@@ -252,7 +265,55 @@ router.delete(
       }
 
       await deleteSchedule(db, id);
+
+      await getRedisClient().publishScheduleChange({
+        action: 'deleted',
+        scheduleId: id,
+      });
+
       res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// POST /api/scraper/schedules/:id/trigger - Trigger a schedule immediately (requires scraper:trigger)
+router.post(
+  '/schedules/:id/trigger',
+  protectedLimiter,
+  requireAuth,
+  requirePermission('scraper:schedules:update'),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const db: DB = req.app.get('db');
+      const scraperService = new ScraperService(db);
+
+      const id = parseInt(req.params.id as string, 10);
+      if (isNaN(id)) {
+        return next(new ValidationError('Invalid schedule ID'));
+      }
+
+      const schedule = await getScheduleById(db, id);
+      if (!schedule) {
+        return next(new NotFoundError('Schedule not found'));
+      }
+
+      const { reportId, queueDepth } = await scraperService.triggerScrape({
+        cinemaId: schedule.target_cinemas?.[0],
+      });
+
+      const response: ApiResponse = {
+        success: true,
+        data: {
+          reportId,
+          scheduleId: id,
+          scheduleName: schedule.name,
+          message: 'Schedule job queued for immediate execution',
+          queueDepth,
+        },
+      };
+      res.json(response);
     } catch (error) {
       next(error);
     }
