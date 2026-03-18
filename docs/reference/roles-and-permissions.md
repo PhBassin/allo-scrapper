@@ -847,6 +847,28 @@ This ensures that **any** administrative permission grants access to the admin p
 4. **User login**: User gets JWT with custom permission set
 5. **Scoped access**: User can only access assigned features
 
+### Creating a Custom Role Does NOT Assign It to Users
+**Important**: Creating a custom role and assigning permissions to it does NOT automatically assign users to that role. The role must be explicitly assigned to users.
+
+**Common Misunderstanding**:
+```
+❌ WRONG: Create role → Assign permissions → User has those permissions
+✅ CORRECT: Create role → Assign permissions → Assign role to user → User has those permissions
+```
+
+**Example Scenario**:
+1. Admin creates "Schedule Operator" role with only `scraper:schedules:list` and `scraper:schedules:create`
+2. Admin assigns these permissions to the role
+3. Admin creates a new user, thinking they'll have schedule-only access
+4. **Problem**: The user still has their old role (e.g., "admin") because only the *role* was created/modified
+5. **Solution**: Admin must explicitly change the user's role in the Users page
+
+**How to Assign a Role to a User**:
+1. Go to **Admin → Users** tab
+2. Find the user you want to modify
+3. Change their role from the dropdown
+4. User must **logout and log back in** to get the new permissions in their JWT
+
 ### Permission Checking Flow
 
 ```
@@ -890,6 +912,26 @@ JWT_EXPIRES_IN=24h  # Default: 24 hours
 JWT_EXPIRES_IN=7d   # Alternative: 7 days
 JWT_EXPIRES_IN=30m  # Alternative: 30 minutes
 ```
+
+### Role Management Gotchas
+
+#### Role Creation Does Not Assign Users
+**Issue**: Creating a custom role and assigning permissions does NOT automatically assign it to existing users  
+**Impact**: Users keep their old role until explicitly reassigned  
+**Symptoms**: User sees all tabs despite having a "limited" role - this means the user still has their old role (like "admin") assigned  
+
+**Diagnosis**:
+1. Check user's JWT payload in browser localStorage (`user` key)
+2. Look at `role_name` and `is_system_role` fields
+3. If `role_name` is "admin" and `is_system_role` is `true`, the user has admin privileges via the admin bypass
+
+**Solution**:
+1. Go to **Admin → Users** tab
+2. Find the user
+3. Change their role from "admin" to your custom role
+4. Have the user logout and log back in
+
+**Prevention**: Always verify user role assignment after creating or modifying roles
 
 ### Client-Side Permission Checking
 
