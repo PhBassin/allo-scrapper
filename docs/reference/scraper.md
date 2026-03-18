@@ -1,5 +1,7 @@
 # 🎯 Scraper Configuration
 
+**Last updated:** March 18, 2026 | Status: Current ✅
+
 Complete guide for configuring and managing the cinema scraper.
 
 **Related Documentation:**

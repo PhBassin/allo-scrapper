@@ -1,5 +1,7 @@
 # API Overview
 
+**Last updated:** March 18, 2026 | Status: Current ✅
+
 Complete reference for the Allo-Scrapper REST API.
 
 **Related Documentation:**

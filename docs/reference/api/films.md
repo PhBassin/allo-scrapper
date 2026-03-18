@@ -1,5 +1,7 @@
 # Films API
 
+**Last updated:** March 18, 2026 | Status: Current ✅
+
 ## Films
 
 ### List All Films
