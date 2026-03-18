@@ -32,11 +32,11 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --include=optional
+        run: |
+          rm -f package-lock.json
+          npm install --legacy-peer-deps
 
       - name: TypeScript type-check
         run: npx tsc --noEmit
