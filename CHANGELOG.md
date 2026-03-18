@@ -5,6 +5,75 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.0] - 2026-03-18
+
+### Added
+
+- feat: add scrape job scheduling system (#530) (6401a10)
+- feat(client): move Schedules tab between Cinemas and Rapports (28e810b)
+- feat(scraper): add pub/sub for dynamic schedule reload (3fcc6af)
+- feat(client): add human-friendly cron expression builder (24cd6d8)
+- feat(scraper): read schedules from database (c871d6a)
+- feat(client): add schedule management UI (fe35f60)
+- feat(api): add scrape schedule CRUD endpoints (97fd0ce)
+- feat(db): add scrape_schedules table and permissions (79a7548)
+
+### Fixed
+
+- fix(client): add schedule permissions to role management UI (1458d05)
+- fix(client): change schedule modal time format from 12H to 24H (e0cb294)
+- fix(client): remove duplicate rapports tab in admin navigation (f7d9703)
+- fix(client): replace icon buttons with text buttons for delete confirmation (edf222e)
+- fix(api): handle 204 No Content response in deleteSchedule (7457702)
+- fix(docker): include optional deps in production for sharp bindings (c35d62f)
+- fix(docker): regenerate lock file in container for native bindings (4730dc6)
+- fix(ci): regenerate lock file on CI to fix native bindings (c3bdfd4)
+- fix(ci): explicitly include optional dependencies (04c0415)
+- fix(ci): use npm install instead of npm ci for optional deps (1f60162)
+- fix: add fsevents to lock file for CI compatibility (901addb)
+- fix(docker): update Dockerfile.scraper to use npm install --omit=optional (35e1dd6)
+- fix(docker): use npm install --omit=optional instead of npm ci (9ab1b50)
+- fix(docker): add --omit=optional to npm ci to skip Windows bindings (7ff8eb6)
+- fix: remove unnecessary dependency on @rolldown/binding-win32-x64-msvc (da0d1d4)
+- fix: remove unnecessary dependency on @rolldown/binding-win32-x64-msvc (36e8217)
+- fix: remove @rolldown/binding-win32-x64-msvc from root dependencies (c0a78a4)
+- fix(db): assign all permissions to admin role (6b279cb)
+- fix: change default cron to 3 AM (752a7fe)
+- fix(db): seed default schedule in migration (bb681bd)
+
+### Changed
+
+- Implement scrape job scheduling system with API and UI (#568) (6869f35)
+- 🛡️ Sentinel: [HIGH] Fix missing password validation (#550) (86db8be)
+- test: add unit tests for schedule queries (8e34a77)
+- 🛡️ Sentinel: [HIGH] Fix missing password strength validation on registration (f76511a)
+- ⚡ Bolt: [performance improvement] (#532) (6b8952b)
+- ⚡ GHCR Cleanup: Refactor tag handling and improve version fetching logic (ca5135a)
+- Remove temporary patch.diff file (aba57ef)
+- ⚡ Bolt: [performance improvement] Optimize displayedCinemas calculation (552618f)
+- Refactor tag classification functions for clarity (d45ee81)
+- Change DRY_RUN to true for safe cleanup testing (b797d5c)
+
+### Documentation
+
+- docs(phase4): create OpenAPI/Swagger interactive API reference (#567) (2bdc15d)
+- docs(phase4): create OpenAPI 3.0 spec and interactive API guide (0e55870)
+- docs: comprehensive documentation audit and advanced guides - Phase 3 complete (#566) (385b6d6)
+- docs: create 4 advanced guides for production scaling, custom parsers, RBAC, and rate limiting (8ce9a67)
+- docs(admin): enhance admin panel and white-label documentation (ef9186e)
+- docs(ref): enhance microservices health checks and job recovery documentation (56fb093)
+- docs: create documentation roadmap and status matrix (4a44bea)
+- docs(ref): add currency timestamps to 30+ reference docs (c68c186)
+- docs(api): verify endpoint documentation accuracy (096ecbd)
+- docs: reconcile E2E testing status (53cad29)
+- docs(guides): add missing navigation hub (6d6876d)
+- docs(ref): resolve database file duplication (4c37a76)
+
+### Maintenance
+
+- chore(deps): consolidate dependabot updates (#547) (a87fc61)
+- chore(deps): consolidate dependabot updates (9016289)
+
 ## [4.1.2] - 2026-03-17
 
 ### Fixed
@@ -299,6 +368,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.2.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.1.2...v4.2.0
 [4.1.2]: https://github.com/PhBassin/allo-scrapper/compare/v4.1.1...v4.1.2
 [4.1.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.1.0...v4.1.1
 [4.1.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.0.2...v4.1.0
