@@ -813,7 +813,7 @@ Manage user accounts and roles.
 - **Settings API**: [Settings API](../../reference/api/settings.md) - Settings endpoints
 - **Users API**: [Users API](../../reference/api/users.md) - User management endpoints
 - **Installation Guide**: [Installation](../../getting-started/installation.md) - Environment and configuration
-- **Database Schema**: [Database Reference](../../reference/database.md) - Data models
+- **Database Schema**: [Database Reference](../../reference/database/) - Data models
 - **Troubleshooting**: [Common Issues](../../troubleshooting/common-issues.md) - Common issues
 
 ### Support
