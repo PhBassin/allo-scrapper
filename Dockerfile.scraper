@@ -20,7 +20,8 @@ COPY server/package.json ./server/
 COPY scraper/package.json ./scraper/
 
 # Install scraper workspace dependencies only
-RUN npm ci --workspace=allo-scrapper-scraper --legacy-peer-deps && \
+# Use --omit=optional to skip platform-specific bindings
+RUN npm install --workspace=allo-scrapper-scraper --legacy-peer-deps --omit=optional && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/* /var/tmp/*
 
@@ -79,7 +80,8 @@ COPY --chown=nodejs:nodejs server/package.json ./server/
 COPY --chown=nodejs:nodejs scraper/package.json ./scraper/
 
 # Install production dependencies only for scraper workspace
-RUN npm ci --omit=dev --workspace=allo-scrapper-scraper --legacy-peer-deps && \
+# Use --omit=optional to skip platform-specific bindings
+RUN npm install --omit=dev --workspace=allo-scrapper-scraper --legacy-peer-deps --omit=optional && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/*
 
