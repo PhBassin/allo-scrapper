@@ -190,24 +190,18 @@ const SchedulesPage: React.FC = () => {
                         )}
                         {canDelete && (
                           deleteConfirm === schedule.id ? (
-                            <div className="flex items-center gap-1">
+                            <div className="flex gap-2">
                               <button
                                 onClick={() => handleDelete(schedule.id)}
-                                className="p-2 text-red-600 hover:text-red-800"
-                                title="Confirm delete"
+                                className="px-3 py-1 text-sm font-medium text-white bg-red-600 rounded hover:bg-red-700"
                               >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
+                                Delete
                               </button>
                               <button
                                 onClick={() => setDeleteConfirm(null)}
-                                className="p-2 text-gray-400 hover:text-gray-600"
-                                title="Cancel"
+                                className="px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
                               >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                                Cancel
                               </button>
                             </div>
                           ) : (
