@@ -6,6 +6,9 @@ import express from 'express';
 const mockTriggerScrape = vi.fn();
 const mockGetStatus = vi.fn();
 const mockSubscribeToProgress = vi.fn();
+const mockPublishScheduleChange = vi.fn();
+
+let currentMockUser = { role_name: 'admin', is_system_role: true, permissions: [], id: 1, username: 'admin' };
 
 vi.mock('../services/scraper-service.js', () => {
   return {
@@ -23,42 +26,66 @@ vi.mock('../db/client.js', () => ({
   db: { query: vi.fn() }
 }));
 
+vi.mock('../middleware/auth.js', () => ({
+  requireAuth: (req: any, _res: any, next: any) => {
+    req.user = currentMockUser;
+    next();
+  },
+}));
+
 // Mock rate limiter to avoid issues in tests
 vi.mock('../middleware/rate-limit.js', () => ({
-  scraperLimiter: (req: any, res: any, next: any) => next()
+  scraperLimiter: (req: any, res: any, next: any) => next(),
+  protectedLimiter: (req: any, res: any, next: any) => next(),
+}));
+
+// Mock permission middleware
+vi.mock('../middleware/permission.js', () => ({
+  requirePermission: () => (req: any, res: any, next: any) => next(),
+}));
+
+// Mock Redis client for schedule publishing
+vi.mock('../services/redis-client.js', () => ({
+  getRedisClient: () => ({
+    publishScheduleChange: mockPublishScheduleChange,
+  }),
+}));
+
+// Mock schedule queries
+vi.mock('../db/schedule-queries.js', () => ({
+  getAllSchedules: vi.fn().mockResolvedValue([]),
+  getScheduleById: vi.fn().mockResolvedValue({ id: 1, name: 'Test', cron_expression: '0 3 * * *', enabled: true }),
+  createSchedule: vi.fn().mockResolvedValue({ id: 1, name: 'Test', cron_expression: '0 3 * * *', enabled: true }),
+  updateSchedule: vi.fn().mockResolvedValue({ id: 1, name: 'Updated', cron_expression: '0 3 * * *', enabled: true }),
+  deleteSchedule: vi.fn().mockResolvedValue(undefined),
+  type: {},
 }));
 
 // Setup Express app for testing
-async function setupApp(mockUser: any = { role_name: 'admin', is_system_role: true, permissions: [] }) {
-  vi.doMock('../middleware/auth.js', () => ({
-    requireAuth: (req: any, res: any, next: any) => {
-      req.user = mockUser;
-      next();
-    }
-  }));
+async function setupApp(mockUser?: any) {
+  if (mockUser) {
+    currentMockUser = { ...currentMockUser, ...mockUser };
+  } else {
+    currentMockUser = { role_name: 'admin', is_system_role: true, permissions: [], id: 1, username: 'admin' };
+  }
+
+  const { default: scraperRouter } = await import('./scraper.js');
 
   const app = express();
   app.use(express.json());
-  
-  // Set mock db
   app.set('db', {});
-
-  // Dynamically import router after mocks are set
-  const { default: scraperRouter } = await import('./scraper.js');
   app.use('/api/scraper', scraperRouter);
-  
-  // Global error handler
   app.use(errorHandler);
-  
+
   return app;
 }
 
 describe('Routes - Scraper', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.resetModules(); // Important for dynamic imports
     mockTriggerScrape.mockResolvedValue({ reportId: 42, queueDepth: 1 });
     mockGetStatus.mockResolvedValue({ isRunning: false, latestReport: null });
+    mockPublishScheduleChange.mockResolvedValue(undefined);
   });
 
   describe('POST /api/scraper/trigger', () => {
@@ -138,6 +165,66 @@ describe('Routes - Scraper', () => {
       expect(response.body.data.isRunning).toBe(true);
       expect(response.body.data.latestReport.id).toBe(99);
       expect(mockGetStatus).toHaveBeenCalled();
+    });
+  });
+
+  describe('Schedule Pub/Sub', () => {
+    it('should publish schedule change after create', async () => {
+      const app = await setupApp();
+      const response = await request(app)
+        .post('/api/scraper/schedules')
+        .send({
+          name: 'Test Schedule',
+          cron_expression: '0 3 * * *',
+          enabled: true,
+        });
+
+      expect(response.status).toBe(201);
+      expect(mockPublishScheduleChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'created',
+          scheduleId: 1,
+        })
+      );
+    });
+
+    it('should publish schedule change after update', async () => {
+      const app = await setupApp();
+      const response = await request(app)
+        .put('/api/scraper/schedules/1')
+        .send({ name: 'Updated Name' });
+
+      expect(response.status).toBe(200);
+      expect(mockPublishScheduleChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'updated',
+          scheduleId: 1,
+        })
+      );
+    });
+
+    it('should publish schedule change after delete', async () => {
+      const app = await setupApp();
+      const response = await request(app).delete('/api/scraper/schedules/1');
+
+      expect(response.status).toBe(204);
+      expect(mockPublishScheduleChange).toHaveBeenCalledWith({
+        action: 'deleted',
+        scheduleId: 1,
+      });
+    });
+
+    it('should trigger schedule immediately via POST /schedules/:id/trigger', async () => {
+      mockTriggerScrape.mockResolvedValue({ reportId: 99, queueDepth: 2 });
+
+      const app = await setupApp();
+      const response = await request(app).post('/api/scraper/schedules/1/trigger');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.reportId).toBe(99);
+      expect(response.body.data.scheduleId).toBe(1);
+      expect(mockTriggerScrape).toHaveBeenCalled();
     });
   });
 });

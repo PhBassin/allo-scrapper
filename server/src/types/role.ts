@@ -24,6 +24,7 @@ export interface RoleWithPermissions extends Role {
 export type PermissionName =
   | 'users:list' | 'users:create' | 'users:update' | 'users:delete' | 'users:read'
   | 'scraper:trigger' | 'scraper:trigger_single'
+  | 'scraper:schedules:list' | 'scraper:schedules:create' | 'scraper:schedules:update' | 'scraper:schedules:delete'
   | 'cinemas:create' | 'cinemas:update' | 'cinemas:delete' | 'cinemas:read'
   | 'settings:read' | 'settings:update' | 'settings:reset' | 'settings:export' | 'settings:import'
   | 'reports:list' | 'reports:view'

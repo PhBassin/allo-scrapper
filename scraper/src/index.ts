@@ -6,9 +6,10 @@ import { registry, scrapeJobsTotal, scrapeDurationSeconds, filmsScrapedTotal, sh
 import { initTracing } from './utils/tracer.js';
 
 import { runScraper, addCinemaAndScrape } from './scraper/index.js';
-import { getRedisPublisher, getRedisConsumer, disconnectRedis, type ScrapeJob, type ScrapeJobScrape, type ScrapeJobAddCinema } from './redis/client.js';
+import { getRedisPublisher, getRedisConsumer, getRedisSubscriber, disconnectRedis, type ScrapeJob, type ScrapeJobScrape, type ScrapeJobAddCinema, type ScheduleChangeEvent } from './redis/client.js';
 import { db } from './db/client.js';
 import { createScrapeReport, updateScrapeReport } from './db/report-queries.js';
+import { getEnabledSchedules, updateScheduleRunStatus } from './db/schedule-queries.js';
 
 // ---------------------------------------------------------------------------
 // Metrics HTTP server (always-on, port 9091)
@@ -191,21 +192,24 @@ async function runConsumer(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Cron mode: scheduled scraping (no Redis)
+// Cron mode: scheduled scraping with dynamic reload
 // ---------------------------------------------------------------------------
 
 async function runCron(): Promise<void> {
-  const cronSchedule = process.env.CRON_SCHEDULE ?? '0 6 * * *'; // Default: 6 AM daily
-  logger.info(`[scraper] Mode: cron, schedule: ${cronSchedule}`);
+  const cronModule = await import('node-cron');
+  const cron = cronModule.default;
 
-  const { default: cron } = await import('node-cron');
-
-  if (!cron.validate(cronSchedule)) {
-    throw new Error(`Invalid cron schedule: ${cronSchedule}`);
+  interface ScheduleTask {
+    id: number;
+    name: string;
+    cron_expression: string;
+    task: ReturnType<typeof cron.schedule>;
   }
 
-  const task = cron.schedule(cronSchedule, async () => {
-    logger.info('[scraper] Cron triggered, starting scrape...');
+  const activeTasks = new Map<number, ScheduleTask>();
+
+  async function executeSchedule(schedule: { id?: number; name: string; cron_expression: string }): Promise<void> {
+    logger.info(`[scraper] Cron triggered for "${schedule.name}", starting scrape...`);
 
     let reportId: number;
     try {
@@ -237,36 +241,115 @@ async function runCron(): Promise<void> {
         errors: summary.errors,
       });
 
-      logger.info(`[scraper] Cron scrape completed: ${status}`);
+      if (schedule.id) {
+        await updateScheduleRunStatus(db, schedule.id, status);
+      }
+
+      logger.info(`[scraper] Cron scrape for "${schedule.name}" completed: ${status}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error('[scraper] Cron scrape failed:', err);
+      logger.error(`[scraper] Cron scrape for "${schedule.name}" failed:`, err);
       await updateScrapeReport(db, reportId, {
         status: 'failed',
         completed_at: new Date().toISOString(),
         errors: [{ cinema_name: 'System', error: errorMessage }],
       }).catch(() => {});
+
+      if (schedule.id) {
+        await updateScheduleRunStatus(db, schedule.id, 'failed').catch(() => {});
+      }
     }
-  });
+  }
 
-  logger.info('[scraper] Cron task scheduled. Waiting...');
+  function scheduleTask(schedule: { id: number; name: string; cron_expression: string }): ScheduleTask | null {
+    if (!cron.validate(schedule.cron_expression)) {
+      logger.error(`[scraper] Invalid cron expression for "${schedule.name}": ${schedule.cron_expression}`);
+      return null;
+    }
 
-  // Graceful shutdown
-  process.on('SIGTERM', async () => {
-    logger.info('[scraper] SIGTERM received, stopping cron...');
-    task.stop();
+    logger.info(`[scraper] Scheduling "${schedule.name}" with cron: ${schedule.cron_expression}`);
+
+    const task = cron.schedule(schedule.cron_expression, () => {
+      executeSchedule(schedule);
+    });
+
+    return { ...schedule, task };
+  }
+
+  async function handleScheduleChange(event: ScheduleChangeEvent): Promise<void> {
+    const { action, scheduleId, schedule } = event;
+
+    logger.info(`[scraper] Received schedule change event: ${action} for schedule ${scheduleId}`);
+
+    switch (action) {
+      case 'created':
+        if (schedule && schedule.enabled !== false) {
+          const task = scheduleTask(schedule);
+          if (task) {
+            activeTasks.set(scheduleId, task);
+            logger.info(`[scraper] Added new schedule task: "${schedule.name}" (id=${scheduleId})`);
+          }
+        }
+        break;
+
+      case 'updated':
+        activeTasks.get(scheduleId)?.task.stop();
+        activeTasks.delete(scheduleId);
+        if (schedule && schedule.enabled !== false) {
+          const task = scheduleTask(schedule);
+          if (task) {
+            activeTasks.set(scheduleId, task);
+            logger.info(`[scraper] Updated schedule task: "${schedule.name}" (id=${scheduleId})`);
+          }
+        } else {
+          logger.info(`[scraper] Schedule ${scheduleId} is disabled, not scheduling`);
+        }
+        break;
+
+      case 'deleted':
+        activeTasks.get(scheduleId)?.task.stop();
+        activeTasks.delete(scheduleId);
+        logger.info(`[scraper] Removed schedule task: id=${scheduleId}`);
+        break;
+    }
+  }
+
+  async function subscribeToScheduleChanges(): Promise<void> {
+    const subscriber = getRedisSubscriber();
+    await subscriber.subscribe('scraper:schedule:changed', handleScheduleChange);
+  }
+
+  async function loadInitialSchedules(): Promise<void> {
+    try {
+      const schedules = await getEnabledSchedules(db);
+      for (const schedule of schedules) {
+        const task = scheduleTask(schedule);
+        if (task) {
+          activeTasks.set(schedule.id, task);
+        }
+      }
+      logger.info(`[scraper] Loaded ${activeTasks.size} schedule(s) from database`);
+    } catch (err) {
+      logger.warn('[scraper] Failed to load schedules from database:', err);
+    }
+  }
+
+  await loadInitialSchedules();
+  await subscribeToScheduleChanges();
+
+  logger.info(`[scraper] ${activeTasks.size} cron task(s) scheduled. Listening for schedule changes...`);
+
+  async function shutdown(): Promise<void> {
+    logger.info('[scraper] Shutting down cron mode...');
+    for (const task of activeTasks.values()) {
+      task.task.stop();
+    }
     await disconnectRedis();
     await db.end();
-    process.exit(0);
-  });
+  }
 
-  process.on('SIGINT', async () => {
-    logger.info('[scraper] SIGINT received, stopping cron...');
-    task.stop();
-    await disconnectRedis();
-    await db.end();
-    process.exit(0);
-  });
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 // ---------------------------------------------------------------------------
