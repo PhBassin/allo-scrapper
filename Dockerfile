@@ -95,7 +95,10 @@ COPY --chown=nodejs:nodejs server/package.json ./server/
 COPY --chown=nodejs:nodejs scraper/package.json ./scraper/
 
 # Install only production dependencies for the server workspace
-RUN npm install --omit=dev --workspace=allo-scrapper-server --legacy-peer-deps --omit=optional && \
+# Remove package-lock.json and regenerate to get correct platform-specific bindings
+# (sharp, and any other native modules need this for Alpine Linux)
+RUN rm -f package-lock.json && \
+    npm install --omit=dev --workspace=allo-scrapper-server --legacy-peer-deps && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/*
 
