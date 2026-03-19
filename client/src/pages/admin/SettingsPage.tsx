@@ -20,13 +20,13 @@ const getInitialFormData = (settings: AppSettings | null): AppSettingsUpdate => 
         color_secondary: settings.color_secondary,
         color_accent: settings.color_accent,
         color_background: settings.color_background,
-        color_text: settings.color_text,
-        color_text_secondary: settings.color_text_secondary,
-        color_border: settings.color_border,
+        color_text_primary: settings.color_text_primary,
+        color_text_secondary: settings.color_text_primary_secondary,
+        color_surface: settings.color_surface,
         color_success: settings.color_success,
         color_error: settings.color_error,
-        font_family_heading: settings.font_family_heading,
-        font_family_body: settings.font_family_body,
+        font_primary: settings.font_primary,
+        font_secondary: settings.font_secondary,
         footer_text: settings.footer_text,
         footer_links: settings.footer_links,
         email_from_name: settings.email_from_name,
@@ -249,20 +249,20 @@ const SettingsPage: React.FC = () => {
                                 />
                                 <ColorPicker
                                     label="Text Color"
-                                    value={formData.color_text || '#1F2937'}
-                                    onChange={(value) => handleFieldChange('color_text', value)}
+                                    value={formData.color_text_primary || '#1F2937'}
+                                    onChange={(value) => handleFieldChange('color_text_primary', value)}
                                     disabled={!canUpdate}
                                 />
                                 <ColorPicker
                                     label="Secondary Text Color"
-                                    value={formData.color_text_secondary || '#6B7280'}
+                                    value={formData.color_text_primary_secondary || '#6B7280'}
                                     onChange={(value) => handleFieldChange('color_text_secondary', value)}
                                     disabled={!canUpdate}
                                 />
                                 <ColorPicker
                                     label="Border Color"
-                                    value={formData.color_border || '#E5E7EB'}
-                                    onChange={(value) => handleFieldChange('color_border', value)}
+                                    value={formData.color_surface || '#E5E7EB'}
+                                    onChange={(value) => handleFieldChange('color_surface', value)}
                                     disabled={!canUpdate}
                                 />
                                 <ColorPicker
@@ -284,15 +284,15 @@ const SettingsPage: React.FC = () => {
                             <div className="space-y-6 max-w-2xl">
                                 <FontSelector
                                     label="Heading Font"
-                                    value={formData.font_family_heading || 'Playfair Display'}
-                                    onChange={(value) => handleFieldChange('font_family_heading', value)}
+                                    value={formData.font_primary || 'Playfair Display'}
+                                    onChange={(value) => handleFieldChange('font_primary', value)}
                                     disabled={!canUpdate}
                                     type="heading"
                                 />
                                 <FontSelector
                                     label="Body Font"
-                                    value={formData.font_family_body || 'Roboto'}
-                                    onChange={(value) => handleFieldChange('font_family_body', value)}
+                                    value={formData.font_secondary || 'Roboto'}
+                                    onChange={(value) => handleFieldChange('font_secondary', value)}
                                     disabled={!canUpdate}
                                     type="body"
                                 />
