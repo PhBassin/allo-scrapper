@@ -188,8 +188,8 @@ export function generateCSSVariables(settings: AppSettingsPublic): string {
   --font-secondary: ${settings.font_secondary};
 }
 
-/* Dark Mode Variables */
-:root.dark {
+/* Dark Mode Variables - Applied when .dark class is on <html> element */
+.dark {
   /* Brand Colors (Dark Mode) */
   --color-primary: ${settings.color_primary_dark};
   --color-secondary: ${settings.color_secondary_dark};
