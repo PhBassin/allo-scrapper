@@ -1,5 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { parseJwtExpiration } from './jwt-config.js';
+
+// Mock the logger to suppress error logs during tests
+vi.mock('./logger.js', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
 
 describe('parseJwtExpiration', () => {
   describe('human-readable formats', () => {
