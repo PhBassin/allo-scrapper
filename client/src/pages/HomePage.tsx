@@ -112,18 +112,16 @@ export default function HomePage() {
 
       {/* Sticky Header Section */}
       <div className="sticky top-[64px] z-40 bg-gray-50/95 backdrop-blur-sm py-2 shadow-sm -mx-4 px-4" data-testid="sticky-search-date-container">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1">
-            <FilmSearchBar placeholder="Rechercher un film..." />
-          </div>
-          {weekStart && (
-            <DaySelector
-              weekStart={weekStart}
-              selectedDate={selectedDate}
-              onSelectDate={handleDateSelect}
-            />
-          )}
+        <div className="mb-3">
+          <FilmSearchBar placeholder="Rechercher un film..." />
         </div>
+        {weekStart && (
+          <DaySelector
+            weekStart={weekStart}
+            selectedDate={selectedDate}
+            onSelectDate={handleDateSelect}
+          />
+        )}
       </div>
 
       {/* Quick Cinema Links */}
