@@ -21,7 +21,7 @@ const getInitialFormData = (settings: AppSettings | null): AppSettingsUpdate => 
         color_accent: settings.color_accent,
         color_background: settings.color_background,
         color_text_primary: settings.color_text_primary,
-        color_text_secondary: settings.color_text_primary_secondary,
+        color_text_secondary: settings.color_text_secondary,
         color_surface: settings.color_surface,
         color_success: settings.color_success,
         color_error: settings.color_error,
@@ -255,7 +255,7 @@ const SettingsPage: React.FC = () => {
                                 />
                                 <ColorPicker
                                     label="Secondary Text Color"
-                                    value={formData.color_text_primary_secondary || '#6B7280'}
+                                    value={formData.color_text_secondary || '#6B7280'}
                                     onChange={(value) => handleFieldChange('color_text_secondary', value)}
                                     disabled={!canUpdate}
                                 />

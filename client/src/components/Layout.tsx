@@ -4,6 +4,7 @@ import { useContext, useState, useEffect, useRef } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { SettingsContext } from '../contexts/SettingsContext';
 import { ADMIN_PERMISSIONS } from '../utils/adminPermissions';
+import ThemeToggle from './ThemeToggle';
 
 interface LayoutProps {
   children: ReactNode;
@@ -76,6 +77,7 @@ export default function Layout({ children, title }: LayoutProps) {
                   Admin
                 </Link>
               )}
+              <ThemeToggle />
               <div className="border-l border-gray-600 h-6"></div>
               {isAuthenticated ? (
                 <div className="relative" ref={dropdownRef}>

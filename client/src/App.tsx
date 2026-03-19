@@ -11,6 +11,7 @@ import { AuthContext } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthProvider';
 import { SettingsProvider } from './contexts/SettingsProvider';
 import { SettingsContext } from './contexts/SettingsContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequirePermission from './components/RequirePermission';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -114,13 +115,15 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <SettingsProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </SettingsProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <SettingsProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </SettingsProvider>
+          </AuthProvider>
+        </ThemeProvider>
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </ErrorBoundary>
