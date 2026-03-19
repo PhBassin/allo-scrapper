@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import Layout from './Layout';
 import { AuthContext } from '../contexts/AuthContext';
 import { SettingsContext } from '../contexts/SettingsContext';
+import { mockPublicSettings } from '../test-utils/mockSettings';
 
 const mockAuthContext = {
   isAuthenticated: false,
@@ -16,24 +17,7 @@ const mockAuthContext = {
 };
 
 const mockSettingsContext = {
-  publicSettings: {
-    site_name: 'Allo-Scrapper',
-    logo_base64: null,
-    favicon_base64: null,
-    color_primary: '#1976d2',
-    color_secondary: '#dc004e',
-    color_accent: '#ff9800',
-    color_background: '#ffffff',
-    color_text_primary: '#000000',
-    color_text_secondary: '#666666',
-    color_surface: '#e0e0e0',
-    color_success: '#4caf50',
-    color_error: '#f44336',
-    font_primary: 'Roboto',
-    font_secondary: 'Roboto',
-    footer_text: 'Test Footer',
-    footer_links: [],
-  },
+  publicSettings: mockPublicSettings,
   adminSettings: null,
   isLoading: false,
   isLoadingPublic: false,
