@@ -33,6 +33,24 @@ body {
   font-family: var(--font-primary, var(--theme-font-body));
 }
 
+/* Override Tailwind bg-white in dark mode to use --color-surface */
+.dark .bg-white {
+  background-color: var(--color-surface) !important;
+}
+
+/* Override Tailwind text colors in dark mode */
+.dark .text-gray-700 {
+  color: #d1d5db !important;
+}
+
+.dark .text-gray-600 {
+  color: #9ca3af !important;
+}
+
+.dark .text-gray-500 {
+  color: #6b7280 !important;
+}
+
 .btn-primary {
   padding: 0.5rem 1rem;
   background-color: var(--color-primary);
