@@ -92,44 +92,39 @@ export default function HomePage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Title and Date Info - Above sticky header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-3">
+      <div className="mb-4">
+        <h1 className="text-3xl font-bold">
           {selectedDate ? 'Films du jour' : 'Au programme cette semaine'}
         </h1>
         {weekStart && !selectedDate && (
-          <div className="flex items-center gap-2 text-gray-500 font-medium">
+          <div className="flex items-center gap-2 text-gray-500 font-medium text-sm mt-1">
             <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Semaine ciné</span>
             <span>Du {formatDate(weekStart)} au {getWeekEndDate(weekStart)}</span>
           </div>
         )}
         {selectedDate && (
-          <div className="flex items-center gap-2 text-gray-500 font-medium">
+          <div className="flex items-center gap-2 text-gray-500 font-medium text-sm mt-1">
             <span className="bg-gray-100 px-2 py-0.5 rounded text-sm">Date sélectionnée</span>
             <span>{formatDate(selectedDate)}</span>
           </div>
         )}
       </div>
 
-      {/* Sticky Header Section - Compact */}
-      <div className="sticky top-[64px] z-40 bg-gray-50/95 backdrop-blur-sm pt-4 pb-4 mb-6 shadow-sm -mx-4 px-4" data-testid="sticky-search-date-container">
-        {/* Film Search Bar */}
-        <div className="mb-4">
+      {/* Sticky Header Section */}
+      <div className="sticky top-[64px] z-40 bg-gray-50/95 backdrop-blur-sm py-2 shadow-sm -mx-4 px-4" data-testid="sticky-search-date-container">
+        <div className="mb-3">
           <FilmSearchBar placeholder="Rechercher un film..." />
         </div>
-
-        {/* Day Selector */}
         {weekStart && (
-          <div>
-            <DaySelector 
-              weekStart={weekStart} 
-              selectedDate={selectedDate}
-              onSelectDate={handleDateSelect}
-            />
-          </div>
+          <DaySelector
+            weekStart={weekStart}
+            selectedDate={selectedDate}
+            onSelectDate={handleDateSelect}
+          />
         )}
       </div>
 
-      {/* Quick Cinema Links - Below sticky header */}
+      {/* Quick Cinema Links */}
       <CinemasQuickLinks
         cinemas={cinemas}
         canAddCinema={isAuthenticated && hasPermission('cinemas:create')}
