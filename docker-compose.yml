@@ -32,11 +32,11 @@ services:
 
   # Production web server (serves both API and frontend)
   ics-web:
-    image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-stable}
-    # build:
-    #   context: .
-    #   args:
-    #     VITE_APP_NAME: ${VITE_APP_NAME:-Allo-Scrapper}
+    # image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-stable}
+    build:
+      context: .
+      args:
+        VITE_APP_NAME: ${VITE_APP_NAME:-Allo-Scrapper}
     # Run as host user to allow volume writes while maintaining security
     # Set DOCKER_UID and DOCKER_GID in .env to match your host user
     # Defaults to 1000:1000 (standard Linux first user)
