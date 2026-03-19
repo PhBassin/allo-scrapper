@@ -19,9 +19,9 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
   const [showSchedule, setShowSchedule] = useState(false);
 
   return (
-    <div className="card hover:shadow-lg transition relative bg-white dark:bg-surface border dark:border-gray-700" data-testid="film-card">
+    <div className="card hover:shadow-lg transition relative bg-surface border dark:border-gray-700" data-testid="film-card">
       {isNew && (
-        <div className="absolute top-2 right-2 bg-primary dark:bg-primary text-black text-xs font-bold px-2 py-1 rounded z-10">
+        <div className="absolute top-2 right-2 bg-primary text-black text-xs font-bold px-2 py-1 rounded z-10">
           NOUVEAU
         </div>
       )}
@@ -46,8 +46,8 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
 
           {/* Info */}
           <div className="flex-grow">
-            <h3 className="text-2xl font-bold mb-1 text-text-primary dark:text-text-primary">
-              <Link to={`/film/${film.id}`} className="hover:text-primary dark:hover:text-primary transition">
+            <h3 className="text-2xl font-bold mb-1 text-text-primary">
+              <Link to={`/film/${film.id}`} className="hover:text-primary transition">
                 {film.title}
               </Link>
             </h3>
@@ -84,14 +84,14 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
                 {film.press_rating != null && film.press_rating > 0 && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-yellow-500 dark:text-yellow-400 text-lg leading-none">★</span>
-                    <span className="font-bold text-text-primary dark:text-text-primary">{film.press_rating.toFixed(1)}</span>
+                    <span className="font-bold text-text-primary">{film.press_rating.toFixed(1)}</span>
                     <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold">Presse</span>
                   </div>
                 )}
                 {film.audience_rating != null && film.audience_rating > 0 && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-yellow-500 dark:text-yellow-400 text-lg leading-none">★</span>
-                    <span className="font-bold text-text-primary dark:text-text-primary">{film.audience_rating.toFixed(1)}</span>
+                    <span className="font-bold text-text-primary">{film.audience_rating.toFixed(1)}</span>
                     <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold">Public</span>
                   </div>
                 )}
@@ -109,7 +109,7 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
               onClick={() => setShowSchedule(!showSchedule)}
               className={`text-sm font-bold flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer active:scale-95 ${
                 showSchedule 
-                  ? 'bg-primary dark:bg-primary text-black' 
+                  ? 'bg-primary text-black' 
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
@@ -118,7 +118,7 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
             </button>
             <Link 
               to={`/film/${film.id}`} 
-              className="text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition"
+              className="text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-primary transition"
             >
               Fiche complète →
             </Link>
