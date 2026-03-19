@@ -52,7 +52,7 @@ export default function Layout({ children, title }: LayoutProps) {
   }, [isDropdownOpen]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background transition-colors">
+    <div className="min-h-screen flex flex-col transition-colors">
       <header className="bg-secondary text-white shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -101,12 +101,12 @@ export default function Layout({ children, title }: LayoutProps) {
 
                   {isDropdownOpen && (
                     <div 
-                      className="absolute right-0 mt-2 w-56 bg-surface rounded-md shadow-lg py-1 z-10 border border-gray-700"
+                      className="dropdown-menu absolute right-0 mt-2 w-56 rounded-md shadow-lg py-1 z-10 border border-gray-700"
                       data-testid="user-dropdown-menu"
                     >
                       <Link
                         to="/change-password"
-                        className="block px-4 py-2 text-sm text-text-primary hover:bg-gray-700 transition"
+                        className="dropdown-menu-item block px-4 py-2 text-sm transition"
                         onClick={() => setIsDropdownOpen(false)}
                         data-testid="change-password-link"
                       >
@@ -120,7 +120,7 @@ export default function Layout({ children, title }: LayoutProps) {
                       <div className="border-t border-gray-700"></div>
                       <button
                         onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-gray-700 transition"
+                        className="dropdown-menu-item block w-full text-left px-4 py-2 text-sm transition"
                         data-testid="logout-button"
                       >
                         <div className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export default function Layout({ children, title }: LayoutProps) {
       </header>
 
       <main className="container mx-auto px-4 py-8 flex-1">
-        {title && <h1 className="text-3xl font-bold mb-6 text-text-primary">{title}</h1>}
+        {title && <h1 className="text-3xl font-bold mb-6" style={{color: 'var(--color-text-primary)'}}>{title}</h1>}
         {children}
       </main>
 

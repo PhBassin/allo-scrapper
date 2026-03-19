@@ -28,9 +28,9 @@
 }
 
 body {
-  background-color: var(--color-gray-50);
-  color: var(--color-gray-900);
-  font-family: var(--theme-font-body);
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-primary, var(--theme-font-body));
 }
 
 .btn-primary {
@@ -60,10 +60,28 @@ body {
 }
 
 .card {
-  background-color: white;
+  background-color: var(--color-surface);
   border-radius: 0.5rem;
   box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   overflow: hidden;
+}
+
+/* Dropdown menu styling */
+.dropdown-menu {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.dropdown-menu-item {
+  color: var(--color-text-primary);
+}
+
+.dropdown-menu-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark .dropdown-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Search result highlighting */

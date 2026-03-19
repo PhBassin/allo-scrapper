@@ -19,7 +19,7 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
   const [showSchedule, setShowSchedule] = useState(false);
 
   return (
-    <div className="card hover:shadow-lg transition relative bg-surface border dark:border-gray-700" data-testid="film-card">
+    <div className="card hover:shadow-lg transition relative border dark:border-gray-700" data-testid="film-card">
       {isNew && (
         <div className="absolute top-2 right-2 bg-primary text-black text-xs font-bold px-2 py-1 rounded z-10">
           NOUVEAU
@@ -46,7 +46,7 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
 
           {/* Info */}
           <div className="flex-grow">
-            <h3 className="text-2xl font-bold mb-1 text-text-primary">
+            <h3 className="text-2xl font-bold mb-1" style={{color: 'var(--color-text-primary)'}}>
               <Link to={`/film/${film.id}`} className="hover:text-primary transition">
                 {film.title}
               </Link>
@@ -84,14 +84,14 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
                 {film.press_rating != null && film.press_rating > 0 && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-yellow-500 dark:text-yellow-400 text-lg leading-none">★</span>
-                    <span className="font-bold text-text-primary">{film.press_rating.toFixed(1)}</span>
+                    <span className="font-bold" style={{color: 'var(--color-text-primary)'}}>{film.press_rating.toFixed(1)}</span>
                     <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold">Presse</span>
                   </div>
                 )}
                 {film.audience_rating != null && film.audience_rating > 0 && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-yellow-500 dark:text-yellow-400 text-lg leading-none">★</span>
-                    <span className="font-bold text-text-primary">{film.audience_rating.toFixed(1)}</span>
+                    <span className="font-bold" style={{color: 'var(--color-text-primary)'}}>{film.audience_rating.toFixed(1)}</span>
                     <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold">Public</span>
                   </div>
                 )}
