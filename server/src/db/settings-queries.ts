@@ -23,6 +23,16 @@ export interface AppSettingsRow {
   color_text_secondary: string;
   color_success: string;
   color_error: string;
+  // Dark mode colors
+  color_primary_dark: string;
+  color_secondary_dark: string;
+  color_accent_dark: string;
+  color_background_dark: string;
+  color_surface_dark: string;
+  color_text_primary_dark: string;
+  color_text_secondary_dark: string;
+  color_success_dark: string;
+  color_error_dark: string;
   font_primary: string;
   font_secondary: string;
   footer_text: string | null;
@@ -114,6 +124,16 @@ export async function updateSettings(
     color_text_secondary: 'color_text_secondary',
     color_success: 'color_success',
     color_error: 'color_error',
+    // Dark mode colors
+    color_primary_dark: 'color_primary_dark',
+    color_secondary_dark: 'color_secondary_dark',
+    color_accent_dark: 'color_accent_dark',
+    color_background_dark: 'color_background_dark',
+    color_surface_dark: 'color_surface_dark',
+    color_text_primary_dark: 'color_text_primary_dark',
+    color_text_secondary_dark: 'color_text_secondary_dark',
+    color_success_dark: 'color_success_dark',
+    color_error_dark: 'color_error_dark',
     font_primary: 'font_primary',
     font_secondary: 'font_secondary',
     footer_text: 'footer_text',
@@ -184,6 +204,15 @@ export async function resetSettings(db: DB, userId: number): Promise<AppSettings
       color_text_secondary = '#6B7280',
       color_success = '#10B981',
       color_error = '#EF4444',
+      color_primary_dark = '#FDD835',
+      color_secondary_dark = '#37474F',
+      color_accent_dark = '#42A5F5',
+      color_background_dark = '#121212',
+      color_surface_dark = '#1E1E1E',
+      color_text_primary_dark = '#E0E0E0',
+      color_text_secondary_dark = '#9E9E9E',
+      color_success_dark = '#66BB6A',
+      color_error_dark = '#EF5350',
       font_primary = 'Inter',
       font_secondary = 'Roboto',
       footer_text = NULL,

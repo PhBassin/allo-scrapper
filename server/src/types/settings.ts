@@ -19,6 +19,16 @@ export interface AppSettings {
   color_text_secondary: string;
   color_success: string;
   color_error: string;
+  // Dark mode colors
+  color_primary_dark: string;
+  color_secondary_dark: string;
+  color_accent_dark: string;
+  color_background_dark: string;
+  color_surface_dark: string;
+  color_text_primary_dark: string;
+  color_text_secondary_dark: string;
+  color_success_dark: string;
+  color_error_dark: string;
   font_primary: string;
   font_secondary: string;
   footer_text: string | null;
@@ -43,6 +53,16 @@ export interface AppSettingsPublic {
   color_text_secondary: string;
   color_success: string;
   color_error: string;
+  // Dark mode colors
+  color_primary_dark: string;
+  color_secondary_dark: string;
+  color_accent_dark: string;
+  color_background_dark: string;
+  color_surface_dark: string;
+  color_text_primary_dark: string;
+  color_text_secondary_dark: string;
+  color_success_dark: string;
+  color_error_dark: string;
   font_primary: string;
   font_secondary: string;
   footer_text: string | null;
@@ -63,6 +83,16 @@ export interface AppSettingsUpdate {
   color_text_secondary?: string;
   color_success?: string;
   color_error?: string;
+  // Dark mode colors
+  color_primary_dark?: string;
+  color_secondary_dark?: string;
+  color_accent_dark?: string;
+  color_background_dark?: string;
+  color_surface_dark?: string;
+  color_text_primary_dark?: string;
+  color_text_secondary_dark?: string;
+  color_success_dark?: string;
+  color_error_dark?: string;
   font_primary?: string;
   font_secondary?: string;
   footer_text?: string | null;

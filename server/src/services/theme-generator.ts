@@ -64,6 +64,16 @@ const DEFAULT_SETTINGS: AppSettingsPublic = {
   color_text_secondary: '#6B7280',
   color_success: '#10B981',
   color_error: '#EF4444',
+  // Dark mode colors
+  color_primary_dark: '#FDD835',
+  color_secondary_dark: '#37474F',
+  color_accent_dark: '#42A5F5',
+  color_background_dark: '#121212',
+  color_surface_dark: '#1E1E1E',
+  color_text_primary_dark: '#E0E0E0',
+  color_text_secondary_dark: '#9E9E9E',
+  color_success_dark: '#66BB6A',
+  color_error_dark: '#EF5350',
   font_primary: 'system-ui, -apple-system, sans-serif',
   font_secondary: 'system-ui, -apple-system, sans-serif',
   footer_text: null,
@@ -156,26 +166,46 @@ export function generateGoogleFontsImport(fonts: string[]): string {
 export function generateCSSVariables(settings: AppSettingsPublic): string {
   return `/* CSS Custom Properties - Auto-generated from app_settings */
 :root {
-  /* Brand Colors */
+  /* Brand Colors (Light Mode) */
   --color-primary: ${settings.color_primary};
   --color-secondary: ${settings.color_secondary};
   --color-accent: ${settings.color_accent};
   
-  /* Surface Colors */
+  /* Surface Colors (Light Mode) */
   --color-background: ${settings.color_background};
   --color-surface: ${settings.color_surface};
   
-  /* Text Colors */
+  /* Text Colors (Light Mode) */
   --color-text-primary: ${settings.color_text_primary};
   --color-text-secondary: ${settings.color_text_secondary};
   
-  /* Status Colors */
+  /* Status Colors (Light Mode) */
   --color-success: ${settings.color_success};
   --color-error: ${settings.color_error};
   
   /* Typography */
   --font-primary: ${settings.font_primary};
   --font-secondary: ${settings.font_secondary};
+}
+
+/* Dark Mode Variables */
+:root.dark {
+  /* Brand Colors (Dark Mode) */
+  --color-primary: ${settings.color_primary_dark};
+  --color-secondary: ${settings.color_secondary_dark};
+  --color-accent: ${settings.color_accent_dark};
+  
+  /* Surface Colors (Dark Mode) */
+  --color-background: ${settings.color_background_dark};
+  --color-surface: ${settings.color_surface_dark};
+  
+  /* Text Colors (Dark Mode) */
+  --color-text-primary: ${settings.color_text_primary_dark};
+  --color-text-secondary: ${settings.color_text_secondary_dark};
+  
+  /* Status Colors (Dark Mode) */
+  --color-success: ${settings.color_success_dark};
+  --color-error: ${settings.color_error_dark};
 }
 `;
 }
