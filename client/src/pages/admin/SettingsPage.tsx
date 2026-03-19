@@ -3,6 +3,7 @@ import { SettingsContext } from '../../contexts/SettingsContext';
 import { AuthContext } from '../../contexts/AuthContext';
 import { downloadSettingsExport, uploadSettingsImport, resetSettings, type AppSettings, type AppSettingsUpdate, type FooterLink } from '../../api/settings';
 import ColorPicker from '../../components/admin/ColorPicker';
+import { generateDarkPalette } from '../../utils/darkModeColors';
 import FontSelector from '../../components/admin/FontSelector';
 import ImageUpload from '../../components/admin/ImageUpload';
 import FooterLinksEditor from '../../components/admin/FooterLinksEditor';
@@ -222,61 +223,151 @@ const SettingsPage: React.FC = () => {
                         )}
 
                         {activeTab === 'colors' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-                                <ColorPicker
-                                    label="Primary Color"
-                                    value={formData.color_primary || '#FECC00'}
-                                    onChange={(value) => handleFieldChange('color_primary', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Secondary Color"
-                                    value={formData.color_secondary || '#1E40AF'}
-                                    onChange={(value) => handleFieldChange('color_secondary', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Accent Color"
-                                    value={formData.color_accent || '#10B981'}
-                                    onChange={(value) => handleFieldChange('color_accent', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Background Color"
-                                    value={formData.color_background || '#FFFFFF'}
-                                    onChange={(value) => handleFieldChange('color_background', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Text Color"
-                                    value={formData.color_text_primary || '#1F2937'}
-                                    onChange={(value) => handleFieldChange('color_text_primary', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Secondary Text Color"
-                                    value={formData.color_text_secondary || '#6B7280'}
-                                    onChange={(value) => handleFieldChange('color_text_secondary', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Border Color"
-                                    value={formData.color_surface || '#E5E7EB'}
-                                    onChange={(value) => handleFieldChange('color_surface', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Success Color"
-                                    value={formData.color_success || '#10B981'}
-                                    onChange={(value) => handleFieldChange('color_success', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Error Color"
-                                    value={formData.color_error || '#EF4444'}
-                                    onChange={(value) => handleFieldChange('color_error', value)}
-                                    disabled={!canUpdate}
-                                />
+                            <div className="space-y-8">
+                                {/* Light Mode Colors */}
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4 text-gray-900">Light Mode Colors</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+                                        <ColorPicker
+                                            label="Primary Color"
+                                            value={formData.color_primary || '#FECC00'}
+                                            onChange={(value) => handleFieldChange('color_primary', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Secondary Color"
+                                            value={formData.color_secondary || '#1E40AF'}
+                                            onChange={(value) => handleFieldChange('color_secondary', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Accent Color"
+                                            value={formData.color_accent || '#10B981'}
+                                            onChange={(value) => handleFieldChange('color_accent', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Background Color"
+                                            value={formData.color_background || '#FFFFFF'}
+                                            onChange={(value) => handleFieldChange('color_background', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Text Color"
+                                            value={formData.color_text_primary || '#1F2937'}
+                                            onChange={(value) => handleFieldChange('color_text_primary', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Secondary Text Color"
+                                            value={formData.color_text_secondary || '#6B7280'}
+                                            onChange={(value) => handleFieldChange('color_text_secondary', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Border Color"
+                                            value={formData.color_surface || '#E5E7EB'}
+                                            onChange={(value) => handleFieldChange('color_surface', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Success Color"
+                                            value={formData.color_success || '#10B981'}
+                                            onChange={(value) => handleFieldChange('color_success', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Error Color"
+                                            value={formData.color_error || '#EF4444'}
+                                            onChange={(value) => handleFieldChange('color_error', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Dark Mode Colors */}
+                                <div className="border-t pt-8">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-semibold text-gray-900">Dark Mode Colors</h3>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const darkPalette = generateDarkPalette({
+                                                    color_primary: formData.color_primary || '#FECC00',
+                                                    color_secondary: formData.color_secondary || '#1E40AF',
+                                                    color_accent: formData.color_accent || '#10B981',
+                                                    color_background: formData.color_background || '#FFFFFF',
+                                                    color_surface: formData.color_surface || '#E5E7EB',
+                                                    color_text_primary: formData.color_text_primary || '#1F2937',
+                                                    color_text_secondary: formData.color_text_secondary || '#6B7280',
+                                                    color_success: formData.color_success || '#10B981',
+                                                    color_error: formData.color_error || '#EF4444',
+                                                });
+                                                setFormData({ ...formData, ...darkPalette });
+                                            }}
+                                            className="text-sm bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
+                                            disabled={!canUpdate}
+                                        >
+                                            Generate from Light Colors
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+                                        <ColorPicker
+                                            label="Primary Color (Dark)"
+                                            value={formData.color_primary_dark || '#90caf9'}
+                                            onChange={(value) => handleFieldChange('color_primary_dark', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Secondary Color (Dark)"
+                                            value={formData.color_secondary_dark || '#f48fb1'}
+                                            onChange={(value) => handleFieldChange('color_secondary_dark', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Accent Color (Dark)"
+                                            value={formData.color_accent_dark || '#ce93d8'}
+                                            onChange={(value) => handleFieldChange('color_accent_dark', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Background Color (Dark)"
+                                            value={formData.color_background_dark || '#121212'}
+                                            onChange={(value) => handleFieldChange('color_background_dark', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Text Color (Dark)"
+                                            value={formData.color_text_primary_dark || '#e0e0e0'}
+                                            onChange={(value) => handleFieldChange('color_text_primary_dark', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Secondary Text Color (Dark)"
+                                            value={formData.color_text_secondary_dark || '#b0b0b0'}
+                                            onChange={(value) => handleFieldChange('color_text_secondary_dark', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Surface Color (Dark)"
+                                            value={formData.color_surface_dark || '#1e1e1e'}
+                                            onChange={(value) => handleFieldChange('color_surface_dark', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Success Color (Dark)"
+                                            value={formData.color_success_dark || '#81c784'}
+                                            onChange={(value) => handleFieldChange('color_success_dark', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                        <ColorPicker
+                                            label="Error Color (Dark)"
+                                            value={formData.color_error_dark || '#e57373'}
+                                            onChange={(value) => handleFieldChange('color_error_dark', value)}
+                                            disabled={!canUpdate}
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         )}
 

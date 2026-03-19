@@ -19,9 +19,9 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
   const [showSchedule, setShowSchedule] = useState(false);
 
   return (
-    <div className="card hover:shadow-lg transition relative" data-testid="film-card">
+    <div className="card hover:shadow-lg transition relative bg-white dark:bg-surface border dark:border-gray-700" data-testid="film-card">
       {isNew && (
-        <div className="absolute top-2 right-2 bg-primary text-black text-xs font-bold px-2 py-1 rounded z-10">
+        <div className="absolute top-2 right-2 bg-primary dark:bg-primary text-black text-xs font-bold px-2 py-1 rounded z-10">
           NOUVEAU
         </div>
       )}
@@ -38,33 +38,33 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
                 loading="lazy"
               />
             ) : (
-              <div className="w-40 md:w-32 h-60 md:h-48 bg-gray-200 rounded flex items-center justify-center shadow-inner">
-                <span className="text-gray-400 text-4xl">🎬</span>
+              <div className="w-40 md:w-32 h-60 md:h-48 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center shadow-inner">
+                <span className="text-gray-400 dark:text-gray-500 text-4xl">🎬</span>
               </div>
             )}
           </div>
 
           {/* Info */}
           <div className="flex-grow">
-            <h3 className="text-2xl font-bold mb-1">
-              <Link to={`/film/${film.id}`} className="hover:text-primary transition">
+            <h3 className="text-2xl font-bold mb-1 text-text-primary dark:text-text-primary">
+              <Link to={`/film/${film.id}`} className="hover:text-primary dark:hover:text-primary transition">
                 {film.title}
               </Link>
             </h3>
 
             {film.original_title && film.original_title !== film.title && (
-              <p className="text-sm text-gray-500 mb-3 italic">{film.original_title}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 italic">{film.original_title}</p>
             )}
 
             <div className="flex flex-wrap gap-1.5 mb-4">
               {film.genres.map((genre) => (
-                <span key={genre} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase rounded">
+                <span key={genre} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] font-bold uppercase rounded">
                   {genre}
                 </span>
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600 mb-4">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400 mb-4">
               {film.duration_minutes && (
                 <p><strong>Durée:</strong> {formatDuration(film.duration_minutes)}</p>
               )}
@@ -80,45 +80,45 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
             </div>
 
             {(film.press_rating != null && film.press_rating > 0) || (film.audience_rating != null && film.audience_rating > 0) ? (
-              <div className="flex gap-4 mb-4 pt-4 border-t border-gray-50">
+              <div className="flex gap-4 mb-4 pt-4 border-t border-gray-50 dark:border-gray-700">
                 {film.press_rating != null && film.press_rating > 0 && (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-yellow-500 text-lg leading-none">★</span>
-                    <span className="font-bold">{film.press_rating.toFixed(1)}</span>
-                    <span className="text-[10px] text-gray-400 uppercase font-bold">Presse</span>
+                    <span className="text-yellow-500 dark:text-yellow-400 text-lg leading-none">★</span>
+                    <span className="font-bold text-text-primary dark:text-text-primary">{film.press_rating.toFixed(1)}</span>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold">Presse</span>
                   </div>
                 )}
                 {film.audience_rating != null && film.audience_rating > 0 && (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-yellow-500 text-lg leading-none">★</span>
-                    <span className="font-bold">{film.audience_rating.toFixed(1)}</span>
-                    <span className="text-[10px] text-gray-400 uppercase font-bold">Public</span>
+                    <span className="text-yellow-500 dark:text-yellow-400 text-lg leading-none">★</span>
+                    <span className="font-bold text-text-primary dark:text-text-primary">{film.audience_rating.toFixed(1)}</span>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold">Public</span>
                   </div>
                 )}
               </div>
             ) : null}
 
-            {film.synopsis && <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{film.synopsis}</p>}
+            {film.synopsis && <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 leading-relaxed">{film.synopsis}</p>}
           </div>
         </div>
 
         {/* Action / Showtimes Toggle */}
-        <div className="pt-4 border-t border-gray-100 flex flex-col gap-4">
+        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <button 
               onClick={() => setShowSchedule(!showSchedule)}
               className={`text-sm font-bold flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer active:scale-95 ${
                 showSchedule 
-                  ? 'bg-primary text-black' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-primary dark:bg-primary text-black' 
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
               <span>{showSchedule ? '▼ Cacher les horaires' : '▶ Voir les horaires'}</span>
-              <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">{film.cinemas.length} cinémas</span>
+              <span className="text-xs bg-white/20 dark:bg-black/20 px-1.5 py-0.5 rounded">{film.cinemas.length} cinémas</span>
             </button>
             <Link 
               to={`/film/${film.id}`} 
-              className="text-sm font-bold text-gray-500 hover:text-primary transition"
+              className="text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition"
             >
               Fiche complète →
             </Link>

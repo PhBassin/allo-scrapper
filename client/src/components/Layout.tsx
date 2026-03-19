@@ -52,8 +52,8 @@ export default function Layout({ children, title }: LayoutProps) {
   }, [isDropdownOpen]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-secondary text-white shadow-lg sticky top-0 z-50">
+    <div className="min-h-screen flex flex-col bg-background dark:bg-background transition-colors">
+      <header className="bg-secondary dark:bg-secondary text-white shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="text-2xl font-bold flex items-center gap-2">
@@ -64,26 +64,26 @@ export default function Layout({ children, title }: LayoutProps) {
                   className="h-8 w-8 object-contain" 
                 />
               ) : (
-                <span className="text-primary">🎬</span>
+                <span className="text-primary dark:text-primary">🎬</span>
               )}
               <span>{APP_NAME}</span>
             </Link>
             <nav className="flex items-center gap-6">
-              <Link to="/" className="hover:text-primary transition">
+              <Link to="/" className="hover:text-primary dark:hover:text-primary transition">
                 Accueil
               </Link>
               {hasAdminAccess && (
-                <Link to="/admin?tab=cinemas" className="hover:text-primary transition">
+                <Link to="/admin?tab=cinemas" className="hover:text-primary dark:hover:text-primary transition">
                   Admin
                 </Link>
               )}
               <ThemeToggle />
-              <div className="border-l border-gray-600 h-6"></div>
+              <div className="border-l border-gray-600 dark:border-gray-500 h-6"></div>
               {isAuthenticated ? (
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={toggleDropdown}
-                    className="flex items-center gap-2 text-sm text-gray-300 hover:text-white transition"
+                    className="flex items-center gap-2 text-sm text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-white transition"
                     data-testid="user-menu-button"
                   >
                     <span>
@@ -101,12 +101,12 @@ export default function Layout({ children, title }: LayoutProps) {
 
                   {isDropdownOpen && (
                     <div 
-                      className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-10"
+                      className="absolute right-0 mt-2 w-56 bg-white dark:bg-surface rounded-md shadow-lg py-1 z-10 border border-gray-200 dark:border-gray-700"
                       data-testid="user-dropdown-menu"
                     >
                       <Link
                         to="/change-password"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
+                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                         onClick={() => setIsDropdownOpen(false)}
                         data-testid="change-password-link"
                       >
@@ -117,10 +117,10 @@ export default function Layout({ children, title }: LayoutProps) {
                           <span>Change Password</span>
                         </div>
                       </Link>
-                      <div className="border-t border-gray-100"></div>
+                      <div className="border-t border-gray-100 dark:border-gray-700"></div>
                       <button
                         onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                         data-testid="logout-button"
                       >
                         <div className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export default function Layout({ children, title }: LayoutProps) {
               ) : (
                 <Link
                   to="/login"
-                  className="text-sm bg-primary text-black hover:bg-yellow-500 font-medium px-4 py-2 rounded transition"
+                  className="text-sm bg-primary dark:bg-primary text-black hover:bg-yellow-500 dark:hover:bg-yellow-600 font-medium px-4 py-2 rounded transition"
                 >
                   Connexion
                 </Link>
@@ -147,11 +147,11 @@ export default function Layout({ children, title }: LayoutProps) {
       </header>
 
       <main className="container mx-auto px-4 py-8 flex-1">
-        {title && <h1 className="text-3xl font-bold mb-6">{title}</h1>}
+        {title && <h1 className="text-3xl font-bold mb-6 text-text-primary dark:text-text-primary">{title}</h1>}
         {children}
       </main>
 
-      <footer className="bg-secondary text-white mt-16">
+      <footer className="bg-secondary dark:bg-secondary text-white mt-16">
         <div className="container mx-auto px-4 py-6 text-center">
           <p className="text-sm">
             {publicSettings?.footer_text || 'Données fournies par le site source - Mise à jour hebdomadaire'}
@@ -164,14 +164,14 @@ export default function Layout({ children, title }: LayoutProps) {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-gray-400 hover:text-primary transition"
+                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary transition"
                 >
                   {link.label}
                 </a>
               ))}
             </div>
           )}
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
             {APP_NAME} &copy; {new Date().getFullYear()}
           </p>
         </div>

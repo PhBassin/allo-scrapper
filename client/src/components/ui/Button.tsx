@@ -11,9 +11,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = 'font-medium rounded-md transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
     
     const variantStyles = {
-      primary: 'bg-blue-600 text-white hover:bg-blue-700',
-      secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-      danger: 'bg-red-600 text-white hover:bg-red-700',
+      primary: 'bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-800',
+      secondary: 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
+      danger: 'bg-red-600 dark:bg-red-700 text-white hover:bg-red-700 dark:hover:bg-red-800',
     };
     
     const sizeStyles = {
