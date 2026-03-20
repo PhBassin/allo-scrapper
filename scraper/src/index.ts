@@ -138,7 +138,6 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
 
 async function runOneshot(): Promise<void> {
   logger.info('[scraper] Mode: oneshot');
-  const consumer = getRedisConsumer();
 
   // Use a non-blocking pop (LPOP) for oneshot
   const { default: Redis } = await import('ioredis');
@@ -270,7 +269,9 @@ async function runCron(): Promise<void> {
     logger.info(`[scraper] Scheduling "${schedule.name}" with cron: ${schedule.cron_expression}`);
 
     const task = cron.schedule(schedule.cron_expression, () => {
-      executeSchedule(schedule);
+      executeSchedule(schedule).catch((err) => {
+        logger.error(`[scraper] Uncaught error in cron schedule "${schedule.name}":`, err);
+      });
     });
 
     return { ...schedule, task };

@@ -193,6 +193,7 @@ export default function FilmSearchBar({
                       src={film.poster_url}
                       alt={film.title}
                       className="w-12 h-16 object-cover rounded"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-12 h-16 bg-gray-200 rounded flex items-center justify-center">

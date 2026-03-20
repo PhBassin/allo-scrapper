@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -56,6 +57,7 @@ export function createApp() {
       },
     })
   );
+  app.use(compression());
   app.use(cors(getCorsOptions()));
   app.use(morgan('combined'));
   app.use(express.json());
