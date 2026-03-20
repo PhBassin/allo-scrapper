@@ -11,7 +11,7 @@ vi.mock('../db/cinema-queries.js');
 vi.mock('./redis-client.js');
 vi.mock('./progress-tracker.js', () => ({
   progressTracker: {
-    reset: vi.fn(),
+    clearEvents: vi.fn(),
     addListener: vi.fn(),
     removeListener: vi.fn(),
     getListenerCount: vi.fn().mockReturnValue(1),
@@ -42,7 +42,7 @@ describe('ScraperService', () => {
       const result = await scraperService.triggerScrape({ cinemaId: 'C1', filmId: 123 });
 
       expect(result.reportId).toBe(42);
-      expect(progressTracker.reset).toHaveBeenCalled();
+      expect(progressTracker.clearEvents).toHaveBeenCalled();
       expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
         type: 'scrape',
         reportId: 42,

@@ -103,7 +103,12 @@ export class ProgressTracker {
     }
   }
 
-  // Clear all events and listeners
+  // Clear events but keep connections open (for starting a new scrape session)
+  clearEvents(): void {
+    this.events = [];
+  }
+
+  // Full reset: clear events AND close all connections (for shutdown)
   reset(): void {
     this.events = [];
     this.stopHeartbeat();
