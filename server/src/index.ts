@@ -53,6 +53,9 @@ async function startServer() {
       const { getRedisClient: getClient } = await import('./services/redis-client.js');
       await getClient().disconnect().catch(() => {});
 
+      // Close DB pool
+      await db.end().catch(() => {});
+
       // Close server
       server.close(() => {
         logger.info('✅ Server closed');
@@ -74,6 +77,15 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Promise Rejection:', { reason, promise: String(promise) });
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception — shutting down:', { error });
+  process.exit(1);
+});
 
 // Start the server
 startServer();
