@@ -17,3 +17,6 @@
 ## 2026-03-18 - [Optimize Array Transformations]
 **Learning:** Chaining `.map().filter()` creates unnecessary intermediate arrays, increasing memory allocation and garbage collection overhead, especially in rendering loops or reactive memoized computations.
 **Action:** When filtering and transforming data simultaneously, replace `.map().filter()` chains with a single `.reduce()` or a combination of `.flatMap()` to compute the result in one pass and avoid allocating unused intermediate objects.
+## 2026-03-24 - [Memoizing Expensive Filtering on Static Data]
+**Learning:** Found that static data collections like `tabs` in navigation components (e.g., `AdminPage.tsx`) were being filtered on every render using `hasPermission`. Although computationally small, doing an $O(N)$ operation inside an unmemoized functional component leads to unnecessary recalculations.
+**Action:** When filtering static arrays based on context values (like permissions or authentication state), wrap the calculation in a `useMemo` hook with the context value as the dependency. This prevents recalculation on every unrelated state update while ensuring updates happen only when necessary.
