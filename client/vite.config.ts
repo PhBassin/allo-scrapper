@@ -9,10 +9,16 @@ export default defineConfig({
     minify: 'esbuild', // Ensure minification is enabled
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-utils': ['axios', 'zod', 'clsx'],
+        manualChunks(id: string) {
+          if (id.includes('node_modules/react-dom/') || id.includes('node_modules/react/') || id.includes('node_modules/react-router')) {
+            return 'vendor-react'
+          }
+          if (id.includes('node_modules/@tanstack/react-query')) {
+            return 'vendor-query'
+          }
+          if (id.includes('node_modules/axios') || id.includes('node_modules/zod') || id.includes('node_modules/clsx')) {
+            return 'vendor-utils'
+          }
         },
       },
     },
