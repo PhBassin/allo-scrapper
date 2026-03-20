@@ -30,25 +30,26 @@ describe('Role & Permission Queries', () => {
   // -------------------------------------------------------------------------
   describe('getAllRoles', () => {
     it('should return all roles with their permissions', async () => {
-      const mockRoles: Role[] = [
-        { id: 1, name: 'admin', description: 'Administrateur', is_system: true, created_at: '2024-01-01T00:00:00Z' },
-        { id: 2, name: 'operator', description: 'Opérateur', is_system: true, created_at: '2024-01-01T00:00:00Z' },
-      ];
-      const mockPermissionsForAdmin: Permission[] = [];
-      const mockPermissionsForOperator: Permission[] = [
-        { id: 1, name: 'scraper:trigger', description: 'Lancer un scrape global', category: 'scraper', created_at: '2024-01-01T00:00:00Z' },
+      // Single JOIN query returns flattened rows: role columns + permission columns (prefixed p_)
+      const mockJoinRows = [
+        // admin has no permissions → p_* columns are null
+        { id: 1, name: 'admin', description: 'Administrateur', is_system: true, created_at: '2024-01-01T00:00:00Z', p_id: null, p_name: null, p_description: null, p_category: null, p_created_at: null },
+        // operator has one permission
+        { id: 2, name: 'operator', description: 'Opérateur', is_system: true, created_at: '2024-01-01T00:00:00Z', p_id: 1, p_name: 'scraper:trigger', p_description: 'Lancer un scrape global', p_category: 'scraper', p_created_at: '2024-01-01T00:00:00Z' },
       ];
 
-      vi.mocked(mockDb.query)
-        .mockResolvedValueOnce({ rows: mockRoles, rowCount: 2 } as any)
-        .mockResolvedValueOnce({ rows: mockPermissionsForAdmin, rowCount: 0 } as any)
-        .mockResolvedValueOnce({ rows: mockPermissionsForOperator, rowCount: 1 } as any);
+      vi.mocked(mockDb.query).mockResolvedValueOnce({ rows: mockJoinRows, rowCount: 2 } as any);
 
       const result = await getAllRoles(mockDb);
 
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
       expect(result).toHaveLength(2);
       expect(result[0]).toMatchObject({ id: 1, name: 'admin', permissions: [] });
-      expect(result[1]).toMatchObject({ id: 2, name: 'operator', permissions: mockPermissionsForOperator });
+      expect(result[1]).toMatchObject({
+        id: 2,
+        name: 'operator',
+        permissions: [{ id: 1, name: 'scraper:trigger', description: 'Lancer un scrape global', category: 'scraper', created_at: '2024-01-01T00:00:00Z' }],
+      });
     });
 
     it('should return empty array when no roles exist', async () => {
