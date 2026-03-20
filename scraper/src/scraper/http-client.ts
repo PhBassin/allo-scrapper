@@ -7,6 +7,126 @@ import { ALLOCINE_BASE_URL } from './utils.js';
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+// ── Retry configuration ──────────────────────────────────────────────────────
+
+const FETCH_TIMEOUT_MS = 30_000;
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000;
+const MAX_JITTER_MS = 500;
+
+/**
+ * Fetch with automatic retry, exponential backoff, Retry-After support, jitter,
+ * and AbortSignal.timeout.
+ *
+ * Retries on:
+ *  - HTTP 429 (Too Many Requests)
+ *  - HTTP 5xx (server errors)
+ *  - Network errors (TypeError from fetch)
+ *
+ * @param url     - The URL to fetch
+ * @param options - Standard RequestInit options (signal will be overridden)
+ * @returns       - The Response object
+ */
+export async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+
+      // Success — return immediately
+      if (response.ok) return response;
+
+      // Retryable HTTP status: 429 or 5xx
+      if (response.status === 429 || response.status >= 500) {
+        lastError = new Error(
+          `HTTP ${response.status} ${response.statusText} for ${url}`
+        );
+
+        if (attempt < MAX_RETRIES) {
+          const delayMs = computeRetryDelay(attempt, response);
+          logger.warn('Retryable HTTP error, backing off', {
+            url,
+            status: response.status,
+            attempt: attempt + 1,
+            maxRetries: MAX_RETRIES,
+            delayMs,
+          });
+          await delay(delayMs);
+          continue;
+        }
+      }
+
+      // Non-retryable HTTP error — throw immediately
+      throw new Error(
+        `Failed to fetch ${url}: ${response.status} ${response.statusText}`
+      );
+    } catch (error) {
+      lastError = error;
+
+      // AbortError / TimeoutError from AbortSignal.timeout — retryable
+      // Network errors (TypeError) — retryable
+      const isRetryable =
+        error instanceof TypeError ||
+        (error instanceof DOMException && error.name === 'TimeoutError') ||
+        (error instanceof DOMException && error.name === 'AbortError');
+
+      if (isRetryable && attempt < MAX_RETRIES) {
+        const delayMs = computeRetryDelay(attempt);
+        logger.warn('Network/timeout error, retrying', {
+          url,
+          error: error instanceof Error ? error.message : String(error),
+          attempt: attempt + 1,
+          maxRetries: MAX_RETRIES,
+          delayMs,
+        });
+        await delay(delayMs);
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  // Should never reach here, but just in case
+  throw lastError;
+}
+
+/**
+ * Compute retry delay with exponential backoff + jitter.
+ * Respects Retry-After header if present.
+ */
+function computeRetryDelay(attempt: number, response?: Response): number {
+  // Check Retry-After header (seconds or HTTP-date)
+  if (response) {
+    const retryAfter = response.headers.get('Retry-After');
+    if (retryAfter) {
+      const seconds = Number(retryAfter);
+      if (Number.isFinite(seconds) && seconds > 0) {
+        // Clamp to max 60 seconds to avoid absurdly long waits
+        return Math.min(seconds * 1000, 60_000);
+      }
+      // Try parsing as HTTP-date
+      const date = new Date(retryAfter);
+      if (!isNaN(date.getTime())) {
+        const ms = date.getTime() - Date.now();
+        if (ms > 0) return Math.min(ms, 60_000);
+      }
+    }
+  }
+
+  // Exponential backoff: 1s, 2s, 4s, ... + random jitter up to 500ms
+  const exponential = BASE_DELAY_MS * Math.pow(2, attempt);
+  const jitter = Math.random() * MAX_JITTER_MS;
+  return exponential + jitter;
+}
+
 /**
  * Validates cinema ID format (e.g., "C0072", "W7517")
  * @throws {Error} if format is invalid
@@ -85,7 +205,7 @@ export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterIn
   try {
     await page.setUserAgent(USER_AGENT);
     logger.info('Loading theater page', { url: cinemaBaseUrl });
-    await page.goto(cinemaBaseUrl, { waitUntil: 'networkidle0', timeout: 60000 });
+    await page.goto(cinemaBaseUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     const html = await page.content();
 
@@ -128,7 +248,7 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
   const url = constructed.href;
   logger.info('Fetching showtimes JSON', { url });
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     headers: {
       'User-Agent': USER_AGENT,
       Accept: 'application/json',
@@ -136,10 +256,6 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
       Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${cinemaId}.html`,
     },
   });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch showtimes JSON for ${cinemaId} on ${date}: ${response.status} ${response.statusText}`);
-  }
 
   return response.json();
 }
@@ -157,7 +273,7 @@ export async function fetchFilmPage(filmId: number): Promise<string> {
 
   logger.info('Fetching film page', { url });
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     headers: {
       'User-Agent': USER_AGENT,
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -165,12 +281,6 @@ export async function fetchFilmPage(filmId: number): Promise<string> {
       'Cache-Control': 'no-cache',
     },
   });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch film page ${filmId}: ${response.status} ${response.statusText}`
-    );
-  }
 
   return response.text();
 }

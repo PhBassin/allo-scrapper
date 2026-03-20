@@ -40,6 +40,7 @@ describe('http-client', () => {
   let fetchShowtimesJson: (cinemaId: string, date: string) => Promise<unknown>;
   let fetchFilmPage: (filmId: number) => Promise<string>;
   let fetchTheaterPage: (cinemaBaseUrl: string) => Promise<{ html: string; availableDates: string[] }>;
+  let fetchWithRetry: (url: string, options?: RequestInit) => Promise<Response>;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -55,10 +56,149 @@ describe('http-client', () => {
     fetchShowtimesJson = mod.fetchShowtimesJson;
     fetchFilmPage = mod.fetchFilmPage;
     fetchTheaterPage = mod.fetchTheaterPage;
+    fetchWithRetry = mod.fetchWithRetry;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  // -------------------------------------------------------------------------
+  // fetchWithRetry
+  // -------------------------------------------------------------------------
+  describe('fetchWithRetry', () => {
+    it('should return response on successful fetch', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ data: 'test' }),
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const response = await fetchWithRetry('https://example.com/api');
+      expect(response.ok).toBe(true);
+      expect(mockFetch).toHaveBeenCalledOnce();
+    });
+
+    it('should pass AbortSignal.timeout to fetch', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      await fetchWithRetry('https://example.com/api', {
+        headers: { Accept: 'application/json' },
+      });
+
+      expect(mockFetch).toHaveBeenCalledOnce();
+      const calledOptions = mockFetch.mock.calls[0][1];
+      expect(calledOptions.signal).toBeDefined();
+    });
+
+    it('should retry on HTTP 429 and eventually succeed', async () => {
+      const mockFetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: new Headers(),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: vi.fn().mockResolvedValue({}),
+        });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const response = await fetchWithRetry('https://example.com/api');
+      expect(response.ok).toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should retry on HTTP 500 server errors', async () => {
+      const mockFetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+          headers: new Headers(),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+        });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const response = await fetchWithRetry('https://example.com/api');
+      expect(response.ok).toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should throw immediately on non-retryable HTTP errors (e.g. 404)', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        headers: new Headers(),
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      await expect(fetchWithRetry('https://example.com/api')).rejects.toThrow(/404/);
+      expect(mockFetch).toHaveBeenCalledOnce();
+    });
+
+    it('should throw after exhausting all retries on persistent 429', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        headers: new Headers(),
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      await expect(fetchWithRetry('https://example.com/api')).rejects.toThrow(/429/);
+      // initial + 3 retries = 4 calls
+      expect(mockFetch).toHaveBeenCalledTimes(4);
+    });
+
+    it('should respect Retry-After header (seconds)', async () => {
+      const headers = new Headers({ 'Retry-After': '2' });
+      const mockFetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers,
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+        });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const start = Date.now();
+      await fetchWithRetry('https://example.com/api');
+      const elapsed = Date.now() - start;
+
+      // Should have waited approximately 2 seconds
+      expect(elapsed).toBeGreaterThanOrEqual(1800);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should retry on network errors (TypeError)', async () => {
+      const mockFetch = vi.fn()
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+        });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const response = await fetchWithRetry('https://example.com/api');
+      expect(response.ok).toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -240,12 +380,12 @@ describe('http-client', () => {
       );
     });
 
-    it('should navigate with waitUntil networkidle0', async () => {
+    it('should navigate with waitUntil domcontentloaded', async () => {
       await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
 
       expect(mockPage.goto).toHaveBeenCalledWith(
         'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html',
-        expect.objectContaining({ waitUntil: 'networkidle0' })
+        expect.objectContaining({ waitUntil: 'domcontentloaded' })
       );
     });
 

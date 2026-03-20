@@ -6,6 +6,8 @@ import {
 import {
   upsertFilm,
   getFilm,
+  getFilmsBatch,
+  upsertFilmsBatch,
 } from '../../db/film-queries.js';
 import {
   upsertCinema,
@@ -59,7 +61,8 @@ export class AllocineScraperStrategy implements IScraperStrategy {
     cinema: CinemaConfig,
     date: string,
     movieDelayMs: number,
-    progress?: ProgressPublisher
+    progress?: ProgressPublisher,
+    processedFilmIds?: Set<number>
   ): Promise<{ filmsCount: number; showtimesCount: number }> {
     logger.info('Scraping cinema for date', { cinema: cinema.name, id: cinema.id, date });
 
@@ -74,7 +77,16 @@ export class AllocineScraperStrategy implements IScraperStrategy {
 
       logger.info('Films found for date', { count: filmShowtimesData.length, date });
 
+      // Batch-fetch existing films from DB to avoid N+1 queries (#595)
+      const filmIdsToLookup = filmShowtimesData
+        .map(fd => fd.film.id)
+        .filter(id => !(processedFilmIds?.has(id)));
+      const existingFilmsMap = filmIdsToLookup.length > 0
+        ? await getFilmsBatch(db, filmIdsToLookup)
+        : new Map<number, import('../../types/scraper.js').Film>();
+
       const weeklyPrograms: WeeklyProgram[] = [];
+      const filmsToUpsert: import('../../types/scraper.js').Film[] = [];
 
       for (const filmData of filmShowtimesData) {
         const film = filmData.film;
@@ -82,29 +94,53 @@ export class AllocineScraperStrategy implements IScraperStrategy {
         await progress?.emit({ type: 'film_started', film_title: film.title, film_id: film.id });
 
         try {
-          const existingFilm = await getFilm(db, film.id);
+          // Skip film detail fetch if already processed for this cinema run (#594)
+          const alreadyProcessed = processedFilmIds?.has(film.id) ?? false;
 
-          if (!existingFilm || !existingFilm.duration_minutes) {
-            logger.info('Fetching film details', { title: film.title, id: film.id });
+          if (!alreadyProcessed) {
+            // Check if JSON API already provided duration (#596) —
+            // if so, skip the expensive fetchFilmPage call
+            const hasRuntimeFromJson = film.duration_minutes !== undefined && film.duration_minutes > 0;
 
-            try {
-              const filmHtml = await fetchFilmPage(film.id);
-              const filmPageData = parseFilmPage(filmHtml);
+            if (!hasRuntimeFromJson) {
+              const existingFilm = existingFilmsMap.get(film.id);
 
-              if (filmPageData.duration_minutes) {
-                film.duration_minutes = filmPageData.duration_minutes;
+              if (!existingFilm || !existingFilm.duration_minutes) {
+                logger.info('Fetching film details', { title: film.title, id: film.id });
+
+                try {
+                  const filmHtml = await fetchFilmPage(film.id);
+                  const filmPageData = parseFilmPage(filmHtml);
+
+                  if (filmPageData.duration_minutes) {
+                    film.duration_minutes = filmPageData.duration_minutes;
+                  }
+
+                  await delay(movieDelayMs);
+                } catch (error) {
+                  logger.warn('Error fetching film page', { filmId: film.id, error });
+                }
+              } else {
+                film.duration_minutes = existingFilm.duration_minutes;
               }
-
-              await delay(movieDelayMs);
-            } catch (error) {
-              logger.warn('Error fetching film page', { filmId: film.id, error });
+            } else {
+              logger.info('Runtime already in JSON, skipping film page fetch', {
+                title: film.title,
+                id: film.id,
+                duration: film.duration_minutes,
+              });
             }
+
+            // Mark as processed for subsequent dates
+            processedFilmIds?.add(film.id);
           } else {
-            film.duration_minutes = existingFilm.duration_minutes;
+            logger.info('Film already processed, skipping detail fetch', {
+              title: film.title,
+              id: film.id,
+            });
           }
 
-          await upsertFilm(db, film);
-          logger.info('Film upserted', { title: film.title });
+          filmsToUpsert.push(film);
 
           await upsertShowtimes(db, filmData.showtimes);
           logger.info('Showtimes upserted', { count: filmData.showtimes.length });
@@ -130,6 +166,12 @@ export class AllocineScraperStrategy implements IScraperStrategy {
           logger.error('Error processing film', { title: film.title, error });
           await progress?.emit({ type: 'film_failed', film_title: film.title, error: errorMessage });
         }
+      }
+
+      // Batch upsert all films at once (#595)
+      if (filmsToUpsert.length > 0) {
+        await upsertFilmsBatch(db, filmsToUpsert);
+        logger.info('Films batch upserted', { count: filmsToUpsert.length });
       }
 
       if (weeklyPrograms.length > 0) {
