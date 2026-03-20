@@ -41,6 +41,18 @@ export function createApp() {
   app.set('trust proxy', 1);
 
   // Middleware
+  // Compression middleware - exclude SSE responses to prevent buffering
+  app.use(compression({
+    filter: (req, res) => {
+      // Don't compress SSE responses - they need to stream in real-time
+      if (req.path === '/api/scraper/progress') {
+        return false;
+      }
+      // Use default compression filter for everything else
+      return compression.filter(req, res);
+    }
+  }));
+
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -57,7 +69,7 @@ export function createApp() {
       },
     })
   );
-  app.use(compression());
+
   app.use(cors(getCorsOptions()));
   app.use(morgan('combined'));
   app.use(express.json());

@@ -64,6 +64,7 @@ export class ScraperService {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+    res.flushHeaders(); // Force headers to be sent immediately (prevents buffering)
 
     progressTracker.addListener(res);
     logger.info(`📡 SSE client connected (${progressTracker.getListenerCount()} total)`);
