@@ -69,12 +69,13 @@ describe('ScraperService', () => {
 
   describe('subscribeToProgress', () => {
     it('should add listener and return cleanup function', () => {
-      const mockRes = { setHeader: vi.fn() };
+      const mockRes = { setHeader: vi.fn(), flushHeaders: vi.fn() };
       const mockOnClose = vi.fn();
       
       const cleanup = scraperService.subscribeToProgress(mockRes, mockOnClose);
       
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
+      expect(mockRes.flushHeaders).toHaveBeenCalled();
       expect(progressTracker.addListener).toHaveBeenCalledWith(mockRes);
       
       cleanup();
