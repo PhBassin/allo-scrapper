@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useScrapeProgress } from '../hooks/useScrapeProgress';
 import type { ProgressEvent } from '../types';
 
@@ -21,11 +22,13 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
     );
   }
 
-  // Derive state from events
-  const startedEvent = events.find((e): e is Extract<ProgressEvent, { type: 'started' }> => e.type === 'started');
-  const cinemaCompletedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'cinema_completed' }> => e.type === 'cinema_completed');
-  const filmStartedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'film_started' }> => e.type === 'film_started');
-  const filmCompletedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'film_completed' }> => e.type === 'film_completed');
+  // Derive state from events (memoized to avoid re-traversing on every render)
+  const { startedEvent, cinemaCompletedEvents, filmStartedEvents, filmCompletedEvents } = useMemo(() => ({
+    startedEvent: events.find((e): e is Extract<ProgressEvent, { type: 'started' }> => e.type === 'started'),
+    cinemaCompletedEvents: events.filter((e): e is Extract<ProgressEvent, { type: 'cinema_completed' }> => e.type === 'cinema_completed'),
+    filmStartedEvents: events.filter((e): e is Extract<ProgressEvent, { type: 'film_started' }> => e.type === 'film_started'),
+    filmCompletedEvents: events.filter((e): e is Extract<ProgressEvent, { type: 'film_completed' }> => e.type === 'film_completed'),
+  }), [events]);
 
   const totalCinemas = startedEvent?.total_cinemas || 0;
   const processedCinemas = cinemaCompletedEvents.length;

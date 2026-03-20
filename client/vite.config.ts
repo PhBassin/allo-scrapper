@@ -7,6 +7,15 @@ export default defineConfig({
   build: {
     sourcemap: false, // Disable source maps in production
     minify: 'esbuild', // Ensure minification is enabled
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-utils': ['axios', 'zod', 'clsx'],
+        },
+      },
+    },
   },
   server: {
     proxy: {

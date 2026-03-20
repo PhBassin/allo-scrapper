@@ -1,6 +1,7 @@
 import type { FilmShowtimeData, Film, Showtime } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 import { decodeHtmlEntities, decodeHtmlEntitiesArray } from '../utils/html-decode.js';
+import { getWeekStartForDate } from '../utils/date.js';
 
 // ── Allociné internal API response types ──────────────────────────────────────
 
@@ -149,19 +150,6 @@ function parseReleaseDate(releases: AllocineRelease[] | undefined): {
   return { release_date, rerelease_date };
 }
 
-function getWeekStart(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  const dayOfWeek = date.getDay();
-  let offset = dayOfWeek - 3;
-  if (offset < 0) offset += 7;
-  const wed = new Date(date);
-  wed.setDate(date.getDate() - offset);
-  const y = wed.getFullYear();
-  const m = String(wed.getMonth() + 1).padStart(2, '0');
-  const d = String(wed.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
 function mapShowtimes(
   group: AllocineShowtimesGroup,
   filmId: number,
@@ -209,7 +197,7 @@ function mapShowtimes(
       version: ver2,
       format,
       experiences,
-      week_start: getWeekStart(actualDate),
+      week_start: getWeekStartForDate(actualDate),
     });
   }
 
