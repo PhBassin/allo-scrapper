@@ -33,6 +33,30 @@ export async function getFilm(db: DB, filmId: number): Promise<Film | undefined>
   const row = result.rows[0];
   if (!row) return undefined;
 
+  return rowToFilm(row);
+}
+
+/**
+ * Batch-fetch multiple films by their IDs in a single query.
+ * Returns a Map of filmId -> Film for films that exist in the database.
+ */
+export async function getFilmsBatch(db: DB, filmIds: number[]): Promise<Map<number, Film>> {
+  const map = new Map<number, Film>();
+  if (filmIds.length === 0) return map;
+
+  const result = await db.query<FilmRow>(
+    'SELECT * FROM films WHERE id = ANY($1)',
+    [filmIds]
+  );
+
+  for (const row of result.rows) {
+    map.set(row.id, rowToFilm(row));
+  }
+
+  return map;
+}
+
+function rowToFilm(row: FilmRow): Film {
   return {
     id: row.id,
     title: row.title,
@@ -139,5 +163,73 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
       sanitized.audience_rating ?? null,
       sanitized.source_url,
     ]
+  );
+}
+
+/**
+ * Batch upsert multiple films in a single query.
+ * Uses multi-row INSERT ... ON CONFLICT for efficiency.
+ */
+export async function upsertFilmsBatch(db: DB, films: Film[]): Promise<void> {
+  if (films.length === 0) return;
+
+  const values: any[] = [];
+  const valueSets: string[] = [];
+  let paramIndex = 1;
+
+  for (const film of films) {
+    const sanitized = sanitizeFilm(film);
+    valueSets.push(
+      `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, ` +
+      `$${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9}, ` +
+      `$${paramIndex + 10}, $${paramIndex + 11}, $${paramIndex + 12}, $${paramIndex + 13}, $${paramIndex + 14}, $${paramIndex + 15})`
+    );
+    values.push(
+      sanitized.id,
+      sanitized.title,
+      sanitized.original_title ?? null,
+      sanitized.poster_url ?? null,
+      sanitized.duration_minutes ?? null,
+      sanitized.release_date ?? null,
+      sanitized.rerelease_date ?? null,
+      JSON.stringify(sanitized.genres),
+      sanitized.nationality ?? null,
+      sanitized.director ?? null,
+      JSON.stringify(sanitized.actors),
+      sanitized.synopsis ?? null,
+      sanitized.certificate ?? null,
+      sanitized.press_rating ?? null,
+      sanitized.audience_rating ?? null,
+      sanitized.source_url
+    );
+    paramIndex += 16;
+  }
+
+  await db.query(
+    `
+      INSERT INTO films (
+        id, title, original_title, poster_url, duration_minutes,
+        release_date, rerelease_date, genres, nationality, director,
+        actors, synopsis, certificate, press_rating, audience_rating, source_url
+      )
+      VALUES ${valueSets.join(', ')}
+      ON CONFLICT(id) DO UPDATE SET
+        title = EXCLUDED.title,
+        original_title = EXCLUDED.original_title,
+        poster_url = EXCLUDED.poster_url,
+        duration_minutes = COALESCE(EXCLUDED.duration_minutes, films.duration_minutes),
+        release_date = COALESCE(EXCLUDED.release_date, films.release_date),
+        rerelease_date = EXCLUDED.rerelease_date,
+        genres = EXCLUDED.genres,
+        nationality = EXCLUDED.nationality,
+        director = EXCLUDED.director,
+        actors = EXCLUDED.actors,
+        synopsis = EXCLUDED.synopsis,
+        certificate = EXCLUDED.certificate,
+        press_rating = EXCLUDED.press_rating,
+        audience_rating = EXCLUDED.audience_rating,
+        source_url = EXCLUDED.source_url
+    `,
+    values
   );
 }

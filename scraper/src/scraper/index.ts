@@ -39,10 +39,11 @@ export async function scrapeTheater(
   cinema: CinemaConfig,
   date: string,
   movieDelayMs: number,
-  progress?: ProgressPublisher
+  progress?: ProgressPublisher,
+  processedFilmIds?: Set<number>
 ): Promise<{ filmsCount: number; showtimesCount: number }> {
   const strategy = getStrategyBySource(cinema.source || 'allocine');
-  return strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
+  return strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress, processedFilmIds);
 }
 
 /**
@@ -74,13 +75,23 @@ export async function addCinemaAndScrape(
   const { availableDates, cinema } = await strategy.loadTheaterMetadata(db, tempConfig);
 
   const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
+  const dateDelayMs = parseInt(process.env.SCRAPE_DATE_DELAY_MS || '1500', 10);
   logger.info(`Scraping ${availableDates.length} available date(s)...`, { cinema: cinema.name });
 
-  for (const date of availableDates) {
+  // Track processed film IDs across dates for this cinema to avoid redundant fetches
+  const processedFilmIds = new Set<number>();
+
+  for (let di = 0; di < availableDates.length; di++) {
+    const date = availableDates[di];
     try {
-      await strategy.scrapeTheater(db, tempConfig, date, movieDelayMs, progress);
+      await strategy.scrapeTheater(db, tempConfig, date, movieDelayMs, progress, processedFilmIds);
     } catch (error) {
       logger.error('Failed to scrape date', { date, cinema: cinema.name, error });
+    }
+
+    // Apply delay between dates (except after the last one)
+    if (di < availableDates.length - 1) {
+      await delay(dateDelayMs);
     }
   }
 
@@ -119,6 +130,7 @@ export async function runScraper(
   // Read delay configuration from environment
   const theaterDelayMs = parseInt(process.env.SCRAPE_THEATER_DELAY_MS || '3000', 10);
   const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
+  const dateDelayMs = parseInt(process.env.SCRAPE_DATE_DELAY_MS || '1500', 10);
 
   try {
     let cinemas = await getCinemaConfigs(db);
@@ -149,7 +161,7 @@ export async function runScraper(
     const scrapeDays = options?.days || parseInt(process.env.SCRAPE_DAYS || '7', 10);
     const dates = getScrapeDates(scrapeMode, scrapeDays);
     logger.info('Scrape config', { mode: scrapeMode, dates: dates.length, scrapeDays });
-    logger.info('Delay config', { theaterDelayMs, movieDelayMs });
+    logger.info('Delay config', { theaterDelayMs, movieDelayMs, dateDelayMs });
 
     summary.total_cinemas = cinemas.length;
     summary.total_dates = dates.length;
@@ -197,10 +209,14 @@ export async function runScraper(
       }
       logger.info('Dates to scrape', { cinema: cinema.name, count: datesToScrape.length });
 
-      for (const date of datesToScrape) {
+      // Track processed film IDs across dates for this cinema to avoid redundant fetches
+      const processedFilmIds = new Set<number>();
+
+      for (let di = 0; di < datesToScrape.length; di++) {
+        const date = datesToScrape[di];
         logger.info('Attempting date', { cinema: cinema.name, date });
         try {
-          const { filmsCount, showtimesCount } = await strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
+          const { filmsCount, showtimesCount } = await strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress, processedFilmIds);
           cinemaFilmsCount += filmsCount;
           cinemaShowtimesCount += showtimesCount;
           successfulDates++;
@@ -222,6 +238,12 @@ export async function runScraper(
           });
 
           continue;
+        }
+
+        // Apply delay between dates (except after the last one)
+        if (di < datesToScrape.length - 1) {
+          logger.info('Waiting before next date', { delayMs: dateDelayMs });
+          await delay(dateDelayMs);
         }
       }
 
