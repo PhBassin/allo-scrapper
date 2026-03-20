@@ -3,6 +3,16 @@
 import puppeteer, { type Browser } from 'puppeteer-core';
 import { logger } from '../utils/logger.js';
 import { ALLOCINE_BASE_URL } from './utils.js';
+import { CircuitBreaker, CircuitOpenError } from './circuit-breaker.js';
+
+// ── Shared circuit breaker for all upstream fetch calls ───────────────────────
+const circuitBreaker = new CircuitBreaker({
+  threshold: parseInt(process.env.CIRCUIT_BREAKER_THRESHOLD || '5', 10),
+  cooldownMs: parseInt(process.env.CIRCUIT_BREAKER_COOLDOWN_MS || '60000', 10),
+});
+
+/** Expose the circuit breaker for scraper orchestration (early abort, reset, status). */
+export { circuitBreaker, CircuitOpenError };
 
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -248,14 +258,16 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
   const url = constructed.href;
   logger.info('Fetching showtimes JSON', { url });
 
-  const response = await fetchWithRetry(url, {
-    headers: {
-      'User-Agent': USER_AGENT,
-      Accept: 'application/json',
-      'Accept-Language': 'fr-FR,fr;q=0.9',
-      Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${cinemaId}.html`,
-    },
-  });
+  const response = await circuitBreaker.execute(() =>
+    fetchWithRetry(url, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'application/json',
+        'Accept-Language': 'fr-FR,fr;q=0.9',
+        Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${cinemaId}.html`,
+      },
+    })
+  );
 
   return response.json();
 }
@@ -273,14 +285,16 @@ export async function fetchFilmPage(filmId: number): Promise<string> {
 
   logger.info('Fetching film page', { url });
 
-  const response = await fetchWithRetry(url, {
-    headers: {
-      'User-Agent': USER_AGENT,
-      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-      'Cache-Control': 'no-cache',
-    },
-  });
+  const response = await circuitBreaker.execute(() =>
+    fetchWithRetry(url, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache',
+      },
+    })
+  );
 
   return response.text();
 }

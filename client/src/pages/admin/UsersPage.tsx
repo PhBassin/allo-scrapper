@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
+import React, { useState, useMemo, useContext } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUsers, createUser, updateUserRole, resetUserPassword, deleteUser } from '../../api/users';
 import type { UserPublic, UserCreate } from '../../api/users';
 import { rolesApi } from '../../api/roles';
@@ -96,90 +97,93 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ user, roles, onClose,
 // ────────────────────────────────────────────────────────────────
 const UsersPage: React.FC = () => {
   const { hasPermission } = useContext(AuthContext);
+  const queryClient = useQueryClient();
   
   // Permission checks
   const canCreate = hasPermission('users:create');
   const canUpdate = hasPermission('users:update');
   const canDelete = hasPermission('users:delete');
 
-  const [users, setUsers] = useState<UserPublic[]>([]);
-  const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // React Query: fetch users and roles in parallel
+  const { data: users = [], isLoading: usersLoading, error: usersError } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => getUsers(),
+  });
+
+  const { data: roles = [], isLoading: rolesLoading } = useQuery({
+    queryKey: ['roles'],
+    queryFn: () => rolesApi.getAll(),
+  });
+
+  const loading = usersLoading || rolesLoading;
+  const error = usersError ? (usersError instanceof Error ? usersError.message : 'Failed to fetch users') : null;
 
   // Modal/dialog states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserPublic | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [passwordResetData, setPasswordResetData] = useState<{
     username: string;
     newPassword: string;
   } | null>(null);
   const [userForRoleChange, setUserForRoleChange] = useState<UserPublic | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Fetch users and roles
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [usersData, rolesData] = await Promise.all([
-        getUsers(),
-        rolesApi.getAll(),
-      ]);
-      setUsers(usersData);
-      setRoles(rolesData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch users');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: (data: UserCreate) => createUser(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setShowCreateModal(false);
+    },
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const changeRoleMutation = useMutation({
+    mutationFn: ({ userId, roleId }: { userId: number; roleId: number }) => updateUserRole(userId, roleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (userId: number) => deleteUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setUserToDelete(null);
+    },
+    onError: (err) => {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete user');
+    },
+  });
 
   // Create user
   const handleCreateUser = async (data: UserCreate) => {
-    await createUser(data);
-    setShowCreateModal(false);
-    await fetchData();
+    await createMutation.mutateAsync(data);
   };
 
-  // Change role — now uses role_id integer
+  // Change role
   const handleChangeRole = async (userId: number, newRoleId: number) => {
-    await updateUserRole(userId, newRoleId);
-    await fetchData();
+    await changeRoleMutation.mutateAsync({ userId, roleId: newRoleId });
   };
 
   // Reset password
   const handleResetPassword = async (userId: number) => {
     try {
-      setError(null);
+      setActionError(null);
       const result = await resetUserPassword(userId);
       setPasswordResetData({
         username: result.user.username,
         newPassword: result.newPassword,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reset password');
+      setActionError(err instanceof Error ? err.message : 'Failed to reset password');
     }
   };
 
   // Delete user
   const handleDeleteUser = async (userId: number) => {
-    try {
-      setIsDeleting(true);
-      setDeleteError(null);
-      await deleteUser(userId);
-      setUserToDelete(null);
-      await fetchData();
-    } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to delete user');
-    } finally {
-      setIsDeleting(false);
-    }
+    setDeleteError(null);
+    await deleteMutation.mutateAsync(userId);
   };
 
   // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
@@ -222,9 +226,9 @@ const UsersPage: React.FC = () => {
       </div>
 
       {/* Error Message */}
-      {error && (
+      {(error || actionError) && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-800">{error}</p>
+          <p className="text-sm text-red-800">{error || actionError}</p>
         </div>
       )}
 
@@ -333,7 +337,7 @@ const UsersPage: React.FC = () => {
             setDeleteError(null);
           }}
           onConfirm={handleDeleteUser}
-          isDeleting={isDeleting}
+          isDeleting={deleteMutation.isPending}
           error={deleteError}
         />
       )}

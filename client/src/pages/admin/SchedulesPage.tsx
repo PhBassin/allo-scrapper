@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getSchedules, createSchedule, updateSchedule, deleteSchedule, type CreateSchedulePayload, type UpdateSchedulePayload } from '../../api/client';
 import type { ScrapeSchedule } from '../../types';
 import ScheduleModal from '../../components/admin/ScheduleModal';
@@ -7,9 +8,7 @@ import { useContext } from 'react';
 
 const SchedulesPage: React.FC = () => {
   const { hasPermission } = useContext(AuthContext);
-  const [schedules, setSchedules] = useState<ScrapeSchedule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScrapeSchedule | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
@@ -18,38 +17,42 @@ const SchedulesPage: React.FC = () => {
   const canUpdate = hasPermission('scraper:schedules:update');
   const canDelete = hasPermission('scraper:schedules:delete');
 
-  const fetchSchedules = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await getSchedules();
-      setSchedules(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch schedules');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: schedules = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['schedules'],
+    queryFn: getSchedules,
+  });
 
-  useEffect(() => {
-    fetchSchedules();
-  }, [fetchSchedules]);
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to fetch schedules') : null;
+
+  const createMutation = useMutation({
+    mutationFn: (data: CreateSchedulePayload) => createSchedule(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['schedules'] }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: CreateSchedulePayload | UpdateSchedulePayload }) => updateSchedule(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['schedules'] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteSchedule(id),
+    onSuccess: () => {
+      setDeleteConfirm(null);
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+    },
+  });
 
   const handleCreate = async (data: CreateSchedulePayload) => {
-    await createSchedule(data);
-    await fetchSchedules();
+    await createMutation.mutateAsync(data);
   };
 
   const handleUpdate = async (data: CreateSchedulePayload | UpdateSchedulePayload) => {
     if (!editingSchedule) return;
-    await updateSchedule(editingSchedule.id, data);
-    await fetchSchedules();
+    await updateMutation.mutateAsync({ id: editingSchedule.id, data });
   };
 
   const handleDelete = async (id: number) => {
-    await deleteSchedule(id);
-    setDeleteConfirm(null);
-    await fetchSchedules();
+    await deleteMutation.mutateAsync(id);
   };
 
   const openCreateModal = () => {
@@ -94,7 +97,7 @@ const SchedulesPage: React.FC = () => {
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
         <p className="text-red-600">{error}</p>
-        <button onClick={fetchSchedules} className="mt-2 text-sm text-red-700 underline">
+        <button onClick={() => queryClient.invalidateQueries({ queryKey: ['schedules'] })} className="mt-2 text-sm text-red-700 underline">
           Retry
         </button>
       </div>

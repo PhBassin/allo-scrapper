@@ -33,6 +33,7 @@
     "he": "^1.2.0",
     "ioredis": "^5.10.0",
     "node-cron": "^4.2.1",
+    "p-limit": "^7.3.0",
     "pg": "^8.20.0",
     "prom-client": "^15.1.0",
     "puppeteer-core": "^24.39.1",

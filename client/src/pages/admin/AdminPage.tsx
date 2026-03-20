@@ -1,12 +1,15 @@
-import React, { useContext, useEffect, useMemo } from 'react';
+import React, { useContext, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import CinemasPage from './CinemasPage';
-import SettingsPage from './SettingsPage';
-import UsersPage from './UsersPage';
-import SystemPage from './SystemPage';
-import ReportsPage from '../ReportsPage';
-import RoleManagementPage from '../../components/admin/RoleManagementPage';
-import SchedulesPage from './SchedulesPage';
+
+// ⚡ PERFORMANCE: Lazy-load tab sub-pages so only the active tab's code is fetched
+const CinemasPage = React.lazy(() => import('./CinemasPage'));
+const SettingsPage = React.lazy(() => import('./SettingsPage'));
+const UsersPage = React.lazy(() => import('./UsersPage'));
+const SystemPage = React.lazy(() => import('./SystemPage'));
+const ReportsPage = React.lazy(() => import('../ReportsPage'));
+const RoleManagementPage = React.lazy(() => import('../../components/admin/RoleManagementPage'));
+const SchedulesPage = React.lazy(() => import('./SchedulesPage'));
+
 import { AuthContext } from '../../contexts/AuthContext';
 import type { PermissionName } from '../../types/role';
 
@@ -172,15 +175,21 @@ const AdminPage: React.FC = () => {
       </div>
 
       {/* Tab content */}
-      <div role="tabpanel">
-        {activeTab === 'cinemas' && <CinemasPage />}
-        {activeTab === 'schedules' && <SchedulesPage />}
-        {activeTab === 'rapports' && <ReportsPage />}
-        {activeTab === 'users' && <UsersPage />}
-        {activeTab === 'roles' && <RoleManagementPage />}
-        {activeTab === 'settings' && <SettingsPage />}
-        {activeTab === 'system' && <SystemPage />}
-      </div>
+      <Suspense fallback={
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Loading...</div>
+        </div>
+      }>
+        <div role="tabpanel">
+          {activeTab === 'cinemas' && <CinemasPage />}
+          {activeTab === 'schedules' && <SchedulesPage />}
+          {activeTab === 'rapports' && <ReportsPage />}
+          {activeTab === 'users' && <UsersPage />}
+          {activeTab === 'roles' && <RoleManagementPage />}
+          {activeTab === 'settings' && <SettingsPage />}
+          {activeTab === 'system' && <SystemPage />}
+        </div>
+      </Suspense>
     </div>
   );
 };

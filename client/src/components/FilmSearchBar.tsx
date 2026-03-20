@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { searchFilms } from '../api/client';
 import { useDebounce } from '../hooks/useDebounce';
 import { highlightText } from '../utils/highlight';
@@ -15,38 +16,29 @@ export default function FilmSearchBar({
   placeholder = 'Rechercher un film...' 
 }: FilmSearchBarProps) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Film[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const debouncedQuery = useDebounce(query, 300);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Perform search when debounced query changes
+  // ⚡ PERFORMANCE: React Query with staleTime caches search results for 5 min,
+  // avoiding redundant API calls for repeated searches
+  const { data: results = [], isFetching: isLoading } = useQuery<Film[]>({
+    queryKey: ['filmSearch', debouncedQuery],
+    queryFn: () => searchFilms(debouncedQuery),
+    enabled: !!debouncedQuery && debouncedQuery.trim().length >= 2,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Open dropdown when results arrive
   useEffect(() => {
-    async function performSearch() {
-      if (!debouncedQuery || debouncedQuery.trim().length < 2) {
-        setResults([]);
-        setIsOpen(false);
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        const films = await searchFilms(debouncedQuery);
-        setResults(films);
-        setIsOpen(true);
-        setSelectedIndex(-1);
-      } catch (error) {
-        console.error('Search error:', error);
-        setResults([]);
-      } finally {
-        setIsLoading(false);
-      }
+    if (results.length > 0 && debouncedQuery.trim().length >= 2) {
+      setIsOpen(true);
+      setSelectedIndex(-1);
+    } else if (!debouncedQuery || debouncedQuery.trim().length < 2) {
+      setIsOpen(false);
     }
-
-    performSearch();
-  }, [debouncedQuery]);
+  }, [results, debouncedQuery]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -94,7 +86,6 @@ export default function FilmSearchBar({
   const handleResultClick = () => {
     setIsOpen(false);
     setQuery('');
-    setResults([]);
     setSelectedIndex(-1);
   };
 

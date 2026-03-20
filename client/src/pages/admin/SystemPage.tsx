@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useContext } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getSystemInfo, getMigrations, getSystemHealth, formatUptime, formatDate } from '../../api/system';
 import type { SystemInfo, MigrationsInfo, SystemHealth } from '../../api/system';
 import { AuthContext } from '../../contexts/AuthContext';
@@ -12,46 +13,37 @@ const SystemPage: React.FC = () => {
   const canViewHealth = hasPermission('system:health');
   const canViewMigrations = hasPermission('system:migrations');
 
-  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
-  const [migrations, setMigrations] = useState<MigrationsInfo | null>(null);
-  const [health, setHealth] = useState<SystemHealth | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [infoData, migrationsData, healthData] = await Promise.all([
-        canViewInfo ? getSystemInfo() : Promise.resolve(null),
-        canViewMigrations ? getMigrations() : Promise.resolve(null),
-        canViewHealth ? getSystemHealth() : Promise.resolve(null),
-      ]);
-      setSystemInfo(infoData);
-      setMigrations(migrationsData);
-      setHealth(healthData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load system information');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [canViewInfo, canViewHealth, canViewMigrations]);
+  // React Query: fetch system data in parallel with optional auto-refresh
+  const refetchInterval = autoRefresh ? 30_000 : false;
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const { data: systemInfo, isLoading: infoLoading, error: infoError, refetch: refetchInfo } = useQuery<SystemInfo | null>({
+    queryKey: ['system', 'info'],
+    queryFn: () => canViewInfo ? getSystemInfo() : Promise.resolve(null),
+    refetchInterval,
+  });
 
-  // Auto-refresh every 30 seconds if enabled
-  useEffect(() => {
-    if (!autoRefresh) return;
+  const { data: migrations, isLoading: migrationsLoading, refetch: refetchMigrations } = useQuery<MigrationsInfo | null>({
+    queryKey: ['system', 'migrations'],
+    queryFn: () => canViewMigrations ? getMigrations() : Promise.resolve(null),
+    refetchInterval,
+  });
 
-    const interval = setInterval(() => {
-      loadData();
-    }, 30000);
+  const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useQuery<SystemHealth | null>({
+    queryKey: ['system', 'health'],
+    queryFn: () => canViewHealth ? getSystemHealth() : Promise.resolve(null),
+    refetchInterval,
+  });
 
-    return () => clearInterval(interval);
-  }, [autoRefresh, loadData]);
+  const isLoading = infoLoading || migrationsLoading || healthLoading;
+  const error = infoError ? (infoError instanceof Error ? infoError.message : 'Failed to load system information') : null;
+
+  const loadData = () => {
+    refetchInfo();
+    refetchMigrations();
+    refetchHealth();
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
