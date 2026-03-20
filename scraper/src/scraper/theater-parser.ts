@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import type { TheaterPageData, Cinema, FilmShowtimeData, Film, Showtime } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
+import { getWeekStartForDate } from '../utils/date.js';
 
 // Parse the cinema page from the source website
 export function parseTheaterPage(html: string, cinemaId: string): TheaterPageData {
@@ -273,7 +274,7 @@ function parseShowtimes(
         version,
         format,
         experiences,
-        week_start: getWeekStart(showtimeDate),
+        week_start: getWeekStartForDate(showtimeDate),
       });
     });
   });
@@ -312,18 +313,3 @@ function parseDateFromText(day: string, monthName: string, year: string): string
   return `${year}-${month}-${dayPadded}`;
 }
 
-// Utilitaire: obtenir le mercredi de la semaine d'une date
-function getWeekStart(dateStr: string): string {
-  const date = new Date(dateStr);
-  const dayOfWeek = date.getDay();
-
-  let offset = dayOfWeek - 3;
-  if (offset < 0) {
-    offset += 7;
-  }
-
-  const wednesday = new Date(date);
-  wednesday.setDate(date.getDate() - offset);
-
-  return wednesday.toISOString().split('T')[0];
-}

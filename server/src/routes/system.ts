@@ -56,9 +56,11 @@ router.get('/migrations', protectedLimiter, requireAuth, requirePermission('syst
   try {
     const db: DB = req.app.get('db');
 
-    // Get applied and pending migrations
-    const applied = await getAppliedMigrations(db);
-    const pending = await getPendingMigrations(db);
+    // Get applied and pending migrations in parallel
+    const [applied, pending] = await Promise.all([
+      getAppliedMigrations(db),
+      getPendingMigrations(db),
+    ]);
 
     const response: ApiResponse = {
       success: true,
@@ -82,14 +84,14 @@ router.get('/health', protectedLimiter, requireAuth, requirePermission('system:h
   try {
     const db: DB = req.app.get('db');
 
-    // Get scraper status (async, may throw)
-    const scraperStatus = await getScraperStatus(db);
+    // Get scraper status and pending migrations in parallel
+    const [scraperStatus, pendingMigrations] = await Promise.all([
+      getScraperStatus(db),
+      getPendingMigrations(db),
+    ]);
 
     // Get server health (synchronous)
     const serverHealth = getServerHealth();
-
-    // Check migrations status
-    const pendingMigrations = await getPendingMigrations(db);
     const migrationsOk = pendingMigrations.length === 0;
 
     // Determine overall status
