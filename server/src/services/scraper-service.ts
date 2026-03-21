@@ -27,9 +27,11 @@ export class ScraperService {
 
     const reportId = await createScrapeReport(this.db, 'manual');
 
-    // Reset stale events so new SSE subscribers don't receive previous session's
+    // Clear stale events so new SSE subscribers don't receive previous session's
     // completed/failed events and immediately dismiss the progress panel.
-    progressTracker.reset();
+    // Note: We use clearEvents() instead of reset() to keep existing SSE connections
+    // alive - they will continue receiving events from the new scrape session.
+    progressTracker.clearEvents();
 
     const queueDepth = await getRedisClient().publishJob({
       type: 'scrape',

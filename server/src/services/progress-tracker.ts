@@ -111,7 +111,19 @@ export class ProgressTracker {
     }
   }
 
-  // Clear all events and listeners
+  /**
+   * Clear events only without disconnecting SSE clients.
+   * Use this when starting a new scrape session - existing clients will 
+   * continue receiving new events from the fresh session.
+   */
+  clearEvents(): void {
+    this.events = [];
+  }
+
+  /**
+   * Clear all events and close all SSE connections.
+   * Use this for full cleanup (e.g., server shutdown).
+   */
   reset(): void {
     this.events = [];
     this.stopHeartbeat();

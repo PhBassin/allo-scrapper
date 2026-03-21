@@ -193,4 +193,71 @@ describe('ProgressTracker', () => {
       expect(mockResponse2.write).toHaveBeenCalledWith(': heartbeat\n\n');
     });
   });
+
+  describe('clearEvents', () => {
+    it('should clear events without disconnecting listeners', () => {
+      // Arrange
+      const event = { type: 'started' as const, total_cinemas: 5, total_dates: 7 };
+      tracker.emit(event);
+      tracker.addListener(mockResponse);
+      
+      // Clear initial writes to check subsequent behavior
+      vi.mocked(mockResponse.write).mockClear();
+
+      // Act
+      tracker.clearEvents();
+
+      // Assert - listener should NOT be disconnected
+      expect(mockResponse.end).not.toHaveBeenCalled();
+      expect(tracker.getListenerCount()).toBe(1);
+
+      // New listener should not receive cleared events
+      const mockResponse2 = {
+        write: vi.fn(),
+        end: vi.fn(),
+      } as unknown as Response;
+      tracker.addListener(mockResponse2);
+
+      // Should only have initial heartbeat, not the historical event
+      expect(mockResponse2.write).toHaveBeenCalledTimes(1);
+      expect(mockResponse2.write).toHaveBeenCalledWith(': heartbeat\n\n');
+    });
+
+    it('should allow existing listeners to receive new events after clear', () => {
+      // Arrange
+      const oldEvent = { type: 'started' as const, total_cinemas: 5, total_dates: 7 };
+      tracker.emit(oldEvent);
+      tracker.addListener(mockResponse);
+      
+      // Clear initial writes
+      vi.mocked(mockResponse.write).mockClear();
+
+      // Act - clear events and emit new one
+      tracker.clearEvents();
+      const newEvent = { type: 'cinema_started' as const, cinema_name: 'Test Cinema', cinema_id: 'C001', index: 1 };
+      tracker.emit(newEvent);
+
+      // Assert - existing listener should receive the new event
+      expect(mockResponse.write).toHaveBeenCalledWith(`data: ${JSON.stringify(newEvent)}\n\n`);
+    });
+
+    it('should keep heartbeat running after clear', () => {
+      vi.useFakeTimers();
+
+      // Arrange
+      tracker.addListener(mockResponse);
+      vi.mocked(mockResponse.write).mockClear();
+
+      // Act
+      tracker.clearEvents();
+
+      // Fast-forward time by 15 seconds
+      vi.advanceTimersByTime(15000);
+
+      // Assert - periodic heartbeat should still be sent
+      expect(mockResponse.write).toHaveBeenCalledWith(': heartbeat\n\n');
+
+      vi.useRealTimers();
+    });
+  });
 });

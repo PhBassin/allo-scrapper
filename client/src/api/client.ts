@@ -180,37 +180,99 @@ export async function getScrapeStatus(): Promise<ScrapeStatus> {
   return response.data.data;
 }
 
-export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onError?: (error: Error) => void): () => void {
+export interface SubscribeToProgressOptions {
+  onEvent: (event: ProgressEvent) => void;
+  onError?: (error: Error) => void;
+  onConnected?: () => void;
+  maxReconnectAttempts?: number;
+}
+
+export function subscribeToProgress(
+  onEventOrOptions: ((event: ProgressEvent) => void) | SubscribeToProgressOptions,
+  onError?: (error: Error) => void
+): () => void {
+  // Support both legacy signature and new options object
+  const options: SubscribeToProgressOptions = typeof onEventOrOptions === 'function'
+    ? { onEvent: onEventOrOptions, onError }
+    : onEventOrOptions;
+
+  const { 
+    onEvent, 
+    onError: errorCallback, 
+    onConnected,
+    maxReconnectAttempts = 5 
+  } = options;
+
   const url = `${API_BASE_URL}/scraper/progress`;
-  console.log('[SSE] Connecting to:', url);
-  const eventSource = new EventSource(url);
+  let eventSource: EventSource | null = null;
+  let reconnectAttempts = 0;
+  let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  let isManualClose = false;
 
-  eventSource.onopen = () => {
-    console.log('[SSE] Connection opened successfully');
-  };
+  function connect() {
+    console.log('[SSE] Connecting to:', url, `(attempt ${reconnectAttempts + 1})`);
+    eventSource = new EventSource(url);
 
-  eventSource.onmessage = (event) => {
-    console.log('[SSE] Received message:', event.data);
-    try {
-      const data = JSON.parse(event.data);
-      console.log('[SSE] Parsed event:', data);
-      onEvent(data);
-    } catch (error) {
-      console.error('[SSE] Failed to parse event:', error, 'Raw data:', event.data);
-    }
-  };
+    eventSource.onopen = () => {
+      console.log('[SSE] Connection opened successfully');
+      reconnectAttempts = 0; // Reset on successful connection
+      onConnected?.();
+    };
 
-  eventSource.onerror = (error) => {
-    console.error('[SSE] Connection error:', error, 'ReadyState:', eventSource.readyState);
-    if (onError) {
-      onError(new Error('Connection lost'));
-    }
-  };
+    eventSource.onmessage = (event) => {
+      console.log('[SSE] Received message:', event.data);
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[SSE] Parsed event:', data);
+        onEvent(data);
+      } catch (error) {
+        console.error('[SSE] Failed to parse event:', error, 'Raw data:', event.data);
+      }
+    };
+
+    eventSource.onerror = () => {
+      console.error('[SSE] Connection error. ReadyState:', eventSource?.readyState);
+      
+      // Don't reconnect if manually closed
+      if (isManualClose) {
+        return;
+      }
+
+      // Close the current connection
+      eventSource?.close();
+      eventSource = null;
+
+      // Attempt reconnection with exponential backoff
+      if (reconnectAttempts < maxReconnectAttempts) {
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
+        console.log(`[SSE] Reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1}/${maxReconnectAttempts})`);
+        
+        reconnectTimeout = setTimeout(() => {
+          reconnectAttempts++;
+          connect();
+        }, delay);
+      } else {
+        console.error('[SSE] Max reconnection attempts reached');
+        errorCallback?.(new Error('Connection lost after max retries'));
+      }
+    };
+  }
+
+  // Initial connection
+  connect();
 
   // Return unsubscribe function
   return () => {
     console.log('[SSE] Closing connection');
-    eventSource.close();
+    isManualClose = true;
+    
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout);
+      reconnectTimeout = null;
+    }
+    
+    eventSource?.close();
+    eventSource = null;
   };
 }
 

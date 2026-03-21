@@ -12,7 +12,7 @@ export interface ProgressState {
 export function useScrapeProgress(onComplete?: (success: boolean) => void) {
   const [state, setState] = useState<ProgressState>({
     events: [],
-    isConnected: true,
+    isConnected: false, // Start as false until connection is confirmed
   });
 
   // Use ref to keep stable callback reference and avoid re-subscribing
@@ -24,9 +24,9 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void) {
   }, [onComplete]);
 
   useEffect(() => {
-    // Subscribe to progress events
-    const unsubscribe = subscribeToProgress(
-      (event: ProgressEvent) => {
+    // Subscribe to progress events with reconnection support
+    const unsubscribe = subscribeToProgress({
+      onEvent: (event: ProgressEvent) => {
         setState((prev) => ({
           ...prev,
           events: [...prev.events, event],
@@ -67,14 +67,21 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void) {
           }, 1500);
         }
       },
-      (error: Error) => {
+      onError: (error: Error) => {
         setState((prev) => ({
           ...prev,
           isConnected: false,
           error: error.message,
         }));
-      }
-    );
+      },
+      onConnected: () => {
+        setState((prev) => ({
+          ...prev,
+          isConnected: true,
+          error: undefined,
+        }));
+      },
+    });
 
     // Store unsubscribe function in ref for early cleanup
     unsubscribeRef.current = unsubscribe;
