@@ -87,6 +87,7 @@ export class AllocineScraperStrategy implements IScraperStrategy {
 
       const weeklyPrograms: WeeklyProgram[] = [];
       const filmsToUpsert: import('../../types/scraper.js').Film[] = [];
+      const showtimesToUpsert: import('../../types/scraper.js').Showtime[] = [];
 
       for (const filmData of filmShowtimesData) {
         const film = filmData.film;
@@ -141,9 +142,7 @@ export class AllocineScraperStrategy implements IScraperStrategy {
           }
 
           filmsToUpsert.push(film);
-
-          await upsertShowtimes(db, filmData.showtimes);
-          logger.info('Showtimes upserted', { count: filmData.showtimes.length });
+          showtimesToUpsert.push(...filmData.showtimes);
 
           weeklyPrograms.push({
             cinema_id: cinema.id,
@@ -165,13 +164,20 @@ export class AllocineScraperStrategy implements IScraperStrategy {
           const errorMessage = error instanceof Error ? error.message : String(error);
           logger.error('Error processing film', { title: film.title, error });
           await progress?.emit({ type: 'film_failed', film_title: film.title, error: errorMessage });
+          // Note: Failed films are excluded from batch insertion (not added to arrays)
         }
       }
 
-      // Batch upsert all films at once (#595)
+      // CRITICAL: Insert films before showtimes to satisfy FK constraint.
+      // Showtimes reference films.id, so films must exist first.
       if (filmsToUpsert.length > 0) {
         await upsertFilmsBatch(db, filmsToUpsert);
         logger.info('Films batch upserted', { count: filmsToUpsert.length });
+      }
+
+      if (showtimesToUpsert.length > 0) {
+        await upsertShowtimes(db, showtimesToUpsert);
+        logger.info('Showtimes batch upserted', { count: showtimesToUpsert.length });
       }
 
       if (weeklyPrograms.length > 0) {
