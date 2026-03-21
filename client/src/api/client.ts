@@ -181,19 +181,27 @@ export async function getScrapeStatus(): Promise<ScrapeStatus> {
 }
 
 export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onError?: (error: Error) => void): () => void {
-  const eventSource = new EventSource(`${API_BASE_URL}/scraper/progress`);
+  const url = `${API_BASE_URL}/scraper/progress`;
+  console.log('[SSE] Connecting to:', url);
+  const eventSource = new EventSource(url);
+
+  eventSource.onopen = () => {
+    console.log('[SSE] Connection opened successfully');
+  };
 
   eventSource.onmessage = (event) => {
+    console.log('[SSE] Received message:', event.data);
     try {
       const data = JSON.parse(event.data);
+      console.log('[SSE] Parsed event:', data);
       onEvent(data);
     } catch (error) {
-      console.error('Failed to parse SSE event:', error);
+      console.error('[SSE] Failed to parse event:', error, 'Raw data:', event.data);
     }
   };
 
   eventSource.onerror = (error) => {
-    console.error('SSE connection error:', error);
+    console.error('[SSE] Connection error:', error, 'ReadyState:', eventSource.readyState);
     if (onError) {
       onError(new Error('Connection lost'));
     }
@@ -201,6 +209,7 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
 
   // Return unsubscribe function
   return () => {
+    console.log('[SSE] Closing connection');
     eventSource.close();
   };
 }
