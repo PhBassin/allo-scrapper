@@ -41,6 +41,14 @@ export class ProgressTracker {
   addListener(res: Response): void {
     this.listeners.add(res);
 
+    // Send immediate heartbeat to establish connection
+    try {
+      res.write(': heartbeat\n\n');
+    } catch (error) {
+      this.listeners.delete(res);
+      return;
+    }
+
     // Send existing events to new listener
     for (const event of this.events) {
       this.sendToListener(res, event);
