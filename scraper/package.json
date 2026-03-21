@@ -48,5 +48,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^4.0.18"
+  },
+  "optionalDependencies": {
+    "@rolldown/binding-darwin-arm64": "^1.0.0-rc.10"
   }
 }
