@@ -20,3 +20,7 @@
 ## 2026-03-24 - [Memoizing Expensive Filtering on Static Data]
 **Learning:** Found that static data collections like `tabs` in navigation components (e.g., `AdminPage.tsx`) were being filtered on every render using `hasPermission`. Although computationally small, doing an $O(N)$ operation inside an unmemoized functional component leads to unnecessary recalculations.
 **Action:** When filtering static arrays based on context values (like permissions or authentication state), wrap the calculation in a `useMemo` hook with the context value as the dependency. This prevents recalculation on every unrelated state update while ensuring updates happen only when necessary.
+
+## 2024-10-25 - Prevent module-level Intl.DateTimeFormat duplication in CinemaPage
+**Learning:** React components sometimes re-instantiate identical `Intl.DateTimeFormat` configurations using `useMemo` or `useCallback` when a perfectly fine, module-level cached formatter already exists in `utils/date.ts`.
+**Action:** Always check common utility files (like `utils/date.ts`) for cached formatters before using `Intl.DateTimeFormat` directly within a React component. Reuse these exported helpers to ensure consistent initialization and prevent redundant closure/hook overhead.

@@ -5,6 +5,7 @@ import { getCinemas, getCinemaSchedule } from '../api/client';
 import type { ShowtimeWithFilm } from '../types';
 import ShowtimeList from '../components/ShowtimeList';
 import CinemaDateSelector from '../components/CinemaDateSelector';
+import { formatDateLabel } from '../utils/date';
 
 interface FilmGroup {
   film: {
@@ -77,22 +78,6 @@ export default function CinemaPage() {
 
     return Array.from(filmMap.values());
   };
-
-  // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instances to prevent expensive
-  // re-initialization during frequent renders
-  const formatterWeekday = useMemo(() => new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }), []);
-  const formatterMonth = useMemo(() => new Intl.DateTimeFormat('fr-FR', { month: 'short' }), []);
-
-  const formatDateLabel = useCallback((dateStr: string) => {
-    if (!dateStr) return { weekday: '', day: 0, month: '' };
-    const date = new Date(dateStr + 'T00:00:00');
-    if (isNaN(date.getTime())) return { weekday: 'Invalid', day: 0, month: 'Date' };
-    return {
-      weekday: formatterWeekday.format(date).replace('.', ''),
-      day: date.getDate(),
-      month: formatterMonth.format(date),
-    };
-  }, [formatterWeekday, formatterMonth]);
 
   // ⚡ PERFORMANCE: Memoize derived state calculations to prevent expensive
   // array operations (getUniqueDates, filter, groupByFilm) on every render,
