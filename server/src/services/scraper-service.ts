@@ -87,10 +87,18 @@ export class ScraperService {
    * Subscribes an HTTP response stream to the progress tracker events.
    */
   subscribeToProgress(res: any, onClose: () => void) {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    // Set SSE headers BEFORE any write operations
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+    
+    // Additional headers for browser compatibility
+    res.setHeader('Access-Control-Allow-Origin', res.req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    
+    // Prevent any response compression
+    res.setHeader('Content-Encoding', 'identity');
 
     progressTracker.addListener(res);
     logger.info(`📡 SSE client connected (${progressTracker.getListenerCount()} total)`);

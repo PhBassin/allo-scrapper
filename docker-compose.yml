@@ -41,7 +41,7 @@ services:
     # Set DOCKER_UID and DOCKER_GID in .env to match your host user
     # Defaults to 1000:1000 (standard Linux first user)
     user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
-    #pull_policy: always
+    pull_policy: always
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"

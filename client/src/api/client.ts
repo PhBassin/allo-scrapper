@@ -253,11 +253,16 @@ export function subscribeToProgress(
       }
     };
 
-    eventSource.onerror = () => {
-      console.error('[SSE] Connection error. ReadyState:', eventSource?.readyState);
+    eventSource.onerror = (error) => {
+      console.error('[SSE] Connection error occurred:', error);
+      console.error('[SSE] EventSource readyState:', eventSource?.readyState);
+      console.error('[SSE] EventSource URL:', eventSource?.url);
+      console.error('[SSE] Error type:', (error as any).type);
+      console.error('[SSE] Error target:', (error as any).target);
       
       // Don't reconnect if manually closed
       if (isManualClose) {
+        console.log('[SSE] Manual close detected, skipping reconnect');
         return;
       }
 
