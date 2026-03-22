@@ -31,7 +31,7 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 
 **Conditional steps (not always required):**
 - **Docker build** — run `docker compose build` before pushing if Dockerfile or dependencies changed
-- **E2E tests** — Run Playwright integration tests (`npm run e2e`) when modifying frontend workflows, API interactions, or real-time features
+- **E2E tests** — Playwright infrastructure exists (`e2e/`) but E2E tests are currently out of scope
 
 ---
 

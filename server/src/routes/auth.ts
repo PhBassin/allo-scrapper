@@ -67,7 +67,7 @@ router.post('/register', registerLimiter, requireAuth, requirePermission('users:
 
         res.status(201).json(response);
     } catch (error: any) {
-        if (error.message === 'Username and password are required' || error.message.includes('Password must')) {
+        if (error.message === 'Username and password are required') {
             return next(new ValidationError(error.message));
         }
         if (error.message === 'Username already exists') {

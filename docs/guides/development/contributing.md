@@ -433,7 +433,7 @@ server/src/
 Update documentation when:
 - Adding new API endpoints → [API Reference](../../reference/api/README.md)
 - Changing environment variables → [Configuration Guide](../../getting-started/configuration.md)
-- Modifying database schema → [Database Reference](../../reference/database/)
+- Modifying database schema → [Database Reference](../../reference/database.md)
 - Adding new features → Main README
 - Changing deployment process → [Deployment Guides](../deployment/README.md)
 

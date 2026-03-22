@@ -16,8 +16,6 @@ New to Allo-Scrapper? Start here for quick setup and configuration guides.
 ### 📖 [Guides](./guides/)
 Step-by-step tutorials and how-to guides for common tasks.
 
-**Browse all guides** → [Guides Hub](./guides/)
-
 #### Deployment
 - [Production Deployment](./guides/deployment/production.md) - Deploy to production
 - [Docker Setup](./guides/deployment/docker.md) - Docker configuration and profiles

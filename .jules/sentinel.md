@@ -17,8 +17,3 @@
 **Vulnerability:** The `limit` query parameter on `GET /api/users` lacked an upper bound.
 **Learning:** This exposes the application to Denial of Service (DoS) attacks if a malicious user requests millions of records, causing high memory and DB strain.
 **Prevention:** Always validate and safely clamp all unbounded inputs related to database pagination arrays/limits (e.g., max 100 limits).
-
-## 2024-03-18 - Missing Password Strength Validation on Registration
-**Vulnerability:** The registration endpoint (`POST /api/auth/register`) accepted any password (even a single character), bypassing the application's intended password strength requirements.
-**Learning:** The password strength validation logic was centralized in `server/src/utils/security.ts` (`validatePasswordStrength`), but it was only being called during password changes and user creation by admins, not during self-registration. This left a significant gap in the application's defense in depth strategy for user authentication.
-**Prevention:** Ensure that all endpoints that accept new passwords (registration, password reset, password change, admin user creation) consistently utilize the centralized `validatePasswordStrength` utility before processing the request.

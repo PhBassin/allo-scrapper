@@ -10,7 +10,6 @@ const PERMISSION_CATEGORIES: Record<string, string[]> = {
   Utilisateurs: ['users:list', 'users:create', 'users:update', 'users:delete'],
   Rôles: ['roles:list', 'roles:read', 'roles:create', 'roles:update', 'roles:delete'],
   Scraping: ['scraper:trigger', 'scraper:trigger_single'],
-  Planification: ['scraper:schedules:list', 'scraper:schedules:create', 'scraper:schedules:update', 'scraper:schedules:delete'],
   Cinémas: ['cinemas:create', 'cinemas:update', 'cinemas:delete'],
   Paramètres: ['settings:read', 'settings:update', 'settings:reset', 'settings:export', 'settings:import'],
   Rapports: ['reports:list', 'reports:view'],

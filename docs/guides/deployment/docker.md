@@ -540,13 +540,10 @@ docker inspect ics-web | jq '.[0].State.Health'
 ```
 
 **Health Check Endpoints:**
-- `ics-web`: `GET /api/health` (HTTP 200) - API and frontend availability
-- `ics-db`: `pg_isready -U postgres` - Database readiness
-- `ics-redis`: `redis-cli ping` - Redis availability
-- `ics-scraper`: No explicit health check, but metrics available at `http://localhost:9091/metrics` (when using `--profile scraper`)
-- `ics-scraper-cron`: No explicit health check, but metrics available at `http://localhost:9091/metrics` (when using `--profile scraper`)
-
-**Note:** The scraper microservices (`ics-scraper` and `ics-scraper-cron`) expose metrics on port 9091 for Prometheus monitoring. The Docker Compose configuration allows them to start as dependencies are met; they will auto-restart if they crash.
+- `ics-web`: `GET /api/health` (HTTP 200)
+- `ics-db`: `pg_isready -U postgres`
+- `ics-redis`: `redis-cli ping`
+- `ics-scraper`: Metrics endpoint (port 9091)
 
 ---
 

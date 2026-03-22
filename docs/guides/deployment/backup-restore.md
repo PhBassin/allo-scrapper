@@ -600,8 +600,8 @@ gunzip -c ./backups/manual_20260301_143022.sql.gz | docker compose exec -T ics-d
 
 - [Production Deployment](./production.md) - Full deployment guide
 - [Docker Setup](./docker.md) - Container management
-- [../../reference/database/](../../reference/database/) - Database schema
-- [../../reference/scripts/](../../reference/scripts/) - Complete script reference
+- [../../reference/database.md](../../reference/database.md) - Database schema
+- [../../reference/scripts.md](../../reference/scripts.md) - Complete script reference
 
 ---
 

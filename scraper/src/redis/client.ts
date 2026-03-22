@@ -6,18 +6,6 @@ import { logger } from '../utils/logger.js';
 // Types
 // ---------------------------------------------------------------------------
 
-export interface ScheduleChangeEvent {
-  action: 'created' | 'updated' | 'deleted';
-  scheduleId: number;
-  schedule?: {
-    id: number;
-    name: string;
-    cron_expression: string;
-    enabled: boolean;
-    target_cinemas?: string[] | null;
-  };
-}
-
 interface BaseScrapeJob {
   reportId: number;
   /** OpenTelemetry trace context propagated from the HTTP request */
@@ -137,44 +125,11 @@ export class RedisJobConsumer {
 }
 
 // ---------------------------------------------------------------------------
-// RedisScheduleSubscriber – listens for schedule change events
-// ---------------------------------------------------------------------------
-
-export class RedisScheduleSubscriber {
-  private client: Redis;
-
-  constructor(redisUrl: string) {
-    this.client = new Redis(redisUrl, { lazyConnect: false });
-  }
-
-  async subscribe(channel: string, handler: (event: ScheduleChangeEvent) => void): Promise<void> {
-    await this.client.subscribe(channel);
-
-    this.client.on('message', (ch: string, message: string) => {
-      if (ch !== channel) return;
-      try {
-        const event: ScheduleChangeEvent = JSON.parse(message);
-        handler(event);
-      } catch (err) {
-        logger.error('[RedisScheduleSubscriber] Failed to parse schedule event:', err);
-      }
-    });
-
-    logger.info(`[RedisScheduleSubscriber] Subscribed to channel: ${channel}`);
-  }
-
-  async disconnect(): Promise<void> {
-    await this.client.quit();
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Singleton helpers
 // ---------------------------------------------------------------------------
 
 let _publisher: RedisProgressPublisher | null = null;
 let _consumer: RedisJobConsumer | null = null;
-let _subscriber: RedisScheduleSubscriber | null = null;
 
 export function getRedisPublisher(): RedisProgressPublisher {
   if (!_publisher) {
@@ -192,21 +147,11 @@ export function getRedisConsumer(): RedisJobConsumer {
   return _consumer;
 }
 
-export function getRedisSubscriber(): RedisScheduleSubscriber {
-  if (!_subscriber) {
-    const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
-    _subscriber = new RedisScheduleSubscriber(url);
-  }
-  return _subscriber;
-}
-
 export async function disconnectRedis(): Promise<void> {
   await Promise.all([
     _publisher?.disconnect(),
     _consumer?.disconnect(),
-    _subscriber?.disconnect(),
   ]);
   _publisher = null;
   _consumer = null;
-  _subscriber = null;
 }

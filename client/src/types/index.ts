@@ -125,18 +125,3 @@ export interface ScrapeStatus {
   };
   latestReport?: ScrapeReport;
 }
-
-export interface ScrapeSchedule {
-  id: number;
-  name: string;
-  description: string | null;
-  cron_expression: string;
-  enabled: boolean;
-  target_cinemas: string[] | null;
-  created_by: number | null;
-  updated_by: number | null;
-  created_at: string;
-  updated_at: string;
-  last_run_at: string | null;
-  last_run_status: string | null;
-}

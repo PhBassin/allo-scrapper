@@ -1,7 +1,5 @@
 # Database Migrations Guide
 
-**Last updated:** March 18, 2026 | Status: Current ✅
-
 Complete guide to database migration system, workflows, and best practices.
 
 ## Overview

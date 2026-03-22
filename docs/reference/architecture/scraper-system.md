@@ -527,39 +527,6 @@ See [Troubleshooting Scraper](../../troubleshooting/scraper.md) for detailed sol
 
 ---
 
-### Job Queue Failure Recovery (Microservice Mode)
-
-**Scenario: Scraper crashes during job execution**
-
-When a job is popped from the Redis queue and the scraper crashes before completion:
-
-1. **Job is removed from queue** - Redis LPOP removes the job atomically
-2. **No automatic retry** - The job is lost (by design for message queue simplicity)
-3. **Report status remains `running`** - The database `scrape_sessions` record stays in `running` state
-4. **Manual retry required** - Admin must trigger a new scrape via API or wait for next cron run
-
-**Why this design:**
-
-- **Simplicity**: No job persistence or distributed transactions
-- **Idempotent operations**: Rescraping the same data produces identical results (upserts, not appends)
-- **Cron jobs**: Scheduled scrapes provide automatic recovery (e.g., daily cron runs)
-- **Manual triggering**: Users can manually re-trigger failed scrapes
-
-**To prevent data loss:**
-
-1. Use **cron-triggered scraping** for critical data sources (daily/weekly automated runs)
-2. Monitor `scrape_sessions` table for `running` status that lasts > 1 hour
-3. Use Prometheus alerts on scraper process restarts (check container logs)
-
-**Consumer mode resilience** (`RUN_MODE: consumer`):
-
-- Long-running scraper polls Redis continuously
-- If the job fails (exception), the error is logged and reported to DB
-- Consumer remains running and ready for the next job
-- Graceful shutdown on SIGTERM/SIGINT
-
----
-
 ## Concurrency and Rate Limiting
 
 ### Rate Limiting

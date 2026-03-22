@@ -1,7 +1,5 @@
 # Health Check API
 
-**Last updated:** March 18, 2026 | Status: Current ✅
-
 ## Endpoints
 
 ### Health Check

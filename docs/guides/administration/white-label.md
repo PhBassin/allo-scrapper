@@ -527,6 +527,6 @@ As you make changes in any tab, you can see a live preview of how your customiza
 
 ---
 
-**Last updated:** March 18, 2026 | Status: Current ✅
+**Last updated**: March 4, 2026
 
 [← Back to Administration](./README.md) | [Back to Documentation](../../README.md)

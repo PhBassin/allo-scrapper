@@ -67,11 +67,6 @@ export class AuthService {
       throw new Error('Username and password are required');
     }
 
-    const passwordError = validatePasswordStrength(password);
-    if (passwordError) {
-      throw new Error(passwordError); // Let controller decide status code
-    }
-
     const existingUser = await getUserByUsername(this.db, username);
     if (existingUser) {
       throw new Error('Username already exists');

@@ -23,16 +23,13 @@ export default function CinemaShowtimes({ cinemas, initialDate }: CinemaShowtime
     return dates.includes(today) ? today : (dates[0] || '');
   });
 
-  // ⚡ PERFORMANCE: Use reduce instead of map().filter() to avoid allocating intermediate
-  // objects for cinemas with no showtimes on the selected date, reducing GC pressure and iteration overhead.
   const displayedCinemas = useMemo(() => {
-    return cinemas.reduce((acc, cinema) => {
-      const filteredShowtimes = cinema.showtimes.filter(s => s.date === selectedDate);
-      if (filteredShowtimes.length > 0) {
-        acc.push({ cinema, showtimes: filteredShowtimes });
-      }
-      return acc;
-    }, [] as Array<{ cinema: CinemaWithShowtimes; showtimes: CinemaWithShowtimes['showtimes'] }>);
+    return cinemas
+      .map(cinema => ({
+        cinema,
+        showtimes: cinema.showtimes.filter(s => s.date === selectedDate)
+      }))
+      .filter(({ showtimes }) => showtimes.length > 0);
   }, [cinemas, selectedDate]);
 
   if (cinemas.length === 0) {
