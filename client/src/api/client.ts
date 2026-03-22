@@ -204,6 +204,13 @@ export function subscribeToProgress(
   } = options;
 
   const url = `${API_BASE_URL}/scraper/progress`;
+  console.log('[SSE] Constructed URL details:', {
+    API_BASE_URL,
+    fullUrl: url,
+    windowLocation: window.location.href,
+    windowOrigin: window.location.origin,
+  });
+
   let eventSource: EventSource | null = null;
   let reconnectAttempts = 0;
   let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -211,7 +218,23 @@ export function subscribeToProgress(
 
   function connect() {
     console.log('[SSE] Connecting to:', url, `(attempt ${reconnectAttempts + 1})`);
-    eventSource = new EventSource(url);
+    
+    try {
+      eventSource = new EventSource(url);
+      console.log('[SSE] EventSource created successfully', {
+        url,
+        readyState: eventSource.readyState
+      });
+    } catch (error) {
+      console.error('[SSE] Failed to create EventSource:', error);
+      console.error('[SSE] Error details:', {
+        name: (error as Error).name,
+        message: (error as Error).message,
+        url
+      });
+      errorCallback?.(error as Error);
+      return; // Exit early if creation failed
+    }
 
     eventSource.onopen = () => {
       console.log('[SSE] Connection opened successfully');

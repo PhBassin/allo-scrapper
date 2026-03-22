@@ -7,6 +7,7 @@ import { scraperLimiter, protectedLimiter } from '../middleware/rate-limit.js';
 import { ScraperService } from '../services/scraper-service.js';
 import { getRedisClient } from '../services/redis-client.js';
 import { AuthError, NotFoundError, ValidationError } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
 import {
   getAllSchedules,
   getScheduleById,
@@ -82,16 +83,27 @@ router.get('/status', async (req, res, next) => {
 
 // GET /api/scraper/progress - SSE endpoint for real-time progress
 router.get('/progress', (req, res, next) => {
+  logger.info('[SSE] Client attempting to connect', {
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+    origin: req.headers['origin'],
+    referer: req.headers['referer'],
+  });
+  
   try {
     const dbConn: DB = req.app.get('db');
     const scraperService = new ScraperService(dbConn);
     
     const cleanup = scraperService.subscribeToProgress(res, () => {
-      // Optional additional cleanup on route level if needed
+      logger.info('[SSE] Client connection closed');
     });
 
-    req.on('close', cleanup);
+    req.on('close', () => {
+      logger.info('[SSE] Request closed by client');
+      cleanup();
+    });
   } catch (error) {
+    logger.error('[SSE] Error setting up subscription:', error);
     next(error);
   }
 });
