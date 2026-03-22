@@ -94,7 +94,7 @@ export class ScraperService {
     res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
     
     // Additional headers for browser compatibility
-    res.setHeader('Access-Control-Allow-Origin', res.req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Origin', res.req?.headers?.origin || '*');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     
     // Prevent any response compression

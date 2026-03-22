@@ -131,7 +131,15 @@ describe('ScraperService', () => {
       
       const cleanup = scraperService.subscribeToProgress(mockRes, mockOnClose);
       
-      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
+      // Verify SSE headers are set
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream; charset=utf-8');
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-cache, no-transform');
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Connection', 'keep-alive');
+      expect(mockRes.setHeader).toHaveBeenCalledWith('X-Accel-Buffering', 'no');
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Access-Control-Allow-Origin', '*');
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Access-Control-Allow-Credentials', 'true');
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Encoding', 'identity');
+      
       expect(progressTracker.addListener).toHaveBeenCalledWith(mockRes);
       
       cleanup();
