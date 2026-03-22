@@ -6,7 +6,7 @@ export interface ScrapeProgressProps {
   onComplete?: (success: boolean) => void;
 }
 
-export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {}) {
+export default function ScrapeProgress({ onComplete }: ScrapeProgressProps) {
   const { events, latestEvent, error } = useScrapeProgress(onComplete);
 
   // Only show connecting state if we have no events yet
