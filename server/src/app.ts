@@ -57,7 +57,17 @@ export function createApp() {
       },
     })
   );
-  app.use(compression());
+  // Disable compression for SSE endpoints (text/event-stream)
+  app.use(compression({
+    filter: (req, res) => {
+      // Don't compress SSE responses
+      if (req.path === '/api/scraper/progress') {
+        return false;
+      }
+      // Use default compression filter for everything else
+      return compression.filter(req, res);
+    }
+  }));
   app.use(cors(getCorsOptions()));
   app.use(morgan('combined'));
   app.use(express.json());

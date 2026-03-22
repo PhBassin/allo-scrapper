@@ -44,6 +44,10 @@ export class ProgressTracker {
     // Send immediate heartbeat to establish connection
     try {
       res.write(': heartbeat\n\n');
+      // Flush to ensure the client receives the heartbeat immediately
+      if (typeof (res as any).flush === 'function') {
+        (res as any).flush();
+      }
     } catch (error) {
       this.listeners.delete(res);
       return;
