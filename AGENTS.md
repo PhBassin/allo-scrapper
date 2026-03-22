@@ -524,6 +524,98 @@ Both commands should succeed without errors.
 
 ---
 
+## React Optimization Gotchas
+
+### CRITICAL: Never Use useMemo for SSE/Real-Time Data
+
+**Background**: In commit `58fc0b8` (Phase 2 performance refactors), a `useMemo` optimization was added to `ScrapeProgress.tsx` to cache derived state. This caused a severe regression where the SSE progress modal appeared frozen with no real-time updates.
+
+**The Bug** (refs #617):
+```tsx
+// ❌ BROKEN - This prevents re-renders when SSE events arrive
+const { startedEvent, cinemaCompletedEvents, ... } = useMemo(() => ({
+  startedEvent: events.find(...),
+  cinemaCompletedEvents: events.filter(...),
+}), [events]);
+```
+
+**Why it broke**:
+1. SSE events trigger `setState` with a new `events` array
+2. React's memoization + render batching prevented proper re-renders
+3. The memoized object reference stayed stale
+4. UI appeared frozen despite receiving events
+
+**The Fix** (commit `8b81594`):
+```tsx
+// ✅ CORRECT - Direct calculation on every render
+const startedEvent = events.find(...);
+const cinemaCompletedEvents = events.filter(...);
+```
+
+**Lessons Learned**:
+1. **Never optimize SSE/WebSocket/real-time update paths** without profiling first
+2. **Memoization is dangerous** when data updates frequently (>1 update/second)
+3. **React re-renders on state change are expected and cheap** - don't optimize prematurely
+4. **Array operations on small arrays (<1000 items) are fast** - modern JS engines optimize heavily
+
+### Performance Optimization Guidelines
+
+**Before optimizing**:
+1. ✅ Profile with React DevTools Profiler to identify actual bottlenecks
+2. ✅ Measure performance impact with hard numbers (ms, frames/sec)
+3. ✅ Consider data volume: <100 items = don't optimize, >1000 = maybe optimize
+
+**Safe optimizations**:
+- `useCallback` for event handlers passed to child components
+- `React.memo` for expensive child components that rarely change
+- Virtualization (react-window) for large lists (>1000 items)
+- Code splitting with `React.lazy` and `Suspense`
+
+**Dangerous optimizations** (require careful testing):
+- `useMemo` for frequently-updating derived state (SSE, WebSocket, polling)
+- `useMemo` with complex dependency arrays
+- Over-memoization that prevents necessary re-renders
+
+### Testing Requirements for Performance PRs
+
+Performance optimizations **MUST** include:
+
+1. **Benchmarks** showing measurable improvement:
+   ```
+   Before: 250ms render time, 45 FPS
+   After:  150ms render time, 60 FPS
+   ```
+
+2. **E2E tests** verifying functionality still works:
+   - For SSE/real-time features: verify counters update in real-time
+   - For interactive features: verify clicks/inputs respond correctly
+
+3. **No regressions** confirmed by:
+   - All existing tests pass
+   - Manual testing of the optimized component
+   - Visual inspection in React DevTools Profiler
+
+**Example E2E test for SSE updates**:
+```typescript
+test('SSE events update progress in real-time', async ({ page }) => {
+  // Get initial count
+  const initialCount = await page.getByTestId('cinema-count').textContent();
+  
+  // Wait for SSE events
+  await page.waitForTimeout(2000);
+  
+  // Get updated count
+  const updatedCount = await page.getByTestId('cinema-count').textContent();
+  
+  // Verify counter increased
+  expect(updatedCount).not.toBe(initialCount);
+});
+```
+
+See `e2e/scrape-progress.spec.ts` for the full regression test.
+
+---
+
 
 ## Questions?
 

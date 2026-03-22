@@ -70,23 +70,23 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
 
       {/* Status */}
       <div className="mb-4">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600" data-testid="progress-status">
           <span className="font-semibold">Statut:</span> {latestEvent?.type || 'initializing'}
         </p>
         {isCompleted && (
-          <p className="text-sm text-green-600 mt-2">
+          <p className="text-sm text-green-600 mt-2" data-testid="completion-message">
             🔄 Rechargement de la page dans quelques instants...
           </p>
         )}
       </div>
 
       {/* Cinema Progress */}
-      <div className="mb-4">
+      <div className="mb-4" data-testid="cinema-progress">
         <div className="flex justify-between items-center mb-1">
           <p className="text-sm font-medium text-gray-700">
             Cinémas traités
           </p>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600" data-testid="cinema-count">
             {processedCinemas} / {totalCinemas}
           </p>
         </div>
@@ -94,22 +94,24 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
           <div
             className="bg-primary h-2 rounded-full transition-all duration-300"
             style={{ width: `${cinemaProgress}%` }}
+            data-testid="cinema-progress-bar"
+            data-progress={cinemaProgress.toFixed(1)}
           ></div>
         </div>
         {currentCinema && (
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 mt-1" data-testid="current-cinema">
             En cours: {currentCinema}
           </p>
         )}
       </div>
 
       {/* Film Progress */}
-      <div className="mb-4">
+      <div className="mb-4" data-testid="film-progress">
         <div className="flex justify-between items-center mb-1">
           <p className="text-sm font-medium text-gray-700">
             Films traités
           </p>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600" data-testid="film-count">
             {processedFilms} / {totalFilms}
           </p>
         </div>
@@ -117,10 +119,12 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
           <div
             className="bg-green-500 h-2 rounded-full transition-all duration-300"
             style={{ width: `${filmProgress}%` }}
+            data-testid="film-progress-bar"
+            data-progress={filmProgress.toFixed(1)}
           ></div>
         </div>
         {currentFilm && (
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 mt-1" data-testid="current-film">
             En cours: {currentFilm}
           </p>
         )}
