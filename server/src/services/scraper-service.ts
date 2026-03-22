@@ -47,13 +47,39 @@ export class ScraperService {
   }
 
   /**
-   * Retrieves the current status of the scraper based on the latest report.
+   * Retrieves the current status of the scraper.
+   * Checks both the latest database report AND active ProgressTracker events
+   * to handle race conditions where events are being emitted before UI mounts.
    */
   async getStatus() {
     const latestReport = await getLatestScrapeReport(this.db);
+    const activeEvents = progressTracker.getEvents();
+    
+    // Check if scrape is actively running based on:
+    // 1. Latest report status is 'running', AND
+    // 2. Either no events yet, OR events exist but haven't completed/failed
+    const hasActiveEvents = activeEvents.length > 0;
+    const lastEvent = activeEvents[activeEvents.length - 1];
+    const isEventStreamComplete = lastEvent?.type === 'completed' || lastEvent?.type === 'failed';
+    
+    // isRunning = true if:
+    // - DB report shows running AND events haven't completed yet, OR
+    // - We have active events that haven't completed/failed (even if DB report is stale)
+    const isRunning = (latestReport?.status === 'running' && !isEventStreamComplete) || 
+                      (hasActiveEvents && !isEventStreamComplete);
+
+    // Build currentSession info if scrape is running
+    const currentSession = isRunning && latestReport ? {
+      reportId: latestReport.id,
+      triggerType: latestReport.trigger_type,
+      startedAt: latestReport.started_at,
+      status: latestReport.status,
+    } : undefined;
+
     return {
-      isRunning: latestReport?.status === 'running',
+      isRunning,
       latestReport,
+      currentSession,
     };
   }
 

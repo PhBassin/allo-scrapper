@@ -117,13 +117,13 @@ export interface ScrapeSummary {
 
 export interface ScrapeStatus {
   isRunning: boolean;
+  latestReport?: ScrapeReport;
   currentSession?: {
     reportId: number;
     triggerType: 'manual' | 'cron';
     startedAt: string;
     status: string;
   };
-  latestReport?: ScrapeReport;
 }
 
 export interface ScrapeSchedule {
