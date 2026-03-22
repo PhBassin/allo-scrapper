@@ -129,7 +129,7 @@ export default function FilmSearchBar({
             if (results.length > 0) setIsOpen(true);
           }}
           placeholder={placeholder}
-          className="block w-full pl-10 pr-3 py-1.5 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
+          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
           data-testid="search-input"
           aria-label="Rechercher un film"
           aria-autocomplete="list"
@@ -193,7 +193,6 @@ export default function FilmSearchBar({
                       src={film.poster_url}
                       alt={film.title}
                       className="w-12 h-16 object-cover rounded"
-                      loading="lazy"
                     />
                   ) : (
                     <div className="w-12 h-16 bg-gray-200 rounded flex items-center justify-center">

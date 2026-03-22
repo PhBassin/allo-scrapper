@@ -12,12 +12,5 @@ export interface IScraperStrategy {
 
   // Core scraping actions
   loadTheaterMetadata(db: DB, cinema: CinemaConfig): Promise<{ availableDates: string[]; cinema: Cinema }>;
-  scrapeTheater(
-    db: DB,
-    cinema: CinemaConfig,
-    date: string,
-    movieDelayMs: number,
-    progress?: ProgressPublisher,
-    processedFilmIds?: Set<number>
-  ): Promise<{ filmsCount: number; showtimesCount: number }>;
+  scrapeTheater(db: DB, cinema: CinemaConfig, date: string, movieDelayMs: number, progress?: ProgressPublisher): Promise<{ filmsCount: number; showtimesCount: number }>;
 }

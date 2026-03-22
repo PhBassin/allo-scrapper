@@ -1,15 +1,13 @@
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { lazy, Suspense, useEffect, useContext } from 'react';
+import { useEffect, useContext } from 'react';
 import Layout from './components/Layout';
+import HomePage from './pages/HomePage';
+import CinemaPage from './pages/CinemaPage';
+import FilmPage from './pages/FilmPage';
+import LoginPage from './pages/LoginPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
+import AdminPage from './pages/admin/AdminPage';
 import { AuthContext } from './contexts/AuthContext';
-
-// Lazy-loaded page components for route-level code splitting
-const HomePage = lazy(() => import('./pages/HomePage'));
-const CinemaPage = lazy(() => import('./pages/CinemaPage'));
-const FilmPage = lazy(() => import('./pages/FilmPage'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage'));
-const AdminPage = lazy(() => import('./pages/admin/AdminPage'));
 import { AuthProvider } from './contexts/AuthProvider';
 import { SettingsProvider } from './contexts/SettingsProvider';
 import { SettingsContext } from './contexts/SettingsContext';
@@ -86,30 +84,28 @@ function AppRoutes() {
 
   return (
     <Layout>
-      <Suspense fallback={<LoadingScreen />}>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/change-password"
-            element={
-              <ProtectedRoute>
-                <ChangePasswordPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/cinema/:id" element={<CinemaPage />} />
-          <Route path="/film/:id" element={<FilmPage />} />
-          <Route
-            path="/admin"
-            element={
-              <RequirePermission anyOf={ADMIN_PERMISSIONS}>
-                <AdminPage />
-              </RequirePermission>
-            }
-          />
-        </Routes>
-      </Suspense>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute>
+              <ChangePasswordPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/cinema/:id" element={<CinemaPage />} />
+        <Route path="/film/:id" element={<FilmPage />} />
+        <Route
+          path="/admin"
+          element={
+            <RequirePermission anyOf={ADMIN_PERMISSIONS}>
+              <AdminPage />
+            </RequirePermission>
+          }
+        />
+      </Routes>
     </Layout>
   );
 }

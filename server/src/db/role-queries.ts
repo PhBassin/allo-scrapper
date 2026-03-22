@@ -17,49 +17,25 @@ async function fetchPermissionsForRole(db: DB, roleId: number): Promise<Permissi
 }
 
 /**
- * Get all roles with their permissions (single JOIN query, no N+1)
+ * Get all roles with their permissions
  */
 export async function getAllRoles(db: DB): Promise<RoleWithPermissions[]> {
-  const result = await db.query<Role & { p_id: number | null; p_name: string | null; p_description: string | null; p_category: string | null; p_created_at: string | null }>(
-    `SELECT r.id, r.name, r.description, r.is_system, r.created_at,
-            p.id AS p_id, p.name AS p_name, p.description AS p_description,
-            p.category AS p_category, p.created_at AS p_created_at
-     FROM roles r
-     LEFT JOIN role_permissions rp ON r.id = rp.role_id
-     LEFT JOIN permissions p ON rp.permission_id = p.id
-     ORDER BY r.id, p.category, p.name`,
+  const rolesResult = await db.query<Role>(
+    'SELECT id, name, description, is_system, created_at FROM roles ORDER BY id',
     []
   );
 
-  if (result.rows.length === 0) {
+  if (rolesResult.rows.length === 0) {
     return [];
   }
 
-  // Group rows by role
-  const rolesMap = new Map<number, RoleWithPermissions>();
-  for (const row of result.rows) {
-    if (!rolesMap.has(row.id)) {
-      rolesMap.set(row.id, {
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        is_system: row.is_system,
-        created_at: row.created_at,
-        permissions: [],
-      });
-    }
-    if (row.p_id !== null) {
-      rolesMap.get(row.id)!.permissions.push({
-        id: row.p_id,
-        name: row.p_name!,
-        description: row.p_description!,
-        category: row.p_category!,
-        created_at: row.p_created_at!,
-      } as Permission);
-    }
+  const rolesWithPermissions: RoleWithPermissions[] = [];
+  for (const role of rolesResult.rows) {
+    const permissions = await fetchPermissionsForRole(db, role.id);
+    rolesWithPermissions.push({ ...role, permissions });
   }
 
-  return Array.from(rolesMap.values());
+  return rolesWithPermissions;
 }
 
 /**

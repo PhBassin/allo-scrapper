@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import CinemasPage from './CinemasPage';
 import SettingsPage from './SettingsPage';
@@ -103,24 +103,17 @@ const AdminPage: React.FC = () => {
   const { hasPermission } = useContext(AuthContext);
   const currentTab = searchParams.get('tab') || 'cinemas';
 
-  // ⚡ PERFORMANCE: Memoize visible tabs and their IDs based on user permissions
-  // to avoid recalculating the filtered array and mapped IDs on every component render.
-  const { visibleTabs, visibleTabIds } = useMemo(() => {
-    const filteredTabs = tabs.filter((tab) => {
-      if (tab.anyPermissions) {
-        return tab.anyPermissions.some((p) => hasPermission(p));
-      }
-      if (tab.permissions) {
-        return tab.permissions.every((p) => hasPermission(p));
-      }
-      return !tab.permission || hasPermission(tab.permission);
-    });
-
-    return {
-      visibleTabs: filteredTabs,
-      visibleTabIds: filteredTabs.map((t) => t.id)
-    };
-  }, [hasPermission]);
+  // Filter tabs to only those the user has permission to see
+  const visibleTabs = tabs.filter((tab) => {
+    if (tab.anyPermissions) {
+      return tab.anyPermissions.some((p) => hasPermission(p));
+    }
+    if (tab.permissions) {
+      return tab.permissions.every((p) => hasPermission(p));
+    }
+    return !tab.permission || hasPermission(tab.permission);
+  });
+  const visibleTabIds = visibleTabs.map((t) => t.id);
 
   // Validate tab and fallback to first visible tab (or 'cinemas')
   const fallbackTab: TabId = visibleTabIds[0] ?? 'cinemas';

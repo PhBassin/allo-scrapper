@@ -1,26 +1,24 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function ScrollToTop() {
   const [isVisible, setIsVisible] = useState(false);
-  const rafId = useRef(0);
 
   useEffect(() => {
     const toggleVisibility = () => {
-      // Throttle with requestAnimationFrame — at most one check per frame
-      if (rafId.current) return;
-      rafId.current = requestAnimationFrame(() => {
-        rafId.current = 0;
-        setIsVisible(window.scrollY > 200);
-      });
+      // Show button when page is scrolled down more than 200px
+      if (window.scrollY > 200) {
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
     };
 
-    // Listen for scroll events with passive flag for better performance
-    window.addEventListener('scroll', toggleVisibility, { passive: true });
+    // Listen for scroll events
+    window.addEventListener('scroll', toggleVisibility);
 
     // Clean up
     return () => {
       window.removeEventListener('scroll', toggleVisibility);
-      if (rafId.current) cancelAnimationFrame(rafId.current);
     };
   }, []);
 

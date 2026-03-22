@@ -11,8 +11,6 @@ const mockParseShowtimesJson = vi.fn().mockReturnValue([]);
 vi.mock('../../../src/db/film-queries.js', () => ({
   upsertFilm: vi.fn(),
   getFilm: vi.fn(),
-  getFilmsBatch: vi.fn().mockResolvedValue(new Map()),
-  upsertFilmsBatch: vi.fn(),
 }));
 
 vi.mock('../../../src/db/showtime-queries.js', () => ({
@@ -30,7 +28,6 @@ vi.mock('../../../src/scraper/http-client.js', () => ({
   fetchTheaterPage: mockFetchTheaterPage,
   fetchShowtimesJson: mockFetchShowtimesJson,
   fetchFilmPage: vi.fn(),
-  fetchWithRetry: vi.fn(),
   delay: vi.fn(),
   closeBrowser: vi.fn(),
 }));
