@@ -16,6 +16,7 @@ vi.mock('./progress-tracker.js', () => ({
     addListener: vi.fn(),
     removeListener: vi.fn(),
     getListenerCount: vi.fn().mockReturnValue(1),
+    getEvents: vi.fn().mockReturnValue([]),
   },
 }));
 
@@ -65,6 +66,61 @@ describe('ScraperService', () => {
       const result = await scraperService.getStatus();
       expect(result.isRunning).toBe(false);
       expect(result.latestReport).toBeUndefined();
+    });
+
+    it('should return isRunning=true when ProgressTracker has active events (even if report status is not running)', async () => {
+      // Scenario: report is completed but events are still being emitted
+      vi.mocked(reportQueries.getLatestScrapeReport).mockResolvedValue({ id: 1, status: 'success' } as any);
+      vi.mocked(progressTracker.getEvents).mockReturnValue([
+        { type: 'started', total_cinemas: 5, total_dates: 3 },
+        { type: 'cinema_started', cinema_name: 'Test', cinema_id: 'C1', index: 0 }
+      ] as any);
+      
+      const result = await scraperService.getStatus();
+      expect(result.isRunning).toBe(true);
+    });
+
+    it('should return isRunning=false when ProgressTracker has completed event', async () => {
+      vi.mocked(reportQueries.getLatestScrapeReport).mockResolvedValue({ id: 1, status: 'running' } as any);
+      vi.mocked(progressTracker.getEvents).mockReturnValue([
+        { type: 'started', total_cinemas: 5, total_dates: 3 },
+        { type: 'completed', summary: {} }
+      ] as any);
+      
+      const result = await scraperService.getStatus();
+      expect(result.isRunning).toBe(false);
+    });
+
+    it('should return isRunning=false when ProgressTracker has failed event', async () => {
+      vi.mocked(reportQueries.getLatestScrapeReport).mockResolvedValue({ id: 1, status: 'running' } as any);
+      vi.mocked(progressTracker.getEvents).mockReturnValue([
+        { type: 'started', total_cinemas: 5, total_dates: 3 },
+        { type: 'failed', error: 'Test error' }
+      ] as any);
+      
+      const result = await scraperService.getStatus();
+      expect(result.isRunning).toBe(false);
+    });
+
+    it('should return currentSession info when scrape is actively running', async () => {
+      vi.mocked(reportQueries.getLatestScrapeReport).mockResolvedValue({ 
+        id: 42, 
+        status: 'running',
+        trigger_type: 'manual',
+        started_at: '2026-03-22T10:00:00Z'
+      } as any);
+      vi.mocked(progressTracker.getEvents).mockReturnValue([
+        { type: 'started', total_cinemas: 5, total_dates: 3 }
+      ] as any);
+      
+      const result = await scraperService.getStatus();
+      expect(result.isRunning).toBe(true);
+      expect(result.currentSession).toEqual({
+        reportId: 42,
+        triggerType: 'manual',
+        startedAt: '2026-03-22T10:00:00Z',
+        status: 'running'
+      });
     });
   });
 
