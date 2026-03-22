@@ -36,8 +36,9 @@ describe('useScrapeProgress', () => {
 
   it('should update state on events', () => {
     let eventCallback: (event: any) => void = () => {};
-    mockSubscribe.mockImplementation((cb) => {
-      eventCallback = cb;
+    mockSubscribe.mockImplementation((options: any) => {
+      // Extract onEvent callback from options object
+      eventCallback = typeof options === 'function' ? options : options.onEvent;
       return mockUnsubscribe;
     });
 
@@ -58,8 +59,9 @@ describe('useScrapeProgress', () => {
     const onComplete = vi.fn();
     let eventCallback: (event: any) => void = () => {};
     
-    mockSubscribe.mockImplementation((cb) => {
-      eventCallback = cb;
+    mockSubscribe.mockImplementation((options: any) => {
+      // Extract onEvent callback from options object
+      eventCallback = typeof options === 'function' ? options : options.onEvent;
       return mockUnsubscribe;
     });
 
@@ -76,8 +78,9 @@ describe('useScrapeProgress', () => {
     const onComplete = vi.fn();
     let eventCallback: (event: any) => void = () => {};
     
-    mockSubscribe.mockImplementation((cb) => {
-      eventCallback = cb;
+    mockSubscribe.mockImplementation((options: any) => {
+      // Extract onEvent callback from options object
+      eventCallback = typeof options === 'function' ? options : options.onEvent;
       return mockUnsubscribe;
     });
 
@@ -88,5 +91,67 @@ describe('useScrapeProgress', () => {
     });
 
     expect(onComplete).toHaveBeenCalledWith(false);
+  });
+
+  it('should not re-subscribe when onComplete callback changes', () => {
+    const onComplete1 = vi.fn();
+    const onComplete2 = vi.fn();
+    let eventCallback: (event: any) => void = () => {};
+    
+    mockSubscribe.mockImplementation((options: any) => {
+      eventCallback = typeof options === 'function' ? options : options.onEvent;
+      return mockUnsubscribe;
+    });
+
+    // Initial render with first callback
+    const { rerender } = renderHook(
+      ({ callback }) => useScrapeProgress(callback),
+      { initialProps: { callback: onComplete1 } }
+    );
+
+    // Should subscribe once on mount
+    expect(mockSubscribe).toHaveBeenCalledTimes(1);
+
+    // Rerender with different callback
+    rerender({ callback: onComplete2 });
+
+    // Should NOT re-subscribe (empty dependency array in useEffect)
+    expect(mockSubscribe).toHaveBeenCalledTimes(1);
+
+    // But the new callback should still work (via ref)
+    act(() => {
+      eventCallback({ type: 'completed', summary: {} });
+    });
+
+    expect(onComplete1).not.toHaveBeenCalled();
+    expect(onComplete2).toHaveBeenCalledWith(true);
+  });
+
+  it('should handle rapid event updates without infinite loops', () => {
+    let eventCallback: (event: any) => void = () => {};
+    
+    mockSubscribe.mockImplementation((options: any) => {
+      eventCallback = typeof options === 'function' ? options : options.onEvent;
+      return mockUnsubscribe;
+    });
+
+    const { result } = renderHook(() => useScrapeProgress());
+
+    // Simulate rapid event stream
+    const events = [
+      { type: 'started', total_cinemas: 3, total_dates: 7 },
+      { type: 'cinema_started', cinema_id: 'C1', cinema_name: 'Cinema 1', index: 0 },
+      { type: 'film_started', film_id: 1, film_title: 'Film 1' },
+      { type: 'film_completed', film_title: 'Film 1', showtimes_count: 5 },
+      { type: 'cinema_completed', cinema_name: 'Cinema 1', total_films: 1 },
+    ];
+
+    act(() => {
+      events.forEach(event => eventCallback(event));
+    });
+
+    // Should have all events without crashing
+    expect(result.current.events.length).toBe(5);
+    expect(result.current.latestEvent).toEqual(events[events.length - 1]);
   });
 });
