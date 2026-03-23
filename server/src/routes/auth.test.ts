@@ -1,7 +1,7 @@
 import { errorHandler } from '../middleware/error-handler.js';
 // IMPORTANT: Set JWT_SECRET BEFORE any imports
 // The auth middleware reads process.env.JWT_SECRET at module load time
-process.env.JWT_SECRET = 'test-secret';
+process.env.JWT_SECRET = 'test-secret-minimum-32-chars-required-for-validation';
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import express from 'express';
@@ -13,7 +13,7 @@ import { db } from '../db/client.js';
 import * as queries from '../db/user-queries.js';
 import type { AuthRequest } from '../middleware/auth.js';
 
-const TEST_JWT_SECRET = 'test-secret';
+const TEST_JWT_SECRET = 'test-secret-minimum-32-chars-required-for-validation';
 
 vi.mock('../db/client.js', () => ({
     db: {
@@ -222,7 +222,7 @@ describe('Auth Routes', () => {
     });
 
     describe('POST /api/auth/change-password', () => {
-        const JWT_SECRET = 'test-secret';
+        const JWT_SECRET = 'test-secret-minimum-32-chars-required-for-validation';
         let validToken: string;
 
         beforeEach(() => {

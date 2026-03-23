@@ -23,7 +23,7 @@ describe('AuthService', () => {
     vi.clearAllMocks();
     vi.mocked(validatePasswordStrength).mockReturnValue(null);
     authService = new AuthService(mockDb);
-    process.env.JWT_SECRET = 'test-secret';
+    process.env.JWT_SECRET = 'test-secret-minimum-32-chars-required-for-validation';
   });
 
   describe('login', () => {
