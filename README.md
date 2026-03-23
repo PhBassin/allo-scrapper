@@ -37,6 +37,7 @@
 - **User Management**: Role-based access control (admin/user) with comprehensive user CRUD
 - **JWT Authentication**: Secure user authentication with token-based sessions
 - **Password Management**: Change password functionality for authenticated users
+- **Content Security Policy**: Strict CSP without unsafe-inline/unsafe-eval in script-src
 - **Session Expiry Handling**: Expired JWTs are invalidated client-side and protected routes redirect to login
 - **Rate Limiting**: Comprehensive rate limiting per endpoint type (auth, public, protected)
 - **Performance Optimized**: JSON parse caching with LRU eviction (95-99% hit rate)
