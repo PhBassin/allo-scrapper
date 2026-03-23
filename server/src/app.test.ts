@@ -240,6 +240,14 @@ describe('App - Theme Endpoint', () => {
 
   describe('Content Security Policy', () => {
     it('should allow Google Fonts stylesheets in CSP style-src-elem', async () => {
+      // Mock DB for health check
+      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
+      const dbWithMock: DB = { 
+        query: mockQuery,
+        end: vi.fn()
+      } as unknown as DB;
+      app.set('db', dbWithMock);
+
       const res = await request(app)
         .get('/api/health')
         .expect(200);
@@ -252,6 +260,14 @@ describe('App - Theme Endpoint', () => {
     });
 
     it('should allow Google Fonts CDN in CSP font-src', async () => {
+      // Mock DB for health check
+      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
+      const dbWithMock: DB = { 
+        query: mockQuery,
+        end: vi.fn()
+      } as unknown as DB;
+      app.set('db', dbWithMock);
+
       const res = await request(app)
         .get('/api/health')
         .expect(200);
@@ -264,6 +280,14 @@ describe('App - Theme Endpoint', () => {
     });
 
     it('should maintain existing CSP directives', async () => {
+      // Mock DB for health check
+      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
+      const dbWithMock: DB = { 
+        query: mockQuery,
+        end: vi.fn()
+      } as unknown as DB;
+      app.set('db', dbWithMock);
+
       const res = await request(app)
         .get('/api/health')
         .expect(200);
