@@ -273,7 +273,9 @@ describe('Rate Limiting Middleware', () => {
     });
 
     it('should include rate limit headers', async () => {
-      const response = await request(app).get('/health');
+      const response = await request(app)
+        .get('/health')
+        .set('X-Forwarded-For', '203.0.113.42'); // External IP to trigger rate limiting
       expect(response.headers['ratelimit-limit']).toBeDefined();
       expect(response.headers['ratelimit-remaining']).toBeDefined();
       expect(response.headers['ratelimit-reset']).toBeDefined();
@@ -292,6 +294,10 @@ describe('Rate Limiting Middleware', () => {
         },
         standardHeaders: true,
         legacyHeaders: false,
+        message: {
+          success: false,
+          error: 'Too many health check requests',
+        },
       });
       tightApp.get('/health', tightLimiter, (_req, res) => res.json({ status: 'healthy' }));
 

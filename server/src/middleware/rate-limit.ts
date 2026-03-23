@@ -111,9 +111,6 @@ export const healthCheckLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: parseEnvInt('RATE_LIMIT_HEALTH_MAX', 10),
   skip: (req) => {
-    // Skip rate limiting in test environment
-    if (skipTest(req)) return true;
-    
     // Exempt internal IPs (localhost, Docker, Kubernetes health probes)
     const internalIPs = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
     return internalIPs.includes(req.ip ?? '');
