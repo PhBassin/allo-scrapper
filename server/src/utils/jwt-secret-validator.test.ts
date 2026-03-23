@@ -37,12 +37,12 @@ describe('validateJWTSecret', () => {
   describe('minimum length enforcement', () => {
     it('should throw error when JWT_SECRET is less than 32 characters', () => {
       process.env.JWT_SECRET = 'short';
-      expect(() => validateJWTSecret()).toThrow('JWT_SECRET is too short (5 chars). Minimum 32 characters required');
+      expect(() => validateJWTSecret()).toThrow('FATAL: JWT_SECRET is too short. Minimum 32 characters required');
     });
 
     it('should throw error for 31 character secret', () => {
       process.env.JWT_SECRET = 'a'.repeat(31);
-      expect(() => validateJWTSecret()).toThrow('JWT_SECRET is too short (31 chars)');
+      expect(() => validateJWTSecret()).toThrow('FATAL: JWT_SECRET is too short. Minimum 32 characters required');
     });
 
     it('should accept 32 character secret (minimum)', () => {
