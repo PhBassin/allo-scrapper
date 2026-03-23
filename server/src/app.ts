@@ -122,7 +122,7 @@ export function createApp() {
       await db.query('SELECT 1');
       cachedHealthStatus = { healthy: true, lastCheck: now };
       
-      res.json({
+      return res.json({
         status: 'healthy',
         database: 'connected',
         timestamp: new Date().toISOString(),
@@ -130,7 +130,7 @@ export function createApp() {
       });
     } catch (error) {
       cachedHealthStatus = { healthy: false, lastCheck: Date.now() };
-      res.status(503).json({
+      return res.status(503).json({
         status: 'unhealthy',
         database: 'disconnected',
         timestamp: new Date().toISOString(),
