@@ -47,7 +47,7 @@ export function validateJWTSecret(): string {
 
   // Enforce minimum length (32 characters = 256 bits)
   if (secret.length < 32) {
-    logger.error(`❌ JWT_SECRET is too short: ${secret.length} characters`);
+    logger.error('❌ JWT_SECRET is too short and does not meet the minimum length requirement');
     throw new Error(
       `FATAL: JWT_SECRET is too short (${secret.length} chars). Minimum 32 characters required.`
     );
