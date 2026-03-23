@@ -62,7 +62,7 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
 });
 
 // GET /api/scraper/status - Get current scrape status
-router.get('/status', async (req, res, next) => {
+router.get('/status', scraperLimiter, async (req, res, next) => {
   const dbConn: DB = req.app.get('db');
   const scraperService = new ScraperService(dbConn);
 
@@ -81,7 +81,7 @@ router.get('/status', async (req, res, next) => {
 });
 
 // GET /api/scraper/progress - SSE endpoint for real-time progress
-router.get('/progress', (req, res, next) => {
+router.get('/progress', scraperLimiter, (req, res, next) => {
   try {
     const dbConn: DB = req.app.get('db');
     const scraperService = new ScraperService(dbConn);
