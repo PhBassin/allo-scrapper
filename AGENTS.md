@@ -375,6 +375,136 @@ gh pr create --base main --head feat/123-new-api \
 
 ---
 
+## Changelog Enhancement Features
+
+The automated changelog system includes several advanced features to improve readability and provide better context.
+
+### Contributor Attribution
+
+**Format:** Changelog entries include GitHub profile links for contributors
+
+**Example:**
+```markdown
+- feat(api): add batch operations endpoint [@phBassin](https://github.com/phBassin) (6401a10)
+```
+
+**Bot Filtering:** Automated commits from `github-actions[bot]`, `dependabot[bot]`, and similar bots are automatically excluded from the changelog to reduce noise.
+
+**GitHub Username Detection:**
+- Extracted from git commit author email when in format `user@users.noreply.github.com`
+- Falls back to normalized author name (lowercase, no spaces)
+
+---
+
+### Breaking Change Details
+
+**Feature:** Breaking changes include detailed migration guidance extracted from commit bodies.
+
+**How to Use:**
+When making a breaking change, use this commit format:
+
+```bash
+git commit -m "feat(api): remove v1 endpoints
+
+BREAKING CHANGE: v1 API endpoints removed
+Migrate to v2 endpoints documented in API guide
+Migration script available: scripts/migrate-v1-to-v2.sh"
+```
+
+**Changelog Output:**
+```markdown
+### ⚠️ Breaking Changes
+
+⚠️ **remove v1 endpoints** [@phBassin](https://github.com/phBassin) (abc123)
+  - v1 API endpoints removed
+  - Migrate to v2 endpoints documented in API guide
+  - Migration script available: scripts/migrate-v1-to-v2.sh
+```
+
+**Best Practices:**
+- Be specific about what's breaking
+- Provide clear migration steps
+- Link to migration documentation
+- Mention automated migration tools if available
+
+---
+
+### Version Link Sorting
+
+**Feature:** Version comparison links at the bottom of CHANGELOG.md are automatically sorted chronologically (newest first) using semantic version sorting.
+
+---
+
+### GitHub Release Notes Template
+
+**Feature:** GitHub releases use a structured template with additional sections beyond the changelog.
+
+**Sections Included:**
+1. **Changelog Content** - Categorized commit list with contributor attribution
+2. **Docker Images** - Pull commands with version tags
+3. **Upgrade Notes** - Auto-detected breaking changes and migrations
+4. **Documentation Links** - Quick access to guides
+5. **Full Changelog Link** - GitHub compare view
+
+**Auto-Detection:**
+- Breaking changes detected from changelog content
+- New database migrations counted from `migrations/` directory
+
+**Template Location:** `.github/release-template.md`
+
+---
+
+### Testing Changelog Generation
+
+**Manual Test:**
+
+Test the changelog script without creating a release:
+
+```bash
+# Generate changelog for commits since last tag
+./.github/scripts/generate-changelog.sh v4.2.0 HEAD
+
+# Test with specific commit range
+./.github/scripts/generate-changelog.sh abc123 def456
+```
+
+**Validation Checklist:**
+- [ ] All commits properly categorized
+- [ ] Bot commits excluded
+- [ ] Contributor links formatted correctly
+- [ ] Breaking change details extracted
+- [ ] PR references preserved (#123 format)
+- [ ] Commit hashes included
+
+---
+
+### Writing Changelog-Friendly Commits
+
+**For Features:**
+```bash
+git commit -m "feat(api): add batch operations endpoint"
+# Generates: - feat(api): add batch operations endpoint [@username](link) (hash)
+```
+
+**For Bug Fixes:**
+```bash
+git commit -m "fix(client): resolve infinite loop in useEffect"
+# Generates: - fix(client): resolve infinite loop in useEffect [@username](link) (hash)
+```
+
+**For Breaking Changes:**
+```bash
+git commit -m "feat(auth): require email verification
+
+BREAKING CHANGE: All new users must verify email before login
+Existing users: verification email sent on next login
+Configuration: Add SMTP_* environment variables"
+
+# Generates detailed breaking change section with indented migration steps
+```
+
+---
+
 ## Useful Commands
 
 ### Setup (run once after cloning)
