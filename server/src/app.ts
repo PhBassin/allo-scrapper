@@ -40,17 +40,24 @@ export function createApp() {
   app.set('trust proxy', 1);
 
   // Middleware
+  // Security: Helmet with strict CSP (no unsafe-inline/unsafe-eval in script-src)
+  // Note: style-src keeps unsafe-inline for React inline styles in 3 components
+  // (ScrapeProgress, ColorPicker, FontSelector use dynamic inline styles)
   app.use(
     helmet({
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"], // Removed unsafe-inline and unsafe-eval
+          styleSrc: ["'self'", "'unsafe-inline'"], // Keep for React inline styles
           styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
           imgSrc: ["'self'", "data:", "https://*.acsta.net", "https://*.allocine.fr"],
           connectSrc: ["'self'"],
           fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+          objectSrc: ["'none'"], // Prevent Flash/Java applets
+          baseUri: ["'self'"], // Prevent <base> tag injection
+          formAction: ["'self'"], // Restrict form submissions
+          frameAncestors: ["'none'"], // Prevent clickjacking (like X-Frame-Options)
           upgradeInsecureRequests: null,
         },
       },
