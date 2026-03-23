@@ -144,7 +144,7 @@ export default function Layout({ children, title }: LayoutProps) {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 flex-1">
+      <main className="container mx-auto px-4 py-4 flex-1">
         {title && <h1 className="text-3xl font-bold mb-6">{title}</h1>}
         {children}
       </main>

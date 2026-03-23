@@ -92,7 +92,7 @@ export default function HomePage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Title and Date Info - Above sticky header */}
-      <div className="mb-8">
+      <div className="mb-4">
         <h1 className="text-4xl font-bold mb-3">
           {selectedDate ? 'Films du jour' : 'Au programme cette semaine'}
         </h1>
@@ -111,9 +111,9 @@ export default function HomePage() {
       </div>
 
       {/* Sticky Header Section - Compact */}
-      <div className="sticky top-[64px] z-40 bg-gray-50/95 backdrop-blur-sm pt-4 pb-4 mb-6 shadow-sm -mx-4 px-4" data-testid="sticky-search-date-container">
+      <div className="sticky top-[64px] z-40 bg-gray-50/95 backdrop-blur-sm pt-3 pb-3 mb-4 shadow-sm -mx-4 px-4" data-testid="sticky-search-date-container">
         {/* Film Search Bar */}
-        <div className="mb-4">
+        <div className="mb-3">
           <FilmSearchBar placeholder="Rechercher un film..." />
         </div>
 
@@ -137,7 +137,7 @@ export default function HomePage() {
       />
 
       {/* Films List */}
-      <div className="space-y-8">
+      <div className="space-y-6">
         {films.length > 0 ? (
           films.map((film) => (
             <FilmCard key={film.id} film={film} />
