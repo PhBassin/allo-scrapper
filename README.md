@@ -253,6 +253,9 @@ For detailed user guide and screenshots, see [ADMIN_PANEL.md](./ADMIN_PANEL.md).
 
 - Docker and Docker Compose installed
 - Ports 3000 and 5432 available
+- OpenSSL installed (for JWT secret generation)
+  - Linux/macOS: Pre-installed
+  - Windows: Use Git Bash or WSL
 
 ### Option A: Using Pre-built Images (Recommended)
 
@@ -335,7 +338,12 @@ npm install
 # Setup environment and database
 cd ../server
 cp .env.example .env
-# Edit .env with your PostgreSQL and Redis credentials
+
+# Generate a secure JWT secret (REQUIRED)
+openssl rand -base64 64
+
+# Edit .env with your PostgreSQL, Redis credentials, and paste the JWT secret
+# JWT_SECRET=<paste-generated-secret-here>
 npm run db:migrate
 
 # Start Redis (required — scraping will not work without it)
