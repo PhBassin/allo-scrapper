@@ -42,7 +42,7 @@ vi.mock('../middleware/auth.js', () => ({
         const token = authHeader.split(' ')[1];
 
         try {
-            const decoded = jwt.verify(token, 'test-secret') as { id: number; username: string };
+            const decoded = jwt.verify(token, TEST_JWT_SECRET) as { id: number; username: string };
             req.user = decoded;
             next();
         } catch (error) {
