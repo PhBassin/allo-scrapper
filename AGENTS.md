@@ -524,6 +524,76 @@ Both commands should succeed without errors.
 
 ---
 
+## JWT Secret Security
+
+**CRITICAL: All deployments MUST use cryptographically secure JWT secrets.**
+
+### The Problem
+
+Weak or default JWT secrets allow attackers to forge authentication tokens and bypass security entirely.
+
+### Required Validation
+
+The application **will refuse to start** if:
+- `JWT_SECRET` is not set
+- `JWT_SECRET` is shorter than 32 characters
+- `JWT_SECRET` matches any forbidden default value
+
+**Forbidden defaults:**
+- `dev-secret-key-change-in-prod`
+- `your-super-secret-key-change-this-in-production`
+- `change-me`
+- `secret`
+- `test-secret`
+- `jwt-secret`
+
+### The Solution: Generate Secure Secrets
+
+**Always generate a unique secret for each environment:**
+
+```bash
+# Generate a 64-character base64-encoded secret (recommended)
+openssl rand -base64 64
+
+# Alternative: 48 bytes (still secure)
+node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
+```
+
+**For testing environments:**
+```typescript
+// In test files only (e.g., server/src/routes/auth.test.ts)
+beforeAll(() => {
+  process.env.JWT_SECRET = 'test-secret-minimum-32-chars-required-for-validation';
+});
+```
+
+### Testing JWT Secret Validation
+
+```bash
+# Test validator directly
+cd server
+npx vitest run src/utils/jwt-secret-validator.test.ts
+
+# Test that server refuses to start with invalid secret
+JWT_SECRET="" npm run dev
+# Expected: ❌ Server refuses to start with helpful error
+
+# Test server starts with valid secret
+JWT_SECRET="$(openssl rand -base64 64)" npm run dev
+# Expected: ✅ Server starts successfully
+```
+
+### Security Checklist
+
+Before deploying:
+- [ ] Generated unique JWT_SECRET for this environment
+- [ ] JWT_SECRET is at least 32 characters (64+ recommended)
+- [ ] JWT_SECRET is NOT a default/example value
+- [ ] JWT_SECRET is stored securely (not in version control)
+- [ ] Different secrets used for dev/staging/production
+
+---
+
 
 ## Questions?
 
