@@ -119,8 +119,94 @@ describe('App - Theme Endpoint', () => {
   });
 
   describe('GET /api/health', () => {
-    it('should return health status', async () => {
+    it('should return healthy status when database is accessible', async () => {
+      // Mock successful database query
+      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
+      const dbWithMock: DB = { 
+        query: mockQuery,
+        end: vi.fn()
+      } as unknown as DB;
+      
+      app.set('db', dbWithMock);
+
       const res = await request(app)
+        .get('/api/health')
+        .expect(200);
+
+      expect(res.body.status).toBe('healthy');
+      expect(res.body.database).toBe('connected');
+      expect(res.body.timestamp).toBeDefined();
+      expect(res.body.cached).toBe(false);
+      expect(mockQuery).toHaveBeenCalledWith('SELECT 1');
+    });
+
+    it('should return cached status within TTL', async () => {
+      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
+      const dbWithMock: DB = {
+        query: mockQuery,
+        end: vi.fn()
+      } as unknown as DB;
+      
+      app.set('db', dbWithMock);
+
+      // First request - hits database
+      const res1 = await request(app)
+        .get('/api/health')
+        .expect(200);
+      expect(res1.body.cached).toBe(false);
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+
+      // Second request within 5 seconds - uses cache
+      const res2 = await request(app)
+        .get('/api/health')
+        .expect(200);
+      expect(res2.body.cached).toBe(true);
+      expect(res2.body.status).toBe('healthy');
+      // Database query should not be called again
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return unhealthy status when database query fails', async () => {
+      const mockQuery = vi.fn().mockRejectedValue(new Error('Connection refused'));
+      const dbWithMock: DB = {
+        query: mockQuery,
+        end: vi.fn()
+      } as unknown as DB;
+      
+      app.set('db', dbWithMock);
+
+      const res = await request(app)
+        .get('/api/health')
+        .expect(503);
+
+      expect(res.body.status).toBe('unhealthy');
+      expect(res.body.database).toBe('disconnected');
+      expect(res.body.cached).toBe(false);
+    });
+
+    it('should include rate limit headers', async () => {
+      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
+      const dbWithMock: DB = {
+        query: mockQuery,
+        end: vi.fn()
+      } as unknown as DB;
+      
+      app.set('db', dbWithMock);
+
+      const res = await request(app)
+        .get('/api/health')
+        .expect(200);
+
+      expect(res.headers['ratelimit-limit']).toBeDefined();
+      expect(res.headers['ratelimit-remaining']).toBeDefined();
+      expect(res.headers['ratelimit-reset']).toBeDefined();
+    });
+
+    it('should fallback to simple health check when db connection is not set', async () => {
+      const appWithoutDb = createApp();
+      // Don't set db connection
+
+      const res = await request(appWithoutDb)
         .get('/api/health')
         .expect(200);
 
