@@ -11,7 +11,6 @@ interface CinemasQuickLinksProps {
 function CinemasQuickLinks({ cinemas, canAddCinema, onAddCinema }: CinemasQuickLinksProps) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm mb-6">
-      <h2 className="text-xs font-bold text-gray-400 uppercase mb-2 px-1">Accès rapide par cinéma</h2>
       <div className="flex flex-wrap gap-2">
         {cinemas.map((cinema) => (
           <Link
