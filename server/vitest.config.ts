@@ -14,7 +14,7 @@ export default defineConfig({
       RATE_LIMIT_SCRAPER_MAX: '50',
       RATE_LIMIT_PUBLIC_MAX: '100',
       RATE_LIMIT_WINDOW_MS: '60000', // 1 minute
-      JWT_SECRET: 'test-secret',
+      JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
     },
     coverage: {
       provider: 'v8',

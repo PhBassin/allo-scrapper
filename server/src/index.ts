@@ -3,6 +3,7 @@ import { createApp } from './app.js';
 import { db } from './db/client.js';
 import { initializeDatabase } from './db/schema.js';
 import { logger } from './utils/logger.js';
+import { validateJWTSecret } from './utils/jwt-secret-validator.js';
 
 // Load environment variables
 dotenv.config();
@@ -13,6 +14,10 @@ async function startServer() {
   try {
     logger.info('🚀 Starting Allo-Scrapper Server...\n');
 
+    // Validate JWT secret before proceeding
+    logger.info('🔐 Validating JWT configuration...');
+    validateJWTSecret();
+    
     // Log JWT configuration
     const jwtExpiration = process.env.JWT_EXPIRES_IN || '24h';
     logger.info(`🔐 JWT expiration set to: ${jwtExpiration}`);
@@ -70,7 +75,9 @@ async function startServer() {
     process.on('SIGINT', shutdown);
 
   } catch (error) {
-    logger.error('❌ Failed to start server:', error);
+    // Log only the error message to prevent sensitive data exposure
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('❌ Failed to start server:', errorMessage);
     process.exit(1);
   }
 }

@@ -2,11 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import type { ApiResponse } from '../types/api.js';
 import type { PermissionName } from '../types/role.js';
+import { validateJWTSecret } from '../utils/jwt-secret-validator.js';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is required');
-}
+const JWT_SECRET = validateJWTSecret();
 
 export interface AuthRequest extends Request {
     user?: {
