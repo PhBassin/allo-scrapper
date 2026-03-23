@@ -58,13 +58,13 @@ describe('validateJWTSecret', () => {
 
   describe('forbidden default values', () => {
     it('should reject dev-secret-key-change-in-prod (current .env.example default)', () => {
-      process.env.JWT_SECRET = 'dev-secret-key-change-in-prod';
+      process.env.JWT_SECRET = 'dev-secret-key-change-in-prod-long-enough';
       expect(() => validateJWTSecret()).toThrow('JWT_SECRET is set to a default/forbidden value');
       expect(() => validateJWTSecret()).toThrow('openssl rand -base64 64');
     });
 
     it('should reject your-super-secret-key-change-this-in-production', () => {
-      process.env.JWT_SECRET = 'your-super-secret-key-change-this-in-production';
+      process.env.JWT_SECRET = 'your-super-secret-key-change-this-in-production-extra';
       expect(() => validateJWTSecret()).toThrow('JWT_SECRET is set to a default/forbidden value');
     });
 
@@ -74,29 +74,29 @@ describe('validateJWTSecret', () => {
     });
 
     it('should reject secret', () => {
-      process.env.JWT_SECRET = 'secret-but-make-it-long-enough-minimum';
+      process.env.JWT_SECRET = 'secret-but-make-it-long-enough-minimum-xyz';
       expect(() => validateJWTSecret()).toThrow('JWT_SECRET is set to a default/forbidden value');
     });
 
     it('should reject test-secret', () => {
-      process.env.JWT_SECRET = 'test-secret-long-enough-to-pass-length';
+      process.env.JWT_SECRET = 'test-secret-long-enough-to-pass-length-xyz';
       expect(() => validateJWTSecret()).toThrow('JWT_SECRET is set to a default/forbidden value');
     });
 
     it('should reject jwt-secret', () => {
-      process.env.JWT_SECRET = 'jwt-secret-long-enough-for-validation';
+      process.env.JWT_SECRET = 'jwt-secret-long-enough-for-validation-xyz';
       expect(() => validateJWTSecret()).toThrow('JWT_SECRET is set to a default/forbidden value');
     });
   });
 
   describe('case sensitivity in forbidden checks', () => {
     it('should reject case variations of forbidden values (uppercase)', () => {
-      process.env.JWT_SECRET = 'DEV-SECRET-KEY-CHANGE-IN-PROD';
+      process.env.JWT_SECRET = 'DEV-SECRET-KEY-CHANGE-IN-PROD-ABC';
       expect(() => validateJWTSecret()).toThrow('JWT_SECRET is set to a default/forbidden value');
     });
 
     it('should reject case variations of forbidden values (mixed case)', () => {
-      process.env.JWT_SECRET = 'Dev-Secret-Key-Change-In-Prod';
+      process.env.JWT_SECRET = 'Dev-Secret-Key-Change-In-Prod-ABC';
       expect(() => validateJWTSecret()).toThrow('JWT_SECRET is set to a default/forbidden value');
     });
   });
@@ -128,7 +128,7 @@ describe('validateJWTSecret', () => {
 
   describe('return value', () => {
     it('should return the validated secret (trimmed)', () => {
-      const secret = 'valid-secret-that-is-long-enough-and-secure';
+      const secret = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
       process.env.JWT_SECRET = secret;
       expect(validateJWTSecret()).toBe(secret);
     });

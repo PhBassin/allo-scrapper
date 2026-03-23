@@ -52,7 +52,7 @@ describe('AuthService', () => {
       vi.mocked(bcrypt.compare).mockResolvedValue(true);
       vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:read'] as any);
 
-      await expect(authService.login('user', 'password')).rejects.toThrow('JWT_SECRET environment variable is required');
+      await expect(authService.login('user', 'password')).rejects.toThrow('JWT_SECRET environment variable is not set');
     });
 
     it('should return token and user on success', async () => {
