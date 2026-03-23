@@ -200,6 +200,16 @@ jobs:
               tail -n +${LINE_NUM} CHANGELOG.md >> /tmp/changelog-with-link.md
               mv /tmp/changelog-with-link.md CHANGELOG.md
             fi
+            
+            # Sort version links chronologically (newest first)
+            grep "^\[.*\]: https://github.com" CHANGELOG.md > /tmp/version-links.txt
+            sort -t'[' -k2 -Vr /tmp/version-links.txt > /tmp/sorted-links.txt
+            
+            # Remove old links from changelog
+            sed -i '/^\[.*\]: https:\/\/github\.com/d' CHANGELOG.md
+            
+            # Append sorted links at the end
+            cat /tmp/sorted-links.txt >> CHANGELOG.md
           fi
           
           echo "Updated CHANGELOG.md"
@@ -245,14 +255,104 @@ jobs:
           
           echo "Moved stable tag to ${NEW_TAG}"
 
+      - name: Generate release notes from template
+        id: release_notes
+        run: |
+          NEW_TAG="${{ steps.new_version.outputs.tag }}"
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+          
+          # Parse version components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$NEW_VERSION"
+          
+          # Generate upgrade notes
+          UPGRADE_NOTES="- No breaking changes"
+          
+          # Check for breaking changes in changelog
+          if grep -q "### ⚠️ Breaking Changes" /tmp/changelog-entry.md; then
+            UPGRADE_NOTES="⚠️ **This release contains breaking changes. See changelog above for migration guidance.**"
+          fi
+          
+          # Check for new migrations
+          NEW_MIGRATIONS=$(git diff --name-only ${LAST_TAG}..HEAD | grep "^migrations/" | wc -l || echo "0")
+          if [ "$NEW_MIGRATIONS" -gt 0 ]; then
+            UPGRADE_NOTES="${UPGRADE_NOTES}\\n- Database migrations: ${NEW_MIGRATIONS} new migration(s) (run automatically on startup)"
+          fi
+          
+          # Read changelog content
+          CHANGELOG_CONTENT=$(cat /tmp/changelog-entry.md)
+          
+          # Create release notes with template
+          cat > /tmp/release-notes.md << 'RELEASE_EOF'
+          ## 🎉 Release ${NEW_VERSION}
+          
+          ${CHANGELOG_CONTENT}
+          
+          ---
+          
+          ### 📦 Docker Images
+          
+          Pull the latest images with version tags:
+          
+          ```bash
+          # Web application
+          docker pull ghcr.io/phbassin/allo-scrapper:${NEW_VERSION}
+          
+          # Scraper microservice
+          docker pull ghcr.io/phbassin/allo-scrapper-scraper:${NEW_VERSION}
+          ```
+          
+          **Available tags:** `${NEW_VERSION}`, `${MAJOR}.${MINOR}`, `${MAJOR}`, `stable`, `latest`
+          
+          ---
+          
+          ### 🔄 Upgrade Notes
+          
+          ${UPGRADE_NOTES}
+          
+          ---
+          
+          ### 📚 Documentation
+          
+          - [Installation Guide](https://github.com/PhBassin/allo-scrapper#installation)
+          - [Configuration Reference](https://github.com/PhBassin/allo-scrapper/blob/main/README.md#configuration)
+          - [API Documentation](https://github.com/PhBassin/allo-scrapper/blob/main/README.md#api-endpoints)
+          - [Troubleshooting](https://github.com/PhBassin/allo-scrapper/blob/main/AGENTS.md)
+          
+          ---
+          
+          **Full Changelog**: https://github.com/PhBassin/allo-scrapper/compare/${LAST_TAG}...${NEW_TAG}
+          RELEASE_EOF
+          
+          # Now do variable substitution
+          sed -i "s/\${NEW_VERSION}/${NEW_VERSION}/g" /tmp/release-notes.md
+          sed -i "s/\${MAJOR}/${MAJOR}/g" /tmp/release-notes.md
+          sed -i "s/\${MINOR}/${MINOR}/g" /tmp/release-notes.md
+          sed -i "s/\${LAST_TAG}/${LAST_TAG}/g" /tmp/release-notes.md
+          sed -i "s/\${NEW_TAG}/${NEW_TAG}/g" /tmp/release-notes.md
+          
+          # Replace upgrade notes (handle newlines)
+          UPGRADE_NOTES_ESCAPED=$(echo -e "$UPGRADE_NOTES" | sed ':a;N;$!ba;s/\n/\\n/g')
+          sed -i "s|\${UPGRADE_NOTES}|${UPGRADE_NOTES_ESCAPED}|g" /tmp/release-notes.md
+          
+          # Replace changelog content (preserve formatting)
+          CHANGELOG_START=$(grep -n '${CHANGELOG_CONTENT}' /tmp/release-notes.md | cut -d: -f1)
+          if [ -n "$CHANGELOG_START" ]; then
+            head -n $((CHANGELOG_START - 1)) /tmp/release-notes.md > /tmp/release-top.md
+            tail -n +$((CHANGELOG_START + 1)) /tmp/release-notes.md > /tmp/release-bottom.md
+            cat /tmp/release-top.md /tmp/changelog-entry.md /tmp/release-bottom.md > /tmp/release-notes.md
+          fi
+          
+          echo "Generated release notes from template"
+
       - name: Create GitHub release
         run: |
           NEW_TAG="${{ steps.new_version.outputs.tag }}"
           
-          # Use changelog entry as release notes
+          # Use processed release notes from template
           gh release create "${NEW_TAG}" \
             --title "Release ${NEW_TAG}" \
-            --notes-file /tmp/changelog-entry.md \
+            --notes-file /tmp/release-notes.md \
             --verify-tag
           
           echo "Created GitHub release ${NEW_TAG}"
