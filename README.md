@@ -283,6 +283,9 @@ curl -X POST http://localhost:3000/api/scraper/trigger
 - Web UI: http://localhost:3000
 - API: http://localhost:3000/api
 - Health check: http://localhost:3000/api/health
+  - Returns database connectivity status
+  - Cached for 5 seconds to prevent connection pool exhaustion
+  - Rate limited to 10 req/min per IP (localhost exempt for Docker/K8s probes)
 
 **Update to latest version:**
 ```bash

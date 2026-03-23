@@ -105,3 +105,21 @@ export const publicLimiter = rateLimit({
   },
 });
 
+// Aggressive limiter for health check endpoint
+// Prevents resource exhaustion attacks on publicly accessible endpoint
+export const healthCheckLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: parseEnvInt('RATE_LIMIT_HEALTH_MAX', 10),
+  skip: (req) => {
+    // Exempt internal IPs (localhost, Docker, Kubernetes health probes)
+    const internalIPs = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+    return internalIPs.includes(req.ip ?? '');
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Too many health check requests',
+  },
+});
+

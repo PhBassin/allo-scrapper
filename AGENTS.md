@@ -594,8 +594,109 @@ Before deploying:
 
 ---
 
+## Health Check Endpoint Security
 
-## Questions?
+**IMPORTANT: The `/api/health` endpoint is protected against resource exhaustion attacks.**
+
+### Security Measures
+
+The health check endpoint implements multiple layers of protection:
+
+1. **Rate Limiting**: 10 requests per minute per IP address
+2. **Response Caching**: Health status cached for 5 seconds to reduce database load
+3. **Localhost Exemption**: Internal IPs (127.0.0.1, ::1) exempt for Docker/Kubernetes probes
+4. **Database Connectivity Check**: Queries database to verify full system health
+
+### Configuration
+
+```bash
+# .env configuration
+RATE_LIMIT_HEALTH_MAX=10  # Max requests per minute per IP (default: 10)
+```
+
+### Why This Matters
+
+Without rate limiting, the health check endpoint can be abused for:
+- **Database connection pool exhaustion**: Flood health checks to consume all DB connections
+- **Reconnaissance**: Probe database availability and response times
+- **DDoS amplification**: Use as part of larger attack
+
+### Health Check Behavior
+
+**Successful Response** (200 OK):
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "timestamp": "2026-03-23T19:30:00.000Z",
+  "cached": false
+}
+```
+
+**Cached Response** (200 OK, within 5 seconds):
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "timestamp": "2026-03-23T19:30:05.000Z",
+  "cached": true
+}
+```
+
+**Database Failure** (503 Service Unavailable):
+```json
+{
+  "status": "unhealthy",
+  "database": "disconnected",
+  "timestamp": "2026-03-23T19:30:00.000Z",
+  "cached": false
+}
+```
+
+**Rate Limited** (429 Too Many Requests):
+```json
+{
+  "success": false,
+  "error": "Too many health check requests"
+}
+```
+
+### For Monitoring Tools
+
+**Kubernetes/Docker Health Probes:**
+- Localhost requests are automatically exempted from rate limiting
+- Use `/api/health` for both liveness and readiness probes
+- Example probe configuration:
+  ```yaml
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  ```
+
+**External Monitoring (Uptime Kuma, Datadog, etc.):**
+- Rate limited to 10 req/min per IP
+- Check every 60 seconds or less frequently
+- Monitor for 503 status (database down) or 429 (rate limited)
+
+### Testing
+
+```bash
+# Test health check endpoint
+curl http://localhost:3000/api/health
+
+# Test rate limiting (should get 429 after 10 requests)
+for i in {1..11}; do curl http://localhost:3000/api/health; done
+
+# Test from localhost (should never be rate limited)
+for i in {1..20}; do curl http://127.0.0.1:3000/api/health; done
+```
+
+---
+
+
 
 If unclear about requirements:
 1. Check existing code patterns in the relevant directory
