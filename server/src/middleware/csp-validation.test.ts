@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import app from '../app.js';
+import { createApp } from '../app.js';
 
 describe('Content Security Policy', () => {
   it('should not allow unsafe-inline in script-src', async () => {
+    const app = createApp();
     const response = await request(app).get('/api/health');
     
     const cspHeader = response.headers['content-security-policy'];
@@ -19,6 +20,7 @@ describe('Content Security Policy', () => {
   });
 
   it('should set secure CSP directives', async () => {
+    const app = createApp();
     const response = await request(app).get('/api/health');
     const cspHeader = response.headers['content-security-policy'];
     
@@ -29,6 +31,7 @@ describe('Content Security Policy', () => {
   });
 
   it('should allow inline styles for React components', async () => {
+    const app = createApp();
     const response = await request(app).get('/api/health');
     const cspHeader = response.headers['content-security-policy'];
     
