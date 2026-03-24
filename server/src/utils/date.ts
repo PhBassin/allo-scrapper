@@ -1,3 +1,15 @@
+/**
+ * Date utility functions for scraping schedules.
+ * 
+ * NOTE: Some functions (getCurrentWeekStart, getWeekDates, getWeekStart) are duplicated 
+ * between server and scraper packages with minor differences:
+ * - Server: Uses logger for warnings
+ * - Scraper: Uses console.warn for warnings
+ * 
+ * This duplication allows each package to use its own logging infrastructure
+ * without introducing cross-package dependencies.
+ */
+
 import { logger } from '../utils/logger.js';
 
 export function getCurrentWeekStart(): string {
@@ -36,21 +48,6 @@ export function getWeekDates(weekStart?: string, numDays: number = 7): string[] 
   }
   
   return dates;
-}
-
-// ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
-// re-initialization during repeated function calls
-const formatterDate = new Intl.DateTimeFormat('fr-FR', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short'
-});
-
-export function formatDate(dateStr: string | Date): string {
-  if (!dateStr) return '';
-  const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
-  if (isNaN(date.getTime())) return 'Invalid Date';
-  return formatterDate.format(date);
 }
 
 export function getTodayDate(): string {

@@ -1,7 +1,13 @@
 import he from 'he';
 
 /**
- * Decodes HTML entities in a string.
+ * Decodes HTML entities in a string using the 'he' library.
+ * 
+ * NOTE: This file is intentionally duplicated between server and scraper packages.
+ * - Server: Uses native DOM-based decoding (no dependencies, better performance)
+ * - Scraper: Uses 'he' npm package (robust HTML5 entity support)
+ * 
+ * This separation allows each package to optimize for its runtime environment.
  * 
  * Converts HTML entities like `&#039;`, `&eacute;`, `&amp;` to their
  * corresponding characters: `'`, `é`, `&`.
