@@ -252,12 +252,79 @@ curl http://localhost:3000/api/reports?page=1 \
 3. **Check patterns**: Review timing of recent scrapes
 4. **Retry manually**: Use admin panel to trigger new scrape
 
-**Phase 2 (Planned - Not Yet Implemented):**
-- **Resume capability**: Automatically retry only cinemas that weren't attempted
+**Phase 2 (Implemented - v4.2.0+):**
+- **Resume capability**: Retry only the cinema/date combinations that weren't successfully scraped ✅
+- **Granular tracking**: Per-cinema, per-date attempt status (success, failed, rate_limited, not_attempted) ✅
+- **Parent-child reports**: Resumed scrapes link to original report via `parent_report_id` ✅
+- **UI integration**: Resume button appears on rate-limited reports in admin panel ✅
+
+**Resume Workflow:**
+
+1. **Rate limit detected**: Original scrape stops, status set to `rate_limited`
+2. **View details**: Admin clicks "View Details" to see per-cinema/per-date breakdown
+3. **Click resume**: Admin clicks "Resume Scrape" button on rate-limited report
+4. **New report created**: System creates new report with `parent_report_id` linking to original
+5. **Selective retry**: Only attempts marked as `pending`, `failed`, `rate_limited`, or `not_attempted` are retried
+6. **Success tracking**: Each attempt is tracked individually (prevents duplicate work)
+
+**Example Resume Usage:**
+
+```bash
+# Get report with rate limit
+curl http://localhost:3000/api/reports/123 \
+  -H "Authorization: Bearer $TOKEN"
+
+# View detailed attempt breakdown
+curl http://localhost:3000/api/reports/123/details \
+  -H "Authorization: Bearer $TOKEN"
+
+# Response shows pending attempts:
+{
+  "success": true,
+  "data": {
+    "reportId": 123,
+    "status": "rate_limited",
+    "summary": {
+      "total": 21,
+      "successful": 8,
+      "failed": 0,
+      "rate_limited": 1,
+      "not_attempted": 12
+    },
+    "attempts": [
+      { "cinema_id": "C0042", "cinema_name": "UGC Montparnasse", "date": "2026-03-25", "status": "success" },
+      { "cinema_id": "C0042", "cinema_name": "UGC Montparnasse", "date": "2026-03-26", "status": "rate_limited" },
+      { "cinema_id": "C0089", "cinema_name": "Max Linder", "date": "2026-03-25", "status": "not_attempted" }
+    ]
+  }
+}
+
+# Resume scrape (retries only non-successful attempts)
+curl -X POST http://localhost:3000/api/scraper/resume/123 \
+  -H "Authorization: Bearer $TOKEN"
+
+# Response:
+{
+  "success": true,
+  "data": {
+    "reportId": 124,
+    "parentReportId": 123,
+    "message": "Resume scrape started successfully",
+    "pendingAttempts": [
+      { "cinema_id": "C0042", "date": "2026-03-26" },
+      { "cinema_id": "C0089", "date": "2026-03-25" }
+    ]
+  }
+}
+```
+
+**Phase 3 (Planned - Future Enhancements):**
 - **Exponential backoff**: Progressive delay increases after rate limit
+- **Circuit breaker**: Temporarily pause all scraping after multiple 429s
+- **Retry-After header**: Respect server-provided backoff timing
 - **Smart scheduling**: Adjust future scrape timing based on rate limit history
 
-**See implementation details:** [Scraper System Architecture](../../reference/architecture/scraper-system.md#rate-limit-handling-phase-1---implemented)
+**See implementation details:** [Scraper System Architecture](../../reference/architecture/scraper-system.md#rate-limit-handling)
 
 ### Error: 403 Forbidden
 
