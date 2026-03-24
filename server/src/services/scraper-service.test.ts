@@ -67,6 +67,53 @@ describe('ScraperService', () => {
     });
   });
 
+  describe('triggerResume', () => {
+    it('should trigger resume scrape successfully with pending attempts', async () => {
+      const mockPublish = vi.fn().mockResolvedValue(1);
+      vi.mocked(redisClient.getRedisClient).mockReturnValue({ publishJob: mockPublish } as any);
+      vi.mocked(reportQueries.createScrapeReport).mockResolvedValue(43 as any);
+
+      const pendingAttempts = [
+        { cinema_id: 'C0042', date: '2026-03-26' },
+        { cinema_id: 'C0089', date: '2026-03-25' },
+      ] as any;
+
+      const result = await scraperService.triggerResume(123, pendingAttempts);
+
+      expect(result.reportId).toBe(43);
+      expect(progressTracker.reset).toHaveBeenCalled();
+      expect(reportQueries.createScrapeReport).toHaveBeenCalledWith(mockDb, 'manual', 123);
+      expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'scrape',
+        reportId: 43,
+        triggerType: 'manual',
+        options: {
+          resumeMode: true,
+          pendingAttempts: [
+            { cinema_id: 'C0042', date: '2026-03-26' },
+            { cinema_id: 'C0089', date: '2026-03-25' },
+          ],
+        },
+      }));
+    });
+
+    it('should handle empty pending attempts list', async () => {
+      const mockPublish = vi.fn().mockResolvedValue(1);
+      vi.mocked(redisClient.getRedisClient).mockReturnValue({ publishJob: mockPublish } as any);
+      vi.mocked(reportQueries.createScrapeReport).mockResolvedValue(44 as any);
+
+      const result = await scraperService.triggerResume(123, []);
+
+      expect(result.reportId).toBe(44);
+      expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
+        options: {
+          resumeMode: true,
+          pendingAttempts: [],
+        },
+      }));
+    });
+  });
+
   describe('subscribeToProgress', () => {
     it('should add listener and return cleanup function', () => {
       const mockRes = { setHeader: vi.fn() };
