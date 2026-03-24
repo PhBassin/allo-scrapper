@@ -44,15 +44,19 @@ const ChangePasswordPage: React.FC = () => {
                 newPassword,
             });
 
-            if (response.data.success) {
-                setSuccess(response.data.data.message);
-                // Clear form
-                setCurrentPassword('');
-                setNewPassword('');
-                setConfirmPassword('');
-            } else {
-                setError(response.data.error || 'Failed to change password');
-            }
+             if (response.data.success) {
+                 setSuccess(response.data.data.message);
+                 // Clear form
+                 setCurrentPassword('');
+                 setNewPassword('');
+                 setConfirmPassword('');
+                 // Navigate to homepage after 2 seconds
+                 setTimeout(() => {
+                     navigate('/');
+                 }, 2000);
+             } else {
+                 setError(response.data.error || 'Failed to change password');
+             }
         } catch (err: unknown) {
             if (err instanceof Error && 'response' in err) {
                 const axiosError = err as { response?: { data?: { error?: string } } };
