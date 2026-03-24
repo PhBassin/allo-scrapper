@@ -29,7 +29,7 @@
 ## ✨ Features
 
 - **Automated Scraping**: Scheduled scraping of cinema showtimes from the source website
-- **Scrape Scheduling**: Cron-based scrape schedules configurable via admin panel, with per-cinema and global targeting
+- **Scraper Resilience**: Automatic HTTP 429 rate limit detection with graceful shutdown
 - **RESTful API**: Complete Express.js backend with TypeScript
 - **Modern UI**: React SPA with Vite for fast development
 - **Real-time Progress**: Server-Sent Events (SSE) for live scraping updates

@@ -510,6 +510,70 @@ for (const cinema of cinemas) {
 - `success`: All cinemas succeeded
 - `partial_success`: Some cinemas failed
 - `failed`: All cinemas failed
+- `rate_limited`: HTTP 429 detected, scrape stopped early (Phase 1)
+
+---
+
+### Rate Limit Handling (Phase 1 - Implemented)
+
+**Detection**: The scraper detects HTTP 429 (Too Many Requests) responses from AlloCiné.
+
+**Behavior when 429 is detected**:
+
+1. **Immediate stop**: Both date loop and cinema loop break immediately
+2. **Status change**: Summary status set to `rate_limited` (not `failed`)
+3. **Error classification**: Errors include `error_type: "http_429"` and `http_status_code: 429`
+4. **Remaining cinemas**: Marked as "not attempted" (not failed)
+5. **Progress event**: `cinema_failed` event emitted with error details
+
+**Implementation**:
+
+```typescript
+// In scraper/src/scraper/index.ts
+let rateLimited = false;
+
+for (const cinema of cinemas) {
+  if (rateLimited) break; // Stop outer loop if rate limited
+  
+  for (const date of dates) {
+    try {
+      await scrapeDate(cinema, date);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        summary.status = 'rate_limited';
+        rateLimited = true; // Signal to break outer loop
+        break; // Break date loop
+      }
+      // Handle other errors...
+    }
+  }
+}
+```
+
+**Error structure**:
+
+```typescript
+{
+  cinema_name: "Example Cinema",
+  cinema_id: "C0123",
+  date: "2026-03-24",
+  error: "HTTP 429 Too Many Requests",
+  error_type: "http_429",
+  http_status_code: 429
+}
+```
+
+**UI feedback**:
+- Orange badge in admin reports list
+- Explanation card in report detail view
+- Suggests waiting before retry
+
+**Phase 2 (Planned)**:
+- Resume capability: Track per-cinema attempts in database
+- Automatic retry: Exponential backoff for rate-limited scrapes
+- Smart scheduling: Avoid rate limits by adjusting scrape frequency
+
+**See also:** [Rate Limiting Guide](../../guides/advanced/scraper-rate-limiting.md)
 
 ---
 
