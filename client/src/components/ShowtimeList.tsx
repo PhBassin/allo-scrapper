@@ -29,9 +29,9 @@ function ShowtimeList({ showtimes }: ShowtimeListProps) {
         <div key={version} className="border-l-4 border-primary pl-3">
           <p className="text-sm font-semibold text-gray-700 mb-2">{version}</p>
           <div className="flex flex-wrap gap-2">
-            {versionShowtimes.map((showtime, index) => (
+            {versionShowtimes.map((showtime) => (
               <button
-                key={`${showtime.time}-${index}`}
+                key={showtime.id}
                 type="button"
                 disabled
                 className="px-3 py-1 bg-gray-100 text-gray-500 rounded cursor-not-allowed text-sm font-medium opacity-70"
