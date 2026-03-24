@@ -211,12 +211,29 @@ export async function runScraper(
       if (skippedDates.length > 0) {
         logger.info('Skipping dates not yet published', { count: skippedDates.length, dates: skippedDates });
       }
-      logger.info('Dates to scrape', { cinema: cinema.name, count: datesToScrape.length });
+      
+      // In resume mode, only scrape dates from pendingAttempts
+      let finalDatesToScrape = datesToScrape;
+      if (options?.resumeMode && options?.pendingAttempts) {
+        const pendingDatesForCinema = options.pendingAttempts
+          .filter(a => a.cinema_id === cinema.id)
+          .map(a => a.date);
+        
+        finalDatesToScrape = datesToScrape.filter(d => pendingDatesForCinema.includes(d));
+        
+        logger.info('Resume mode: filtered to pending attempts', { 
+          cinema: cinema.name, 
+          allDates: datesToScrape.length,
+          pendingDates: finalDatesToScrape.length,
+        });
+      }
+      
+      logger.info('Dates to scrape', { cinema: cinema.name, count: finalDatesToScrape.length });
 
       // Track if rate limited to stop scraping entirely
       let rateLimited = false;
 
-      for (const date of datesToScrape) {
+      for (const date of finalDatesToScrape) {
         logger.info('Attempting date', { cinema: cinema.name, date });
         
         // Track attempt in database if reportId provided
@@ -288,7 +305,7 @@ export async function runScraper(
 
             // Mark remaining dates as not_attempted
             if (options?.reportId) {
-              const remainingDates = datesToScrape.slice(datesToScrape.indexOf(date) + 1);
+              const remainingDates = finalDatesToScrape.slice(finalDatesToScrape.indexOf(date) + 1);
               for (const remainingDate of remainingDates) {
                 try {
                   await createScrapeAttempt(db, {
@@ -381,12 +398,12 @@ export async function runScraper(
         break;
       }
 
-      const cinemaFailed = successfulDates === 0 && datesToScrape.length > 0;
+      const cinemaFailed = successfulDates === 0 && finalDatesToScrape.length > 0;
 
       logger.info('Cinema summary', {
         cinema: cinema.name,
         successfulDates,
-        totalDates: datesToScrape.length,
+        totalDates: finalDatesToScrape.length,
         films: cinemaFilmsCount,
         showtimes: cinemaShowtimesCount,
       });
