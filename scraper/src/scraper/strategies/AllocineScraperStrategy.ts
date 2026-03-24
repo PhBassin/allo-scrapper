@@ -20,6 +20,7 @@ import { logger } from '../../utils/logger.js';
 import type { CinemaConfig, WeeklyProgram, Cinema } from '../../types/scraper.js';
 import { type ProgressPublisher } from '../index.js';
 import { type IScraperStrategy } from './IScraperStrategy.js';
+import { RateLimitError } from '../../utils/errors.js';
 
 export class AllocineScraperStrategy implements IScraperStrategy {
   readonly sourceName = 'allocine';
@@ -142,6 +143,12 @@ export class AllocineScraperStrategy implements IScraperStrategy {
 
       return { filmsCount, showtimesCount };
     } catch (error) {
+      // Re-throw RateLimitError immediately for scraper to handle
+      if (error instanceof RateLimitError) {
+        logger.error('Rate limit detected - stopping scrape', { cinema: cinema.name, date, error });
+        throw error;
+      }
+
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error('Error scraping cinema for date', { cinema: cinema.name, date, error });
       throw new Error(errorMessage);

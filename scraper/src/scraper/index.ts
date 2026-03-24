@@ -8,6 +8,8 @@ import { closeBrowser, delay } from './http-client.js';
 import { getScrapeDates, type ScrapeMode } from '../utils/date.js';
 import type { CinemaConfig, Cinema, ProgressEvent, ScrapeSummary } from '../types/scraper.js';
 import { getStrategyByUrl, getStrategyBySource } from './strategy-factory.js';
+import { RateLimitError } from '../utils/errors.js';
+import { classifyError } from '../utils/error-classifier.js';
 
 // Progress publisher interface – allows injecting Redis publisher or a no-op
 export interface ProgressPublisher {
@@ -183,8 +185,15 @@ export async function runScraper(
         availableDates = meta.availableDates;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorType = classifyError(error);
         logger.error('Failed to load theater metadata', { cinema: cinema.name, error: errorMessage });
-        summary.errors.push({ cinema_name: cinema.name, error: errorMessage });
+        summary.errors.push({ 
+          cinema_name: cinema.name, 
+          cinema_id: cinema.id,
+          error: errorMessage,
+          error_type: errorType,
+          http_status_code: (error as any).statusCode,
+        });
         summary.failed_cinemas++;
         continue;
       }
@@ -197,6 +206,9 @@ export async function runScraper(
       }
       logger.info('Dates to scrape', { cinema: cinema.name, count: datesToScrape.length });
 
+      // Track if rate limited to stop scraping entirely
+      let rateLimited = false;
+
       for (const date of datesToScrape) {
         logger.info('Attempting date', { cinema: cinema.name, date });
         try {
@@ -206,12 +218,49 @@ export async function runScraper(
           successfulDates++;
           logger.info('Date scraped successfully', { date, films: filmsCount, showtimes: showtimesCount });
         } catch (error) {
+          // Detect rate limiting and stop immediately
+          if (error instanceof RateLimitError) {
+            logger.error('Rate limit detected - stopping all scraping', { 
+              cinema: cinema.name, 
+              date, 
+              statusCode: error.statusCode 
+            });
+            
+            const errorType = classifyError(error);
+            summary.errors.push({
+              cinema_name: cinema.name,
+              cinema_id: cinema.id,
+              date: date,
+              error: error.message,
+              error_type: errorType,
+              http_status_code: error.statusCode,
+            });
+
+            await progress?.emit({
+              type: 'date_failed',
+              cinema_name: cinema.name,
+              date: date,
+              error: error.message
+            });
+
+            // Mark status as rate_limited and break out of both loops
+            summary.status = 'rate_limited';
+            rateLimited = true;
+            break;
+          }
+
+          // Handle other errors normally
           const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorType = classifyError(error);
           logger.error('Date scrape failed', { cinema: cinema.name, date, error: errorMessage });
+          
           summary.errors.push({
             cinema_name: cinema.name,
+            cinema_id: cinema.id,
             date: date,
-            error: errorMessage
+            error: errorMessage,
+            error_type: errorType,
+            http_status_code: (error as any).statusCode,
           });
 
           await progress?.emit({
@@ -223,6 +272,15 @@ export async function runScraper(
 
           continue;
         }
+      }
+
+      // If rate limited, stop processing remaining cinemas
+      if (rateLimited) {
+        logger.warn('Stopping scrape due to rate limit', { 
+          processedCinemas: i + 1, 
+          totalCinemas: cinemas.length 
+        });
+        break;
       }
 
       const cinemaFailed = successfulDates === 0 && datesToScrape.length > 0;
@@ -265,9 +323,16 @@ export async function runScraper(
     return summary;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorType = classifyError(error);
     logger.error('Fatal error in scraper', { error });
     await closeBrowser();
-    summary.errors.push({ cinema_name: 'System', error: errorMessage });
+    summary.errors.push({ 
+      cinema_name: 'System', 
+      cinema_id: 'system',
+      error: errorMessage,
+      error_type: errorType,
+      http_status_code: (error as any).statusCode,
+    });
     summary.duration_ms = Date.now() - startTime;
     await progress?.emit({ type: 'failed', error: errorMessage });
     throw error;
