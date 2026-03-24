@@ -38,21 +38,6 @@ export function getWeekDates(weekStart?: string, numDays: number = 7): string[] 
   return dates;
 }
 
-// ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
-// re-initialization during repeated function calls
-const formatterDate = new Intl.DateTimeFormat('fr-FR', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short'
-});
-
-export function formatDate(dateStr: string | Date): string {
-  if (!dateStr) return '';
-  const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
-  if (isNaN(date.getTime())) return 'Invalid Date';
-  return formatterDate.format(date);
-}
-
 export function getTodayDate(): string {
   const today = new Date();
   return today.toISOString().split('T')[0];

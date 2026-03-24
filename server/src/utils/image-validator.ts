@@ -1,13 +1,6 @@
 import sharp from 'sharp';
 import { logger } from './logger.js';
 
-export class ImageValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ImageValidationError';
-  }
-}
-
 export interface ImageValidationResult {
   valid: boolean;
   compressedBase64?: string;
