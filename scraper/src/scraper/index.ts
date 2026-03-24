@@ -10,6 +10,10 @@ import type { CinemaConfig, Cinema, ProgressEvent, ScrapeSummary } from '../type
 import { getStrategyByUrl, getStrategyBySource } from './strategy-factory.js';
 import { RateLimitError } from '../utils/errors.js';
 import { classifyError } from '../utils/error-classifier.js';
+import {
+  createScrapeAttempt,
+  updateScrapeAttempt,
+} from '../db/scrape-attempt-queries.js';
 
 // Progress publisher interface – allows injecting Redis publisher or a no-op
 export interface ProgressPublisher {
@@ -97,6 +101,9 @@ export interface ScrapeOptions {
   days?: number;
   cinemaId?: string;
   filmId?: number;
+  reportId?: number;  // For tracking attempts in database
+  resumeMode?: boolean;  // Skip already-successful attempts
+  pendingAttempts?: Array<{ cinema_id: string; date: string }>;  // For resume mode
 }
 
 export async function runScraper(
@@ -211,12 +218,41 @@ export async function runScraper(
 
       for (const date of datesToScrape) {
         logger.info('Attempting date', { cinema: cinema.name, date });
+        
+        // Track attempt in database if reportId provided
+        let attemptId: number | undefined;
+        if (options?.reportId) {
+          try {
+            attemptId = await createScrapeAttempt(db, {
+              report_id: options.reportId,
+              cinema_id: cinema.id,
+              date: date,
+              status: 'pending',
+            });
+          } catch (error) {
+            logger.error('Failed to create scrape attempt', { error });
+          }
+        }
+        
         try {
           const { filmsCount, showtimesCount } = await strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
           cinemaFilmsCount += filmsCount;
           cinemaShowtimesCount += showtimesCount;
           successfulDates++;
           logger.info('Date scraped successfully', { date, films: filmsCount, showtimes: showtimesCount });
+          
+          // Update attempt as successful
+          if (attemptId) {
+            try {
+              await updateScrapeAttempt(db, attemptId, {
+                status: 'success',
+                films_scraped: filmsCount,
+                showtimes_scraped: showtimesCount,
+              });
+            } catch (error) {
+              logger.error('Failed to update scrape attempt', { error });
+            }
+          }
         } catch (error) {
           // Detect rate limiting and stop immediately
           if (error instanceof RateLimitError) {
@@ -235,6 +271,54 @@ export async function runScraper(
               error_type: errorType,
               http_status_code: error.statusCode,
             });
+
+            // Update attempt as rate_limited
+            if (attemptId) {
+              try {
+                await updateScrapeAttempt(db, attemptId, {
+                  status: 'rate_limited',
+                  error_type: errorType,
+                  error_message: error.message,
+                  http_status_code: error.statusCode,
+                });
+              } catch (updateError) {
+                logger.error('Failed to update scrape attempt', { error: updateError });
+              }
+            }
+
+            // Mark remaining dates as not_attempted
+            if (options?.reportId) {
+              const remainingDates = datesToScrape.slice(datesToScrape.indexOf(date) + 1);
+              for (const remainingDate of remainingDates) {
+                try {
+                  await createScrapeAttempt(db, {
+                    report_id: options.reportId,
+                    cinema_id: cinema.id,
+                    date: remainingDate,
+                    status: 'not_attempted',
+                  });
+                } catch (error) {
+                  logger.error('Failed to mark attempt as not_attempted', { error });
+                }
+              }
+              
+              // Mark remaining cinemas and all their dates as not_attempted
+              const remainingCinemas = cinemas.slice(i + 1);
+              for (const remainingCinema of remainingCinemas) {
+                for (const futureDate of datesToScrape) {
+                  try {
+                    await createScrapeAttempt(db, {
+                      report_id: options.reportId,
+                      cinema_id: remainingCinema.id,
+                      date: futureDate,
+                      status: 'not_attempted',
+                    });
+                  } catch (error) {
+                    logger.error('Failed to mark attempt as not_attempted', { error });
+                  }
+                }
+              }
+            }
 
             await progress?.emit({
               type: 'date_failed',
@@ -262,6 +346,20 @@ export async function runScraper(
             error_type: errorType,
             http_status_code: (error as any).statusCode,
           });
+
+          // Update attempt as failed
+          if (attemptId) {
+            try {
+              await updateScrapeAttempt(db, attemptId, {
+                status: 'failed',
+                error_type: errorType,
+                error_message: errorMessage,
+                http_status_code: (error as any).statusCode,
+              });
+            } catch (updateError) {
+              logger.error('Failed to update scrape attempt', { error: updateError });
+            }
+          }
 
           await progress?.emit({
             type: 'date_failed',
