@@ -44,13 +44,17 @@ const ChangePasswordPage: React.FC = () => {
                 newPassword,
             });
 
-            if (response.data.success) {
-                setSuccess(response.data.data.message);
-                // Clear form
-                setCurrentPassword('');
-                setNewPassword('');
-                setConfirmPassword('');
-            } else {
+             if (response.data.success) {
+                 setSuccess(response.data.data.message);
+                 // Clear form
+                 setCurrentPassword('');
+                 setNewPassword('');
+                 setConfirmPassword('');
+                 // Navigate to homepage after 3 seconds
+                 setTimeout(() => {
+                     navigate('/');
+                 }, 3000);
+             } else {
                 setError(response.data.error || 'Failed to change password');
             }
         } catch (err: unknown) {

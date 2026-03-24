@@ -320,4 +320,83 @@ describe('ChangePasswordPage', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
+
+  it('should navigate to homepage after 3 seconds on successful password change', async () => {
+    (apiClient.post as any).mockResolvedValue({
+      data: { success: true, data: { message: 'Password changed successfully' } },
+    });
+
+    // Use fake timers to control setTimeout
+    vi.useFakeTimers();
+    
+    render(
+      <MemoryRouter>
+        <ChangePasswordPage />
+      </MemoryRouter>
+    );
+
+    const currentPasswordInput = screen.getByLabelText(/current password/i);
+    const newPasswordInput = screen.getByLabelText(/^new password$/i);
+    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
+    const submitButton = screen.getByRole('button', { name: /change password/i });
+
+    fireEvent.change(currentPasswordInput, { target: { value: 'OldPass123!' } });
+    fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
+    fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
+    fireEvent.click(submitButton);
+
+    // Wait for success message
+    await waitFor(() => {
+      expect(screen.getByText(/password changed successfully/i)).toBeInTheDocument();
+    });
+
+    // Fast-forward the timer by 3 seconds
+    vi.advanceTimersByTime(3000);
+    
+    // Expect navigation to have been called
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+    
+    // Clean up
+    vi.useRealTimers();
+  });
+});
+
+  it('should navigate to homepage after 3 seconds on successful password change', async () => {
+    (apiClient.post as any).mockResolvedValue({
+      data: { success: true, data: { message: 'Password changed successfully' } },
+    });
+
+    // Use fake timers to control setTimeout
+    vi.useFakeTimers();
+    
+    render(
+      <MemoryRouter>
+        <ChangePasswordPage />
+      </MemoryRouter>
+    );
+
+    const currentPasswordInput = screen.getByLabelText(/current password/i);
+    const newPasswordInput = screen.getByLabelText(/^new password$/i);
+    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
+    const submitButton = screen.getByRole('button', { name: /change password/i });
+
+    fireEvent.change(currentPasswordInput, { target: { value: 'OldPass123!' } });
+    fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
+    fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
+    fireEvent.click(submitButton);
+
+    // Wait for success message
+    await waitFor(() => {
+      expect(screen.getByText(/password changed successfully/i)).toBeInTheDocument();
+    });
+
+    // Fast-forward the timer by 3 seconds
+    vi.advanceTimersByTime(3000);
+    
+    // Expect navigation to have been called
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+    
+    // Clean up
+    vi.useRealTimers();
+  });
 });
