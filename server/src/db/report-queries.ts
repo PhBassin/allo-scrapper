@@ -17,18 +17,20 @@ export interface ScrapeReport {
   total_showtimes_scraped?: number;
   errors?: unknown[];
   progress_log?: unknown[];
+  parent_report_id?: number;
 }
 
 // Create a new scrape report
 export async function createScrapeReport(
   db: DB,
-  triggerType: 'manual' | 'cron'
+  triggerType: 'manual' | 'cron',
+  parentReportId?: number
 ): Promise<number> {
   const result = await db.query<{ id: number }>(
-    `INSERT INTO scrape_reports (started_at, status, trigger_type)
-     VALUES (NOW(), 'running', $1)
+    `INSERT INTO scrape_reports (started_at, status, trigger_type, parent_report_id)
+     VALUES (NOW(), 'running', $1, $2)
      RETURNING id`,
-    [triggerType]
+    [triggerType, parentReportId || null]
   );
   return result.rows[0].id;
 }
