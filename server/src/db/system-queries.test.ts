@@ -97,6 +97,7 @@ describe('System Queries', () => {
             { version: '015_add_schedule_permissions.sql' },
             { version: '016_add_admin_permissions.sql' },
             { version: '017_add_rate_limited_status.sql' },
+            { version: '018_add_scrape_attempts.sql' },
           ],
         }),
       } as unknown as DB;
