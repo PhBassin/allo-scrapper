@@ -14,7 +14,21 @@ describe('Report Queries', () => {
       expect(reportId).toBe(123);
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO scrape_reports'),
-        ['manual']
+        ['manual', null]
+      );
+    });
+
+    it('should insert a report with parent_report_id when provided', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({ rows: [{ id: 456 }] }),
+      } as unknown as DB;
+
+      const reportId = await createScrapeReport(mockDb, 'manual', 123);
+
+      expect(reportId).toBe(456);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO scrape_reports'),
+        ['manual', 123]
       );
     });
   });

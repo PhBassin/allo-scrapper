@@ -4,6 +4,7 @@ import { createScrapeReport, getLatestScrapeReport } from '../db/report-queries.
 import { getCinemas } from '../db/cinema-queries.js';
 import type { DB } from '../db/client.js';
 import { logger } from '../utils/logger.js';
+import type { ScrapeAttempt } from '../db/scrape-attempt-queries.js';
 
 export class ScraperService {
   constructor(private db: DB) {}
@@ -38,6 +39,36 @@ export class ScraperService {
       options: {
         ...(cinemaId && { cinemaId }),
         ...(filmId && { filmId }),
+      },
+    });
+
+    return { reportId, queueDepth };
+  }
+
+  /**
+   * Triggers a resume job for a previous failed/rate-limited scrape.
+   * Creates a new report linked to the parent and queues only pending attempts.
+   */
+  async triggerResume(parentReportId: number, pendingAttempts: ScrapeAttempt[]) {
+    // Create new report with parent link
+    const reportId = await createScrapeReport(this.db, 'manual', parentReportId);
+
+    // Reset stale events
+    progressTracker.reset();
+
+    // Build list of cinema/date pairs to retry
+    const pendingList = pendingAttempts.map(a => ({
+      cinema_id: a.cinema_id,
+      date: a.date,
+    }));
+
+    const queueDepth = await getRedisClient().publishJob({
+      type: 'scrape',
+      reportId,
+      triggerType: 'manual',
+      options: {
+        resumeMode: true,
+        pendingAttempts: pendingList,
       },
     });
 
