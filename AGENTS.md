@@ -375,6 +375,136 @@ gh pr create --base main --head feat/123-new-api \
 
 ---
 
+## Changelog Enhancement Features
+
+The automated changelog system includes several advanced features to improve readability and provide better context.
+
+### Contributor Attribution
+
+**Format:** Changelog entries include GitHub profile links for contributors
+
+**Example:**
+```markdown
+- feat(api): add batch operations endpoint [@phBassin](https://github.com/phBassin) (6401a10)
+```
+
+**Bot Filtering:** Automated commits from `github-actions[bot]`, `dependabot[bot]`, and similar bots are automatically excluded from the changelog to reduce noise.
+
+**GitHub Username Detection:**
+- Extracted from git commit author email when in format `user@users.noreply.github.com`
+- Falls back to normalized author name (lowercase, no spaces)
+
+---
+
+### Breaking Change Details
+
+**Feature:** Breaking changes include detailed migration guidance extracted from commit bodies.
+
+**How to Use:**
+When making a breaking change, use this commit format:
+
+```bash
+git commit -m "feat(api): remove v1 endpoints
+
+BREAKING CHANGE: v1 API endpoints removed
+Migrate to v2 endpoints documented in API guide
+Migration script available: scripts/migrate-v1-to-v2.sh"
+```
+
+**Changelog Output:**
+```markdown
+### ⚠️ Breaking Changes
+
+⚠️ **remove v1 endpoints** [@phBassin](https://github.com/phBassin) (abc123)
+  - v1 API endpoints removed
+  - Migrate to v2 endpoints documented in API guide
+  - Migration script available: scripts/migrate-v1-to-v2.sh
+```
+
+**Best Practices:**
+- Be specific about what's breaking
+- Provide clear migration steps
+- Link to migration documentation
+- Mention automated migration tools if available
+
+---
+
+### Version Link Sorting
+
+**Feature:** Version comparison links at the bottom of CHANGELOG.md are automatically sorted chronologically (newest first) using semantic version sorting.
+
+---
+
+### GitHub Release Notes Template
+
+**Feature:** GitHub releases use a structured template with additional sections beyond the changelog.
+
+**Sections Included:**
+1. **Changelog Content** - Categorized commit list with contributor attribution
+2. **Docker Images** - Pull commands with version tags
+3. **Upgrade Notes** - Auto-detected breaking changes and migrations
+4. **Documentation Links** - Quick access to guides
+5. **Full Changelog Link** - GitHub compare view
+
+**Auto-Detection:**
+- Breaking changes detected from changelog content
+- New database migrations counted from `migrations/` directory
+
+**Template Location:** `.github/release-template.md`
+
+---
+
+### Testing Changelog Generation
+
+**Manual Test:**
+
+Test the changelog script without creating a release:
+
+```bash
+# Generate changelog for commits since last tag
+./.github/scripts/generate-changelog.sh v4.2.0 HEAD
+
+# Test with specific commit range
+./.github/scripts/generate-changelog.sh abc123 def456
+```
+
+**Validation Checklist:**
+- [ ] All commits properly categorized
+- [ ] Bot commits excluded
+- [ ] Contributor links formatted correctly
+- [ ] Breaking change details extracted
+- [ ] PR references preserved (#123 format)
+- [ ] Commit hashes included
+
+---
+
+### Writing Changelog-Friendly Commits
+
+**For Features:**
+```bash
+git commit -m "feat(api): add batch operations endpoint"
+# Generates: - feat(api): add batch operations endpoint [@username](link) (hash)
+```
+
+**For Bug Fixes:**
+```bash
+git commit -m "fix(client): resolve infinite loop in useEffect"
+# Generates: - fix(client): resolve infinite loop in useEffect [@username](link) (hash)
+```
+
+**For Breaking Changes:**
+```bash
+git commit -m "feat(auth): require email verification
+
+BREAKING CHANGE: All new users must verify email before login
+Existing users: verification email sent on next login
+Configuration: Add SMTP_* environment variables"
+
+# Generates detailed breaking change section with indented migration steps
+```
+
+---
+
 ## Useful Commands
 
 ### Setup (run once after cloning)
@@ -524,8 +654,179 @@ Both commands should succeed without errors.
 
 ---
 
+## JWT Secret Security
 
-## Questions?
+**CRITICAL: All deployments MUST use cryptographically secure JWT secrets.**
+
+### The Problem
+
+Weak or default JWT secrets allow attackers to forge authentication tokens and bypass security entirely.
+
+### Required Validation
+
+The application **will refuse to start** if:
+- `JWT_SECRET` is not set
+- `JWT_SECRET` is shorter than 32 characters
+- `JWT_SECRET` matches any forbidden default value
+
+**Forbidden defaults:**
+- `dev-secret-key-change-in-prod`
+- `your-super-secret-key-change-this-in-production`
+- `change-me`
+- `secret`
+- `test-secret`
+- `jwt-secret`
+
+### The Solution: Generate Secure Secrets
+
+**Always generate a unique secret for each environment:**
+
+```bash
+# Generate a 64-character base64-encoded secret (recommended)
+openssl rand -base64 64
+
+# Alternative: 48 bytes (still secure)
+node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
+```
+
+**For testing environments:**
+```typescript
+// In test files only (e.g., server/src/routes/auth.test.ts)
+beforeAll(() => {
+  process.env.JWT_SECRET = 'test-secret-minimum-32-chars-required-for-validation';
+});
+```
+
+### Testing JWT Secret Validation
+
+```bash
+# Test validator directly
+cd server
+npx vitest run src/utils/jwt-secret-validator.test.ts
+
+# Test that server refuses to start with invalid secret
+JWT_SECRET="" npm run dev
+# Expected: ❌ Server refuses to start with helpful error
+
+# Test server starts with valid secret
+JWT_SECRET="$(openssl rand -base64 64)" npm run dev
+# Expected: ✅ Server starts successfully
+```
+
+### Security Checklist
+
+Before deploying:
+- [ ] Generated unique JWT_SECRET for this environment
+- [ ] JWT_SECRET is at least 32 characters (64+ recommended)
+- [ ] JWT_SECRET is NOT a default/example value
+- [ ] JWT_SECRET is stored securely (not in version control)
+- [ ] Different secrets used for dev/staging/production
+
+---
+
+## Health Check Endpoint Security
+
+**IMPORTANT: The `/api/health` endpoint is protected against resource exhaustion attacks.**
+
+### Security Measures
+
+The health check endpoint implements multiple layers of protection:
+
+1. **Rate Limiting**: 10 requests per minute per IP address
+2. **Response Caching**: Health status cached for 5 seconds to reduce database load
+3. **Localhost Exemption**: Internal IPs (127.0.0.1, ::1) exempt for Docker/Kubernetes probes
+4. **Database Connectivity Check**: Queries database to verify full system health
+
+### Configuration
+
+```bash
+# .env configuration
+RATE_LIMIT_HEALTH_MAX=10  # Max requests per minute per IP (default: 10)
+```
+
+### Why This Matters
+
+Without rate limiting, the health check endpoint can be abused for:
+- **Database connection pool exhaustion**: Flood health checks to consume all DB connections
+- **Reconnaissance**: Probe database availability and response times
+- **DDoS amplification**: Use as part of larger attack
+
+### Health Check Behavior
+
+**Successful Response** (200 OK):
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "timestamp": "2026-03-23T19:30:00.000Z",
+  "cached": false
+}
+```
+
+**Cached Response** (200 OK, within 5 seconds):
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "timestamp": "2026-03-23T19:30:05.000Z",
+  "cached": true
+}
+```
+
+**Database Failure** (503 Service Unavailable):
+```json
+{
+  "status": "unhealthy",
+  "database": "disconnected",
+  "timestamp": "2026-03-23T19:30:00.000Z",
+  "cached": false
+}
+```
+
+**Rate Limited** (429 Too Many Requests):
+```json
+{
+  "success": false,
+  "error": "Too many health check requests"
+}
+```
+
+### For Monitoring Tools
+
+**Kubernetes/Docker Health Probes:**
+- Localhost requests are automatically exempted from rate limiting
+- Use `/api/health` for both liveness and readiness probes
+- Example probe configuration:
+  ```yaml
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  ```
+
+**External Monitoring (Uptime Kuma, Datadog, etc.):**
+- Rate limited to 10 req/min per IP
+- Check every 60 seconds or less frequently
+- Monitor for 503 status (database down) or 429 (rate limited)
+
+### Testing
+
+```bash
+# Test health check endpoint
+curl http://localhost:3000/api/health
+
+# Test rate limiting (should get 429 after 10 requests)
+for i in {1..11}; do curl http://localhost:3000/api/health; done
+
+# Test from localhost (should never be rate limited)
+for i in {1..20}; do curl http://127.0.0.1:3000/api/health; done
+```
+
+---
+
+
 
 If unclear about requirements:
 1. Check existing code patterns in the relevant directory

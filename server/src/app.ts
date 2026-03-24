@@ -9,9 +9,10 @@ import { createHash } from 'crypto';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
-import { generalLimiter } from './middleware/rate-limit.js';
+import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
 import { generateThemeCSS } from './services/theme-generator.js';
 import { errorHandler } from './middleware/error-handler.js';
+import type { DB } from './db/client.js';
 
 // Import routes
 import filmsRouter from './routes/films.js';
@@ -40,17 +41,24 @@ export function createApp() {
   app.set('trust proxy', 1);
 
   // Middleware
+  // Security: Helmet with strict CSP (no unsafe-inline/unsafe-eval in script-src)
+  // Note: style-src keeps unsafe-inline for React inline styles in 3 components
+  // (ScrapeProgress, ColorPicker, FontSelector use dynamic inline styles)
   app.use(
     helmet({
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"], // Removed unsafe-inline and unsafe-eval
+          styleSrc: ["'self'", "'unsafe-inline'"], // Keep for React inline styles
           styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
           imgSrc: ["'self'", "data:", "https://*.acsta.net", "https://*.allocine.fr"],
           connectSrc: ["'self'"],
           fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+          objectSrc: ["'none'"], // Prevent Flash/Java applets
+          baseUri: ["'self'"], // Prevent <base> tag injection
+          formAction: ["'self'"], // Restrict form submissions
+          frameAncestors: ["'none'"], // Prevent clickjacking (like X-Frame-Options)
           upgradeInsecureRequests: null,
         },
       },
@@ -75,13 +83,60 @@ export function createApp() {
   app.use('/api/system', systemRouter);
   app.use('/api/roles', rolesRouter);
 
-  // Health check endpoint
-  app.get('/api/health', (_req, res) => {
-    res.json({ 
-      status: 'ok', 
-      timestamp: new Date().toISOString(),
-      name: process.env.APP_NAME ?? 'Allo-Scrapper'
-    });
+  // Health check endpoint with database connectivity check
+  // Cached for 5 seconds to prevent database connection pool exhaustion
+  // Rate limited to 10 req/min per IP (localhost exempt for K8s/Docker probes)
+  let cachedHealthStatus: {
+    healthy: boolean;
+    lastCheck: number;
+  } = { healthy: true, lastCheck: 0 };
+  
+  const HEALTH_CACHE_TTL = 5000; // 5 seconds
+
+  app.get('/api/health', healthCheckLimiter, async (req, res) => {
+    const db: DB | undefined = req.app.get('db');
+    
+    // Fallback to simple health check if db is not available
+    if (!db) {
+      return res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        name: process.env.APP_NAME ?? 'Allo-Scrapper'
+      });
+    }
+
+    try {
+      const now = Date.now();
+      
+      // Use cached status if recent
+      if (now - cachedHealthStatus.lastCheck < HEALTH_CACHE_TTL) {
+        return res.status(cachedHealthStatus.healthy ? 200 : 503).json({
+          status: cachedHealthStatus.healthy ? 'healthy' : 'unhealthy',
+          database: cachedHealthStatus.healthy ? 'connected' : 'disconnected',
+          timestamp: new Date().toISOString(),
+          cached: true,
+        });
+      }
+
+      // Perform actual health check
+      await db.query('SELECT 1');
+      cachedHealthStatus = { healthy: true, lastCheck: now };
+      
+      return res.json({
+        status: 'healthy',
+        database: 'connected',
+        timestamp: new Date().toISOString(),
+        cached: false,
+      });
+    } catch (error) {
+      cachedHealthStatus = { healthy: false, lastCheck: Date.now() };
+      return res.status(503).json({
+        status: 'unhealthy',
+        database: 'disconnected',
+        timestamp: new Date().toISOString(),
+        cached: false,
+      });
+    }
   });
 
   // Theme CSS endpoint (public, with ETag caching)

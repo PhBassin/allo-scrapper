@@ -1,7 +1,7 @@
 import { errorHandler } from '../middleware/error-handler.js';
 // IMPORTANT: Set JWT_SECRET BEFORE any imports
 // The auth middleware reads process.env.JWT_SECRET at module load time
-process.env.JWT_SECRET = 'test-secret';
+process.env.JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import express from 'express';
@@ -13,7 +13,7 @@ import { db } from '../db/client.js';
 import * as queries from '../db/user-queries.js';
 import type { AuthRequest } from '../middleware/auth.js';
 
-const TEST_JWT_SECRET = 'test-secret';
+const TEST_JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
 
 vi.mock('../db/client.js', () => ({
     db: {
@@ -42,7 +42,7 @@ vi.mock('../middleware/auth.js', () => ({
         const token = authHeader.split(' ')[1];
 
         try {
-            const decoded = jwt.verify(token, 'test-secret') as { id: number; username: string };
+            const decoded = jwt.verify(token, TEST_JWT_SECRET) as { id: number; username: string };
             req.user = decoded;
             next();
         } catch (error) {
@@ -222,7 +222,7 @@ describe('Auth Routes', () => {
     });
 
     describe('POST /api/auth/change-password', () => {
-        const JWT_SECRET = 'test-secret';
+        const JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
         let validToken: string;
 
         beforeEach(() => {

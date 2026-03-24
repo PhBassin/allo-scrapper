@@ -27,7 +27,9 @@ export async function initializeDatabase() {
       await runMigrations(db);
       logger.info('✅ Database initialization complete');
     } catch (error) {
-      logger.error('❌ Database migration failed:', error);
+      // Log only the error message to prevent sensitive data exposure
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('❌ Database migration failed:', errorMessage);
       throw error;
     }
   } else {
@@ -65,7 +67,9 @@ async function seedCinemasIfEmpty(): Promise<void> {
 
     logger.info(`🌱 Seeded ${cinemas.length} cinema(s) from cinemas.json`);
   } catch (error) {
-    logger.error('⚠️  Warning: Could not seed cinemas:', error);
+    // Log only the error message to prevent sensitive data exposure
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('⚠️  Warning: Could not seed cinemas:', errorMessage);
     // Non-fatal: continue without seeding
   }
 }

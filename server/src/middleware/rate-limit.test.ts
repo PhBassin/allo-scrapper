@@ -9,6 +9,7 @@ import {
   protectedLimiter,
   scraperLimiter,
   publicLimiter,
+  healthCheckLimiter,
 } from './rate-limit.js';
 
 // Helper: sign a minimal JWT for rate-limit key tests (secret doesn't matter — we use jwt.decode)
@@ -250,6 +251,138 @@ describe('Rate Limiting Middleware', () => {
     it('should respect RATE_LIMIT_PUBLIC_MAX environment variable', () => {
       const max = process.env.RATE_LIMIT_PUBLIC_MAX;
       expect(max).toBeDefined();
+    });
+
+    it('should respect RATE_LIMIT_HEALTH_MAX environment variable', () => {
+      const max = process.env.RATE_LIMIT_HEALTH_MAX;
+      expect(max).toBeDefined();
+    });
+  });
+
+  describe('healthCheckLimiter', () => {
+    beforeEach(() => {
+      app.get('/health', healthCheckLimiter, (_req, res) => {
+        res.json({ status: 'healthy' });
+      });
+    });
+
+    it('should allow requests within the limit', async () => {
+      const response = await request(app).get('/health');
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('healthy');
+    });
+
+    it('should include rate limit headers', async () => {
+      const response = await request(app)
+        .get('/health')
+        .set('X-Forwarded-For', '203.0.113.42'); // External IP to trigger rate limiting
+      expect(response.headers['ratelimit-limit']).toBeDefined();
+      expect(response.headers['ratelimit-remaining']).toBeDefined();
+      expect(response.headers['ratelimit-reset']).toBeDefined();
+    });
+
+    it('should rate limit after max requests (10 by default)', async () => {
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      const { default: rateLimit } = await import('express-rate-limit');
+      const tightLimiter = rateLimit({
+        windowMs: 60_000, // 1 minute
+        max: 10,
+        skip: (req) => {
+          const internalIPs = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+          return !req.ip || internalIPs.includes(req.ip);
+        },
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: {
+          success: false,
+          error: 'Too many health check requests',
+        },
+      });
+      tightApp.get('/health', tightLimiter, (_req, res) => res.json({ status: 'healthy' }));
+
+      const clientIp = '203.0.113.42'; // External IP
+
+      // Make 10 requests (should all succeed)
+      for (let i = 0; i < 10; i++) {
+        const res = await request(tightApp)
+          .get('/health')
+          .set('X-Forwarded-For', clientIp);
+        expect(res.status).toBe(200);
+      }
+
+      // 11th request should be rate limited
+      const limitedResponse = await request(tightApp)
+        .get('/health')
+        .set('X-Forwarded-For', clientIp);
+      expect(limitedResponse.status).toBe(429);
+      expect(limitedResponse.body.error).toBeDefined();
+    });
+
+    it('should exempt localhost IPs from rate limiting', async () => {
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      const { default: rateLimit } = await import('express-rate-limit');
+      const tightLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 2, // Very strict limit to make test fast
+        skip: (req) => {
+          const internalIPs = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+          return !req.ip || internalIPs.includes(req.ip);
+        },
+        standardHeaders: true,
+        legacyHeaders: false,
+      });
+      tightApp.get('/health', tightLimiter, (_req, res) => res.json({ status: 'healthy' }));
+
+      // Make many requests from localhost (should never be rate limited)
+      for (let i = 0; i < 20; i++) {
+        const res = await request(tightApp)
+          .get('/health')
+          .set('X-Forwarded-For', '127.0.0.1');
+        expect(res.status).toBe(200);
+      }
+
+      // IPv6 localhost
+      for (let i = 0; i < 20; i++) {
+        const res = await request(tightApp)
+          .get('/health')
+          .set('X-Forwarded-For', '::1');
+        expect(res.status).toBe(200);
+      }
+    });
+
+    it('should return proper error message when rate limited', async () => {
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      const { default: rateLimit } = await import('express-rate-limit');
+      const tightLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 1,
+        skip: (req) => {
+          const internalIPs = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+          return !req.ip || internalIPs.includes(req.ip);
+        },
+        message: {
+          success: false,
+          error: 'Too many health check requests',
+        },
+      });
+      tightApp.get('/health', tightLimiter, (_req, res) => res.json({ status: 'healthy' }));
+
+      const clientIp = '203.0.113.99';
+
+      // First request succeeds
+      await request(tightApp).get('/health').set('X-Forwarded-For', clientIp);
+
+      // Second request is rate limited
+      const limitedResponse = await request(tightApp)
+        .get('/health')
+        .set('X-Forwarded-For', clientIp);
+      
+      expect(limitedResponse.status).toBe(429);
+      expect(limitedResponse.body.success).toBe(false);
+      expect(limitedResponse.body.error).toBe('Too many health check requests');
     });
   });
 });
