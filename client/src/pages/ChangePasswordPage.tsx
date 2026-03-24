@@ -50,10 +50,10 @@ const ChangePasswordPage: React.FC = () => {
                  setCurrentPassword('');
                  setNewPassword('');
                  setConfirmPassword('');
-                 // Navigate to homepage after 3 seconds
+                 // Navigate to homepage after 2 seconds
                  setTimeout(() => {
                      navigate('/');
-                 }, 3000);
+                 }, 2000);
              } else {
                  setError(response.data.error || 'Failed to change password');
              }

@@ -205,7 +205,7 @@ describe('ChangePasswordPage', () => {
      }, { timeout: 5000 });
   });
 
-  it('should navigate to homepage after 3 seconds on successful password change', async () => {
+  it('should navigate to homepage after 2 seconds on successful password change', async () => {
     (apiClient.post as any).mockResolvedValue({
       data: { success: true, data: { message: 'Password changed successfully' } },
     });
@@ -234,8 +234,8 @@ describe('ChangePasswordPage', () => {
       expect(screen.getByText(/password changed successfully/i)).toBeInTheDocument();
     }, { timeout: 1000 });
 
-    // Advance timers by 3 seconds to trigger setTimeout
-    await vi.advanceTimersByTimeAsync(3000);
+    // Advance timers by 2 seconds to trigger setTimeout
+    await vi.advanceTimersByTimeAsync(2000);
     
     // Expect navigation to have been called
     expect(mockNavigate).toHaveBeenCalledWith('/');
