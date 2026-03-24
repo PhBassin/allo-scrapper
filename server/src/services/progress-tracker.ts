@@ -25,10 +25,14 @@ export interface ScrapeSummary {
   total_dates: number;
   duration_ms: number;
   errors: Array<{ 
-    cinema_name: string; 
+    cinema_name: string;
+    cinema_id: string;
     date?: string;
     error: string;
+    error_type?: 'http_429' | 'http_5xx' | 'http_4xx' | 'network' | 'parse' | 'timeout';
+    http_status_code?: number;
   }>;
+  status?: 'success' | 'partial_success' | 'failed' | 'rate_limited';
 }
 
 // Progress tracker class

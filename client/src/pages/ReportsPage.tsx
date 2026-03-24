@@ -74,6 +74,8 @@ export default function ReportsPage() {
         return 'bg-red-100 text-red-800 border-red-300';
       case 'running':
         return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'rate_limited':
+        return 'bg-orange-100 text-orange-800 border-orange-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-300';
     }
@@ -89,6 +91,8 @@ export default function ReportsPage() {
         return 'Échec';
       case 'running':
         return 'En cours';
+      case 'rate_limited':
+        return 'Rate limité';
       default:
         return status;
     }
@@ -173,6 +177,20 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
+
+        {/* Rate Limited Notice */}
+        {selectedReport.status === 'rate_limited' && (
+          <div className="card p-6 mb-6 border-orange-200 bg-orange-50">
+            <h2 className="text-xl font-bold mb-3 text-orange-800">⚠️ Limitation de débit détectée</h2>
+            <p className="text-orange-900 mb-3">
+              Le scraping a été arrêté automatiquement car le serveur source a renvoyé une erreur HTTP 429 (Too Many Requests).
+            </p>
+            <p className="text-sm text-orange-800">
+              <strong>Que faire ?</strong> Attendez quelques minutes avant de relancer un nouveau scraping. 
+              Les cinémas non traités seront automatiquement inclus lors de la prochaine exécution.
+            </p>
+          </div>
+        )}
 
         {/* Errors Section */}
         {selectedReport.errors && selectedReport.errors.length > 0 && (
