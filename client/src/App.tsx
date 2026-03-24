@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { useEffect, useContext } from 'react';
+import { useEffect, useContext, Suspense, lazy } from 'react';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import CinemaPage from './pages/CinemaPage';
@@ -16,8 +16,16 @@ import RequirePermission from './components/RequirePermission';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useTheme } from './hooks/useTheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ADMIN_PERMISSIONS } from './utils/adminPermissions';
+
+// Lazy load devtools only in development
+const ReactQueryDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import('@tanstack/react-query-devtools').then((module) => ({
+        default: module.ReactQueryDevtools,
+      }))
+    )
+  : () => null;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -121,7 +129,9 @@ function App() {
             </BrowserRouter>
           </SettingsProvider>
         </AuthProvider>
-        <ReactQueryDevtools initialIsOpen={false} />
+        <Suspense fallback={null}>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </Suspense>
       </QueryClientProvider>
     </ErrorBoundary>
   );
