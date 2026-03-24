@@ -17,3 +17,7 @@
 ## 2026-03-18 - [Optimize Array Transformations]
 **Learning:** Chaining `.map().filter()` creates unnecessary intermediate arrays, increasing memory allocation and garbage collection overhead, especially in rendering loops or reactive memoized computations.
 **Action:** When filtering and transforming data simultaneously, replace `.map().filter()` chains with a single `.reduce()` or a combination of `.flatMap()` to compute the result in one pass and avoid allocating unused intermediate objects.
+
+## 2024-05-18 - [Parallelize DB queries]
+**Learning:** Sequential database queries in service layers or db access functions (e.g. `getDatabaseStats`, `getScraperStatus`) can become a performance bottleneck since they are independent operations.
+**Action:** Use `Promise.all` to run independent DB queries concurrently. This reduces the total response time and improves API throughput for endpoints retrieving aggregated data.

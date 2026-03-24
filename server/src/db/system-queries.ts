@@ -105,42 +105,36 @@ export async function getPendingMigrations(db: DB): Promise<PendingMigration[]> 
  * @returns Database statistics
  */
 export async function getDatabaseStats(db: DB): Promise<DatabaseStats> {
-  // Get database size
-  const sizeResult = await db.query(
-    `SELECT pg_size_pretty(pg_database_size(current_database())) AS size`,
-    []
-  );
+  const [sizeResult, tableCountResult, cinemaCountResult, filmCountResult, showtimeCountResult] = await Promise.all([
+    db.query(
+      `SELECT pg_size_pretty(pg_database_size(current_database())) AS size`,
+      []
+    ),
+    db.query(
+      `SELECT COUNT(*)::text AS count
+       FROM information_schema.tables
+       WHERE table_schema = 'public'
+         AND table_type = 'BASE TABLE'`,
+      []
+    ),
+    db.query(
+      `SELECT COUNT(*)::text AS count FROM cinemas`,
+      []
+    ),
+    db.query(
+      `SELECT COUNT(*)::text AS count FROM films`,
+      []
+    ),
+    db.query(
+      `SELECT COUNT(*)::text AS count FROM showtimes`,
+      []
+    )
+  ]);
+
   const size = sizeResult.rows[0]?.size || '0 bytes';
-
-  // Get table count
-  const tableCountResult = await db.query(
-    `SELECT COUNT(*)::text AS count
-     FROM information_schema.tables
-     WHERE table_schema = 'public'
-       AND table_type = 'BASE TABLE'`,
-    []
-  );
   const tables = parseInt(tableCountResult.rows[0]?.count || '0', 10);
-
-  // Get cinema count
-  const cinemaCountResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM cinemas`,
-    []
-  );
   const cinemas = parseInt(cinemaCountResult.rows[0]?.count || '0', 10);
-
-  // Get film count
-  const filmCountResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM films`,
-    []
-  );
   const films = parseInt(filmCountResult.rows[0]?.count || '0', 10);
-
-  // Get showtime count
-  const showtimeCountResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM showtimes`,
-    []
-  );
   const showtimes = parseInt(showtimeCountResult.rows[0]?.count || '0', 10);
 
   return {

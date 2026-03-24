@@ -182,9 +182,11 @@ export async function getFilmsByDate(
   // Regrouper par film
   const filmsMap = new Map<number, Film & { cinemas: Cinema[] }>();
 
-  for (const row of result.rows) {
-    if (!filmsMap.has(row.id)) {
-      filmsMap.set(row.id, {
+  for (let i = 0; i < result.rows.length; i++) {
+    const row = result.rows[i];
+    let film = filmsMap.get(row.id);
+    if (!film) {
+      film = {
         id: row.id,
         title: row.title,
         original_title: row.original_title ?? undefined,
@@ -202,10 +204,10 @@ export async function getFilmsByDate(
         audience_rating: row.audience_rating ?? undefined,
         source_url: row.source_url,
         cinemas: [],
-      });
+      };
+      filmsMap.set(row.id, film);
     }
 
-    const film = filmsMap.get(row.id)!;
     film.cinemas.push({
       id: row.cinema_id,
       name: row.cinema_name,
@@ -248,9 +250,11 @@ export async function getWeeklyFilms(
   // Regrouper par film
   const filmsMap = new Map<number, Film & { cinemas: Cinema[] }>();
 
-  for (const row of result.rows) {
-    if (!filmsMap.has(row.id)) {
-      filmsMap.set(row.id, {
+  for (let i = 0; i < result.rows.length; i++) {
+    const row = result.rows[i];
+    let film = filmsMap.get(row.id);
+    if (!film) {
+      film = {
         id: row.id,
         title: row.title,
         original_title: row.original_title ?? undefined,
@@ -268,10 +272,10 @@ export async function getWeeklyFilms(
         audience_rating: row.audience_rating ?? undefined,
         source_url: row.source_url,
         cinemas: [],
-      });
+      };
+      filmsMap.set(row.id, film);
     }
 
-    const film = filmsMap.get(row.id)!;
     film.cinemas.push({
       id: row.cinema_id,
       name: row.cinema_name,
