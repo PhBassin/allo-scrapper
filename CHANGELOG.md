@@ -5,6 +5,85 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.0] - 2026-03-24
+
+### Added
+
+- feat(changelog): enhance automation with contributor attribution and structured releases (#641) [@PhBassin](https://github.com/PhBassin) (92f37d2)
+- feat(changelog): add version link sorting and structured release notes [@phbassin](https://github.com/phbassin) (bc97e77)
+- feat(changelog): add contributor attribution and breaking change extraction [@phbassin](https://github.com/phbassin) (1b38ddd)
+- feat(client): optimize homepage vertical spacing (#624) [@PhBassin](https://github.com/PhBassin) (5c0c8bf)
+- feat(client): remove labels from day selector and cinema links [@phbassin](https://github.com/phbassin) (1b785f1)
+- feat(client): optimize homepage vertical spacing [@debian](https://github.com/debian) (aa27938)
+- feat(restore): restore v4.2.0 features (Schedule Management) (#621) [@PhBassin](https://github.com/PhBassin) (f67a9ab)
+- feat: sync with main (v4.2.0) [@opelkad](https://github.com/opelkad) (a8e0910)
+- feat(client): optimize home page header space (#572) [@PhBassin](https://github.com/PhBassin) (895458b)
+- feat(client): optimize home page header space [@philippebassin](https://github.com/philippebassin) (c1b5eee)
+
+### Fixed
+
+- fix(security): add rate limiting to health check endpoint (#639) [@PhBassin](https://github.com/PhBassin) (5b0bcdb)
+- fix(security): fix healthCheckLimiter skip logic for test compatibility [@phbassin](https://github.com/phbassin) (ec6f602)
+- fix(security): add explicit return statements to health endpoint handler [@phbassin](https://github.com/phbassin) (4fe9bf6)
+- fix(security): add rate limiting and DB check to health endpoint [@phbassin](https://github.com/phbassin) (c79615e)
+- fix(security): add JWT secret validation on application startup (#638) [@PhBassin](https://github.com/PhBassin) (98bd9e7)
+- fix(security): sanitize error logging to prevent sensitive data exposure [@phbassin](https://github.com/phbassin) (9b0263b)
+- fix(security): add rate limiting to scraper endpoints [@phbassin](https://github.com/phbassin) (61b1d3a)
+- fix(test): update JWT verify in mock to use TEST_JWT_SECRET [@phbassin](https://github.com/phbassin) (d951897)
+- fix(test): update test expectations for new JWT validation messages [@phbassin](https://github.com/phbassin) (0a6c246)
+- fix(test): use JWT_SECRET without forbidden substring in test files [@phbassin](https://github.com/phbassin) (5a6bfd9)
+- fix(test): use JWT_SECRET without forbidden substring [@phbassin](https://github.com/phbassin) (1b3176c)
+- fix: use valid JWT_SECRET in vitest config for tests [@phbassin](https://github.com/phbassin) (b8f5efd)
+- fix(test): update JWT_SECRET in tests to meet 32-char minimum [@phbassin](https://github.com/phbassin) (9090afd)
+- fix(security): integrate JWT secret validation at startup [@phbassin](https://github.com/phbassin) (f9bded8)
+- fix(security): implement JWT secret validation on startup [@phbassin](https://github.com/phbassin) (6122f64)
+- fix(security): remove unsafe-inline and unsafe-eval from CSP (#637) [@PhBassin](https://github.com/PhBassin) (fb7206c)
+- fix(test): correct app import in CSP validation test [@phbassin](https://github.com/phbassin) (3ed6963)
+- fix(security): remove unsafe-inline and unsafe-eval from CSP [@phbassin](https://github.com/phbassin) (fc038e7)
+- fix(client): use function form for manualChunks (Vite 8/Rolldown compat) [@philippebassin](https://github.com/philippebassin) (88c73a6)
+- fix(client): stack search and day selector vertically [@philippebassin](https://github.com/philippebassin) (e501175)
+
+### Changed
+
+- Optimize homepage vertical spacing and enhance security features (#643) [@PhBassin](https://github.com/PhBassin) (d1f7008)
+- test(security): add DB mocks to CSP tests for health endpoint [@phbassin](https://github.com/phbassin) (33bcf3b)
+- test(config): add RATE_LIMIT_HEALTH_MAX to vitest env config [@phbassin](https://github.com/phbassin) (994de92)
+- test(security): add tests for health check rate limiting and DB connectivity [@phbassin](https://github.com/phbassin) (19e5ffc)
+- test(security): update JWT validator test assertions to match improved error messages [@phbassin](https://github.com/phbassin) (ed33d19)
+- Potential fix for code scanning alert no. 49: Clear-text logging of sensitive information [@PhBassin](https://github.com/PhBassin) (195c52b)
+- test(security): add JWT secret validation tests [@phbassin](https://github.com/phbassin) (3cf276b)
+- test(security): add CSP validation test for unsafe-inline removal [@phbassin](https://github.com/phbassin) (2af71ac)
+- revert: align develop with v4.1.2 [@opelkad](https://github.com/opelkad) (eae374c)
+- test(db): update getAllRoles test for single JOIN query pattern [@philippebassin](https://github.com/philippebassin) (ccaf35d)
+- ⚡ Bolt: Memoize visible tabs by permission checks (#573) [@PhBassin](https://github.com/PhBassin) (3bb8b57)
+
+### Performance
+
+- perf(scraper): phase 3 scraper overhaul — retry, throttling, deduplication, batching (#607) [@PhBassin](https://github.com/PhBassin) (5b0284c)
+- perf(scraper): phase 3 scraper overhaul — retry, throttling, deduplication, batching [@philippebassin](https://github.com/philippebassin) (69b3a94)
+- perf: phase 2 high-impact refactors (#604) [@PhBassin](https://github.com/PhBassin) (8e1ea02)
+- perf: phase 2 high-impact refactors — code splitting, N+1 fix, query parallelization [@philippebassin](https://github.com/philippebassin) (58fc0b8)
+- perf: phase 1 quick wins — compression, graceful shutdown, cleanup, error handling (#603) [@PhBassin](https://github.com/PhBassin) (82453dd)
+- perf: phase 1 quick wins — compression, graceful shutdown, cleanup, error handling [@philippebassin](https://github.com/philippebassin) (0648506)
+- perf(client): memoize visible tabs based on user permissions [@PhBassin](https://github.com/PhBassin) (81c97a5)
+
+### Documentation
+
+- docs(changelog): document changelog enhancement features [@phbassin](https://github.com/phbassin) (dd8666f)
+- docs(security): document health check rate limiting and security features [@phbassin](https://github.com/phbassin) (266ffb3)
+- docs(security): add JWT secret security guidelines to AGENTS.md [@phbassin](https://github.com/phbassin) (3b37362)
+- docs(security): add JWT secret generation to README Quick Start [@phbassin](https://github.com/phbassin) (638b26e)
+- docs(security): update .env.example JWT_SECRET documentation [@phbassin](https://github.com/phbassin) (ee27e9b)
+- docs: document CSP security hardening [@phbassin](https://github.com/phbassin) (e508147)
+
+### Maintenance
+
+- chore: trigger CI re-run after JWT_SECRET fixes [@phbassin](https://github.com/phbassin) (9b61b84)
+- chore: add new OpenCode agent definitions (#623) [@PhBassin](https://github.com/PhBassin) (276a488)
+- chore: add new OpenCode agent definitions [@opelkad](https://github.com/opelkad) (bfab2ef)
+- chore(deps): rollback develop to commit 895458b with dependency fixes (#611) [@PhBassin](https://github.com/PhBassin) (8ee8c77)
+- chore(deps): fix dependency versions and rebuild native modules [@opelkad](https://github.com/opelkad) (7cd4941)
+
 ## [4.2.0] - 2026-03-18
 
 ### Added
@@ -368,14 +447,15 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.3.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.1.2...v4.2.0
 [4.1.2]: https://github.com/PhBassin/allo-scrapper/compare/v4.1.1...v4.1.2
 [4.1.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.1.0...v4.1.1
 [4.1.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.0.2...v4.1.0
 [4.0.2]: https://github.com/PhBassin/allo-scrapper/compare/v4.0.1...v4.0.2
-[3.0.0]: https://github.com/PhBassin/allo-scrapper/compare/v2.1.1...v3.0.0
-[4.0.0]: https://github.com/PhBassin/allo-scrapper/compare/v3.0.1...v4.0.0
 [4.0.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.0.0...v4.0.1
+[4.0.0]: https://github.com/PhBassin/allo-scrapper/compare/v3.0.1...v4.0.0
+[3.0.0]: https://github.com/PhBassin/allo-scrapper/compare/v2.1.1...v3.0.0
 [3.0.0-beta.4]: https://github.com/PhBassin/allo-scrapper/compare/v3.0.0-beta.3...v3.0.0-beta.4
 [3.0.0-beta.3]: https://github.com/PhBassin/allo-scrapper/compare/v3.0.0-beta.2...v3.0.0-beta.3
 [3.0.0-beta.2]: https://github.com/PhBassin/allo-scrapper/compare/v3.0.0-beta.1...v3.0.0-beta.2
