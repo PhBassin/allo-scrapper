@@ -55,8 +55,8 @@ const ChangePasswordPage: React.FC = () => {
                      navigate('/');
                  }, 3000);
              } else {
-                setError(response.data.error || 'Failed to change password');
-            }
+                 setError(response.data.error || 'Failed to change password');
+             }
         } catch (err: unknown) {
             if (err instanceof Error && 'response' in err) {
                 const axiosError = err as { response?: { data?: { error?: string } } };
