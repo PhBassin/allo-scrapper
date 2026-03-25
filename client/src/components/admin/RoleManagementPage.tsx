@@ -15,6 +15,7 @@ const PERMISSION_CATEGORIES: Record<string, string[]> = {
   Paramètres: ['settings:read', 'settings:update', 'settings:reset', 'settings:export', 'settings:import'],
   Rapports: ['reports:list', 'reports:view'],
   Système: ['system:info', 'system:health', 'system:migrations'],
+  'Rate Limits': ['ratelimits:read', 'ratelimits:update', 'ratelimits:reset', 'ratelimits:audit'],
 };
 
 // ────────────────────────────────────────────────────────────────
