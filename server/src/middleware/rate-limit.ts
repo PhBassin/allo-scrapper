@@ -8,6 +8,22 @@ const parseEnvInt = (key: string, defaultValue: number): number => {
   return val ? parseInt(val, 10) : defaultValue;
 };
 
+/**
+ * Note: Rate limiters are currently initialized at module load time with values from environment variables.
+ * 
+ * Dynamic configuration via database (rate_limit_configs table) is available but requires server restart
+ * to take effect on these middleware instances. This is acceptable for most use cases as rate limit
+ * changes are infrequent and coordinated during maintenance windows.
+ * 
+ * The database configuration takes precedence during application initialization. After the server starts,
+ * these limiters use the values that were loaded at startup time.
+ * 
+ * For more details on the dynamic configuration system, see:
+ * - server/src/config/rate-limits.ts (config loader with caching)
+ * - server/src/routes/admin/rate-limits.ts (admin API endpoints)
+ * - migrations/017_add_rate_limit_configs.sql (database schema)
+ */
+
 // Skip rate limiting in test environment when req.ip is undefined
 const skipTest = (req: any) => !req.ip;
 
