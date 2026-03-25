@@ -12,6 +12,7 @@ Complete environment variable reference and configuration guide for Allo-Scrappe
   - [Scraper Configuration](#scraper-configuration)
   - [Redis & Microservice Mode](#redis--microservice-mode)
   - [Monitoring & Observability](#monitoring--observability)
+  - [Rate Limiting](#rate-limiting)
   - [Performance & Caching](#performance--caching)
   - [Application Branding](#application-branding)
 - [Configuration Examples](#configuration-examples)
@@ -96,6 +97,15 @@ These variables are **required** for the application to function properly.
 - **Default**: Constructed from `POSTGRES_*` variables
 - **Example**: `postgresql://postgres:password@localhost:5432/ics`
 - **Use case**: Cloud database providers (Heroku, Railway, etc.)
+
+#### `AUTO_MIGRATE`
+- **Description**: Automatically apply pending database migrations on server startup
+- **Default**: `true`
+- **Values**: `true`, `false`
+- **Notes**:
+  - `true` — Migrations run automatically each time the container starts (idempotent, safe)
+  - `false` — Migrations must be applied manually via `docker compose exec ics-web npm run db:migrate`
+  - Recommended to keep `true` for Docker deployments; useful to disable when running migrations separately in CI/CD
 
 ---
 
@@ -256,7 +266,52 @@ See [Monitoring Guide](../guides/deployment/monitoring.md) for complete observab
 
 ---
 
-### Performance & Caching
+### Rate Limiting
+
+All rate limits are configurable via environment variables. They can also be overridden at runtime via the admin UI (database values take priority over env vars).
+
+See [Rate Limiting Reference](../reference/api/rate-limiting.md) for full documentation.
+
+#### `RATE_LIMIT_WINDOW_MS`
+- **Description**: Default sliding window duration for all limiters except registration (milliseconds)
+- **Default**: `900000` (15 minutes)
+- **Range**: 60000–3600000 (1 min – 1 hour)
+
+#### `RATE_LIMIT_GENERAL_MAX`
+- **Description**: Max requests per window for general `/api/*` routes
+- **Default**: `100`
+
+#### `RATE_LIMIT_AUTH_MAX`
+- **Description**: Max **failed** login attempts per window
+- **Default**: `5`
+- **Notes**: Successful logins do not count toward this limit
+
+#### `RATE_LIMIT_REGISTER_MAX`
+- **Description**: Max user registrations per window
+- **Default**: `3`
+
+#### `RATE_LIMIT_REGISTER_WINDOW_MS`
+- **Description**: Window duration for the registration limiter (milliseconds)
+- **Default**: `3600000` (1 hour)
+
+#### `RATE_LIMIT_PROTECTED_MAX`
+- **Description**: Max requests per window for authenticated endpoints (e.g., reports)
+- **Default**: `60`
+
+#### `RATE_LIMIT_SCRAPER_MAX`
+- **Description**: Max scrape triggers per window
+- **Default**: `10`
+
+#### `RATE_LIMIT_PUBLIC_MAX`
+- **Description**: Max requests per window for public read endpoints (films, cinemas)
+- **Default**: `100`
+
+#### `RATE_LIMIT_HEALTH_MAX`
+- **Description**: Max health-check requests per **minute** per IP address
+- **Default**: `10`
+- **Notes**: Localhost and Docker/Kubernetes internal IPs are automatically exempt
+
+---
 
 #### `JSON_PARSE_CACHE_SIZE`
 - **Description**: Maximum number of cached JSON parse results

@@ -2,7 +2,7 @@
 
 Complete reference for the Role-Based Access Control (RBAC) system in Allo-Scrapper.
 
-**Last updated:** March 13, 2026
+**Last updated:** March 25, 2026
 
 ---
 
@@ -115,7 +115,7 @@ roles (1) ──< role_permissions (N) ──> permissions (N)
 
 ### Complete Permission List
 
-The system defines **26 canonical permissions** across **7 categories**:
+The system defines **34 canonical permissions** across **8 categories**:
 
 #### Users (5 permissions)
 | Permission | Description |
@@ -126,11 +126,15 @@ The system defines **26 canonical permissions** across **7 categories**:
 | `users:delete` | Delete users |
 | `users:read` | View user details |
 
-#### Scraper (2 permissions)
+#### Scraper (6 permissions)
 | Permission | Description |
 |------------|-------------|
 | `scraper:trigger` | Trigger global scraping job |
 | `scraper:trigger_single` | Trigger scraping for a single cinema |
+| `scraper:schedules:list` | View list of scrape schedules |
+| `scraper:schedules:create` | Create new scrape schedules |
+| `scraper:schedules:update` | Modify existing scrape schedules |
+| `scraper:schedules:delete` | Delete scrape schedules |
 
 #### Cinemas (4 permissions)
 | Permission | Description |
@@ -171,17 +175,26 @@ The system defines **26 canonical permissions** across **7 categories**:
 | `roles:update` | Modify roles and assign permissions |
 | `roles:delete` | Delete custom roles |
 
+#### Security (4 permissions)
+| Permission | Description |
+|------------|-------------|
+| `ratelimits:read` | View rate limit configurations |
+| `ratelimits:update` | Update rate limit configurations |
+| `ratelimits:reset` | Reset rate limit configurations to defaults |
+| `ratelimits:audit` | View rate limit change audit log |
+
 ### Permission Categories
 
 Permissions are organized into logical categories for easier management:
 
 - **users** - User account management
-- **scraper** - Scraping operations
+- **scraper** - Scraping operations and schedule management
 - **cinemas** - Cinema data management
 - **settings** - Application configuration
 - **reports** - Scraping reports and analytics
 - **system** - System monitoring and diagnostics
 - **roles** - Role and permission management
+- **security** - Security configuration (rate limits)
 
 ---
 
@@ -202,9 +215,13 @@ The system comes with two predefined system roles:
 - **Name**: `operator`
 - **Description**: "Opérateur — scraping et gestion des cinémas"
 - **Type**: System role (`is_system = true`)
-- **Permissions**: 9 explicit permissions:
+- **Permissions**: 13 explicit permissions:
   - `scraper:trigger`
   - `scraper:trigger_single`
+  - `scraper:schedules:list`
+  - `scraper:schedules:create`
+  - `scraper:schedules:update`
+  - `scraper:schedules:delete`
   - `cinemas:create`
   - `cinemas:update`
   - `cinemas:delete`
