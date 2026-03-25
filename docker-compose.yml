@@ -71,6 +71,7 @@ services:
       # Authentication configuration (required for v2.0.0+)
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
     depends_on:
       ics-db:
         condition: service_healthy
