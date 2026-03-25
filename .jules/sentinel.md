@@ -22,3 +22,8 @@
 **Vulnerability:** The registration endpoint (`POST /api/auth/register`) accepted any password (even a single character), bypassing the application's intended password strength requirements.
 **Learning:** The password strength validation logic was centralized in `server/src/utils/security.ts` (`validatePasswordStrength`), but it was only being called during password changes and user creation by admins, not during self-registration. This left a significant gap in the application's defense in depth strategy for user authentication.
 **Prevention:** Ensure that all endpoints that accept new passwords (registration, password reset, password change, admin user creation) consistently utilize the centralized `validatePasswordStrength` utility before processing the request.
+
+## 2026-03-25 - Loose Integer Parsing (parseInt)
+**Vulnerability:** The application was using the native `parseInt(value, 10)` function to parse route parameters (`req.params.id`) and query arguments (`limit`, `offset`). `parseInt` is very permissive and parses strings up to the first non-numeric character (e.g., `parseInt('123abc', 10)` returns `123`). This permissive parsing can lead to unexpected behavior, logic flaws, or even security issues like IDORs if an ID is loosely matched.
+**Learning:** Native `parseInt` should not be used for strict numerical validation of IDs or pagination parameters as it stops parsing at the first non-numeric character and returns the parsed portion, effectively ignoring invalid trailing characters.
+**Prevention:** Use a custom utility (`parseStrictInt` in `server/src/utils/number.ts`) that strictly enforces a valid integer format using regex (`/^-?\d+$/`) or native number validation (`Number.isInteger`) before processing the input.

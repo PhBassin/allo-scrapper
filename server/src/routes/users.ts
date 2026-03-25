@@ -1,3 +1,4 @@
+import { parseStrictInt } from '../utils/number.js';
 import express, { NextFunction } from 'express';
 import type { DB } from '../db/client.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
@@ -38,8 +39,8 @@ router.get(
       const db: DB = req.app.get('db');
 
       // Parse pagination params
-      let limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
-      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
+      let limit = req.query.limit ? parseStrictInt(req.query.limit) : 100;
+      const offset = req.query.offset ? parseStrictInt(req.query.offset) : 0;
 
       // Validate pagination params
       if (isNaN(limit) || limit < 1) {
@@ -86,7 +87,7 @@ router.get(
     try {
       const db: DB = req.app.get('db');
 
-      const userId = parseInt(req.params.id as string, 10);
+      const userId = parseStrictInt(req.params.id);
 
       if (isNaN(userId)) {
         return next(new ValidationError('Invalid user ID'));
@@ -148,11 +149,11 @@ router.post(
       }
 
       // Validate role_id (required)
-      if (!role_id || isNaN(parseInt(role_id, 10))) {
+      if (!role_id || isNaN(parseStrictInt(role_id))) {
         return next(new ValidationError('role_id is required and must be a valid integer'));
       }
 
-      const roleId = parseInt(role_id, 10);
+      const roleId = parseStrictInt(role_id);
 
       // Verify role_id exists
       const roleCheck = await db.query<{ id: number }>(
@@ -215,7 +216,7 @@ router.put(
     try {
       const db: DB = req.app.get('db');
 
-      const userId = parseInt(req.params.id as string, 10);
+      const userId = parseStrictInt(req.params.id);
       const { role_id } = req.body;
 
       // Validate user ID
@@ -228,7 +229,7 @@ router.put(
         return next(new ValidationError('role_id is required'));
       }
 
-      const roleId = parseInt(role_id, 10);
+      const roleId = parseStrictInt(role_id);
       if (isNaN(roleId)) {
         return next(new ValidationError('role_id must be a valid integer'));
       }
@@ -295,7 +296,7 @@ router.post(
     try {
       const db: DB = req.app.get('db');
 
-      const userId = parseInt(req.params.id as string, 10);
+      const userId = parseStrictInt(req.params.id);
 
       // Validate user ID
       if (isNaN(userId)) {
@@ -357,7 +358,7 @@ router.delete(
     try {
       const db: DB = req.app.get('db');
 
-      const userId = parseInt(req.params.id as string, 10);
+      const userId = parseStrictInt(req.params.id);
 
       // Validate user ID
       if (isNaN(userId)) {

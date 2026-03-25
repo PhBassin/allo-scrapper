@@ -1,3 +1,4 @@
+import { parseStrictInt } from '../utils/number.js';
 import express from 'express';
 import type { DB } from '../db/client.js';
 import { FilmService } from '../services/film-service.js';
@@ -80,7 +81,7 @@ router.get('/:id', publicLimiter, async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
     const filmService = new FilmService(db);
-    const filmId = parseInt(req.params.id as string);
+    const filmId = parseStrictInt(req.params.id);
     const weekStart = getWeekStart();
 
     if (isNaN(filmId)) {
