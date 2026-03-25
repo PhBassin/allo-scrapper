@@ -1,3 +1,4 @@
+import { parseStrictInt } from '../utils/number.js';
 import express, { Response, NextFunction } from 'express';
 import type { ApiResponse } from '../types/api.js';
 import type { DB } from '../db/client.js';
@@ -123,7 +124,7 @@ router.get(
   async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
-      const id = parseInt(req.params.id as string, 10);
+      const id = parseStrictInt(req.params.id);
 
       if (isNaN(id)) {
         return next(new ValidationError('Invalid schedule ID'));
@@ -207,7 +208,7 @@ router.put(
         return next(new AuthError('User not authenticated'));
       }
 
-      const id = parseInt(req.params.id as string, 10);
+      const id = parseStrictInt(req.params.id);
       if (isNaN(id)) {
         return next(new ValidationError('Invalid schedule ID'));
       }
@@ -253,7 +254,7 @@ router.delete(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const db: DB = req.app.get('db');
-      const id = parseInt(req.params.id as string, 10);
+      const id = parseStrictInt(req.params.id);
 
       if (isNaN(id)) {
         return next(new ValidationError('Invalid schedule ID'));
@@ -289,7 +290,7 @@ router.post(
       const db: DB = req.app.get('db');
       const scraperService = new ScraperService(db);
 
-      const id = parseInt(req.params.id as string, 10);
+      const id = parseStrictInt(req.params.id);
       if (isNaN(id)) {
         return next(new ValidationError('Invalid schedule ID'));
       }

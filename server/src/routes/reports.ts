@@ -1,3 +1,4 @@
+import { parseStrictInt } from '../utils/number.js';
 import express from 'express';
 import type { DB } from '../db/client.js';
 import { getScrapeReports, getScrapeReport } from '../db/report-queries.js';
@@ -15,8 +16,8 @@ router.get('/', protectedLimiter, requireAuth, requirePermission('reports:list')
   try {
     const db: DB = req.app.get('db');
     const query = req.query as GetReportsQuery;
-    let page = parseInt(query.page || '1');
-    let pageSize = parseInt(query.pageSize || '20');
+    let page = parseStrictInt(query.page || '1');
+    let pageSize = parseStrictInt(query.pageSize || '20');
 
     // Security: Validate and clamp pagination parameters to prevent DoS
     if (isNaN(page) || page < 1) page = 1;
@@ -60,7 +61,7 @@ router.get('/', protectedLimiter, requireAuth, requirePermission('reports:list')
 router.get('/:id', protectedLimiter, requireAuth, requirePermission('reports:view'), async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
-    const reportId = parseInt(req.params.id as string);
+    const reportId = parseStrictInt(req.params.id);
 
     if (isNaN(reportId)) {
       return next(new ValidationError('Invalid report ID'));
