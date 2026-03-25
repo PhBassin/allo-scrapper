@@ -107,7 +107,8 @@ RUN rm -f package-lock.json && \
 
 # Copy built backend from builder
 COPY --from=backend-builder --chown=nodejs:nodejs /app/server/dist ./server/dist
-COPY --from=backend-builder --chown=nodejs:nodejs /app/server/src/config ./server/dist/config
+# Copy only the JSON config file, not the entire directory (to preserve compiled JS files)
+COPY --from=backend-builder --chown=nodejs:nodejs /app/server/src/config/cinemas.json ./server/dist/config/cinemas.json
 
 # Copy database migrations
 COPY --chown=nodejs:nodejs migrations ./migrations
