@@ -29,4 +29,5 @@ export type PermissionName =
   | 'settings:read' | 'settings:update' | 'settings:reset' | 'settings:export' | 'settings:import'
   | 'reports:list' | 'reports:view'
   | 'system:info' | 'system:health' | 'system:migrations'
-  | 'roles:read' | 'roles:list' | 'roles:create' | 'roles:update' | 'roles:delete';
+  | 'roles:read' | 'roles:list' | 'roles:create' | 'roles:update' | 'roles:delete'
+  | 'ratelimits:read' | 'ratelimits:update' | 'ratelimits:reset' | 'ratelimits:audit';
