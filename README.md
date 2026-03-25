@@ -440,6 +440,84 @@ See [API.md](./API.md) for Settings API reference (`/api/settings/*` endpoints).
 
 ---
 
+## 🛡️ Rate Limiting
+
+The application includes comprehensive rate limiting to protect against abuse and ensure fair usage. Rate limits can be configured dynamically through the admin interface without server restarts.
+
+### Default Rate Limits
+
+| Endpoint Type | Default Limit | Window | Description |
+|--------------|---------------|--------|-------------|
+| General API | 100 requests | 15 min | All `/api/*` routes |
+| Authentication | 5 attempts | 15 min | Login endpoint (failed attempts only) |
+| Registration | 3 attempts | 1 hour | New user registration |
+| Protected Endpoints | 60 requests | 15 min | Authenticated user endpoints |
+| Scraper Endpoints | 10 requests | 15 min | Expensive scraping operations |
+| Public Endpoints | 100 requests | 15 min | Public read endpoints (cinemas, films) |
+| Health Check | 10 requests | 1 min | `/api/health` endpoint (localhost exempt) |
+
+### Dynamic Configuration
+
+Rate limits can be managed through the admin interface:
+
+1. Navigate to `/admin?tab=ratelimits` (admin-only)
+2. Adjust limits based on your needs
+3. Changes take effect within 30 seconds (no restart required)
+4. All changes are logged in the audit trail
+
+**Features:**
+- ✅ **Hot Reload** - Changes apply within 30 seconds via cache invalidation
+- ✅ **Audit Trail** - Complete history of all changes with user attribution
+- ✅ **Validation** - Enforced min/max constraints prevent misconfiguration
+- ✅ **Backward Compatible** - Falls back to environment variables if database unavailable
+- ✅ **Permission-Based** - Granular permissions (read/update/reset/audit)
+
+### Environment Variables (Optional)
+
+Rate limits can also be configured via environment variables (lower priority than database):
+
+```bash
+# Global window (milliseconds, 1 min to 1 hour)
+RATE_LIMIT_WINDOW_MS=900000  # 15 minutes
+
+# Per-endpoint limits (requests per window)
+RATE_LIMIT_GENERAL_MAX=100
+RATE_LIMIT_AUTH_MAX=5
+RATE_LIMIT_REGISTER_MAX=3
+RATE_LIMIT_PROTECTED_MAX=60
+RATE_LIMIT_SCRAPER_MAX=10
+RATE_LIMIT_PUBLIC_MAX=100
+RATE_LIMIT_HEALTH_MAX=10
+
+# Registration window (milliseconds, 5 min to 24 hours)
+RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # 1 hour
+```
+
+**Priority Order:**
+1. Database configuration (managed via admin UI)
+2. Environment variables (fallback)
+3. Default values (hard-coded)
+
+### Key Features
+
+**Authenticated User Bucketing:**
+- Protected and scraper endpoints bucket by user ID (from JWT)
+- Prevents a single user from exhausting rate limits for all users
+- Falls back to IP-based bucketing for unauthenticated requests
+
+**Health Check Protection:**
+- Aggressive rate limiting (10 req/min) prevents resource exhaustion
+- Localhost/Docker/Kubernetes IPs automatically exempted
+- Response caching (5 seconds) reduces database load
+
+**Smart Skip Logic:**
+- Rate limiting automatically disabled in test environment
+- Successful login attempts don't count toward auth limit
+
+For API documentation, see [API.md](./API.md#rate-limits).
+
+---
+
 ## 📚 Documentation
 
 **📖 [Browse Full Documentation →](./docs/)**
