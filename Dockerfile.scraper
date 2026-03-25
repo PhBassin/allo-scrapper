@@ -32,13 +32,19 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-# Copy node_modules from deps stage
+# Copy node_modules from deps stage (both root and workspace)
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/scraper/node_modules ./scraper/node_modules
+
 # Copy root files
 COPY package.json package-lock.json ./
+COPY client/package.json ./client/
+COPY server/package.json ./server/
+COPY scraper/package.json ./scraper/
 
 # Copy source
-COPY scraper/ ./scraper/
+COPY scraper/src ./scraper/src
+COPY scraper/tsconfig.json ./scraper/
 
 # Build TypeScript
 RUN npm run build --workspace=allo-scrapper-scraper && \
