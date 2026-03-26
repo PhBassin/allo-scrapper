@@ -220,7 +220,19 @@ describe('Routes - Films', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
         success: false,
-        error: expect.stringContaining('at least 2 characters')
+        error: expect.stringContaining('between 2 and 100 characters')
+      }));
+    });
+
+    it('should return 400 if query is too long', async () => {
+      mockReq = { query: { q: 'a'.repeat(101) }, app: mockApp };
+      const handler = getRouteHandler('/search', 'get');
+      await handler(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.stringContaining('between 2 and 100 characters')
       }));
     });
 
@@ -232,7 +244,7 @@ describe('Routes - Films', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
         success: false,
-        error: expect.stringContaining('at least 2 characters')
+        error: expect.stringContaining('between 2 and 100 characters')
       }));
     });
 

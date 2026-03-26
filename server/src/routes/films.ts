@@ -56,8 +56,8 @@ router.get('/search', publicLimiter, async (req, res, next) => {
     const query = req.query.q as string | undefined;
     
     // Validate query parameter
-    if (!query || query.trim().length < 2) {
-      return next(new ValidationError('Search query must be at least 2 characters'));
+    if (!query || query.trim().length < 2 || query.trim().length > 100) {
+      return next(new ValidationError('Search query must be between 2 and 100 characters'));
     }
     
     const films = await filmService.search(query.trim(), 10);
