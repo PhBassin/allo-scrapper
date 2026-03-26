@@ -5,6 +5,91 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.4.0] - 2026-03-26
+
+### Added
+
+- feat(scraper): HTTP 429 rate limit detection with resume capability (Phase 1 & 2) (#652) [@PhBassin](https://github.com/PhBassin) (383886b)
+- feat(client): add resume button and details view to ReportsPage [@phbassin](https://github.com/phbassin) (98dd2ca)
+- feat(api): add report details endpoint with attempts breakdown [@phbassin](https://github.com/phbassin) (03f838c)
+- feat(api): add resume endpoint and scrape attempt queries [@phbassin](https://github.com/phbassin) (272176b)
+- feat(scraper): implement resume mode to skip successful attempts [@phbassin](https://github.com/phbassin) (59e6386)
+- feat(scraper): track per-cinema/per-date attempts in database [@phbassin](https://github.com/phbassin) (2265a36)
+- feat(db): add scrape_attempts table for resume capability [@phbassin](https://github.com/phbassin) (4c5f3cd)
+- feat(ui): display rate limited status with explanation and sync types [@phbassin](https://github.com/phbassin) (e530606)
+- feat(db): add rate_limited status to scrape_reports [@phbassin](https://github.com/phbassin) (18a3b6f)
+- feat(scraper): stop scraping immediately on HTTP 429 rate limit [@phbassin](https://github.com/phbassin) (97a94b4)
+- feat(scraper): add HTTP error classification and rate limit detection [@phbassin](https://github.com/phbassin) (b918d9f)
+- feat(roles): dynamic permission loading from database (#668) [@PhBassin](https://github.com/PhBassin) (47949a0)
+- feat(ratelimits): add rate limit configuration management in admin interface (#664) [@PhBassin](https://github.com/PhBassin) (6395b29)
+- feat(ratelimits): add frontend UI for rate limit management [@phbassin](https://github.com/phbassin) (dde37fc)
+- feat(ratelimits): add API endpoints for rate limit management [@phbassin](https://github.com/phbassin) (2e253c8)
+- feat(ratelimits): add database foundation for rate limit configuration [@phbassin](https://github.com/phbassin) (012a422)
+- feat(client): add resume button and details view to ReportsPage [@phbassin](https://github.com/phbassin) (d4d5f2a)
+- feat(api): add report details endpoint with attempts breakdown [@phbassin](https://github.com/phbassin) (1ff3e67)
+- feat(api): add resume endpoint and scrape attempt queries [@phbassin](https://github.com/phbassin) (aa6ba98)
+- feat(scraper): implement resume mode to skip successful attempts [@phbassin](https://github.com/phbassin) (be46d6a)
+- feat(scraper): track per-cinema/per-date attempts in database [@phbassin](https://github.com/phbassin) (cf4024c)
+- feat(db): add scrape_attempts table for resume capability [@phbassin](https://github.com/phbassin) (bc9d7fa)
+- feat(ui): display rate limited status with explanation and sync types [@phbassin](https://github.com/phbassin) (0604247)
+- feat(db): add rate_limited status to scrape_reports [@phbassin](https://github.com/phbassin) (c38c6d7)
+- feat(scraper): stop scraping immediately on HTTP 429 rate limit [@phbassin](https://github.com/phbassin) (6b53583)
+- feat(scraper): add HTTP error classification and rate limit detection [@phbassin](https://github.com/phbassin) (9e6a929)
+
+### Fixed
+
+- fix(scraper): exclude test files from production build [@phbassin](https://github.com/phbassin) (7e141a1)
+- fix(client): add Rate Limits permissions to role management UI [@phbassin](https://github.com/phbassin) (7f7a2ba)
+- fix(docker): preserve compiled rate-limits.js in config directory [@phbassin](https://github.com/phbassin) (52bc8c0)
+- fix(docker): add AUTO_MIGRATE env var and fix config volume mount [@phbassin](https://github.com/phbassin) (7bfcaa8)
+- fix(docker): mount only cinemas.json to avoid overriding compiled config files [@phbassin](https://github.com/phbassin) (175fe27)
+- fix(scraper): exclude test files from production build [@phbassin](https://github.com/phbassin) (7782d6b)
+- fix(client): enable automatic data refresh on tab focus (#654) [@PhBassin](https://github.com/PhBassin) (539cc3d)
+- fix(client): enable automatic data refresh on tab focus [@phbassin](https://github.com/phbassin) (775007a)
+- fix(pages): auto-navigate after password change (#645) [@PhBassin](https://github.com/PhBassin) (8e24393)
+- fix(client): resolve merge conflicts and fix test timer issues [@phbassin](https://github.com/phbassin) (e8ca062)
+- fix(pages): auto-navigate to homepage after 3 seconds on successful password change [@phbassin](https://github.com/phbassin) (8d4f61d)
+
+### Changed
+
+- Implement rate limit management and dynamic permissions in admin UI (#671) [@PhBassin](https://github.com/PhBassin) (d691233)
+- 🛡️ Sentinel: [security improvement] Add length limit to film search query (#669) [@PhBassin](https://github.com/PhBassin) (1509d6b)
+- Merge branch 'feat/651-rate-limit-detection-resume' of https://github.com/PhBassin/allo-scrapper into feat/651-rate-limit-detection-resume [@philippebassin](https://github.com/philippebassin) (5df3b54)
+- test(scraper-service): add tests for triggerResume method [@phbassin](https://github.com/phbassin) (92a9621)
+- test(client): add missing total_dates to ScrapeSummary mocks [@phbassin](https://github.com/phbassin) (cec71de)
+- test(scraper): add tests for HTTP 429 detection and error classification [@phbassin](https://github.com/phbassin) (a43b65e)
+- Hello! Jules here. I have implemented a security improvement by adding a length limit to the film search query. [@PhBassin](https://github.com/PhBassin) (8eb1e2a)
+- 🛡️ Sentinel: [security improvement] Strict integer validation for API parameters (#662) [@PhBassin](https://github.com/PhBassin) (e0fcaf6)
+- 🛡️ Sentinel: [security improvement] Strict integer validation for API parameters [@PhBassin](https://github.com/PhBassin) (18681d7)
+- test(scraper-service): add tests for triggerResume method [@phbassin](https://github.com/phbassin) (359169d)
+- test(client): add missing total_dates to ScrapeSummary mocks [@phbassin](https://github.com/phbassin) (aec0f08)
+- test(server): update migration test to include 017 [@phbassin](https://github.com/phbassin) (55395a1)
+- test(scraper): add tests for HTTP 429 detection and error classification [@phbassin](https://github.com/phbassin) (6d1424e)
+- refactor(client): reduce password change redirect delay to 2 seconds [@phbassin](https://github.com/phbassin) (19ef1c7)
+
+### Documentation
+
+- docs: update Phase 2 resume capability documentation [@phbassin](https://github.com/phbassin) (c6faca1)
+- docs: add HTTP 429 rate limit detection documentation [@phbassin](https://github.com/phbassin) (fea5be8)
+- docs: update README and API documentation for rate limiting and roles… (#670) [@PhBassin](https://github.com/PhBassin) (baf054b)
+- docs: update README and API documentation for rate limiting and roles management [@PhBassin](https://github.com/PhBassin) (57bb156)
+- docs(ratelimits): add comprehensive documentation for rate limit management [@phbassin](https://github.com/phbassin) (bf92d4c)
+- docs(code): document intentional duplication in shared utilities [@phbassin](https://github.com/phbassin) (dc54183)
+- docs: update Phase 2 resume capability documentation [@phbassin](https://github.com/phbassin) (1cb1ce3)
+- docs: add HTTP 429 rate limit detection documentation [@phbassin](https://github.com/phbassin) (b147132)
+
+### Maintenance
+
+- chore(config): add explicit types array and update moduleResolution for TypeScript 6.0 (#666) [@PhBassin](https://github.com/PhBassin) (0fb8610)
+- chore(ci): bust Docker build cache [@phbassin](https://github.com/phbassin) (8d672f6)
+- chore: remove unused code and template files (#656) [@PhBassin](https://github.com/PhBassin) (eaeb1bb)
+- chore(utils): remove unused utility functions [@phbassin](https://github.com/phbassin) (47e5eea)
+- chore(types): remove unused user type exports [@phbassin](https://github.com/phbassin) (7f1469f)
+- chore(client): remove unused Vite template files [@phbassin](https://github.com/phbassin) (2841c90)
+- chore(deps): remove unused dependencies and optimize bundle size (#647) [@PhBassin](https://github.com/PhBassin) (0a75b28)
+- chore(deps): remove unused dependencies and optimize bundle size [@phbassin](https://github.com/phbassin) (f9bb4fa)
+- chore: remove outdated GEMINI.md file from the repository [@phbassin](https://github.com/phbassin) (743d1ed)
+
 ## [4.3.0] - 2026-03-24
 
 ### Added
@@ -447,6 +532,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.4.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.3.0...v4.4.0
 [4.3.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.1.2...v4.2.0
 [4.1.2]: https://github.com/PhBassin/allo-scrapper/compare/v4.1.1...v4.1.2
