@@ -521,6 +521,156 @@ router.get('/films', publicLimiter, getFilms);
 
 ---
 
+## Admin Rate Limit API
+
+Rate limits can be managed at runtime via the REST API without restarting the server.
+
+### Get Current Rate Limit Configuration
+
+```http
+GET /api/admin/rate-limits
+```
+
+🔒 **Permission:** `ratelimits:read`
+
+Returns all configured rate limits with their current values and sources.
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "general": { "max": 100, "windowMs": 900000, "source": "database" },
+    "auth": { "max": 5, "windowMs": 900000, "source": "env" },
+    "register": { "max": 3, "windowMs": 3600000, "source": "default" },
+    "protected": { "max": 60, "windowMs": 900000, "source": "database" },
+    "scraper": { "max": 10, "windowMs": 900000, "source": "database" },
+    "public": { "max": 100, "windowMs": 900000, "source": "default" },
+    "health": { "max": 10, "windowMs": 60000, "source": "default" }
+  }
+}
+```
+
+**`source` values:**
+- `database` — Value was set via admin UI (highest priority)
+- `env` — Value comes from environment variable
+- `default` — Hard-coded default value
+
+---
+
+### Update Rate Limit Configuration
+
+```http
+PUT /api/admin/rate-limits
+```
+
+🔒 **Permission:** `ratelimits:update`
+
+Updates one or more rate limit values. Changes apply within 30 seconds (cache invalidation). All fields are optional.
+
+**Request Body:**
+```json
+{
+  "general": { "max": 150, "windowMs": 900000 },
+  "auth": { "max": 3 },
+  "scraper": { "max": 5 }
+}
+```
+
+**Validation constraints:**
+
+| Tier | `max` range | `windowMs` range |
+|------|------------|-----------------|
+| `general` | 10–10000 | 60000–3600000 |
+| `auth` | 1–100 | 60000–3600000 |
+| `register` | 1–50 | 300000–86400000 |
+| `protected` | 10–1000 | 60000–3600000 |
+| `scraper` | 1–100 | 60000–3600000 |
+| `public` | 10–10000 | 60000–3600000 |
+| `health` | 1–100 | 10000–3600000 |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "updated": ["general", "auth", "scraper"],
+    "message": "Rate limits updated. Changes apply within 30 seconds."
+  }
+}
+```
+
+**Example:**
+```bash
+curl -X PUT http://localhost:3000/api/admin/rate-limits \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"scraper": {"max": 5}, "auth": {"max": 3}}'
+```
+
+---
+
+### Reset Rate Limits to Defaults
+
+```http
+POST /api/admin/rate-limits/reset
+```
+
+🔒 **Permission:** `ratelimits:reset`
+
+Removes all database-stored overrides. All limits revert to environment variable values (or hard-coded defaults). Changes apply within 30 seconds.
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "All rate limits reset to defaults."
+  }
+}
+```
+
+---
+
+### Get Rate Limit Audit Log
+
+```http
+GET /api/admin/rate-limits/audit-log
+```
+
+🔒 **Permission:** `ratelimits:audit`
+
+Returns a paginated history of all rate limit changes with user attribution.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | integer | `50` | Max entries to return |
+| `offset` | integer | `0` | Number of entries to skip |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 12,
+      "tier": "scraper",
+      "field": "max",
+      "old_value": "10",
+      "new_value": "5",
+      "changed_by": 1,
+      "changed_by_username": "admin",
+      "changed_at": "2026-03-20T14:30:00.000Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
 ## Related Documentation
 
 - [API Reference](./README.md) - All API endpoints

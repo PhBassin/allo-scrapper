@@ -9,7 +9,7 @@
 
 **Cinema showtimes aggregator** that scrapes and centralizes movie screening schedules from the source website cinema pages. Built with Express.js, React, and PostgreSQL, fully containerized with Docker.
 
-> **Latest Version**: 4.0.1 | **Status**: Production Ready ✅
+> **Latest Version**: 4.3.0 | **Status**: Production Ready ✅
 
 ---
 
@@ -29,12 +29,14 @@
 ## ✨ Features
 
 - **Automated Scraping**: Scheduled scraping of cinema showtimes from the source website
+- **Scrape Scheduling**: Cron-based scrape schedules configurable via admin panel, with per-cinema and global targeting
 - **RESTful API**: Complete Express.js backend with TypeScript
 - **Modern UI**: React SPA with Vite for fast development
 - **Real-time Progress**: Server-Sent Events (SSE) for live scraping updates
 - **Weekly Reports**: Track cinema programs and identify new releases
 - **White-Label Branding**: Complete customization (site name, logo, colors, fonts, footer) via admin panel
-- **User Management**: Role-based access control (admin/user) with comprehensive user CRUD
+- **User Management**: Role-based access control with comprehensive user CRUD
+- **Role Management**: Full CRUD for custom roles with granular permission assignment via admin panel
 - **JWT Authentication**: Secure user authentication with token-based sessions
 - **Password Management**: Change password functionality for authenticated users
 - **Content Security Policy**: Strict CSP without unsafe-inline/unsafe-eval in script-src
@@ -243,7 +245,7 @@ For complete API documentation, see [API.md](./API.md).
 - Clear browser cache
 - Check `/api/theme.css` endpoint directly
 
-For detailed user guide and screenshots, see [ADMIN_PANEL.md](./ADMIN_PANEL.md).
+For detailed user guide, see [Admin Panel Guide](./docs/guides/administration/admin-panel.md).
 
 ---
 

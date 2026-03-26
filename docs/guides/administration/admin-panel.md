@@ -19,6 +19,8 @@ Complete guide to using the Allo-Scrapper admin panel for white-label branding a
 - [System Information](#system-information)
 - [Configuration Management](#configuration-management)
 - [User Management](#user-management)
+- [Scrape Schedules](#scrape-schedules)
+- [Role Management](#role-management)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
 
@@ -628,6 +630,144 @@ Manage user accounts and roles.
 **Restrictions**:
 - Cannot delete last admin user
 - Cannot delete yourself
+
+---
+
+## Scrape Schedules
+
+**Location**: `/admin?tab=schedules`  
+**Permission**: `scraper:schedules:*`
+
+Manage automated scraping schedules using cron expressions. Schedules allow you to configure when cinemas are scraped automatically, with per-cinema targeting.
+
+### Viewing Schedules
+
+1. Navigate to the **Schedules** tab in the admin panel
+2. View the list of all existing scrape schedules with:
+   - Name and description
+   - Cron expression and human-readable equivalent (e.g., "Every day at 6:00 AM")
+   - Target cinemas (or "All cinemas")
+   - Status (Enabled / Disabled)
+   - Last triggered and next trigger time
+
+### Creating a Schedule
+
+1. Click **"+ Create Schedule"** button
+2. Fill in the form:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Name** | Yes | Unique name (e.g., "Daily Morning Scrape") |
+| **Cron Expression** | Yes | Standard 5-field cron (e.g., `0 6 * * *` for 6 AM daily) |
+| **Description** | No | Human-readable purpose |
+| **Target Cinemas** | No | Leave empty to scrape all cinemas; select specific IDs to limit scope |
+| **Enabled** | Yes | Toggle to activate/deactivate |
+
+3. Click **"Create"** to save
+
+**Cron expression examples**:
+```
+0 6 * * *      Every day at 6:00 AM
+0 8 * * 3      Every Wednesday at 8:00 AM
+0 3 * * 1-5    Weekdays at 3:00 AM
+0 */6 * * *    Every 6 hours
+```
+
+Use [crontab.guru](https://crontab.guru/) to build expressions visually.
+
+### Editing a Schedule
+
+1. Click the **pencil icon** next to a schedule
+2. Modify any fields
+3. Click **"Save"**
+
+**Note**: Editing a schedule does not trigger it immediately. It will run at its next scheduled time.
+
+### Enabling / Disabling a Schedule
+
+- Toggle the **Enabled** switch next to any schedule
+- Disabled schedules are never triggered automatically
+- You can still trigger them manually
+
+### Triggering a Schedule Manually
+
+- Click the **"Trigger now"** button next to a schedule
+- This runs the schedule immediately, bypassing the cron timing
+- Useful for testing or one-off scrapes
+
+### Deleting a Schedule
+
+1. Click the **trash icon** next to a schedule
+2. Confirm deletion
+
+**Note**: Deleting a schedule stops future automatic scraping. Existing reports are not affected.
+
+---
+
+## Role Management
+
+**Location**: `/admin?tab=roles`  
+**Permission**: `roles:*`
+
+Create and manage custom roles with granular permission assignments. The two built-in system roles (`admin` and `operator`) cannot be modified.
+
+### Viewing Roles
+
+1. Navigate to the **Roles** tab in the admin panel
+2. View the list of all roles:
+   - Name and description
+   - Number of permissions assigned
+   - System role indicator (lock icon for `admin`/`operator`)
+   - Number of users assigned to the role
+
+Click a role to expand its full permission list.
+
+### Creating a Custom Role
+
+1. Click **"+ Create Role"** button
+2. Fill in the form:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Name** | Yes | Unique identifier, lowercase (e.g., `cinema_editor`) |
+| **Description** | No | Human-readable purpose |
+
+3. Click **"Create"**
+4. The new role starts with **0 permissions** — assign permissions in the next step
+
+### Assigning Permissions
+
+1. Click the **pencil icon** next to the role
+2. The **Permissions** section shows all 34 available permissions grouped by category:
+   - **users**: User account management
+   - **scraper**: Scraping operations and schedule management
+   - **cinemas**: Cinema data management
+   - **settings**: Application configuration
+   - **reports**: Scraping reports
+   - **system**: System monitoring
+   - **roles**: Role management
+   - **security**: Rate limit configuration
+3. Check or uncheck individual permissions
+4. Click **"Save Permissions"**
+
+**Tip**: Users assigned to this role must log out and log back in for permission changes to take effect (permissions are encoded in the JWT at login).
+
+### Deleting a Custom Role
+
+1. Click the **trash icon** next to a custom role
+2. Confirm deletion
+
+**Restrictions**:
+- System roles (`admin`, `operator`) cannot be deleted
+- Roles with assigned users cannot be deleted (reassign users first)
+
+### Assigning a Role to a User
+
+Role assignment is done from the **Users** tab, not the Roles tab:
+1. Navigate to **Users** tab
+2. Click **"Edit"** next to a user
+3. Change the **Role** dropdown
+4. Save changes
 
 ---
 

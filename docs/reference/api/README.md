@@ -38,23 +38,25 @@ Film information and showtimes.
 ---
 
 ### [Scraper](./scraper.md)
-Scraper control, progress tracking, and SSE events.
+Scraper control, progress tracking, SSE events, and schedule management.
 
 **Endpoints:**
-- `POST /api/scraper/start` - Start scraping
+- `POST /api/scraper/trigger` - Trigger scrape (full or single cinema)
 - `GET /api/scraper/status` - Get scraper status
 - `GET /api/scraper/progress` - SSE progress stream
-- `POST /api/scraper/cancel` - Cancel running scrape (admin only)
+- `GET /api/scraper/schedules` - List scrape schedules
+- `POST /api/scraper/schedules` - Create schedule
+- `PUT /api/scraper/schedules/:id` - Update schedule
+- `DELETE /api/scraper/schedules/:id` - Delete schedule
 
 ---
 
 ### [Reports](./reports.md)
-Cinema and showtimes statistics.
+Scrape report history and details.
 
 **Endpoints:**
-- `GET /api/reports/showtimes` - Showtimes report by cinema
-- `GET /api/reports/cinemas` - Cinema statistics
-- `GET /api/reports/films` - Film statistics
+- `GET /api/reports` - List scrape reports (paginated)
+- `GET /api/reports/:id` - Get specific report details
 
 ---
 
@@ -71,16 +73,30 @@ Application settings and white-label configuration.
 
 ---
 
+### [Roles](./roles.md)
+Role and permission management.
+
+**Endpoints:**
+- `GET /api/roles` - List all roles (requires `roles:list`)
+- `GET /api/roles/permissions` - List all available permissions
+- `GET /api/roles/:id` - Get role with permissions (requires `roles:read`)
+- `POST /api/roles` - Create custom role (requires `roles:create`)
+- `PUT /api/roles/:id` - Update role (requires `roles:update`)
+- `DELETE /api/roles/:id` - Delete role (requires `roles:delete`)
+- `PUT /api/roles/:id/permissions` - Set role permissions (requires `roles:update`)
+
+---
+
 ### [Users](./users.md)
 User management and role assignment.
 
 **Endpoints:**
-- `GET /api/users` - List users (admin only)
-- `GET /api/users/:id` - Get user by ID (admin only)
-- `POST /api/users` - Create user (admin only)
-- `PUT /api/users/:id/role` - Update user role (admin only)
-- `POST /api/users/:id/reset-password` - Reset password (admin only)
-- `DELETE /api/users/:id` - Delete user (admin only)
+- `GET /api/users` - List users (requires `users:list`)
+- `GET /api/users/:id` - Get user by ID (requires `users:list`)
+- `POST /api/users` - Create user (requires `users:create`)
+- `PUT /api/users/:id/role` - Update user role (requires `users:update`)
+- `POST /api/users/:id/reset-password` - Reset password (requires `users:update`)
+- `DELETE /api/users/:id` - Delete user (requires `users:delete`)
 
 ---
 
@@ -88,14 +104,13 @@ User management and role assignment.
 System information and health checks.
 
 **Endpoints:**
-- `GET /api/health` - Health check
-- `GET /api/version` - Version info
-- `GET /api/stats` - System statistics
+- `GET /api/health` - Health check (rate-limited, cached 5 seconds)
+- `GET /api/system/info` - System info (requires `system:info`)
 
 ---
 
 ### [Rate Limiting](./rate-limiting.md)
-API rate limiting policies and headers.
+API rate limiting policies, headers, and admin configuration.
 
 **What you'll learn:**
 - Rate limit tiers
@@ -158,15 +173,16 @@ curl -X POST http://localhost:3000/api/auth/login \
   -d '{"username":"admin","password":"admin"}'
 ```
 
-### Start Scrape
+### Trigger Scrape
 ```bash
-curl -X POST http://localhost:3000/api/scraper/start \
+curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer <token>"
 ```
 
-### Get Showtimes Report
+### Get Reports
 ```bash
-curl http://localhost:3000/api/reports/showtimes
+curl http://localhost:3000/api/reports \
+  -H "Authorization: Bearer <token>"
 ```
 
 ---
