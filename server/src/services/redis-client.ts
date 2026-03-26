@@ -32,6 +32,8 @@ export interface ScrapeJobScrape extends BaseScrapeJob {
     days?: number;
     cinemaId?: string;
     filmId?: number;
+    resumeMode?: boolean;
+    pendingAttempts?: Array<{ cinema_id: string; date: string }>;
   };
 }
 

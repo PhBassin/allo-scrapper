@@ -1,3 +1,4 @@
+import { parseStrictInt } from '../utils/number.js';
 import express, { Response, NextFunction } from 'express';
 import type { ApiResponse } from '../types/api.js';
 import type { DB } from '../db/client.js';
@@ -16,6 +17,8 @@ import {
   type ScrapeScheduleCreate,
   type ScrapeScheduleUpdate,
 } from '../db/schedule-queries.js';
+import { getScrapeReport } from '../db/report-queries.js';
+import { getPendingScrapeAttempts } from '../db/scrape-attempt-queries.js';
 
 const router = express.Router();
 
@@ -57,6 +60,63 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
     if (error.message.startsWith('Cinema not found')) {
       return next(new NotFoundError(error.message));
     }
+    next(error);
+  }
+});
+
+// POST /api/scraper/resume/:reportId - Resume a failed or rate-limited scrape
+router.post('/resume/:reportId', scraperLimiter, requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const dbConn: DB = req.app.get('db');
+  const scraperService = new ScraperService(dbConn);
+
+  try {
+    const reportId = parseInt(req.params.reportId as string, 10);
+    
+    if (isNaN(reportId)) {
+      return next(new ValidationError('Invalid report ID'));
+    }
+
+    // Permission check: resuming requires scraper:trigger permission
+    // Admin bypass
+    if (!(req.user?.role_name === 'admin' && req.user?.is_system_role)) {
+      const userPermissions = new Set(req.user?.permissions || []);
+      
+      if (!userPermissions.has('scraper:trigger')) {
+        return next(new AuthError('Permission denied', 403));
+      }
+    }
+
+    // Get the parent report to verify it exists
+    const parentReport = await getScrapeReport(dbConn, reportId);
+    if (!parentReport) {
+      return next(new NotFoundError('Report not found'));
+    }
+
+    // Get pending attempts (failed, rate_limited, or not_attempted)
+    const pendingAttempts = await getPendingScrapeAttempts(dbConn, reportId);
+    
+    if (pendingAttempts.length === 0) {
+      return next(new ValidationError('No pending attempts to resume'));
+    }
+
+    // Trigger a new scrape in resume mode
+    const { reportId: newReportId, queueDepth } = await scraperService.triggerResume(
+      reportId,
+      pendingAttempts
+    );
+
+    const response: ApiResponse = {
+      success: true,
+      data: {
+        reportId: newReportId,
+        parentReportId: reportId,
+        pendingAttempts: pendingAttempts.length,
+        message: 'Resume job queued for microservice',
+        queueDepth,
+      },
+    };
+    res.json(response);
+  } catch (error: any) {
     next(error);
   }
 });
@@ -123,7 +183,7 @@ router.get(
   async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
-      const id = parseInt(req.params.id as string, 10);
+      const id = parseStrictInt(req.params.id);
 
       if (isNaN(id)) {
         return next(new ValidationError('Invalid schedule ID'));
@@ -207,7 +267,7 @@ router.put(
         return next(new AuthError('User not authenticated'));
       }
 
-      const id = parseInt(req.params.id as string, 10);
+      const id = parseStrictInt(req.params.id);
       if (isNaN(id)) {
         return next(new ValidationError('Invalid schedule ID'));
       }
@@ -253,7 +313,7 @@ router.delete(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const db: DB = req.app.get('db');
-      const id = parseInt(req.params.id as string, 10);
+      const id = parseStrictInt(req.params.id);
 
       if (isNaN(id)) {
         return next(new ValidationError('Invalid schedule ID'));
@@ -289,7 +349,7 @@ router.post(
       const db: DB = req.app.get('db');
       const scraperService = new ScraperService(db);
 
-      const id = parseInt(req.params.id as string, 10);
+      const id = parseStrictInt(req.params.id);
       if (isNaN(id)) {
         return next(new ValidationError('Invalid schedule ID'));
       }

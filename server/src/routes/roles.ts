@@ -1,3 +1,4 @@
+import { parseStrictInt } from '../utils/number.js';
 import express from 'express';
 import type { DB } from '../db/client.js';
 import {
@@ -6,6 +7,7 @@ import {
   createRole,
   updateRole,
   getAllPermissions,
+  getAllPermissionCategoryLabels,
   setRolePermissions,
 } from '../db/role-queries.js';
 import type { ApiResponse } from '../types/api.js';
@@ -31,6 +33,29 @@ router.get(
       const db: DB = req.app.get('db');
       const permissions = await getAllPermissions(db);
       const response: ApiResponse = { success: true, data: permissions };
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/roles/permission-categories
+ * List all permission category labels (requires roles:list)
+ * Returns categories with English and French display names
+ * Registered before /:id to avoid conflict
+ */
+router.get(
+  '/permission-categories',
+  protectedLimiter,
+  requireAuth,
+  requirePermission('roles:list'),
+  async (req, res, next) => {
+    try {
+      const db: DB = req.app.get('db');
+      const categories = await getAllPermissionCategoryLabels(db);
+      const response: ApiResponse = { success: true, data: categories };
       res.json(response);
     } catch (error) {
       next(error);
@@ -71,7 +96,7 @@ router.get(
   async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
-      const roleId = parseInt(req.params.id as string, 10);
+      const roleId = parseStrictInt(req.params.id);
 
       if (isNaN(roleId)) {
         return next(new ValidationError('Invalid role ID'));
@@ -135,7 +160,7 @@ router.put(
   async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
-      const roleId = parseInt(req.params.id as string, 10);
+      const roleId = parseStrictInt(req.params.id);
 
       if (isNaN(roleId)) {
         return next(new ValidationError('Invalid role ID'));
@@ -171,7 +196,7 @@ router.delete(
   async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
-      const roleId = parseInt(req.params.id as string, 10);
+      const roleId = parseStrictInt(req.params.id);
 
       if (isNaN(roleId)) {
         return next(new ValidationError('Invalid role ID'));
@@ -191,7 +216,7 @@ router.delete(
         'SELECT COUNT(*) as count FROM users WHERE role_id = $1',
         [roleId]
       );
-      const userCount = parseInt(userCountResult.rows[0]?.count ?? '0', 10);
+      const userCount = parseStrictInt(userCountResult.rows[0]?.count ?? '0');
       if (userCount > 0) {
         return next(new AppError(`Role is assigned to ${userCount} user(s)`, 409));
       }
@@ -218,7 +243,7 @@ router.put(
   async (req, res, next) => {
     try {
       const db: DB = req.app.get('db');
-      const roleId = parseInt(req.params.id as string, 10);
+      const roleId = parseStrictInt(req.params.id);
 
       if (isNaN(roleId)) {
         return next(new ValidationError('Invalid role ID'));

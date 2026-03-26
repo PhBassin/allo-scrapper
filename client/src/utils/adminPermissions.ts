@@ -56,4 +56,10 @@ export const ADMIN_PERMISSIONS: PermissionName[] = [
   'scraper:schedules:create',
   'scraper:schedules:update',
   'scraper:schedules:delete',
+  
+  // Rate limit permissions
+  'ratelimits:read',
+  'ratelimits:update',
+  'ratelimits:reset',
+  'ratelimits:audit',
 ];

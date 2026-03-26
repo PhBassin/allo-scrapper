@@ -286,5 +286,48 @@ export async function getScrapeReportById(id: number): Promise<ScrapeReport> {
   return response.data.data;
 }
 
+export interface ScrapeAttempt {
+  id: number;
+  report_id: number;
+  cinema_id: string;
+  date: string;
+  status: 'pending' | 'success' | 'failed' | 'rate_limited' | 'not_attempted';
+  error_type?: string | null;
+  error_message?: string | null;
+  http_status_code?: number | null;
+  films_scraped: number;
+  showtimes_scraped: number;
+  attempted_at: string;
+}
+
+export interface ReportDetails {
+  report: ScrapeReport;
+  attempts: Record<string, ScrapeAttempt[]>;
+  summary: {
+    total_attempts: number;
+    successful: number;
+    failed: number;
+    rate_limited: number;
+    not_attempted: number;
+    pending: number;
+  };
+}
+
+export async function getReportDetails(id: number): Promise<ReportDetails> {
+  const response = await apiClient.get<ApiResponse<ReportDetails>>(`/reports/${id}/details`);
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to fetch report details');
+  }
+  return response.data.data;
+}
+
+export async function resumeScrape(reportId: number): Promise<{ reportId: number; parentReportId: number; pendingAttempts: number; message: string }> {
+  const response = await apiClient.post<ApiResponse<{ reportId: number; parentReportId: number; pendingAttempts: number; message: string }>>(`/scraper/resume/${reportId}`);
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.error || 'Failed to resume scrape');
+  }
+  return response.data.data;
+}
+
 // Export api instance for custom requests
 export default apiClient;

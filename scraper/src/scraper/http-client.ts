@@ -3,6 +3,7 @@
 import puppeteer, { type Browser } from 'puppeteer-core';
 import { logger } from '../utils/logger.js';
 import { ALLOCINE_BASE_URL } from './utils.js';
+import { HttpError, RateLimitError } from '../utils/errors.js';
 
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -138,7 +139,21 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch showtimes JSON for ${cinemaId} on ${date}: ${response.status} ${response.statusText}`);
+    // Detect rate limiting specifically
+    if (response.status === 429) {
+      throw new RateLimitError(
+        `Rate limit exceeded for ${cinemaId} on ${date}`,
+        response.status,
+        url
+      );
+    }
+
+    // Throw generic HttpError for other failures
+    throw new HttpError(
+      `Failed to fetch showtimes JSON for ${cinemaId} on ${date}: ${response.status} ${response.statusText}`,
+      response.status,
+      url
+    );
   }
 
   return response.json();
@@ -167,8 +182,20 @@ export async function fetchFilmPage(filmId: number): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to fetch film page ${filmId}: ${response.status} ${response.statusText}`
+    // Detect rate limiting specifically
+    if (response.status === 429) {
+      throw new RateLimitError(
+        `Rate limit exceeded for film ${filmId}`,
+        response.status,
+        url
+      );
+    }
+
+    // Throw generic HttpError for other failures
+    throw new HttpError(
+      `Failed to fetch film page ${filmId}: ${response.status} ${response.statusText}`,
+      response.status,
+      url
     );
   }
 

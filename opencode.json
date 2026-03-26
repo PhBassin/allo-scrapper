@@ -7,5 +7,12 @@
     "skill": {
       "*": "allow"
     }
+  },
+  "mcp": {
+    "claudette": {
+      "type": "local",
+      "command": ["claudette", "serve"],
+      "enabled": true
+    }
   }
 }

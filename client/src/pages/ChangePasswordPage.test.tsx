@@ -25,6 +25,7 @@ vi.mock('react-router-dom', async () => {
 describe('ChangePasswordPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it('should render all form fields', () => {
@@ -196,12 +197,51 @@ describe('ChangePasswordPage', () => {
     fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
     fireEvent.click(submitButton);
 
-    await waitFor(() => {
-      expect(apiClient.post).toHaveBeenCalledWith('/auth/change-password', {
-        currentPassword: 'OldPass123!',
-        newPassword: 'NewPass123!',
-      });
+     await waitFor(() => {
+       expect(apiClient.post).toHaveBeenCalledWith('/auth/change-password', {
+         currentPassword: 'OldPass123!',
+         newPassword: 'NewPass123!',
+       });
+     }, { timeout: 5000 });
+  });
+
+  it('should navigate to homepage after 2 seconds on successful password change', async () => {
+    (apiClient.post as any).mockResolvedValue({
+      data: { success: true, data: { message: 'Password changed successfully' } },
     });
+
+    // Use fake timers to control setTimeout
+    vi.useFakeTimers();
+    
+    render(
+      <MemoryRouter>
+        <ChangePasswordPage />
+      </MemoryRouter>
+    );
+
+    const currentPasswordInput = screen.getByLabelText(/current password/i);
+    const newPasswordInput = screen.getByLabelText(/^new password$/i);
+    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
+    const submitButton = screen.getByRole('button', { name: /change password/i });
+
+    fireEvent.change(currentPasswordInput, { target: { value: 'OldPass123!' } });
+    fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
+    fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
+    fireEvent.click(submitButton);
+
+    // Wait for success message using real timers
+    await vi.waitFor(() => {
+      expect(screen.getByText(/password changed successfully/i)).toBeInTheDocument();
+    }, { timeout: 1000 });
+
+    // Advance timers by 2 seconds to trigger setTimeout
+    await vi.advanceTimersByTimeAsync(2000);
+    
+    // Expect navigation to have been called
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+    
+    // Clean up
+    vi.useRealTimers();
   });
 
   it('should show success message on successful password change', async () => {
@@ -259,9 +299,9 @@ describe('ChangePasswordPage', () => {
   });
 
   it('should show error message on API failure', async () => {
-    (apiClient.post as any).mockRejectedValue({
-      response: { data: { error: 'Current password is incorrect' } },
-    });
+    const error: any = new Error('API Error');
+    error.response = { data: { error: 'Current password is incorrect' } };
+    (apiClient.post as any).mockRejectedValue(error);
 
     render(
       <MemoryRouter>

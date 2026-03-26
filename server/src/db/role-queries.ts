@@ -1,5 +1,5 @@
 import { type DB } from './client.js';
-import { type Role, type Permission, type RoleWithPermissions } from '../types/role.js';
+import { type Role, type Permission, type RoleWithPermissions, type PermissionCategoryLabel } from '../types/role.js';
 
 /**
  * Fetch permissions for a given role ID
@@ -258,4 +258,18 @@ export async function getPermissionNamesByRoleId(db: DB, roleId: number): Promis
     [roleId]
   );
   return assignedResult.rows.map(r => r.name);
+}
+
+/**
+ * Get all permission category labels
+ * Returns all categories with English and French display names
+ */
+export async function getAllPermissionCategoryLabels(
+  db: DB
+): Promise<PermissionCategoryLabel[]> {
+  const result = await db.query<PermissionCategoryLabel>(
+    'SELECT id, category_key, label_en, label_fr, created_at, updated_at FROM permission_category_labels ORDER BY id',
+    []
+  );
+  return result.rows;
 }

@@ -9,7 +9,7 @@
 
 **Cinema showtimes aggregator** that scrapes and centralizes movie screening schedules from the source website cinema pages. Built with Express.js, React, and PostgreSQL, fully containerized with Docker.
 
-> **Latest Version**: 4.0.1 | **Status**: Production Ready ✅
+> **Latest Version**: 4.3.0 | **Status**: Production Ready ✅
 
 ---
 
@@ -29,12 +29,14 @@
 ## ✨ Features
 
 - **Automated Scraping**: Scheduled scraping of cinema showtimes from the source website
+- **Scraper Resilience**: Automatic HTTP 429 rate limit detection with graceful shutdown
 - **RESTful API**: Complete Express.js backend with TypeScript
 - **Modern UI**: React SPA with Vite for fast development
 - **Real-time Progress**: Server-Sent Events (SSE) for live scraping updates
 - **Weekly Reports**: Track cinema programs and identify new releases
 - **White-Label Branding**: Complete customization (site name, logo, colors, fonts, footer) via admin panel
-- **User Management**: Role-based access control (admin/user) with comprehensive user CRUD
+- **User Management**: Role-based access control with comprehensive user CRUD
+- **Role Management**: Full CRUD for custom roles with granular permission assignment via admin panel
 - **JWT Authentication**: Secure user authentication with token-based sessions
 - **Password Management**: Change password functionality for authenticated users
 - **Content Security Policy**: Strict CSP without unsafe-inline/unsafe-eval in script-src
@@ -243,7 +245,7 @@ For complete API documentation, see [API.md](./API.md).
 - Clear browser cache
 - Check `/api/theme.css` endpoint directly
 
-For detailed user guide and screenshots, see [ADMIN_PANEL.md](./ADMIN_PANEL.md).
+For detailed user guide, see [Admin Panel Guide](./docs/guides/administration/admin-panel.md).
 
 ---
 
@@ -437,6 +439,84 @@ The application supports **runtime theme customization** via the admin panel, al
 
 **For Admin Panel Documentation:**
 See [API.md](./API.md) for Settings API reference (`/api/settings/*` endpoints).
+
+---
+
+## 🛡️ Rate Limiting
+
+The application includes comprehensive rate limiting to protect against abuse and ensure fair usage. Rate limits can be configured dynamically through the admin interface without server restarts.
+
+### Default Rate Limits
+
+| Endpoint Type | Default Limit | Window | Description |
+|--------------|---------------|--------|-------------|
+| General API | 100 requests | 15 min | All `/api/*` routes |
+| Authentication | 5 attempts | 15 min | Login endpoint (failed attempts only) |
+| Registration | 3 attempts | 1 hour | New user registration |
+| Protected Endpoints | 60 requests | 15 min | Authenticated user endpoints |
+| Scraper Endpoints | 10 requests | 15 min | Expensive scraping operations |
+| Public Endpoints | 100 requests | 15 min | Public read endpoints (cinemas, films) |
+| Health Check | 10 requests | 1 min | `/api/health` endpoint (localhost exempt) |
+
+### Dynamic Configuration
+
+Rate limits can be managed through the admin interface:
+
+1. Navigate to `/admin?tab=ratelimits` (admin-only)
+2. Adjust limits based on your needs
+3. Changes take effect within 30 seconds (no restart required)
+4. All changes are logged in the audit trail
+
+**Features:**
+- ✅ **Hot Reload** - Changes apply within 30 seconds via cache invalidation
+- ✅ **Audit Trail** - Complete history of all changes with user attribution
+- ✅ **Validation** - Enforced min/max constraints prevent misconfiguration
+- ✅ **Backward Compatible** - Falls back to environment variables if database unavailable
+- ✅ **Permission-Based** - Granular permissions (read/update/reset/audit)
+
+### Environment Variables (Optional)
+
+Rate limits can also be configured via environment variables (lower priority than database):
+
+```bash
+# Global window (milliseconds, 1 min to 1 hour)
+RATE_LIMIT_WINDOW_MS=900000  # 15 minutes
+
+# Per-endpoint limits (requests per window)
+RATE_LIMIT_GENERAL_MAX=100
+RATE_LIMIT_AUTH_MAX=5
+RATE_LIMIT_REGISTER_MAX=3
+RATE_LIMIT_PROTECTED_MAX=60
+RATE_LIMIT_SCRAPER_MAX=10
+RATE_LIMIT_PUBLIC_MAX=100
+RATE_LIMIT_HEALTH_MAX=10
+
+# Registration window (milliseconds, 5 min to 24 hours)
+RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # 1 hour
+```
+
+**Priority Order:**
+1. Database configuration (managed via admin UI)
+2. Environment variables (fallback)
+3. Default values (hard-coded)
+
+### Key Features
+
+**Authenticated User Bucketing:**
+- Protected and scraper endpoints bucket by user ID (from JWT)
+- Prevents a single user from exhausting rate limits for all users
+- Falls back to IP-based bucketing for unauthenticated requests
+
+**Health Check Protection:**
+- Aggressive rate limiting (10 req/min) prevents resource exhaustion
+- Localhost/Docker/Kubernetes IPs automatically exempted
+- Response caching (5 seconds) reduces database load
+
+**Smart Skip Logic:**
+- Rate limiting automatically disabled in test environment
+- Successful login attempts don't count toward auth limit
+
+For API documentation, see [API.md](./API.md#rate-limits).
 
 ---
 

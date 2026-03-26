@@ -6,7 +6,7 @@
  * 
  * @see ../schemas/role.ts for the source schemas
  */
-export type { Permission, Role, RoleWithPermissions } from '../schemas/role';
+export type { Permission, Role, RoleWithPermissions, PermissionCategoryLabel } from '../schemas/role';
 
 // All possible permission strings (used for type safety)
 // This is duplicated from the server to ensure strict typing in the client
@@ -18,4 +18,5 @@ export type PermissionName =
   | 'settings:read' | 'settings:update' | 'settings:reset' | 'settings:export' | 'settings:import'
   | 'reports:list' | 'reports:view'
   | 'system:info' | 'system:health' | 'system:migrations'
-  | 'roles:read' | 'roles:list' | 'roles:create' | 'roles:update' | 'roles:delete';
+  | 'roles:read' | 'roles:list' | 'roles:create' | 'roles:update' | 'roles:delete'
+  | 'ratelimits:read' | 'ratelimits:update' | 'ratelimits:reset' | 'ratelimits:audit';

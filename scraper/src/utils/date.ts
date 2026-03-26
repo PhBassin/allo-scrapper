@@ -1,3 +1,15 @@
+/**
+ * Date utility functions for scraping schedules.
+ * 
+ * NOTE: Some functions (getCurrentWeekStart, getWeekDates, getWeekStart) are duplicated 
+ * between server and scraper packages with minor differences:
+ * - Server: Uses logger for warnings
+ * - Scraper: Uses console.warn for warnings
+ * 
+ * This duplication allows each package to use its own logging infrastructure
+ * without introducing cross-package dependencies.
+ */
+
 export function getCurrentWeekStart(): string {
   const today = new Date();
   const dayOfWeek = today.getDay();

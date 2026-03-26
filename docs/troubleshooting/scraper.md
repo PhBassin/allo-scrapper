@@ -118,26 +118,45 @@ curl -X DELETE http://localhost:3000/api/cinemas/C0072 \
 
 ### HTTP 429 Too Many Requests
 
-**⚠️ Critical:** Scraper **does NOT detect HTTP 429**.
+**Behavior (Phase 1 - Implemented):**
+- Scraper **detects HTTP 429** automatically
+- Scrape **stops immediately** to avoid further rate limiting
+- Report status set to `rate_limited` (not `failed`)
+- Remaining cinemas marked as "not attempted"
 
-**Behavior:**
-- Logged as generic HTTP error
-- No automatic retry
-- No exponential backoff
+**What happens when 429 is detected:**
 
-**If you see 429 in logs:**
+1. **Immediate shutdown**: Scraper stops the current and all remaining cinemas
+2. **Report marked**: Status changed from `running` → `rate_limited`
+3. **Error details**: Error includes `error_type: "http_429"` and `http_status_code: 429`
+4. **UI feedback**: Orange badge in admin panel with explanation
+
+**If you see rate_limited status in reports:**
 
 ```bash
-# Increase delays significantly
+# Wait before retrying (recommended: 10-30 minutes)
+# Check when last scrape ran
+curl http://localhost:3000/api/reports?page=1 \
+  -H "Authorization: Bearer <token>"
+
+# Increase delays permanently to avoid future 429s
 echo "SCRAPE_THEATER_DELAY_MS=10000" >> .env  # 10 seconds
 echo "SCRAPE_MOVIE_DELAY_MS=2000" >> .env     # 2 seconds
 
-# Reduce concurrent scrapes
-# Only scrape specific cinemas, not all at once
-
-# Restart
+# Restart server
 docker compose restart ics-web
+
+# Retry scrape after cooldown period
+curl -X POST http://localhost:3000/api/scraper/trigger \
+  -H "Authorization: Bearer <token>"
 ```
+
+**Phase 2 (Planned - Not Yet Implemented):**
+- Resume capability: Will scrape only cinemas that were not attempted
+- Exponential backoff: Automatic retry with increasing delays
+- Per-cinema tracking: Database records which cinemas were attempted
+
+**See also:** [Rate Limiting Guide](../guides/advanced/scraper-rate-limiting.md)
 
 ---
 

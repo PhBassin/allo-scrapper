@@ -33,10 +33,10 @@ services:
   # Production web server (serves both API and frontend)
   ics-web:
     image: ghcr.io/phbassin/allo-scrapper:${IMAGE_TAG:-stable}
-    # build:
-    #   context: .
-    #   args:
-    #     VITE_APP_NAME: ${VITE_APP_NAME:-Allo-Scrapper}
+    build:
+      context: .
+      args:
+        VITE_APP_NAME: ${VITE_APP_NAME:-Allo-Scrapper}
     # Run as host user to allow volume writes while maintaining security
     # Set DOCKER_UID and DOCKER_GID in .env to match your host user
     # Defaults to 1000:1000 (standard Linux first user)
@@ -48,7 +48,9 @@ services:
     volumes:
       # Mount cinema config so API changes to cinemas.json are visible on host
       # This enables: git add server/src/config/cinemas.json && git commit && git push
-      - ./server/src/config:/app/server/dist/config
+      # IMPORTANT: Mount only cinemas.json, not the entire config/ directory
+      # (config/ now contains compiled TypeScript files like rate-limits.js)
+      - ./server/src/config/cinemas.json:/app/server/dist/config/cinemas.json
     environment:
       NODE_ENV: production
       POSTGRES_HOST: ics-db
@@ -69,6 +71,7 @@ services:
       # Authentication configuration (required for v2.0.0+)
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
     depends_on:
       ics-db:
         condition: service_healthy
