@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import apiClient from './client';
-import type { RoleWithPermissions, Permission } from '../types/role';
-import { RoleWithPermissionsSchema, PermissionSchema } from '../schemas/role';
+import type { RoleWithPermissions, Permission, PermissionCategoryLabel } from '../types/role';
+import { RoleWithPermissionsSchema, PermissionSchema, PermissionCategoryLabelSchema } from '../schemas/role';
 
 /**
  * Validates API response data using Zod schemas
@@ -58,5 +58,11 @@ export const rolesApi = {
   getAllPermissions: (): Promise<Permission[]> =>
     apiClient.get('/roles/permissions').then(r => 
       validateResponse(z.array(PermissionSchema), r.data.data, 'GET /roles/permissions')
+    ),
+
+  // List all permission category labels
+  getPermissionCategoryLabels: (): Promise<PermissionCategoryLabel[]> =>
+    apiClient.get('/roles/permission-categories').then(r => 
+      validateResponse(z.array(PermissionCategoryLabelSchema), r.data.data, 'GET /roles/permission-categories')
     ),
 };

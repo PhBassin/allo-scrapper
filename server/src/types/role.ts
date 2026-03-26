@@ -20,6 +20,15 @@ export interface RoleWithPermissions extends Role {
   permissions: Permission[];
 }
 
+export interface PermissionCategoryLabel {
+  id: number;
+  category_key: string;
+  label_en: string;
+  label_fr: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // All possible permission strings (used for type safety)
 export type PermissionName =
   | 'users:list' | 'users:create' | 'users:update' | 'users:delete' | 'users:read'

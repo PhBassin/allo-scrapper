@@ -11,6 +11,7 @@ vi.mock('../../api/roles', () => ({
   rolesApi: {
     getAll: vi.fn(),
     getAllPermissions: vi.fn(),
+    getPermissionCategoryLabels: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -52,7 +53,7 @@ const mockRoles = [
     description: 'Administrator',
     is_system: true,
     created_at: '2026-01-01T00:00:00Z',
-    permissions: [{ id: 1, name: 'roles:list', description: 'List roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' }],
+    permissions: [{ id: 1, name: 'roles:list', description: 'List roles', category: 'roles', created_at: '2026-01-01T00:00:00Z' }],
   },
   {
     id: 2,
@@ -60,7 +61,7 @@ const mockRoles = [
     description: 'Read-only access',
     is_system: true,
     created_at: '2026-01-01T00:00:00Z',
-    permissions: [{ id: 1, name: 'roles:list', description: 'List roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' }],
+    permissions: [{ id: 1, name: 'roles:list', description: 'List roles', category: 'roles', created_at: '2026-01-01T00:00:00Z' }],
   },
   {
     id: 3,
@@ -73,17 +74,29 @@ const mockRoles = [
 ];
 
 const mockPermissions = [
-  { id: 1, name: 'roles:list', description: 'List roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' },
-  { id: 2, name: 'roles:read', description: 'Read role details', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' },
-  { id: 3, name: 'roles:create', description: 'Create roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' },
-  { id: 4, name: 'roles:update', description: 'Update roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' },
-  { id: 5, name: 'roles:delete', description: 'Delete roles', category: 'Rôles', created_at: '2026-01-01T00:00:00Z' },
+  { id: 1, name: 'roles:list', description: 'List roles', category: 'roles', created_at: '2026-01-01T00:00:00Z' },
+  { id: 2, name: 'roles:read', description: 'Read role details', category: 'roles', created_at: '2026-01-01T00:00:00Z' },
+  { id: 3, name: 'roles:create', description: 'Create roles', category: 'roles', created_at: '2026-01-01T00:00:00Z' },
+  { id: 4, name: 'roles:update', description: 'Update roles', category: 'roles', created_at: '2026-01-01T00:00:00Z' },
+  { id: 5, name: 'roles:delete', description: 'Delete roles', category: 'roles', created_at: '2026-01-01T00:00:00Z' },
+];
+
+const mockCategoryLabels = [
+  {
+    id: 1,
+    category_key: 'roles',
+    label_en: 'Roles',
+    label_fr: 'Rôles',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
 ];
 
 describe('RoleManagementPage - Permission-based button visibility', () => {
   beforeEach(() => {
     vi.mocked(rolesApi.getAll).mockResolvedValue(mockRoles);
     vi.mocked(rolesApi.getAllPermissions).mockResolvedValue(mockPermissions);
+    vi.mocked(rolesApi.getPermissionCategoryLabels).mockResolvedValue(mockCategoryLabels);
   });
 
   afterEach(() => {

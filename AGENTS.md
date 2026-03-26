@@ -826,6 +826,158 @@ for i in {1..20}; do curl http://127.0.0.1:3000/api/health; done
 
 ---
 
+## Adding New Permissions (Without Frontend Code Changes)
+
+**CRITICAL: New permissions automatically appear in the Role Management UI without code changes.**
+
+This is achieved through dynamic permission loading from the database. When you add a new permission, you only need to:
+1. Create a database migration with the permission
+2. Ensure a corresponding category label exists
+
+The Role Management UI will automatically load and display the new permission with the correct category label.
+
+### Workflow: Add a New Permission
+
+#### Step 1: Create a Database Migration
+
+Create a new migration file in `migrations/` that adds the permission and ensures its category label exists.
+
+**Example: Adding rate limit permissions (from issue #663)**
+
+```sql
+-- migrations/020_add_rate_limit_permissions.sql
+
+BEGIN;
+
+-- Add new permissions to the permissions table
+INSERT INTO permissions (name, description, category)
+VALUES
+  ('manage_rate_limits', 'Ability to view and configure rate limiting settings', 'settings'),
+  ('view_rate_limit_stats', 'Ability to view rate limiting statistics and metrics', 'settings')
+ON CONFLICT (name) DO NOTHING;
+
+-- Ensure the settings category label exists
+INSERT INTO permission_category_labels (category_key, label_en, label_fr)
+VALUES ('settings', 'Settings', 'Paramètres')
+ON CONFLICT (category_key) DO NOTHING;
+
+COMMIT;
+```
+
+**Key points:**
+- Use `ON CONFLICT DO NOTHING` to make migrations idempotent
+- Assign the permission to an existing category (e.g., 'settings', 'security', 'scraper')
+- If creating a **new category**, also add a label entry in `permission_category_labels`
+
+#### Step 2: Available Permission Categories
+
+Current available categories (with labels):
+
+| Category Key | English | French |
+|---|---|---|
+| `users` | Users | Utilisateurs |
+| `roles` | Roles | Rôles |
+| `scraper` | Scraper | Scraper |
+| `schedules` | Schedules | Horaires |
+| `cinemas` | Cinemas | Cinémas |
+| `settings` | Settings | Paramètres |
+| `reports` | Reports | Rapports |
+| `system` | System | Système |
+| `security` | Security | Sécurité |
+
+#### Step 3: Adding a New Category (If Needed)
+
+If your new permission requires a **new category**, add it to the migration:
+
+```sql
+BEGIN;
+
+-- Add the permission with the new category
+INSERT INTO permissions (name, description, category)
+VALUES ('analytics_export', 'Ability to export analytics reports', 'analytics')
+ON CONFLICT (name) DO NOTHING;
+
+-- Add the new category label
+INSERT INTO permission_category_labels (category_key, label_en, label_fr)
+VALUES ('analytics', 'Analytics', 'Analytique')
+ON CONFLICT (category_key) DO NOTHING;
+
+COMMIT;
+```
+
+#### Step 4: Test the Migration
+
+```bash
+# Apply the migration
+psql -h localhost -U postgres -d ics < migrations/020_add_rate_limit_permissions.sql
+
+# Verify permissions were added
+psql -h localhost -U postgres -d ics -c "
+  SELECT p.name, p.category, l.label_en, l.label_fr
+  FROM permissions p
+  LEFT JOIN permission_category_labels l ON p.category = l.category_key
+  ORDER BY p.category, p.name;
+"
+```
+
+### How It Works (Architecture)
+
+1. **Backend** returns all permissions with category info via `GET /api/roles/permissions`
+2. **Frontend** fetches category labels via `GET /api/roles/permission-categories`
+3. **Utility function** `groupPermissionsByCategory()` groups permissions by category_key
+4. **UI components** (`EditRolePermissionsModal`, `CreateRoleModal`) render grouped permissions with dynamic labels
+
+### No Code Changes Needed
+
+✅ **After migration runs:**
+- New permissions appear in Role Management UI automatically
+- Category is displayed with translated label
+- Users can assign the permission to roles without admin intervention
+
+❌ **Frontend code changes are NOT required:**
+- No need to update `PERMISSION_CATEGORIES` constant
+- No need to redeploy the frontend
+- No need to update component code
+
+### Example: Full Permission Addition Flow
+
+```bash
+# 1. Create migration
+cat > migrations/020_add_rate_limit_permissions.sql << 'EOF'
+BEGIN;
+INSERT INTO permissions (name, description, category)
+VALUES ('manage_rate_limits', 'Configure rate limiting', 'settings')
+ON CONFLICT (name) DO NOTHING;
+COMMIT;
+EOF
+
+# 2. Apply migration
+cd server && npm run migrate
+
+# 3. That's it! New permission now appears in Role Management UI
+
+# 4. Verify in the UI
+npm run dev
+# Visit: http://localhost:3000/admin/roles
+# Open any role edit modal → see "manage_rate_limits" under "Settings" category
+```
+
+### Troubleshooting
+
+**New permission doesn't appear in UI:**
+- [ ] Migration ran successfully: `npm run migrate`
+- [ ] Permission exists in database: Check `SELECT * FROM permissions WHERE name='...'`
+- [ ] Category label exists: Check `SELECT * FROM permission_category_labels`
+- [ ] API returns new permission: `curl http://localhost:3000/api/roles/permissions`
+- [ ] Clear browser cache: Hard refresh (Ctrl+Shift+R)
+
+**Category label shows as key instead of translated text:**
+- Check `permission_category_labels` table has entry for that category_key
+- Verify `label_en` or `label_fr` are not NULL
+- Restart frontend to clear cached labels
+
+---
+
 
 
 If unclear about requirements:
