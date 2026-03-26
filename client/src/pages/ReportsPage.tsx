@@ -1,11 +1,14 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getScrapeReports, getScrapeReportById } from '../api/client';
+import { getScrapeReports, getScrapeReportById, getReportDetails, resumeScrape } from '../api/client';
 import type { ScrapeReport } from '../types';
 
 export default function ReportsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const [showDetails, setShowDetails] = useState(false);
+  
   // Get reportId and page from URL query params
   const reportId = searchParams.get('reportId');
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -29,6 +32,28 @@ export default function ReportsPage() {
     queryKey: ['report', reportId],
     queryFn: () => getScrapeReportById(Number(reportId)),
     enabled: !!reportId,
+  });
+
+  // Query for detailed attempt breakdown (only when showDetails is true)
+  const {
+    data: reportDetails,
+    isLoading: isLoadingDetails,
+  } = useQuery({
+    queryKey: ['reportDetails', reportId],
+    queryFn: () => getReportDetails(Number(reportId)),
+    enabled: !!reportId && showDetails,
+  });
+
+  // Mutation for resuming a scrape
+  const resumeMutation = useMutation({
+    mutationFn: (id: number) => resumeScrape(id),
+    onSuccess: (data) => {
+      // Invalidate reports to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['report'] });
+      // Navigate to the new report
+      setSearchParams({ reportId: data.reportId.toString() });
+    },
   });
 
   const isLoading = reportId ? isLoadingReport : isLoadingReports;
@@ -74,6 +99,8 @@ export default function ReportsPage() {
         return 'bg-red-100 text-red-800 border-red-300';
       case 'running':
         return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'rate_limited':
+        return 'bg-orange-100 text-orange-800 border-orange-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-300';
     }
@@ -89,6 +116,8 @@ export default function ReportsPage() {
         return 'Échec';
       case 'running':
         return 'En cours';
+      case 'rate_limited':
+        return 'Rate limité';
       default:
         return status;
     }
@@ -173,6 +202,106 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
+
+        {/* Rate Limited Notice */}
+        {selectedReport.status === 'rate_limited' && (
+          <div className="card p-6 mb-6 border-orange-200 bg-orange-50">
+            <h2 className="text-xl font-bold mb-3 text-orange-800">⚠️ Limitation de débit détectée</h2>
+            <p className="text-orange-900 mb-3">
+              Le scraping a été arrêté automatiquement car le serveur source a renvoyé une erreur HTTP 429 (Too Many Requests).
+            </p>
+            <p className="text-sm text-orange-800 mb-4">
+              <strong>Que faire ?</strong> Attendez quelques minutes avant de relancer un nouveau scraping. 
+              Les cinémas non traités seront automatiquement inclus lors de la prochaine exécution.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => resumeMutation.mutate(selectedReport.id)}
+                disabled={resumeMutation.isPending}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              >
+                {resumeMutation.isPending ? 'Reprise en cours...' : '🔄 Reprendre le scraping'}
+              </button>
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="px-4 py-2 bg-white text-orange-800 border border-orange-300 rounded-lg hover:bg-orange-100 font-semibold"
+              >
+                {showDetails ? 'Masquer les détails' : 'Voir les détails'}
+              </button>
+            </div>
+            {resumeMutation.isError && (
+              <p className="mt-3 text-sm text-red-600">
+                ❌ Erreur lors de la reprise: {resumeMutation.error instanceof Error ? resumeMutation.error.message : 'Erreur inconnue'}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Detailed Attempts Breakdown (only shown when showDetails is true) */}
+        {showDetails && reportDetails && (
+          <div className="card p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4">Détails des tentatives</h2>
+            
+            {/* Summary Statistics */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="text-xs text-gray-600">Total</p>
+                <p className="text-2xl font-bold">{reportDetails.summary.total_attempts}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Réussis</p>
+                <p className="text-2xl font-bold text-green-600">{reportDetails.summary.successful}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Échoués</p>
+                <p className="text-2xl font-bold text-red-600">{reportDetails.summary.failed}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Rate limités</p>
+                <p className="text-2xl font-bold text-orange-600">{reportDetails.summary.rate_limited}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Non tentés</p>
+                <p className="text-2xl font-bold text-gray-600">{reportDetails.summary.not_attempted}</p>
+              </div>
+            </div>
+
+            {/* Per-cinema breakdown */}
+            <div className="space-y-4">
+              {Object.entries(reportDetails.attempts).map(([cinemaId, attempts]) => (
+                <div key={cinemaId} className="border border-gray-200 rounded-lg p-4">
+                  <h3 className="font-semibold mb-3">Cinéma {cinemaId}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {attempts.map((attempt) => {
+                      const statusColors = {
+                        success: 'bg-green-100 text-green-800 border-green-300',
+                        failed: 'bg-red-100 text-red-800 border-red-300',
+                        rate_limited: 'bg-orange-100 text-orange-800 border-orange-300',
+                        not_attempted: 'bg-gray-100 text-gray-800 border-gray-300',
+                        pending: 'bg-blue-100 text-blue-800 border-blue-300',
+                      };
+                      return (
+                        <div key={attempt.id} className={`p-2 rounded border text-xs ${statusColors[attempt.status]}`}>
+                          <p className="font-semibold">{attempt.date}</p>
+                          <p className="mt-1">{attempt.status}</p>
+                          {attempt.status === 'success' && (
+                            <p className="mt-1">{attempt.films_scraped} films, {attempt.showtimes_scraped} séances</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {isLoadingDetails && (
+              <div className="text-center py-4">
+                <p className="text-gray-600">Chargement des détails...</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Errors Section */}
         {selectedReport.errors && selectedReport.errors.length > 0 && (

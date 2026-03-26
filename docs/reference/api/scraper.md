@@ -234,6 +234,39 @@ data: {"type":"failed","error":"Fatal error message"}
 | `completed` | Once on success | `summary` (ScrapeSummary object) |
 | `failed` | Once on fatal error | `error` |
 
+**Rate Limit Handling:**
+
+When the scraper detects an HTTP 429 (Too Many Requests) response from the source server:
+1. The scrape stops immediately to avoid further rate limiting
+2. Status is set to `rate_limited` instead of `failed`
+3. A `cinema_failed` event is emitted with error_type `http_429`
+4. The final `completed` event includes `"status": "rate_limited"` in the summary
+
+**Example Rate Limited Summary:**
+```json
+{
+  "type": "completed",
+  "summary": {
+    "total_cinemas": 10,
+    "successful_cinemas": 3,
+    "failed_cinemas": 7,
+    "total_films": 45,
+    "total_showtimes": 212,
+    "total_dates": 7,
+    "duration_ms": 12340,
+    "status": "rate_limited",
+    "errors": [{
+      "cinema_name": "Example Cinema",
+      "cinema_id": "C0123",
+      "date": "2026-03-24",
+      "error": "HTTP 429 Too Many Requests",
+      "error_type": "http_429",
+      "http_status_code": 429
+    }]
+  }
+}
+```
+
 **Example:**
 ```bash
 curl -N http://localhost:3000/api/scraper/progress
@@ -262,6 +295,103 @@ eventSource.onerror = (err) => {
   console.error('SSE connection error:', err);
   eventSource.close();
 };
+```
+
+---
+
+### Resume Rate-Limited Scrape
+
+```http
+POST /api/scraper/resume/:reportId
+```
+
+**Authentication:** Required (Bearer token)
+
+**Parameters:**
+- `reportId` (integer): ID of the parent report to resume (must have status `rate_limited`, `failed`, or `partial_success`)
+
+**Description:** Creates a new scrape report that retries only the cinema/date combinations that weren't successfully scraped in the parent report. The new report links to the parent via `parent_report_id`.
+
+**Response (200 — started):**
+
+**In-Process Mode** (`USE_REDIS_SCRAPER=false`):
+```json
+{
+  "success": true,
+  "data": {
+    "reportId": 124,
+    "parentReportId": 123,
+    "message": "Resume scrape started successfully",
+    "pendingAttempts": [
+      { "cinema_id": "C0042", "date": "2026-03-26" },
+      { "cinema_id": "C0089", "date": "2026-03-25" }
+    ]
+  }
+}
+```
+
+**Redis Microservice Mode** (`USE_REDIS_SCRAPER=true`):
+```json
+{
+  "success": true,
+  "data": {
+    "reportId": 124,
+    "parentReportId": 123,
+    "message": "Resume scrape job queued for microservice",
+    "queueDepth": 1,
+    "pendingAttempts": [
+      { "cinema_id": "C0042", "date": "2026-03-26" },
+      { "cinema_id": "C0089", "date": "2026-03-25" }
+    ]
+  }
+}
+```
+
+**Response Fields:**
+- `reportId` - New scrape report ID for the resume operation
+- `parentReportId` - Original report ID that is being resumed
+- `message` - Human-readable status message
+- `pendingAttempts` - List of cinema/date combinations that will be retried
+- `queueDepth` - (Redis mode only) Number of jobs in queue after this job was added
+
+**Response (404 — report not found):**
+```json
+{
+  "success": false,
+  "error": "Report not found: 999"
+}
+```
+
+**Response (400 — no pending attempts):**
+```json
+{
+  "success": false,
+  "error": "No pending attempts found for report 123"
+}
+```
+
+**Response (409 — already running):**
+```json
+{
+  "success": false,
+  "error": "A scrape is already in progress"
+}
+```
+
+**Examples:**
+```bash
+# Get auth token
+TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
+
+# Resume rate-limited scrape
+curl -X POST http://localhost:3000/api/scraper/resume/123 \
+  -H "Authorization: Bearer $TOKEN"
+
+# Check new report status
+curl http://localhost:3000/api/reports/124 \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ---

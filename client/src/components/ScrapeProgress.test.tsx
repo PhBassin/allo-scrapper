@@ -84,6 +84,7 @@ describe('ScrapeProgress', () => {
           failed_cinemas: 0, 
           total_films: 25, 
           total_showtimes: 125, 
+          total_dates: 7,
           duration_ms: 30000, 
           errors: [] 
         }},
@@ -94,6 +95,7 @@ describe('ScrapeProgress', () => {
         failed_cinemas: 0, 
         total_films: 25, 
         total_showtimes: 125, 
+        total_dates: 7,
         duration_ms: 30000, 
         errors: [] 
       }},
@@ -201,6 +203,7 @@ describe('ScrapeProgress', () => {
           failed_cinemas: 0, 
           total_films: 5, 
           total_showtimes: 25, 
+          total_dates: 7,
           duration_ms: 10000, 
           errors: [] 
         }},
@@ -211,6 +214,7 @@ describe('ScrapeProgress', () => {
         failed_cinemas: 0, 
         total_films: 5, 
         total_showtimes: 25, 
+        total_dates: 7,
         duration_ms: 10000, 
         errors: [] 
       }},
@@ -240,6 +244,7 @@ describe('ScrapeProgress', () => {
             failed_cinemas: 0,
             total_films: 5,
             total_showtimes: 10,
+            total_dates: 7,
             duration_ms: 5000,
             errors: [],
           },
@@ -253,6 +258,7 @@ describe('ScrapeProgress', () => {
           failed_cinemas: 0,
           total_films: 5,
           total_showtimes: 10,
+          total_dates: 7,
           duration_ms: 5000,
           errors: [],
         },
@@ -287,6 +293,7 @@ describe('ScrapeProgress', () => {
             failed_cinemas: 0,
             total_films: 5,
             total_showtimes: 10,
+            total_dates: 7,
             duration_ms: 5000,
             errors: [],
           },
@@ -300,6 +307,7 @@ describe('ScrapeProgress', () => {
           failed_cinemas: 0,
           total_films: 5,
           total_showtimes: 10,
+          total_dates: 7,
           duration_ms: 5000,
           errors: [],
         },

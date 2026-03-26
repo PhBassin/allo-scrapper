@@ -80,14 +80,21 @@ export interface ScrapeReport {
   id: number;
   started_at: string;
   completed_at?: string;
-  status: 'running' | 'success' | 'partial_success' | 'failed';
+  status: 'running' | 'success' | 'partial_success' | 'failed' | 'rate_limited';
   trigger_type: 'manual' | 'cron';
   total_cinemas?: number;
   successful_cinemas?: number;
   failed_cinemas?: number;
   total_films_scraped?: number;
   total_showtimes_scraped?: number;
-  errors?: Array<{ cinema_name: string; error: string }>;
+  errors?: Array<{ 
+    cinema_name: string; 
+    cinema_id?: string;
+    date?: string;
+    error: string;
+    error_type?: 'http_429' | 'http_5xx' | 'http_4xx' | 'network' | 'parse' | 'timeout';
+    http_status_code?: number;
+  }>;
   progress_log?: Array<{ timestamp: string; message: string; level: string; type?: string }>;
 }
 
@@ -111,8 +118,17 @@ export interface ScrapeSummary {
   failed_cinemas: number;
   total_films: number;
   total_showtimes: number;
+  total_dates: number;
   duration_ms: number;
-  errors: Array<{ cinema_name: string; error: string }>;
+  errors: Array<{
+    cinema_name: string;
+    cinema_id: string;
+    date?: string;
+    error: string;
+    error_type?: 'http_429' | 'http_5xx' | 'http_4xx' | 'network' | 'parse' | 'timeout';
+    http_status_code?: number;
+  }>;
+  status?: 'success' | 'partial_success' | 'failed' | 'rate_limited';
 }
 
 export interface ScrapeStatus {
