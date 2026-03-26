@@ -7,6 +7,7 @@ import {
   createRole,
   updateRole,
   getAllPermissions,
+  getAllPermissionCategoryLabels,
   setRolePermissions,
 } from '../db/role-queries.js';
 import type { ApiResponse } from '../types/api.js';
@@ -32,6 +33,29 @@ router.get(
       const db: DB = req.app.get('db');
       const permissions = await getAllPermissions(db);
       const response: ApiResponse = { success: true, data: permissions };
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/roles/permission-categories
+ * List all permission category labels (requires roles:list)
+ * Returns categories with English and French display names
+ * Registered before /:id to avoid conflict
+ */
+router.get(
+  '/permission-categories',
+  protectedLimiter,
+  requireAuth,
+  requirePermission('roles:list'),
+  async (req, res, next) => {
+    try {
+      const db: DB = req.app.get('db');
+      const categories = await getAllPermissionCategoryLabels(db);
+      const response: ApiResponse = { success: true, data: categories };
       res.json(response);
     } catch (error) {
       next(error);
