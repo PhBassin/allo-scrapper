@@ -1,22 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { rolesApi } from '../../api/roles';
-import type { RoleWithPermissions, Permission } from '../../types/role';
+import type { RoleWithPermissions, Permission, PermissionCategoryLabel } from '../../types/role';
+import { groupPermissionsByCategory } from '../../utils/permission-grouping';
 import { AuthContext } from '../../contexts/AuthContext';
 import Button from '../ui/Button';
 import LinkButton from '../ui/LinkButton';
-
-// Permission categories for grouped display
-const PERMISSION_CATEGORIES: Record<string, string[]> = {
-  Utilisateurs: ['users:list', 'users:create', 'users:update', 'users:delete'],
-  Rôles: ['roles:list', 'roles:read', 'roles:create', 'roles:update', 'roles:delete'],
-  Scraping: ['scraper:trigger', 'scraper:trigger_single'],
-  Planification: ['scraper:schedules:list', 'scraper:schedules:create', 'scraper:schedules:update', 'scraper:schedules:delete'],
-  Cinémas: ['cinemas:create', 'cinemas:update', 'cinemas:delete'],
-  Paramètres: ['settings:read', 'settings:update', 'settings:reset', 'settings:export', 'settings:import'],
-  Rapports: ['reports:list', 'reports:view'],
-  Système: ['system:info', 'system:health', 'system:migrations'],
-  'Rate Limits': ['ratelimits:read', 'ratelimits:update', 'ratelimits:reset', 'ratelimits:audit'],
-};
 
 // ────────────────────────────────────────────────────────────────
 // DeleteRoleDialog
@@ -85,6 +73,7 @@ const DeleteRoleDialog: React.FC<DeleteRoleDialogProps> = ({ role, onClose, onCo
 interface EditRolePermissionsModalProps {
   role: RoleWithPermissions;
   allPermissions: Permission[];
+  categoryLabels: PermissionCategoryLabel[];
   onClose: () => void;
   onSave: (roleId: number, permissionIds: number[]) => Promise<void>;
   readOnly?: boolean;
@@ -93,6 +82,7 @@ interface EditRolePermissionsModalProps {
 const EditRolePermissionsModal: React.FC<EditRolePermissionsModalProps> = ({
   role,
   allPermissions,
+  categoryLabels,
   onClose,
   onSave,
   readOnly = false,
@@ -125,27 +115,22 @@ const EditRolePermissionsModal: React.FC<EditRolePermissionsModalProps> = ({
     }
   };
 
-  const permissionsByName = new Map(allPermissions.map(p => [p.name, p]));
+  const grouped = groupPermissionsByCategory(allPermissions, categoryLabels, 'fr');
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-      <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
-        <h2 className="text-xl font-semibold text-gray-900">
-          {readOnly ? 'View Permissions' : 'Edit Permissions'} — {role.name}
-        </h2>
-      </div>
+        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {readOnly ? 'View Permissions' : 'Edit Permissions'} — {role.name}
+          </h2>
+        </div>
         <div className="px-6 py-4">
-          {Object.entries(PERMISSION_CATEGORIES).map(([category, permNames]) => {
-            const perms = permNames
-              .map(name => permissionsByName.get(name))
-              .filter((p): p is Permission => !!p);
-            if (perms.length === 0) return null;
-            return (
-              <div key={category} className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">{category}</h3>
-                <div className="space-y-1">
-                  {perms.map(perm => (
+          {grouped.map(({ categoryKey, displayLabel, permissions }) => (
+            <div key={categoryKey} className="mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">{displayLabel}</h3>
+              <div className="space-y-1">
+                {permissions.map(perm => (
                   <label key={perm.id} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                     <input
                       type="checkbox"
@@ -154,41 +139,40 @@ const EditRolePermissionsModal: React.FC<EditRolePermissionsModalProps> = ({
                       disabled={readOnly}
                       className="rounded"
                     />
-                      <span className="font-mono text-xs">{perm.name}</span>
-                      {perm.description && (
-                        <span className="text-gray-400">— {perm.description}</span>
-                      )}
-                    </label>
-                  ))}
-                </div>
+                    <span className="font-mono text-xs">{perm.name}</span>
+                    {perm.description && (
+                      <span className="text-gray-400">— {perm.description}</span>
+                    )}
+                  </label>
+                ))}
               </div>
-            );
-          })}
+            </div>
+          ))}
           {error && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
         </div>
-      <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={onClose}
-          disabled={isSaving}
-        >
-          {readOnly ? 'Close' : 'Cancel'}
-        </Button>
-        {!readOnly && (
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
           <Button
+            variant="secondary"
             size="sm"
-            onClick={handleSave}
+            onClick={onClose}
             disabled={isSaving}
           >
-            {isSaving ? 'Saving...' : 'Save'}
+            {readOnly ? 'Close' : 'Cancel'}
           </Button>
-        )}
-      </div>
+          {!readOnly && (
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -199,11 +183,17 @@ const EditRolePermissionsModal: React.FC<EditRolePermissionsModalProps> = ({
 // ────────────────────────────────────────────────────────────────
 interface CreateRoleModalProps {
   allPermissions: Permission[];
+  categoryLabels: PermissionCategoryLabel[];
   onClose: () => void;
   onCreate: (data: { name: string; description?: string }, permissionIds: number[]) => Promise<void>;
 }
 
-const CreateRoleModal: React.FC<CreateRoleModalProps> = ({ allPermissions, onClose, onCreate }) => {
+const CreateRoleModal: React.FC<CreateRoleModalProps> = ({ 
+  allPermissions, 
+  categoryLabels,
+  onClose, 
+  onCreate 
+}) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -238,7 +228,7 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({ allPermissions, onClo
     }
   };
 
-  const permissionsByName = new Map(allPermissions.map(p => [p.name, p]));
+  const grouped = groupPermissionsByCategory(allPermissions, categoryLabels, 'fr');
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -279,30 +269,24 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({ allPermissions, onClo
             </div>
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">Permissions</p>
-              {Object.entries(PERMISSION_CATEGORIES).map(([category, permNames]) => {
-                const perms = permNames
-                  .map(n => permissionsByName.get(n))
-                  .filter((p): p is Permission => !!p);
-                if (perms.length === 0) return null;
-                return (
-                  <div key={category} className="mb-3">
-                    <h3 className="text-xs font-semibold text-gray-600 uppercase mb-1">{category}</h3>
-                    <div className="space-y-1">
-                      {perms.map(perm => (
-                        <label key={perm.id} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selected.has(perm.id)}
-                            onChange={() => toggle(perm.id)}
-                            className="rounded"
-                          />
-                          <span className="font-mono text-xs">{perm.name}</span>
-                        </label>
-                      ))}
-                    </div>
+              {grouped.map(({ categoryKey, displayLabel, permissions }) => (
+                <div key={categoryKey} className="mb-3">
+                  <h3 className="text-xs font-semibold text-gray-600 uppercase mb-1">{displayLabel}</h3>
+                  <div className="space-y-1">
+                    {permissions.map(perm => (
+                      <label key={perm.id} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(perm.id)}
+                          onChange={() => toggle(perm.id)}
+                          className="rounded"
+                        />
+                        <span className="font-mono text-xs">{perm.name}</span>
+                      </label>
+                    ))}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
             {error && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -346,6 +330,7 @@ const RoleManagementPage: React.FC = () => {
 
   const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
   const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
+  const [categoryLabels, setCategoryLabels] = useState<PermissionCategoryLabel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -358,12 +343,14 @@ const RoleManagementPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [rolesData, permsData] = await Promise.all([
+      const [rolesData, permsData, categoriesData] = await Promise.all([
         rolesApi.getAll(),
         rolesApi.getAllPermissions(),
+        rolesApi.getPermissionCategoryLabels(),
       ]);
       setRoles(rolesData);
       setAllPermissions(permsData);
+      setCategoryLabels(categoriesData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load roles');
     } finally {
@@ -488,37 +475,37 @@ const RoleManagementPage: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-500">{role.permissions.length}</div>
                   </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex justify-end gap-2">
-                    {canRead && (
-                      <LinkButton
-                        onClick={() => setViewingRole(role)}
-                        data-testid={`view-role-${role.id}`}
-                      >
-                        View Permissions
-                      </LinkButton>
-                    )}
-                    {canUpdate && (
-                      <LinkButton
-                        onClick={() => setEditingRole(role)}
-                        data-testid={`edit-role-${role.id}`}
-                      >
-                        Edit Permissions
-                      </LinkButton>
-                    )}
-                    {canDelete && (
-                      <LinkButton
-                        variant="danger"
-                        onClick={() => setDeletingRole(role)}
-                        disabled={role.is_system}
-                        title={role.is_system ? 'System roles cannot be deleted' : undefined}
-                        data-testid={`delete-role-${role.id}`}
-                      >
-                        Delete
-                      </LinkButton>
-                    )}
-                  </div>
-                </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end gap-2">
+                      {canRead && (
+                        <LinkButton
+                          onClick={() => setViewingRole(role)}
+                          data-testid={`view-role-${role.id}`}
+                        >
+                          View Permissions
+                        </LinkButton>
+                      )}
+                      {canUpdate && (
+                        <LinkButton
+                          onClick={() => setEditingRole(role)}
+                          data-testid={`edit-role-${role.id}`}
+                        >
+                          Edit Permissions
+                        </LinkButton>
+                      )}
+                      {canDelete && (
+                        <LinkButton
+                          variant="danger"
+                          onClick={() => setDeletingRole(role)}
+                          disabled={role.is_system}
+                          title={role.is_system ? 'System roles cannot be deleted' : undefined}
+                          data-testid={`delete-role-${role.id}`}
+                        >
+                          Delete
+                        </LinkButton>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -530,6 +517,7 @@ const RoleManagementPage: React.FC = () => {
       {showCreate && (
         <CreateRoleModal
           allPermissions={allPermissions}
+          categoryLabels={categoryLabels}
           onClose={() => setShowCreate(false)}
           onCreate={handleCreate}
         />
@@ -539,6 +527,7 @@ const RoleManagementPage: React.FC = () => {
         <EditRolePermissionsModal
           role={viewingRole}
           allPermissions={allPermissions}
+          categoryLabels={categoryLabels}
           onClose={() => setViewingRole(null)}
           onSave={handleSavePermissions}
           readOnly={true}
@@ -549,6 +538,7 @@ const RoleManagementPage: React.FC = () => {
         <EditRolePermissionsModal
           role={editingRole}
           allPermissions={allPermissions}
+          categoryLabels={categoryLabels}
           onClose={() => setEditingRole(null)}
           onSave={handleSavePermissions}
         />
