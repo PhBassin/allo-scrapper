@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { searchFilms, upsertFilm } from './film-queries.js';
+import { getFilm, searchFilms, upsertFilm } from './film-queries.js';
 import { type DB } from './client.js';
 
 describe('Film Queries - Film Search', () => {
@@ -357,5 +357,60 @@ describe('Film Queries - Film Sanitization', () => {
       expect(params[14]).toBe(4.0);     // press_rating
       expect(params[15]).toBe(3.5);     // audience_rating
     });
+  });
+});
+
+describe('Film Queries - Trailer URL', () => {
+  it('should persist trailer_url when upserting a film', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rows: [] });
+    const mockDb = {
+      query: queryMock,
+    } as unknown as DB;
+
+    await upsertFilm(mockDb, {
+      id: 987,
+      title: 'Trailer Film',
+      genres: [],
+      actors: [],
+      source_url: 'https://example.com/film/987',
+      trailer_url: 'https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=987.html',
+    } as any);
+
+    const params: any[] = queryMock.mock.calls[0][1];
+    expect(params[17]).toBe('https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=987.html');
+  });
+
+  it('should return trailer_url when fetching a film', async () => {
+    const mockDb = {
+      query: vi.fn().mockResolvedValue({
+        rows: [
+          {
+            id: 987,
+            title: 'Trailer Film',
+            original_title: null,
+            poster_url: null,
+            duration_minutes: null,
+            release_date: null,
+            rerelease_date: null,
+            genres: '[]',
+            nationality: null,
+            director: null,
+            screenwriters: '[]',
+            actors: '[]',
+            synopsis: null,
+            certificate: null,
+            press_rating: null,
+            audience_rating: null,
+            source_url: 'https://example.com/film/987',
+            trailer_url: 'https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=987.html',
+          },
+        ],
+      }),
+    } as unknown as DB;
+
+    const film = await getFilm(mockDb, 987);
+    expect((film as any)?.trailer_url).toBe(
+      'https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=987.html'
+    );
   });
 });
