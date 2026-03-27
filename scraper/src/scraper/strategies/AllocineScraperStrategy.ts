@@ -84,8 +84,11 @@ export class AllocineScraperStrategy implements IScraperStrategy {
 
         try {
           const existingFilm = await getFilm(db, film.id);
+          const needsDuration = !existingFilm?.duration_minutes;
+          const needsDirector = !existingFilm?.director;
+          const needsScreenwriters = !existingFilm?.screenwriters || existingFilm.screenwriters.length === 0;
 
-          if (!existingFilm || !existingFilm.duration_minutes) {
+          if (!existingFilm || needsDuration || needsDirector || needsScreenwriters) {
             logger.info('Fetching film details', { title: film.title, id: film.id });
 
             try {
@@ -96,12 +99,22 @@ export class AllocineScraperStrategy implements IScraperStrategy {
                 film.duration_minutes = filmPageData.duration_minutes;
               }
 
+              if (filmPageData.director) {
+                film.director = filmPageData.director;
+              }
+
+              if (filmPageData.screenwriters && filmPageData.screenwriters.length > 0) {
+                film.screenwriters = filmPageData.screenwriters;
+              }
+
               await delay(movieDelayMs);
             } catch (error) {
               logger.warn('Error fetching film page', { filmId: film.id, error });
             }
           } else {
             film.duration_minutes = existingFilm.duration_minutes;
+            film.director = existingFilm.director;
+            film.screenwriters = existingFilm.screenwriters;
           }
 
           await upsertFilm(db, film);

@@ -19,6 +19,7 @@ describe('Film Queries - Film Search', () => {
               genres: '["Science Fiction","Action"]',
               nationality: 'U.S.A.',
               director: 'Lana Wachowski, Lilly Wachowski',
+              screenwriters: '["Lana Wachowski","Lilly Wachowski"]',
               actors: '["Keanu Reeves","Laurence Fishburne"]',
               synopsis: 'A computer hacker learns...',
               certificate: 'Tous publics',
@@ -49,6 +50,7 @@ describe('Film Queries - Film Search', () => {
             {
               id: 19776,
               title: 'Matrix',
+              screenwriters: '[]',
               genres: '["Science Fiction"]',
               actors: '[]'
             }
@@ -69,12 +71,14 @@ describe('Film Queries - Film Search', () => {
             {
               id: 1,
               title: 'Superman',
+              screenwriters: '[]',
               genres: '[]',
               actors: '[]'
             },
             {
               id: 2,
               title: 'Super Mario Bros',
+              screenwriters: '[]',
               genres: '[]',
               actors: '[]'
             }
@@ -95,6 +99,7 @@ describe('Film Queries - Film Search', () => {
           rows: Array.from({ length: 5 }, (_, i) => ({
             id: i,
             title: `Film ${i}`,
+            screenwriters: '[]',
             genres: '[]',
             actors: '[]'
           }))
@@ -127,6 +132,7 @@ describe('Film Queries - Film Search', () => {
             {
               id: 123,
               title: 'L\'Été',
+              screenwriters: '[]',
               genres: '[]',
               actors: '[]'
             }
@@ -148,6 +154,7 @@ describe('Film Queries - Film Search', () => {
               id: 1,
               title: 'Marty',
               original_title: 'Marty',
+              screenwriters: '[]',
               genres: '[]',
               actors: '[]'
             },
@@ -155,6 +162,7 @@ describe('Film Queries - Film Search', () => {
               id: 2,
               title: 'La Mer',
               original_title: null,
+              screenwriters: '[]',
               genres: '[]',
               actors: '[]'
             }
@@ -184,6 +192,7 @@ describe('Film Queries - Film Search', () => {
               id: 19776,
               title: 'Matrix',
               original_title: 'The Matrix',
+              screenwriters: '[]',
               genres: '[]',
               actors: '[]'
             }
@@ -220,8 +229,9 @@ describe('Film Queries - Film Search', () => {
 describe('Film Queries - Film Sanitization', () => {
   describe('upsertFilm with invalid numeric values', () => {
     it('should handle NaN duration_minutes by converting to null', async () => {
+      const queryMock = vi.fn().mockResolvedValue({ rows: [] });
       const mockDb = {
-        query: vi.fn().mockResolvedValue({ rows: [] })
+        query: queryMock
       } as unknown as DB;
 
       const filmWithNaN = {
@@ -239,14 +249,15 @@ describe('Film Queries - Film Sanitization', () => {
       
       // Verify the query was called with null for duration_minutes
       expect(mockDb.query).toHaveBeenCalledOnce();
-      const params: any[] = mockDb.query.mock.calls[0][1];
+      const params: any[] = queryMock.mock.calls[0][1];
       // Parameter $5 is duration_minutes
       expect(params[4]).toBeNull();
     });
 
     it('should handle Infinity duration_minutes by converting to null', async () => {
+      const queryMock = vi.fn().mockResolvedValue({ rows: [] });
       const mockDb = {
-        query: vi.fn().mockResolvedValue({ rows: [] })
+        query: queryMock
       } as unknown as DB;
 
       const filmWithInfinity = {
@@ -264,13 +275,14 @@ describe('Film Queries - Film Sanitization', () => {
       
       // Verify the query was called with null for duration_minutes
       expect(mockDb.query).toHaveBeenCalledOnce();
-      const params: any[] = mockDb.query.mock.calls[0][1];
+      const params: any[] = queryMock.mock.calls[0][1];
       expect(params[4]).toBeNull();
     });
 
     it('should handle NaN press_rating by converting to null', async () => {
+      const queryMock = vi.fn().mockResolvedValue({ rows: [] });
       const mockDb = {
-        query: vi.fn().mockResolvedValue({ rows: [] })
+        query: queryMock
       } as unknown as DB;
 
       const filmWithNaNRating = {
@@ -288,14 +300,15 @@ describe('Film Queries - Film Sanitization', () => {
       
       // Verify the query was called with null for press_rating
       expect(mockDb.query).toHaveBeenCalledOnce();
-      const params: any[] = mockDb.query.mock.calls[0][1];
-      // Parameter $14 is press_rating
-      expect(params[13]).toBeNull();
+      const params: any[] = queryMock.mock.calls[0][1];
+      // Parameter $15 is press_rating
+      expect(params[14]).toBeNull();
     });
 
     it('should handle NaN audience_rating by converting to null', async () => {
+      const queryMock = vi.fn().mockResolvedValue({ rows: [] });
       const mockDb = {
-        query: vi.fn().mockResolvedValue({ rows: [] })
+        query: queryMock
       } as unknown as DB;
 
       const filmWithNaNAudience = {
@@ -313,14 +326,15 @@ describe('Film Queries - Film Sanitization', () => {
       
       // Verify the query was called with null for audience_rating
       expect(mockDb.query).toHaveBeenCalledOnce();
-      const params: any[] = mockDb.query.mock.calls[0][1];
-      // Parameter $15 is audience_rating
-      expect(params[14]).toBeNull();
+      const params: any[] = queryMock.mock.calls[0][1];
+      // Parameter $16 is audience_rating
+      expect(params[15]).toBeNull();
     });
 
     it('should preserve valid numeric values', async () => {
+      const queryMock = vi.fn().mockResolvedValue({ rows: [] });
       const mockDb = {
-        query: vi.fn().mockResolvedValue({ rows: [] })
+        query: queryMock
       } as unknown as DB;
 
       const validFilm = {
@@ -338,10 +352,10 @@ describe('Film Queries - Film Sanitization', () => {
       
       // Verify valid values are preserved
       expect(mockDb.query).toHaveBeenCalledOnce();
-      const params: any[] = mockDb.query.mock.calls[0][1];
+      const params: any[] = queryMock.mock.calls[0][1];
       expect(params[4]).toBe(120);      // duration_minutes
-      expect(params[13]).toBe(4.0);     // press_rating
-      expect(params[14]).toBe(3.5);     // audience_rating
+      expect(params[14]).toBe(4.0);     // press_rating
+      expect(params[15]).toBe(3.5);     // audience_rating
     });
   });
 });

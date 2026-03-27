@@ -25,6 +25,7 @@ export interface Film {
   genres: string[];
   nationality?: string;
   director?: string;
+  screenwriters?: string[];
   actors: string[];
   synopsis?: string;
   certificate?: string;

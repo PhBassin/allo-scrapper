@@ -95,6 +95,10 @@ function extractMovieId(movie: AllocineMovie): number | null {
   return null;
 }
 
+function uniqueNonEmptyStrings(values: string[]): string[] {
+  return Array.from(new Set(values.map(v => v.trim()).filter(Boolean)));
+}
+
 /**
  * Convert runtime from seconds to minutes, filtering out invalid values.
  * Returns undefined for NaN, Infinity, zero, negative, or missing values.
@@ -247,6 +251,7 @@ export function parseShowtimesJson(
     }
 
     let director: string | undefined;
+    const screenwriters: string[] = [];
     const actors: string[] = [];
     for (const credit of movie.credits ?? []) {
       const name = credit.person?.fullName;
@@ -255,6 +260,14 @@ export function parseShowtimesJson(
       const pos = credit.position?.name?.toLowerCase() ?? '';
       if (pos === 'director' || pos === 'réalisateur') {
         director = decodedName;
+      } else if (
+        pos === 'writer' ||
+        pos === 'screenwriter' ||
+        pos === 'screenplay' ||
+        pos === 'scénariste' ||
+        pos === 'scenariste'
+      ) {
+        screenwriters.push(decodedName);
       } else if (pos === 'actor' || pos === 'acteur') {
         actors.push(decodedName);
       }
@@ -279,6 +292,7 @@ export function parseShowtimesJson(
       genres,
       nationality,
       director,
+      screenwriters: uniqueNonEmptyStrings(screenwriters),
       actors,
       synopsis: decodeHtmlEntities(movie.synopsis),
       press_rating,

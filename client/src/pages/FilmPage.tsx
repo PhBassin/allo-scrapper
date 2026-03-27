@@ -70,6 +70,12 @@ export default function FilmPage() {
                 {film.director && (
                   <p><span className="text-gray-500">Réalisateur:</span> {film.director}</p>
                 )}
+
+                {film.screenwriters && film.screenwriters.length > 0 && (
+                  <p>
+                    <span className="text-gray-500">Scénario:</span> {film.screenwriters.join(', ')}
+                  </p>
+                )}
                 
                 {film.genres && film.genres.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">

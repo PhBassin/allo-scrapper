@@ -15,6 +15,7 @@ export interface FilmRow {
   genres: string | null; // JSON string
   nationality: string | null;
   director: string | null;
+  screenwriters: string | null; // JSON string
   actors: string | null; // JSON string
   synopsis: string | null;
   certificate: string | null;
@@ -44,6 +45,7 @@ export async function getFilm(db: DB, filmId: number): Promise<Film | undefined>
     genres: JSON.parse(row.genres ?? '[]'),
     nationality: row.nationality ?? undefined,
     director: row.director ?? undefined,
+    screenwriters: JSON.parse(row.screenwriters ?? '[]'),
     actors: JSON.parse(row.actors ?? '[]'),
     synopsis: row.synopsis ?? undefined,
     certificate: row.certificate ?? undefined,
@@ -97,12 +99,12 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
       INSERT INTO films (
         id, title, original_title, poster_url, duration_minutes,
         release_date, rerelease_date, genres, nationality, director,
-        actors, synopsis, certificate, press_rating, audience_rating, source_url
+        screenwriters, actors, synopsis, certificate, press_rating, audience_rating, source_url
       )
       VALUES (
         $1, $2, $3, $4, $5,
         $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16
+        $11, $12, $13, $14, $15, $16, $17
       )
       ON CONFLICT(id) DO UPDATE SET
         title = $2,
@@ -114,12 +116,13 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
         genres = $8,
         nationality = $9,
         director = $10,
-        actors = $11,
-        synopsis = $12,
-        certificate = $13,
-        press_rating = $14,
-        audience_rating = $15,
-        source_url = $16
+        screenwriters = $11,
+        actors = $12,
+        synopsis = $13,
+        certificate = $14,
+        press_rating = $15,
+        audience_rating = $16,
+        source_url = $17
     `,
     [
       sanitized.id,
@@ -132,6 +135,7 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
       JSON.stringify(sanitized.genres),
       sanitized.nationality ?? null,
       sanitized.director ?? null,
+      JSON.stringify(sanitized.screenwriters ?? []),
       JSON.stringify(sanitized.actors),
       sanitized.synopsis ?? null,
       sanitized.certificate ?? null,

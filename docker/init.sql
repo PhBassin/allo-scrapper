@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS films (
   genres TEXT, -- JSON array
   nationality TEXT,
   director TEXT,
+  screenwriters TEXT, -- JSON array
   actors TEXT, -- JSON array
   synopsis TEXT,
   certificate TEXT,
