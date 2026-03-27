@@ -117,4 +117,43 @@ describe('CinemaPage - renders cinema details', () => {
       expect(screen.getByText(/Cinema not found/i)).toBeInTheDocument();
     });
   });
+
+  it('shows first available showtimes when no showtimes exist for today', async () => {
+    vi.mocked(clientApi.getCinemaSchedule).mockResolvedValue({
+      weekStart: '2026-02-23',
+      showtimes: [
+        {
+          id: 'st-1',
+          film_id: 101,
+          cinema_id: 'C0153',
+          date: '2026-02-24',
+          time: '14:30',
+          datetime_iso: '2026-02-24T14:30:00.000Z',
+          version: 'VF',
+          format: '2D',
+          experiences: [],
+          week_start: '2026-02-23',
+          film: {
+            id: 101,
+            title: 'Film Test',
+            genres: ['Drame'],
+            actors: ['Acteur Test'],
+            source_url: 'https://www.allocine.fr/film/fichefilm_gen_cfilm=101.html',
+          },
+        },
+      ],
+    });
+
+    renderWithClient(
+      <MemoryRouter initialEntries={['/cinema/C0153']}>
+        <Routes>
+          <Route path="/cinema/:id" element={<CinemaPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Film Test')).toBeInTheDocument();
+    expect(screen.getByText('14:30')).toBeInTheDocument();
+    expect(screen.queryByText(/Aucune séance programmée ce jour-là/i)).not.toBeInTheDocument();
+  });
 });
