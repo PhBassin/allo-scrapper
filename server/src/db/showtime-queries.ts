@@ -28,6 +28,7 @@ export interface ShowtimeWithFilmRow extends ShowtimeRow {
   genres: string | null;
   nationality: string | null;
   director: string | null;
+  screenwriters: string | null;
   actors: string | null;
   synopsis: string | null;
   certificate: string | null;
@@ -198,6 +199,7 @@ export async function getShowtimesByCinema(
         f.genres,
         f.nationality,
         f.director,
+        f.screenwriters,
         f.actors,
         f.synopsis,
         f.certificate,
@@ -234,6 +236,7 @@ export async function getShowtimesByCinema(
       genres: parseJSONMemoized(row.genres),
       nationality: row.nationality ?? undefined,
       director: row.director ?? undefined,
+      screenwriters: parseJSONMemoized(row.screenwriters),
       actors: parseJSONMemoized(row.actors),
       synopsis: row.synopsis ?? undefined,
       certificate: row.certificate ?? undefined,
@@ -264,6 +267,7 @@ export async function getShowtimesByCinemaAndWeek(
         f.genres,
         f.nationality,
         f.director,
+        f.screenwriters,
         f.actors,
         f.synopsis,
         f.certificate,
@@ -300,6 +304,7 @@ export async function getShowtimesByCinemaAndWeek(
       genres: parseJSONMemoized(row.genres),
       nationality: row.nationality ?? undefined,
       director: row.director ?? undefined,
+      screenwriters: parseJSONMemoized(row.screenwriters),
       actors: parseJSONMemoized(row.actors),
       synopsis: row.synopsis ?? undefined,
       certificate: row.certificate ?? undefined,

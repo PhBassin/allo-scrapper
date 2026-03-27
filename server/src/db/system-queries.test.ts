@@ -101,6 +101,7 @@ describe('System Queries', () => {
             { version: '017_add_rate_limit_configs.sql' },
             { version: '018_add_rate_limit_permissions.sql' },
             { version: '019_add_permission_category_labels.sql' },
+            { version: '020_add_film_screenwriters.sql' },
           ],
         }),
       } as unknown as DB;

@@ -22,6 +22,7 @@ export interface Film {
   genres: string[]; // ["Drama", "Comedy"]
   nationality?: string;
   director?: string;
+  screenwriters?: string[];
   actors: string[];
   synopsis?: string;
   certificate?: string; // "All audiences", "16+"
@@ -86,4 +87,6 @@ export interface FilmWithShowtimes extends Film {
 export interface FilmPageData {
   duration_minutes?: number;
   trailer_url?: string;
+  director?: string;
+  screenwriters?: string[];
 }
