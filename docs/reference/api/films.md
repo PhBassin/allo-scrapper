@@ -1,6 +1,6 @@
 # Films API
 
-**Last updated:** March 18, 2026 | Status: Current ✅
+**Last updated:** March 27, 2026 | Status: Current ✅
 
 ## Films
 
@@ -25,7 +25,8 @@ GET /api/films
         "release_date": "2024-01-15",
         "genres": ["Drama"],
         "nationality": "France",
-        "director": "Director Name"
+        "director": "Director Name",
+        "screenwriters": ["Writer 1", "Writer 2"]
       }
     ],
     "weekStart": "2024-02-12"
@@ -64,6 +65,7 @@ GET /api/films/:id
     "genres": ["Drama", "Thriller"],
     "nationality": "France",
     "director": "Director Name",
+    "screenwriters": ["Writer 1", "Writer 2"],
     "actors": ["Actor 1", "Actor 2"],
     "synopsis": "Full synopsis text...",
     "certificate": "TP",
@@ -144,7 +146,8 @@ Search for films using fuzzy matching with PostgreSQL trigram similarity. Return
       "release_date": "1999-06-23",
       "genres": ["Sci-Fi", "Action"],
       "nationality": "USA",
-      "director": "Wachowski Brothers"
+      "director": "Wachowski Brothers",
+      "screenwriters": ["Lana Wachowski", "Lilly Wachowski"]
     }
   ]
 }
