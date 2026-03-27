@@ -636,6 +636,7 @@ Before committing a new migration:
 - [ ] Migration uses `BEGIN;` and `COMMIT;` for atomicity
 - [ ] Migration has clear NOTICE messages for success/skip cases
 - [ ] Migration tested manually on both fresh DB and existing DB
+- [ ] Update migration inventory tests that assert a complete applied list (notably `server/src/db/system-queries.test.ts`)
 
 ### Testing Migrations
 
