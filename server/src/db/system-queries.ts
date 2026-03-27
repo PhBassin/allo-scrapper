@@ -105,42 +105,49 @@ export async function getPendingMigrations(db: DB): Promise<PendingMigration[]> 
  * @returns Database statistics
  */
 export async function getDatabaseStats(db: DB): Promise<DatabaseStats> {
-  // Get database size
-  const sizeResult = await db.query(
-    `SELECT pg_size_pretty(pg_database_size(current_database())) AS size`,
-    []
-  );
+  // ⚡ PERFORMANCE: Execute independent database queries concurrently to prevent
+  // sequential execution bottlenecks and reduce total API response time.
+  const [
+    sizeResult,
+    tableCountResult,
+    cinemaCountResult,
+    filmCountResult,
+    showtimeCountResult
+  ] = await Promise.all([
+    // Get database size
+    db.query(
+      `SELECT pg_size_pretty(pg_database_size(current_database())) AS size`,
+      []
+    ),
+    // Get table count
+    db.query(
+      `SELECT COUNT(*)::text AS count
+       FROM information_schema.tables
+       WHERE table_schema = 'public'
+         AND table_type = 'BASE TABLE'`,
+      []
+    ),
+    // Get cinema count
+    db.query(
+      `SELECT COUNT(*)::text AS count FROM cinemas`,
+      []
+    ),
+    // Get film count
+    db.query(
+      `SELECT COUNT(*)::text AS count FROM films`,
+      []
+    ),
+    // Get showtime count
+    db.query(
+      `SELECT COUNT(*)::text AS count FROM showtimes`,
+      []
+    )
+  ]);
+
   const size = sizeResult.rows[0]?.size || '0 bytes';
-
-  // Get table count
-  const tableCountResult = await db.query(
-    `SELECT COUNT(*)::text AS count
-     FROM information_schema.tables
-     WHERE table_schema = 'public'
-       AND table_type = 'BASE TABLE'`,
-    []
-  );
   const tables = parseInt(tableCountResult.rows[0]?.count || '0', 10);
-
-  // Get cinema count
-  const cinemaCountResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM cinemas`,
-    []
-  );
   const cinemas = parseInt(cinemaCountResult.rows[0]?.count || '0', 10);
-
-  // Get film count
-  const filmCountResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM films`,
-    []
-  );
   const films = parseInt(filmCountResult.rows[0]?.count || '0', 10);
-
-  // Get showtime count
-  const showtimeCountResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM showtimes`,
-    []
-  );
   const showtimes = parseInt(showtimeCountResult.rows[0]?.count || '0', 10);
 
   return {
