@@ -129,12 +129,15 @@ export function parseFilmPage(html: string): FilmPageData {
   }
 
   let trailerUrl: string | undefined;
-  const trailerLink = $('.thumbnail-link[href*="video/player_gen"]').first();
-  if (trailerLink.length) {
-    const href = trailerLink.attr('href');
-    if (href) {
-      trailerUrl = `https://www.allocine.fr${href.replace(/&amp;/g, '&')}`;
-    }
+  const modernTrailerHref = $('a[href*="video/player_gen"]').first().attr('href');
+  const legacyTrailerHref = $('.thumbnail-link[href*="video/player_gen"]').first().attr('href');
+  const trailerHref = modernTrailerHref ?? legacyTrailerHref;
+
+  if (trailerHref) {
+    const normalizedHref = trailerHref.replace(/&amp;/g, '&');
+    trailerUrl = normalizedHref.startsWith('http')
+      ? normalizedHref
+      : `https://www.allocine.fr${normalizedHref}`;
   }
 
   const jsonLdCredits = parseJsonLdCredits($);

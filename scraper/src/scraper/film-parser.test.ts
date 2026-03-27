@@ -52,4 +52,17 @@ describe('parseFilmPage', () => {
     expect(result.director).toBe('Luca Guadagnino');
     expect(result.screenwriters).toEqual(['Justin Kuritzkes', 'Sam Writer']);
   });
+
+  it('extracts trailer URL from modern trailer anchor markup', () => {
+    const html = `
+      <div class="meta-body-info">1h 10min</div>
+      <a class="trailer roller-item" href="/video/player_gen_cmedia=19600934&amp;cfilm=296168.html"></a>
+    `;
+
+    const result = parseFilmPage(html);
+
+    expect(result.trailer_url).toBe(
+      'https://www.allocine.fr/video/player_gen_cmedia=19600934&cfilm=296168.html'
+    );
+  });
 });
