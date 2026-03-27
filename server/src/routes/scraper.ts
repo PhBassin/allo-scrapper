@@ -70,7 +70,7 @@ router.post('/resume/:reportId', scraperLimiter, requireAuth, async (req: AuthRe
   const scraperService = new ScraperService(dbConn);
 
   try {
-    const reportId = parseInt(req.params.reportId as string, 10);
+    const reportId = parseStrictInt(req.params.reportId);
     
     if (isNaN(reportId)) {
       return next(new ValidationError('Invalid report ID'));

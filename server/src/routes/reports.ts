@@ -89,7 +89,7 @@ router.get('/:id', protectedLimiter, requireAuth, requirePermission('reports:vie
 router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('reports:view'), async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
-    const reportId = parseInt(req.params.id as string);
+    const reportId = parseStrictInt(req.params.id);
 
     if (isNaN(reportId)) {
       return next(new ValidationError('Invalid report ID'));
