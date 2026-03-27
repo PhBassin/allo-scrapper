@@ -107,6 +107,10 @@ export class AllocineScraperStrategy implements IScraperStrategy {
                 film.screenwriters = filmPageData.screenwriters;
               }
 
+              if (filmPageData.trailer_url) {
+                film.trailer_url = filmPageData.trailer_url;
+              }
+
               await delay(movieDelayMs);
             } catch (error) {
               logger.warn('Error fetching film page', { filmId: film.id, error });
@@ -115,6 +119,7 @@ export class AllocineScraperStrategy implements IScraperStrategy {
             film.duration_minutes = existingFilm.duration_minutes;
             film.director = existingFilm.director;
             film.screenwriters = existingFilm.screenwriters;
+            film.trailer_url = existingFilm.trailer_url;
           }
 
           await upsertFilm(db, film);

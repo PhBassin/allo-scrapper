@@ -32,6 +32,7 @@ export interface Film {
   press_rating?: number;
   audience_rating?: number;
   source_url: string;
+  trailer_url?: string;
 }
 
 // Cinema types

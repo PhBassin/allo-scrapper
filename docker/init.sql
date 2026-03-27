@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS films (
   certificate TEXT,
   press_rating REAL,
   audience_rating REAL,
-  source_url TEXT NOT NULL
+  source_url TEXT NOT NULL,
+  trailer_url TEXT
 );
 
 -- Index for films title (trigram similarity for fuzzy search)

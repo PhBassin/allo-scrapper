@@ -30,6 +30,7 @@ export interface Film {
   press_rating?: number; // Rating out of 5
   audience_rating?: number; // Rating out of 5
   source_url: string;
+  trailer_url?: string;
 }
 
 export interface Showtime {
