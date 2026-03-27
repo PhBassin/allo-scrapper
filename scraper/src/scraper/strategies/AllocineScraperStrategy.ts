@@ -22,6 +22,24 @@ import { type ProgressPublisher } from '../index.js';
 import { type IScraperStrategy } from './IScraperStrategy.js';
 import { RateLimitError } from '../../utils/errors.js';
 
+export function shouldRefreshFilmDetails(existingFilm?: {
+  duration_minutes?: number;
+  director?: string;
+  screenwriters?: string[];
+  trailer_url?: string;
+} | null): boolean {
+  if (!existingFilm) {
+    return true;
+  }
+
+  const needsDuration = !existingFilm.duration_minutes;
+  const needsDirector = !existingFilm.director;
+  const needsScreenwriters = !existingFilm.screenwriters || existingFilm.screenwriters.length === 0;
+  const needsTrailerUrl = !existingFilm.trailer_url;
+
+  return needsDuration || needsDirector || needsScreenwriters || needsTrailerUrl;
+}
+
 export class AllocineScraperStrategy implements IScraperStrategy {
   readonly sourceName = 'allocine';
 
@@ -84,11 +102,8 @@ export class AllocineScraperStrategy implements IScraperStrategy {
 
         try {
           const existingFilm = await getFilm(db, film.id);
-          const needsDuration = !existingFilm?.duration_minutes;
-          const needsDirector = !existingFilm?.director;
-          const needsScreenwriters = !existingFilm?.screenwriters || existingFilm.screenwriters.length === 0;
 
-          if (!existingFilm || needsDuration || needsDirector || needsScreenwriters) {
+          if (shouldRefreshFilmDetails(existingFilm)) {
             logger.info('Fetching film details', { title: film.title, id: film.id });
 
             try {
@@ -115,7 +130,7 @@ export class AllocineScraperStrategy implements IScraperStrategy {
             } catch (error) {
               logger.warn('Error fetching film page', { filmId: film.id, error });
             }
-          } else {
+          } else if (existingFilm) {
             film.duration_minutes = existingFilm.duration_minutes;
             film.director = existingFilm.director;
             film.screenwriters = existingFilm.screenwriters;
