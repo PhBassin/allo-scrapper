@@ -66,6 +66,7 @@ GET /api/films/:id
     "nationality": "France",
     "director": "Director Name",
     "screenwriters": ["Writer 1", "Writer 2"],
+    "trailer_url": "https://www.example-cinema-site.com/video/player_gen_cmedia=12345&cfilm=123456.html",
     "actors": ["Actor 1", "Actor 2"],
     "synopsis": "Full synopsis text...",
     "certificate": "TP",

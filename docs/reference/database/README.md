@@ -84,6 +84,7 @@ Stores film metadata.
 | `press_rating` | REAL | | Press rating (0-5) |
 | `audience_rating` | REAL | | Audience rating (0-5) |
 | `source_url` | TEXT | | Source website film page URL |
+| `trailer_url` | TEXT | | Trailer URL (when available) |
 
 **Indexes:**
 - Primary key on `id`
