@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.0] - 2026-03-28
+
+### Added
+
+- feat(scraper): extract and expose film screenwriters (#677) [@PhBassin](https://github.com/PhBassin) (4b2d0c9)
+- feat(scraper): persist and expose film screenwriters [@phbassin](https://github.com/phbassin) (e2825c2)
+
+### Fixed
+
+- fix(film): preserve trailer_url from scrape to film page (#679) [@PhBassin](https://github.com/PhBassin) (63a5fe0)
+- fix(scraper): preserve trailer_url during bulk scrape failures [@phbassin](https://github.com/phbassin) (1499bbe)
+- fix(scraper): parse trailer URL from modern anchor markup [@phbassin](https://github.com/phbassin) (77db551)
+- fix(scraper): refresh film page when trailer is missing [@phbassin](https://github.com/phbassin) (40fd8f7)
+- fix(film): persist and expose trailer_url end-to-end [@phbassin](https://github.com/phbassin) (d975236)
+- fix(client): afficher les premières séances disponibles (#674) [@PhBassin](https://github.com/PhBassin) (665a3b4)
+- fix(client): select first available cinema date when today is empty [@phbassin](https://github.com/phbassin) (dae4e1c)
+
+### Changed
+
+- Improve performance and fix issues in film and role management (#681) [@PhBassin](https://github.com/PhBassin) (1de8404)
+- ⚡ Bolt: [performance improvement] Parallelize permission fetching in getAllRoles (#680) [@PhBassin](https://github.com/PhBassin) (7ba02d0)
+- ⚡ Bolt: [performance improvement] Parallelize permission fetching in getAllRoles [@PhBassin](https://github.com/PhBassin) (01f05d8)
+- test(film): cover trailer_url persistence and UI rendering [@phbassin](https://github.com/phbassin) (e12942d)
+- test(db): include migration 020 in migration inventory [@phbassin](https://github.com/phbassin) (8b3b3e8)
+- test(scraper): add film page credits extraction tests [@phbassin](https://github.com/phbassin) (bca7a34)
+- 🛡️ Sentinel: [MEDIUM] Replace loose parseInt with strict parseStrictInt (#675) [@PhBassin](https://github.com/PhBassin) (2d058ac)
+- 🛡️ Sentinel: [MEDIUM] Replace loose parseInt with strict parseStrictInt [@PhBassin](https://github.com/PhBassin) (5fa81da)
+- ⚡ Bolt: [performance improvement] Concurrent database stats queries (#672) [@PhBassin](https://github.com/PhBassin) (2e6a6a9)
+- test(client): cover cinema fallback to first available showtimes [@phbassin](https://github.com/phbassin) (cc1669f)
+
+### Performance
+
+- perf(server): execute database stats queries concurrently [@PhBassin](https://github.com/PhBassin) (1f2fee9)
+
+### Documentation
+
+- docs(api): document film trailer_url field [@phbassin](https://github.com/phbassin) (eb80577)
+- docs(agents): note migration inventory test update [@phbassin](https://github.com/phbassin) (4815281)
+- docs(api): document screenwriters in film responses [@phbassin](https://github.com/phbassin) (16d43e7)
+
 ## [4.4.0] - 2026-03-26
 
 ### Added
@@ -532,6 +572,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.5.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.4.0...v4.5.0
 [4.4.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.3.0...v4.4.0
 [4.3.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.1.2...v4.2.0
