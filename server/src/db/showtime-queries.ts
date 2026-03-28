@@ -28,12 +28,14 @@ export interface ShowtimeWithFilmRow extends ShowtimeRow {
   genres: string | null;
   nationality: string | null;
   director: string | null;
+  screenwriters: string | null;
   actors: string | null;
   synopsis: string | null;
   certificate: string | null;
   press_rating: number | null;
   audience_rating: number | null;
   source_url: string;
+  trailer_url: string | null;
 }
 
 export interface ShowtimeWithCinemaRow extends ShowtimeRow {
@@ -198,12 +200,14 @@ export async function getShowtimesByCinema(
         f.genres,
         f.nationality,
         f.director,
+        f.screenwriters,
         f.actors,
         f.synopsis,
         f.certificate,
         f.press_rating,
         f.audience_rating,
-        f.source_url
+        f.source_url,
+        f.trailer_url
       FROM showtimes s
       JOIN films f ON s.film_id = f.id
       WHERE s.cinema_id = $1 AND s.date = $2
@@ -234,12 +238,14 @@ export async function getShowtimesByCinema(
       genres: parseJSONMemoized(row.genres),
       nationality: row.nationality ?? undefined,
       director: row.director ?? undefined,
+      screenwriters: parseJSONMemoized(row.screenwriters),
       actors: parseJSONMemoized(row.actors),
       synopsis: row.synopsis ?? undefined,
       certificate: row.certificate ?? undefined,
       press_rating: row.press_rating ?? undefined,
       audience_rating: row.audience_rating ?? undefined,
       source_url: row.source_url,
+      trailer_url: row.trailer_url ?? undefined,
     },
   }));
 }
@@ -264,12 +270,14 @@ export async function getShowtimesByCinemaAndWeek(
         f.genres,
         f.nationality,
         f.director,
+        f.screenwriters,
         f.actors,
         f.synopsis,
         f.certificate,
         f.press_rating,
         f.audience_rating,
-        f.source_url
+        f.source_url,
+        f.trailer_url
       FROM showtimes s
       JOIN films f ON s.film_id = f.id
       WHERE s.cinema_id = $1 AND s.week_start = $2
@@ -300,12 +308,14 @@ export async function getShowtimesByCinemaAndWeek(
       genres: parseJSONMemoized(row.genres),
       nationality: row.nationality ?? undefined,
       director: row.director ?? undefined,
+      screenwriters: parseJSONMemoized(row.screenwriters),
       actors: parseJSONMemoized(row.actors),
       synopsis: row.synopsis ?? undefined,
       certificate: row.certificate ?? undefined,
       press_rating: row.press_rating ?? undefined,
       audience_rating: row.audience_rating ?? undefined,
       source_url: row.source_url,
+      trailer_url: row.trailer_url ?? undefined,
     },
   }));
 }

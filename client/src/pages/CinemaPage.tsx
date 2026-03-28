@@ -55,7 +55,7 @@ export default function CinemaPage() {
     return uniqueDates.includes(today) ? today : uniqueDates[0];
   };
 
-  const [selectedDate, setSelectedDate] = useState<string>(() => getInitialSelectedDate(showtimes));
+  const [selectedDate, setSelectedDate] = useState<string>('');
 
   const getUniqueDates = (showtimes: ShowtimeWithFilm[]): string[] => {
     const dates = new Set(showtimes.map(s => s.date));
@@ -98,7 +98,12 @@ export default function CinemaPage() {
   // array operations (getUniqueDates, filter, groupByFilm) on every render,
   // especially when showtimes array is large or during unrelated state updates (like scrape progress).
   const dates = useMemo(() => getUniqueDates(showtimes), [showtimes]);
-  const selectedShowtimes = useMemo(() => showtimes.filter(s => s.date === selectedDate), [showtimes, selectedDate]);
+  const effectiveSelectedDate = useMemo(() => {
+    if (dates.length === 0) return '';
+    if (selectedDate && dates.includes(selectedDate)) return selectedDate;
+    return getInitialSelectedDate(showtimes);
+  }, [dates, selectedDate, showtimes]);
+  const selectedShowtimes = useMemo(() => showtimes.filter(s => s.date === effectiveSelectedDate), [showtimes, effectiveSelectedDate]);
   const filmGroups = useMemo(() => groupByFilm(selectedShowtimes), [selectedShowtimes]);
 
   if (isLoading) {
@@ -148,7 +153,7 @@ export default function CinemaPage() {
       <div className="sticky top-[64px] z-40 bg-gray-50/95 backdrop-blur-sm pt-4 pb-4 mb-6 shadow-sm -mx-4 px-4" data-testid="sticky-date-selector-container">
         <CinemaDateSelector
           dates={dates}
-          selectedDate={selectedDate}
+          selectedDate={effectiveSelectedDate}
           showtimes={showtimes}
           onSelectDate={setSelectedDate}
           formatDateLabel={formatDateLabel}

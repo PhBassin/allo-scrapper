@@ -16,12 +16,14 @@ export interface FilmRow {
   genres: string | null; // JSON string
   nationality: string | null;
   director: string | null;
+  screenwriters: string | null; // JSON string
   actors: string | null; // JSON string
   synopsis: string | null;
   certificate: string | null;
   press_rating: number | null;
   audience_rating: number | null;
   source_url: string;
+  trailer_url: string | null;
 }
 
 export interface WeeklyFilmRow extends FilmRow {
@@ -78,12 +80,12 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
       INSERT INTO films (
         id, title, original_title, poster_url, duration_minutes,
         release_date, rerelease_date, genres, nationality, director,
-        actors, synopsis, certificate, press_rating, audience_rating, source_url
+        screenwriters, actors, synopsis, certificate, press_rating, audience_rating, source_url, trailer_url
       )
       VALUES (
         $1, $2, $3, $4, $5,
         $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16
+        $11, $12, $13, $14, $15, $16, $17, $18
       )
       ON CONFLICT(id) DO UPDATE SET
         title = $2,
@@ -95,12 +97,14 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
         genres = $8,
         nationality = $9,
         director = $10,
-        actors = $11,
-        synopsis = $12,
-        certificate = $13,
-        press_rating = $14,
-        audience_rating = $15,
-        source_url = $16
+        screenwriters = $11,
+        actors = $12,
+        synopsis = $13,
+        certificate = $14,
+        press_rating = $15,
+        audience_rating = $16,
+        source_url = $17,
+        trailer_url = COALESCE($18, films.trailer_url)
     `,
     [
       sanitized.id,
@@ -113,12 +117,14 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
       JSON.stringify(sanitized.genres),
       sanitized.nationality ?? null,
       sanitized.director ?? null,
+      JSON.stringify(sanitized.screenwriters ?? []),
       JSON.stringify(sanitized.actors),
       sanitized.synopsis ?? null,
       sanitized.certificate ?? null,
       sanitized.press_rating ?? null,
       sanitized.audience_rating ?? null,
       sanitized.source_url,
+      sanitized.trailer_url ?? null,
     ]
   );
 }
@@ -144,12 +150,14 @@ export async function getFilm(db: DB, filmId: number): Promise<Film | undefined>
     genres: parseJSONMemoized(row.genres),
     nationality: row.nationality ?? undefined,
     director: row.director ?? undefined,
+    screenwriters: parseJSONMemoized(row.screenwriters),
     actors: parseJSONMemoized(row.actors),
     synopsis: row.synopsis ?? undefined,
     certificate: row.certificate ?? undefined,
     press_rating: row.press_rating ?? undefined,
     audience_rating: row.audience_rating ?? undefined,
     source_url: row.source_url,
+    trailer_url: row.trailer_url ?? undefined,
   };
 }
 
@@ -195,12 +203,14 @@ export async function getFilmsByDate(
         genres: parseJSONMemoized(row.genres),
         nationality: row.nationality ?? undefined,
         director: row.director ?? undefined,
+        screenwriters: parseJSONMemoized(row.screenwriters),
         actors: parseJSONMemoized(row.actors),
         synopsis: row.synopsis ?? undefined,
         certificate: row.certificate ?? undefined,
         press_rating: row.press_rating ?? undefined,
         audience_rating: row.audience_rating ?? undefined,
         source_url: row.source_url,
+        trailer_url: row.trailer_url ?? undefined,
         cinemas: [],
       });
     }
@@ -261,12 +271,14 @@ export async function getWeeklyFilms(
         genres: parseJSONMemoized(row.genres),
         nationality: row.nationality ?? undefined,
         director: row.director ?? undefined,
+        screenwriters: parseJSONMemoized(row.screenwriters),
         actors: parseJSONMemoized(row.actors),
         synopsis: row.synopsis ?? undefined,
         certificate: row.certificate ?? undefined,
         press_rating: row.press_rating ?? undefined,
         audience_rating: row.audience_rating ?? undefined,
         source_url: row.source_url,
+        trailer_url: row.trailer_url ?? undefined,
         cinemas: [],
       });
     }
@@ -313,8 +325,9 @@ export async function searchFilms(
     `SELECT 
       id, title, original_title, poster_url, duration_minutes,
       release_date, rerelease_date, genres, nationality, director,
-      actors, synopsis, certificate, press_rating, audience_rating,
+      screenwriters, actors, synopsis, certificate, press_rating, audience_rating,
       source_url,
+      trailer_url,
       CASE
         -- Exact match (highest priority)
         WHEN LOWER(title) = LOWER($1) THEN 1.0
@@ -360,11 +373,13 @@ export async function searchFilms(
     genres: parseJSONMemoized(row.genres),
     nationality: row.nationality || undefined,
     director: row.director || undefined,
+    screenwriters: parseJSONMemoized(row.screenwriters),
     actors: parseJSONMemoized(row.actors),
     synopsis: row.synopsis || undefined,
     certificate: row.certificate || undefined,
     press_rating: row.press_rating || undefined,
     audience_rating: row.audience_rating || undefined,
-    source_url: row.source_url
+    source_url: row.source_url,
+    trailer_url: row.trailer_url || undefined,
   }));
 }

@@ -13,6 +13,7 @@ import { protectedLimiter } from '../../middleware/rate-limit.js';
 import { invalidateRateLimitCache } from '../../config/rate-limits.js';
 import type { ApiResponse } from '../../types/api.js';
 import { ValidationError } from '../../utils/errors.js';
+import { parseStrictInt } from '../../utils/number.js';
 
 const router = express.Router();
 
@@ -121,9 +122,12 @@ router.post('/reset', protectedLimiter, requireAuth, requirePermission('ratelimi
 router.get('/audit', protectedLimiter, requireAuth, requirePermission('ratelimits:audit'), async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
-    const offset = parseInt(req.query.offset as string) || 0;
-    const userId = req.query.userId ? parseInt(req.query.userId as string) : undefined;
+    const parsedLimit = parseStrictInt(req.query.limit);
+    const limit = Math.min(isNaN(parsedLimit) ? 50 : parsedLimit, 200);
+    const parsedOffset = parseStrictInt(req.query.offset);
+    const offset = isNaN(parsedOffset) ? 0 : parsedOffset;
+    const parsedUserId = parseStrictInt(req.query.userId);
+    const userId = isNaN(parsedUserId) ? undefined : parsedUserId;
 
     const auditLog = await getRateLimitAuditLog(db, { limit, offset, userId });
 

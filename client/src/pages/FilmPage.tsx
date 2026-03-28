@@ -70,12 +70,32 @@ export default function FilmPage() {
                 {film.director && (
                   <p><span className="text-gray-500">Réalisateur:</span> {film.director}</p>
                 )}
+
+                {film.screenwriters && film.screenwriters.length > 0 && (
+                  <p>
+                    <span className="text-gray-500">Scénario:</span> {film.screenwriters.join(', ')}
+                  </p>
+                )}
                 
                 {film.genres && film.genres.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {film.genres.map(g => (
                       <span key={g} className="px-2 py-0.5 bg-gray-100 rounded text-xs">{g}</span>
                     ))}
+                  </div>
+                )}
+
+                {film.trailer_url && (
+                  <div className="pt-2">
+                    <a
+                      href={film.trailer_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium hover:bg-primary/20 transition-colors"
+                    >
+                      <span aria-hidden="true">▶</span>
+                      <span>Voir la bande-annonce</span>
+                    </a>
                   </div>
                 )}
               </div>

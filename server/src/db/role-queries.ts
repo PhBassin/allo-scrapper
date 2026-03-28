@@ -29,11 +29,13 @@ export async function getAllRoles(db: DB): Promise<RoleWithPermissions[]> {
     return [];
   }
 
-  const rolesWithPermissions: RoleWithPermissions[] = [];
-  for (const role of rolesResult.rows) {
-    const permissions = await fetchPermissionsForRole(db, role.id);
-    rolesWithPermissions.push({ ...role, permissions });
-  }
+  // ⚡ PERFORMANCE: Run independent DB queries concurrently to prevent N+1 bottleneck
+  const rolesWithPermissions = await Promise.all(
+    rolesResult.rows.map(async (role) => {
+      const permissions = await fetchPermissionsForRole(db, role.id);
+      return { ...role, permissions };
+    })
+  );
 
   return rolesWithPermissions;
 }

@@ -17,3 +17,11 @@
 ## 2026-03-18 - [Optimize Array Transformations]
 **Learning:** Chaining `.map().filter()` creates unnecessary intermediate arrays, increasing memory allocation and garbage collection overhead, especially in rendering loops or reactive memoized computations.
 **Action:** When filtering and transforming data simultaneously, replace `.map().filter()` chains with a single `.reduce()` or a combination of `.flatMap()` to compute the result in one pass and avoid allocating unused intermediate objects.
+
+## 2026-03-27 - [Concurrent Database Stats Queries in system-queries.ts]
+**Learning:** System statistics were executing 5 independent sequential `COUNT(*)` and size queries instead of using `Promise.all()`. This is an architecture-specific bottleneck that adds noticeable latency to the `/api/admin/system` endpoint because it executes N times the DB roundtrip.
+**Action:** Replaced sequential awaits in `getDatabaseStats` with a single `Promise.all()` to gather `sizeResult`, `tableCountResult`, `cinemaCountResult`, `filmCountResult`, and `showtimeCountResult` concurrently, improving endpoint latency dramatically.
+
+## 2026-03-29 - [Concurrent Role Permissions Queries in role-queries.ts]
+**Learning:** Sequential database queries inside a `for...of` loop for fetching permissions per role created an N+1 query bottleneck in `getAllRoles`. This is an architecture-specific issue that adds noticeable latency to endpoints querying roles, because it executes N times the DB roundtrip for permissions.
+**Action:** Replaced sequential awaits in `getAllRoles` with a `Promise.all()` over an array map to gather permissions for all roles concurrently, improving database throughput for related API endpoints.

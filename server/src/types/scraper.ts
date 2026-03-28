@@ -22,12 +22,14 @@ export interface Film {
   genres: string[]; // ["Drama", "Comedy"]
   nationality?: string;
   director?: string;
+  screenwriters?: string[];
   actors: string[];
   synopsis?: string;
   certificate?: string; // "All audiences", "16+"
   press_rating?: number; // Rating out of 5
   audience_rating?: number; // Rating out of 5
   source_url: string;
+  trailer_url?: string;
 }
 
 export interface Showtime {
@@ -86,4 +88,6 @@ export interface FilmWithShowtimes extends Film {
 export interface FilmPageData {
   duration_minutes?: number;
   trailer_url?: string;
+  director?: string;
+  screenwriters?: string[];
 }

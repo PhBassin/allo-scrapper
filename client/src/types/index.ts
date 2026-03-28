@@ -25,12 +25,14 @@ export interface Film {
   genres: string[];
   nationality?: string;
   director?: string;
+  screenwriters?: string[];
   actors: string[];
   synopsis?: string;
   certificate?: string;
   press_rating?: number;
   audience_rating?: number;
   source_url: string;
+  trailer_url?: string;
 }
 
 // Cinema types

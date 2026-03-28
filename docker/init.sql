@@ -29,12 +29,14 @@ CREATE TABLE IF NOT EXISTS films (
   genres TEXT, -- JSON array
   nationality TEXT,
   director TEXT,
+  screenwriters TEXT, -- JSON array
   actors TEXT, -- JSON array
   synopsis TEXT,
   certificate TEXT,
   press_rating REAL,
   audience_rating REAL,
-  source_url TEXT NOT NULL
+  source_url TEXT NOT NULL,
+  trailer_url TEXT
 );
 
 -- Index for films title (trigram similarity for fuzzy search)
