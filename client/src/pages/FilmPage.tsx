@@ -84,6 +84,20 @@ export default function FilmPage() {
                     ))}
                   </div>
                 )}
+
+                {film.trailer_url && (
+                  <div className="pt-2">
+                    <a
+                      href={film.trailer_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium hover:bg-primary/20 transition-colors"
+                    >
+                      <span aria-hidden="true">▶</span>
+                      <span>Voir la bande-annonce</span>
+                    </a>
+                  </div>
+                )}
               </div>
 
               {/* Ratings */}

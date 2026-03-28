@@ -22,6 +22,24 @@ import { type ProgressPublisher } from '../index.js';
 import { type IScraperStrategy } from './IScraperStrategy.js';
 import { RateLimitError } from '../../utils/errors.js';
 
+export function shouldRefreshFilmDetails(existingFilm?: {
+  duration_minutes?: number;
+  director?: string;
+  screenwriters?: string[];
+  trailer_url?: string;
+} | null): boolean {
+  if (!existingFilm) {
+    return true;
+  }
+
+  const needsDuration = !existingFilm.duration_minutes;
+  const needsDirector = !existingFilm.director;
+  const needsScreenwriters = !existingFilm.screenwriters || existingFilm.screenwriters.length === 0;
+  const needsTrailerUrl = !existingFilm.trailer_url;
+
+  return needsDuration || needsDirector || needsScreenwriters || needsTrailerUrl;
+}
+
 export class AllocineScraperStrategy implements IScraperStrategy {
   readonly sourceName = 'allocine';
 
@@ -84,11 +102,8 @@ export class AllocineScraperStrategy implements IScraperStrategy {
 
         try {
           const existingFilm = await getFilm(db, film.id);
-          const needsDuration = !existingFilm?.duration_minutes;
-          const needsDirector = !existingFilm?.director;
-          const needsScreenwriters = !existingFilm?.screenwriters || existingFilm.screenwriters.length === 0;
 
-          if (!existingFilm || needsDuration || needsDirector || needsScreenwriters) {
+          if (shouldRefreshFilmDetails(existingFilm)) {
             logger.info('Fetching film details', { title: film.title, id: film.id });
 
             try {
@@ -107,14 +122,31 @@ export class AllocineScraperStrategy implements IScraperStrategy {
                 film.screenwriters = filmPageData.screenwriters;
               }
 
-              await delay(movieDelayMs);
+              if (filmPageData.trailer_url) {
+                film.trailer_url = filmPageData.trailer_url;
+              }
             } catch (error) {
               logger.warn('Error fetching film page', { filmId: film.id, error });
+            } finally {
+              await delay(movieDelayMs);
             }
-          } else {
+
+            if (existingFilm) {
+              film.duration_minutes = film.duration_minutes ?? existingFilm.duration_minutes;
+              film.director = film.director ?? existingFilm.director;
+              film.trailer_url = film.trailer_url ?? existingFilm.trailer_url;
+
+              if ((!film.screenwriters || film.screenwriters.length === 0) &&
+                existingFilm.screenwriters &&
+                existingFilm.screenwriters.length > 0) {
+                film.screenwriters = existingFilm.screenwriters;
+              }
+            }
+          } else if (existingFilm) {
             film.duration_minutes = existingFilm.duration_minutes;
             film.director = existingFilm.director;
             film.screenwriters = existingFilm.screenwriters;
+            film.trailer_url = existingFilm.trailer_url;
           }
 
           await upsertFilm(db, film);

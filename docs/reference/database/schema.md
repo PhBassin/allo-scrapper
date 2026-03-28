@@ -84,6 +84,7 @@ Stores movie metadata including cast, ratings, and synopsis.
 | `press_rating` | `REAL` | | Press/critic rating (0-5) |
 | `audience_rating` | `REAL` | | Audience rating (0-5) |
 | `source_url` | `TEXT` | NOT NULL | Source URL for metadata updates |
+| `trailer_url` | `TEXT` | | Trailer URL from source website |
 
 **Indexes:**
 
