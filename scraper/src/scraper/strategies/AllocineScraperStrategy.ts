@@ -125,10 +125,22 @@ export class AllocineScraperStrategy implements IScraperStrategy {
               if (filmPageData.trailer_url) {
                 film.trailer_url = filmPageData.trailer_url;
               }
-
-              await delay(movieDelayMs);
             } catch (error) {
               logger.warn('Error fetching film page', { filmId: film.id, error });
+            } finally {
+              await delay(movieDelayMs);
+            }
+
+            if (existingFilm) {
+              film.duration_minutes = film.duration_minutes ?? existingFilm.duration_minutes;
+              film.director = film.director ?? existingFilm.director;
+              film.trailer_url = film.trailer_url ?? existingFilm.trailer_url;
+
+              if ((!film.screenwriters || film.screenwriters.length === 0) &&
+                existingFilm.screenwriters &&
+                existingFilm.screenwriters.length > 0) {
+                film.screenwriters = existingFilm.screenwriters;
+              }
             }
           } else if (existingFilm) {
             film.duration_minutes = existingFilm.duration_minutes;

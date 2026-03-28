@@ -413,4 +413,22 @@ describe('Film Queries - Trailer URL', () => {
       'https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=987.html'
     );
   });
+
+  it('should preserve existing trailer_url when upsert input trailer_url is null', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rows: [] });
+    const mockDb = {
+      query: queryMock,
+    } as unknown as DB;
+
+    await upsertFilm(mockDb, {
+      id: 987,
+      title: 'Trailer Film',
+      genres: [],
+      actors: [],
+      source_url: 'https://example.com/film/987',
+    } as any);
+
+    const sql = queryMock.mock.calls[0][0] as string;
+    expect(sql).toContain('trailer_url = COALESCE($18, films.trailer_url)');
+  });
 });

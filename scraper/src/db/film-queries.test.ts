@@ -54,4 +54,20 @@ describe('Scraper Film Queries', () => {
       'https://www.allocine.fr/video/player_gen_cmedia=1&cfilm=123.html'
     );
   });
+
+  it('uses COALESCE when updating trailer_url to prevent null overwrite', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rows: [] });
+    const mockDb = { query: queryMock } as unknown as DB;
+
+    await upsertFilm(mockDb, {
+      id: 123,
+      title: 'Film test',
+      genres: [],
+      actors: [],
+      source_url: 'https://example.com/film',
+    } as any);
+
+    const sql = queryMock.mock.calls[0][0] as string;
+    expect(sql).toContain('trailer_url = COALESCE($18, films.trailer_url)');
+  });
 });

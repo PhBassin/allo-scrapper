@@ -104,7 +104,7 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
         press_rating = $15,
         audience_rating = $16,
         source_url = $17,
-        trailer_url = $18
+        trailer_url = COALESCE($18, films.trailer_url)
     `,
     [
       sanitized.id,
