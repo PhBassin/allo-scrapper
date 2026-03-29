@@ -1,11 +1,10 @@
 name: Version Tag & Release
 
-# Triggered after docker-build-push.yml completes successfully on main branch
+# Triggered on push to main to bump version before release builds
 on:
-  workflow_run:
-    workflows: ["Docker Build & Push"]
-    types:
-      - completed
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -17,8 +16,8 @@ jobs:
   create-version-tag:
     name: Create Version Tag
     runs-on: ubuntu-latest
-    # Only run if Docker build succeeded AND triggered from main branch
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    # Skip release bump commits to prevent workflow loops
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
 
     steps:
       - name: Checkout repository
@@ -45,10 +44,10 @@ jobs:
       - name: Get merged PR number
         id: pr
         run: |
-          # Get the PR that was merged in the commit that triggered the workflow
-          PR_NUMBER=$(gh pr list --state merged --json number,mergeCommit --jq ".[] | select(.mergeCommit.oid==\"${{ github.event.workflow_run.head_sha }}\") | .number" | head -1)
+          # Get the PR merged in the commit that triggered this push
+          PR_NUMBER=$(gh pr list --state merged --json number,mergeCommit --jq ".[] | select(.mergeCommit.oid==\"${{ github.sha }}\") | .number" | head -1)
           if [ -z "$PR_NUMBER" ]; then
-            echo "No merged PR found for commit ${{ github.event.workflow_run.head_sha }}"
+            echo "No merged PR found for commit ${{ github.sha }}"
             echo "number=" >> $GITHUB_OUTPUT
           else
             echo "number=${PR_NUMBER}" >> $GITHUB_OUTPUT
@@ -359,40 +358,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Retag Docker images with version
-        run: |
-          NEW_VERSION="${{ steps.new_version.outputs.version }}"
-          NEW_TAG="${{ steps.new_version.outputs.tag }}"
-          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          
-          # Parse version components for semver tags
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$NEW_VERSION"
-          
-          # Retag both web and scraper images
-          for IMAGE in "ghcr.io/${REPO}" "ghcr.io/${REPO}-scraper"; do
-            echo "Retagging ${IMAGE}..."
-            
-            # Add semver tags to the existing 'main' manifest
-            docker buildx imagetools create \
-              --tag "${IMAGE}:${NEW_VERSION}" \
-              --tag "${IMAGE}:${MAJOR}.${MINOR}" \
-              --tag "${IMAGE}:${MAJOR}" \
-              --tag "${IMAGE}:${NEW_TAG}" \
-              "${IMAGE}:main"
-            
-            echo "Tagged ${IMAGE} with: ${NEW_TAG}, ${NEW_VERSION}, ${MAJOR}.${MINOR}, ${MAJOR}"
-          done
-
       - name: Summary
         run: |
           NEW_TAG="${{ steps.new_version.outputs.tag }}"
@@ -410,4 +375,4 @@ jobs:
           echo "✅ Created git tag \`${NEW_TAG}\`" >> $GITHUB_STEP_SUMMARY
           echo "✅ Created GitHub release" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🐋 Docker images retagged with version tags" >> $GITHUB_STEP_SUMMARY
+          echo "🐋 Docker builds are triggered from the release commit and tag" >> $GITHUB_STEP_SUMMARY
