@@ -59,5 +59,6 @@ describe('Header Stickiness', () => {
     expect(header).toHaveClass('sticky');
     expect(header).toHaveClass('top-0');
     expect(header).toHaveClass('z-50');
+    expect(header).toHaveClass('transition-transform');
   });
 });
