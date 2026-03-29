@@ -27,6 +27,10 @@ jobs:
   build:
     name: Build ${{ matrix.image }} (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
+    if: |
+      github.event_name != 'push' ||
+      github.ref != 'refs/heads/main' ||
+      startsWith(github.event.head_commit.message, 'chore(release): bump version to ')
     permissions:
       contents: read
       packages: write
