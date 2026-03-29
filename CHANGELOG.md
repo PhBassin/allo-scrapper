@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.6.1] - 2026-03-29
+
+### Fixed
+
+- fix(ci): bump version before Docker release builds (#690) [@PhBassin](https://github.com/PhBassin) (efd8828)
+
+### Changed
+
+- Enhance CI with release order builds and version bump workflow (#691) [@PhBassin](https://github.com/PhBassin) (93e594e)
+- test(ci): add workflow guards for release-order builds [@phbassin](https://github.com/phbassin) (5d9b114)
+
 ## [4.6.0] - 2026-03-29
 
 ### Added
@@ -584,6 +595,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.6.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.0...v4.6.1
 [4.6.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.5.0...v4.6.0
 [4.5.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.4.0...v4.5.0
 [4.4.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.3.0...v4.4.0
