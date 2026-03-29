@@ -218,7 +218,7 @@ jobs:
           NEW_TAG="${{ steps.new_version.outputs.tag }}"
           
           git add package.json CHANGELOG.md
-          git commit -m "chore(release): bump version to ${NEW_TAG}"
+          git commit -m "chore(release): bump version to ${NEW_TAG} [skip ci]"
           
           echo "Committed version bump"
 
