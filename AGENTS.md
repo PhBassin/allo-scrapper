@@ -313,10 +313,10 @@ If no version label is found, the workflow checks PR title:
 ### What Happens Automatically
 
 1. **On PR merge to main**:
-   - Version Tag workflow runs first on `main`
+   - Docker Build & Push workflow runs
    
-2. **After version bump + tag creation**:
-   - Docker Build & Push workflow runs from the release bump commit and tag
+2. **After successful Docker build**:
+   - Version Tag workflow triggers automatically
    - Reads last git tag (e.g., `v4.0.1`)
    - Determines bump type from PR label/title
    - Calculates new version (e.g., `v4.0.2`)
@@ -334,13 +334,8 @@ If no version label is found, the workflow checks PR title:
    
 5. **GitHub release**:
    - Creates release with generated changelog
-   - Docker build triggered from the release bump commit and `vX.Y.Z` tag publishes `main`, `vX.Y.Z`, `vX.Y`, `vX`, `stable`, and `latest`
-
-### Version Consistency Guarantee
-
-- The app version displayed in System Information is read from root `package.json` at runtime.
-- Because version bump now happens before release image builds, image tags and displayed app version stay aligned.
-- Avoid manual image retagging from `main` for release tags, as it can reintroduce drift between image content and tag.
+   - Docker build triggers again for the new tag
+   - Images tagged with version numbers
 
 ### Example Workflow
 
