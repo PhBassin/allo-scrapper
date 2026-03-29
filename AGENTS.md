@@ -328,7 +328,7 @@ If no version label is found, the workflow checks PR title:
    
 4. **Version bump commit**:
    - Updates `package.json` version field
-   - Commits changes: `chore(release): bump version to vX.Y.Z [skip ci]`
+   - Commits changes: `chore(release): bump version to vX.Y.Z`
    - Creates annotated git tag `vX.Y.Z`
    - Pushes to main
    
