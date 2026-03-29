@@ -150,7 +150,11 @@ export default function CinemaPage() {
       </div>
 
       {/* Date Selector - Sticky */}
-      <div className="sticky top-[64px] z-40 bg-gray-50/95 backdrop-blur-sm pt-4 pb-4 mb-6 shadow-sm -mx-4 px-4" data-testid="sticky-date-selector-container">
+      <div
+        className="sticky z-40 bg-gray-50/95 backdrop-blur-sm pt-4 pb-4 mb-6 shadow-sm -mx-4 px-4"
+        style={{ top: 'var(--layout-header-offset, 64px)' }}
+        data-testid="sticky-date-selector-container"
+      >
         <CinemaDateSelector
           dates={dates}
           selectedDate={effectiveSelectedDate}
