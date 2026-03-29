@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import Layout from './Layout';
@@ -199,6 +199,35 @@ describe('Layout - Header navigation changes', () => {
       
       // Should only have 1 divider (before logout), not 2
       expect(dividers.length).toBe(1);
+    });
+  });
+
+  describe('Header visibility on scroll', () => {
+    const setScrollY = (value: number) => {
+      Object.defineProperty(window, 'scrollY', {
+        configurable: true,
+        writable: true,
+        value,
+      });
+    };
+
+    it('hides when scrolling down and reappears when scrolling up', async () => {
+      renderWithProviders(mockAuthContext);
+      const header = screen.getByRole('banner');
+
+      setScrollY(220);
+      window.dispatchEvent(new Event('scroll'));
+
+      await waitFor(() => {
+        expect(header).toHaveClass('-translate-y-full');
+      });
+
+      setScrollY(120);
+      window.dispatchEvent(new Event('scroll'));
+
+      await waitFor(() => {
+        expect(header).not.toHaveClass('-translate-y-full');
+      });
     });
   });
 });
