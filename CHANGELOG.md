@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.6.0] - 2026-03-29
+
+### Added
+
+- feat(client): hide header on scroll down and reveal on scroll up (#687) [@PhBassin](https://github.com/PhBassin) (fe17ba6)
+- feat(client): hide top header on downward scroll [@phbassin](https://github.com/phbassin) (3caf4af)
+
+### Changed
+
+- Improve performance and fix issues in film and role management (#688) [@PhBassin](https://github.com/PhBassin) (5233867)
+- test(client): add scroll visibility tests for header [@phbassin](https://github.com/phbassin) (eb9eac1)
+
 ## [4.5.0] - 2026-03-28
 
 ### Added
@@ -572,6 +584,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.6.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.5.0...v4.6.0
 [4.5.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.4.0...v4.5.0
 [4.4.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.3.0...v4.4.0
 [4.3.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.2.0...v4.3.0
