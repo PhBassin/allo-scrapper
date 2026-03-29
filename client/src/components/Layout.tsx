@@ -15,7 +15,9 @@ export default function Layout({ children, title }: LayoutProps) {
   const { publicSettings } = useContext(SettingsContext);
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const lastScrollYRef = useRef(0);
 
   const APP_NAME = publicSettings?.site_name || import.meta.env.VITE_APP_NAME || 'Allo-Scrapper';
   const logo = publicSettings?.logo_base64;
@@ -50,9 +52,55 @@ export default function Layout({ children, title }: LayoutProps) {
     };
   }, [isDropdownOpen]);
 
+  useEffect(() => {
+    const topRevealThreshold = 80;
+    const scrollDeltaThreshold = 8;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY <= topRevealThreshold) {
+        setIsHeaderVisible(true);
+        lastScrollYRef.current = currentScrollY;
+        return;
+      }
+
+      const scrollDelta = currentScrollY - lastScrollYRef.current;
+
+      if (Math.abs(scrollDelta) < scrollDeltaThreshold) {
+        return;
+      }
+
+      if (scrollDelta > 0) {
+        setIsHeaderVisible(false);
+      } else {
+        setIsHeaderVisible(true);
+      }
+
+      lastScrollYRef.current = currentScrollY;
+    };
+
+    lastScrollYRef.current = window.scrollY;
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--layout-header-offset', isHeaderVisible ? '64px' : '0px');
+
+    return () => {
+      document.documentElement.style.setProperty('--layout-header-offset', '64px');
+    };
+  }, [isHeaderVisible]);
+
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-secondary text-white shadow-lg sticky top-0 z-50">
+      <header
+        className={`bg-secondary text-white shadow-lg sticky top-0 z-50 transform transition-transform duration-300 will-change-transform ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'}`}
+      >
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="text-2xl font-bold flex items-center gap-2">

@@ -73,8 +73,8 @@ describe('Sticky Elements Stickiness', () => {
     const stickySection = await screen.findByTestId('sticky-search-date-container');
     expect(stickySection).toBeInTheDocument();
     expect(stickySection).toHaveClass('sticky');
-    expect(stickySection).toHaveClass('top-[64px]');
     expect(stickySection).toHaveClass('z-40');
+    expect(stickySection).toHaveStyle({ top: 'var(--layout-header-offset, 64px)' });
   });
 
   it('CinemaPage date selector should be sticky with offset', async () => {
@@ -88,7 +88,7 @@ describe('Sticky Elements Stickiness', () => {
     const dateSelectorContainer = await screen.findByTestId('sticky-date-selector-container');
     expect(dateSelectorContainer).toBeInTheDocument();
     expect(dateSelectorContainer).toHaveClass('sticky');
-    expect(dateSelectorContainer).toHaveClass('top-[64px]');
     expect(dateSelectorContainer).toHaveClass('z-40');
+    expect(dateSelectorContainer).toHaveStyle({ top: 'var(--layout-header-offset, 64px)' });
   });
 });
