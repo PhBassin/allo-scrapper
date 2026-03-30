@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.6.6] - 2026-03-30
+
+### Changed
+
+- Change actions permission from read to write [@PhBassin](https://github.com/PhBassin) (92a2603)
+
 ## [4.6.5] - 2026-03-30
 
 ### Fixed
@@ -646,6 +652,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.6.6]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.5...v4.6.6
 [4.6.5]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.4...v4.6.5
 [4.6.4]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.3...v4.6.4
 [4.6.3]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.2...v4.6.3
