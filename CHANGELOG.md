@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.6.4] - 2026-03-30
+
+### Fixed
+
+- fix(scraper): use deterministic showtime IDs to prevent duplication (#701) [@PhBassin](https://github.com/PhBassin) (a8aa9a5)
+- fix(scraper): use deterministic showtime IDs to prevent duplication [@phbassin](https://github.com/phbassin) (bef8989)
+
+### Changed
+
+- Implement deterministic showtime IDs to prevent duplication (#702) [@PhBassin](https://github.com/PhBassin) (ce5a473)
+- test(server): update system-queries test to include migration 022 [@phbassin](https://github.com/phbassin) (815ac8f)
+- test(scraper): add failing test for deterministic showtime IDs [@phbassin](https://github.com/phbassin) (90e2724)
+
+## [4.6.3] - 2026-03-29
+
+### Changed
+
+- Sync main into develop and revert CI version bump (#698) [@PhBassin](https://github.com/PhBassin) (a4588a6)
+- Revert "fix(ci): bump version before Docker release builds" (#697) [@PhBassin](https://github.com/PhBassin) (0df5df5)
+- Revert "fix(ci): bump version before Docker release builds" [@PhBassin](https://github.com/PhBassin) (d3f4222)
+
 ## [4.6.2] - 2026-03-29
 
 ### Fixed
@@ -608,6 +629,8 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.6.4]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.3...v4.6.4
+[4.6.3]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.2...v4.6.3
 [4.6.2]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.1...v4.6.2
 [4.6.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.0...v4.6.1
 [4.6.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.5.0...v4.6.0
