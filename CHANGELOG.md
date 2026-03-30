@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.6.7] - 2026-03-30
+
+### Added
+
+- feat(client): put search bar and day selector on the same line (#716) [@PhBassin](https://github.com/PhBassin) (6bcfa04)
+- feat(client): put search bar and day selector on the same line [@phbassin](https://github.com/phbassin) (42d40fe)
+- feat(client): vertical stacked date buttons in DaySelector [@phbassin](https://github.com/phbassin) (47c400a)
+- feat(client): add Maintenant button to date selector (#712) [@PhBassin](https://github.com/PhBassin) (a8b5181)
+- feat(client): add Maintenant button to home page DaySelector [@phbassin](https://github.com/phbassin) (2ca3aab)
+- feat(client): add Maintenant button to date selector [@phbassin](https://github.com/phbassin) (52fbd6f)
+
+### Fixed
+
+- fix(client): shorten day labels to fit DaySelector on one line [@phbassin](https://github.com/phbassin) (f613512)
+- fix(client): keep DaySelector on one line with horizontal scroll [@phbassin](https://github.com/phbassin) (2441e3d)
+
+### Changed
+
+- Optimize groupShowtimesByCinema and add Maintenant button features (#717) [@PhBassin](https://github.com/PhBassin) (700c3c9)
+- test(client): add failing tests for Maintenant button on home page [@phbassin](https://github.com/phbassin) (36ac4eb)
+- test(client): add failing tests for Maintenant button in date selector [@phbassin](https://github.com/phbassin) (3e3201f)
+- ⚡ Bolt: Optimize groupShowtimesByCinema execution time (#699) [@PhBassin](https://github.com/PhBassin) (4fade42)
+
+### Performance
+
+- perf(server): optimize groupShowtimesByCinema algorithm [@PhBassin](https://github.com/PhBassin) (3d36099)
+
 ## [4.6.6] - 2026-03-30
 
 ### Changed
@@ -652,6 +679,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.6.7]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.6...v4.6.7
 [4.6.6]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.5...v4.6.6
 [4.6.5]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.4...v4.6.5
 [4.6.4]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.3...v4.6.4
