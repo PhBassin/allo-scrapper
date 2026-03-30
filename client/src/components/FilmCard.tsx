@@ -6,6 +6,7 @@ import CinemaShowtimes from './CinemaShowtimes';
 interface FilmCardProps {
   film: FilmWithShowtimes;
   isNew?: boolean;
+  initialAfterTime?: string | null;
 }
 
 function formatDuration(minutes?: number): string {
@@ -15,7 +16,7 @@ function formatDuration(minutes?: number): string {
   return `${hours}h${mins > 0 ? ` ${mins}min` : ''}`;
 }
 
-function FilmCard({ film, isNew = false }: FilmCardProps) {
+function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
   const [showSchedule, setShowSchedule] = useState(false);
 
   return (
@@ -126,7 +127,7 @@ function FilmCard({ film, isNew = false }: FilmCardProps) {
 
           {showSchedule && (
             <div className="mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-              <CinemaShowtimes cinemas={film.cinemas} />
+              <CinemaShowtimes cinemas={film.cinemas} initialAfterTime={initialAfterTime} />
             </div>
           )}
         </div>
