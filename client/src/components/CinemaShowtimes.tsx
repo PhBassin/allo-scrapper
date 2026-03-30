@@ -7,9 +7,10 @@ import { getUniqueDates, formatDateLabel } from '../utils/date';
 interface CinemaShowtimesProps {
   cinemas: CinemaWithShowtimes[];
   initialDate?: string;
+  initialAfterTime?: string | null;
 }
 
-export default function CinemaShowtimes({ cinemas, initialDate }: CinemaShowtimesProps) {
+export default function CinemaShowtimes({ cinemas, initialDate, initialAfterTime }: CinemaShowtimesProps) {
   const allShowtimes = useMemo(() => 
     cinemas.flatMap(c => c.showtimes),
     [cinemas]
@@ -22,7 +23,7 @@ export default function CinemaShowtimes({ cinemas, initialDate }: CinemaShowtime
     const today = new Date().toISOString().split('T')[0];
     return dates.includes(today) ? today : (dates[0] || '');
   });
-  const [afterTime, setAfterTime] = useState<string | null>(null);
+  const [afterTime, setAfterTime] = useState<string | null>(initialAfterTime ?? null);
 
   const handleSelectDate = useCallback((date: string) => {
     setSelectedDate(date);

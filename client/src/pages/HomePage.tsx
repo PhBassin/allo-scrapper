@@ -11,6 +11,7 @@ import CinemasQuickLinks from '../components/CinemasQuickLinks';
 export default function HomePage() {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [afterTime, setAfterTime] = useState<string | null>(null);
   const { isAuthenticated, hasPermission } = useContext(AuthContext);
 
   const { data: cinemas = [], isLoading: isLoadingCinemas } = useQuery({
@@ -23,7 +24,13 @@ export default function HomePage() {
     queryFn: () => selectedDate ? getFilmsByDate(selectedDate) : getWeeklyFilms(),
   });
 
-  const films = filmsData?.films || [];
+  const allFilms = filmsData?.films || [];
+  // When "Maintenant" is active, hide films whose showtimes are all in the past
+  const films = afterTime
+    ? allFilms.filter(film =>
+        film.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
+      )
+    : allFilms;
   const weekStart = filmsData?.weekStart || '';
 
   const isLoading = isLoadingCinemas || isLoadingFilms;
@@ -31,6 +38,12 @@ export default function HomePage() {
 
   const handleDateSelect = useCallback((date: string | null) => {
     setSelectedDate(date || '');
+    setAfterTime(null);
+  }, []);
+
+  const handleNow = useCallback((date: string, time: string) => {
+    setSelectedDate(date);
+    setAfterTime(time);
   }, []);
   const formatterDate = useMemo(() => new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
@@ -128,6 +141,8 @@ export default function HomePage() {
               weekStart={weekStart} 
               selectedDate={selectedDate}
               onSelectDate={handleDateSelect}
+              onNow={handleNow}
+              isNowActive={afterTime !== null}
             />
           </div>
         )}
@@ -144,7 +159,7 @@ export default function HomePage() {
       <div className="space-y-6">
         {films.length > 0 ? (
           films.map((film) => (
-            <FilmCard key={film.id} film={film} />
+            <FilmCard key={film.id} film={film} initialAfterTime={afterTime} />
           ))
         ) : (
           <div className="bg-gray-50 rounded-2xl p-12 text-center border-2 border-dashed border-gray-200">
