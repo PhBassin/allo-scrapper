@@ -10,7 +10,7 @@ interface DaySelectorProps {
 
 // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
 // re-initialization during loops or frequent re-renders
-const formatterDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+const formatterDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric' });
 
 function DaySelector({ weekStart, selectedDate, onSelectDate, onNow, isNowActive = false }: DaySelectorProps) {
   const days = useMemo(() => {
