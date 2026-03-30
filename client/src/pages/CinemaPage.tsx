@@ -56,6 +56,17 @@ export default function CinemaPage() {
   };
 
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [afterTime, setAfterTime] = useState<string | null>(null);
+
+  const handleSelectDate = useCallback((date: string) => {
+    setSelectedDate(date);
+    setAfterTime(null);
+  }, []);
+
+  const handleNow = useCallback((date: string, time: string) => {
+    setSelectedDate(date);
+    setAfterTime(time);
+  }, []);
 
   const getUniqueDates = (showtimes: ShowtimeWithFilm[]): string[] => {
     const dates = new Set(showtimes.map(s => s.date));
@@ -103,7 +114,10 @@ export default function CinemaPage() {
     if (selectedDate && dates.includes(selectedDate)) return selectedDate;
     return getInitialSelectedDate(showtimes);
   }, [dates, selectedDate, showtimes]);
-  const selectedShowtimes = useMemo(() => showtimes.filter(s => s.date === effectiveSelectedDate), [showtimes, effectiveSelectedDate]);
+  const selectedShowtimes = useMemo(
+    () => showtimes.filter(s => s.date === effectiveSelectedDate && (!afterTime || s.time >= afterTime)),
+    [showtimes, effectiveSelectedDate, afterTime]
+  );
   const filmGroups = useMemo(() => groupByFilm(selectedShowtimes), [selectedShowtimes]);
 
   if (isLoading) {
@@ -159,7 +173,9 @@ export default function CinemaPage() {
           dates={dates}
           selectedDate={effectiveSelectedDate}
           showtimes={showtimes}
-          onSelectDate={setSelectedDate}
+          onSelectDate={handleSelectDate}
+          onNow={handleNow}
+          isNowActive={afterTime !== null}
           formatDateLabel={formatDateLabel}
         />
       </div>
