@@ -4,13 +4,15 @@ interface DaySelectorProps {
   weekStart: string;
   selectedDate: string | null;
   onSelectDate: (date: string | null) => void;
+  onNow?: (date: string, afterTime: string) => void;
+  isNowActive?: boolean;
 }
 
 // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instance to prevent expensive
 // re-initialization during loops or frequent re-renders
-const formatterDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+const formatterDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric' });
 
-function DaySelector({ weekStart, selectedDate, onSelectDate }: DaySelectorProps) {
+function DaySelector({ weekStart, selectedDate, onSelectDate, onNow, isNowActive = false }: DaySelectorProps) {
   const days = useMemo(() => {
     if (!weekStart) return [];
     
@@ -31,13 +33,38 @@ function DaySelector({ weekStart, selectedDate, onSelectDate }: DaySelectorProps
     return result;
   }, [weekStart]);
 
+  const today = new Date().toISOString().split('T')[0];
+  const todayInWeek = days.some(d => d.date === today);
+
+  const handleNowClick = () => {
+    if (!todayInWeek) return;
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    onNow?.(today, `${hh}:${mm}`);
+  };
+
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
-      <div className="flex flex-wrap gap-2">
+    <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm overflow-x-auto">
+      <div className="flex gap-2 min-w-max">
+        {/* Maintenant button — always first */}
+        <button
+          onClick={handleNowClick}
+          disabled={!todayInWeek}
+          data-now-active={isNowActive || undefined}
+          className={`px-3 py-1.5 text-sm rounded-lg transition font-semibold active:scale-95 ${
+            isNowActive
+              ? 'bg-teal-500 text-white cursor-pointer'
+              : 'bg-gray-50 text-gray-700 hover:bg-gray-100 cursor-pointer'
+          } ${!todayInWeek ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          ⏱ Maintenant
+        </button>
+
         <button
           onClick={() => onSelectDate(null)}
           className={`px-3 py-1.5 text-sm rounded-lg transition font-semibold cursor-pointer active:scale-95 ${
-            selectedDate === null
+            selectedDate === null && !isNowActive
               ? 'bg-primary text-black'
               : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
           }`}
@@ -50,7 +77,7 @@ function DaySelector({ weekStart, selectedDate, onSelectDate }: DaySelectorProps
             key={day.date}
             onClick={() => onSelectDate(day.date)}
             className={`px-3 py-1.5 text-sm rounded-lg transition font-semibold capitalize cursor-pointer active:scale-95 ${
-              selectedDate === day.date
+              selectedDate === day.date && !isNowActive
                 ? 'bg-primary text-black'
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
             }`}
