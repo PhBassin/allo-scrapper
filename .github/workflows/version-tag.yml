@@ -246,6 +246,18 @@ jobs:
           
           echo "Pushed commit and tag ${NEW_TAG}"
 
+      # GITHUB_TOKEN-pushed tags do not trigger other workflows (GitHub security restriction).
+      # We dispatch docker-build-push.yml explicitly via the API, which IS allowed with GITHUB_TOKEN.
+      - name: Trigger Docker build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_TAG="${{ steps.new_version.outputs.tag }}"
+          
+          gh workflow run docker-build-push.yml --ref "${NEW_TAG}"
+          
+          echo "Triggered Docker build for ${NEW_TAG}"
+
       - name: Move stable tag to new release
         run: |
           NEW_TAG="${{ steps.new_version.outputs.tag }}"
@@ -377,4 +389,4 @@ jobs:
           echo "✅ Created git tag \`${NEW_TAG}\`" >> $GITHUB_STEP_SUMMARY
           echo "✅ Created GitHub release" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🐋 Docker build will be triggered by the \`${NEW_TAG}\` tag push" >> $GITHUB_STEP_SUMMARY
+          echo "🐋 Docker build dispatched for tag \`${NEW_TAG}\`" >> $GITHUB_STEP_SUMMARY
