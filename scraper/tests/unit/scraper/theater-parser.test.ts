@@ -241,12 +241,13 @@ describe('parseTheaterPage - Edge Cases', () => {
 
 // Test Suite 5: Data Validation
 describe('parseTheaterPage - Data Validation', () => {
+  let c0089Html: string;
   let c0089Result: ReturnType<typeof parseTheaterPage>;
   let w7504Result: ReturnType<typeof parseTheaterPage>;
   let c0072Result: ReturnType<typeof parseTheaterPage>;
 
   beforeAll(() => {
-    const c0089Html = readFileSync(join(__dirname, '../../fixtures/cinema-c0089-page.html'), 'utf-8');
+    c0089Html = readFileSync(join(__dirname, '../../fixtures/cinema-c0089-page.html'), 'utf-8');
     const w7504Html = readFileSync(join(__dirname, '../../fixtures/cinema-w7504-page.html'), 'utf-8');
     const c0072Html = readFileSync(join(__dirname, '../../fixtures/cinema-c0072-page.html'), 'utf-8');
 
@@ -298,18 +299,45 @@ describe('parseTheaterPage - Data Validation', () => {
     });
   });
 
-  it('should generate unique showtime IDs that include the date', () => {
-    // Showtime IDs must include the date to be unique per day
-    // Format: <source_showtime_id>-<YYYY-MM-DD>
-    [c0089Result, w7504Result, c0072Result].forEach((result) => {
+  it('should generate deterministic showtime IDs based on stable business fields', () => {
+    // IDs must be deterministic: same cinema+film+date+time+version+format always → same ID
+    // Format: {cinema_id}_{film_id}_{date}_{time}_{version}_{format}
+    // This prevents duplicates when the same cinema is scraped multiple times in a week,
+    // since Allociné's internal internalId/data-showtime-id changes on each HTTP request.
+    const resultsByCinema = [
+      { result: c0089Result, cinemaId: 'C0089' },
+      { result: w7504Result, cinemaId: 'W7504' },
+      { result: c0072Result, cinemaId: 'C0072' },
+    ];
+
+    resultsByCinema.forEach(({ result, cinemaId }) => {
       result.films.forEach((filmData) => {
         filmData.showtimes.forEach((showtime) => {
-          // ID should contain the date to ensure uniqueness across days
+          // ID must contain the cinema ID to be scoped per cinema
+          expect(showtime.id).toContain(cinemaId);
+          // ID must contain the film ID
+          expect(showtime.id).toContain(String(filmData.film.id));
+          // ID must contain the date
           expect(showtime.id).toContain(showtime.date);
-          // ID format: <numeric_id>-<date>
-          expect(showtime.id).toMatch(/^\d+-\d{4}-\d{2}-\d{2}$/);
+          // ID must contain the time
+          expect(showtime.id).toContain(showtime.time);
+          // New format: {cinema_id}_{film_id}_{date}_{time}_{version}_{format}
+          expect(showtime.id).toMatch(/^[A-Z0-9]+_\d+_\d{4}-\d{2}-\d{2}_\d{2}:\d{2}_/);
         });
       });
     });
+  });
+
+  it('should generate the same showtime ID when parsing the same data twice (idempotent)', () => {
+    // Re-parsing the same HTML must produce identical IDs — no duplicates on repeated scrapes
+    const result1 = parseTheaterPage(c0089Html, 'C0089');
+    const result2 = parseTheaterPage(c0089Html, 'C0089');
+
+    const ids1 = result1.films.flatMap(f => f.showtimes.map(s => s.id)).sort();
+    const ids2 = result2.films.flatMap(f => f.showtimes.map(s => s.id)).sort();
+
+    expect(ids1).toEqual(ids2);
+    // All IDs must be unique within a single parse (no duplicates)
+    expect(ids1.length).toBe(new Set(ids1).size);
   });
 });

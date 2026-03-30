@@ -229,11 +229,10 @@ function parseShowtimes(
     $version.find('.showtimes-hour-item').each((_, hourItem) => {
       const $hour = $(hourItem);
 
-      const showtimeId = $hour.attr('data-showtime-id');
       const datetimeIso = $hour.attr('data-showtime-time');
       const experiencesStr = $hour.attr('data-experiences');
 
-      if (!showtimeId || !datetimeIso) return;
+      if (!datetimeIso) return;
 
       // Extraire l'heure
       const time = $hour.find('.showtimes-hour-item-value').text().trim();
@@ -264,7 +263,7 @@ function parseShowtimes(
       }
 
       showtimes.push({
-        id: `${showtimeId}-${showtimeDate}`,
+        id: `${cinemaId}_${filmId}_${showtimeDate}_${time}_${version}_${format ?? ''}`,
         film_id: filmId,
         cinema_id: cinemaId,
         date: showtimeDate,
