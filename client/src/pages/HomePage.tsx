@@ -129,23 +129,24 @@ export default function HomePage() {
         style={{ top: 'var(--layout-header-offset, 64px)' }}
         data-testid="sticky-search-date-container"
       >
-        {/* Film Search Bar */}
-        <div className="mb-3">
-          <FilmSearchBar placeholder="Rechercher un film..." />
+        {/* Search + Day Selector — single row */}
+        <div className="flex items-center gap-3">
+          <FilmSearchBar
+            placeholder="Rechercher un film..."
+            className="w-40 sm:w-52 flex-shrink-0"
+          />
+          {weekStart && (
+            <div className="flex-1 min-w-0">
+              <DaySelector
+                weekStart={weekStart}
+                selectedDate={selectedDate}
+                onSelectDate={handleDateSelect}
+                onNow={handleNow}
+                isNowActive={afterTime !== null}
+              />
+            </div>
+          )}
         </div>
-
-        {/* Day Selector */}
-        {weekStart && (
-          <div>
-            <DaySelector 
-              weekStart={weekStart} 
-              selectedDate={selectedDate}
-              onSelectDate={handleDateSelect}
-              onNow={handleNow}
-              isNowActive={afterTime !== null}
-            />
-          </div>
-        )}
       </div>
 
       {/* Quick Cinema Links - Below sticky header */}
