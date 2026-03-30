@@ -45,8 +45,8 @@ function DaySelector({ weekStart, selectedDate, onSelectDate, onNow, isNowActive
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
-      <div className="flex flex-wrap gap-2">
+    <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm overflow-x-auto">
+      <div className="flex gap-2 min-w-max">
         {/* Maintenant button — always first */}
         <button
           onClick={handleNowClick}
