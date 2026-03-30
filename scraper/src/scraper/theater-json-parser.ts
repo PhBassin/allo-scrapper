@@ -191,7 +191,7 @@ function mapShowtimes(
 
   const showtimes: Showtime[] = [];
   for (const { showtime, version } of allEntries) {
-    if (!showtime.startsAt || !showtime.internalId) continue;
+    if (!showtime.startsAt) continue;
 
     const actualDate = showtime.startsAt.split('T')[0] || date;
     const time = showtime.startsAt.split('T')[1]?.substring(0, 5) ?? '';
@@ -204,7 +204,7 @@ function mapShowtimes(
     const experiences: string[] = showtime.tags ?? [];
 
     showtimes.push({
-      id: `${showtime.internalId}-${actualDate}`,
+      id: `${cinemaId}_${filmId}_${actualDate}_${time}_${ver2}_${format ?? ''}`,
       film_id: filmId,
       cinema_id: cinemaId,
       date: actualDate,
