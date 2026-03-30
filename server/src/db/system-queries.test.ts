@@ -103,6 +103,7 @@ describe('System Queries', () => {
             { version: '019_add_permission_category_labels.sql' },
             { version: '020_add_film_screenwriters.sql' },
             { version: '021_add_film_trailer_url.sql' },
+            { version: '022_fix_showtime_deduplication.sql' },
           ],
         }),
       } as unknown as DB;
