@@ -106,21 +106,37 @@ router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('rep
 
     // Group attempts by cinema
     const attemptsByCinema: Record<string, any[]> = {};
+    let successful = 0;
+    let failed = 0;
+    let rate_limited = 0;
+    let not_attempted = 0;
+    let pending = 0;
+
     for (const attempt of attempts) {
+      // Grouping
       if (!attemptsByCinema[attempt.cinema_id]) {
         attemptsByCinema[attempt.cinema_id] = [];
       }
       attemptsByCinema[attempt.cinema_id].push(attempt);
+
+      // Counting
+      if (attempt.status === 'success') successful++;
+      else if (attempt.status === 'failed') failed++;
+      else if (attempt.status === 'rate_limited') rate_limited++;
+      else if (attempt.status === 'not_attempted') not_attempted++;
+      else if (attempt.status === 'pending') pending++;
     }
 
     // Calculate summary statistics
+    // ⚡ PERFORMANCE: Avoid multiple O(N) filter passes that create intermediate arrays.
+    // Calculate stats during the single grouping loop above instead.
     const summary = {
       total_attempts: attempts.length,
-      successful: attempts.filter(a => a.status === 'success').length,
-      failed: attempts.filter(a => a.status === 'failed').length,
-      rate_limited: attempts.filter(a => a.status === 'rate_limited').length,
-      not_attempted: attempts.filter(a => a.status === 'not_attempted').length,
-      pending: attempts.filter(a => a.status === 'pending').length,
+      successful,
+      failed,
+      rate_limited,
+      not_attempted,
+      pending,
     };
 
     const response: ApiResponse = {

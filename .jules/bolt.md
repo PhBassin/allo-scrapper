@@ -29,3 +29,7 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+
+## 2026-03-31 - [Optimize Array Presence Checks and Counts in Node]
+**Learning:** Found that grouping an array and simultaneously computing summary counts using multiple `.filter(a => a.status === '...').length` creates unnecessary intermediate arrays and scales poorly to $O(M \times N)$ operations, increasing garbage collection and execution time on large datasets like scrape attempts.
+**Action:** Replace multiple `.filter().length` passes with variables that are incremented during an existing grouping or iteration loop, computing both grouping and statistics in a single $O(N)$ pass.
