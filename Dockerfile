@@ -20,6 +20,7 @@ COPY package.json package-lock.json ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
 COPY scraper/package.json ./scraper/
+COPY packages/saas/package.json ./packages/saas/
 
 # Install all dependencies using legacy-peer-deps for React hooks ESLint plugin
 # Remove package-lock.json to regenerate with correct platform-specific bindings
@@ -64,6 +65,10 @@ COPY package.json package-lock.json ./
 
 # Copy backend source
 COPY server/ ./server/
+COPY packages/saas/ ./packages/saas/
+
+# Build saas package first (server depends on it via workspace symlink)
+RUN npm run build --workspace=@allo-scrapper/saas
 
 # Build backend workspace
 RUN npm run build --workspace=allo-scrapper-server && \
@@ -93,6 +98,7 @@ COPY --chown=nodejs:nodejs package.json package-lock.json ./
 COPY --chown=nodejs:nodejs client/package.json ./client/
 COPY --chown=nodejs:nodejs server/package.json ./server/
 COPY --chown=nodejs:nodejs scraper/package.json ./scraper/
+COPY --chown=nodejs:nodejs packages/saas/package.json ./packages/saas/
 
 # Install only production dependencies for the server workspace
 # Remove package-lock.json and regenerate to get correct platform-specific bindings
@@ -112,6 +118,9 @@ COPY --from=backend-builder --chown=nodejs:nodejs /app/server/src/config/cinemas
 
 # Copy database migrations
 COPY --chown=nodejs:nodejs migrations ./migrations
+
+# Copy built saas package (needed at runtime when SAAS_ENABLED=true)
+COPY --from=backend-builder --chown=nodejs:nodejs /app/packages/saas/dist ./packages/saas/dist
 
 # Copy built frontend from builder into server's public directory so it can serve it
 COPY --from=frontend-builder --chown=nodejs:nodejs /app/client/dist ./server/public
