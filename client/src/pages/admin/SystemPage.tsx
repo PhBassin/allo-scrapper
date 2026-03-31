@@ -2,15 +2,19 @@ import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { getSystemInfo, getMigrations, getSystemHealth, formatUptime, formatDate } from '../../api/system';
 import type { SystemInfo, MigrationsInfo, SystemHealth } from '../../api/system';
 import { AuthContext } from '../../contexts/AuthContext';
+import { SettingsContext } from '../../contexts/SettingsContext';
+import type { ScrapeMode } from '../../api/settings';
 import Button from '../../components/ui/Button';
 
 const SystemPage: React.FC = () => {
   const { hasPermission } = useContext(AuthContext);
+  const { adminSettings, updateSettings, refreshAdminSettings } = useContext(SettingsContext);
   
   // Permission checks
   const canViewInfo = hasPermission('system:info');
   const canViewHealth = hasPermission('system:health');
   const canViewMigrations = hasPermission('system:migrations');
+  const canUpdateSettings = hasPermission('settings:update');
 
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [migrations, setMigrations] = useState<MigrationsInfo | null>(null);
@@ -18,6 +22,35 @@ const SystemPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
+
+  // Scraper config local state (mirrors adminSettings, allows in-place editing)
+  const [scrapeMode, setScrapeMode] = useState<ScrapeMode>(adminSettings?.scrape_mode ?? 'weekly');
+  const [scrapeDays, setScrapeDays] = useState<number>(adminSettings?.scrape_days ?? 7);
+  const [scraperSaveStatus, setScraperSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+
+  // Sync local state when adminSettings loads
+  useEffect(() => {
+    if (adminSettings) {
+      setScrapeMode(adminSettings.scrape_mode);
+      setScrapeDays(adminSettings.scrape_days);
+    }
+  }, [adminSettings]);
+
+  useEffect(() => {
+    refreshAdminSettings();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleScraperSave = async () => {
+    setScraperSaveStatus('saving');
+    try {
+      await updateSettings({ scrape_mode: scrapeMode, scrape_days: scrapeDays });
+      setScraperSaveStatus('success');
+      setTimeout(() => setScraperSaveStatus('idle'), 3000);
+    } catch {
+      setScraperSaveStatus('error');
+    }
+  };
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -240,6 +273,58 @@ const SystemPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Scraper Configuration Card */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6" data-testid="scraper-config-card">
+        <h2 className="text-lg font-semibold mb-4">Scraper Configuration</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Scrape Mode</label>
+            <p className="text-xs text-gray-500 mb-2">Which dates are scraped during each run.</p>
+            <select
+              value={scrapeMode}
+              onChange={(e) => setScrapeMode(e.target.value as ScrapeMode)}
+              disabled={!canUpdateSettings}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+            >
+              <option value="weekly">Weekly — from last Wednesday, 7 days</option>
+              <option value="from_today">From today — starts today, N days</option>
+              <option value="from_today_limited">From today (limited) — until next Tuesday (max 7 days)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Scrape Days</label>
+            <p className="text-xs text-gray-500 mb-2">Number of days to scrape (1–14). Used by <em>weekly</em> and <em>from today</em> modes.</p>
+            <input
+              type="number"
+              min={1}
+              max={14}
+              value={scrapeDays}
+              onChange={(e) => setScrapeDays(parseInt(e.target.value, 10))}
+              disabled={!canUpdateSettings}
+              className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+            />
+          </div>
+        </div>
+
+        {canUpdateSettings && (
+          <div className="mt-4 flex items-center gap-3">
+            <Button
+              onClick={handleScraperSave}
+              disabled={scraperSaveStatus === 'saving'}
+            >
+              {scraperSaveStatus === 'saving' ? 'Saving...' : 'Save'}
+            </Button>
+            {scraperSaveStatus === 'success' && (
+              <span className="text-sm text-green-600">✓ Saved</span>
+            )}
+            {scraperSaveStatus === 'error' && (
+              <span className="text-sm text-red-600">Failed to save</span>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Migrations Table */}
       {canViewMigrations && migrations && (
