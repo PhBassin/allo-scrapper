@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { checkSlugAvailability, registerOrg, RegisterOrgResult } from '../api/saas';
+import { checkSlugAvailability, registerOrg, type RegisterOrgResult } from '../api/saas';
 
 type Step = 'orgInfo' | 'adminAccount' | 'success';
 

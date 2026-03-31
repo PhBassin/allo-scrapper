@@ -1,6 +1,6 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
-import { TenantContext, OrgInfo } from './TenantContext';
+import { TenantContext, type OrgInfo } from './TenantContext';
 import { getOrgInfo } from '../api/saas';
 
 interface TenantProviderProps {
