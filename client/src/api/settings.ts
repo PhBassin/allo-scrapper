@@ -5,6 +5,8 @@ import type { ApiResponse } from '../types';
 // SETTINGS TYPES
 // ============================================================================
 
+export type ScrapeMode = 'weekly' | 'from_today' | 'from_today_limited';
+
 export interface FooterLink {
   label: string;
   url: string;
@@ -34,6 +36,8 @@ export interface AppSettings extends AppSettingsPublic {
   email_from_name: string;
   email_from_address: string;
   email_logo_base64: string | null;
+  scrape_mode: ScrapeMode;
+  scrape_days: number;
   updated_at: string;
   updated_by: string | null;
 }
@@ -58,6 +62,8 @@ export interface AppSettingsUpdate {
   email_from_name?: string;
   email_from_address?: string;
   email_logo_base64?: string | null;
+  scrape_mode?: ScrapeMode;
+  scrape_days?: number;
 }
 
 export interface AppSettingsExport {

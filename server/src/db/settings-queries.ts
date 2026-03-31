@@ -5,6 +5,7 @@ import type {
   AppSettingsUpdate,
   AppSettingsExport,
   FooterLink,
+  ScrapeMode,
 } from '../types/settings.js';
 import { logger } from '../utils/logger.js';
 
@@ -29,6 +30,8 @@ export interface AppSettingsRow {
   footer_links: string | FooterLink[]; // JSON string or JSONB object
   email_from_name: string;
   email_from_address: string;
+  scrape_mode: string;
+  scrape_days: number;
   updated_at: string;
   updated_by: number | null;
 }
@@ -41,6 +44,7 @@ function rowToSettings(row: AppSettingsRow): AppSettings {
     footer_links: typeof row.footer_links === 'string' 
       ? JSON.parse(row.footer_links) as FooterLink[]
       : row.footer_links,
+    scrape_mode: row.scrape_mode as ScrapeMode,
   };
 }
 
@@ -120,6 +124,8 @@ export async function updateSettings(
     footer_links: 'footer_links',
     email_from_name: 'email_from_name',
     email_from_address: 'email_from_address',
+    scrape_mode: 'scrape_mode',
+    scrape_days: 'scrape_days',
   };
 
   for (const [key, dbColumn] of Object.entries(fieldMap)) {
@@ -190,6 +196,8 @@ export async function resetSettings(db: DB, userId: number): Promise<AppSettings
       footer_links = '[]'::jsonb,
       email_from_name = 'Allo-Scrapper',
       email_from_address = 'no-reply@allocine-scrapper.com',
+      scrape_mode = 'weekly',
+      scrape_days = 7,
       updated_at = NOW(),
       updated_by = $1
     WHERE id = 1

@@ -270,6 +270,76 @@ describe('Settings Routes', () => {
       expect(settingsQueries.updateSettings).toHaveBeenCalledWith(expect.anything(), updates, 1);
     });
 
+    it('should accept valid scrape_mode values', async () => {
+      const validModes = ['weekly', 'from_today', 'from_today_limited'];
+
+      for (const mode of validModes) {
+        vi.mocked(settingsQueries.updateSettings).mockResolvedValue({} as any);
+
+        const response = await request(app)
+          .put('/api/settings')
+          .set('Authorization', 'Bearer valid-token')
+          .send({ scrape_mode: mode });
+
+        expect(response.status).toBe(200);
+      }
+    });
+
+    it('should reject invalid scrape_mode value', async () => {
+      const response = await request(app)
+        .put('/api/settings')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ scrape_mode: 'invalid_mode' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toContain('scrape_mode');
+    });
+
+    it('should accept valid scrape_days values (1-14)', async () => {
+      vi.mocked(settingsQueries.updateSettings).mockResolvedValue({} as any);
+
+      const response = await request(app)
+        .put('/api/settings')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ scrape_days: 7 });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should reject scrape_days below 1', async () => {
+      const response = await request(app)
+        .put('/api/settings')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ scrape_days: 0 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toContain('scrape_days');
+    });
+
+    it('should reject scrape_days above 14', async () => {
+      const response = await request(app)
+        .put('/api/settings')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ scrape_days: 15 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toContain('scrape_days');
+    });
+
+    it('should reject non-integer scrape_days', async () => {
+      const response = await request(app)
+        .put('/api/settings')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ scrape_days: 3.5 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toContain('scrape_days');
+    });
+
     it('should return 401 without authentication', async () => {
       const response = await request(app)
         .put('/api/settings')

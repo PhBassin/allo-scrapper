@@ -61,8 +61,6 @@ services:
       PORT: 3000
       TZ: ${TZ:-Europe/Paris}
       SCRAPE_DELAY_MS: ${SCRAPE_DELAY_MS:-1000}
-      SCRAPE_MODE: ${SCRAPE_MODE:-weekly}
-      SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
       REDIS_URL: redis://ics-redis:6379
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -102,8 +100,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       REDIS_URL: redis://ics-redis:6379
       RUN_MODE: consumer
-      SCRAPE_MODE: ${SCRAPE_MODE:-from_today_limited}
-      SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
       TZ: ${TZ:-Europe/Paris}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_ENABLED: ${OTEL_ENABLED:-false}
@@ -133,8 +129,6 @@ services:
       REDIS_URL: redis://ics-redis:6379
       RUN_MODE: cron
       CRON_SCHEDULE: ${SCRAPE_CRON_SCHEDULE:-0 8 * * 3}
-      SCRAPE_MODE: ${SCRAPE_MODE:-weekly}
-      SCRAPE_DAYS: ${SCRAPE_DAYS:-7}
       TZ: ${TZ:-Europe/Paris}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_ENABLED: ${OTEL_ENABLED:-false}

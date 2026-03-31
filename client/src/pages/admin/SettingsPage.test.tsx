@@ -72,6 +72,8 @@ const mockSettingsContext = {
     email_from_name: 'Test Cinema',
     email_from_address: 'noreply@test.com',
     email_logo_base64: null,
+    scrape_mode: 'weekly' as const,
+    scrape_days: 7,
     updated_at: '2024-01-01T00:00:00.000Z',
     updated_by: 'admin',
   },

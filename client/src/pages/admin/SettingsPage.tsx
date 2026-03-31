@@ -363,8 +363,6 @@ const SettingsPage: React.FC = () => {
                             </div>
                         )}
                     </div>
-
-                    {/* Footer actions */}
                     <div className="border-t border-gray-200 p-6 bg-gray-50 flex items-center justify-between">
                         <div className="flex gap-2">
                             {canExport && (
