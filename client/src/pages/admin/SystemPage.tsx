@@ -277,15 +277,15 @@ const SystemPage: React.FC = () => {
       {/* Scraper Configuration Card */}
       <div className="bg-white rounded-lg shadow p-6 mb-6" data-testid="scraper-config-card">
         <h2 className="text-lg font-semibold mb-4">Scraper Configuration</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
-          <div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl items-end">
+          <div className="flex flex-col">
             <label className="block text-sm font-medium text-gray-700 mb-1">Scrape Mode</label>
             <p className="text-xs text-gray-500 mb-2">Which dates are scraped during each run.</p>
             <select
               value={scrapeMode}
               onChange={(e) => setScrapeMode(e.target.value as ScrapeMode)}
               disabled={!canUpdateSettings}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+              className="mt-auto w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
             >
               <option value="weekly">Weekly — from last Wednesday, 7 days</option>
               <option value="from_today">From today — starts today, N days</option>
@@ -293,7 +293,7 @@ const SystemPage: React.FC = () => {
             </select>
           </div>
 
-          <div>
+          <div className="flex flex-col">
             <label className="block text-sm font-medium text-gray-700 mb-1">Scrape Days</label>
             <p className="text-xs text-gray-500 mb-2">Number of days to scrape (1–14). Used by <em>weekly</em> and <em>from today</em> modes.</p>
             <input
@@ -303,7 +303,7 @@ const SystemPage: React.FC = () => {
               value={scrapeDays}
               onChange={(e) => setScrapeDays(parseInt(e.target.value, 10))}
               disabled={!canUpdateSettings}
-              className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+              className="mt-auto w-24 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
             />
           </div>
         </div>
