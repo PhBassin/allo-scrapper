@@ -7,16 +7,20 @@ import FilmPage from './pages/FilmPage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import AdminPage from './pages/admin/AdminPage';
+import RegisterPage from './pages/RegisterPage';
 import { AuthContext } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthProvider';
 import { SettingsProvider } from './contexts/SettingsProvider';
 import { SettingsContext } from './contexts/SettingsContext';
+import { TenantProvider } from './contexts/TenantProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequirePermission from './components/RequirePermission';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useTheme } from './hooks/useTheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ADMIN_PERMISSIONS } from './utils/adminPermissions';
+
+const SAAS_MODE = import.meta.env.VITE_SAAS_ENABLED === 'true';
 
 // Lazy load devtools only in development
 const ReactQueryDevtools = import.meta.env.DEV
@@ -90,29 +94,76 @@ function AppRoutes() {
     return <LoadingScreen />;
   }
 
+  const standaloneRoutes = (
+    <>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/cinema/:id" element={<CinemaPage />} />
+      <Route path="/film/:id" element={<FilmPage />} />
+      <Route
+        path="/admin"
+        element={
+          <RequirePermission anyOf={ADMIN_PERMISSIONS}>
+            <AdminPage />
+          </RequirePermission>
+        }
+      />
+    </>
+  );
+
+  const tenantRoutes = (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/cinema/:id" element={<CinemaPage />} />
+      <Route path="/film/:id" element={<FilmPage />} />
+      <Route
+        path="/admin"
+        element={
+          <RequirePermission anyOf={ADMIN_PERMISSIONS}>
+            <AdminPage />
+          </RequirePermission>
+        }
+      />
+    </Routes>
+  );
+
+  const saasRoutes = (
+    <>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route
+        path="/org/:slug/*"
+        element={
+          <TenantProvider>
+            {tenantRoutes}
+          </TenantProvider>
+        }
+      />
+    </>
+  );
+
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          path="/change-password"
-          element={
-            <ProtectedRoute>
-              <ChangePasswordPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/cinema/:id" element={<CinemaPage />} />
-        <Route path="/film/:id" element={<FilmPage />} />
-        <Route
-          path="/admin"
-          element={
-            <RequirePermission anyOf={ADMIN_PERMISSIONS}>
-              <AdminPage />
-            </RequirePermission>
-          }
-        />
+        {SAAS_MODE ? saasRoutes : standaloneRoutes}
       </Routes>
     </Layout>
   );
