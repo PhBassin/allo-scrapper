@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { createApp } from './app.js';
+import { createApp, type AppPlugin } from './app.js';
 import { db } from './db/client.js';
 import { initializeDatabase } from './db/schema.js';
 import { logger } from './utils/logger.js';
@@ -22,8 +22,18 @@ async function startServer() {
     const jwtExpiration = process.env.JWT_EXPIRES_IN || '24h';
     logger.info(`🔐 JWT expiration set to: ${jwtExpiration}`);
 
+    // Load plugins (SaaS overlay loaded only when SAAS_ENABLED=true)
+    const plugins: AppPlugin[] = [];
+    if (process.env.SAAS_ENABLED === 'true') {
+      logger.info('🏢 SaaS mode enabled — loading SaaS plugin...');
+      const { saasPlugin } = await import('@allo-scrapper/saas');
+      plugins.push(saasPlugin);
+      logger.info('✅ SaaS plugin loaded');
+    }
+
     // Initialize database
     logger.info('📦 Initializing database...');
+    await initializeDatabase();
     await initializeDatabase();
 
     // Subscribe to Redis progress events and forward to SSE clients
@@ -38,7 +48,7 @@ async function startServer() {
     logger.info('📡 Redis progress subscription active (scrape:progress)');
 
     // Create Express app
-    const app = createApp();
+    const app = createApp(plugins);
 
     // Register database connection for dependency injection
     app.set('db', db);

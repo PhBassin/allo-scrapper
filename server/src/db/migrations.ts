@@ -88,6 +88,25 @@ async function readMigrationFile(filename: string): Promise<string> {
 }
 
 /**
+ * Read a migration file searching across multiple directories
+ *
+ * @param filename - Migration filename
+ * @param dirs - Directories to search (in order)
+ * @returns SQL content of the migration file
+ */
+async function readMigrationFileFromDirs(filename: string, dirs: string[]): Promise<string> {
+  for (const dir of dirs) {
+    const filePath = path.join(dir, filename);
+    try {
+      return await fs.readFile(filePath, 'utf8');
+    } catch {
+      // Not in this dir, try next
+    }
+  }
+  throw new Error(`Migration file ${filename} not found in any directory`);
+}
+
+/**
  * Get list of pending migrations that haven't been applied yet
  * Compares migration files in migrations/ directory with schema_migrations table
  * 
@@ -156,6 +175,35 @@ export async function applyMigration(db: DB, filename: string): Promise<void> {
 }
 
 /**
+ * Apply a single migration by searching across multiple directories
+ *
+ * @param db - Database client
+ * @param filename - Migration filename to apply
+ * @param dirs - Directories to search
+ */
+export async function applyMigrationFromDirs(db: DB, filename: string, dirs: string[]): Promise<void> {
+  logger.info(`Applying migration ${filename}...`);
+
+  const sql = await readMigrationFileFromDirs(filename, dirs);
+  await db.query(sql);
+
+  const checksum = calculateChecksum(sql);
+  await db.query(
+    'INSERT INTO schema_migrations (version, checksum) VALUES ($1, $2)',
+    [filename, checksum]
+  );
+
+  if (filename === '007_seed_default_admin.sql') {
+    await handleAdminSeed(db);
+  }
+  if (filename === '008_permission_based_roles.sql') {
+    await handleAdminRoleIdSeed(db);
+  }
+
+  logger.info(`Migration ${filename} completed successfully`);
+}
+
+/**
  * Verify checksums of already-applied migrations
  * Warns if migration files have been modified after application
  * 
@@ -163,6 +211,14 @@ export async function applyMigration(db: DB, filename: string): Promise<void> {
  * @param migrationFiles - All migration files in migrations/ directory
  */
 async function verifyChecksums(db: DB, migrationFiles: string[]): Promise<void> {
+  const allDirs = [getMigrationsDir()];
+  await verifyChecksumsFromDirs(db, migrationFiles, allDirs);
+}
+
+/**
+ * Verify checksums searching across multiple directories
+ */
+async function verifyChecksumsFromDirs(db: DB, migrationFiles: string[], dirs: string[]): Promise<void> {
   const result = await db.query<{ version: string; checksum: string }>(
     'SELECT version, checksum FROM schema_migrations'
   );
@@ -172,19 +228,20 @@ async function verifyChecksums(db: DB, migrationFiles: string[]): Promise<void> 
       continue; // Skip if file no longer exists (already warned)
     }
 
-    const sql = await readMigrationFile(row.version);
+    let sql: string;
+    try {
+      sql = await readMigrationFileFromDirs(row.version, dirs);
+    } catch {
+      continue; // File not found in any dir, already warned
+    }
     const currentChecksum = calculateChecksum(sql);
 
     if (currentChecksum !== row.checksum) {
       logger.warn(
         `Migration ${row.version} checksum mismatch (file modified after application)`
       );
-      logger.warn(
-        `  Applied checksum: ${row.checksum}`
-      );
-      logger.warn(
-        `  Current checksum: ${currentChecksum}`
-      );
+      logger.warn(`  Applied checksum: ${row.checksum}`);
+      logger.warn(`  Current checksum: ${currentChecksum}`);
     }
   }
 }
@@ -192,25 +249,51 @@ async function verifyChecksums(db: DB, migrationFiles: string[]): Promise<void> 
 /**
  * Run all pending migrations in order
  * Main entry point for automatic migration system
- * 
+ *
  * @param db - Database client
+ * @param extraDirs - Additional migration directories (e.g. from SaaS plugin)
  */
-export async function runMigrations(db: DB): Promise<void> {
+export async function runMigrations(db: DB, extraDirs: string[] = []): Promise<void> {
   logger.info('Checking for pending database migrations...');
 
   // Ensure schema_migrations table exists
   await createSchemaTable(db);
 
-  // Get all migration files for checksum verification
-  const migrationsDir = getMigrationsDir();
-  const allFiles = await fs.readdir(migrationsDir);
-  const migrationFiles = allFiles.filter(f => f.endsWith('.sql')).sort();
+  // Collect all migration directories (core + plugins)
+  const allDirs = [getMigrationsDir(), ...extraDirs];
 
-  // Verify checksums of already-applied migrations
+  // Gather and deduplicate migration files across all dirs
+  const migrationFiles: string[] = [];
+  for (const dir of allDirs) {
+    const files = await fs.readdir(dir);
+    for (const f of files) {
+      if (f.endsWith('.sql') && !migrationFiles.includes(f)) {
+        migrationFiles.push(f);
+      }
+    }
+  }
+  migrationFiles.sort();
+
+  // Get all migration files for checksum verification
   await verifyChecksums(db, migrationFiles);
 
+  // Get applied migrations
+  const result = await db.query<{ version: string }>(
+    'SELECT version FROM schema_migrations ORDER BY version'
+  );
+  const appliedVersions = new Set(result.rows.map(r => r.version));
+
+  // Check for applied migrations with missing files
+  for (const applied of appliedVersions) {
+    if (!migrationFiles.includes(applied)) {
+      logger.warn(
+        `Migration ${applied} was applied but file not found in any migrations directory`
+      );
+    }
+  }
+
   // Get pending migrations
-  const pending = await getPendingMigrations(db);
+  const pending = migrationFiles.filter(f => !appliedVersions.has(f));
 
   if (pending.length === 0) {
     logger.info('All migrations up to date');
@@ -219,9 +302,9 @@ export async function runMigrations(db: DB): Promise<void> {
 
   logger.info(`Found ${pending.length} pending migration(s)`);
 
-  // Apply each pending migration
+  // Apply each pending migration (search all dirs for the file)
   for (const filename of pending) {
-    await applyMigration(db, filename);
+    await applyMigrationFromDirs(db, filename, allDirs);
   }
 
   logger.info('All pending migrations applied successfully');

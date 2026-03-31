@@ -1,0 +1,23 @@
+{
+  "name": "@allo-scrapper/saas",
+  "version": "0.1.0",
+  "description": "SaaS overlay plugin for allo-scrapper",
+  "type": "module",
+  "main": "dist/plugin.js",
+  "types": "dist/plugin.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "peerDependencies": {
+    "express": ">=5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/node": "^22.15.3",
+    "@types/express": "^5.0.2",
+    "vitest": "^3.2.3"
+  }
+}

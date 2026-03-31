@@ -12,7 +12,7 @@ import { logger } from './utils/logger.js';
 import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
 import { generateThemeCSS } from './services/theme-generator.js';
 import { errorHandler } from './middleware/error-handler.js';
-import type { DB } from './db/client.js';
+import type { Express } from 'express';
 
 // Import routes
 import filmsRouter from './routes/films.js';
@@ -30,12 +30,32 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ---------------------------------------------------------------------------
+// Plugin system
+// ---------------------------------------------------------------------------
+
+/**
+ * A plugin can extend the Express app with additional middleware and routes
+ * without modifying the core. All hooks are optional.
+ */
+export interface AppPlugin {
+  name: string;
+  /** Called before core routes are registered — use for global middleware */
+  beforeRoutes?:    (app: Express) => void;
+  /** Called after core routes — use to register additional routes */
+  registerRoutes?:  (app: Express) => void;
+  /** Called after 404 handler but before static files — use for overrides */
+  afterRoutes?:     (app: Express) => void;
+  /** Returns extra migration directories the plugin provides */
+  getMigrationDirs?: () => string[];
+}
+
+// ---------------------------------------------------------------------------
 // Prometheus registry for the backend
 // ---------------------------------------------------------------------------
 const serverRegistry = new Registry();
 collectDefaultMetrics({ register: serverRegistry, prefix: 'ics_web_' });
 
-export function createApp() {
+export function createApp(plugins: AppPlugin[] = []) {
   const app = express();
 
   // Trust the first proxy to ensure accurate IP resolution for rate limiting
@@ -72,6 +92,9 @@ export function createApp() {
 
   // Rate limiting for all API routes
   app.use('/api', generalLimiter);
+
+  // Plugin: beforeRoutes — global middleware before core routes
+  for (const plugin of plugins) plugin.beforeRoutes?.(app);
 
   // API routes
   app.use('/api/auth', authRouter);
@@ -192,6 +215,10 @@ export function createApp() {
     }
   });
 
+  // Plugin: registerRoutes — additional routes (e.g. SaaS /api/org/:slug/*)
+  // Must be BEFORE the 404 handler so plugin API routes are reachable
+  for (const plugin of plugins) plugin.registerRoutes?.(app);
+
   // 404 handler for API routes (must be BEFORE SPA fallback)
   app.use('/api/{*splat}', (_req, res) => {
     res.status(404).json({
@@ -210,6 +237,9 @@ export function createApp() {
       res.sendFile(path.join(publicPath, 'index.html'));
     });
   }
+
+  // Plugin: afterRoutes — final overrides before error handler
+  for (const plugin of plugins) plugin.afterRoutes?.(app);
 
   // Error handler
   app.use(errorHandler);
