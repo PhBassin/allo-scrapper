@@ -1,5 +1,7 @@
 // White-label settings types
 
+export type ScrapeMode = 'weekly' | 'from_today' | 'from_today_limited';
+
 export interface FooterLink {
   label: string;
   url: string;
@@ -25,6 +27,8 @@ export interface AppSettings {
   footer_links: FooterLink[];
   email_from_name: string;
   email_from_address: string;
+  scrape_mode: ScrapeMode;
+  scrape_days: number;
   updated_at: string;
   updated_by: number | null;
 }
@@ -69,6 +73,8 @@ export interface AppSettingsUpdate {
   footer_links?: FooterLink[];
   email_from_name?: string;
   email_from_address?: string;
+  scrape_mode?: ScrapeMode;
+  scrape_days?: number;
 }
 
 // Export format for backup

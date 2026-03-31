@@ -10,7 +10,7 @@ import {
 } from '../db/settings-queries.js';
 import { validateImage } from '../utils/image-validator.js';
 import type { ApiResponse } from '../types/api.js';
-import type { AppSettingsUpdate, AppSettingsExport } from '../types/settings.js';
+import type { AppSettingsUpdate, AppSettingsExport, ScrapeMode } from '../types/settings.js';
 import { logger } from '../utils/logger.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
@@ -22,6 +22,10 @@ const router = express.Router();
 // Size limits for images (in bytes)
 const LOGO_MAX_SIZE = 200000; // 200 KB
 const FAVICON_MAX_SIZE = 50000; // 50 KB
+
+const VALID_SCRAPE_MODES: ScrapeMode[] = ['weekly', 'from_today', 'from_today_limited'];
+const SCRAPE_DAYS_MIN = 1;
+const SCRAPE_DAYS_MAX = 14;
 
 // Input length limits for text fields (security: prevent DoS via large payloads)
 const INPUT_LIMITS = {
@@ -138,6 +142,21 @@ router.put('/', protectedLimiter, requireAuth, requirePermission('settings:updat
             return next(new ValidationError(`Invalid URL format in footer link: ${link.url}`));
           }
         }
+      }
+    }
+
+    // Validate scrape_mode if provided
+    if (updates.scrape_mode !== undefined) {
+      if (!VALID_SCRAPE_MODES.includes(updates.scrape_mode)) {
+        return next(new ValidationError(`Invalid scrape_mode: must be one of ${VALID_SCRAPE_MODES.join(', ')}`));
+      }
+    }
+
+    // Validate scrape_days if provided
+    if (updates.scrape_days !== undefined) {
+      const days = updates.scrape_days;
+      if (!Number.isInteger(days) || days < SCRAPE_DAYS_MIN || days > SCRAPE_DAYS_MAX) {
+        return next(new ValidationError(`Invalid scrape_days: must be an integer between ${SCRAPE_DAYS_MIN} and ${SCRAPE_DAYS_MAX}`));
       }
     }
 

@@ -1,14 +1,14 @@
 import React, { useState, useContext } from 'react';
 import { SettingsContext } from '../../contexts/SettingsContext';
 import { AuthContext } from '../../contexts/AuthContext';
-import { downloadSettingsExport, uploadSettingsImport, resetSettings, type AppSettings, type AppSettingsUpdate, type FooterLink } from '../../api/settings';
+import { downloadSettingsExport, uploadSettingsImport, resetSettings, type AppSettings, type AppSettingsUpdate, type FooterLink, type ScrapeMode } from '../../api/settings';
 import ColorPicker from '../../components/admin/ColorPicker';
 import FontSelector from '../../components/admin/FontSelector';
 import ImageUpload from '../../components/admin/ImageUpload';
 import FooterLinksEditor from '../../components/admin/FooterLinksEditor';
 import Button from '../../components/ui/Button';
 
-type Tab = 'general' | 'colors' | 'typography' | 'footer' | 'email';
+type Tab = 'general' | 'colors' | 'typography' | 'footer' | 'email' | 'scraper';
 
 const getInitialFormData = (settings: AppSettings | null): AppSettingsUpdate => {
     if (!settings) return {};
@@ -32,6 +32,8 @@ const getInitialFormData = (settings: AppSettings | null): AppSettingsUpdate => 
         email_from_name: settings.email_from_name,
         email_from_address: settings.email_from_address,
         email_logo_base64: settings.email_logo_base64,
+        scrape_mode: settings.scrape_mode,
+        scrape_days: settings.scrape_days,
     };
 };
 
@@ -167,6 +169,7 @@ const SettingsPage: React.FC = () => {
                                 { id: 'typography', label: 'Typography' },
                                 { id: 'footer', label: 'Footer' },
                                 { id: 'email', label: 'Email' },
+                                { id: 'scraper', label: 'Scraper' },
                             ] as const).map((tab) => (
                                 <button
                                     key={tab.id}
@@ -362,9 +365,48 @@ const SettingsPage: React.FC = () => {
                                 />
                             </div>
                         )}
-                    </div>
 
-                    {/* Footer actions */}
+                        {activeTab === 'scraper' && (
+                            <div className="space-y-6 max-w-2xl">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Scrape Mode
+                                    </label>
+                                    <p className="text-xs text-gray-500 mb-2">
+                                        Determines which dates are scraped during each run.
+                                    </p>
+                                    <select
+                                        value={formData.scrape_mode ?? 'weekly'}
+                                        onChange={(e) => handleFieldChange('scrape_mode', e.target.value as ScrapeMode)}
+                                        disabled={!canUpdate}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    >
+                                        <option value="weekly">Weekly — starts from last Wednesday, 7 days</option>
+                                        <option value="from_today">From today — starts today, N days</option>
+                                        <option value="from_today_limited">From today (limited) — starts today, until next Tuesday (max 7 days)</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Scrape Days
+                                    </label>
+                                    <p className="text-xs text-gray-500 mb-2">
+                                        Number of days to scrape (1–14). Used by the <em>weekly</em> and <em>from today</em> modes.
+                                    </p>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={14}
+                                        value={formData.scrape_days ?? 7}
+                                        onChange={(e) => handleFieldChange('scrape_days', parseInt(e.target.value, 10))}
+                                        disabled={!canUpdate}
+                                        className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <div className="border-t border-gray-200 p-6 bg-gray-50 flex items-center justify-between">
                         <div className="flex gap-2">
                             {canExport && (

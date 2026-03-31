@@ -154,8 +154,25 @@ export async function runScraper(
     
     logger.info('Cinemas loaded', { count: cinemas.length });
 
-    const scrapeMode = options?.mode ?? (process.env.SCRAPE_MODE as ScrapeMode) ?? 'from_today_limited';
-    const scrapeDays = options?.days || parseInt(process.env.SCRAPE_DAYS || '7', 10);
+    // Read scrape config from database settings (fallback to safe defaults)
+    let scrapeMode: ScrapeMode = 'from_today_limited';
+    let scrapeDays = 7;
+    try {
+      const settingsResult = await db.query<{ scrape_mode: string; scrape_days: number }>(
+        'SELECT scrape_mode, scrape_days FROM app_settings WHERE id = 1'
+      );
+      if (settingsResult.rows.length > 0) {
+        scrapeMode = settingsResult.rows[0].scrape_mode as ScrapeMode;
+        scrapeDays = settingsResult.rows[0].scrape_days;
+      }
+    } catch (err) {
+      logger.warn('Could not read scrape settings from DB, using defaults', { err });
+    }
+
+    // Options passed explicitly (e.g. from a job) override DB settings
+    if (options?.mode) scrapeMode = options.mode;
+    if (options?.days) scrapeDays = options.days;
+
     const dates = getScrapeDates(scrapeMode, scrapeDays);
     logger.info('Scrape config', { mode: scrapeMode, dates: dates.length, scrapeDays });
     logger.info('Delay config', { theaterDelayMs, movieDelayMs });
