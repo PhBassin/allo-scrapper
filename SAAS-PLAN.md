@@ -4,6 +4,111 @@ Plan de transformation de l'application en mode multi-tenant SaaS.
 
 ---
 
+## Architecture : Core Library + SaaS Overlay
+
+L'app actuelle devient un **core standalone** extensible via un système de plugins.
+Un package `@allo-scrapper/saas` s'y branche **sans modifier le comportement du core**.
+Le même Docker peut tourner en mode standalone ou SaaS via `SAAS_ENABLED=true`.
+
+```
+                    ┌───────────────────────┐
+                    │  ics-web (Docker)      │
+                    │                        │
+  SAAS_ENABLED=true │  server/src/index.ts  │
+  ─────────────────►│  createApp([saasPlugin])│
+                    │         │              │
+                    │    ┌────▼────┐         │
+                    │    │  core   │ ← inchangé en comportement
+                    │    │ routes  │
+                    │    └────┬────┘
+                    │         │ + plugin hooks
+                    │    ┌────▼────┐
+                    │    │  saas   │ ← nouveau package
+                    │    │ routes  │
+                    │    └─────────┘
+                    └───────────────────────┘
+```
+
+### Structure du monorepo
+
+```
+allo-scrapper/
+├── server/          ← MODIFIÉ: ~56 lignes (app.ts, index.ts, migrations.ts)
+├── client/          ← MODIFIÉ: ~25 lignes (App.tsx routing conditionnel)
+├── scraper/         ← INCHANGÉ
+├── migrations/      ← INCHANGÉ (core migrations)
+└── packages/
+    └── saas/        ← NOUVEAU workspace @allo-scrapper/saas
+        ├── src/plugin.ts           ← export saasPlugin: AppPlugin
+        ├── src/middleware/         ← tenant (search_path), quota
+        ├── src/routes/             ← register, org/:slug/*, billing, superadmin
+        ├── src/services/           ← OrgService, BillingService
+        ├── src/db/                 ← org-queries, subscription-queries
+        └── migrations/             ← 4 SQL SaaS (plans, orgs, subscriptions, usage)
+```
+
+### Interface `AppPlugin` (pivot de l'architecture)
+
+Ajout de ~15 lignes à `server/src/app.ts` :
+
+```ts
+export interface AppPlugin {
+  name: string;
+  beforeRoutes?:     (app: Express, db: DB) => void;  // middleware additionnels
+  registerRoutes?:   (app: Express, db: DB) => void;  // routes additionnelles
+  afterRoutes?:      (app: Express, db: DB) => void;  // overrides finaux
+  getMigrationDirs?: () => string[];                  // migrations SaaS
+}
+
+export function createApp(plugins: AppPlugin[] = []) {
+  // ... code existant INCHANGÉ ...
+  for (const plugin of plugins) plugin.registerRoutes?.(app, db);
+  return app;
+}
+```
+
+**Garanties :**
+- ✅ `createApp()` sans plugin = comportement actuel identique
+- ✅ Pages React core réutilisées dans SaaS (zéro duplication), préfixées `/org/:slug`
+- ✅ Migrations SaaS séparées des migrations core
+- ✅ Un seul binaire Docker pour les deux modes
+
+### Chargement conditionnel dans `index.ts`
+
+```ts
+const plugins: AppPlugin[] = [];
+if (process.env.SAAS_ENABLED === 'true') {
+  const { saasPlugin } = await import('@allo-scrapper/saas');
+  plugins.push(saasPlugin);
+}
+const app = createApp(plugins);
+```
+
+### Routing client conditionnel (`App.tsx`)
+
+```tsx
+const SAAS_MODE = import.meta.env.VITE_SAAS_ENABLED === 'true';
+
+// Mode SaaS : pages existantes réutilisées sous /org/:slug/*
+// Mode standalone : routes actuelles inchangées
+```
+
+### Ordre d'implémentation
+
+```
+Étape 1 — Plugin interface (app.ts + index.ts + migrations.ts) ~56 lignes
+Étape 2 — Scaffold packages/saas/ (package.json + structure)
+Étape 3 — Migrations SaaS (4 fichiers SQL)
+Étape 4 — OrgService + tenant middleware (SET search_path)
+Étape 5 — Routes SaaS (register, org/:slug/*)
+Étape 6 — Client SaaS (App.tsx + TenantContext + RegisterPage)
+Étape 7 — Plans & quotas
+Étape 8 — Billing Stripe
+Étape 9 — Superadmin portal
+```
+
+---
+
 ## Décisions architecturales
 
 | Décision | Choix retenu | Justification |
