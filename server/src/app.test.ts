@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import type { DB } from './db/client.js';
-import { createApp } from './app.js';
+import { createApp, type AppPlugin } from './app.js';
 
 // Mock dependencies
 vi.mock('./services/theme-generator.js');
@@ -302,5 +302,85 @@ describe('App - Theme Endpoint', () => {
       expect(cspHeader).toMatch(/font-src[^;]*'self'/);
       expect(cspHeader).toMatch(/font-src[^;]*data:/);
     });
+  });
+});
+
+describe('App - Plugin System', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('createApp() with no plugins works as before', async () => {
+    const app = createApp();
+    const res = await request(app).get('/api/unknown').expect(404);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('calls beforeRoutes hook on plugin', () => {
+    const beforeRoutes = vi.fn();
+    const plugin: AppPlugin = { name: 'test-plugin', beforeRoutes };
+    createApp([plugin]);
+    expect(beforeRoutes).toHaveBeenCalledOnce();
+    expect(beforeRoutes).toHaveBeenCalledWith(expect.objectContaining({ use: expect.any(Function) }));
+  });
+
+  it('calls registerRoutes hook on plugin', () => {
+    const registerRoutes = vi.fn();
+    const plugin: AppPlugin = { name: 'test-plugin', registerRoutes };
+    createApp([plugin]);
+    expect(registerRoutes).toHaveBeenCalledOnce();
+    expect(registerRoutes).toHaveBeenCalledWith(expect.objectContaining({ use: expect.any(Function) }));
+  });
+
+  it('calls afterRoutes hook on plugin', () => {
+    const afterRoutes = vi.fn();
+    const plugin: AppPlugin = { name: 'test-plugin', afterRoutes };
+    createApp([plugin]);
+    expect(afterRoutes).toHaveBeenCalledOnce();
+  });
+
+  it('calls all hooks in order: beforeRoutes → registerRoutes → afterRoutes', () => {
+    const order: string[] = [];
+    const plugin: AppPlugin = {
+      name: 'ordered-plugin',
+      beforeRoutes:   () => { order.push('before'); },
+      registerRoutes: () => { order.push('register'); },
+      afterRoutes:    () => { order.push('after'); },
+    };
+    createApp([plugin]);
+    expect(order).toEqual(['before', 'register', 'after']);
+  });
+
+  it('calls hooks on multiple plugins in order', () => {
+    const calls: string[] = [];
+    const pluginA: AppPlugin = { name: 'A', registerRoutes: () => { calls.push('A'); } };
+    const pluginB: AppPlugin = { name: 'B', registerRoutes: () => { calls.push('B'); } };
+    createApp([pluginA, pluginB]);
+    expect(calls).toEqual(['A', 'B']);
+  });
+
+  it('plugin with no hooks does not throw', () => {
+    const plugin: AppPlugin = { name: 'empty-plugin' };
+    expect(() => createApp([plugin])).not.toThrow();
+  });
+
+  it('plugin registerRoutes can add a route accessible via HTTP', async () => {
+    const plugin: AppPlugin = {
+      name: 'route-plugin',
+      registerRoutes: (app) => {
+        app.get('/api/plugin-test', (_req, res) => res.json({ ok: true }));
+      },
+    };
+    const app = createApp([plugin]);
+    const res = await request(app).get('/api/plugin-test').expect(200);
+    expect(res.body.ok).toBe(true);
+  });
+
+  it('getMigrationDirs returns plugin migration directory', () => {
+    const plugin: AppPlugin = {
+      name: 'migration-plugin',
+      getMigrationDirs: () => ['/some/path/migrations'],
+    };
+    expect(plugin.getMigrationDirs!()).toEqual(['/some/path/migrations']);
   });
 });
