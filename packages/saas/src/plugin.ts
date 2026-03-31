@@ -1,6 +1,8 @@
 import { fileURLToPath } from 'url';
 import path from 'path';
 import type { Express } from 'express';
+import { createRegisterRouter } from './routes/register.js';
+import { createOrgRouter } from './routes/org.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,25 +23,29 @@ export const saasPlugin: AppPlugin = {
   name: '@allo-scrapper/saas',
 
   beforeRoutes(_app) {
-    // TODO: tenant resolution middleware, quota middleware
+    // Global SaaS middleware (e.g. org rate limiting) — Phase 3
   },
 
-  registerRoutes(_app) {
-    // TODO: /api/auth/register, /api/org/:slug/*, /api/superadmin/*
+  registerRoutes(app) {
+    // Registration & slug availability
+    app.use('/api/auth', createRegisterRouter());
+
+    // All org-scoped routes: /api/org/:slug/*
+    app.use('/api/org/:slug', createOrgRouter());
   },
 
   afterRoutes(_app) {
-    // TODO: final SaaS-specific overrides
+    // Final SaaS-specific overrides — reserved for future use
   },
 
   getMigrationDirs() {
-    // In Docker: dist is under /app/packages/saas/dist
-    // In dev: resolve relative to this file's compiled location
+    // Returns the directory containing SaaS global migrations
+    // (plans, organizations, org_usage, subscriptions)
     const isDocker = __dirname.startsWith('/app/');
     return [
       isDocker
         ? path.join('/app', 'packages', 'saas', 'migrations')
-        : path.join(__dirname, '../../migrations'),
+        : path.join(__dirname, '../migrations'),
     ];
   },
 };

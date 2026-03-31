@@ -31,9 +31,10 @@ async function startServer() {
       logger.info('✅ SaaS plugin loaded');
     }
 
-    // Initialize database
+    // Initialize database (including SaaS global migrations if plugin is loaded)
     logger.info('📦 Initializing database...');
-    await initializeDatabase();
+    const extraMigrationDirs = plugins.flatMap(p => p.getMigrationDirs?.() ?? []);
+    await initializeDatabase(extraMigrationDirs);
     await initializeDatabase();
 
     // Subscribe to Redis progress events and forward to SSE clients
@@ -52,6 +53,10 @@ async function startServer() {
 
     // Register database connection for dependency injection
     app.set('db', db);
+
+    // Register pool for tenant middleware (dedicated clients with SET search_path)
+    const { pool } = await import('./db/client.js');
+    app.set('pool', pool);
 
     // Start server
     const server = app.listen(Number(PORT), () => {

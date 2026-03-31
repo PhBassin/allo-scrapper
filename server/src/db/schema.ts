@@ -15,8 +15,10 @@ const __dirname = dirname(__filename);
  * 
  * Respects AUTO_MIGRATE environment variable (default: true)
  * If AUTO_MIGRATE=false, migrations must be applied manually
+ *
+ * @param extraMigrationDirs - Additional migration directories from plugins (e.g. SaaS)
  */
-export async function initializeDatabase() {
+export async function initializeDatabase(extraMigrationDirs: string[] = []) {
   logger.info('🔄 Initializing PostgreSQL database...');
 
   const autoMigrate = process.env.AUTO_MIGRATE !== 'false';
@@ -24,7 +26,7 @@ export async function initializeDatabase() {
   if (autoMigrate) {
     logger.info('Auto-migration enabled, applying pending migrations...');
     try {
-      await runMigrations(db);
+      await runMigrations(db, extraMigrationDirs);
       logger.info('✅ Database initialization complete');
     } catch (error) {
       // Log only the error message to prevent sensitive data exposure
