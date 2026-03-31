@@ -38,6 +38,9 @@ jobs:
           rm -f package-lock.json
           npm install --legacy-peer-deps
 
+      - name: Build saas package
+        run: npm run build --workspace=packages/saas
+
       - name: TypeScript type-check
         run: npx tsc --noEmit
         working-directory: server

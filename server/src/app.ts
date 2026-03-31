@@ -13,6 +13,7 @@ import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
 import { generateThemeCSS } from './services/theme-generator.js';
 import { errorHandler } from './middleware/error-handler.js';
 import type { Express } from 'express';
+import type { DB } from './db/client.js';
 
 // Import routes
 import filmsRouter from './routes/films.js';

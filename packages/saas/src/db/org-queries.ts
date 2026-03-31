@@ -5,11 +5,12 @@ export interface Organization {
   name: string;
   slug: string;
   plan_id: number;
-  status: string;        // trial | active | suspended | canceled
-  schema_name: string;   // 'org_' + sanitized slug
+  status: string;
+  schema_name: string;
   trial_ends_at: Date | null;
   created_at: Date;
   updated_at: Date;
+  [key: string]: unknown;
 }
 
 export interface Plan {
@@ -22,6 +23,7 @@ export interface Plan {
   price_monthly_cents: number;
   price_yearly_cents: number;
   features: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 /**

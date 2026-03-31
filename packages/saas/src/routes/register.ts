@@ -63,7 +63,7 @@ export function createRegisterRouter(): Router {
    * Quick slug availability check (public, no auth).
    */
   router.get('/orgs/:slug/available', async (req: Request, res: Response) => {
-    const { slug } = req.params;
+    const slug = req.params['slug'] as string;
     if (!SLUG_PATTERN.test(slug)) {
       return res.status(400).json({ success: false, available: false, error: 'Invalid slug format' });
     }

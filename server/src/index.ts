@@ -35,7 +35,6 @@ async function startServer() {
     logger.info('📦 Initializing database...');
     const extraMigrationDirs = plugins.flatMap(p => p.getMigrationDirs?.() ?? []);
     await initializeDatabase(extraMigrationDirs);
-    await initializeDatabase();
 
     // Subscribe to Redis progress events and forward to SSE clients
     const { getRedisClient } = await import('./services/redis-client.js');
