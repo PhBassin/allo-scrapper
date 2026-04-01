@@ -20,6 +20,7 @@ vi.mock('../services/invitation-service.js', () => ({
   InvitationService: vi.fn().mockImplementation(() => ({
     getInvitationByToken: vi.fn(),
     acceptInvitation: vi.fn(),
+    createInvitation: vi.fn(),
   })),
 }));
 
@@ -33,8 +34,31 @@ vi.mock('../services/saas-auth-service.js', () => ({
 
 const VALID_JWT_SECRET = 'test-secret-that-is-at-least-32-chars-long!!';
 
-function makePool(): Pool {
-  return { connect: vi.fn().mockResolvedValue({ query: vi.fn(), release: vi.fn() }) };
+const MOCK_ORG = {
+  id: 'org-uuid-1',
+  slug: 'my-cinema',
+  schema_name: 'org_my_cinema',
+};
+
+/**
+ * Makes a pool whose client resolves org queries with MOCK_ORG
+ * (used for routes that look up the org from the token prefix).
+ */
+function makePoolWithOrg(): Pool {
+  const client = {
+    query: vi.fn().mockResolvedValue({ rows: [MOCK_ORG], rowCount: 1 }),
+    release: vi.fn(),
+  };
+  return { connect: vi.fn().mockResolvedValue(client) };
+}
+
+/** Pool that returns empty rows — used to simulate org-not-found cases. */
+function makeEmptyPool(): Pool {
+  const client = {
+    query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    release: vi.fn(),
+  };
+  return { connect: vi.fn().mockResolvedValue(client) };
 }
 
 function buildApp(pool: Pool): Express {
@@ -44,6 +68,10 @@ function buildApp(pool: Pool): Express {
   app.use('/api', createOnboardingRouter());
   return app;
 }
+
+// Token format used in all tests: "<orgSlug>:<hex>"
+const VALID_VERIFY_TOKEN = 'my-cinema:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+const VALID_INVITE_TOKEN = 'my-cinema:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
 
 // ── GET /api/auth/verify-email/:token ────────────────────────────────────────
 
@@ -62,11 +90,27 @@ describe('GET /api/auth/verify-email/:token', () => {
       sendVerificationEmail: vi.fn(),
     }));
 
-    const app = buildApp(makePool());
-    const res = await supertest(app).get('/api/auth/verify-email/valid-token');
+    const app = buildApp(makePoolWithOrg());
+    const res = await supertest(app).get(`/api/auth/verify-email/${VALID_VERIFY_TOKEN}`);
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+  });
+
+  it('returns 400 when the token format is missing a colon separator', async () => {
+    const app = buildApp(makeEmptyPool());
+    const res = await supertest(app).get('/api/auth/verify-email/no-colon-here');
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('returns 400 when org slug in token does not match any organization', async () => {
+    const app = buildApp(makeEmptyPool()); // org lookup returns no rows
+    const res = await supertest(app).get('/api/auth/verify-email/unknown-org:sometoken');
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
   });
 
   it('returns 400 when the token is invalid or expired', async () => {
@@ -79,8 +123,8 @@ describe('GET /api/auth/verify-email/:token', () => {
       sendVerificationEmail: vi.fn(),
     }));
 
-    const app = buildApp(makePool());
-    const res = await supertest(app).get('/api/auth/verify-email/bad-token');
+    const app = buildApp(makePoolWithOrg());
+    const res = await supertest(app).get(`/api/auth/verify-email/${VALID_VERIFY_TOKEN}`);
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
@@ -98,7 +142,7 @@ describe('POST /api/auth/join/:token', () => {
     id: 'inv-uuid-1',
     email: 'bob@example.com',
     role_id: 2,
-    token: 'valid-invite-token',
+    token: VALID_INVITE_TOKEN,
     invited_by: 1,
     accepted_at: null,
     expires_at: new Date(Date.now() + 48 * 3600_000),
@@ -109,12 +153,22 @@ describe('POST /api/auth/join/:token', () => {
   };
 
   it('returns 400 when password is missing', async () => {
-    const app = buildApp(makePool());
+    const app = buildApp(makePoolWithOrg());
     const res = await supertest(app)
-      .post('/api/auth/join/some-token')
+      .post(`/api/auth/join/${VALID_INVITE_TOKEN}`)
       .send({});
 
     expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('returns 404 when token format has no colon separator', async () => {
+    const app = buildApp(makeEmptyPool());
+    const res = await supertest(app)
+      .post('/api/auth/join/bad-token-no-colon')
+      .send({ password: 'NewPass1!' });
+
+    expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);
   });
 
@@ -126,9 +180,9 @@ describe('POST /api/auth/join/:token', () => {
       createInvitation: vi.fn(),
     }));
 
-    const app = buildApp(makePool());
+    const app = buildApp(makePoolWithOrg());
     const res = await supertest(app)
-      .post('/api/auth/join/expired-token')
+      .post(`/api/auth/join/${VALID_INVITE_TOKEN}`)
       .send({ password: 'NewPass1!' });
 
     expect(res.status).toBe(404);
@@ -148,9 +202,9 @@ describe('POST /api/auth/join/:token', () => {
       createInvitation: vi.fn(),
     }));
 
-    const app = buildApp(makePool());
+    const app = buildApp(makePoolWithOrg());
     const res = await supertest(app)
-      .post('/api/auth/join/valid-invite-token')
+      .post(`/api/auth/join/${VALID_INVITE_TOKEN}`)
       .send({ password: 'SecurePass1!' });
 
     expect(res.status).toBe(201);
@@ -164,13 +218,6 @@ describe('POST /api/auth/join/:token', () => {
 // ── POST /api/org/:slug/invitations ──────────────────────────────────────────
 
 describe('POST /api/org/:slug/invitations', () => {
-  const MOCK_ORG = {
-    id: 'org-uuid-1',
-    slug: 'my-cinema',
-    schema_name: 'org_my_cinema',
-    status: 'trial',
-  };
-
   function buildAppWithOrg(pool: Pool): Express {
     const app = express();
     app.use(express.json());
@@ -186,7 +233,7 @@ describe('POST /api/org/:slug/invitations', () => {
   }
 
   it('returns 400 when email is missing', async () => {
-    const app = buildAppWithOrg(makePool());
+    const app = buildAppWithOrg(makePoolWithOrg());
     const res = await supertest(app)
       .post('/api/org/my-cinema/invitations')
       .send({ role_id: 2 });
@@ -196,7 +243,7 @@ describe('POST /api/org/:slug/invitations', () => {
   });
 
   it('returns 400 when role_id is missing', async () => {
-    const app = buildAppWithOrg(makePool());
+    const app = buildAppWithOrg(makePoolWithOrg());
     const res = await supertest(app)
       .post('/api/org/my-cinema/invitations')
       .send({ email: 'bob@example.com' });
@@ -211,7 +258,7 @@ describe('POST /api/org/:slug/invitations', () => {
       id: 'inv-uuid-1',
       email: 'bob@example.com',
       role_id: 2,
-      token: 'new-token-xyz',
+      token: 'my-cinema:new-token-xyz',
       invited_by: 1,
       accepted_at: null,
       expires_at: new Date(Date.now() + 48 * 3600_000),
@@ -232,7 +279,7 @@ describe('POST /api/org/:slug/invitations', () => {
       sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
     }));
 
-    const app = buildAppWithOrg(makePool());
+    const app = buildAppWithOrg(makePoolWithOrg());
     const res = await supertest(app)
       .post('/api/org/my-cinema/invitations')
       .send({ email: 'bob@example.com', role_id: 2 });

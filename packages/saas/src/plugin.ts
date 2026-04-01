@@ -3,6 +3,7 @@ import path from 'path';
 import type { Express } from 'express';
 import { createRegisterRouter } from './routes/register.js';
 import { createOrgRouter } from './routes/org.js';
+import { createOnboardingRouter } from './routes/onboarding.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +30,9 @@ export const saasPlugin: AppPlugin = {
   registerRoutes(app) {
     // Registration & slug availability
     app.use('/api/auth', createRegisterRouter());
+
+    // Email verification + invitation join (public routes)
+    app.use('/api', createOnboardingRouter());
 
     // All org-scoped routes: /api/org/:slug/*
     app.use('/api/org/:slug', createOrgRouter());

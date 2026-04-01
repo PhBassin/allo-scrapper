@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { isSlugAvailable } from '../db/org-queries.js';
 import { createOrg } from '../services/org-service.js';
 import { SaasAuthService } from '../services/saas-auth-service.js';
+import { EmailService } from '../services/email-service.js';
 import type { DB, Pool } from '../db/types.js';
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
@@ -58,6 +59,18 @@ export function createRegisterRouter(): Router {
       roleName: adminUser.role_name,
       permissions: [], // Phase 3: load from org schema permissions table
     });
+
+    // Send email verification for the admin user (fire-and-forget, non-blocking)
+    try {
+      const emailService = new EmailService(pool);
+      const rawToken = emailService.generateVerificationToken();
+      await emailService.storeVerificationToken(org, adminUser.id, rawToken);
+      const prefixedToken = `${org.slug}:${rawToken}`;
+      await emailService.sendVerificationEmail(adminEmail, prefixedToken, org.slug);
+    } catch (_err) {
+      // Non-critical: log but do not fail registration if email dispatch fails
+      console.warn('[register] Failed to send verification email:', _err);
+    }
 
     return res.status(201).json({
       success: true,
