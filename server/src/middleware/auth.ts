@@ -13,6 +13,10 @@ export interface AuthRequest extends Request {
         role_name: string;
         is_system_role: boolean;
         permissions: PermissionName[];
+        /** Present in SaaS mode JWTs — undefined in standalone mode */
+        org_id?: string;
+        /** Present in SaaS mode JWTs — undefined in standalone mode */
+        org_slug?: string;
     };
 }
 
@@ -34,10 +38,21 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
             id: number;
             username: string;
             role_name: string;
-            is_system_role: boolean;
+            is_system_role?: boolean;
             permissions: PermissionName[];
+            org_id?: string;
+            org_slug?: string;
         };
-        req.user = decoded;
+        req.user = {
+            id: decoded.id,
+            username: decoded.username,
+            role_name: decoded.role_name,
+            is_system_role: decoded.is_system_role ?? false,
+            permissions: decoded.permissions ?? [],
+            // SaaS fields — only set when present in the token
+            ...(decoded.org_id !== undefined && { org_id: decoded.org_id }),
+            ...(decoded.org_slug !== undefined && { org_slug: decoded.org_slug }),
+        };
         next();
     } catch (error) {
         const response: ApiResponse = {
