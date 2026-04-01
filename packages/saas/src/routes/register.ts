@@ -1,7 +1,8 @@
 import { Router, type Request, type Response } from 'express';
 import { isSlugAvailable } from '../db/org-queries.js';
 import { createOrg } from '../services/org-service.js';
-import type { DB } from '../db/types.js';
+import { SaasAuthService } from '../services/saas-auth-service.js';
+import type { DB, Pool } from '../db/types.js';
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
 
@@ -10,11 +11,12 @@ export function createRegisterRouter(): Router {
 
   /**
    * POST /api/auth/register
-   * Creates a new organization with its dedicated PostgreSQL schema.
+   * Creates a new organization with its dedicated PostgreSQL schema,
+   * provisions the admin user inside that schema, and returns a JWT.
    *
    * Body: { orgName, slug, adminEmail, adminPassword }
    */
-  router.post('/register', async (req: Request, res: Response) => {
+  router.post('/auth/register', async (req: Request, res: Response) => {
     const { orgName, slug, adminEmail, adminPassword } = req.body as Record<string, string>;
 
     // Basic validation
@@ -29,6 +31,7 @@ export function createRegisterRouter(): Router {
     }
 
     const db = req.app.get('db') as DB;
+    const pool = req.app.get('pool') as Pool;
 
     // Check slug availability before attempting creation
     const slugFree = await isSlugAvailable(db, slug);
@@ -43,10 +46,28 @@ export function createRegisterRouter(): Router {
       plan_id: 1, // Free plan by default
     });
 
-    // TODO (Phase 5): create admin user in org schema + return JWT
+    // Create admin user in the org's private schema and mint JWT
+    const authService = new SaasAuthService(pool);
+    const adminUser = await authService.createAdminUser(org, adminEmail, adminPassword);
+    const token = authService.mintJwt({
+      userId: adminUser.id,
+      username: adminUser.username,
+      orgId: org.id,
+      orgSlug: org.slug,
+      roleId: adminUser.role_id,
+      roleName: adminUser.role_name,
+      permissions: [], // Phase 3: load from org schema permissions table
+    });
 
     return res.status(201).json({
       success: true,
+      token,
+      admin: {
+        id: adminUser.id,
+        username: adminUser.username,
+        role_id: adminUser.role_id,
+        role_name: adminUser.role_name,
+      },
       org: {
         id: org.id,
         name: org.name,
