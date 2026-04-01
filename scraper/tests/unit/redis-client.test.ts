@@ -26,7 +26,7 @@ vi.mock('ioredis', () => ({
   default: MockRedis,
 }));
 
-import { RedisProgressPublisher, RedisJobConsumer } from '../../../src/redis/client.js';
+import { RedisProgressPublisher, RedisJobConsumer, type ScrapeJob } from '../../../src/redis/client.js';
 
 describe('RedisProgressPublisher', () => {
   let publisher: RedisProgressPublisher;
@@ -94,5 +94,43 @@ describe('RedisJobConsumer', () => {
     await consumer.start(handler);
 
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('passes org_slug to handler when present in job', async () => {
+    const handler = vi.fn().mockResolvedValue(undefined);
+    const job: ScrapeJob = {
+      type: 'scrape',
+      reportId: 42,
+      triggerType: 'manual',
+      org_slug: 'cinema-test',
+    };
+
+    mockBlpop.mockImplementationOnce(async () => ['scrape:jobs', JSON.stringify(job)]);
+    mockBlpop.mockImplementationOnce(async () => { consumer.stop(); return null; });
+
+    await consumer.start(handler);
+
+    expect(handler).toHaveBeenCalledOnce();
+    const receivedJob = handler.mock.calls[0][0] as ScrapeJob;
+    expect(receivedJob.org_slug).toBe('cinema-test');
+  });
+
+  it('handles job without org_slug (standalone mode, backward compat)', async () => {
+    const handler = vi.fn().mockResolvedValue(undefined);
+    const job: ScrapeJob = {
+      type: 'scrape',
+      reportId: 1,
+      triggerType: 'cron',
+      // org_slug intentionally absent
+    };
+
+    mockBlpop.mockImplementationOnce(async () => ['scrape:jobs', JSON.stringify(job)]);
+    mockBlpop.mockImplementationOnce(async () => { consumer.stop(); return null; });
+
+    await consumer.start(handler);
+
+    expect(handler).toHaveBeenCalledOnce();
+    const receivedJob = handler.mock.calls[0][0] as ScrapeJob;
+    expect(receivedJob.org_slug).toBeUndefined();
   });
 });

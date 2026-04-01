@@ -48,9 +48,10 @@ describe('resolveTenant', () => {
     expect(next).toHaveBeenCalledOnce();
     expect((req as any).org).toMatchObject({ slug: 'cinema-test' });
     expect((req as any).dbClient).toBe(client);
+    // PostgreSQL SET command does not support $1 parameterized form.
+    // The schema name must be embedded directly as a quoted identifier.
     expect(client.query).toHaveBeenCalledWith(
-      expect.stringMatching(/SET search_path TO/),
-      expect.any(Array)
+      'SET search_path TO "org_cinema_test", public'
     );
   });
 
