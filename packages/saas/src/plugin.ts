@@ -4,6 +4,7 @@ import type { Express } from 'express';
 import { createRegisterRouter } from './routes/register.js';
 import { createOrgRouter } from './routes/org.js';
 import { createOnboardingRouter } from './routes/onboarding.js';
+import { createSuperadminRouter } from './routes/superadmin.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,6 +37,9 @@ export const saasPlugin: AppPlugin = {
 
     // All org-scoped routes: /api/org/:slug/*
     app.use('/api/org/:slug', createOrgRouter());
+
+    // Superadmin portal: /api/superadmin/*
+    app.use('/api/superadmin', createSuperadminRouter());
   },
 
   afterRoutes(_app) {
