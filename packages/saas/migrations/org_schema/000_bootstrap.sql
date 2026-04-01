@@ -52,11 +52,14 @@ ON CONFLICT (name) DO NOTHING;
 -- ─── Users ─────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS users (
-  id            SERIAL PRIMARY KEY,
-  username      VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  role_id       INTEGER NOT NULL REFERENCES roles(id),
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  id                   SERIAL PRIMARY KEY,
+  username             VARCHAR(255) UNIQUE NOT NULL,
+  password_hash        VARCHAR(255) NOT NULL,
+  role_id              INTEGER NOT NULL REFERENCES roles(id),
+  email_verified       BOOLEAN NOT NULL DEFAULT false,
+  verification_token   TEXT,
+  verification_expires TIMESTAMPTZ,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_role_id ON users(role_id);
@@ -257,3 +260,20 @@ CREATE TABLE IF NOT EXISTS rate_limit_audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_rate_limit_audit_log_changed_at ON rate_limit_audit_log(changed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_rate_limit_audit_log_changed_by ON rate_limit_audit_log(changed_by);
+
+-- ─── Invitations ─────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS invitations (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       TEXT NOT NULL,
+  role_id     INTEGER NOT NULL REFERENCES roles(id),
+  token       TEXT NOT NULL UNIQUE,
+  invited_by  INTEGER NOT NULL REFERENCES users(id),
+  accepted_at TIMESTAMPTZ,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_invitations_token      ON invitations(token);
+CREATE INDEX IF NOT EXISTS idx_invitations_email      ON invitations(email);
+CREATE INDEX IF NOT EXISTS idx_invitations_expires_at ON invitations(expires_at);
