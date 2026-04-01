@@ -1,11 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import express, { type Express } from 'express';
+import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import request from 'supertest';
 
-// ── Mock server middleware that depends on module-level JWT validation ─────────
-vi.mock('../../../../server/src/middleware/auth.js', () => ({
-  requireAuth: vi.fn((_req: express.Request, _res: express.Response, next: express.NextFunction) => {
-    (_req as express.Request & { user?: unknown }).user = {
+// ── Mock OrgSettingsService ────────────────────────────────────────────────────
+vi.mock('../services/org-settings-service.js', () => ({
+  OrgSettingsService: vi.fn(),
+}));
+
+import { createOrgSettingsRouter, type OrgSettingsRouterDeps } from '../routes/org-settings.js';
+import { OrgSettingsService } from '../services/org-settings-service.js';
+
+// ── Shared mock deps ──────────────────────────────────────────────────────────
+
+/** Creates a passthrough requireAuth that injects a fake user */
+const makeRequireAuth = () =>
+  vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    (req as Request & { user?: unknown }).user = {
       id: 1,
       username: 'admin',
       role_name: 'admin',
@@ -19,28 +29,17 @@ vi.mock('../../../../server/src/middleware/auth.js', () => ({
       ],
     };
     next();
-  }),
-}));
+  });
 
-vi.mock('../../../../server/src/middleware/permission.js', () => ({
-  requirePermission: vi.fn(() => (_req: express.Request, _res: express.Response, next: express.NextFunction) => next()),
-}));
-
-vi.mock('../../../../server/src/middleware/rate-limit.js', () => ({
-  protectedLimiter: vi.fn((_req: express.Request, _res: express.Response, next: express.NextFunction) => next()),
-}));
-
-vi.mock('../../../../server/src/utils/image-validator.js', () => ({
+const makeDeps = (): OrgSettingsRouterDeps => ({
+  requireAuth: makeRequireAuth(),
+  requirePermission: vi.fn(() => (_req: Request, _res: Response, next: NextFunction) => next()),
+  protectedLimiter: vi.fn((_req: Request, _res: Response, next: NextFunction) => next()),
   validateImage: vi.fn().mockResolvedValue({ valid: true, compressedBase64: 'data:image/png;base64,abc' }),
-}));
-
-// ── Mock OrgSettingsService ────────────────────────────────────────────────────
-vi.mock('../services/org-settings-service.js', () => ({
-  OrgSettingsService: vi.fn(),
-}));
-
-import { createOrgSettingsRouter } from '../routes/org-settings.js';
-import { OrgSettingsService } from '../services/org-settings-service.js';
+  notFoundError: vi.fn((msg: string) => Object.assign(new Error(msg), { statusCode: 404 })),
+  validationError: vi.fn((msg: string) => Object.assign(new Error(msg), { statusCode: 400 })),
+  logger: { info: vi.fn() },
+});
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -89,23 +88,33 @@ const PUBLIC_SETTINGS = {
   footer_links: [],
 };
 
+// ── Error handler (converts Error with statusCode to JSON) ────────────────────
+
+function addErrorHandler(app: Express): void {
+  app.use((err: Error & { statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
+    const status = err.statusCode ?? 500;
+    res.status(status).json({ success: false, error: err.message });
+  });
+}
+
 // ── App builder ───────────────────────────────────────────────────────────────
 
-function buildApp(): Express {
+function buildApp(deps: OrgSettingsRouterDeps): Express {
   const app = express();
   app.use(express.json());
 
   // Simulate what resolveTenant does: attach req.org and req.dbClient
   app.use((req, _res, next) => {
-    req.org = { id: 'org-uuid', slug: 'my-cinema', name: 'My Cinema', status: 'active', schema_name: 'org_my_cinema' } as express.Request['org'];
+    req.org = { id: 'org-uuid', slug: 'my-cinema', name: 'My Cinema', status: 'active', schema_name: 'org_my_cinema' } as Request['org'];
     req.dbClient = {
       query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
       release: vi.fn(),
-    } as express.Request['dbClient'];
+    } as Request['dbClient'];
     next();
   });
 
-  app.use('/settings', createOrgSettingsRouter());
+  app.use('/settings', createOrgSettingsRouter(deps));
+  addErrorHandler(app);
   return app;
 }
 
@@ -124,7 +133,7 @@ describe('GET /settings (public)', () => {
   });
 
   it('returns 200 with public settings', async () => {
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app).get('/settings');
 
     expect(res.status).toBe(200);
@@ -144,7 +153,7 @@ describe('GET /settings (public)', () => {
       importSettings: vi.fn(),
     } as unknown as InstanceType<typeof OrgSettingsService>));
 
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app).get('/settings');
 
     expect(res.status).toBe(404);
@@ -166,7 +175,7 @@ describe('GET /settings/admin', () => {
   });
 
   it('returns 200 with full settings including email fields', async () => {
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .get('/settings/admin')
       .set('Authorization', 'Bearer token');
@@ -186,7 +195,7 @@ describe('GET /settings/admin', () => {
       importSettings: vi.fn(),
     } as unknown as InstanceType<typeof OrgSettingsService>));
 
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .get('/settings/admin')
       .set('Authorization', 'Bearer token');
@@ -210,7 +219,7 @@ describe('PUT /settings', () => {
   });
 
   it('returns 200 with updated settings', async () => {
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .put('/settings')
       .set('Authorization', 'Bearer token')
@@ -222,7 +231,7 @@ describe('PUT /settings', () => {
   });
 
   it('returns 400 when site_name exceeds max length', async () => {
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .put('/settings')
       .set('Authorization', 'Bearer token')
@@ -232,7 +241,7 @@ describe('PUT /settings', () => {
   });
 
   it('returns 400 when footer link has invalid protocol', async () => {
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .put('/settings')
       .set('Authorization', 'Bearer token')
@@ -242,7 +251,7 @@ describe('PUT /settings', () => {
   });
 
   it('returns 400 when scrape_mode is invalid', async () => {
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .put('/settings')
       .set('Authorization', 'Bearer token')
@@ -252,7 +261,7 @@ describe('PUT /settings', () => {
   });
 
   it('returns 400 when scrape_days is out of range', async () => {
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .put('/settings')
       .set('Authorization', 'Bearer token')
@@ -271,7 +280,7 @@ describe('PUT /settings', () => {
       importSettings: vi.fn(),
     } as unknown as InstanceType<typeof OrgSettingsService>));
 
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .put('/settings')
       .set('Authorization', 'Bearer token')
@@ -294,7 +303,7 @@ describe('POST /settings/reset', () => {
       importSettings: vi.fn(),
     } as unknown as InstanceType<typeof OrgSettingsService>));
 
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .post('/settings/reset')
       .set('Authorization', 'Bearer token');
@@ -313,7 +322,7 @@ describe('POST /settings/reset', () => {
       importSettings: vi.fn(),
     } as unknown as InstanceType<typeof OrgSettingsService>));
 
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .post('/settings/reset')
       .set('Authorization', 'Bearer token');
@@ -341,7 +350,7 @@ describe('POST /settings/export', () => {
       importSettings: vi.fn(),
     } as unknown as InstanceType<typeof OrgSettingsService>));
 
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .post('/settings/export')
       .set('Authorization', 'Bearer token');
@@ -361,7 +370,7 @@ describe('POST /settings/export', () => {
       importSettings: vi.fn(),
     } as unknown as InstanceType<typeof OrgSettingsService>));
 
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .post('/settings/export')
       .set('Authorization', 'Bearer token');
@@ -392,7 +401,7 @@ describe('POST /settings/import', () => {
       exportSettings: vi.fn(),
     } as unknown as InstanceType<typeof OrgSettingsService>));
 
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .post('/settings/import')
       .set('Authorization', 'Bearer token')
@@ -412,7 +421,7 @@ describe('POST /settings/import', () => {
       exportSettings: vi.fn(),
     } as unknown as InstanceType<typeof OrgSettingsService>));
 
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .post('/settings/import')
       .set('Authorization', 'Bearer token')
@@ -431,7 +440,7 @@ describe('POST /settings/import', () => {
       exportSettings: vi.fn(),
     } as unknown as InstanceType<typeof OrgSettingsService>));
 
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .post('/settings/import')
       .set('Authorization', 'Bearer token')
@@ -450,7 +459,7 @@ describe('POST /settings/import', () => {
       exportSettings: vi.fn(),
     } as unknown as InstanceType<typeof OrgSettingsService>));
 
-    const app = buildApp();
+    const app = buildApp(makeDeps());
     const res = await request(app)
       .post('/settings/import')
       .set('Authorization', 'Bearer token')

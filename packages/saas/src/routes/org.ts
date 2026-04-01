@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { resolveTenant } from '../middleware/tenant.js';
 import { checkQuota } from '../middleware/quota.js';
+import { createOrgSettingsRouter, type OrgSettingsRouterDeps } from './org-settings.js';
 
 /**
  * All routes under /api/org/:slug/* use the resolveTenant middleware,
@@ -8,8 +9,12 @@ import { checkQuota } from '../middleware/quota.js';
  *
  * Quota enforcement is applied via checkQuota('resource') before any
  * write operation that creates cinemas, users, or triggers scrapes.
+ *
+ * @param settingsDeps - Injected server-side dependencies for the settings router.
+ *   Passed in from plugin.ts at registration time so the saas package
+ *   itself does not need to cross the rootDir boundary at compile time.
  */
-export function createOrgRouter(): Router {
+export function createOrgRouter(settingsDeps: OrgSettingsRouterDeps): Router {
   const router = Router({ mergeParams: true });
 
   // Apply tenant resolution to all org routes
@@ -46,6 +51,10 @@ export function createOrgRouter(): Router {
   router.post('/scrape', checkQuota('scrapes'), (_req: Request, res: Response) => {
     res.status(501).json({ success: false, error: 'Not implemented — Phase 5' });
   });
+
+  // ── Settings ───────────────────────────────────────────────────────────────
+  // GET/PUT /api/org/:slug/settings, /settings/admin, /settings/reset, etc.
+  router.use('/settings', createOrgSettingsRouter(settingsDeps));
 
   return router;
 }
