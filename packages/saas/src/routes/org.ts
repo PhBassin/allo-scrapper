@@ -1,12 +1,13 @@
 import { Router, type Request, type Response } from 'express';
 import { resolveTenant } from '../middleware/tenant.js';
+import { checkQuota } from '../middleware/quota.js';
 
 /**
  * All routes under /api/org/:slug/* use the resolveTenant middleware,
- * which sets req.org and req.dbClient (pg client with search_path scoped to org schema).
+ * which sets req.org and scopes the DB connection to the org schema.
  *
- * Route handlers should use req.dbClient instead of req.app.get('db')
- * to benefit from the schema isolation.
+ * Quota enforcement is applied via checkQuota('resource') before any
+ * write operation that creates cinemas, users, or triggers scrapes.
  */
 export function createOrgRouter(): Router {
   const router = Router({ mergeParams: true });
@@ -14,10 +15,7 @@ export function createOrgRouter(): Router {
   // Apply tenant resolution to all org routes
   router.use(resolveTenant);
 
-  // TODO Phase 5: re-mount core resource routes under org context
-  // e.g. cinemas, showtimes, reports, settings, users, scraper
-
-  // Temporary health check to verify tenant resolution
+  // ── Health / ping ──────────────────────────────────────────────────────────
   router.get('/ping', (req: Request, res: Response) => {
     res.json({
       success: true,
@@ -28,6 +26,25 @@ export function createOrgRouter(): Router {
         status: req.org!.status,
       },
     });
+  });
+
+  // ── Cinemas ────────────────────────────────────────────────────────────────
+  // POST /api/org/:slug/cinemas — quota-guarded cinema creation
+  // Full implementation in Phase 5 (core route re-mount under org context)
+  router.post('/cinemas', checkQuota('cinemas'), (_req: Request, res: Response) => {
+    res.status(501).json({ success: false, error: 'Not implemented — Phase 5' });
+  });
+
+  // ── Users / invitations ────────────────────────────────────────────────────
+  // POST /api/org/:slug/users — quota-guarded user creation (direct, no invite)
+  router.post('/users', checkQuota('users'), (_req: Request, res: Response) => {
+    res.status(501).json({ success: false, error: 'Not implemented — Phase 5' });
+  });
+
+  // ── Scrape trigger ─────────────────────────────────────────────────────────
+  // POST /api/org/:slug/scrape — quota-guarded scrape trigger
+  router.post('/scrape', checkQuota('scrapes'), (_req: Request, res: Response) => {
+    res.status(501).json({ success: false, error: 'Not implemented — Phase 5' });
   });
 
   return router;

@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { EmailService } from '../services/email-service.js';
 import { InvitationService } from '../services/invitation-service.js';
 import { SaasAuthService } from '../services/saas-auth-service.js';
+import { checkQuota } from '../middleware/quota.js';
 import type { Pool } from '../db/types.js';
 import type { Organization } from '../db/org-queries.js';
 
@@ -152,7 +153,8 @@ export function createOnboardingRouter(): Router {
   // Protected — caller must be authenticated (req.user set by requireAuth).
   // req.org is set by resolveTenant middleware on the org router.
   // Body: { email, role_id }
-  router.post('/org/:slug/invitations', async (req: Request, res: Response) => {
+  // checkQuota('users') enforces max_users plan limit before creating the invitation.
+  router.post('/org/:slug/invitations', checkQuota('users'), async (req: Request, res: Response) => {
     const { email, role_id } = req.body as { email?: string; role_id?: number };
 
     if (!email || !email.includes('@')) {

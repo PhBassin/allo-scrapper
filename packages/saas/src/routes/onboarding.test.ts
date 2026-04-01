@@ -6,6 +6,11 @@ import type { Pool } from '../db/types.js';
 
 // ── module mocks ──────────────────────────────────────────────────────────────
 
+// Mock checkQuota to be a pass-through — quota enforcement is tested separately
+vi.mock('../middleware/quota.js', () => ({
+  checkQuota: vi.fn(() => (_req: any, _res: any, next: any) => next()),
+}));
+
 vi.mock('../services/email-service.js', () => ({
   EmailService: vi.fn().mockImplementation(() => ({
     verifyEmailToken: vi.fn(),
