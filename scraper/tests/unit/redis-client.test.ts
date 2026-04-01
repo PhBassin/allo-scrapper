@@ -26,7 +26,7 @@ vi.mock('ioredis', () => ({
   default: MockRedis,
 }));
 
-import { RedisProgressPublisher, RedisJobConsumer, type ScrapeJob } from '../../../src/redis/client.js';
+import { RedisProgressPublisher, RedisJobConsumer, RoundRobinJobConsumer, type ScrapeJob } from '../../../src/redis/client.js';
 
 describe('RedisProgressPublisher', () => {
   let publisher: RedisProgressPublisher;
@@ -132,5 +132,57 @@ describe('RedisJobConsumer', () => {
     expect(handler).toHaveBeenCalledOnce();
     const receivedJob = handler.mock.calls[0][0] as ScrapeJob;
     expect(receivedJob.org_slug).toBeUndefined();
+  });
+});
+
+describe('RoundRobinJobConsumer', () => {
+  let rrConsumer: RoundRobinJobConsumer;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    rrConsumer = new RoundRobinJobConsumer('redis://localhost:6379');
+  });
+
+  it('stops cleanly', async () => {
+    rrConsumer.stop();
+    await rrConsumer.disconnect();
+    expect(mockQuit).toHaveBeenCalled();
+  });
+
+  it('polls org-specific queues provided as keys', async () => {
+    const handler = vi.fn().mockResolvedValue(undefined);
+    const job: ScrapeJob = { type: 'scrape', reportId: 99, triggerType: 'manual', org_slug: 'org-a' };
+
+    // First call returns a job from org-a queue, second call stops
+    mockBlpop.mockImplementationOnce(async () => ['scrape:jobs:org_org-a', JSON.stringify(job)]);
+    mockBlpop.mockImplementationOnce(async () => { rrConsumer.stop(); return null; });
+
+    await rrConsumer.start(['scrape:jobs:org_org-a', 'scrape:jobs:org_org-b'], handler);
+
+    expect(handler).toHaveBeenCalledOnce();
+    const receivedJob = handler.mock.calls[0][0] as ScrapeJob;
+    expect(receivedJob.org_slug).toBe('org-a');
+  });
+
+  it('calls BLPOP with all queue keys for round-robin fairness', async () => {
+    const handler = vi.fn().mockResolvedValue(undefined);
+    const queues = ['scrape:jobs:org_a', 'scrape:jobs:org_b', 'scrape:jobs:org_c'];
+
+    mockBlpop.mockImplementationOnce(async () => { rrConsumer.stop(); return null; });
+
+    await rrConsumer.start(queues, handler);
+
+    // BLPOP should have been called with all queues + timeout
+    expect(mockBlpop).toHaveBeenCalledWith(...queues, 5);
+  });
+
+  it('does not call handler when all queues are empty (BLPOP timeout)', async () => {
+    const handler = vi.fn();
+
+    mockBlpop.mockImplementation(async () => { rrConsumer.stop(); return null; });
+
+    await rrConsumer.start(['scrape:jobs:org_x'], handler);
+
+    expect(handler).not.toHaveBeenCalled();
   });
 });

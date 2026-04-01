@@ -35,14 +35,29 @@ describe('RedisClient', () => {
     expect(mockRedisInstance.rpush).toHaveBeenCalledWith('scrape:jobs', expect.any(String));
   });
 
+  it('should publish a job to org-specific queue when org_slug is set', async () => {
+    await client.publishJob({ type: 'scrape', reportId: 1, triggerType: 'manual', org_slug: 'cinema-test' });
+    expect(mockRedisInstance.rpush).toHaveBeenCalledWith('scrape:jobs:org_cinema-test', expect.any(String));
+  });
+
   it('should publish add_cinema job', async () => {
     await client.publishAddCinemaJob(42, 'http://test');
     expect(mockRedisInstance.rpush).toHaveBeenCalledWith('scrape:jobs', expect.any(String));
   });
 
-  it('should get queue depth', async () => {
+  it('should publish add_cinema job to org-specific queue when org_slug is provided', async () => {
+    await client.publishAddCinemaJob(42, 'http://test', undefined, 'my-org');
+    expect(mockRedisInstance.rpush).toHaveBeenCalledWith('scrape:jobs:org_my-org', expect.any(String));
+  });
+
+  it('should get queue depth for the default shared queue', async () => {
     await client.getQueueDepth();
     expect(mockRedisInstance.llen).toHaveBeenCalledWith('scrape:jobs');
+  });
+
+  it('should get queue depth for an org-specific queue', async () => {
+    await client.getQueueDepth('cinema-test');
+    expect(mockRedisInstance.llen).toHaveBeenCalledWith('scrape:jobs:org_cinema-test');
   });
 
   it('should publish progress', async () => {
