@@ -174,6 +174,95 @@ export class RedisScheduleSubscriber {
 }
 
 // ---------------------------------------------------------------------------
+// RoundRobinJobConsumer – fair multi-queue consumer for SaaS worker isolation
+// ---------------------------------------------------------------------------
+
+/**
+ * Consumes jobs from multiple per-org queues using a single BLPOP call.
+ *
+ * Redis BLPOP with multiple keys implements left-to-right priority, not true
+ * round-robin. To prevent starvation we rotate the key order on each iteration
+ * so that no single org monopolises the worker.
+ *
+ * Usage in SaaS consumer mode:
+ *   const consumer = new RoundRobinJobConsumer(redisUrl);
+ *   const queues = orgs.map(slug => `scrape:jobs:org_${slug}`);
+ *   await consumer.start(queues, handler);
+ */
+export class RoundRobinJobConsumer {
+  private client: Redis;
+  private running = false;
+
+  constructor(redisUrl: string) {
+    this.client = new Redis(redisUrl, { lazyConnect: false });
+  }
+
+  /**
+   * Start consuming jobs from the provided queue keys.
+   * Rotates key order each loop iteration for fairness.
+   * Calls handler for each job. Blocks waiting for jobs (BLPOP timeout=5s).
+   */
+  async start(queueKeys: string[], handler: (job: ScrapeJob) => Promise<void>): Promise<void> {
+    this.running = true;
+    logger.info('[RoundRobinJobConsumer] Waiting for jobs', { queues: queueKeys });
+
+    // Mutable rotation index — increments each iteration
+    let rotationOffset = 0;
+
+    while (this.running) {
+      try {
+        // Rotate key order to implement fair round-robin
+        const rotated = [
+          ...queueKeys.slice(rotationOffset),
+          ...queueKeys.slice(0, rotationOffset),
+        ];
+        rotationOffset = (rotationOffset + 1) % Math.max(queueKeys.length, 1);
+
+        const result = await this.client.blpop(...rotated, 5);
+
+        if (!result) continue;
+
+        const [_key, raw] = result;
+        let job: ScrapeJob;
+        try {
+          job = JSON.parse(raw);
+        } catch (err) {
+          logger.error('[RoundRobinJobConsumer] Failed to parse job', { raw, err });
+          continue;
+        }
+
+        logger.info('[RoundRobinJobConsumer] Received job', {
+          reportId: job.reportId,
+          type: job.type,
+          org_slug: job.org_slug,
+        });
+
+        try {
+          await handler(job);
+        } catch (err) {
+          logger.error('[RoundRobinJobConsumer] Job handler failed', { err });
+        }
+      } catch (err: any) {
+        if (!this.running) break;
+        logger.error('[RoundRobinJobConsumer] Error polling queues', { err });
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    logger.info('[RoundRobinJobConsumer] Stopped.');
+  }
+
+  stop(): void {
+    this.running = false;
+  }
+
+  async disconnect(): Promise<void> {
+    this.stop();
+    await this.client.quit();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Singleton helpers
 // ---------------------------------------------------------------------------
 

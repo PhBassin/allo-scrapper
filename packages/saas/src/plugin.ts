@@ -5,6 +5,7 @@ import { createRegisterRouter } from './routes/register.js';
 import { createOrgRouter } from './routes/org.js';
 import { createOnboardingRouter } from './routes/onboarding.js';
 import { createSuperadminRouter } from './routes/superadmin.js';
+import { createOrgMetricsMiddleware, getOrgRegistry } from './middleware/org-metrics.js';
 import type { OrgSettingsRouterDeps } from './routes/org-settings.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,8 +26,9 @@ export interface AppPlugin {
 export const saasPlugin: AppPlugin = {
   name: '@allo-scrapper/saas',
 
-  beforeRoutes(_app) {
-    // Global SaaS middleware (e.g. org rate limiting) — Phase 3
+  beforeRoutes(app) {
+    // Phase 7.5 — per-org Prometheus metrics middleware
+    app.use(createOrgMetricsMiddleware());
   },
 
   async registerRoutes(app) {
@@ -68,6 +70,17 @@ export const saasPlugin: AppPlugin = {
 
     // All org-scoped routes: /api/org/:slug/*
     app.use('/api/org/:slug', createOrgRouter(settingsDeps));
+
+    // Phase 7.5 — expose per-org Prometheus metrics at /api/saas/metrics
+    app.get('/api/saas/metrics', async (_req, res) => {
+      try {
+        const registry = getOrgRegistry();
+        res.set('Content-Type', registry.contentType);
+        res.end(await registry.metrics());
+      } catch (err) {
+        res.status(500).end(String(err));
+      }
+    });
 
     // Superadmin portal: /api/superadmin/*
     app.use('/api/superadmin', createSuperadminRouter());

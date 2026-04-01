@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { resolveTenant } from '../middleware/tenant.js';
 import { checkQuota } from '../middleware/quota.js';
 import { createOrgSettingsRouter, type OrgSettingsRouterDeps } from './org-settings.js';
+import { createOrgExportRouter } from './org-export.js';
 
 /**
  * All routes under /api/org/:slug/* use the resolveTenant middleware,
@@ -55,6 +56,10 @@ export function createOrgRouter(settingsDeps: OrgSettingsRouterDeps): Router {
   // ── Settings ───────────────────────────────────────────────────────────────
   // GET/PUT /api/org/:slug/settings, /settings/admin, /settings/reset, etc.
   router.use('/settings', createOrgSettingsRouter(settingsDeps));
+
+  // ── Export ─────────────────────────────────────────────────────────────────
+  // GET /api/org/:slug/export — full JSON export of org data
+  router.use('/', createOrgExportRouter());
 
   return router;
 }

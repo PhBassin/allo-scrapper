@@ -10,6 +10,11 @@ interface BaseScrapeJob {
   reportId: number;
   /** OpenTelemetry trace context propagated from the HTTP request */
   traceContext?: Record<string, string>;
+  /**
+   * SaaS mode: the org slug identifies which PostgreSQL schema to write to.
+   * Absent in standalone mode (data goes to the public schema).
+   */
+  org_slug?: string;
 }
 
 export interface ScheduleChangeEvent {
@@ -66,20 +71,39 @@ export class RedisClient {
   // Job queue (scrape:jobs)  – backend → scraper
   // --------------------------------------------------------------------------
 
-  /** Push a scrape job onto the queue. Returns the new queue length. */
+  /** Push a scrape job onto the queue.
+   *  In SaaS mode (job.org_slug set) the job is pushed to the per-org queue
+   *  `scrape:jobs:org_{slug}`. Standalone jobs go to the shared `scrape:jobs` queue.
+   *  Returns the new queue length.
+   */
   async publishJob(job: ScrapeJob): Promise<number> {
-    return this.publisher.rpush('scrape:jobs', JSON.stringify(job));
+    const key = job.org_slug ? `scrape:jobs:org_${job.org_slug}` : 'scrape:jobs';
+    return this.publisher.rpush(key, JSON.stringify(job));
   }
 
-  /** Push an add_cinema job onto the queue. Returns the new queue length. */
-  async publishAddCinemaJob(reportId: number, url: string, traceContext?: Record<string, string>): Promise<number> {
-    const job: ScrapeJobAddCinema = { type: 'add_cinema', triggerType: 'manual', reportId, url, ...(traceContext && { traceContext }) };
-    return this.publisher.rpush('scrape:jobs', JSON.stringify(job));
+  /** Push an add_cinema job onto the queue.
+   *  Pass `orgSlug` to route the job to the per-org queue.
+   *  Returns the new queue length.
+   */
+  async publishAddCinemaJob(reportId: number, url: string, traceContext?: Record<string, string>, orgSlug?: string): Promise<number> {
+    const job: ScrapeJobAddCinema = {
+      type: 'add_cinema',
+      triggerType: 'manual',
+      reportId,
+      url,
+      ...(traceContext && { traceContext }),
+      ...(orgSlug && { org_slug: orgSlug }),
+    };
+    const key = orgSlug ? `scrape:jobs:org_${orgSlug}` : 'scrape:jobs';
+    return this.publisher.rpush(key, JSON.stringify(job));
   }
 
-  /** Return the current depth of the scrape:jobs queue. */
-  async getQueueDepth(): Promise<number> {
-    return this.publisher.llen('scrape:jobs');
+  /** Return the current depth of the scrape:jobs queue.
+   *  Pass `orgSlug` to query the per-org queue `scrape:jobs:org_{slug}`.
+   */
+  async getQueueDepth(orgSlug?: string): Promise<number> {
+    const key = orgSlug ? `scrape:jobs:org_${orgSlug}` : 'scrape:jobs';
+    return this.publisher.llen(key);
   }
 
   // --------------------------------------------------------------------------

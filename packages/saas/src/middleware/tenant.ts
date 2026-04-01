@@ -16,6 +16,28 @@ declare global {
 
 const ACTIVE_STATUSES = new Set(['trial', 'active']);
 
+/** Minimal logger interface — resolved at runtime from the server's logger */
+interface Logger {
+  info(msg: string, meta?: Record<string, unknown>): void;
+  warn?(msg: string, meta?: Record<string, unknown>): void;
+}
+
+let _logger: Logger | null = null;
+
+/** Lazy-loads the server logger so we don't cross rootDir at compile time. */
+async function getLogger(): Promise<Logger> {
+  if (!_logger) {
+    try {
+      const mod = await import('../../../../server/src/utils/logger.js' as string) as { logger: Logger };
+      _logger = mod.logger;
+    } catch {
+      // Fallback to console (e.g. in tests where the server module isn't available)
+      _logger = { info: () => {}, warn: () => {} };
+    }
+  }
+  return _logger;
+}
+
 /**
  * Tenant resolution middleware.
  *
@@ -25,7 +47,8 @@ const ACTIVE_STATUSES = new Set(['trial', 'active']);
  * 4. Rejects suspended / canceled orgs
  * 5. Sets `search_path` to `org_{slug}, public` on the client
  * 6. Attaches `req.org` and `req.dbClient` for downstream route handlers
- * 7. Releases the client after the response (or on error)
+ * 7. Emits structured log with org_id and org_slug (Phase 7.5 observability)
+ * 8. Releases the client after the response (or on error)
  */
 export async function resolveTenant(req: Request, res: Response, next: NextFunction): Promise<void> {
   const slug = req.params.slug as string;
@@ -56,6 +79,15 @@ export async function resolveTenant(req: Request, res: Response, next: NextFunct
 
     req.org = org;
     req.dbClient = client;
+
+    // Phase 7.5 — structured log with org context for observability
+    const log = await getLogger();
+    log.info('[resolveTenant] Tenant resolved', {
+      org_id: org.id,
+      org_slug: org.slug,
+      method: req.method,
+      path: req.path,
+    });
 
     await next();
   } finally {
