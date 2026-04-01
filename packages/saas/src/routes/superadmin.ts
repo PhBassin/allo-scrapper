@@ -4,6 +4,18 @@ import { requireSuperadmin } from '../middleware/superadmin-auth.js';
 import { SuperadminAuthService } from '../services/superadmin-auth-service.js';
 import type { Pool } from '../db/types.js';
 
+// Minimal org shape returned by local helpers
+interface OrgRow {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  plan_id: number;
+  trial_ends_at: Date | null;
+  schema_name: string;
+  [key: string]: unknown;
+}
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function getPool(req: Request): Pool {
@@ -30,10 +42,10 @@ async function writeAuditLog(
   }
 }
 
-async function getOrgById(pool: Pool, orgId: string) {
+async function getOrgById(pool: Pool, orgId: string): Promise<OrgRow | null> {
   const client = await pool.connect();
   try {
-    const result = await client.query(
+    const result = await client.query<OrgRow>(
       'SELECT * FROM organizations WHERE id = $1',
       [orgId],
     );
@@ -43,10 +55,10 @@ async function getOrgById(pool: Pool, orgId: string) {
   }
 }
 
-async function getOrgBySlug(pool: Pool, slug: string) {
+async function getOrgBySlug(pool: Pool, slug: string): Promise<OrgRow | null> {
   const client = await pool.connect();
   try {
-    const result = await client.query(
+    const result = await client.query<OrgRow>(
       'SELECT * FROM organizations WHERE slug = $1',
       [slug],
     );
@@ -198,7 +210,7 @@ export function createSuperadminRouter(): Router {
   // ── GET /orgs/:id ───────────────────────────────────────────────────────────
   router.get('/orgs/:id', async (req: Request, res: Response) => {
     const pool = getPool(req);
-    const org = await getOrgById(pool, req.params.id);
+    const org = await getOrgById(pool, String(req.params.id));
 
     if (!org) {
       res.status(404).json({ success: false, error: 'Organization not found' });
@@ -211,7 +223,7 @@ export function createSuperadminRouter(): Router {
   // ── POST /orgs/:id/suspend ──────────────────────────────────────────────────
   router.post('/orgs/:id/suspend', async (req: Request, res: Response) => {
     const pool = getPool(req);
-    const org = await getOrgById(pool, req.params.id);
+    const org = await getOrgById(pool, String(req.params.id));
     if (!org) {
       res.status(404).json({ success: false, error: 'Organization not found' });
       return;
@@ -239,7 +251,7 @@ export function createSuperadminRouter(): Router {
   // ── POST /orgs/:id/reactivate ───────────────────────────────────────────────
   router.post('/orgs/:id/reactivate', async (req: Request, res: Response) => {
     const pool = getPool(req);
-    const org = await getOrgById(pool, req.params.id);
+    const org = await getOrgById(pool, String(req.params.id));
     if (!org) {
       res.status(404).json({ success: false, error: 'Organization not found' });
       return;
@@ -272,7 +284,7 @@ export function createSuperadminRouter(): Router {
     }
 
     const pool = getPool(req);
-    const org = await getOrgById(pool, req.params.id);
+    const org = await getOrgById(pool, String(req.params.id));
     if (!org) {
       res.status(404).json({ success: false, error: 'Organization not found' });
       return;
@@ -310,7 +322,7 @@ export function createSuperadminRouter(): Router {
   // ── POST /orgs/:id/reset-trial ──────────────────────────────────────────────
   router.post('/orgs/:id/reset-trial', async (req: Request, res: Response) => {
     const pool = getPool(req);
-    const org = await getOrgById(pool, req.params.id);
+    const org = await getOrgById(pool, String(req.params.id));
     if (!org) {
       res.status(404).json({ success: false, error: 'Organization not found' });
       return;

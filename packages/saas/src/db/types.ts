@@ -10,7 +10,8 @@ export interface QueryResult<T> {
 
 /** Thin query wrapper (matches server/src/db/client.ts `db` object) */
 export interface DB {
-  query<T extends Record<string, unknown> = Record<string, unknown>>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query<T = Record<string, any>>(
     text: string,
     params?: unknown[]
   ): Promise<QueryResult<T>>;

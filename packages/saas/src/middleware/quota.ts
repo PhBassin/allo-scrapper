@@ -52,7 +52,7 @@ export function checkQuota(resource: QuotaResource) {
 
     const quotaService = new QuotaService(db);
     const usage = await quotaService.getOrCreateUsage(org.id);
-    const current = (usage as Record<string, unknown>)[usageKey] as number;
+    const current = (usage as unknown as Record<string, number>)[usageKey];
 
     if (current >= limit) {
       res.status(402).json({

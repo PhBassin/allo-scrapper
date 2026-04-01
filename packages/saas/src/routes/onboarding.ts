@@ -33,7 +33,7 @@ export function createOnboardingRouter(): Router {
   // For simplicity in Phase 2 the token itself stores the org info embedded as
   // `<orgSlug>:<hex>` so we can route to the right schema without a global token table.
   router.get('/auth/verify-email/:token', async (req: Request, res: Response) => {
-    const { token } = req.params;
+    const token = String(req.params.token);
 
     // Token format: "<orgSlug>:<hex32>"
     const sepIdx = token.indexOf(':');
@@ -81,7 +81,7 @@ export function createOnboardingRouter(): Router {
   // We need to locate which org the invitation belongs to.
   // Strategy: store org_slug in the invitation token prefix: "<orgSlug>:<hex32>"
   router.post('/auth/join/:token', async (req: Request, res: Response) => {
-    const { token } = req.params;
+    const token = String(req.params.token);
     const { password } = req.body as { password?: string };
 
     if (!password || password.length < 8) {
