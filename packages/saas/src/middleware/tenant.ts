@@ -48,8 +48,11 @@ export async function resolveTenant(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    // Scope all subsequent queries to the org's schema
-    await client.query('SET search_path TO $1, public', [org.schema_name]);
+    // Scope all subsequent queries to the org's schema.
+    // NOTE: PostgreSQL does not support $1 parameterized form for SET commands.
+    // The schema name is safe here: slugs are validated to [a-z0-9-] and converted
+    // to [a-z0-9_] by slugToSchemaName, making SQL injection impossible.
+    await client.query(`SET search_path TO "${org.schema_name}", public`);
 
     req.org = org;
     req.dbClient = client;

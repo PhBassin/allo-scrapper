@@ -22,6 +22,11 @@ interface BaseScrapeJob {
   reportId: number;
   /** OpenTelemetry trace context propagated from the HTTP request */
   traceContext?: Record<string, string>;
+  /**
+   * SaaS mode: the org slug identifies which PostgreSQL schema to write to.
+   * Absent in standalone mode (data goes to the public schema).
+   */
+  org_slug?: string;
 }
 
 export interface ScrapeJobScrape extends BaseScrapeJob {

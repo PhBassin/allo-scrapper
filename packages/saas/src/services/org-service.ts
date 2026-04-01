@@ -24,8 +24,9 @@ async function bootstrapOrgSchema(db: DB, schemaName: string): Promise<void> {
 
   for (const file of files) {
     const sql = await fs.readFile(path.join(bootstrapDir, file), 'utf8');
-    // Set search_path for the duration of this statement batch
-    await db.query(`SET search_path TO ${schemaName}, public`);
+    // NOTE: PostgreSQL does not support $1 parameterized form for SET commands.
+    // schemaName is safe: derived from slugToSchemaName which produces [a-z0-9_] only.
+    await db.query(`SET search_path TO "${schemaName}", public`);
     await db.query(sql);
   }
 
