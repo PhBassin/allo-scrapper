@@ -34,21 +34,20 @@ describe('Role & Permission Queries', () => {
         { id: 1, name: 'admin', description: 'Administrateur', is_system: true, created_at: '2024-01-01T00:00:00Z' },
         { id: 2, name: 'operator', description: 'Opérateur', is_system: true, created_at: '2024-01-01T00:00:00Z' },
       ];
-      const mockPermissionsForAdmin: Permission[] = [];
-      const mockPermissionsForOperator: Permission[] = [
-        { id: 1, name: 'scraper:trigger', description: 'Lancer un scrape global', category: 'scraper', created_at: '2024-01-01T00:00:00Z' },
+
+      const mockPermissionsResult = [
+        { role_id: 2, id: 1, name: 'scraper:trigger', description: 'Lancer un scrape global', category: 'scraper', created_at: '2024-01-01T00:00:00Z' },
       ];
 
       vi.mocked(mockDb.query)
         .mockResolvedValueOnce({ rows: mockRoles, rowCount: 2 } as any)
-        .mockResolvedValueOnce({ rows: mockPermissionsForAdmin, rowCount: 0 } as any)
-        .mockResolvedValueOnce({ rows: mockPermissionsForOperator, rowCount: 1 } as any);
+        .mockResolvedValueOnce({ rows: mockPermissionsResult, rowCount: 1 } as any);
 
       const result = await getAllRoles(mockDb);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toMatchObject({ id: 1, name: 'admin', permissions: [] });
-      expect(result[1]).toMatchObject({ id: 2, name: 'operator', permissions: mockPermissionsForOperator });
+      expect(result[1]).toMatchObject({ id: 2, name: 'operator', permissions: [{ id: 1, name: 'scraper:trigger', description: 'Lancer un scrape global', category: 'scraper', created_at: '2024-01-01T00:00:00Z' }] });
     });
 
     it('should return empty array when no roles exist', async () => {
