@@ -9,10 +9,14 @@ import { createHash } from 'crypto';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
-import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
+import { generalLimiter, healthCheckLimiter, protectedLimiter } from './middleware/rate-limit.js';
 import { generateThemeCSS } from './services/theme-generator.js';
 import { errorHandler } from './middleware/error-handler.js';
-import type { Express } from 'express';
+import { requireAuth } from './middleware/auth.js';
+import { requirePermission } from './middleware/permission.js';
+import { validateImage } from './utils/image-validator.js';
+import { NotFoundError, ValidationError } from './utils/errors.js';
+import type { Express, RequestHandler } from 'express';
 import type { DB } from './db/client.js';
 
 // Import routes
@@ -35,6 +39,20 @@ const __dirname = path.dirname(__filename);
 // ---------------------------------------------------------------------------
 
 /**
+ * Server-side dependencies injected into plugin hooks.
+ * Avoids cross-package relative imports that break in Docker.
+ */
+export interface PluginDeps {
+  requireAuth: RequestHandler;
+  requirePermission: (...permissions: string[]) => RequestHandler;
+  protectedLimiter: RequestHandler;
+  validateImage: (data: string, type: 'logo' | 'favicon', maxBytes: number) => Promise<{ valid: boolean; error?: string; compressedBase64?: string }>;
+  NotFoundError: new (message: string) => Error;
+  ValidationError: new (message: string) => Error;
+  logger: { info: (msg: string, meta?: Record<string, unknown>) => void };
+}
+
+/**
  * A plugin can extend the Express app with additional middleware and routes
  * without modifying the core. All hooks are optional.
  */
@@ -42,8 +60,8 @@ export interface AppPlugin {
   name: string;
   /** Called before core routes are registered — use for global middleware */
   beforeRoutes?:    (app: Express) => void;
-  /** Called after core routes — use to register additional routes */
-  registerRoutes?:  (app: Express) => void;
+  /** Called after core routes — receives server deps to avoid cross-package imports */
+  registerRoutes?:  (app: Express, deps: PluginDeps) => void | Promise<void>;
   /** Called after 404 handler but before static files — use for overrides */
   afterRoutes?:     (app: Express) => void;
   /** Returns extra migration directories the plugin provides */
@@ -229,7 +247,17 @@ export function createApp(plugins: AppPlugin[] = []) {
 
   // Plugin: registerRoutes — additional routes (e.g. SaaS /api/org/:slug/*)
   // Must be BEFORE the 404 handler so plugin API routes are reachable
-  for (const plugin of plugins) plugin.registerRoutes?.(app);
+  const pluginDeps: PluginDeps = {
+    requireAuth,
+    // Cast to the wider string signature — the runtime behaviour is identical
+    requirePermission: requirePermission as PluginDeps['requirePermission'],
+    protectedLimiter,
+    validateImage,
+    NotFoundError,
+    ValidationError,
+    logger,
+  };
+  for (const plugin of plugins) plugin.registerRoutes?.(app, pluginDeps);
 
   // 404 handler for API routes (must be BEFORE SPA fallback)
   app.use('/api/{*splat}', (_req, res) => {

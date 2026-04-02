@@ -11,10 +11,25 @@ import type { OrgSettingsRouterDeps } from './routes/org-settings.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ---------------------------------------------------------------------------
+// PluginDeps — mirror of the interface defined in server/src/app.ts.
+// Kept in sync manually; no cross-package import needed.
+// ---------------------------------------------------------------------------
+
+export interface PluginDeps {
+  requireAuth: RequestHandler;
+  requirePermission: (...permissions: string[]) => RequestHandler;
+  protectedLimiter: RequestHandler;
+  validateImage: (data: string, type: 'logo' | 'favicon', maxBytes: number) => Promise<{ valid: boolean; error?: string; compressedBase64?: string }>;
+  NotFoundError: new (message: string) => Error;
+  ValidationError: new (message: string) => Error;
+  logger: { info: (msg: string, meta?: Record<string, unknown>) => void };
+}
+
 export interface AppPlugin {
   name: string;
   beforeRoutes?:    (app: Express) => void;
-  registerRoutes?:  (app: Express) => void | Promise<void>;
+  registerRoutes?:  (app: Express, deps: PluginDeps) => void | Promise<void>;
   afterRoutes?:     (app: Express) => void;
   getMigrationDirs?: () => string[];
 }
@@ -31,33 +46,25 @@ export const saasPlugin: AppPlugin = {
     app.use(createOrgMetricsMiddleware());
   },
 
-  async registerRoutes(app) {
+  async registerRoutes(app, deps) {
+    const {
+      requireAuth,
+      requirePermission,
+      protectedLimiter,
+      validateImage,
+      NotFoundError,
+      ValidationError,
+      logger,
+    } = deps;
+
     // Registration & slug availability
     app.use('/api/auth', createRegisterRouter());
 
     // Email verification + invitation join (public routes)
     app.use('/api', createOnboardingRouter());
 
-    // Build settings deps by dynamically importing server utilities.
-    // These imports are resolved at runtime (inside the server process), so
-    // they are always available. The casts below keep the saas package's tsc
-    // compilation clean (rootDir: ./src would reject cross-package imports).
-    const [
-      { requireAuth },
-      { requirePermission },
-      { protectedLimiter },
-      { validateImage },
-      { NotFoundError, ValidationError },
-      { logger },
-    ] = await Promise.all([
-      import('../../../../server/src/middleware/auth.js' as string) as Promise<{ requireAuth: RequestHandler }>,
-      import('../../../../server/src/middleware/permission.js' as string) as Promise<{ requirePermission: (p: string) => RequestHandler }>,
-      import('../../../../server/src/middleware/rate-limit.js' as string) as Promise<{ protectedLimiter: RequestHandler }>,
-      import('../../../../server/src/utils/image-validator.js' as string) as Promise<{ validateImage: OrgSettingsRouterDeps['validateImage'] }>,
-      import('../../../../server/src/utils/errors.js' as string) as Promise<{ NotFoundError: new (msg: string) => Error; ValidationError: new (msg: string) => Error }>,
-      import('../../../../server/src/utils/logger.js' as string) as Promise<{ logger: OrgSettingsRouterDeps['logger'] }>,
-    ]);
-
+    // Build settings deps from injected server utilities.
+    // All server deps are passed in — no cross-package relative imports needed.
     const settingsDeps: OrgSettingsRouterDeps = {
       requireAuth,
       requirePermission,

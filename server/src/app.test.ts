@@ -329,7 +329,10 @@ describe('App - Plugin System', () => {
     const plugin: AppPlugin = { name: 'test-plugin', registerRoutes };
     createApp([plugin]);
     expect(registerRoutes).toHaveBeenCalledOnce();
-    expect(registerRoutes).toHaveBeenCalledWith(expect.objectContaining({ use: expect.any(Function) }));
+    expect(registerRoutes).toHaveBeenCalledWith(
+      expect.objectContaining({ use: expect.any(Function) }),
+      expect.objectContaining({ requireAuth: expect.any(Function) }),
+    );
   });
 
   it('calls afterRoutes hook on plugin', () => {
