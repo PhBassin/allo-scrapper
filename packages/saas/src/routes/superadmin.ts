@@ -391,5 +391,40 @@ export function createSuperadminRouter(): Router {
     res.json({ success: true, token });
   });
 
+  // ── GET /audit-log ──────────────────────────────────────────────────────────
+  router.get('/audit-log', superadminLimiter, async (req: Request, res: Response) => {
+    const pool = getPool(req);
+
+    const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? '50'), 10) || 50));
+    const offset = (page - 1) * limit;
+
+    const client = await pool.connect();
+    try {
+      const countResult = await client.query<{ total: string }>(
+        'SELECT COUNT(*)::text AS total FROM audit_log',
+      );
+      const total = parseInt(countResult.rows[0]?.total ?? '0', 10);
+
+      const rowsResult = await client.query(
+        `SELECT id, actor_id, action, target_type, target_id, metadata, created_at
+           FROM audit_log
+          ORDER BY created_at DESC
+          LIMIT $1 OFFSET $2`,
+        [limit, offset],
+      );
+
+      res.json({
+        success: true,
+        data: rowsResult.rows,
+        total,
+        page,
+        limit,
+      });
+    } finally {
+      client.release();
+    }
+  });
+
   return router;
 }
