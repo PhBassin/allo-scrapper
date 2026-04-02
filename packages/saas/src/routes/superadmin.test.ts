@@ -421,3 +421,72 @@ describe('POST /api/superadmin/impersonate', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// ── GET /api/superadmin/audit-log ─────────────────────────────────────────────
+
+describe('GET /api/superadmin/audit-log', () => {
+  it('returns 200 with paginated audit log entries', async () => {
+    const queryFn = vi
+      .fn()
+      // count query
+      .mockResolvedValueOnce({ rows: [{ total: '42' }], rowCount: 1 })
+      // rows query
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 1,
+            actor_id: 1,
+            action: 'suspend_org',
+            target_type: 'organization',
+            target_id: 'uuid-1',
+            metadata: {},
+            created_at: new Date('2026-01-01T00:00:00Z'),
+          },
+        ],
+        rowCount: 1,
+      });
+
+    const app = buildApp({ query: queryFn });
+    const res = await request(app)
+      .get('/api/superadmin/audit-log')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.total).toBeDefined();
+    expect(res.body.page).toBeDefined();
+    expect(res.body.limit).toBeDefined();
+  });
+
+  it('supports ?page= and ?limit= query params', async () => {
+    const queryFn = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ total: '100' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    const app = buildApp({ query: queryFn });
+    const res = await request(app)
+      .get('/api/superadmin/audit-log?page=2&limit=20')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.page).toBe(2);
+    expect(res.body.limit).toBe(20);
+    // Offset should be (page-1) * limit = 20
+    const rowsQueryCall = queryFn.mock.calls[1];
+    expect(rowsQueryCall[1]).toContain(20); // offset
+  });
+
+  it('returns 401 when not authenticated', async () => {
+    const { requireSuperadmin } = await import('../middleware/superadmin-auth.js');
+    vi.mocked(requireSuperadmin).mockImplementationOnce((_req, res, _next) => {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+    });
+
+    const app = buildApp();
+    const res = await request(app).get('/api/superadmin/audit-log');
+
+    expect(res.status).toBe(401);
+  });
+});
