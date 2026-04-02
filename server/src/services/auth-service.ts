@@ -53,16 +53,30 @@ export class AuthService {
       { expiresIn: expiresIn as any }
     );
 
+    const responseUser: {
+      id: number;
+      username: string;
+      role_id: number;
+      role_name: string;
+      is_system_role: boolean;
+      permissions: PermissionName[];
+      scope?: 'superadmin';
+    } = {
+      id: user.id,
+      username: user.username,
+      role_id: user.role_id,
+      role_name: user.role_name,
+      is_system_role: user.is_system_role,
+      permissions,
+    };
+
+    if (user.is_superadmin) {
+      responseUser.scope = 'superadmin';
+    }
+
     return {
       token,
-      user: {
-        id: user.id,
-        username: user.username,
-        role_id: user.role_id,
-        role_name: user.role_name,
-        is_system_role: user.is_system_role,
-        permissions,
-      },
+      user: responseUser,
     };
   }
 
