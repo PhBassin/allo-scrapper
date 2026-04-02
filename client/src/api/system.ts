@@ -2,6 +2,14 @@ import apiClient from './client';
 import type { ApiResponse } from '../types';
 
 // ============================================================================
+// SERVER CONFIG TYPES
+// ============================================================================
+
+export interface ServerConfig {
+  saasEnabled: boolean;
+}
+
+// ============================================================================
 // SYSTEM TYPES
 // ============================================================================
 
@@ -68,6 +76,22 @@ export interface SystemHealth {
   };
   scrapers: ScraperStatus;
   uptime: number;
+}
+
+// ============================================================================
+// SERVER CONFIG API
+// ============================================================================
+
+/**
+ * Fetch runtime server configuration (public, no auth required).
+ * Use this to read feature flags like saasEnabled instead of build-time Vite vars.
+ */
+export async function getServerConfig(): Promise<ServerConfig> {
+  const response = await apiClient.get<ApiResponse<ServerConfig>>('/config');
+  if (!response.data.success || !response.data.data) {
+    throw new Error('Failed to fetch server config');
+  }
+  return response.data.data;
 }
 
 // ============================================================================

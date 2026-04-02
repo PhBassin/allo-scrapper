@@ -12,6 +12,8 @@ import { AuthContext } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthProvider';
 import { SettingsProvider } from './contexts/SettingsProvider';
 import { SettingsContext } from './contexts/SettingsContext';
+import { ConfigProvider } from './contexts/ConfigProvider';
+import { ConfigContext } from './contexts/ConfigContext';
 import { TenantProvider } from './contexts/TenantProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequirePermission from './components/RequirePermission';
@@ -20,7 +22,7 @@ import { useTheme } from './hooks/useTheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ADMIN_PERMISSIONS } from './utils/adminPermissions';
 
-const SAAS_MODE = import.meta.env.VITE_SAAS_ENABLED === 'true';
+// SAAS_MODE is now resolved at runtime from /api/config — see ConfigContext
 
 // Lazy load devtools only in development
 const ReactQueryDevtools = import.meta.env.DEV
@@ -55,6 +57,7 @@ function AppRoutes() {
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
   const { isLoadingPublic } = useContext(SettingsContext);
+  const { config, isLoading: isLoadingConfig } = useContext(ConfigContext);
 
   // Apply theme globally
   useTheme();
@@ -89,8 +92,8 @@ function AppRoutes() {
     };
   }, [logout, navigate]);
 
-  // Show loading screen while fetching initial settings
-  if (isLoadingPublic) {
+  // Show loading screen while fetching initial settings or server config
+  if (isLoadingPublic || isLoadingConfig) {
     return <LoadingScreen />;
   }
 
@@ -163,7 +166,7 @@ function AppRoutes() {
   return (
     <Layout>
       <Routes>
-        {SAAS_MODE ? saasRoutes : standaloneRoutes}
+        {config.saasEnabled ? saasRoutes : standaloneRoutes}
       </Routes>
     </Layout>
   );
@@ -173,13 +176,15 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <SettingsProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </SettingsProvider>
-        </AuthProvider>
+        <ConfigProvider>
+          <AuthProvider>
+            <SettingsProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </SettingsProvider>
+          </AuthProvider>
+        </ConfigProvider>
         <Suspense fallback={null}>
           <ReactQueryDevtools initialIsOpen={false} />
         </Suspense>

@@ -165,6 +165,17 @@ export function createApp(plugins: AppPlugin[] = []) {
     }
   });
 
+  // Public server configuration — exposes runtime feature flags to the frontend
+  // No auth required; only non-sensitive flags are exposed.
+  app.get('/api/config', (_req, res) => {
+    res.json({
+      success: true,
+      data: {
+        saasEnabled: process.env.SAAS_ENABLED === 'true',
+      },
+    });
+  });
+
   // Theme CSS endpoint (public, with ETag caching)
   app.get('/api/theme.css', async (req, res) => {
     try {

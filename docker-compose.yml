@@ -70,6 +70,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
+      # SaaS mode — set to true to enable multi-tenant SaaS overlay
+      # Activates /api/auth/register, /api/org/:slug/*, and the SaaS frontend routes
+      SAAS_ENABLED: ${SAAS_ENABLED:-false}
     depends_on:
       ics-db:
         condition: service_healthy
