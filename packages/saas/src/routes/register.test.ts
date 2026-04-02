@@ -54,7 +54,7 @@ function buildApp(db: DB, pool: Pool): Express {
   app.set('db', db);
   app.set('pool', pool);
   app.use('/api', createSlugRouter());
-  app.use('/api', createRegisterRouter());
+  app.use('/api/saas', createRegisterRouter());
   return app;
 }
 
@@ -100,7 +100,7 @@ describe('GET /api/orgs/:slug/available', () => {
   });
 });
 
-describe('POST /api/auth/register (SaaS)', () => {
+describe('POST /api/saas/register (SaaS)', () => {
   beforeEach(() => {
     vi.stubEnv('JWT_SECRET', VALID_JWT_SECRET);
     vi.stubEnv('JWT_EXPIRES_IN', '24h');
@@ -112,7 +112,7 @@ describe('POST /api/auth/register (SaaS)', () => {
 
     const { default: supertest } = await import('supertest');
     const response = await supertest(app)
-      .post('/api/auth/register')
+      .post('/api/saas/register')
       .send({
         orgName: 'My Cinema',
         slug: 'my-cinema',
@@ -142,7 +142,7 @@ describe('POST /api/auth/register (SaaS)', () => {
 
     const { default: supertest } = await import('supertest');
     const response = await supertest(app)
-      .post('/api/auth/register')
+      .post('/api/saas/register')
       .send({
         orgName: 'My Cinema',
         slug: 'my-cinema',
@@ -160,7 +160,7 @@ describe('POST /api/auth/register (SaaS)', () => {
 
     const { default: supertest } = await import('supertest');
     const response = await supertest(app)
-      .post('/api/auth/register')
+      .post('/api/saas/register')
       .send({ orgName: 'X', slug: 'x' }); // missing email + password
 
     expect(response.status).toBe(400);
@@ -174,7 +174,7 @@ describe('POST /api/auth/register (SaaS)', () => {
 
     const { default: supertest } = await import('supertest');
     const response = await supertest(app)
-      .post('/api/auth/register')
+      .post('/api/saas/register')
       .send({
         orgName: 'My Cinema',
         slug: 'my-cinema',
@@ -190,5 +190,49 @@ describe('POST /api/auth/register (SaaS)', () => {
 
     expect(payload.org_id).toBe('org-uuid-1');
     expect(payload.org_slug).toBe('my-cinema');
+  });
+});
+
+describe('POST /api/saas/register — route must be reachable at /saas/register, not /auth/register', () => {
+  beforeEach(() => {
+    vi.stubEnv('JWT_SECRET', VALID_JWT_SECRET);
+    vi.stubEnv('JWT_EXPIRES_IN', '24h');
+  });
+
+  it('returns 201 when called at /api/saas/register', async () => {
+    const { pool } = makePool();
+    const app = buildApp(makeDb(), pool);
+
+    const { default: supertest } = await import('supertest');
+    const response = await supertest(app)
+      .post('/api/saas/register')
+      .send({
+        orgName: 'My Cinema',
+        slug: 'my-cinema',
+        adminEmail: 'admin@my-cinema.com',
+        adminPassword: 'Password1!',
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.success).toBe(true);
+  });
+
+  it('returns 404 when called at /api/auth/register (old conflicting path)', async () => {
+    const { pool } = makePool();
+    const app = buildApp(makeDb(), pool);
+
+    const { default: supertest } = await import('supertest');
+    const response = await supertest(app)
+      .post('/api/auth/register')
+      .send({
+        orgName: 'My Cinema',
+        slug: 'my-cinema',
+        adminEmail: 'admin@my-cinema.com',
+        adminPassword: 'Password1!',
+      });
+
+    // Must NOT be reachable at /api/auth/register to avoid collision with
+    // the core authRouter which requires authentication on that path.
+    expect(response.status).toBe(404);
   });
 });

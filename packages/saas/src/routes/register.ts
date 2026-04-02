@@ -31,13 +31,13 @@ export function createRegisterRouter(): Router {
   const router = Router();
 
   /**
-   * POST /api/auth/register
+   * POST /api/saas/register
    * Creates a new organization with its dedicated PostgreSQL schema,
    * provisions the admin user inside that schema, and returns a JWT.
    *
    * Body: { orgName, slug, adminEmail, adminPassword }
    */
-  router.post('/auth/register', async (req: Request, res: Response) => {
+  router.post('/register', async (req: Request, res: Response) => {
     const { orgName, slug, adminEmail, adminPassword } = req.body as Record<string, string>;
 
     // Basic validation

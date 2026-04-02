@@ -57,8 +57,9 @@ export const saasPlugin: AppPlugin = {
       logger,
     } = deps;
 
-    // Registration & slug availability
-    app.use('/api/auth', createRegisterRouter());
+    // Registration & slug availability — mounted at /api/saas to avoid
+    // collision with the core authRouter at /api/auth (which requires auth)
+    app.use('/api/saas', createRegisterRouter());
     app.use('/api', createSlugRouter());
 
     // Email verification + invitation join (public routes)
