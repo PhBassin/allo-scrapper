@@ -68,6 +68,57 @@ describe('AuthService', () => {
       expect(result.user.username).toBe('user');
       expect(result.user.permissions).toEqual(['users:read']);
     });
+
+    it('should include scope:superadmin in JWT payload when user is_superadmin=true', async () => {
+      const mockUser = {
+        id: 1,
+        username: 'admin',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+        is_superadmin: true,
+        password_hash: 'hash',
+      };
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockUser as any);
+      vi.mocked(bcrypt.compare).mockResolvedValue(true);
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:read'] as any);
+      vi.mocked(jwt.sign).mockReturnValue('mock-superadmin-token' as any);
+
+      const result = await authService.login('admin', 'password');
+
+      // jwt.sign must have been called with scope: 'superadmin' in the payload
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ scope: 'superadmin' }),
+        expect.any(String),
+        expect.any(Object),
+      );
+      expect(result.token).toBe('mock-superadmin-token');
+    });
+
+    it('should NOT include scope in JWT payload when user is_superadmin=false', async () => {
+      const mockUser = {
+        id: 2,
+        username: 'viewer',
+        role_id: 2,
+        role_name: 'viewer',
+        is_system_role: false,
+        is_superadmin: false,
+        password_hash: 'hash',
+      };
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockUser as any);
+      vi.mocked(bcrypt.compare).mockResolvedValue(true);
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue([] as any);
+      vi.mocked(jwt.sign).mockReturnValue('mock-regular-token' as any);
+
+      await authService.login('viewer', 'password');
+
+      // jwt.sign must NOT have been called with scope: 'superadmin'
+      expect(jwt.sign).not.toHaveBeenCalledWith(
+        expect.objectContaining({ scope: 'superadmin' }),
+        expect.any(String),
+        expect.any(Object),
+      );
+    });
   });
 
   describe('register', () => {

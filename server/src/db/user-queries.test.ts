@@ -8,6 +8,7 @@ import {
   deleteUser,
   getAdminCount,
   generateRandomPassword,
+  getUserByUsername,
 } from './user-queries.js';
 
 describe('User Management Queries', () => {
@@ -347,6 +348,50 @@ describe('User Management Queries', () => {
         const password = generateRandomPassword();
         expect(password).toMatch(validChars);
       }
+    });
+  });
+
+  describe('getUserByUsername', () => {
+    it('should include is_superadmin field in returned UserRow', async () => {
+      const mockRow = {
+        id: 1,
+        username: 'admin',
+        password_hash: 'hash',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+        is_superadmin: true,
+        created_at: '2024-01-01T00:00:00Z',
+      };
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [mockRow], rowCount: 1 } as any);
+
+      const result = await getUserByUsername(mockDb, 'admin');
+
+      expect(result).toBeDefined();
+      expect(result?.is_superadmin).toBe(true);
+      // The SQL must select is_superadmin
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('is_superadmin'),
+        ['admin']
+      );
+    });
+
+    it('should return is_superadmin=false for non-superadmin users', async () => {
+      const mockRow = {
+        id: 2,
+        username: 'regular',
+        password_hash: 'hash',
+        role_id: 2,
+        role_name: 'viewer',
+        is_system_role: false,
+        is_superadmin: false,
+        created_at: '2024-01-01T00:00:00Z',
+      };
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [mockRow], rowCount: 1 } as any);
+
+      const result = await getUserByUsername(mockDb, 'regular');
+
+      expect(result?.is_superadmin).toBe(false);
     });
   });
 });

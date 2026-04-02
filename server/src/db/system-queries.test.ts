@@ -105,6 +105,7 @@ describe('System Queries', () => {
             { version: '021_add_film_trailer_url.sql' },
             { version: '022_fix_showtime_deduplication.sql' },
             { version: '023_add_scrape_settings.sql' },
+            { version: '024_add_is_superadmin_to_users.sql' },
           ],
         }),
       } as unknown as DB;
