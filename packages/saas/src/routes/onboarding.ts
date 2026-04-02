@@ -3,6 +3,7 @@ import { EmailService } from '../services/email-service.js';
 import { InvitationService } from '../services/invitation-service.js';
 import { SaasAuthService } from '../services/saas-auth-service.js';
 import { checkQuota } from '../middleware/quota.js';
+import { onboardingLimiter } from '../middleware/rate-limit.js';
 import type { Pool } from '../db/types.js';
 import type { Organization } from '../db/org-queries.js';
 
@@ -32,7 +33,7 @@ export function createOnboardingRouter(): Router {
   //
   // For simplicity in Phase 2 the token itself stores the org info embedded as
   // `<orgSlug>:<hex>` so we can route to the right schema without a global token table.
-  router.get('/auth/verify-email/:token', async (req: Request, res: Response) => {
+  router.get('/auth/verify-email/:token', onboardingLimiter, async (req: Request, res: Response) => {
     const token = String(req.params.token);
 
     // Token format: "<orgSlug>:<hex32>"
@@ -80,7 +81,7 @@ export function createOnboardingRouter(): Router {
   // Token is a raw hex stored in the invitations table.
   // We need to locate which org the invitation belongs to.
   // Strategy: store org_slug in the invitation token prefix: "<orgSlug>:<hex32>"
-  router.post('/auth/join/:token', async (req: Request, res: Response) => {
+  router.post('/auth/join/:token', onboardingLimiter, async (req: Request, res: Response) => {
     const token = String(req.params.token);
     const { password } = req.body as { password?: string };
 

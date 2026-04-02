@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { requireSuperadmin } from '../middleware/superadmin-auth.js';
 import { SuperadminAuthService } from '../services/superadmin-auth-service.js';
+import { superadminLoginLimiter, superadminLimiter } from '../middleware/rate-limit.js';
 import type { Pool } from '../db/types.js';
 
 // Minimal org shape returned by local helpers
@@ -90,7 +91,7 @@ export function createSuperadminRouter(): Router {
   const router = Router();
 
   // ── POST /login ─────────────────────────────────────────────────────────────
-  router.post('/login', async (req: Request, res: Response) => {
+  router.post('/login', superadminLoginLimiter, async (req: Request, res: Response) => {
     const { username, password } = req.body ?? {};
 
     if (!username || !password) {
@@ -122,6 +123,7 @@ export function createSuperadminRouter(): Router {
 
   // ── All routes below require superadmin auth ─────────────────────────────
   router.use(requireSuperadmin);
+  router.use(superadminLimiter);
 
   // ── GET /dashboard ─────────────────────────────────────────────────────────
   router.get('/dashboard', async (req: Request, res: Response) => {
