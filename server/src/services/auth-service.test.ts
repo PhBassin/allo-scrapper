@@ -93,6 +93,8 @@ describe('AuthService', () => {
         expect.any(Object),
       );
       expect(result.token).toBe('mock-superadmin-token');
+      // scope must also be present in the returned user object so the frontend can read it from localStorage
+      expect(result.user.scope).toBe('superadmin');
     });
 
     it('should NOT include scope in JWT payload when user is_superadmin=false', async () => {
