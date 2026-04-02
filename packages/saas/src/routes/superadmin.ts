@@ -122,7 +122,7 @@ export function createSuperadminRouter(): Router {
   });
 
   // ── All routes below require superadmin auth ─────────────────────────────
-  router.use(requireSuperadmin);
+  router.use(superadminLimiter, requireSuperadmin);
 
   // ── GET /dashboard ─────────────────────────────────────────────────────────
   router.get('/dashboard', superadminLimiter, async (req: Request, res: Response) => {

@@ -20,7 +20,7 @@ function makeApp() {
   const app = express();
   app.use(express.json());
   // lgtm[js/missing-rate-limiting] -- test harness, not a real route
-  app.get('/protected', requireAuth, (req: AuthRequest, res: Response) => {
+  app.get('/protected', requireAuth, (req: AuthRequest, res: Response) => { // lgtm[js/missing-rate-limiting]
     res.json({ success: true, user: req.user });
   });
   return app;
