@@ -59,6 +59,46 @@ function buildApp(db: DB, pool: Pool): Express {
 
 // ── tests ────────────────────────────────────────────────────────────────────
 
+describe('GET /api/orgs/:slug/available', () => {
+  it('returns available:true when slug is free', async () => {
+    const { isSlugAvailable } = await import('../db/org-queries.js');
+    vi.mocked(isSlugAvailable).mockResolvedValueOnce(true);
+
+    const { pool } = makePool();
+    const app = buildApp(makeDb(), pool);
+
+    const { default: supertest } = await import('supertest');
+    const response = await supertest(app).get('/api/orgs/free-slug/available');
+
+    expect(response.status).toBe(200);
+    expect(response.body.available).toBe(true);
+  });
+
+  it('returns available:false when slug is taken', async () => {
+    const { isSlugAvailable } = await import('../db/org-queries.js');
+    vi.mocked(isSlugAvailable).mockResolvedValueOnce(false);
+
+    const { pool } = makePool();
+    const app = buildApp(makeDb(), pool);
+
+    const { default: supertest } = await import('supertest');
+    const response = await supertest(app).get('/api/orgs/taken-slug/available');
+
+    expect(response.status).toBe(200);
+    expect(response.body.available).toBe(false);
+  });
+
+  it('returns 400 on invalid slug format', async () => {
+    const { pool } = makePool();
+    const app = buildApp(makeDb(), pool);
+
+    const { default: supertest } = await import('supertest');
+    const response = await supertest(app).get('/api/orgs/INVALID_SLUG/available');
+
+    expect(response.status).toBe(400);
+  });
+});
+
 describe('POST /api/auth/register (SaaS)', () => {
   beforeEach(() => {
     vi.stubEnv('JWT_SECRET', VALID_JWT_SECRET);
