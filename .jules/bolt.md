@@ -33,3 +33,6 @@
 ## 2026-03-31 - [Optimize Array Presence Checks and Counts in Node]
 **Learning:** Found that grouping an array and simultaneously computing summary counts using multiple `.filter(a => a.status === '...').length` creates unnecessary intermediate arrays and scales poorly to $O(M \times N)$ operations, increasing garbage collection and execution time on large datasets like scrape attempts.
 **Action:** Replace multiple `.filter().length` passes with variables that are incremented during an existing grouping or iteration loop, computing both grouping and statistics in a single $O(N)$ pass.
+## 2024-04-01 - Eliminate N+1 Bottleneck in `getAllRoles`
+**Learning:** `Promise.all` combined with multiple parallel `.map` DB query fetches is a persistent N+1 anti-pattern in database abstraction layers. While asynchronous, this still saturates connection pools and creates unnecessary linear DB requests, adding significant overhead when fetching lists (e.g. roles and their associated permissions).
+**Action:** Replace `Promise.all` loops with a single secondary query using `ANY($1)` on an array of parent IDs, then group the related child records in memory using standard objects/Maps.
