@@ -89,9 +89,8 @@ async function startServer() {
     process.on('SIGINT', shutdown);
 
   } catch (error) {
-    // Log only the error message to prevent sensitive data exposure
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('❌ Failed to start server:', errorMessage);
+    // Log the full error for diagnostics (stack included)
+    logger.error('❌ Failed to start server:', error instanceof Error ? error.stack ?? error.message : String(error));
     process.exit(1);
   }
 }

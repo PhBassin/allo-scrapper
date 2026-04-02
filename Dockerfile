@@ -100,11 +100,13 @@ COPY --chown=nodejs:nodejs server/package.json ./server/
 COPY --chown=nodejs:nodejs scraper/package.json ./scraper/
 COPY --chown=nodejs:nodejs packages/saas/package.json ./packages/saas/
 
-# Install only production dependencies for the server workspace
+# Install only production dependencies for the server and saas workspaces.
+# Both workspaces must be listed so npm creates the @allo-scrapper/saas symlink
+# inside node_modules, making the dynamic import in index.ts resolvable at runtime.
 # Remove package-lock.json and regenerate to get correct platform-specific bindings
 # (sharp, and any other native modules need this for Alpine Linux)
 RUN rm -f package-lock.json && \
-    npm install --omit=dev --workspace=allo-scrapper-server --legacy-peer-deps && \
+    npm install --omit=dev --workspace=allo-scrapper-server --workspace=@allo-scrapper/saas --legacy-peer-deps && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/*
 
