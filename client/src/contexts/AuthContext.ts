@@ -8,6 +8,7 @@ export interface User {
     role_name: string;
     is_system_role: boolean;
     permissions: PermissionName[];
+    scope?: 'superadmin';
 }
 
 export interface AuthContextType {
@@ -15,6 +16,7 @@ export interface AuthContextType {
     token: string | null;
     user: User | null;
     isAdmin: boolean;
+    isSuperadmin: boolean;
     hasPermission: (permission: PermissionName) => boolean;
     login: (token: string, user: User) => void;
     logout: () => void;
@@ -25,6 +27,7 @@ export const AuthContext = createContext<AuthContextType>({
     token: null,
     user: null,
     isAdmin: false,
+    isSuperadmin: false,
     hasPermission: () => false,
     login: () => { },
     logout: () => { },

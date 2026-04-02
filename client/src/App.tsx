@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import AdminPage from './pages/admin/AdminPage';
 import RegisterPage from './pages/RegisterPage';
+import SuperadminPage from './pages/superadmin/SuperadminPage';
 import { AuthContext } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthProvider';
 import { SettingsProvider } from './contexts/SettingsProvider';
@@ -17,6 +18,7 @@ import { ConfigContext } from './contexts/ConfigContext';
 import { TenantProvider } from './contexts/TenantProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequirePermission from './components/RequirePermission';
+import RequireSuperadmin from './components/RequireSuperadmin';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useTheme } from './hooks/useTheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -121,6 +123,14 @@ function AppRoutes() {
               <RequirePermission anyOf={ADMIN_PERMISSIONS}>
                 <AdminPage />
               </RequirePermission>
+            }
+          />
+          <Route
+            path="/superadmin"
+            element={
+              <RequireSuperadmin>
+                <SuperadminPage />
+              </RequireSuperadmin>
             }
           />
           <Route

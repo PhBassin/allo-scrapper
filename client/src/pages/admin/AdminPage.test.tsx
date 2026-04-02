@@ -72,6 +72,7 @@ const makeAuthContext = (user: User) => ({
   token: 'mock-token',
   user,
   isAdmin: user.role_name === 'admin' && user.is_system_role === true,
+  isSuperadmin: user.scope === 'superadmin',
   hasPermission: (permission: PermissionName) =>
     (user.role_name === 'admin' && user.is_system_role) || user.permissions.includes(permission),
   login: vi.fn(),

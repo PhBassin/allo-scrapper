@@ -79,6 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const isAuthenticated = !!token;
     const isAdmin = user?.role_name === 'admin' && user?.is_system_role === true;
+    const isSuperadmin = user?.scope === 'superadmin';
 
     const hasPermission = (permission: string): boolean => {
         if (!user) return false;
@@ -154,7 +155,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, token, user, isAdmin, hasPermission, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, token, user, isAdmin, isSuperadmin, hasPermission, login, logout }}>
             {children}
         </AuthContext.Provider>
     );
