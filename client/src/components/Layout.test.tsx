@@ -3,13 +3,15 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import Layout from './Layout';
-import { AuthContext } from '../contexts/AuthContext';
+import { AuthContext, type AuthContextType } from '../contexts/AuthContext';
 import { SettingsContext } from '../contexts/SettingsContext';
+import { ConfigContext } from '../contexts/ConfigContext';
 import type { PermissionName } from '../types/role';
 
 const mockAuthContext = {
   isAuthenticated: true,
   isAdmin: true,
+  isSuperadmin: false,
   hasPermission: vi.fn<(p: PermissionName) => boolean>(() => true),
   token: 'mock-token',
   user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['scraper:trigger', 'cinemas:create'] as PermissionName[] },
@@ -20,6 +22,7 @@ const mockAuthContext = {
 const mockNonAdminAuthContext = {
   isAuthenticated: true,
   isAdmin: false,
+  isSuperadmin: false,
   hasPermission: vi.fn<(p: PermissionName) => boolean>(() => false),
   token: 'mock-token',
   user: { id: 2, username: 'user', role_id: 2, role_name: 'user', is_system_role: false, permissions: [] as PermissionName[] },
@@ -55,14 +58,16 @@ const mockSettingsContext = {
       updateSettings: vi.fn(),
     };
 
-const renderWithProviders = (authContext: typeof mockAuthContext | typeof mockNonAdminAuthContext = mockAuthContext) => {
+const renderWithProviders = (authContext: AuthContextType = mockAuthContext) => {
   return render(
     <BrowserRouter>
-      <AuthContext.Provider value={authContext}>
-        <SettingsContext.Provider value={mockSettingsContext}>
-          <Layout>Test Content</Layout>
-        </SettingsContext.Provider>
-      </AuthContext.Provider>
+      <ConfigContext.Provider value={{ config: { saasEnabled: false }, isLoading: false }}>
+        <AuthContext.Provider value={authContext}>
+          <SettingsContext.Provider value={mockSettingsContext}>
+            <Layout>Test Content</Layout>
+          </SettingsContext.Provider>
+        </AuthContext.Provider>
+      </ConfigContext.Provider>
     </BrowserRouter>
   );
 };

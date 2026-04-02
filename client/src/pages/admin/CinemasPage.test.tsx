@@ -78,6 +78,7 @@ const mockAuthContext = {
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: true,
+  isSuperadmin: false,
   hasPermission: vi.fn<(p: PermissionName) => boolean>(() => true),
 };
 

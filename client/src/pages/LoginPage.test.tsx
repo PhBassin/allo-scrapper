@@ -24,6 +24,7 @@ const authValue = {
   token: null,
   user: mockUser,
   isAdmin: false,
+  isSuperadmin: false,
   hasPermission: vi.fn(),
   login: vi.fn(),
   logout: vi.fn(),

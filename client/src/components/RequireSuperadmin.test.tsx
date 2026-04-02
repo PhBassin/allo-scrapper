@@ -4,7 +4,6 @@ import { MemoryRouter } from 'react-router-dom';
 import RequireSuperadmin from './RequireSuperadmin';
 import { AuthContext, type AuthContextType } from '../contexts/AuthContext';
 import { ConfigContext } from '../contexts/ConfigContext';
-import type { PermissionName } from '../types/role';
 
 // Helper to build a minimal AuthContextType
 function makeAuthCtx(overrides: Partial<AuthContextType> = {}): AuthContextType {

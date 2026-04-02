@@ -11,6 +11,7 @@ const mockAuthContext = {
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: false,
+  isSuperadmin: false,
   hasPermission: vi.fn((p: PermissionName) => p === 'scraper:trigger'),
 };
 
