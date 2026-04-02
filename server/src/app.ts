@@ -193,7 +193,10 @@ export function createApp() {
   });
 
   // 404 handler for API routes (must be BEFORE SPA fallback)
-  app.use('/api/{*splat}', (_req, res) => {
+  // Security enhancement: Properly intercept undefined API routes to return 404 JSON,
+  // preventing accidental leakage of SPA bundle contents or generic errors to API scanners.
+  // Express 5 regex routing prevents "Missing parameter name" syntax errors from invalid string wildcards.
+  app.use(/^\/api(?:\/(.*))?$/, (_req, res) => {
     res.status(404).json({
       success: false,
       error: 'API endpoint not found',
@@ -206,7 +209,7 @@ export function createApp() {
     app.use(express.static(publicPath));
 
     // Serve index.html for all non-API routes (SPA support)
-    app.get('{*splat}', generalLimiter, (_req, res) => {
+    app.get(/^\/(.*)/, generalLimiter, (_req, res) => {
       res.sendFile(path.join(publicPath, 'index.html'));
     });
   }
