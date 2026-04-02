@@ -21,7 +21,7 @@ declare global {
  * Express middleware that validates a superadmin JWT.
  *
  * - Reads Bearer token from Authorization header
- * - Verifies signature with SUPERADMIN_JWT_SECRET
+ * - Verifies signature with JWT_SECRET (same secret used for regular user tokens)
  * - Rejects tokens whose scope !== 'superadmin' with 403
  * - Attaches verified payload to req.superadmin
  */
@@ -39,10 +39,10 @@ export async function requireSuperadmin(
   }
 
   const token = parts[1];
-  const secret = process.env.SUPERADMIN_JWT_SECRET?.trim();
+  const secret = process.env.JWT_SECRET?.trim();
 
   if (!secret || secret.length < 32) {
-    res.status(500).json({ success: false, error: 'Server misconfiguration: missing SUPERADMIN_JWT_SECRET' });
+    res.status(500).json({ success: false, error: 'Server misconfiguration: missing JWT_SECRET' });
     return;
   }
 
