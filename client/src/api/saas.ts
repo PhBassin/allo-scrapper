@@ -38,6 +38,6 @@ export async function checkSlugAvailability(slug: string): Promise<boolean> {
 }
 
 export async function registerOrg(input: RegisterOrgInput): Promise<RegisterOrgResult> {
-  const res = await apiClient.post<RegisterOrgResult>('/auth/register', input);
+  const res = await apiClient.post<RegisterOrgResult>('/saas/register', input);
   return res.data;
 }
