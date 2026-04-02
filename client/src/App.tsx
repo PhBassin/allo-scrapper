@@ -116,6 +116,14 @@ function AppRoutes() {
           <Route path="/cinema/:id" element={<CinemaPage />} />
           <Route path="/film/:id" element={<FilmPage />} />
           <Route
+            path="/admin"
+            element={
+              <RequirePermission anyOf={ADMIN_PERMISSIONS}>
+                <AdminPage />
+              </RequirePermission>
+            }
+          />
+          <Route
             path="/org/:slug/*"
             element={
               <TenantProvider>
