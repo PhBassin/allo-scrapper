@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express, { type Express } from 'express';
-import { createRegisterRouter } from './register.js';
+import { createRegisterRouter, createSlugRouter } from './register.js';
 import type { DB, Pool } from '../db/types.js';
 
 // ── module mocks ─────────────────────────────────────────────────────────────
@@ -53,6 +53,7 @@ function buildApp(db: DB, pool: Pool): Express {
   app.use(express.json());
   app.set('db', db);
   app.set('pool', pool);
+  app.use('/api', createSlugRouter());
   app.use('/api', createRegisterRouter());
   return app;
 }

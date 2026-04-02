@@ -7,6 +7,26 @@ import type { DB, Pool } from '../db/types.js';
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
 
+/**
+ * createSlugRouter — public slug availability check.
+ * Mount at /api so the route resolves to GET /api/orgs/:slug/available.
+ */
+export function createSlugRouter(): Router {
+  const router = Router();
+
+  router.get('/orgs/:slug/available', async (req: Request, res: Response) => {
+    const slug = req.params['slug'] as string;
+    if (!SLUG_PATTERN.test(slug)) {
+      return res.status(400).json({ success: false, available: false, error: 'Invalid slug format' });
+    }
+    const db = req.app.get('db') as DB;
+    const available = await isSlugAvailable(db, slug);
+    return res.json({ success: true, available });
+  });
+
+  return router;
+}
+
 export function createRegisterRouter(): Router {
   const router = Router();
 
@@ -90,20 +110,6 @@ export function createRegisterRouter(): Router {
         trial_ends_at: org.trial_ends_at,
       },
     });
-  });
-
-  /**
-   * GET /api/orgs/:slug/available
-   * Quick slug availability check (public, no auth).
-   */
-  router.get('/orgs/:slug/available', async (req: Request, res: Response) => {
-    const slug = req.params['slug'] as string;
-    if (!SLUG_PATTERN.test(slug)) {
-      return res.status(400).json({ success: false, available: false, error: 'Invalid slug format' });
-    }
-    const db = req.app.get('db') as DB;
-    const available = await isSlugAvailable(db, slug);
-    return res.json({ success: true, available });
   });
 
   return router;

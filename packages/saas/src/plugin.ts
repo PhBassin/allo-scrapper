@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'url';
 import path from 'path';
 import type { Express, RequestHandler } from 'express';
-import { createRegisterRouter } from './routes/register.js';
+import { createRegisterRouter, createSlugRouter } from './routes/register.js';
 import { createOrgRouter } from './routes/org.js';
 import { createOnboardingRouter } from './routes/onboarding.js';
 import { createSuperadminRouter } from './routes/superadmin.js';
@@ -59,6 +59,7 @@ export const saasPlugin: AppPlugin = {
 
     // Registration & slug availability
     app.use('/api/auth', createRegisterRouter());
+    app.use('/api', createSlugRouter());
 
     // Email verification + invitation join (public routes)
     app.use('/api', createOnboardingRouter());
