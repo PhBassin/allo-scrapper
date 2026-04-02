@@ -2,10 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-vi.mock('../utils/superadmin-jwt-secret-validator.js', () => ({
-  validateSuperadminJWTSecret: vi.fn(),
-}));
-
 import { requireSuperadmin } from '../middleware/superadmin-auth.js';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -22,7 +18,7 @@ function makeReq(headers: Record<string, string> = {}): Request {
   return { headers } as unknown as Request;
 }
 
-const VALID_SECRET = 'superadmin-secret-at-least-32-chars-long!!';
+const VALID_SECRET = 'jwt-secret-at-least-32-chars-long!!!!!!!!';
 
 function signToken(payload: object, secret = VALID_SECRET, options?: jwt.SignOptions) {
   return jwt.sign(payload, secret, { expiresIn: '1h', ...options });
@@ -32,7 +28,7 @@ function signToken(payload: object, secret = VALID_SECRET, options?: jwt.SignOpt
 
 describe('requireSuperadmin middleware', () => {
   beforeEach(() => {
-    vi.stubEnv('SUPERADMIN_JWT_SECRET', VALID_SECRET);
+    vi.stubEnv('JWT_SECRET', VALID_SECRET);
   });
 
   it('calls next() when a valid superadmin JWT is provided', async () => {
