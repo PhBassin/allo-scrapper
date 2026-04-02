@@ -29,9 +29,8 @@ export async function initializeDatabase(extraMigrationDirs: string[] = []) {
       await runMigrations(db, extraMigrationDirs);
       logger.info('✅ Database initialization complete');
     } catch (error) {
-      // Log only the error message to prevent sensitive data exposure
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ Database migration failed:', errorMessage);
+      // Log the full error for diagnostics (stack included)
+      logger.error('❌ Database migration failed:', error instanceof Error ? error.stack ?? error.message : String(error));
       throw error;
     }
   } else {

@@ -123,6 +123,8 @@ COPY --chown=nodejs:nodejs migrations ./migrations
 
 # Copy built saas package (needed at runtime when SAAS_ENABLED=true)
 COPY --from=backend-builder --chown=nodejs:nodejs /app/packages/saas/dist ./packages/saas/dist
+# Copy saas SQL migrations (getMigrationDirs() points to /app/packages/saas/migrations at runtime)
+COPY --chown=nodejs:nodejs packages/saas/migrations ./packages/saas/migrations
 
 # Copy built frontend from builder into server's public directory so it can serve it
 COPY --from=frontend-builder --chown=nodejs:nodejs /app/client/dist ./server/public
