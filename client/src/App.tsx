@@ -97,77 +97,71 @@ function AppRoutes() {
     return <LoadingScreen />;
   }
 
-  const standaloneRoutes = (
-    <>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/change-password"
-        element={
-          <ProtectedRoute>
-            <ChangePasswordPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/cinema/:id" element={<CinemaPage />} />
-      <Route path="/film/:id" element={<FilmPage />} />
-      <Route
-        path="/admin"
-        element={
-          <RequirePermission anyOf={ADMIN_PERMISSIONS}>
-            <AdminPage />
-          </RequirePermission>
-        }
-      />
-    </>
-  );
-
-  const tenantRoutes = (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/change-password"
-        element={
-          <ProtectedRoute>
-            <ChangePasswordPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/cinema/:id" element={<CinemaPage />} />
-      <Route path="/film/:id" element={<FilmPage />} />
-      <Route
-        path="/admin"
-        element={
-          <RequirePermission anyOf={ADMIN_PERMISSIONS}>
-            <AdminPage />
-          </RequirePermission>
-        }
-      />
-    </Routes>
-  );
-
-  const saasRoutes = (
-    <>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route
-        path="/org/:slug/*"
-        element={
-          <TenantProvider>
-            {tenantRoutes}
-          </TenantProvider>
-        }
-      />
-    </>
-  );
-
   return (
     <Layout>
-      <Routes>
-        {config.saasEnabled ? saasRoutes : standaloneRoutes}
-      </Routes>
+      {config.saasEnabled ? (
+        // SaaS mode — multi-tenant routing under /org/:slug
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/change-password"
+            element={
+              <ProtectedRoute>
+                <ChangePasswordPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/cinema/:id" element={<CinemaPage />} />
+          <Route path="/film/:id" element={<FilmPage />} />
+          <Route
+            path="/org/:slug/*"
+            element={
+              <TenantProvider>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route
+                    path="/change-password"
+                    element={
+                      <ProtectedRoute>
+                        <ChangePasswordPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="/cinema/:id" element={<CinemaPage />} />
+                  <Route path="/film/:id" element={<FilmPage />} />
+                </Routes>
+              </TenantProvider>
+            }
+          />
+        </Routes>
+      ) : (
+        // Standalone mode
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/change-password"
+            element={
+              <ProtectedRoute>
+                <ChangePasswordPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/cinema/:id" element={<CinemaPage />} />
+          <Route path="/film/:id" element={<FilmPage />} />
+          <Route
+            path="/admin"
+            element={
+              <RequirePermission anyOf={ADMIN_PERMISSIONS}>
+                <AdminPage />
+              </RequirePermission>
+            }
+          />
+        </Routes>
+      )}
     </Layout>
   );
 }
