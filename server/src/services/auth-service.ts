@@ -35,14 +35,20 @@ export class AuthService {
     // Parse JWT expiration from env var (default: 24h)
     const expiresIn = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '24h');
 
+    const jwtPayload: Record<string, unknown> = {
+      id: user.id,
+      username: user.username,
+      role_name: user.role_name,
+      is_system_role: user.is_system_role,
+      permissions,
+    };
+
+    if (user.is_superadmin) {
+      jwtPayload.scope = 'superadmin';
+    }
+
     const token = jwt.sign(
-      {
-        id: user.id,
-        username: user.username,
-        role_name: user.role_name,
-        is_system_role: user.is_system_role,
-        permissions,
-      },
+      jwtPayload,
       secret,
       { expiresIn: expiresIn as any }
     );

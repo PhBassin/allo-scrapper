@@ -11,6 +11,7 @@ export interface UserRow {
   role_id: number;
   role_name: string;
   is_system_role: boolean;
+  is_superadmin: boolean;
   created_at: string;
 }
 
@@ -122,7 +123,8 @@ export async function getAdminCount(db: DB): Promise<number> {
 export async function getUserByUsername(db: DB, username: string): Promise<UserRow | undefined> {
   const result = await db.query<UserRow>(
     `SELECT u.id, u.username, u.password_hash, u.role_id,
-            r.name AS role_name, r.is_system AS is_system_role, u.created_at
+            r.name AS role_name, r.is_system AS is_system_role,
+            u.is_superadmin, u.created_at
      FROM users u
      JOIN roles r ON r.id = u.role_id
      WHERE u.username = $1`,
