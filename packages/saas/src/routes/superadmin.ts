@@ -123,10 +123,9 @@ export function createSuperadminRouter(): Router {
 
   // ── All routes below require superadmin auth ─────────────────────────────
   router.use(requireSuperadmin);
-  router.use(superadminLimiter);
 
   // ── GET /dashboard ─────────────────────────────────────────────────────────
-  router.get('/dashboard', async (req: Request, res: Response) => {
+  router.get('/dashboard', superadminLimiter, async (req: Request, res: Response) => {
     const pool = getPool(req);
     const client = await pool.connect();
     try {
@@ -172,7 +171,7 @@ export function createSuperadminRouter(): Router {
   });
 
   // ── GET /orgs ───────────────────────────────────────────────────────────────
-  router.get('/orgs', async (req: Request, res: Response) => {
+  router.get('/orgs', superadminLimiter, async (req: Request, res: Response) => {
     const pool = getPool(req);
     const client = await pool.connect();
     try {
@@ -210,7 +209,7 @@ export function createSuperadminRouter(): Router {
   });
 
   // ── GET /orgs/:id ───────────────────────────────────────────────────────────
-  router.get('/orgs/:id', async (req: Request, res: Response) => {
+  router.get('/orgs/:id', superadminLimiter, async (req: Request, res: Response) => {
     const pool = getPool(req);
     const org = await getOrgById(pool, String(req.params.id));
 
@@ -223,7 +222,7 @@ export function createSuperadminRouter(): Router {
   });
 
   // ── POST /orgs/:id/suspend ──────────────────────────────────────────────────
-  router.post('/orgs/:id/suspend', async (req: Request, res: Response) => {
+  router.post('/orgs/:id/suspend', superadminLimiter, async (req: Request, res: Response) => {
     const pool = getPool(req);
     const org = await getOrgById(pool, String(req.params.id));
     if (!org) {
@@ -251,7 +250,7 @@ export function createSuperadminRouter(): Router {
   });
 
   // ── POST /orgs/:id/reactivate ───────────────────────────────────────────────
-  router.post('/orgs/:id/reactivate', async (req: Request, res: Response) => {
+  router.post('/orgs/:id/reactivate', superadminLimiter, async (req: Request, res: Response) => {
     const pool = getPool(req);
     const org = await getOrgById(pool, String(req.params.id));
     if (!org) {
@@ -278,7 +277,7 @@ export function createSuperadminRouter(): Router {
   });
 
   // ── PUT /orgs/:id/plan ──────────────────────────────────────────────────────
-  router.put('/orgs/:id/plan', async (req: Request, res: Response) => {
+  router.put('/orgs/:id/plan', superadminLimiter, async (req: Request, res: Response) => {
     const { plan_id } = req.body ?? {};
     if (!plan_id) {
       res.status(400).json({ success: false, error: 'plan_id is required' });
@@ -322,7 +321,7 @@ export function createSuperadminRouter(): Router {
   });
 
   // ── POST /orgs/:id/reset-trial ──────────────────────────────────────────────
-  router.post('/orgs/:id/reset-trial', async (req: Request, res: Response) => {
+  router.post('/orgs/:id/reset-trial', superadminLimiter, async (req: Request, res: Response) => {
     const pool = getPool(req);
     const org = await getOrgById(pool, String(req.params.id));
     if (!org) {
@@ -352,7 +351,7 @@ export function createSuperadminRouter(): Router {
   });
 
   // ── POST /impersonate ───────────────────────────────────────────────────────
-  router.post('/impersonate', async (req: Request, res: Response) => {
+  router.post('/impersonate', superadminLimiter, async (req: Request, res: Response) => {
     const { org_slug } = req.body ?? {};
     if (!org_slug) {
       res.status(400).json({ success: false, error: 'org_slug is required' });

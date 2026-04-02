@@ -19,6 +19,7 @@ import { requireAuth, type AuthRequest } from './auth.js';
 function makeApp() {
   const app = express();
   app.use(express.json());
+  // lgtm[js/missing-rate-limiting] -- test harness, not a real route
   app.get('/protected', requireAuth, (req: AuthRequest, res: Response) => {
     res.json({ success: true, user: req.user });
   });
