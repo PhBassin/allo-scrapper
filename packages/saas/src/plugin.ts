@@ -27,7 +27,13 @@ interface AppPlugin {
 export const saasPlugin: AppPlugin = {
   name: '@allo-scrapper/saas',
 
-  async register(app, _options) {
+  async register(app, options) {
+    // Self-bootstrap: run SaaS-specific DB migrations before mounting routes.
+    // The dynamic import resolves at runtime inside the server process.
+    // @ts-ignore — cross-rootDir import is intentional; this runs inside server
+    const migrationsModule = await import('../../../server/src/db/migrations.js') as { runMigrations: (db: unknown, dirs: string[]) => Promise<void> };
+    await migrationsModule.runMigrations(options.db, [getSaasMigrationDir()]);
+
     // Registration & slug availability
     app.use('/api', createRegisterRouter());
 
