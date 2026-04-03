@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
-import { createApp } from './app.js';
-import { db } from './db/client.js';
+import { createApp, applyPlugins } from './app.js';
+import type { AppPlugin } from './app.js';
+import { db, pool } from './db/client.js';
 import { initializeDatabase } from './db/schema.js';
 import { logger } from './utils/logger.js';
 import { validateJWTSecret } from './utils/jwt-secret-validator.js';
@@ -40,8 +41,26 @@ async function startServer() {
     // Create Express app
     const app = createApp();
 
-    // Register database connection for dependency injection
+    // Register database connection and connection pool for dependency injection
     app.set('db', db);
+    app.set('pool', pool);
+
+    // Conditionally load SaaS plugin when SAAS_ENABLED=true
+    if (process.env.SAAS_ENABLED === 'true') {
+      logger.info('🏢 SAAS_ENABLED=true — loading SaaS plugin...');
+      try {
+        const mod = await import('@allo-scrapper/saas' as string);
+        const saasPlugin: AppPlugin = mod.saasPlugin ?? mod.default;
+        await applyPlugins(app, [saasPlugin], { pool, db });
+        logger.info('🏢 SaaS plugin loaded successfully');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error(`❌ Failed to load SaaS plugin: ${msg}`);
+        process.exit(1);
+      }
+    } else {
+      logger.info('🔌 Running in standalone mode (SAAS_ENABLED != true)');
+    }
 
     // Start server
     const server = app.listen(Number(PORT), () => {

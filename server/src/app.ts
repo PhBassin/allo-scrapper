@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -6,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Registry, collectDefaultMetrics } from 'prom-client';
 import { createHash } from 'crypto';
+import type { Pool } from 'pg';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
@@ -13,6 +15,52 @@ import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
 import { generateThemeCSS } from './services/theme-generator.js';
 import { errorHandler } from './middleware/error-handler.js';
 import type { DB } from './db/client.js';
+
+// ---------------------------------------------------------------------------
+// Plugin interface — allows SaaS (and other) overlays to extend the core app
+// without modifying core code.
+// ---------------------------------------------------------------------------
+
+/**
+ * Options passed to each plugin's register function.
+ */
+export interface AppPluginOptions {
+  pool: Pool;
+  db: DB;
+}
+
+/**
+ * Plugin contract. Implement this interface in packages that extend the core
+ * server (e.g. @allo-scrapper/saas).
+ *
+ * register() is called once at startup, after db/pool are attached to the app,
+ * but before the server starts listening. It may be async.
+ */
+export interface AppPlugin {
+  name: string;
+  register(app: Express, options: AppPluginOptions): void | Promise<void>;
+}
+
+/**
+ * Apply a list of plugins to an already-created Express app.
+ * Plugins are called in order and awaited, so each plugin is fully
+ * initialised before the next one starts.
+ *
+ * @param app     - The Express application instance
+ * @param plugins - Array of plugins to apply (may be empty)
+ * @param options - Pool + DB handles passed to each plugin
+ */
+export async function applyPlugins(
+  app: Express,
+  plugins: AppPlugin[],
+  options: AppPluginOptions
+): Promise<void> {
+  for (const plugin of plugins) {
+    logger.info(`Loading plugin: ${plugin.name}`);
+    await plugin.register(app, options);
+    logger.info(`Plugin loaded: ${plugin.name}`);
+  }
+}
 
 // Import routes
 import filmsRouter from './routes/films.js';
