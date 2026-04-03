@@ -190,41 +190,103 @@ async function verifyChecksums(db: DB, migrationFiles: string[]): Promise<void> 
 }
 
 /**
- * Run all pending migrations in order
- * Main entry point for automatic migration system
- * 
- * @param db - Database client
+ * Run all pending migrations in order.
+ * Processes core migrations first, then any extra directories (e.g. SaaS
+ * package migrations). Files from extra directories are merged into the same
+ * pending list after the core files, preserving their internal sort order.
+ *
+ * Main entry point for automatic migration system.
+ *
+ * @param db        - Database client
+ * @param extraDirs - Optional additional migration directories (e.g. from plugins)
  */
-export async function runMigrations(db: DB): Promise<void> {
+export async function runMigrations(db: DB, extraDirs: string[] = []): Promise<void> {
   logger.info('Checking for pending database migrations...');
 
   // Ensure schema_migrations table exists
   await createSchemaTable(db);
 
-  // Get all migration files for checksum verification
-  const migrationsDir = getMigrationsDir();
-  const allFiles = await fs.readdir(migrationsDir);
-  const migrationFiles = allFiles.filter(f => f.endsWith('.sql')).sort();
+  // --- Core migration files ---
+  const coreMigrationsDir = getMigrationsDir();
+  const coreFiles = await fs.readdir(coreMigrationsDir);
+  const coreMigrationFiles = coreFiles.filter(f => f.endsWith('.sql')).sort();
 
-  // Verify checksums of already-applied migrations
-  await verifyChecksums(db, migrationFiles);
+  // Verify checksums of already-applied core migrations
+  await verifyChecksums(db, coreMigrationFiles);
 
-  // Get pending migrations
-  const pending = await getPendingMigrations(db);
+  // --- Load applied versions (single query, shared by core + extra) ---
+  const appliedResult = await db.query<{ version: string }>(
+    'SELECT version FROM schema_migrations ORDER BY version'
+  );
+  const appliedVersions = new Set(appliedResult.rows.map(r => r.version));
 
-  if (pending.length === 0) {
+  // Warn about applied migrations whose files no longer exist (core only)
+  for (const applied of appliedVersions) {
+    if (!coreMigrationFiles.includes(applied)) {
+      // May be from an extra dir — only warn if it's not in any known location
+      logger.warn(
+        `Migration ${applied} was applied but file not found in migrations/ directory`
+      );
+    }
+  }
+
+  // Pending core migrations
+  const pendingCore = coreMigrationFiles.filter(f => !appliedVersions.has(f));
+
+  // --- Extra directory migrations ---
+  const pendingExtra: Array<{ dir: string; filename: string }> = [];
+  for (const dir of extraDirs) {
+    const files = await fs.readdir(dir);
+    const sqlFiles = files.filter(f => f.endsWith('.sql')).sort();
+    for (const filename of sqlFiles) {
+      if (!appliedVersions.has(filename)) {
+        pendingExtra.push({ dir, filename });
+      }
+    }
+  }
+
+  if (pendingCore.length === 0 && pendingExtra.length === 0) {
     logger.info('All migrations up to date');
     return;
   }
 
-  logger.info(`Found ${pending.length} pending migration(s)`);
+  logger.info(`Found ${pendingCore.length + pendingExtra.length} pending migration(s)`);
 
-  // Apply each pending migration
-  for (const filename of pending) {
+  // Apply core migrations first
+  for (const filename of pendingCore) {
     await applyMigration(db, filename);
   }
 
+  // Apply extra-dir migrations (using their own dir for file reading)
+  for (const { dir, filename } of pendingExtra) {
+    await applyMigrationFromDir(db, dir, filename);
+  }
+
   logger.info('All pending migrations applied successfully');
+}
+
+/**
+ * Apply a single migration from an arbitrary directory and record it in
+ * schema_migrations. Used for plugin / extra-dir migrations.
+ *
+ * @param db       - Database client
+ * @param dir      - Directory containing the migration file
+ * @param filename - Migration filename to apply
+ */
+async function applyMigrationFromDir(db: DB, dir: string, filename: string): Promise<void> {
+  logger.info(`Applying migration ${filename} (from ${dir})...`);
+
+  const filePath = path.join(dir, filename);
+  const sql = await fs.readFile(filePath, 'utf8');
+  await db.query(sql);
+
+  const checksum = calculateChecksum(sql);
+  await db.query(
+    'INSERT INTO schema_migrations (version, checksum) VALUES ($1, $2)',
+    [filename, checksum]
+  );
+
+  logger.info(`Migration ${filename} completed successfully`);
 }
 
 /**

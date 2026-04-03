@@ -10,13 +10,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
- * Initialize database by running automatic migrations
- * Uses the migration runner to apply all pending SQL migrations from migrations/ directory
- * 
- * Respects AUTO_MIGRATE environment variable (default: true)
- * If AUTO_MIGRATE=false, migrations must be applied manually
+ * Initialize database by running automatic migrations.
+ * Uses the migration runner to apply all pending SQL migrations from
+ * migrations/ directory, plus any extra directories supplied by plugins.
+ *
+ * Respects AUTO_MIGRATE environment variable (default: true).
+ * If AUTO_MIGRATE=false, migrations must be applied manually.
+ *
+ * @param extraMigrationDirs - Optional extra directories from plugins (e.g. SaaS)
  */
-export async function initializeDatabase() {
+export async function initializeDatabase(extraMigrationDirs: string[] = []) {
   logger.info('🔄 Initializing PostgreSQL database...');
 
   const autoMigrate = process.env.AUTO_MIGRATE !== 'false';
@@ -24,7 +27,7 @@ export async function initializeDatabase() {
   if (autoMigrate) {
     logger.info('Auto-migration enabled, applying pending migrations...');
     try {
-      await runMigrations(db);
+      await runMigrations(db, extraMigrationDirs);
       logger.info('✅ Database initialization complete');
     } catch (error) {
       // Log only the error message to prevent sensitive data exposure
