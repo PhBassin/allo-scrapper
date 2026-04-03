@@ -442,4 +442,104 @@ describe('Migration System', () => {
       );
     });
   });
+
+  describe('runMigrations with extraDirs', () => {
+    it('should apply only core migrations when extraDirs is omitted', async () => {
+      const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
+      db.query = mockQuery;
+
+      vi.mocked(fs.readdir).mockResolvedValue(['001_initial.sql'] as any);
+      vi.mocked(fs.readFile).mockResolvedValue('SELECT 1;');
+
+      await runMigrations(db);
+
+      // Only one readdir call (core migrations dir)
+      expect(vi.mocked(fs.readdir)).toHaveBeenCalledTimes(1);
+    });
+
+    it('should apply only core migrations when extraDirs is empty array', async () => {
+      const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
+      db.query = mockQuery;
+
+      vi.mocked(fs.readdir).mockResolvedValue(['001_initial.sql'] as any);
+      vi.mocked(fs.readFile).mockResolvedValue('SELECT 1;');
+
+      await runMigrations(db, []);
+
+      // Only one readdir call (core migrations dir)
+      expect(vi.mocked(fs.readdir)).toHaveBeenCalledTimes(1);
+    });
+
+    it('should read files from extra directories when provided', async () => {
+      const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
+      db.query = mockQuery;
+
+      // Core dir returns one file; extra dir returns one file
+      vi.mocked(fs.readdir)
+        .mockResolvedValueOnce(['001_initial.sql'] as any)      // core dir
+        .mockResolvedValueOnce(['saas_001_orgs.sql'] as any);   // extra dir
+
+      vi.mocked(fs.readFile).mockResolvedValue('SELECT 1;');
+
+      await runMigrations(db, ['/extra/migrations']);
+
+      expect(vi.mocked(fs.readdir)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(fs.readdir)).toHaveBeenNthCalledWith(
+        2,
+        '/extra/migrations'
+      );
+    });
+
+    it('should apply core migrations before extra dir migrations', async () => {
+      const appliedVersions: string[] = [];
+
+      const mockQuery = vi.fn().mockImplementation((sql: string, params?: unknown[]) => {
+        if (sql.includes('INSERT INTO schema_migrations') && params) {
+          appliedVersions.push(params[0] as string);
+        }
+        return Promise.resolve({ rows: [] });
+      });
+      db.query = mockQuery;
+
+      vi.mocked(fs.readdir)
+        .mockResolvedValueOnce(['001_initial.sql'] as any)       // core dir
+        .mockResolvedValueOnce(['saas_001_orgs.sql'] as any);    // extra dir
+
+      vi.mocked(fs.readFile).mockResolvedValue('SELECT 1;');
+
+      await runMigrations(db, ['/extra/migrations']);
+
+      // Core migration must be applied before saas migration
+      const coreIdx = appliedVersions.indexOf('001_initial.sql');
+      const saasIdx = appliedVersions.indexOf('saas_001_orgs.sql');
+      expect(coreIdx).toBeGreaterThanOrEqual(0);
+      expect(saasIdx).toBeGreaterThanOrEqual(0);
+      expect(coreIdx).toBeLessThan(saasIdx);
+    });
+
+    it('should skip extra dir files that are already applied', async () => {
+      // saas migration already applied
+      const mockQuery = vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('SELECT version FROM schema_migrations')) {
+          return Promise.resolve({ rows: [{ version: 'saas_001_orgs.sql' }] });
+        }
+        return Promise.resolve({ rows: [] });
+      });
+      db.query = mockQuery;
+
+      vi.mocked(fs.readdir)
+        .mockResolvedValueOnce([] as any)                        // core dir (empty)
+        .mockResolvedValueOnce(['saas_001_orgs.sql'] as any);    // extra dir
+
+      vi.mocked(fs.readFile).mockResolvedValue('SELECT 1;');
+
+      await runMigrations(db, ['/extra/migrations']);
+
+      // INSERT into schema_migrations should NOT be called (already applied)
+      expect(mockQuery).not.toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO schema_migrations'),
+        expect.arrayContaining(['saas_001_orgs.sql', expect.any(String)])
+      );
+    });
+  });
 });

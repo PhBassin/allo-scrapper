@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import type { DB } from './db/client.js';
-import { createApp } from './app.js';
+import type { Pool } from 'pg';
+import { createApp, applyPlugins, type AppPlugin } from './app.js';
 
 // Mock dependencies
 vi.mock('./services/theme-generator.js');
@@ -302,5 +303,67 @@ describe('App - Theme Endpoint', () => {
       expect(cspHeader).toMatch(/font-src[^;]*'self'/);
       expect(cspHeader).toMatch(/font-src[^;]*data:/);
     });
+  });
+});
+
+describe('AppPlugin / applyPlugins', () => {
+  let app: Express;
+  const mockDb = {} as DB;
+  const mockPool = {} as Pool;
+
+  beforeEach(() => {
+    app = createApp();
+    app.set('db', mockDb);
+    app.set('pool', mockPool);
+    vi.clearAllMocks();
+  });
+
+  it('should call register on each plugin with app and options', async () => {
+    const plugin1: AppPlugin = { name: 'p1', register: vi.fn() };
+    const plugin2: AppPlugin = { name: 'p2', register: vi.fn() };
+
+    await applyPlugins(app, [plugin1, plugin2], { pool: mockPool, db: mockDb });
+
+    expect(plugin1.register).toHaveBeenCalledOnce();
+    expect(plugin1.register).toHaveBeenCalledWith(app, { pool: mockPool, db: mockDb });
+    expect(plugin2.register).toHaveBeenCalledOnce();
+    expect(plugin2.register).toHaveBeenCalledWith(app, { pool: mockPool, db: mockDb });
+  });
+
+  it('should resolve without error when plugins array is empty', async () => {
+    await expect(applyPlugins(app, [], { pool: mockPool, db: mockDb })).resolves.toBeUndefined();
+  });
+
+  it('should await async register functions before returning', async () => {
+    const order: string[] = [];
+    const asyncPlugin: AppPlugin = {
+      name: 'async',
+      register: vi.fn(async () => {
+        await new Promise<void>(resolve => setTimeout(resolve, 10));
+        order.push('plugin-done');
+      }),
+    };
+
+    await applyPlugins(app, [asyncPlugin], { pool: mockPool, db: mockDb });
+    order.push('after-apply');
+
+    expect(order).toEqual(['plugin-done', 'after-apply']);
+  });
+
+  it('should call plugins in order', async () => {
+    const callOrder: string[] = [];
+    const pluginA: AppPlugin = { name: 'A', register: vi.fn(() => { callOrder.push('A'); }) };
+    const pluginB: AppPlugin = { name: 'B', register: vi.fn(() => { callOrder.push('B'); }) };
+    const pluginC: AppPlugin = { name: 'C', register: vi.fn(() => { callOrder.push('C'); }) };
+
+    await applyPlugins(app, [pluginA, pluginB, pluginC], { pool: mockPool, db: mockDb });
+
+    expect(callOrder).toEqual(['A', 'B', 'C']);
+  });
+
+  it('createApp() still works with no arguments (backward compat)', () => {
+    expect(() => createApp()).not.toThrow();
+    const a = createApp();
+    expect(a).toBeDefined();
   });
 });
