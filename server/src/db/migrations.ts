@@ -220,10 +220,22 @@ export async function runMigrations(db: DB, extraDirs: string[] = []): Promise<v
   );
   const appliedVersions = new Set(appliedResult.rows.map(r => r.version));
 
-  // Warn about applied migrations whose files no longer exist (core only)
+  // Collect all filenames known across extra dirs (before warning loop)
+  // Also store { dir, filename } for pending detection to avoid double reads.
+  const extraDirEntries: Array<{ dir: string; filename: string }> = [];
+  const extraDirFiles = new Set<string>();
+  for (const dir of extraDirs) {
+    const files = await fs.readdir(dir);
+    const sqlFiles = files.filter(f => f.endsWith('.sql')).sort();
+    for (const filename of sqlFiles) {
+      extraDirEntries.push({ dir, filename });
+      extraDirFiles.add(filename);
+    }
+  }
+
+  // Warn about applied migrations whose files no longer exist anywhere
   for (const applied of appliedVersions) {
-    if (!coreMigrationFiles.includes(applied)) {
-      // May be from an extra dir — only warn if it's not in any known location
+    if (!coreMigrationFiles.includes(applied) && !extraDirFiles.has(applied)) {
       logger.warn(
         `Migration ${applied} was applied but file not found in migrations/ directory`
       );
@@ -234,16 +246,7 @@ export async function runMigrations(db: DB, extraDirs: string[] = []): Promise<v
   const pendingCore = coreMigrationFiles.filter(f => !appliedVersions.has(f));
 
   // --- Extra directory migrations ---
-  const pendingExtra: Array<{ dir: string; filename: string }> = [];
-  for (const dir of extraDirs) {
-    const files = await fs.readdir(dir);
-    const sqlFiles = files.filter(f => f.endsWith('.sql')).sort();
-    for (const filename of sqlFiles) {
-      if (!appliedVersions.has(filename)) {
-        pendingExtra.push({ dir, filename });
-      }
-    }
-  }
+  const pendingExtra = extraDirEntries.filter(({ filename }) => !appliedVersions.has(filename));
 
   if (pendingCore.length === 0 && pendingExtra.length === 0) {
     logger.info('All migrations up to date');
