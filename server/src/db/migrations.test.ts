@@ -517,6 +517,33 @@ describe('Migration System', () => {
       expect(coreIdx).toBeLessThan(saasIdx);
     });
 
+    it('should NOT warn when an applied migration comes from an extra dir (not core)', async () => {
+      const { logger } = await import('../utils/logger.js');
+
+      // saas migration already applied, not present in core dir
+      const mockQuery = vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('SELECT version FROM schema_migrations')) {
+          return Promise.resolve({ rows: [{ version: 'saas_001_plans.sql' }] });
+        }
+        return Promise.resolve({ rows: [] });
+      });
+      db.query = mockQuery;
+
+      // Core dir is empty; extra dir has the file
+      vi.mocked(fs.readdir)
+        .mockResolvedValueOnce([] as any)                           // core dir
+        .mockResolvedValueOnce(['saas_001_plans.sql'] as any);      // extra dir
+
+      await runMigrations(db, ['/extra/migrations']);
+
+      // Should NOT warn about this applied migration
+      const warnCalls = vi.mocked(logger.warn).mock.calls.map(c => String(c[0]));
+      const falsePositive = warnCalls.some(
+        msg => msg.includes('saas_001_plans.sql') && msg.includes('applied but file not found')
+      );
+      expect(falsePositive).toBe(false);
+    });
+
     it('should skip extra dir files that are already applied', async () => {
       // saas migration already applied
       const mockQuery = vi.fn().mockImplementation((sql: string) => {
