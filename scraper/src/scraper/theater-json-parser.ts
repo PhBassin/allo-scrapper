@@ -96,7 +96,17 @@ function extractMovieId(movie: AllocineMovie): number | null {
 }
 
 function uniqueNonEmptyStrings(values: string[]): string[] {
-  return Array.from(new Set(values.map(v => v.trim()).filter(Boolean)));
+  // ⚡ PERFORMANCE: Use reduce instead of map().filter() to avoid allocating
+  // intermediate arrays during processing.
+  return Array.from(
+    new Set(
+      values.reduce<string[]>((acc, v) => {
+        const trimmed = v.trim();
+        if (trimmed) acc.push(trimmed);
+        return acc;
+      }, [])
+    )
+  );
 }
 
 /**
@@ -273,8 +283,20 @@ export function parseShowtimesJson(
       }
     }
 
-    const genres = decodeHtmlEntitiesArray((movie.genres ?? []).map(g => g.translate ?? '').filter(Boolean));
-    const nationalityRaw = (movie.countries ?? []).map(c => c.localizedName ?? '').filter(Boolean).join(', ') || undefined;
+    // ⚡ PERFORMANCE: Use reduce to extract and filter values in a single pass
+    // This avoids allocating intermediate arrays that .map().filter() would create,
+    // reducing garbage collection overhead during large showtime parsing loops.
+    const genres = decodeHtmlEntitiesArray(
+      (movie.genres ?? []).reduce<string[]>((acc, g) => {
+        if (g.translate) acc.push(g.translate);
+        return acc;
+      }, [])
+    );
+    const nationalityRaw =
+      (movie.countries ?? []).reduce<string[]>((acc, c) => {
+        if (c.localizedName) acc.push(c.localizedName);
+        return acc;
+      }, []).join(', ') || undefined;
     const nationality = decodeHtmlEntities(nationalityRaw);
     
     // Ratings (out of 5) - sanitize to filter NaN/Infinity
