@@ -12,28 +12,28 @@ import type { Organization } from '../db/types.js';
 
 // Mock EmailService and InvitationService to avoid real DB calls
 vi.mock('../services/email-service.js', () => ({
-  EmailService: vi.fn().mockImplementation(() => ({
-    verifyEmailToken: vi.fn(),
-    markEmailVerified: vi.fn().mockResolvedValue(undefined),
-    generateVerificationToken: vi.fn().mockReturnValue('a'.repeat(64)),
-    storeVerificationToken: vi.fn().mockResolvedValue(undefined),
-    sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
-  })),
+  EmailService: vi.fn().mockImplementation(function (this: any) {
+    this.verifyEmailToken = vi.fn();
+    this.markEmailVerified = vi.fn().mockResolvedValue(undefined);
+    this.generateVerificationToken = vi.fn().mockReturnValue('a'.repeat(64));
+    this.storeVerificationToken = vi.fn().mockResolvedValue(undefined);
+    this.sendVerificationEmail = vi.fn().mockResolvedValue(undefined);
+  }),
 }));
 
 vi.mock('../services/invitation-service.js', () => ({
-  InvitationService: vi.fn().mockImplementation(() => ({
-    createInvitation: vi.fn(),
-    getInvitationByToken: vi.fn(),
-    acceptInvitation: vi.fn(),
-  })),
+  InvitationService: vi.fn().mockImplementation(function (this: any) {
+    this.createInvitation = vi.fn();
+    this.getInvitationByToken = vi.fn();
+    this.acceptInvitation = vi.fn();
+  }),
 }));
 
 vi.mock('../services/saas-auth-service.js', () => ({
-  SaasAuthService: vi.fn().mockImplementation(() => ({
-    createAdminUser: vi.fn(),
-    mintJwt: vi.fn().mockReturnValue('mock.jwt.token'),
-  })),
+  SaasAuthService: vi.fn().mockImplementation(function (this: any) {
+    this.createAdminUser = vi.fn();
+    this.mintJwt = vi.fn().mockReturnValue('mock.jwt.token');
+  }),
 }));
 
 function makeOrg(slug = 'acme'): Organization {
@@ -52,7 +52,8 @@ function buildApp(orgSlug = 'acme') {
   const app = express();
   app.use(express.json());
 
-  const db = { query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }) };
+  // db.query returns the org row for getOrgBySlug lookups by default
+  const db = { query: vi.fn().mockResolvedValue({ rows: [makeOrg(orgSlug)], rowCount: 1 }) };
   const pool = {
     connect: vi.fn().mockResolvedValue({
       query: vi.fn().mockResolvedValue({ rows: [makeOrg(orgSlug)], rowCount: 1 }),
@@ -75,13 +76,13 @@ function buildApp(orgSlug = 'acme') {
 describe('GET /api/auth/verify-email/:token', () => {
   it('returns 200 when token is valid', async () => {
     const { EmailService } = await import('../services/email-service.js');
-    vi.mocked(EmailService).mockImplementation(() => ({
-      verifyEmailToken: vi.fn().mockResolvedValue(7),
-      markEmailVerified: vi.fn().mockResolvedValue(undefined),
-      generateVerificationToken: vi.fn().mockReturnValue('a'.repeat(64)),
-      storeVerificationToken: vi.fn().mockResolvedValue(undefined),
-      sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
-    }));
+    vi.mocked(EmailService).mockImplementation(function (this: any) {
+      this.verifyEmailToken = vi.fn().mockResolvedValue(7);
+      this.markEmailVerified = vi.fn().mockResolvedValue(undefined);
+      this.generateVerificationToken = vi.fn().mockReturnValue('a'.repeat(64));
+      this.storeVerificationToken = vi.fn().mockResolvedValue(undefined);
+      this.sendVerificationEmail = vi.fn().mockResolvedValue(undefined);
+    } as any);
 
     const app = buildApp();
     const { createOnboardingRouter } = await import('./onboarding.js');
@@ -94,13 +95,13 @@ describe('GET /api/auth/verify-email/:token', () => {
 
   it('returns 400 when token is invalid or expired', async () => {
     const { EmailService } = await import('../services/email-service.js');
-    vi.mocked(EmailService).mockImplementation(() => ({
-      verifyEmailToken: vi.fn().mockResolvedValue(null),
-      markEmailVerified: vi.fn().mockResolvedValue(undefined),
-      generateVerificationToken: vi.fn().mockReturnValue('a'.repeat(64)),
-      storeVerificationToken: vi.fn().mockResolvedValue(undefined),
-      sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
-    }));
+    vi.mocked(EmailService).mockImplementation(function (this: any) {
+      this.verifyEmailToken = vi.fn().mockResolvedValue(null);
+      this.markEmailVerified = vi.fn().mockResolvedValue(undefined);
+      this.generateVerificationToken = vi.fn().mockReturnValue('a'.repeat(64));
+      this.storeVerificationToken = vi.fn().mockResolvedValue(undefined);
+      this.sendVerificationEmail = vi.fn().mockResolvedValue(undefined);
+    } as any);
 
     const app = buildApp();
     const { createOnboardingRouter } = await import('./onboarding.js');
@@ -135,17 +136,17 @@ describe('POST /api/auth/join/:token', () => {
     const newUser = { id: 10, username: 'bob@example.com', role_id: 2, role_name: 'editor' };
 
     const { InvitationService } = await import('../services/invitation-service.js');
-    vi.mocked(InvitationService).mockImplementation(() => ({
-      createInvitation: vi.fn(),
-      getInvitationByToken: vi.fn().mockResolvedValue(invitation),
-      acceptInvitation: vi.fn().mockResolvedValue(newUser),
-    }));
+    vi.mocked(InvitationService).mockImplementation(function (this: any) {
+      this.createInvitation = vi.fn();
+      this.getInvitationByToken = vi.fn().mockResolvedValue(invitation);
+      this.acceptInvitation = vi.fn().mockResolvedValue(newUser);
+    } as any);
 
     const { SaasAuthService } = await import('../services/saas-auth-service.js');
-    vi.mocked(SaasAuthService).mockImplementation(() => ({
-      createAdminUser: vi.fn(),
-      mintJwt: vi.fn().mockReturnValue('join.jwt.token'),
-    }));
+    vi.mocked(SaasAuthService).mockImplementation(function (this: any) {
+      this.createAdminUser = vi.fn();
+      this.mintJwt = vi.fn().mockReturnValue('join.jwt.token');
+    } as any);
 
     const app = buildApp();
     // Inject org lookup mock for the join route
@@ -166,11 +167,11 @@ describe('POST /api/auth/join/:token', () => {
 
   it('returns 400 when invitation token is invalid or expired', async () => {
     const { InvitationService } = await import('../services/invitation-service.js');
-    vi.mocked(InvitationService).mockImplementation(() => ({
-      createInvitation: vi.fn(),
-      getInvitationByToken: vi.fn().mockResolvedValue(null),
-      acceptInvitation: vi.fn(),
-    }));
+    vi.mocked(InvitationService).mockImplementation(function (this: any) {
+      this.createInvitation = vi.fn();
+      this.getInvitationByToken = vi.fn().mockResolvedValue(null);
+      this.acceptInvitation = vi.fn();
+    } as any);
 
     const app = buildApp();
     const db = app.get('db') as { query: ReturnType<typeof vi.fn> };
@@ -202,11 +203,11 @@ describe('POST /api/org/:slug/invitations', () => {
     };
 
     const { InvitationService } = await import('../services/invitation-service.js');
-    vi.mocked(InvitationService).mockImplementation(() => ({
-      createInvitation: vi.fn().mockResolvedValue(invitation),
-      getInvitationByToken: vi.fn(),
-      acceptInvitation: vi.fn(),
-    }));
+    vi.mocked(InvitationService).mockImplementation(function (this: any) {
+      this.createInvitation = vi.fn().mockResolvedValue(invitation);
+      this.getInvitationByToken = vi.fn();
+      this.acceptInvitation = vi.fn();
+    } as any);
 
     const app = buildApp();
     // Mock requireAuth by injecting user

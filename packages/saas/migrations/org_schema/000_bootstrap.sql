@@ -21,13 +21,29 @@ ON CONFLICT (name) DO NOTHING;
 
 -- Users table (tenant members — one record per human per org)
 CREATE TABLE IF NOT EXISTS users (
-  id            SERIAL PRIMARY KEY,
-  username      VARCHAR(255) NOT NULL UNIQUE,
-  password_hash TEXT,
-  role_id       INTEGER NOT NULL DEFAULT 1 REFERENCES roles(id),
-  email_verified BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                   SERIAL PRIMARY KEY,
+  username             VARCHAR(255) NOT NULL UNIQUE,
+  password_hash        TEXT,
+  role_id              INTEGER NOT NULL DEFAULT 1 REFERENCES roles(id),
+  email_verified       BOOLEAN NOT NULL DEFAULT FALSE,
+  verification_token   TEXT,
+  verification_expires TIMESTAMPTZ,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
+
+-- Invitations table (pending member invitations)
+CREATE TABLE IF NOT EXISTS invitations (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       VARCHAR(255) NOT NULL,
+  role_id     INTEGER NOT NULL DEFAULT 1 REFERENCES roles(id),
+  token       TEXT NOT NULL UNIQUE,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  accepted_at TIMESTAMPTZ,
+  created_by  INTEGER REFERENCES users(id),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations (token);

@@ -10,6 +10,7 @@ import path from 'path';
 import type { Express } from 'express';
 import { createRegisterRouter } from './routes/register.js';
 import { createOrgRouter } from './routes/org.js';
+import { createOnboardingRouter } from './routes/onboarding.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +38,9 @@ export const saasPlugin: AppPlugin = {
     // Registration & slug availability
     app.use('/api', createRegisterRouter());
 
+    // Email verification & member invitation flows
+    app.use('/api', createOnboardingRouter());
+
     // All org-scoped routes: /api/org/:slug/*
     app.use('/api/org/:slug', createOrgRouter());
   },
@@ -47,8 +51,8 @@ export const saasPlugin: AppPlugin = {
  * Used by server/src/db/migrations.ts when SAAS_ENABLED=true.
  */
 export function getSaasMigrationDir(): string {
-  const isDocker = __dirname.startsWith('/app/');
-  return isDocker
+  const isProduction = process.env['NODE_ENV'] === 'production';
+  return isProduction
     ? path.join('/app', 'packages', 'saas', 'migrations')
     : path.join(__dirname, '../migrations');
 }

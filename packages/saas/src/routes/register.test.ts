@@ -98,10 +98,11 @@ describe('POST /api/saas/orgs (register)', () => {
     };
     const db = {
       query: vi.fn()
-        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })  // isSlugAvailable
-        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })  // second isSlugAvailable in createOrg
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })  // isSlugAvailable (route)
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })  // isSlugAvailable (createOrg)
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })                 // BEGIN
         .mockResolvedValueOnce({ rows: [org], rowCount: 1 })              // insertOrg
-        .mockResolvedValue({ rows: [], rowCount: 0 }),                    // rest (CREATE SCHEMA, bootstrap)
+        .mockResolvedValue({ rows: [], rowCount: 0 }),                    // rest (CREATE SCHEMA, bootstrap, COMMIT)
     };
     const pool = {
       connect: vi.fn().mockResolvedValue({

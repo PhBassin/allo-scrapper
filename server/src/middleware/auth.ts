@@ -13,6 +13,10 @@ export interface AuthRequest extends Request {
         role_name: string;
         is_system_role: boolean;
         permissions: PermissionName[];
+        /** Present in SaaS org-scoped JWTs; absent in standalone tokens */
+        org_id?: number;
+        /** Present in SaaS org-scoped JWTs; absent in standalone tokens */
+        org_slug?: string;
     };
 }
 
@@ -36,6 +40,8 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
             role_name: string;
             is_system_role: boolean;
             permissions: PermissionName[];
+            org_id?: number;
+            org_slug?: string;
         };
         req.user = decoded;
         next();

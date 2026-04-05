@@ -35,11 +35,12 @@ describe('createOrg', () => {
       schema_name: 'org_acme',
       status: 'trial',
     };
-    // Sequence: isSlugAvailable (count=0) → insertOrg (org row) → CREATE SCHEMA → SET + bootstrap SQL
+    // Sequence: isSlugAvailable (count=0) → BEGIN → insertOrg (org row) → CREATE SCHEMA → SET + bootstrap SQL → COMMIT
     const queryMock = vi.fn()
       .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }) // isSlugAvailable
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                // BEGIN
       .mockResolvedValueOnce({ rows: [org], rowCount: 1 })             // insertOrg
-      .mockResolvedValue({ rows: [], rowCount: 0 });                   // CREATE SCHEMA + bootstrap queries
+      .mockResolvedValue({ rows: [], rowCount: 0 });                   // CREATE SCHEMA + bootstrap queries + COMMIT
 
     const db = makeDb({ query: queryMock });
 
@@ -65,8 +66,10 @@ describe('createOrg', () => {
     };
     const queryMock = vi.fn()
       .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }) // isSlugAvailable
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                // BEGIN
       .mockResolvedValueOnce({ rows: [org], rowCount: 1 })             // insertOrg
-      .mockRejectedValueOnce(new Error('schema creation failed'));      // CREATE SCHEMA throws
+      .mockRejectedValueOnce(new Error('schema creation failed'))      // CREATE SCHEMA throws
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });               // ROLLBACK
 
     const db = makeDb({ query: queryMock });
 
@@ -94,8 +97,9 @@ describe('createOrg', () => {
     };
     const queryMock = vi.fn()
       .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }) // isSlugAvailable
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                // BEGIN
       .mockResolvedValueOnce({ rows: [org], rowCount: 1 })             // insertOrg
-      .mockResolvedValue({ rows: [], rowCount: 0 });                   // CREATE SCHEMA + bootstrap
+      .mockResolvedValue({ rows: [], rowCount: 0 });                   // CREATE SCHEMA + bootstrap + COMMIT
 
     const db = makeDb({ query: queryMock });
 
