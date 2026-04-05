@@ -5,12 +5,23 @@
  * GET  /api/saas/orgs/:slug/available — check slug availability
  */
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { isSlugAvailable } from '../db/org-queries.js';
 import { createOrg } from '../services/org-service.js';
 import { SaasAuthService } from '../services/saas-auth-service.js';
+import { EmailService } from '../services/email-service.js';
 import type { DB, Pool } from '../db/types.js';
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
+
+/** Rate limit: 5 org-creation attempts per 15 minutes per IP */
+const orgCreationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env['RATE_LIMIT_SAAS_ORG_MAX'] ?? '5', 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many registration attempts, please try again later.' },
+});
 
 export function createRegisterRouter(): Router {
   const router = Router();
@@ -22,7 +33,7 @@ export function createRegisterRouter(): Router {
    *
    * Body: { orgName, slug, adminEmail, adminPassword }
    */
-  router.post('/saas/orgs', async (req, res) => {
+  router.post('/saas/orgs', orgCreationLimiter, async (req, res) => {
     const { orgName, slug, adminEmail, adminPassword } = req.body as Record<string, string>;
 
     const errors: string[] = [];
@@ -66,6 +77,16 @@ export function createRegisterRouter(): Router {
       roleId: adminUser.role_id,
       roleName: adminUser.role_name,
       permissions: [], // Phase 3: load from org schema permissions table
+    });
+
+    // Dispatch verification email non-blocking (fire-and-forget)
+    const emailService = new EmailService(db);
+    const verificationToken = emailService.generateVerificationToken();
+    const prefixedToken = `${org.slug}:${verificationToken}`;
+    emailService.storeVerificationToken(org, adminUser.id, prefixedToken).then(() =>
+      emailService.sendVerificationEmail(adminEmail, prefixedToken, org.slug)
+    ).catch((err: unknown) => {
+      console.error('[register] Failed to send verification email:', err);
     });
 
     return res.status(201).json({

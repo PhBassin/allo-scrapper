@@ -61,3 +61,29 @@ export interface MintJwtInput {
   roleName: string;
   permissions: string[];
 }
+
+/** A user row within an org schema */
+export interface OrgUser {
+  id: number;
+  username: string;
+  password_hash: string | null;
+  role_id: number;
+  role_name?: string;
+  email_verified: boolean;
+  verification_token: string | null;
+  verification_expires: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A row from the org-schema invitations table */
+export interface Invitation {
+  id: string;
+  email: string;
+  role_id: number;
+  token: string;
+  expires_at: string;
+  accepted_at: string | null;
+  created_by: number | null;
+  created_at: string;
+}

@@ -35,11 +35,12 @@ describe('createOrg', () => {
       schema_name: 'org_acme',
       status: 'trial',
     };
-    // Sequence: isSlugAvailable (count=0) → insertOrg (org row) → CREATE SCHEMA → SET + bootstrap SQL
+    // Sequence: isSlugAvailable (count=0) → BEGIN → insertOrg (org row) → CREATE SCHEMA → SET + bootstrap SQL → COMMIT
     const queryMock = vi.fn()
       .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }) // isSlugAvailable
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                // BEGIN
       .mockResolvedValueOnce({ rows: [org], rowCount: 1 })             // insertOrg
-      .mockResolvedValue({ rows: [], rowCount: 0 });                   // CREATE SCHEMA + bootstrap queries
+      .mockResolvedValue({ rows: [], rowCount: 0 });                   // CREATE SCHEMA + bootstrap queries + COMMIT
 
     const db = makeDb({ query: queryMock });
 
@@ -53,5 +54,62 @@ describe('createOrg', () => {
       ([sql]: [string]) => sql
     );
     expect(calls.some((sql) => sql.includes('CREATE SCHEMA'))).toBe(true);
+  });
+
+  it('issues BEGIN and ROLLBACK when schema creation fails', async () => {
+    const org = {
+      id: 1,
+      name: 'Acme',
+      slug: 'acme',
+      schema_name: 'org_acme',
+      status: 'trial',
+    };
+    const queryMock = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }) // isSlugAvailable
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                // BEGIN
+      .mockResolvedValueOnce({ rows: [org], rowCount: 1 })             // insertOrg
+      .mockRejectedValueOnce(new Error('schema creation failed'))      // CREATE SCHEMA throws
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });               // ROLLBACK
+
+    const db = makeDb({ query: queryMock });
+
+    const { createOrg } = await import('./org-service.js');
+    await expect(createOrg(db, { name: 'Acme', slug: 'acme' })).rejects.toThrow(
+      'schema creation failed'
+    );
+
+    const calls = (queryMock as ReturnType<typeof vi.fn>).mock.calls.map(
+      ([sql]: [string]) => (sql as string).trim().toUpperCase()
+    );
+    // Transaction must have been started
+    expect(calls.some((sql) => sql === 'BEGIN')).toBe(true);
+    // ROLLBACK must have been issued after the failure
+    expect(calls.some((sql) => sql === 'ROLLBACK')).toBe(true);
+  });
+
+  it('issues BEGIN and COMMIT on success', async () => {
+    const org = {
+      id: 2,
+      name: 'Beta',
+      slug: 'beta',
+      schema_name: 'org_beta',
+      status: 'trial',
+    };
+    const queryMock = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }) // isSlugAvailable
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                // BEGIN
+      .mockResolvedValueOnce({ rows: [org], rowCount: 1 })             // insertOrg
+      .mockResolvedValue({ rows: [], rowCount: 0 });                   // CREATE SCHEMA + bootstrap + COMMIT
+
+    const db = makeDb({ query: queryMock });
+
+    const { createOrg } = await import('./org-service.js');
+    await createOrg(db, { name: 'Beta', slug: 'beta' });
+
+    const calls = (queryMock as ReturnType<typeof vi.fn>).mock.calls.map(
+      ([sql]: [string]) => (sql as string).trim().toUpperCase()
+    );
+    expect(calls.some((sql) => sql === 'BEGIN')).toBe(true);
+    expect(calls.some((sql) => sql === 'COMMIT')).toBe(true);
   });
 });

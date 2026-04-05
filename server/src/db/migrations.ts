@@ -67,14 +67,13 @@ export async function createSchemaTable(db: DB): Promise<void> {
  * Detection strategy: Check if running from /app/dist (Docker) or local dev path
  */
 function getMigrationsDir(): string {
-  // In Docker, __dirname is /app/dist/db
-  // In development, __dirname is /path/to/project/server/src/db (compiled to dist/db)
-  const isDocker = __dirname.startsWith('/app/dist');
-  return isDocker 
+  // In production (Docker): NODE_ENV=production → /app/migrations
+  // In development: relative to __dirname
+  const isProduction = process.env['NODE_ENV'] === 'production';
+  return isProduction
     ? path.join('/app', 'migrations')
     : path.join(__dirname, '../../../migrations');
 }
-
 /**
  * Read a migration file from the migrations directory
  * 

@@ -17,8 +17,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function getOrgSchemaBootstrapDir(): string {
-  const isDocker = __dirname.startsWith('/app/');
-  return isDocker
+  const isProduction = process.env['NODE_ENV'] === 'production';
+  return isProduction
     ? path.join('/app', 'packages', 'saas', 'migrations', 'org_schema')
     : path.join(__dirname, '../../migrations/org_schema');
 }
@@ -63,14 +63,21 @@ export async function createOrg(
     throw new Error(`Slug "${input.slug}" is already taken`);
   }
 
-  const org = await insertOrg(db, input);
-  const schemaName = slugToSchemaName(input.slug);
+  await db.query('BEGIN');
+  try {
+    const org = await insertOrg(db, input);
+    const schemaName = slugToSchemaName(input.slug);
 
-  // Create the PostgreSQL schema for this org
-  await db.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
+    // Create the PostgreSQL schema for this org
+    await db.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
 
-  // Bootstrap all org-level tables
-  await bootstrapOrgSchema(db, schemaName);
+    // Bootstrap all org-level tables
+    await bootstrapOrgSchema(db, schemaName);
 
-  return { org, schemaCreated: true };
+    await db.query('COMMIT');
+    return { org, schemaCreated: true };
+  } catch (err) {
+    await db.query('ROLLBACK');
+    throw err;
+  }
 }

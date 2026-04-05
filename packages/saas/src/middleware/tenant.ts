@@ -34,18 +34,26 @@ export async function resolveTenant(
   const slug = req.params['slug'] as string;
   const pool = req.app.get('pool') as Pool;
   const client = await pool.connect();
+  let released = false;
+
+  const releaseOnce = () => {
+    if (!released) {
+      released = true;
+      client.release();
+    }
+  };
 
   try {
     const org = await getOrgBySlug(client, slug);
 
     if (!org) {
-      client.release();
+      releaseOnce();
       res.status(404).json({ success: false, error: 'Organization not found' });
       return;
     }
 
     if (!ACTIVE_STATUSES.has(org.status)) {
-      client.release();
+      releaseOnce();
       res.status(403).json({ success: false, error: `Organization is ${org.status}` });
       return;
     }
@@ -61,9 +69,7 @@ export async function resolveTenant(
 
     await next();
   } finally {
-    // Always release the client back to the pool
-    if (req.dbClient) {
-      req.dbClient.release();
-    }
+    // Always release the client back to the pool (no-op if already released above)
+    releaseOnce();
   }
 }

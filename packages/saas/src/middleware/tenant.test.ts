@@ -119,6 +119,39 @@ describe('resolveTenant', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it('releases client exactly ONCE when org is not found (not twice)', async () => {
+    const client = {
+      query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+      release: vi.fn(),
+    };
+    const pool = { connect: vi.fn().mockResolvedValue(client) };
+    const req = makeReq('missing', pool);
+    const res = makeRes();
+    const next = vi.fn();
+
+    const { resolveTenant } = await import('./tenant.js');
+    await resolveTenant(req as unknown as Request, res as unknown as Response, next as unknown as NextFunction);
+
+    expect(client.release).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases client exactly ONCE when org is suspended (not twice)', async () => {
+    const org = { id: 3, slug: 'bad', schema_name: 'org_bad', status: 'suspended' };
+    const client = {
+      query: vi.fn().mockResolvedValue({ rows: [org], rowCount: 1 }),
+      release: vi.fn(),
+    };
+    const pool = { connect: vi.fn().mockResolvedValue(client) };
+    const req = makeReq('bad', pool);
+    const res = makeRes();
+    const next = vi.fn();
+
+    const { resolveTenant } = await import('./tenant.js');
+    await resolveTenant(req as unknown as Request, res as unknown as Response, next as unknown as NextFunction);
+
+    expect(client.release).toHaveBeenCalledTimes(1);
+  });
+
   it('always releases the client even when next() throws', async () => {
     const org = { id: 1, slug: 'acme', schema_name: 'org_acme', status: 'active' };
     const client = {
