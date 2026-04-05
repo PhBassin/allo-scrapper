@@ -7,11 +7,39 @@
  */
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { getOrgBySlug } from '../db/org-queries.js';
 import type { DB, Pool } from '../db/types.js';
 import { EmailService } from '../services/email-service.js';
 import { InvitationService } from '../services/invitation-service.js';
 import { SaasAuthService } from '../services/saas-auth-service.js';
+
+/** Rate limit: 10 email verification attempts per 15 minutes per IP */
+const verifyEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseInt(process.env['RATE_LIMIT_VERIFY_EMAIL_MAX'] ?? '10', 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many verification attempts, please try again later.' },
+});
+
+/** Rate limit: 10 join/invitation-acceptance attempts per 15 minutes per IP */
+const joinLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseInt(process.env['RATE_LIMIT_JOIN_MAX'] ?? '10', 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many join attempts, please try again later.' },
+});
+
+/** Rate limit: 20 invitation-creation requests per 15 minutes per IP */
+const invitationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseInt(process.env['RATE_LIMIT_INVITATION_MAX'] ?? '20', 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many invitation requests, please try again later.' },
+});
 
 export function createOnboardingRouter(): Router {
   const router = Router();
@@ -22,7 +50,7 @@ export function createOnboardingRouter(): Router {
    * Token format: `orgSlug:hex64`
    * Resolves the org from the slug prefix, then verifies the token.
    */
-  router.get('/auth/verify-email/:token', async (req: Request, res: Response) => {
+  router.get('/auth/verify-email/:token', verifyEmailLimiter, async (req: Request, res: Response) => {
     try {
       const { token } = req.params as { token: string };
 
@@ -66,7 +94,7 @@ export function createOnboardingRouter(): Router {
    *
    * Token format: `orgSlug:hex64`
    */
-  router.post('/auth/join/:token', async (req: Request, res: Response) => {
+  router.post('/auth/join/:token', joinLimiter, async (req: Request, res: Response) => {
     try {
       const { token } = req.params as { token: string };
       const { password } = req.body as { password?: string };
@@ -130,7 +158,7 @@ export function createOnboardingRouter(): Router {
    * Create a member invitation. Requires authentication.
    * Body: { email: string, role_id?: number }
    */
-  router.post('/org/:slug/invitations', async (req: Request, res: Response) => {
+  router.post('/org/:slug/invitations', invitationLimiter, async (req: Request, res: Response) => {
     try {
       const { slug } = req.params as { slug: string };
       const { email, role_id } = req.body as { email?: string; role_id?: number };

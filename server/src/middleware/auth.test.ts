@@ -50,6 +50,7 @@ async function buildApp() {
   const { requireAuth } = await import('./auth.js');
   const app = express();
   app.use(express.json());
+  // lgtm[js/missing-rate-limiting] — test-only helper app, no real network exposure
   app.get('/protected', requireAuth, (req: any, res) => {
     res.json({ user: req.user });
   });
