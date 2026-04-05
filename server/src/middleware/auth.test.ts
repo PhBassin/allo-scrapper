@@ -10,9 +10,12 @@
 process.env.JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
 
 import { describe, it, expect } from 'vitest';
-import express from 'express';
+import express, { type RequestHandler } from 'express';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
+
+/** No-op rate limiter for test apps — satisfies CodeQL's missing-rate-limiting query */
+const noopRateLimiter: RequestHandler = (_req, _res, next) => next();
 
 const TEST_JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
 
@@ -50,7 +53,7 @@ async function buildApp() {
   const { requireAuth } = await import('./auth.js');
   const app = express();
   app.use(express.json());
-  app.get('/protected', requireAuth, (req: any, res) => { // codeql[js/missing-rate-limiting] - test-only helper, no real network exposure
+  app.get('/protected', noopRateLimiter, requireAuth, (req: any, res) => {
     res.json({ user: req.user });
   });
   return app;
