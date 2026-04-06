@@ -1,5 +1,4 @@
 import express from 'express';
-import type { DB } from '../db/client.js';
 import { CinemaService } from '../services/cinema-service.js';
 import { getWeekStart } from '../utils/date.js';
 import type { ApiResponse } from '../types/api.js';
@@ -7,13 +6,14 @@ import { publicLimiter, protectedLimiter } from '../middleware/rate-limit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
+import { getDbFromRequest } from '../utils/db-from-request.js';
 
 const router = express.Router();
 
 // GET /api/cinemas - Get all cinemas
 router.get('/', publicLimiter, async (req, res, next) => {
   try {
-    const db: DB = req.app.get('db');
+    const db = getDbFromRequest(req);
     const cinemaService = new CinemaService(db);
     const cinemas = await cinemaService.getAllCinemas();
 
@@ -31,7 +31,7 @@ router.get('/', publicLimiter, async (req, res, next) => {
 // POST /api/cinemas - Add a new cinema
 router.post('/', protectedLimiter, requireAuth, requirePermission('cinemas:create'), async (req, res, next) => {
   try {
-    const db: DB = req.app.get('db');
+    const db = getDbFromRequest(req);
     const cinemaService = new CinemaService(db);
     const { id, name, url } = req.body;
 
@@ -80,7 +80,7 @@ router.post('/', protectedLimiter, requireAuth, requirePermission('cinemas:creat
 // PUT /api/cinemas/:id - Update a cinema's configuration
 router.put('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:update'), async (req, res, next) => {
   try {
-    const db: DB = req.app.get('db');
+    const db = getDbFromRequest(req);
     const cinemaService = new CinemaService(db);
     const cinemaId = req.params.id as string;
     
@@ -105,7 +105,7 @@ router.put('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:upd
 // DELETE /api/cinemas/:id - Delete a cinema (cascades to showtimes and weekly_programs)
 router.delete('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:delete'), async (req, res, next) => {
   try {
-    const db: DB = req.app.get('db');
+    const db = getDbFromRequest(req);
     const cinemaService = new CinemaService(db);
     const cinemaId = req.params.id as string;
     
@@ -123,7 +123,7 @@ router.delete('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:
 // GET /api/cinemas/:id - Get cinema schedule
 router.get('/:id', publicLimiter, async (req, res, next) => {
   try {
-    const db: DB = req.app.get('db');
+    const db = getDbFromRequest(req);
     const cinemaService = new CinemaService(db);
     const cinemaId = req.params.id as string;
     const weekStart = getWeekStart();

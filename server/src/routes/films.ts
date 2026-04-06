@@ -1,18 +1,18 @@
 import { parseStrictInt } from '../utils/number.js';
 import express from 'express';
-import type { DB } from '../db/client.js';
 import { FilmService } from '../services/film-service.js';
 import { getWeekStart } from '../utils/date.js';
 import type { ApiResponse } from '../types/api.js';
 import { publicLimiter } from '../middleware/rate-limit.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
+import { getDbFromRequest } from '../utils/db-from-request.js';
 
 const router = express.Router();
 
 // GET /api/films - Get weekly films or films by date
 router.get('/', publicLimiter, async (req, res, next) => {
   try {
-    const db: DB = req.app.get('db');
+    const db = getDbFromRequest(req);
     const filmService = new FilmService(db);
     const weekStart = getWeekStart();
     const dateParam = req.query.date as string | undefined;
@@ -51,7 +51,7 @@ router.get('/', publicLimiter, async (req, res, next) => {
 // GET /api/films/search - Search films with fuzzy matching
 router.get('/search', publicLimiter, async (req, res, next) => {
   try {
-    const db: DB = req.app.get('db');
+    const db = getDbFromRequest(req);
     const filmService = new FilmService(db);
     const query = req.query.q as string | undefined;
     
@@ -79,7 +79,7 @@ router.get('/search', publicLimiter, async (req, res, next) => {
 // GET /api/films/:id - Get film by ID
 router.get('/:id', publicLimiter, async (req, res, next) => {
   try {
-    const db: DB = req.app.get('db');
+    const db = getDbFromRequest(req);
     const filmService = new FilmService(db);
     const filmId = parseStrictInt(req.params.id);
     const weekStart = getWeekStart();

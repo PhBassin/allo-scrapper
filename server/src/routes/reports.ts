@@ -1,6 +1,5 @@
 import { parseStrictInt } from '../utils/number.js';
 import express from 'express';
-import type { DB } from '../db/client.js';
 import { getScrapeReports, getScrapeReport } from '../db/report-queries.js';
 import type { ApiResponse, PaginatedResponse, GetReportsQuery } from '../types/api.js';
 import type { ScrapeReport } from '../db/report-queries.js';
@@ -9,13 +8,14 @@ import { requirePermission } from '../middleware/permission.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
 import { getScrapeAttemptsByReport } from '../db/scrape-attempt-queries.js';
+import { getDbFromRequest } from '../utils/db-from-request.js';
 
 const router = express.Router();
 
 // GET /api/reports - Get all scrape reports (paginated)
 router.get('/', protectedLimiter, requireAuth, requirePermission('reports:list'), async (req, res, next) => {
   try {
-    const db: DB = req.app.get('db');
+    const db = getDbFromRequest(req);
     const query = req.query as GetReportsQuery;
     let page = parseStrictInt(query.page || '1');
     let pageSize = parseStrictInt(query.pageSize || '20');
@@ -61,7 +61,7 @@ router.get('/', protectedLimiter, requireAuth, requirePermission('reports:list')
 // GET /api/reports/:id - Get a specific report
 router.get('/:id', protectedLimiter, requireAuth, requirePermission('reports:view'), async (req, res, next) => {
   try {
-    const db: DB = req.app.get('db');
+    const db = getDbFromRequest(req);
     const reportId = parseStrictInt(req.params.id);
 
     if (isNaN(reportId)) {
@@ -88,7 +88,7 @@ router.get('/:id', protectedLimiter, requireAuth, requirePermission('reports:vie
 // GET /api/reports/:id/details - Get report with detailed attempt breakdown
 router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('reports:view'), async (req, res, next) => {
   try {
-    const db: DB = req.app.get('db');
+    const db = getDbFromRequest(req);
     const reportId = parseStrictInt(req.params.id);
 
     if (isNaN(reportId)) {

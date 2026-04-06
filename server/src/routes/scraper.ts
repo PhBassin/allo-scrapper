@@ -1,7 +1,6 @@
 import { parseStrictInt } from '../utils/number.js';
 import express, { Response, NextFunction } from 'express';
 import type { ApiResponse } from '../types/api.js';
-import type { DB } from '../db/client.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { scraperLimiter, protectedLimiter } from '../middleware/rate-limit.js';
@@ -19,12 +18,13 @@ import {
 } from '../db/schedule-queries.js';
 import { getScrapeReport } from '../db/report-queries.js';
 import { getPendingScrapeAttempts } from '../db/scrape-attempt-queries.js';
+import { getDbFromRequest } from '../utils/db-from-request.js';
 
 const router = express.Router();
 
 // POST /api/scraper/trigger - Start a manual scrape (delegates to Redis microservice)
 router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const dbConn: DB = req.app.get('db');
+  const dbConn = getDbFromRequest(req);
   const scraperService = new ScraperService(dbConn);
 
   try {
@@ -66,7 +66,7 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
 
 // POST /api/scraper/resume/:reportId - Resume a failed or rate-limited scrape
 router.post('/resume/:reportId', scraperLimiter, requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const dbConn: DB = req.app.get('db');
+  const dbConn = getDbFromRequest(req);
   const scraperService = new ScraperService(dbConn);
 
   try {
@@ -123,7 +123,7 @@ router.post('/resume/:reportId', scraperLimiter, requireAuth, async (req: AuthRe
 
 // GET /api/scraper/status - Get current scrape status
 router.get('/status', scraperLimiter, async (req, res, next) => {
-  const dbConn: DB = req.app.get('db');
+  const dbConn = getDbFromRequest(req);
   const scraperService = new ScraperService(dbConn);
 
   try {
@@ -143,7 +143,7 @@ router.get('/status', scraperLimiter, async (req, res, next) => {
 // GET /api/scraper/progress - SSE endpoint for real-time progress
 router.get('/progress', scraperLimiter, (req, res, next) => {
   try {
-    const dbConn: DB = req.app.get('db');
+    const dbConn = getDbFromRequest(req);
     const scraperService = new ScraperService(dbConn);
     
     const cleanup = scraperService.subscribeToProgress(res, () => {
@@ -164,7 +164,7 @@ router.get(
   requirePermission('scraper:schedules:list'),
   async (req, res, next) => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
       const schedules = await getAllSchedules(db);
       const response: ApiResponse = { success: true, data: schedules };
       res.json(response);
@@ -182,7 +182,7 @@ router.get(
   requirePermission('scraper:schedules:list'),
   async (req, res, next) => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
       const id = parseStrictInt(req.params.id);
 
       if (isNaN(id)) {
@@ -210,7 +210,7 @@ router.post(
   requirePermission('scraper:schedules:create'),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
       const userId = req.user?.id;
 
       if (!userId) {
@@ -260,7 +260,7 @@ router.put(
   requirePermission('scraper:schedules:update'),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
       const userId = req.user?.id;
 
       if (!userId) {
@@ -312,7 +312,7 @@ router.delete(
   requirePermission('scraper:schedules:delete'),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
       const id = parseStrictInt(req.params.id);
 
       if (isNaN(id)) {
@@ -346,7 +346,7 @@ router.post(
   requirePermission('scraper:schedules:update'),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
       const scraperService = new ScraperService(db);
 
       const id = parseStrictInt(req.params.id);

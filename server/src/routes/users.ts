@@ -1,6 +1,5 @@
 import { parseStrictInt } from '../utils/number.js';
 import express, { NextFunction } from 'express';
-import type { DB } from '../db/client.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
@@ -18,6 +17,7 @@ import bcrypt from 'bcryptjs';
 import { logger } from '../utils/logger.js';
 import { validatePasswordStrength } from '../utils/security.js';
 import { ValidationError, NotFoundError, AuthError } from '../utils/errors.js';
+import { getDbFromRequest } from '../utils/db-from-request.js';
 
 const router = express.Router();
 
@@ -36,7 +36,7 @@ router.get(
   requirePermission('users:list'),
   async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
 
       // Parse pagination params
       let limit = req.query.limit ? parseStrictInt(req.query.limit) : 100;
@@ -85,7 +85,7 @@ router.get(
   requirePermission('users:list'),
   async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
 
       const userId = parseStrictInt(req.params.id);
 
@@ -128,7 +128,7 @@ router.post(
   requirePermission('users:create'),
   async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
 
       const { username, password, role_id } = req.body;
 
@@ -214,7 +214,7 @@ router.put(
   requirePermission('users:update'),
   async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
 
       const userId = parseStrictInt(req.params.id);
       const { role_id } = req.body;
@@ -294,7 +294,7 @@ router.post(
   requirePermission('users:update'),
   async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
 
       const userId = parseStrictInt(req.params.id);
 
@@ -356,7 +356,7 @@ router.delete(
   requirePermission('users:delete'),
   async (req: AuthRequest, res: express.Response, next: NextFunction): Promise<void> => {
     try {
-      const db: DB = req.app.get('db');
+      const db = getDbFromRequest(req);
 
       const userId = parseStrictInt(req.params.id);
 

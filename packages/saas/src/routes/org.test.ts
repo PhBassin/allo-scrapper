@@ -14,6 +14,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
+
+// The same secret configured in vitest.config.ts env
+const TEST_JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
+
+/** Mint a short-lived JWT for use in test Authorization headers. */
+function mintToken(payload: Record<string, unknown>): string {
+  return jwt.sign(payload, TEST_JWT_SECRET, { expiresIn: '1h' });
+}
 
 // ── Shared mock helpers ──────────────────────────────────────────────────────
 
@@ -36,8 +45,8 @@ function makeOrg(slug = 'acme', status = 'active') {
  *
  * @param orgSlug  – slug the tenant middleware will resolve to
  * @param orgStatus – 'active' | 'trial' | 'suspended' | 'canceled'
- * @param dbRows   – rows to return from the scoped dbClient.query()
- * @param jwtUser  – optional: user object attached to req.user (simulates requireAuth)
+ * @param dbRows   – rows to return from the scoped dbClient.query() (after infra calls)
+ * @param jwtUser  – optional: user payload to mint a JWT for; returned as `token`
  */
 function buildApp(
   orgSlug = 'acme',
@@ -50,9 +59,16 @@ function buildApp(
 
   const org = makeOrg(orgSlug, orgStatus);
 
-  // Scoped client returned by pool.connect()
+  // Scoped client returned by pool.connect().
+  // resolveTenant always makes 2 infrastructure queries before the handler runs:
+  //   1. getOrgBySlug → returns the org row
+  //   2. SET search_path → returns empty
+  // Subsequent calls return dbRows (the handler's data).
   const dbClient = {
-    query: vi.fn().mockResolvedValue({ rows: dbRows, rowCount: dbRows.length }),
+    query: vi.fn()
+      .mockResolvedValueOnce({ rows: [org], rowCount: 1 })        // getOrgBySlug
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })             // SET search_path
+      .mockResolvedValue({ rows: dbRows, rowCount: dbRows.length }), // handler queries
     release: vi.fn(),
   };
   const pool = { connect: vi.fn().mockResolvedValue(dbClient) };
@@ -64,15 +80,10 @@ function buildApp(
   };
   app.set('db', db);
 
-  // Simulate requireAuth by attaching req.user before routes if jwtUser provided
-  if (jwtUser) {
-    app.use((req, _res, next) => {
-      (req as any).user = jwtUser;
-      next();
-    });
-  }
+  // Mint a real JWT so requireAuth can verify it from the Authorization header
+  const token = jwtUser ? mintToken(jwtUser) : undefined;
 
-  return { app, pool, dbClient, db, org };
+  return { app, pool, dbClient, db, org, token };
 }
 
 // ── ping (regression) ────────────────────────────────────────────────────────
@@ -137,11 +148,13 @@ describe('requireOrgAuth', () => {
       permissions: [],
       org_slug: 'other-org', // token belongs to a different org
     };
-    const { app } = buildApp('acme', 'active', [], jwtUser);
+    const { app, token } = buildApp('acme', 'active', [], jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
-    const res = await request(app).get('/api/org/acme/cinemas');
+    const res = await request(app)
+      .get('/api/org/acme/cinemas')
+      .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(403);
     expect(res.body.error).toMatch(/token does not match/i);
   });
@@ -156,11 +169,13 @@ describe('requireOrgAuth', () => {
       org_slug: 'acme',
     };
     const cinemas = [{ id: 'C001', name: 'Acme Cinéma' }];
-    const { app } = buildApp('acme', 'active', cinemas, jwtUser);
+    const { app, token } = buildApp('acme', 'active', cinemas, jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
-    const res = await request(app).get('/api/org/acme/cinemas');
+    const res = await request(app)
+      .get('/api/org/acme/cinemas')
+      .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
   });
 
@@ -173,11 +188,13 @@ describe('requireOrgAuth', () => {
       is_system_role: true,
       permissions: ['cinemas:read'],
     };
-    const { app } = buildApp('acme', 'active', [], jwtUser);
+    const { app, token } = buildApp('acme', 'active', [], jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
-    const res = await request(app).get('/api/org/acme/cinemas');
+    const res = await request(app)
+      .get('/api/org/acme/cinemas')
+      .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
   });
 });
@@ -195,6 +212,7 @@ describe('GET /api/org/:slug/cinemas', () => {
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
+    // GET /cinemas does not require auth
     const res = await request(app).get('/api/org/acme/cinemas');
     expect(res.status).toBe(200);
     // The scoped client must have been queried (not the global db)
@@ -208,14 +226,13 @@ describe('POST /api/org/:slug/cinemas — quota guard', () => {
       id: 1, username: 'admin', role_name: 'admin',
       is_system_role: true, permissions: ['cinemas:create'], org_slug: 'acme',
     };
-    const { app, dbClient } = buildApp('acme', 'active', [], jwtUser);
+    const { app, dbClient, token } = buildApp('acme', 'active', [], jwtUser);
 
     // Mock quota check: plan with max_cinemas=3, usage=3 → exceeded
+    // (resolveTenant's org lookup + SET search_path are already handled by buildApp)
     dbClient.query
-      .mockResolvedValueOnce({ rows: [makeOrg('acme')], rowCount: 1 }) // resolveTenant org lookup
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                 // SET search_path
       .mockResolvedValueOnce({                                           // getPlanById
-        rows: [{ id: 1, name: 'free', max_cinemas: 3, max_users: 5, max_scrapes_per_month: 10 }],
+        rows: [{ id: 1, name: 'free', max_cinemas: 3, max_users: 5, max_scrapes_per_day: 10 }],
         rowCount: 1,
       })
       .mockResolvedValueOnce({                                           // getOrCreateUsage
@@ -228,6 +245,7 @@ describe('POST /api/org/:slug/cinemas — quota guard', () => {
 
     const res = await request(app)
       .post('/api/org/acme/cinemas')
+      .set('Authorization', `Bearer ${token}`)
       .send({ id: 'C999', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0001.html' });
 
     expect(res.status).toBe(402);
@@ -272,11 +290,21 @@ describe('GET /api/org/:slug/reports', () => {
       id: 1, username: 'admin', role_name: 'admin',
       is_system_role: true, permissions: ['reports:list'], org_slug: 'acme',
     };
-    const { app, dbClient } = buildApp('acme', 'active', [], jwtUser);
+    const { app, dbClient, token } = buildApp('acme', 'active', [], jwtUser);
+
+    // getScrapeReports makes 2 queries: COUNT(*) then paginated SELECT.
+    // buildApp's default mockResolvedValue returns { rows: [], rowCount: 0 } which
+    // causes countResult.rows[0] to be undefined → crash. Override with correct shapes.
+    dbClient.query
+      .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })  // COUNT(*)
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });                // paginated SELECT
+
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
-    const res = await request(app).get('/api/org/acme/reports');
+    const res = await request(app)
+      .get('/api/org/acme/reports')
+      .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(dbClient.query).toHaveBeenCalled();
   });
@@ -290,13 +318,12 @@ describe('POST /api/org/:slug/scraper/trigger — quota guard', () => {
       id: 1, username: 'admin', role_name: 'admin',
       is_system_role: true, permissions: ['scraper:trigger'], org_slug: 'acme',
     };
-    const { app, dbClient } = buildApp('acme', 'active', [], jwtUser);
+    const { app, dbClient, token } = buildApp('acme', 'active', [], jwtUser);
 
+    // (resolveTenant's org lookup + SET search_path are already handled by buildApp)
     dbClient.query
-      .mockResolvedValueOnce({ rows: [makeOrg('acme')], rowCount: 1 }) // org lookup
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                 // SET search_path
       .mockResolvedValueOnce({                                           // getPlanById
-        rows: [{ id: 1, name: 'free', max_cinemas: 3, max_users: 5, max_scrapes_per_month: 10 }],
+        rows: [{ id: 1, name: 'free', max_cinemas: 3, max_users: 5, max_scrapes_per_day: 10 }],
         rowCount: 1,
       })
       .mockResolvedValueOnce({                                           // getOrCreateUsage
@@ -307,7 +334,10 @@ describe('POST /api/org/:slug/scraper/trigger — quota guard', () => {
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
-    const res = await request(app).post('/api/org/acme/scraper/trigger').send({});
+    const res = await request(app)
+      .post('/api/org/acme/scraper/trigger')
+      .set('Authorization', `Bearer ${token}`)
+      .send({});
     expect(res.status).toBe(402);
     expect(res.body.error).toBe('QUOTA_EXCEEDED');
     expect(res.body.resource).toBe('scrapes');
@@ -334,11 +364,13 @@ describe('GET /api/org/:slug/users', () => {
     const users = [
       { id: 1, username: 'alice', role_id: 1, role_name: 'admin', created_at: new Date() },
     ];
-    const { app, dbClient } = buildApp('acme', 'active', users, jwtUser);
+    const { app, dbClient, token } = buildApp('acme', 'active', users, jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
-    const res = await request(app).get('/api/org/acme/users');
+    const res = await request(app)
+      .get('/api/org/acme/users')
+      .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(dbClient.query).toHaveBeenCalled();
@@ -351,13 +383,12 @@ describe('POST /api/org/:slug/users — quota guard', () => {
       id: 1, username: 'admin', role_name: 'admin',
       is_system_role: true, permissions: ['users:create'], org_slug: 'acme',
     };
-    const { app, dbClient } = buildApp('acme', 'active', [], jwtUser);
+    const { app, dbClient, token } = buildApp('acme', 'active', [], jwtUser);
 
+    // (resolveTenant's org lookup + SET search_path are already handled by buildApp)
     dbClient.query
-      .mockResolvedValueOnce({ rows: [makeOrg('acme')], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockResolvedValueOnce({
-        rows: [{ id: 1, name: 'free', max_cinemas: 3, max_users: 5, max_scrapes_per_month: 10 }],
+        rows: [{ id: 1, name: 'free', max_cinemas: 3, max_users: 5, max_scrapes_per_day: 10 }],
         rowCount: 1,
       })
       .mockResolvedValueOnce({
@@ -370,6 +401,7 @@ describe('POST /api/org/:slug/users — quota guard', () => {
 
     const res = await request(app)
       .post('/api/org/acme/users')
+      .set('Authorization', `Bearer ${token}`)
       .send({ username: 'newuser', password: 'Passw0rd!', role_id: 1 });
 
     expect(res.status).toBe(402);
@@ -394,13 +426,14 @@ describe('tenant isolation', () => {
     const cinemasA = [{ id: 'CA01', name: 'Cinema A' }];
     const cinemasB = [{ id: 'CB01', name: 'Cinema B' }];
 
-    const { app: appA, dbClient: clientA } = buildApp('org-a', 'active', cinemasA, jwtUserA);
-    const { app: appB, dbClient: clientB } = buildApp('org-b', 'active', cinemasB, jwtUserB);
+    const { app: appA, dbClient: clientA, token: tokenA } = buildApp('org-a', 'active', cinemasA, jwtUserA);
+    const { app: appB, dbClient: clientB, token: tokenB } = buildApp('org-b', 'active', cinemasB, jwtUserB);
 
     const { createOrgRouter } = await import('./org.js');
     appA.use('/api/org/:slug', createOrgRouter());
     appB.use('/api/org/:slug', createOrgRouter());
 
+    // GET /cinemas does not require auth — tokens not needed here, but we pass them for realism
     const resA = await request(appA).get('/api/org/org-a/cinemas');
     const resB = await request(appB).get('/api/org/org-b/cinemas');
 
