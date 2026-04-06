@@ -5,8 +5,8 @@
  * requireOrgAuth (validates JWT org_slug claim matches :slug).
  *
  * Core route handlers (cinemas, films, reports, scraper) are re-used directly
- * via router.use() sub-mounting. They pick up the tenant-scoped DB client through
- * getDbFromRequest(req) which returns req.dbClient when present.
+ * via router.use() sub-mounting. They pick up the tenant-scoped DB client
+ * through getDbFromRequest(req) which returns req.dbClient when present.
  *
  * User management uses org-specific inline handlers because the org schema has
  * a different (simpler) role model: admin | editor | viewer (not the public RBAC).
@@ -17,7 +17,6 @@ import { resolveTenant } from '../middleware/tenant.js';
 import { checkQuota } from '../middleware/quota.js';
 
 // ── Server route handlers re-used as sub-routers ────────────────────────────
-// Dynamic imports at module load to avoid circular cross-package TypeScript issues.
 // These default-export routers already use getDbFromRequest(req), so they work
 // correctly under /api/org/:slug (req.dbClient set by resolveTenant).
 import cinemasRouter from '../../../server/src/routes/cinemas.js';
@@ -54,10 +53,9 @@ function requireOrgAuth(req: Request, res: Response, next: NextFunction): void {
   }
   const token = authHeader.split(' ')[1];
   try {
-    const JWT_SECRET = process.env['JWT_SECRET'] as string;
+    const JWT_SECRET = process.env.JWT_SECRET as string;
     const decoded = jwt.decode(token) as { org_slug?: string } | null;
-    // Prefer a verified decode (to reject tampered tokens), but still use
-    // jwt.verify so forged org_slug claims cannot bypass the check.
+    // Use jwt.verify to reject tampered/forged tokens before trusting org_slug
     jwt.verify(token, JWT_SECRET);
     if (decoded?.org_slug && decoded.org_slug !== req.params['slug']) {
       res.status(403).json({ success: false, error: 'Token does not match organization' });
@@ -94,8 +92,7 @@ export function createOrgRouter(): Router {
   });
 
   // ── Cinemas ─────────────────────────────────────────────────────────────────
-  // Apply quota check specifically on POST before delegating to the sub-router.
-  router.post('/cinemas', checkQuota('cinemas'));
+  router.post('/cinemas', protectedLimiter, checkQuota('cinemas'));
   router.use('/cinemas', cinemasRouter);
 
   // ── Films ───────────────────────────────────────────────────────────────────
@@ -105,8 +102,7 @@ export function createOrgRouter(): Router {
   router.use('/reports', reportsRouter);
 
   // ── Scraper ─────────────────────────────────────────────────────────────────
-  // Apply quota check on POST /scraper/trigger.
-  router.post('/scraper/trigger', checkQuota('scrapes'));
+  router.post('/scraper/trigger', protectedLimiter, checkQuota('scrapes'));
   router.use('/scraper', scraperRouter);
 
   // ── Users (org-specific handlers) ─────────────────────────────────────────
