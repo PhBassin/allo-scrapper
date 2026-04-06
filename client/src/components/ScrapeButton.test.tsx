@@ -61,12 +61,13 @@ describe('ScrapeButton', () => {
   });
 
   it('should handle 409 Conflict by calling onScrapeStart (resuming)', async () => {
-    const error = {
+    const error = new Error('Already running');
+    Object.assign(error, {
       response: {
         status: 409,
         data: { error: 'Already running' }
       }
-    };
+    });
     mockOnTrigger.mockRejectedValue(error);
     const onScrapeStart = vi.fn();
 
@@ -83,12 +84,13 @@ describe('ScrapeButton', () => {
   });
 
   it('should show error message for other errors', async () => {
-    const error = {
+    const error = new Error('Server exploded');
+    Object.assign(error, {
       response: {
         status: 500,
         data: { error: 'Server exploded' }
       }
-    };
+    });
     mockOnTrigger.mockRejectedValue(error);
 
     renderWithAuth(<ScrapeButton onTrigger={mockOnTrigger} />);

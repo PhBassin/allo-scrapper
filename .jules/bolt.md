@@ -36,3 +36,6 @@
 ## 2024-04-01 - Eliminate N+1 Bottleneck in `getAllRoles`
 **Learning:** `Promise.all` combined with multiple parallel `.map` DB query fetches is a persistent N+1 anti-pattern in database abstraction layers. While asynchronous, this still saturates connection pools and creates unnecessary linear DB requests, adding significant overhead when fetching lists (e.g. roles and their associated permissions).
 **Action:** Replace `Promise.all` loops with a single secondary query using `ANY($1)` on an array of parent IDs, then group the related child records in memory using standard objects/Maps.
+## 2026-04-06 - [Optimize Multiple Array Passes in Render Loops]
+**Learning:** Found that deriving component state by using multiple passes over the same array with `.filter().length` and `.find()` is highly inefficient for potentially large arrays in components that re-render frequently (like `ScrapeProgress`). This forces multiple full iterations and array allocations on every render.
+**Action:** When deriving multiple state values from a single list of events or objects, combine the logic into a single `for` loop to avoid creating intermediate arrays and drastically reduce the number of iterations over the data.

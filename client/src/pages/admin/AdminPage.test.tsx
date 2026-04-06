@@ -235,17 +235,19 @@ describe('AdminPage', () => {
   });
 
   describe('Tab order (admin)', () => {
-    it('should display all 6 tabs in correct order for admin: Cinemas, Rapports, Users, Roles, Settings, System', () => {
+    it('should display all tabs in correct order for admin', () => {
       renderWithRouter('/admin');
 
       const tabs = screen.getAllByRole('tab');
 
       expect(tabs[0]).toHaveTextContent('Cinemas');
-      expect(tabs[1]).toHaveTextContent('Rapports');
-      expect(tabs[2]).toHaveTextContent('Users');
-      expect(tabs[3]).toHaveTextContent('Roles');
-      expect(tabs[4]).toHaveTextContent('Settings');
-      expect(tabs[5]).toHaveTextContent('System');
+      expect(tabs[1]).toHaveTextContent('Schedules');
+      expect(tabs[2]).toHaveTextContent('Rapports');
+      expect(tabs[3]).toHaveTextContent('Users');
+      expect(tabs[4]).toHaveTextContent('Roles');
+      expect(tabs[5]).toHaveTextContent('Settings');
+      expect(tabs[6]).toHaveTextContent('Rate Limits');
+      expect(tabs[7]).toHaveTextContent('System');
     });
   });
 
