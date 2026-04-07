@@ -97,17 +97,17 @@ export function createOrgRouter(): Router {
 
   // ── Cinemas ─────────────────────────────────────────────────────────────────
   router.post('/cinemas', protectedLimiter, checkQuota('cinemas'));
-  router.use('/cinemas', cinemasRouter);
+  router.use('/cinemas', protectedLimiter, cinemasRouter);
 
   // ── Films ───────────────────────────────────────────────────────────────────
-  router.use('/films', filmsRouter);
+  router.use('/films', protectedLimiter, filmsRouter);
 
   // ── Reports ─────────────────────────────────────────────────────────────────
-  router.use('/reports', reportsRouter);
+  router.use('/reports', protectedLimiter, reportsRouter);
 
   // ── Scraper ─────────────────────────────────────────────────────────────────
   router.post('/scraper/trigger', protectedLimiter, checkQuota('scrapes'));
-  router.use('/scraper', scraperRouter);
+  router.use('/scraper', protectedLimiter, scraperRouter);
 
   // ── Users (org-specific handlers) ─────────────────────────────────────────
   // These operate on the org schema (users + roles tables set by search_path).
