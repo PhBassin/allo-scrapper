@@ -75,12 +75,9 @@ export function createOrgRouter(): Router {
   // 1. Resolve tenant (loads org, sets search_path, attaches req.org + req.dbClient)
   router.use(resolveTenant);
 
-  // 2. Rate-limit all org routes, then validate JWT org claim.
-  // protectedLimiter is used here (rather than generalLimiter) because
-  // requireOrgAuth performs JWT verification — a sensitive auth operation that
-  // must be rate-limited with the stricter limit to satisfy CodeQL CWE-307.
-  router.use(protectedLimiter);
-  router.use(requireOrgAuth);
+  // 2. Rate-limit and validate JWT org claim together in a single router.use()
+  // so CodeQL can see protectedLimiter and requireOrgAuth are co-located.
+  router.use(protectedLimiter, requireOrgAuth);
 
   // ── Health / ping ───────────────────────────────────────────────────────────
   router.get('/ping', protectedLimiter, (req, res) => {
