@@ -24,6 +24,9 @@ import filmsRouter from '../../../server/src/routes/films.js';
 import reportsRouter from '../../../server/src/routes/reports.js';
 import scraperRouter from '../../../server/src/routes/scraper.js';
 
+// ── SaaS-specific route handlers ────────────────────────────────────────────
+import orgSettingsRouter from './org-settings.js';
+
 // ── Auth helpers (from server) ───────────────────────────────────────────────
 import { requireAuth, type AuthRequest } from '../../../server/src/middleware/auth.js';
 import { requirePermission } from '../../../server/src/middleware/permission.js';
@@ -106,6 +109,10 @@ export function createOrgRouter(): Router {
   // ── Scraper ─────────────────────────────────────────────────────────────────
   router.post('/scraper/trigger', protectedLimiter, checkQuota('scrapes'));
   router.use('/scraper', protectedLimiter, scraperRouter);
+
+  // ── Settings ────────────────────────────────────────────────────────────────
+  // Public endpoint (GET /) has no auth, admin endpoints protected in router
+  router.use('/settings', orgSettingsRouter);
 
   // ── Users (org-specific handlers) ─────────────────────────────────────────
   // These operate on the org schema (users + roles tables set by search_path).
