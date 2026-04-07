@@ -83,7 +83,7 @@ export function createOrgRouter(): Router {
   router.use(requireOrgAuth);
 
   // ── Health / ping ───────────────────────────────────────────────────────────
-  router.get('/ping', (req, res) => {
+  router.get('/ping', protectedLimiter, (req, res) => {
     res.json({
       success: true,
       org: {
