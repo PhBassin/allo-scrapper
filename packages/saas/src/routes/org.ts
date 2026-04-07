@@ -27,7 +27,7 @@ import scraperRouter from '../../../server/src/routes/scraper.js';
 // ── Auth helpers (from server) ───────────────────────────────────────────────
 import { requireAuth, type AuthRequest } from '../../../server/src/middleware/auth.js';
 import { requirePermission } from '../../../server/src/middleware/permission.js';
-import { protectedLimiter, generalLimiter } from '../../../server/src/middleware/rate-limit.js';
+import { protectedLimiter } from '../../../server/src/middleware/rate-limit.js';
 import { ValidationError, NotFoundError, AuthError } from '../../../server/src/utils/errors.js';
 import { validatePasswordStrength } from '../../../server/src/utils/security.js';
 import jwt from 'jsonwebtoken';
@@ -75,8 +75,11 @@ export function createOrgRouter(): Router {
   // 1. Resolve tenant (loads org, sets search_path, attaches req.org + req.dbClient)
   router.use(resolveTenant);
 
-  // 2. Rate-limit all org routes, then validate JWT org claim
-  router.use(generalLimiter);
+  // 2. Rate-limit all org routes, then validate JWT org claim.
+  // protectedLimiter is used here (rather than generalLimiter) because
+  // requireOrgAuth performs JWT verification — a sensitive auth operation that
+  // must be rate-limited with the stricter limit to satisfy CodeQL CWE-307.
+  router.use(protectedLimiter);
   router.use(requireOrgAuth);
 
   // ── Health / ping ───────────────────────────────────────────────────────────
