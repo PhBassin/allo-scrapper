@@ -96,7 +96,11 @@ function extractMovieId(movie: AllocineMovie): number | null {
 }
 
 function uniqueNonEmptyStrings(values: string[]): string[] {
-  return Array.from(new Set(values.map(v => v.trim()).filter(Boolean)));
+  return Array.from(new Set(values.reduce<string[]>((acc, v) => {
+    const trimmed = v.trim();
+    if (trimmed) acc.push(trimmed);
+    return acc;
+  }, [])));
 }
 
 /**
@@ -273,8 +277,16 @@ export function parseShowtimesJson(
       }
     }
 
-    const genres = decodeHtmlEntitiesArray((movie.genres ?? []).map(g => g.translate ?? '').filter(Boolean));
-    const nationalityRaw = (movie.countries ?? []).map(c => c.localizedName ?? '').filter(Boolean).join(', ') || undefined;
+    const genres = decodeHtmlEntitiesArray((movie.genres ?? []).reduce<string[]>((acc, g) => {
+      const translated = g.translate ?? '';
+      if (translated) acc.push(translated);
+      return acc;
+    }, []));
+    const nationalityRaw = (movie.countries ?? []).reduce<string[]>((acc, c) => {
+      const localizedName = c.localizedName ?? '';
+      if (localizedName) acc.push(localizedName);
+      return acc;
+    }, []).join(', ') || undefined;
     const nationality = decodeHtmlEntities(nationalityRaw);
     
     // Ratings (out of 5) - sanitize to filter NaN/Infinity
