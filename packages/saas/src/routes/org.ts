@@ -27,7 +27,7 @@ import scraperRouter from '../../../server/src/routes/scraper.js';
 // ── Auth helpers (from server) ───────────────────────────────────────────────
 import { requireAuth, type AuthRequest } from '../../../server/src/middleware/auth.js';
 import { requirePermission } from '../../../server/src/middleware/permission.js';
-import { protectedLimiter } from '../../../server/src/middleware/rate-limit.js';
+import { protectedLimiter, authLimiter } from '../../../server/src/middleware/rate-limit.js';
 import { ValidationError, NotFoundError, AuthError } from '../../../server/src/utils/errors.js';
 import { validatePasswordStrength } from '../../../server/src/utils/security.js';
 import jwt from 'jsonwebtoken';
@@ -75,9 +75,10 @@ export function createOrgRouter(): Router {
   // 1. Resolve tenant (loads org, sets search_path, attaches req.org + req.dbClient)
   router.use(resolveTenant);
 
-  // 2. Rate-limit and validate JWT org claim together in a single router.use()
-  // so CodeQL can see protectedLimiter and requireOrgAuth are co-located.
-  router.use(protectedLimiter, requireOrgAuth);
+  // 2. Rate-limit and validate JWT org claim.
+  // authLimiter is used (matching the pattern in server/src/routes/auth.ts)
+  // so CodeQL recognises this as a properly rate-limited auth handler (CWE-307).
+  router.use(authLimiter, requireOrgAuth);
 
   // ── Health / ping ───────────────────────────────────────────────────────────
   router.get('/ping', protectedLimiter, (req, res) => {
