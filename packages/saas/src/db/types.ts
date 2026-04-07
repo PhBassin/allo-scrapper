@@ -87,3 +87,64 @@ export interface Invitation {
   created_by: number | null;
   created_at: string;
 }
+
+/** Footer link for org settings */
+export interface FooterLink {
+  text: string;
+  url: string;
+}
+
+/** Scrape mode options */
+export type ScrapeMode = 'daily' | 'weekly' | 'manual';
+
+/** Full org settings row from org_schema.org_settings table */
+export interface OrgSettings {
+  id: number;
+  site_name: string;
+  logo_base64: string | null;
+  favicon_base64: string | null;
+  color_primary: string;
+  color_secondary: string;
+  font_primary: string;
+  font_secondary: string;
+  footer_text: string | null;
+  footer_links: FooterLink[];
+  email_from_name: string;
+  email_from_address: string;
+  scrape_mode: ScrapeMode;
+  scrape_days: number;
+  updated_at: string;
+  updated_by: number | null;
+}
+
+/** Public org settings (excludes sensitive fields) */
+export interface OrgSettingsPublic {
+  site_name: string;
+  logo_base64: string | null;
+  favicon_base64: string | null;
+  color_primary: string;
+  color_secondary: string;
+  font_primary: string;
+  font_secondary: string;
+  footer_text: string | null;
+  footer_links: FooterLink[];
+  scrape_mode: ScrapeMode;
+  scrape_days: number;
+}
+
+/** Partial update input for org settings */
+export interface OrgSettingsUpdate {
+  site_name?: string;
+  logo_base64?: string | null;
+  favicon_base64?: string | null;
+  color_primary?: string;
+  color_secondary?: string;
+  font_primary?: string;
+  font_secondary?: string;
+  footer_text?: string | null;
+  footer_links?: FooterLink[];
+  email_from_name?: string;
+  email_from_address?: string;
+  scrape_mode?: ScrapeMode;
+  scrape_days?: number;
+}

@@ -47,3 +47,28 @@ CREATE TABLE IF NOT EXISTS invitations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations (token);
+
+-- Org Settings table (white-label customization for this org)
+CREATE TABLE IF NOT EXISTS org_settings (
+  id                  SERIAL PRIMARY KEY,
+  site_name           VARCHAR(255) NOT NULL DEFAULT 'My Cinema',
+  logo_base64         TEXT,
+  favicon_base64      TEXT,
+  color_primary       VARCHAR(7) NOT NULL DEFAULT '#FECC00',
+  color_secondary     VARCHAR(7) NOT NULL DEFAULT '#1F2937',
+  font_primary        VARCHAR(100) NOT NULL DEFAULT 'Inter',
+  font_secondary      VARCHAR(100) NOT NULL DEFAULT 'Roboto',
+  footer_text         TEXT,
+  footer_links        JSONB NOT NULL DEFAULT '[]'::jsonb,
+  email_from_name     VARCHAR(255) NOT NULL DEFAULT 'Cinema Team',
+  email_from_address  VARCHAR(255) NOT NULL DEFAULT 'no-reply@example.com',
+  scrape_mode         VARCHAR(20) NOT NULL DEFAULT 'weekly' CHECK (scrape_mode IN ('daily', 'weekly', 'manual')),
+  scrape_days         INTEGER NOT NULL DEFAULT 7 CHECK (scrape_days > 0),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by          INTEGER REFERENCES users(id)
+);
+
+-- Seed default org settings (one row only)
+INSERT INTO org_settings (id, site_name)
+VALUES (1, 'My Cinema')
+ON CONFLICT (id) DO NOTHING;
