@@ -77,24 +77,24 @@ describe('checkQuota middleware', () => {
 
       vi.mocked(orgQueries.getPlanById).mockResolvedValueOnce(freePlan);
 
-      const mockQuotaService = {
-        getOrCreateUsage: vi.fn().mockResolvedValueOnce({
-          id: 1,
-          org_id: 42,
-          month: '2026-04-01',
-          cinemas_count: 0,
-          users_count: 1,
-          scrapes_count: 5,
-          api_calls_count: 100,
-        }),
-      } as unknown as QuotaService;
+      const mockGetOrCreateUsage = vi.fn().mockResolvedValueOnce({
+        id: 1,
+        org_id: 42,
+        month: '2026-04-01',
+        cinemas_count: 0,  // under limit (1)
+        users_count: 1,
+        scrapes_count: 5,
+        api_calls_count: 100,
+      });
 
-      vi.mocked(QuotaService).mockImplementationOnce(() => mockQuotaService);
+      vi.mocked(QuotaService).mockImplementationOnce(() => ({
+        getOrCreateUsage: mockGetOrCreateUsage,
+      } as any));
 
       const middleware = checkQuota('cinemas');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockQuotaService.getOrCreateUsage).toHaveBeenCalledWith(42);
+      expect(orgQueries.getPlanById).toHaveBeenCalledWith(mockDb, 1);
       expect(mockNext).toHaveBeenCalled();
       expect(mockRes.status).not.toHaveBeenCalled();
     });
@@ -112,19 +112,19 @@ describe('checkQuota middleware', () => {
 
       vi.mocked(orgQueries.getPlanById).mockResolvedValueOnce(freePlan);
 
-      const mockQuotaService = {
-        getOrCreateUsage: vi.fn().mockResolvedValueOnce({
-          id: 1,
-          org_id: 42,
-          month: '2026-04-01',
-          cinemas_count: 1,  // at limit
-          users_count: 1,
-          scrapes_count: 5,
-          api_calls_count: 100,
-        }),
-      } as unknown as QuotaService;
+      const mockGetOrCreateUsage = vi.fn().mockResolvedValueOnce({
+        id: 1,
+        org_id: 42,
+        month: '2026-04-01',
+        cinemas_count: 1,  // at limit
+        users_count: 1,
+        scrapes_count: 5,
+        api_calls_count: 100,
+      });
 
-      vi.mocked(QuotaService).mockImplementationOnce(() => mockQuotaService);
+      vi.mocked(QuotaService).mockImplementationOnce(() => ({
+        getOrCreateUsage: mockGetOrCreateUsage,
+      } as any));
 
       const middleware = checkQuota('cinemas');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
@@ -151,19 +151,19 @@ describe('checkQuota middleware', () => {
 
       vi.mocked(orgQueries.getPlanById).mockResolvedValueOnce(freePlan);
 
-      const mockQuotaService = {
-        getOrCreateUsage: vi.fn().mockResolvedValueOnce({
-          id: 1,
-          org_id: 42,
-          month: '2026-04-01',
-          cinemas_count: 0,
-          users_count: 3,  // at limit
-          scrapes_count: 5,
-          api_calls_count: 100,
-        }),
-      } as unknown as QuotaService;
+      const mockGetOrCreateUsage = vi.fn().mockResolvedValueOnce({
+        id: 1,
+        org_id: 42,
+        month: '2026-04-01',
+        cinemas_count: 0,
+        users_count: 3,  // at limit
+        scrapes_count: 5,
+        api_calls_count: 100,
+      });
 
-      vi.mocked(QuotaService).mockImplementationOnce(() => mockQuotaService);
+      vi.mocked(QuotaService).mockImplementationOnce(() => ({
+        getOrCreateUsage: mockGetOrCreateUsage,
+      } as any));
 
       const middleware = checkQuota('users');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
@@ -190,19 +190,19 @@ describe('checkQuota middleware', () => {
 
       vi.mocked(orgQueries.getPlanById).mockResolvedValueOnce(freePlan);
 
-      const mockQuotaService = {
-        getOrCreateUsage: vi.fn().mockResolvedValueOnce({
-          id: 1,
-          org_id: 42,
-          month: '2026-04-01',
-          cinemas_count: 0,
-          users_count: 1,
-          scrapes_count: 10,  // at limit
-          api_calls_count: 100,
-        }),
-      } as unknown as QuotaService;
+      const mockGetOrCreateUsage = vi.fn().mockResolvedValueOnce({
+        id: 1,
+        org_id: 42,
+        month: '2026-04-01',
+        cinemas_count: 0,
+        users_count: 1,
+        scrapes_count: 10,  // at limit
+        api_calls_count: 100,
+      });
 
-      vi.mocked(QuotaService).mockImplementationOnce(() => mockQuotaService);
+      vi.mocked(QuotaService).mockImplementationOnce(() => ({
+        getOrCreateUsage: mockGetOrCreateUsage,
+      } as any));
 
       const middleware = checkQuota('scrapes');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
