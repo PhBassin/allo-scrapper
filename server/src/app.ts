@@ -73,6 +73,7 @@ import usersRouter from './routes/users.js';
 import systemRouter from './routes/system.js';
 import rolesRouter from './routes/roles.js';
 import rateLimitsRouter from './routes/admin/rate-limits.js';
+import configRouter from './routes/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -132,6 +133,7 @@ export function createApp() {
   app.use('/api/system', systemRouter);
   app.use('/api/roles', rolesRouter);
   app.use('/api/admin/rate-limits', rateLimitsRouter);
+  app.use('/api/config', configRouter);
 
   // Health check endpoint with database connectivity check
   // Cached for 5 seconds to prevent database connection pool exhaustion

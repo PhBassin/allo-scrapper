@@ -1,0 +1,75 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { TenantProvider } from './TenantProvider';
+import { TenantContext } from './TenantContext';
+import { useContext } from 'react';
+
+// ── Mock the saas API ────────────────────────────────────────────────────────
+vi.mock('../api/saas', () => ({
+  pingOrg: vi.fn(),
+}));
+
+import { pingOrg } from '../api/saas';
+
+// Helper: wrap TenantProvider inside a MemoryRouter with a :slug param
+function renderWithSlug(slug: string, child: React.ReactNode) {
+  return render(
+    <MemoryRouter initialEntries={[`/org/${slug}`]}>
+      <Routes>
+        <Route path="/org/:slug" element={<TenantProvider>{child}</TenantProvider>} />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
+// Helper consumer that exposes context values via data-testid attributes
+function ContextInspector() {
+  const { org, isLoading, notFound } = useContext(TenantContext);
+  return (
+    <div>
+      <span data-testid="is-loading">{String(isLoading)}</span>
+      <span data-testid="not-found">{String(notFound)}</span>
+      <span data-testid="org-name">{org?.name ?? ''}</span>
+    </div>
+  );
+}
+
+describe('TenantProvider', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows loading screen while fetching org', async () => {
+    vi.mocked(pingOrg).mockImplementation(() => new Promise(() => {})); // never resolves
+
+    renderWithSlug('acme', <ContextInspector />);
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+  });
+
+  it('renders children with org data when ping succeeds', async () => {
+    vi.mocked(pingOrg).mockResolvedValue({
+      org: { id: 1, slug: 'acme', name: 'Acme Cinemas', status: 'active' },
+    });
+
+    renderWithSlug('acme', <ContextInspector />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('is-loading').textContent).toBe('false');
+    });
+
+    expect(screen.getByTestId('not-found').textContent).toBe('false');
+    expect(screen.getByTestId('org-name').textContent).toBe('Acme Cinemas');
+  });
+
+  it('renders 404 screen when ping fails', async () => {
+    vi.mocked(pingOrg).mockRejectedValue(new Error('Not found'));
+
+    renderWithSlug('unknown-org', <ContextInspector />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Organization not found.')).toBeInTheDocument();
+    });
+  });
+});
