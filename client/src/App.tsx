@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { useEffect, useContext, Suspense, lazy } from 'react';
+import { useEffect, useContext, Suspense, lazy, useState } from 'react';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import CinemaPage from './pages/CinemaPage';
@@ -7,16 +7,20 @@ import FilmPage from './pages/FilmPage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import AdminPage from './pages/admin/AdminPage';
+import LandingPage from './pages/LandingPage';
+import RegisterPage from './pages/RegisterPage';
 import { AuthContext } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthProvider';
 import { SettingsProvider } from './contexts/SettingsProvider';
 import { SettingsContext } from './contexts/SettingsContext';
+import { TenantProvider } from './contexts/TenantProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequirePermission from './components/RequirePermission';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useTheme } from './hooks/useTheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ADMIN_PERMISSIONS } from './utils/adminPermissions';
+import { getConfig } from './api/saas';
 
 // Lazy load devtools only in development
 const ReactQueryDevtools = import.meta.env.DEV
@@ -118,16 +122,105 @@ function AppRoutes() {
   );
 }
 
+/**
+ * SaasRoutes — rendered when SAAS_ENABLED=true.
+ *
+ * /            → LandingPage
+ * /login       → LoginPage (standalone, no Layout)
+ * /register    → RegisterPage (standalone, no Layout)
+ * /org/:slug/* → tenant-scoped routes wrapped in TenantProvider
+ */
+function SaasRoutes() {
+  const navigate = useNavigate();
+  const { logout } = useContext(AuthContext);
+
+  useEffect(() => {
+    const handleUnauthorized = (event: Event) => {
+      const customEvent = event as CustomEvent<{ originalPath: string; reason?: 'session_expired' }>;
+      const reason = customEvent.detail?.reason;
+      if (reason === 'session_expired') {
+        sessionStorage.setItem('auth:expired', '1');
+      }
+      logout();
+      navigate('/login', {
+        state: { from: { pathname: customEvent.detail.originalPath }, reason },
+        replace: true,
+      });
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, [logout, navigate]);
+
+  return (
+    <Routes>
+      {/* Public SaaS pages */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+
+      {/* Org-scoped tenant routes */}
+      <Route
+        path="/org/:slug/*"
+        element={
+          <TenantProvider>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/cinema/:id" element={<CinemaPage />} />
+                <Route path="/film/:id" element={<FilmPage />} />
+                <Route
+                  path="/change-password"
+                  element={
+                    <ProtectedRoute>
+                      <ChangePasswordPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <RequirePermission anyOf={ADMIN_PERMISSIONS}>
+                      <AdminPage />
+                    </RequirePermission>
+                  }
+                />
+              </Routes>
+            </Layout>
+          </TenantProvider>
+        }
+      />
+    </Routes>
+  );
+}
+
 function App() {
+  const [saasEnabled, setSaasEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    getConfig()
+      .then((cfg) => setSaasEnabled(cfg.saasEnabled))
+      .catch(() => setSaasEnabled(false)); // safe fallback — standalone mode
+  }, []);
+
+  // Wait until config is loaded before rendering routes
+  if (saasEnabled === null) {
+    return <LoadingScreen />;
+  }
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <SettingsProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </SettingsProvider>
+          <BrowserRouter>
+            {saasEnabled ? (
+              <SaasRoutes />
+            ) : (
+              <SettingsProvider>
+                <AppRoutes />
+              </SettingsProvider>
+            )}
+          </BrowserRouter>
         </AuthProvider>
         <Suspense fallback={null}>
           <ReactQueryDevtools initialIsOpen={false} />
