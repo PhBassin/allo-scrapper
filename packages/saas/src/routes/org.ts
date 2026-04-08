@@ -371,5 +371,63 @@ export function createOrgRouter(): Router {
   // For clarity we also mount it here under the org scope.
   // (onboarding router handles POST /api/org/:slug/invitations via its own mount)
 
+  // ── Org Data Export ─────────────────────────────────────────────────────────
+  // GET /export - Complete JSON export of organization data
+  router.get('/export', resolveTenant, requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      // Check if user has export_data permission
+      const hasPermission = req.user?.permissions?.includes('export_data' as any);
+      if (!hasPermission) {
+        throw new AuthError('INSUFFICIENT_PERMISSIONS');
+      }
+
+      const db = req.app.get('db');
+      const client = (req as any).dbClient;
+      const org = (req as any).org;
+
+      if (!client || !org) {
+        res.status(500).json({
+          success: false,
+          error: 'TENANT_MIDDLEWARE_NOT_CONFIGURED',
+        });
+        return;
+      }
+
+      // Get org metadata from public schema
+      const orgResult = await db.query(
+        'SELECT * FROM organizations WHERE id = $1',
+        [org.id]
+      );
+
+      // Query org's private schema for data (already set by resolveTenant)
+      const [cinemasResult, showtimesResult, reportsResult, settingsResult] = await Promise.all([
+        client.query('SELECT * FROM cinemas ORDER BY id'),
+        client.query(`
+          SELECT * FROM showtimes
+          WHERE showtime >= now() - interval '7 days'
+          ORDER BY showtime DESC
+        `),
+        client.query('SELECT * FROM reports ORDER BY id DESC LIMIT 100'),
+        client.query('SELECT * FROM org_settings LIMIT 1'),
+      ]);
+
+      const exportData = {
+        org: orgResult.rows[0],
+        cinemas: cinemasResult.rows,
+        showtimes: showtimesResult.rows,
+        reports: reportsResult.rows,
+        settings: settingsResult.rows[0] || null,
+        exportedAt: new Date().toISOString(),
+      };
+
+      res.json({
+        success: true,
+        data: exportData,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   return router;
 }

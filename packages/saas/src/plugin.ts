@@ -11,6 +11,8 @@ import type { Express } from 'express';
 import { createRegisterRouter } from './routes/register.js';
 import { createOrgRouter } from './routes/org.js';
 import { createOnboardingRouter } from './routes/onboarding.js';
+import { createSuperadminRouter } from './routes/superadmin.js';
+import { createOrgMetricsMiddleware, getOrgRegistry } from './middleware/org-metrics.js';
 import { startQuotaResetScheduler } from './quota-reset-scheduler.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,11 +42,29 @@ export const saasPlugin: AppPlugin = {
     // @ts-ignore — options.db is compatible with DB interface at runtime
     startQuotaResetScheduler(options.db);
 
+    // Apply org metrics middleware to all routes
+    app.use(createOrgMetricsMiddleware());
+
     // Registration & slug availability
     app.use('/api', createRegisterRouter());
 
     // Email verification & member invitation flows
     app.use('/api', createOnboardingRouter());
+
+    // Superadmin routes (protected by requireSuperadmin middleware)
+    app.use('/api/superadmin', createSuperadminRouter());
+
+    // Prometheus metrics endpoint for org-level metrics (open/unauthenticated)
+    app.get('/api/saas/metrics', async (_req, res) => {
+      try {
+        res.set('Content-Type', getOrgRegistry().contentType);
+        const metrics = await getOrgRegistry().metrics();
+        res.end(metrics);
+      } catch (error) {
+        console.error('Metrics endpoint error:', error);
+        res.status(500).end('Error generating metrics');
+      }
+    });
 
     // All org-scoped routes: /api/org/:slug/*
     app.use('/api/org/:slug', createOrgRouter());
