@@ -103,27 +103,30 @@ export function getServerHealth(): ServerHealth {
  * @returns Scraper status information
  */
 export async function getScraperStatus(db: DB): Promise<ScraperStatus> {
-  // Get active jobs count (assuming we have a jobs table or similar)
-  // For now, we'll assume 0 active jobs since we don't have a jobs tracking system
-  const activeJobsResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM pg_stat_activity 
-     WHERE state = 'active' AND query LIKE '%scrape%'`,
-    []
-  );
+  // ⚡ PERFORMANCE: Execute independent database queries concurrently
+  // to reduce total response time.
+  const [
+    activeJobsResult,
+    lastScrapeResult,
+    cinemasResult
+  ] = await Promise.all([
+    db.query(
+      `SELECT COUNT(*)::text AS count FROM pg_stat_activity
+       WHERE state = 'active' AND query LIKE '%scrape%'`,
+      []
+    ),
+    db.query(
+      `SELECT MAX(completed_at) AS last_scrape FROM scrape_reports WHERE status = 'completed'`,
+      []
+    ),
+    db.query(
+      `SELECT COUNT(*)::text AS count FROM cinemas`,
+      []
+    )
+  ]);
+
   const activeJobs = parseInt(activeJobsResult.rows[0]?.count || '0', 10);
-
-  // Get last scrape time from scrape_reports table
-  const lastScrapeResult = await db.query(
-    `SELECT MAX(completed_at) AS last_scrape FROM scrape_reports WHERE status = 'completed'`,
-    []
-  );
   const lastScrapeTime = lastScrapeResult.rows[0]?.last_scrape || null;
-
-  // Get total cinemas count
-  const cinemasResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM cinemas`,
-    []
-  );
   const totalCinemas = parseInt(cinemasResult.rows[0]?.count || '0', 10);
 
   return {
