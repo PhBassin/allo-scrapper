@@ -11,6 +11,7 @@ import type { Express } from 'express';
 import { createRegisterRouter } from './routes/register.js';
 import { createOrgRouter } from './routes/org.js';
 import { createOnboardingRouter } from './routes/onboarding.js';
+import { startQuotaResetScheduler } from './quota-reset-scheduler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +35,10 @@ export const saasPlugin: AppPlugin = {
     // @ts-ignore — cross-rootDir import is intentional; this runs inside server
     const migrationsModule = await import('../../../server/src/db/migrations.js') as { runMigrations: (db: unknown, dirs: string[]) => Promise<void> };
     await migrationsModule.runMigrations(options.db, [getSaasMigrationDir()]);
+
+    // Start monthly quota reset scheduler (runs daily at midnight UTC)
+    // @ts-ignore — options.db is compatible with DB interface at runtime
+    startQuotaResetScheduler(options.db);
 
     // Registration & slug availability
     app.use('/api', createRegisterRouter());
