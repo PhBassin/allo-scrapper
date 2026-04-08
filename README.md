@@ -47,6 +47,7 @@
 - **CI/CD**: GitHub Actions workflow for automated Docker image builds
 - **Scraper Microservice**: Standalone scraper service communicates with the API via Redis job queue and pub/sub
 - **Observability**: Prometheus metrics, Grafana dashboards, Loki log aggregation, Tempo distributed tracing
+- **Multi-Tenant SaaS Mode**: Optional multi-tenant architecture with organization isolation, usage quotas, and superadmin portal
 - **Production Ready**: Health checks, error handling, and database migrations
 
 ---
@@ -517,6 +518,220 @@ RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # 1 hour
 - Successful login attempts don't count toward auth limit
 
 For API documentation, see [API.md](./API.md#rate-limits).
+
+---
+
+## 🏢 Multi-Tenant SaaS Mode (Optional)
+
+Allo-Scrapper can be deployed as a **multi-tenant SaaS platform** with organization isolation, usage quotas, and centralized management.
+
+### Enabling SaaS Mode
+
+```bash
+# .env configuration
+SAAS_ENABLED=true
+VITE_SAAS_ENABLED=true
+```
+
+### Key Features
+
+**Multi-Tenancy:**
+- **Schema-per-organization**: Each organization has a dedicated PostgreSQL schema
+- **Complete data isolation**: Organizations cannot access each other's data
+- **Custom domain support**: Organizations can use custom domains (e.g., `mycinema.example.com`)
+
+**Self-Service Onboarding:**
+- Organizations register via `/register` page
+- Automatic schema provisioning and trial activation
+- Email verification and invitation system
+
+**Usage Quotas:**
+- Configurable limits per plan (cinemas, users, scraping frequency)
+- Automatic quota enforcement in all endpoints
+- Real-time usage tracking
+
+**Superadmin Portal:**
+- Centralized management dashboard at `/superadmin`
+- Organization lifecycle management (suspend/reactivate)
+- Usage analytics and audit trail
+- Impersonation for support troubleshooting
+
+### Superadmin Portal
+
+**Access:** Navigate to `/superadmin/login`
+
+**Default Credentials:**
+```
+Username: superadmin
+Password: changeme
+```
+
+⚠️ **CRITICAL:** Change the default superadmin password immediately after first login.
+
+**Features:**
+
+1. **Dashboard** - Real-time metrics:
+   - Total organizations by status (trial/active/suspended/canceled)
+   - Total users across all organizations
+   - Active scraping operations
+   - Revenue metrics (when billing enabled)
+
+2. **Organization Management** - Full lifecycle control:
+   - View all organizations with search/filter
+   - Suspend/reactivate organizations
+   - Change organization plans
+   - Reset trial periods
+   - View usage statistics (cinemas, users, reports)
+
+3. **Audit Trail** - Complete activity log:
+   - All superadmin actions logged with timestamps
+   - User attribution for compliance
+   - Searchable and filterable
+
+4. **Impersonation** - Temporary access for support:
+   - Generate 1-hour temporary access token
+   - Troubleshoot issues as the organization admin
+   - All impersonation actions logged
+
+**API Endpoints:**
+
+```bash
+# Authentication
+POST /api/superadmin/login
+{
+  "username": "superadmin",
+  "password": "changeme"
+}
+
+# Dashboard metrics
+GET /api/superadmin/dashboard
+Authorization: Bearer <superadmin-token>
+
+# Organization list (paginated, searchable)
+GET /api/superadmin/orgs?page=1&limit=20&search=cinema&status=active
+Authorization: Bearer <superadmin-token>
+
+# Organization details
+GET /api/superadmin/orgs/:id
+Authorization: Bearer <superadmin-token>
+
+# Lifecycle management
+POST /api/superadmin/orgs/:id/suspend
+POST /api/superadmin/orgs/:id/reactivate
+PUT /api/superadmin/orgs/:id/plan
+POST /api/superadmin/orgs/:id/reset-trial
+Authorization: Bearer <superadmin-token>
+
+# Impersonation
+POST /api/superadmin/impersonate
+{
+  "orgId": 123,
+  "reason": "Support ticket #456 - troubleshooting scraper issue"
+}
+Authorization: Bearer <superadmin-token>
+
+# Audit log (paginated)
+GET /api/superadmin/audit-log?page=1&limit=50
+Authorization: Bearer <superadmin-token>
+```
+
+### Organization Data Export
+
+Organizations can export their complete data for backup or migration:
+
+```bash
+# Export endpoint (organization admin only)
+GET /api/org/:slug/export
+Authorization: Bearer <org-admin-token>
+```
+
+**Export Contents:**
+- Organization metadata (name, plan, trial status)
+- All cinemas and locations
+- Last 7 days of showtimes
+- Weekly reports
+- Settings and customizations
+
+**Use Cases:**
+- Backup before major changes
+- Migration to another instance
+- Compliance with data portability requirements
+
+### Multi-Tenant Observability
+
+**Prometheus Metrics:**
+
+Dedicated metrics endpoint for multi-tenant monitoring:
+
+```bash
+# Metrics endpoint (open, unauthenticated)
+GET /api/saas/metrics
+```
+
+**Available Metrics:**
+- `org_total_count` - Total organizations
+- `org_status_count{status="active|trial|suspended|canceled"}` - Organizations by status
+- `org_trial_expiring_count` - Organizations with trials expiring soon
+- `org_quota_exceeded_count{resource="cinemas|users"}` - Quota violations
+- `org_usage{org_slug="...", resource="cinemas|users"}` - Per-organization usage
+
+**Grafana Dashboard:**
+
+Pre-configured dashboards available in monitoring profile:
+
+```bash
+docker compose --profile monitoring up -d
+```
+
+- **SaaS Overview**: High-level metrics, revenue trends, trial conversions
+- **Organization Drill-Down**: Per-org usage, quota status, activity
+- **Superadmin Actions**: Audit trail visualization
+
+### Security Considerations
+
+**JWT Token Scopes:**
+- Superadmin tokens include `scope: 'superadmin'` claim
+- Standard organization tokens include `scope: 'user'` and `orgId`
+- Impersonation tokens include `scope: 'impersonation'`, `orgId`, and `expiresIn: 1h`
+
+**Authentication Separation:**
+- Superadmin login uses dedicated `/superadmin/login` endpoint
+- Uses same `JWT_SECRET` with different payload scope
+- Superadmin and organization user namespaces are completely separate
+
+**Audit Trail:**
+- All superadmin actions logged to `audit_log` table
+- Includes: action type, target organization, reason, timestamp, user
+- Immutable log (no deletion, append-only)
+
+**Best Practices:**
+1. **Change default password** immediately after deployment
+2. **Rotate superadmin credentials** regularly (quarterly minimum)
+3. **Monitor audit trail** for suspicious activity
+4. **Use impersonation** sparingly and always log reason
+5. **Backup audit logs** to external storage for compliance
+
+### Migration Path
+
+**From Standalone to SaaS:**
+
+Existing standalone deployments can migrate to SaaS mode:
+
+1. Enable SaaS mode: `SAAS_ENABLED=true`
+2. Run SaaS migrations: `npm run db:migrate`
+3. Create first organization manually via API or SQL
+4. Migrate existing data to organization schema
+5. Update frontend environment: `VITE_SAAS_ENABLED=true`
+
+**Backward Compatibility:**
+
+When `SAAS_ENABLED=false`:
+- Application functions exactly as before
+- No SaaS routes mounted
+- No multi-tenant middleware applied
+- No performance impact
+
+For complete SaaS architecture documentation, see [SAAS-PLAN.md](./SAAS-PLAN.md).
 
 ---
 
