@@ -19,11 +19,19 @@ const makeToken = (userId: number): string =>
 describe('Rate Limiting Middleware', () => {
   let app: express.Application;
 
+  let originalNodeEnv: string | undefined;
+
   beforeEach(() => {
+    originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
     app = express();
     app.use(express.json());
     // Trust proxy to enable rate limiting in tests
     app.set('trust proxy', 1);
+  });
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
   });
 
   describe('generalLimiter', () => {

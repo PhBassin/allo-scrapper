@@ -14,11 +14,18 @@ import * as themeGenerator from './services/theme-generator.js';
 describe('App - Theme Endpoint', () => {
   let app: Express;
   const mockDb: DB = {} as DB;
+  let originalNodeEnv: string | undefined;
 
   beforeEach(() => {
+    originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
     app = createApp();
     app.set('db', mockDb);
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
   });
 
   describe('GET /api/theme.css', () => {
