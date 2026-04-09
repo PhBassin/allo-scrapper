@@ -3,7 +3,7 @@
  * Checks for scope='superadmin' in the JWT payload.
  */
 import { Navigate } from 'react-router-dom';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 interface RequireSuperadminProps {
   children: ReactNode;
