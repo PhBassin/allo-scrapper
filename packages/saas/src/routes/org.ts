@@ -26,6 +26,7 @@ import scraperRouter from '../../../server/src/routes/scraper.js';
 
 // ── SaaS-specific route handlers ────────────────────────────────────────────
 import orgSettingsRouter from './org-settings.js';
+import { createOrgExportRouter } from './org-export.js';
 
 // ── Auth helpers (from server) ───────────────────────────────────────────────
 import { requireAuth, type AuthRequest } from '../../../server/src/middleware/auth.js';
@@ -370,6 +371,10 @@ export function createOrgRouter(): Router {
   // which falls back gracefully when req.org/req.dbClient are not set.
   // For clarity we also mount it here under the org scope.
   // (onboarding router handles POST /api/org/:slug/invitations via its own mount)
+
+  // ── Org Data Export ─────────────────────────────────────────────────────────
+  // GET /export - Complete JSON export of organization data
+  router.use(requireAuth, createOrgExportRouter());
 
   return router;
 }

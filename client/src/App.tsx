@@ -7,6 +7,8 @@ import FilmPage from './pages/FilmPage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import AdminPage from './pages/admin/AdminPage';
+import SuperadminLoginPage from './pages/admin/SuperadminLoginPage';
+import SuperadminPage from './pages/admin/SuperadminPage';
 import LandingPage from './pages/LandingPage';
 import RegisterPage from './pages/RegisterPage';
 import { AuthContext } from './contexts/AuthContext';
@@ -16,6 +18,7 @@ import { SettingsContext } from './contexts/SettingsContext';
 import { TenantProvider } from './contexts/TenantProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequirePermission from './components/RequirePermission';
+import { RequireSuperadmin } from './components/RequireSuperadmin';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useTheme } from './hooks/useTheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -158,6 +161,17 @@ function SaasRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+
+      {/* Superadmin routes */}
+      <Route path="/superadmin/login" element={<SuperadminLoginPage />} />
+      <Route
+        path="/superadmin/*"
+        element={
+          <RequireSuperadmin>
+            <SuperadminPage />
+          </RequireSuperadmin>
+        }
+      />
 
       {/* Org-scoped tenant routes */}
       <Route
