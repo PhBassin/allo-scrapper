@@ -37,7 +37,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: TypeScript type-check (Workspaces)
-        run: npx tsc --noEmit --workspaces
+        run: npm run build --workspaces --if-present
 
       - name: Run tests
         run: npm run test:run
