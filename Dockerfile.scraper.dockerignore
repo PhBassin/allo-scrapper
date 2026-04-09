@@ -108,6 +108,7 @@ client/*
 # Ignore server code
 server/*
 !server/package.json
+!server/src/
 
 # Ignore E2E tests folder
 e2e/

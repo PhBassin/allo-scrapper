@@ -166,7 +166,7 @@ export function createSuperadminRouter(): Router {
     try {
       const db = req.app.get('db') as DB;
       const pool = req.app.get('pool') as Pool;
-      const orgId = parseInt(req.params.id);
+      const orgId = parseInt(req.params.id as string);
 
       // Get org details
       const orgResult = await db.query<Organization & { plan_name: string }>(`
@@ -223,7 +223,7 @@ export function createSuperadminRouter(): Router {
   router.post('/orgs/:id/suspend', requireSuperadmin, async (req: Request, res: Response) => {
     try {
       const db = req.app.get('db') as DB;
-      const orgId = parseInt(req.params.id);
+      const orgId = parseInt(req.params.id as string);
       const actorId = req.superadmin!.id;
 
       await db.query(`UPDATE organizations SET status = 'suspended' WHERE id = $1`, [orgId]);
@@ -250,7 +250,7 @@ export function createSuperadminRouter(): Router {
   router.post('/orgs/:id/reactivate', requireSuperadmin, async (req: Request, res: Response) => {
     try {
       const db = req.app.get('db') as DB;
-      const orgId = parseInt(req.params.id);
+      const orgId = parseInt(req.params.id as string);
       const actorId = req.superadmin!.id;
 
       await db.query(`UPDATE organizations SET status = 'active' WHERE id = $1`, [orgId]);
@@ -277,7 +277,7 @@ export function createSuperadminRouter(): Router {
   router.put('/orgs/:id/plan', requireSuperadmin, async (req: Request, res: Response) => {
     try {
       const db = req.app.get('db') as DB;
-      const orgId = parseInt(req.params.id);
+      const orgId = parseInt(req.params.id as string);
       const { plan_id } = req.body;
       const actorId = req.superadmin!.id;
 
@@ -335,7 +335,7 @@ export function createSuperadminRouter(): Router {
   router.post('/orgs/:id/reset-trial', requireSuperadmin, async (req: Request, res: Response) => {
     try {
       const db = req.app.get('db') as DB;
-      const orgId = parseInt(req.params.id);
+      const orgId = parseInt(req.params.id as string);
       const actorId = req.superadmin!.id;
 
       await db.query(

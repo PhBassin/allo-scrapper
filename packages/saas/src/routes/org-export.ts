@@ -3,26 +3,11 @@
  * Generates a complete JSON export of an organization's data.
  */
 import { Router, type Request, type Response, type NextFunction } from 'express';
-import type { DB, PoolClient } from '../db/types.js';
-import { AuthError } from '../../../server/src/utils/errors.js';
+import type { DB } from '../db/types.js';
+import { AuthError } from '@server/utils/errors.js';
 
-// Extend Request to include dbClient and org from tenant middleware
-declare global {
-  namespace Express {
-    interface Request {
-      dbClient?: PoolClient;
-      org?: {
-        id: number;
-        slug: string;
-        schema_name: string;
-      };
-      user?: {
-        id: number;
-        permissions?: string[];
-      };
-    }
-  }
-}
+// Request augmentation moved to db/types.ts to avoid conflicts across middlewares
+
 
 export function createOrgExportRouter(): Router {
   const router = Router();

@@ -11,20 +11,11 @@
  */
 import type { Request, Response, NextFunction } from 'express';
 import { getOrgBySlug } from '../db/org-queries.js';
-import type { Organization, Pool, PoolClient } from '../db/types.js';
+import type { Pool } from '../db/types.js';
 
 const ACTIVE_STATUSES = new Set<string>(['trial', 'active']);
 
-// Extend Express Request to carry tenant context
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface Request {
-      org: Organization;
-      dbClient: PoolClient;
-    }
-  }
-}
+// Request augmentation moved to db/types.ts to avoid conflicts across middlewares
 
 export async function resolveTenant(
   req: Request,

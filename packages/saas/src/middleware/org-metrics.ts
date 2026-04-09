@@ -22,9 +22,6 @@ const orgRequestsTotal = new Counter({
  */
 export function createOrgMetricsMiddleware() {
   return (req: Request, res: Response, next: NextFunction) => {
-    // Capture start time for duration
-    const startTime = Date.now();
-
     // Intercept res.on('finish') to record metrics
     res.on('finish', () => {
       try {

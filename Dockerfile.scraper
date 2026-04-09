@@ -18,10 +18,11 @@ COPY package.json package-lock.json ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
 COPY scraper/package.json ./scraper/
+COPY packages/saas/package.json ./packages/saas/
 
-# Install scraper workspace dependencies (including devDependencies for build)
-# Use --omit=optional to skip platform-specific bindings
-RUN npm install --workspace=allo-scrapper-scraper --legacy-peer-deps --include=dev --omit=optional && \
+# Install all dependencies using legacy-peer-deps
+RUN rm -f package-lock.json && \
+    npm install --legacy-peer-deps && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/* /var/tmp/*
 
@@ -34,20 +35,23 @@ WORKDIR /app
 
 # Copy node_modules from deps stage (both root and workspace)
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/scraper/node_modules ./scraper/node_modules
 
 # Copy root files
 COPY package.json package-lock.json ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
 COPY scraper/package.json ./scraper/
+COPY packages/saas/package.json ./packages/saas/
 
 # Copy source
+COPY server/src ./server/src
 COPY scraper/src ./scraper/src
 COPY scraper/tsconfig.json ./scraper/
+COPY packages/saas/ ./packages/saas/
 
 # Build TypeScript
 RUN npm run build --workspace=allo-scrapper-scraper && \
+    npm run build --workspace=@allo-scrapper/saas && \
     rm -rf node_modules/.cache
 
 # Remove source maps and declaration files from dist (not needed at runtime)
@@ -84,6 +88,7 @@ COPY --chown=nodejs:nodejs package.json package-lock.json ./
 COPY --chown=nodejs:nodejs client/package.json ./client/
 COPY --chown=nodejs:nodejs server/package.json ./server/
 COPY --chown=nodejs:nodejs scraper/package.json ./scraper/
+COPY --chown=nodejs:nodejs packages/saas/package.json ./packages/saas/
 
 # Install production dependencies only for scraper workspace
 # Use --omit=optional to skip platform-specific bindings
@@ -93,6 +98,7 @@ RUN npm install --omit=dev --workspace=allo-scrapper-scraper --legacy-peer-deps 
 
 # Copy built application
 COPY --from=builder --chown=nodejs:nodejs /app/scraper/dist ./scraper/dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/saas/dist ./packages/saas/dist
 
 ENV CHROME_PATH=/usr/bin/chromium-headless-shell
 

@@ -34,13 +34,10 @@ jobs:
           node-version: '24'
 
       - name: Install dependencies
-        run: |
-          rm -f package-lock.json
-          npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps
 
-      - name: TypeScript type-check
-        run: npx tsc --noEmit
-        working-directory: server
+      - name: TypeScript type-check (Workspaces)
+        run: npm run build --workspaces --if-present
 
       - name: Run tests
         run: npm run test:run
