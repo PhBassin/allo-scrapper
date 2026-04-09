@@ -2,7 +2,7 @@
  * Superadmin portal page with Dashboard, Organizations, and Audit Log tabs.
  */
 import { useState, useEffect } from 'react';
-import apiClient from '../api/client';
+import apiClient from '../../api/client';
 
 interface DashboardMetrics {
   totalOrgs: number;

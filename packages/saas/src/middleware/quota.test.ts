@@ -31,7 +31,7 @@ describe('checkQuota middleware', () => {
         status: 'active',
         trial_ends_at: null,
       },
-      dbClient: { ...mockDb, release: vi.fn() },
+      dbClient: mockDb as any,
     };
 
     mockRes = {
@@ -87,9 +87,9 @@ describe('checkQuota middleware', () => {
         api_calls_count: 100,
       });
 
-      vi.mocked(QuotaService).mockImplementationOnce(() => ({
-        getOrCreateUsage: mockGetOrCreateUsage,
-      } as any));
+      vi.mocked(QuotaService).mockImplementationOnce(function() {
+        return { getOrCreateUsage: mockGetOrCreateUsage } as any;
+      });
 
       const middleware = checkQuota('cinemas');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
@@ -122,9 +122,9 @@ describe('checkQuota middleware', () => {
         api_calls_count: 100,
       });
 
-      vi.mocked(QuotaService).mockImplementationOnce(() => ({
-        getOrCreateUsage: mockGetOrCreateUsage,
-      } as any));
+      vi.mocked(QuotaService).mockImplementationOnce(function() {
+        return { getOrCreateUsage: mockGetOrCreateUsage } as any;
+      });
 
       const middleware = checkQuota('cinemas');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
@@ -161,9 +161,9 @@ describe('checkQuota middleware', () => {
         api_calls_count: 100,
       });
 
-      vi.mocked(QuotaService).mockImplementationOnce(() => ({
-        getOrCreateUsage: mockGetOrCreateUsage,
-      } as any));
+      vi.mocked(QuotaService).mockImplementationOnce(function() {
+        return { getOrCreateUsage: mockGetOrCreateUsage } as any;
+      });
 
       const middleware = checkQuota('users');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
@@ -200,9 +200,9 @@ describe('checkQuota middleware', () => {
         api_calls_count: 100,
       });
 
-      vi.mocked(QuotaService).mockImplementationOnce(() => ({
-        getOrCreateUsage: mockGetOrCreateUsage,
-      } as any));
+      vi.mocked(QuotaService).mockImplementationOnce(function() {
+        return { getOrCreateUsage: mockGetOrCreateUsage } as any;
+      });
 
       const middleware = checkQuota('scrapes');
       await middleware(mockReq as Request, mockRes as Response, mockNext);

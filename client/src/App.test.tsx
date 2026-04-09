@@ -220,6 +220,10 @@ vi.mock('@tanstack/react-query', () => {
   };
 });
 
+vi.mock('@tanstack/react-query-devtools', () => ({
+  ReactQueryDevtools: () => null,
+}));
+
 // Import App AFTER mocks are set up
 import App from './App';
 

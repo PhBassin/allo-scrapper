@@ -3,11 +3,19 @@ import { SuperadminAuthService } from './superadmin-auth-service.js';
 import type { DB } from '../db/types.js';
 import jwt from 'jsonwebtoken';
 
-const bcrypt = {
-  hash: vi.fn(),
-  compare: vi.fn(),
-};
-vi.mock('bcrypt', () => ({ default: bcrypt }));
+import bcrypt from 'bcryptjs';
+
+const { mockCompare, mockHash } = vi.hoisted(() => ({
+  mockCompare: vi.fn(),
+  mockHash: vi.fn(),
+}));
+
+vi.mock('bcryptjs', () => ({
+  default: {
+    compare: mockCompare,
+    hash: mockHash,
+  },
+}));
 
 describe('SuperadminAuthService', () => {
   let service: SuperadminAuthService;
@@ -32,7 +40,7 @@ describe('SuperadminAuthService', () => {
         }],
         rowCount: 1,
       });
-      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+      mockCompare.mockResolvedValue(true);
 
       const result = await service.login('superadmin', 'superpass123');
 
@@ -62,7 +70,7 @@ describe('SuperadminAuthService', () => {
         }],
         rowCount: 1,
       });
-      vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
+      mockCompare.mockResolvedValue(false);
 
       const result = await service.login('superadmin', 'wrongpass');
 

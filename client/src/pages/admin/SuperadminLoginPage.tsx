@@ -4,7 +4,7 @@
  */
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../api/client';
+import apiClient from '../../api/client';
 
 export default function SuperadminLoginPage() {
   const [username, setUsername] = useState('');

@@ -5,11 +5,19 @@ import { createSuperadminRouter } from './superadmin.js';
 import type { DB, Pool } from '../db/types.js';
 import jwt from 'jsonwebtoken';
 
-const bcrypt = {
-  hash: vi.fn(),
-  compare: vi.fn(),
-};
-vi.mock('bcrypt', () => ({ default: bcrypt }));
+import bcrypt from 'bcryptjs';
+
+const { mockCompare, mockHash } = vi.hoisted(() => ({
+  mockCompare: vi.fn(),
+  mockHash: vi.fn(),
+}));
+
+vi.mock('bcryptjs', () => ({
+  default: {
+    compare: mockCompare,
+    hash: mockHash,
+  },
+}));
 
 describe('Superadmin Routes', () => {
   let app: Express;
@@ -44,7 +52,7 @@ describe('Superadmin Routes', () => {
         }],
         rowCount: 1,
       });
-      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+      mockCompare.mockResolvedValue(true);
 
       const response = await request(app)
         .post('/api/superadmin/login')

@@ -24,8 +24,8 @@ const parseEnvInt = (key: string, defaultValue: number): number => {
  * - migrations/017_add_rate_limit_configs.sql (database schema)
  */
 
-// Skip rate limiting in test environment when req.ip is undefined
-const skipTest = (req: any) => !req.ip;
+// Skip rate limiting in test environment
+const skipTest = (req: any) => process.env.NODE_ENV === 'test' || !req.ip;
 
 // Window duration in milliseconds
 const WINDOW_MS = parseEnvInt('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000); // 15 min

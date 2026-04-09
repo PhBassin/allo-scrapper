@@ -2,7 +2,7 @@
  * Superadmin authentication service.
  * Handles login and JWT minting for superadmin users.
  */
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { DB } from '../db/types.js';
 

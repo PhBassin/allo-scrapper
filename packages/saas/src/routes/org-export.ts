@@ -2,8 +2,9 @@
  * Org data export route.
  * Generates a complete JSON export of an organization's data.
  */
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import type { DB, PoolClient } from '../db/types.js';
+import { AuthError } from '../../../server/src/utils/errors.js';
 
 // Extend Request to include dbClient and org from tenant middleware
 declare global {
@@ -26,11 +27,17 @@ declare global {
 export function createOrgExportRouter(): Router {
   const router = Router();
 
-  // GET /api/org/:slug/export
+  // GET /export
   // Requires: resolveTenant middleware (provides req.dbClient, req.org)
-  // Requires: requirePermission('export_data')
-  router.get('/export', async (req: Request, res: Response) => {
+  // Requires: requireAuth middleware (provides req.user)
+  router.get('/export', async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Check if user has export_data permission
+      const hasPermission = req.user?.permissions?.includes('export_data' as any);
+      if (!hasPermission) {
+        throw new AuthError('INSUFFICIENT_PERMISSIONS');
+      }
+
       const db = req.app.get('db') as DB;
       const client = req.dbClient;
       const org = req.org;
@@ -83,11 +90,7 @@ export function createOrgExportRouter(): Router {
         data: exportData,
       });
     } catch (error) {
-      console.error('Org export error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'INTERNAL_SERVER_ERROR',
-      });
+      next(error);
     }
   });
 
