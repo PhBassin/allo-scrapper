@@ -191,6 +191,12 @@ These variables are **required** for the application to function properly.
 - **Default**: `500` (0.5 seconds)
 - **Range**: `100` - `2000`
 
+#### `SCRAPER_CONCURRENCY`
+- **Description**: Number of cinemas to process concurrently during scraping
+- **Default**: `2`
+- **Range**: `1` - `5`
+- **Notes**: Higher values speed up scraping but increase the risk of HTTP 429 Rate Limit errors.
+
 #### `SCRAPE_DAYS`
 - **Description**: Number of days ahead to scrape
 - **Default**: `7`
@@ -337,6 +343,22 @@ See [Rate Limiting Reference](../reference/api/rate-limiting.md) for full docume
 - **When to decrease**:
   - Memory constraints
   - Small deployments (few cinemas, limited films)
+
+---
+
+### SaaS Configuration (Multi-Tenant Mode)
+
+#### `SAAS_ENABLED`
+- **Description**: Enable the Multi-Tenant SaaS mode on the backend
+- **Default**: `false`
+- **Values**: `true`, `false`
+- **Notes**: Requires database migration and setup before use. Changes the application architecture to use schema-per-organization isolation.
+
+#### `VITE_SAAS_ENABLED`
+- **Description**: Enable the Multi-Tenant SaaS UI features on the frontend
+- **Default**: `false`
+- **Values**: `true`, `false`
+- **Notes**: Enables the organization registration flow and dynamic routing. Must match `SAAS_ENABLED` on the backend.
 
 ---
 

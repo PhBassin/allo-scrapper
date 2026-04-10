@@ -82,7 +82,7 @@ docker compose restart ics-web
 docker compose logs -f ics-web | grep "Failed to fetch"
 ```
 
-**⚠️ No automatic retry on 403** - scraper skips cinema and continues.
+**⚠️ Graceful Shutdown on 429/403** - If rate limiting is detected, the scraper will immediately abort all in-flight and pending cinema tasks to avoid an IP ban.
 
 ---
 
