@@ -23,14 +23,25 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
 
   // Derive state from events
   const startedEvent = events.find((e): e is Extract<ProgressEvent, { type: 'started' }> => e.type === 'started');
-  const cinemaCompletedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'cinema_completed' }> => e.type === 'cinema_completed');
-  const filmStartedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'film_started' }> => e.type === 'film_started');
-  const filmCompletedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'film_completed' }> => e.type === 'film_completed');
+
+  // ⚡ PERFORMANCE: Use a single pass iteration to compute counts instead of multiple
+  // .filter().length calls to avoid allocating intermediate arrays and O(M*N) operations
+  let processedCinemas = 0;
+  let totalFilms = 0;
+  let processedFilms = 0;
+
+  for (let i = 0; i < events.length; i++) {
+    const type = events[i].type;
+    if (type === 'cinema_completed') {
+      processedCinemas++;
+    } else if (type === 'film_started') {
+      totalFilms++;
+    } else if (type === 'film_completed') {
+      processedFilms++;
+    }
+  }
 
   const totalCinemas = startedEvent?.total_cinemas || 0;
-  const processedCinemas = cinemaCompletedEvents.length;
-  const totalFilms = filmStartedEvents.length;
-  const processedFilms = filmCompletedEvents.length;
 
   // Get current cinema/film from latest event
   const currentCinema = latestEvent?.type === 'cinema_started' || latestEvent?.type === 'date_started' 
