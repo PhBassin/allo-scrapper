@@ -124,6 +124,11 @@ export function createRegisterRouter(): Router {
    */
   router.get('/saas/orgs/:slug/available', slugCheckLimiter, async (req, res) => {
     const slug = req.params['slug'];
+    
+    if (typeof slug !== 'string') {
+      return res.status(400).json({ success: false, available: false, error: 'Invalid slug' });
+    }
+
     if (!SLUG_PATTERN.test(slug)) {
       return res.status(400).json({ success: false, available: false, error: 'Invalid slug format' });
     }
