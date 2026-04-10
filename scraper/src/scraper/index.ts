@@ -248,7 +248,7 @@ async function processCinema(
         logger.error(isRateLimit ? 'Rate limit detected - stopping all scraping' : 'Circuit open detected - stopping all scraping', { 
           cinema: cinema.name, 
           date, 
-          statusCode: error.statusCode 
+          statusCode: (error as any).statusCode 
         });
         
         const errorType = classifyError(error);
@@ -258,7 +258,7 @@ async function processCinema(
           date: date,
           error: error.message,
           error_type: errorType,
-          http_status_code: error.statusCode,
+          http_status_code: (error as any).statusCode,
         });
 
         // Update attempt as rate_limited or failed
@@ -268,7 +268,7 @@ async function processCinema(
               status: isRateLimit ? 'rate_limited' : 'failed',
               error_type: errorType,
               error_message: error.message,
-              http_status_code: error.statusCode,
+              http_status_code: (error as any).statusCode,
             });
           } catch (updateError) {
             logger.error('Failed to update scrape attempt', { error: updateError });
