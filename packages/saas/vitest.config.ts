@@ -1,15 +1,20 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Resolve cross-package imports from server/src so Vitest can transform them.
-// At runtime these are loaded by the server process which has the files on disk;
-// in tests (Vitest/esbuild) we need explicit aliases because Vitest cannot
-// traverse outside its own rootDir via bare relative paths ending in `.js`.
 const serverSrc = path.resolve(__dirname, '../../server/src');
 
 export default defineConfig({
   resolve: {
     alias: [
+      {
+        find: '@server',
+        replacement: serverSrc,
+      },
       // Map any import of the form `../../../server/src/<X>.js` → actual TS file
       {
         find: /^(\.\.\/)*server\/src\/(.*)\.js$/,
