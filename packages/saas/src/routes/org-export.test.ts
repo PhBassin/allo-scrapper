@@ -105,6 +105,49 @@ describe('Org Export Routes', () => {
       expect(response.body.data.cinemas).toHaveLength(2);
     });
 
+    it('should NOT leak sensitive organization fields', async () => {
+      const token = jwt.sign(
+        { id: 'user-1', org_id: 1, org_slug: 'test-org', permissions: ['export_data'] },
+        jwtSecret
+      );
+
+      // Mock org data with sensitive fields
+      vi.mocked(mockDb.query).mockResolvedValueOnce({
+        rows: [{
+          id: 1,
+          name: 'Test Org',
+          slug: 'test-org',
+          plan_id: 1,
+          status: 'active',
+          created_at: new Date('2026-01-01'),
+          stripe_subscription_id: 'sub_12345',
+          internal_notes: 'Highly secret notes',
+          private_metadata: { key: 'secret' }
+        }],
+        rowCount: 1,
+      });
+
+      // Mock other data
+      vi.mocked(mockClient.query).mockResolvedValue({ rows: [] } as any);
+
+      const response = await request(app)
+        .get('/export')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      const org = response.body.data.org;
+      
+      // Allowed fields
+      expect(org).toHaveProperty('id');
+      expect(org).toHaveProperty('name');
+      expect(org).toHaveProperty('slug');
+      
+      // Sensitive fields should NOT be present
+      expect(org).not.toHaveProperty('stripe_subscription_id');
+      expect(org).not.toHaveProperty('internal_notes');
+      expect(org).not.toHaveProperty('private_metadata');
+    });
+
     it('should require export_data permission', async () => {
       const token = jwt.sign(
         { id: 'user-1', org_id: 1, org_slug: 'test-org', permissions: [] },

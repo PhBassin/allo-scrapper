@@ -35,9 +35,9 @@ export function createOrgExportRouter(): Router {
         return;
       }
 
-      // Get org metadata from public schema
+      // Get org metadata from public schema (filtered for privacy)
       const orgResult = await db.query(
-        'SELECT * FROM organizations WHERE id = $1',
+        'SELECT id, name, slug, status, plan_id, trial_ends_at, created_at FROM organizations WHERE id = $1',
         [org.id]
       );
 
@@ -61,8 +61,17 @@ export function createOrgExportRouter(): Router {
         client.query('SELECT * FROM org_settings LIMIT 1'),
       ]);
 
+      // Filter org data to avoid leaking internal fields
+      const { 
+        id, name, slug, status, plan_id, trial_ends_at, created_at 
+      } = orgResult.rows[0];
+      
+      const filteredOrg = { 
+        id, name, slug, status, plan_id, trial_ends_at, created_at 
+      };
+
       const exportData = {
-        org: orgResult.rows[0],
+        org: filteredOrg,
         cinemas: cinemasResult.rows,
         showtimes: showtimesResult.rows,
         reports: reportsResult.rows,
