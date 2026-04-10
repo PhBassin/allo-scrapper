@@ -161,7 +161,13 @@ export async function getFilm(db: DB, filmId: number): Promise<Film | undefined>
   };
 }
 
-// Récupérer les films programmés pour une date spécifique
+/**
+ * Récupérer les films programmés pour une date spécifique
+ * ⚡ PERFORMANCE: Optimized grouping algorithm
+ * - Uses a plain JS object (Object.create(null)) instead of Map for O(1) lookups without prototype overhead
+ * - Single pass iteration with classic for loop avoiding iterator allocations
+ * - Tracks result array alongside map to avoid slow Object.values() at the end
+ */
 export async function getFilmsByDate(
   db: DB,
   date: string,
@@ -188,11 +194,15 @@ export async function getFilmsByDate(
   );
 
   // Regrouper par film
-  const filmsMap = new Map<number, Film & { cinemas: Cinema[] }>();
+  const resultList: Array<Film & { cinemas: Cinema[] }> = [];
+  const filmsMap: Record<number, Film & { cinemas: Cinema[] }> = Object.create(null);
 
-  for (const row of result.rows) {
-    if (!filmsMap.has(row.id)) {
-      filmsMap.set(row.id, {
+  for (let i = 0; i < result.rows.length; i++) {
+    const row = result.rows[i];
+    let film = filmsMap[row.id];
+
+    if (!film) {
+      film = {
         id: row.id,
         title: row.title,
         original_title: row.original_title ?? undefined,
@@ -212,10 +222,11 @@ export async function getFilmsByDate(
         source_url: row.source_url,
         trailer_url: row.trailer_url ?? undefined,
         cinemas: [],
-      });
+      };
+      filmsMap[row.id] = film;
+      resultList.push(film);
     }
 
-    const film = filmsMap.get(row.id)!;
     film.cinemas.push({
       id: row.cinema_id,
       name: row.cinema_name,
@@ -227,10 +238,16 @@ export async function getFilmsByDate(
     });
   }
 
-  return Array.from(filmsMap.values());
+  return resultList;
 }
 
-// Récupérer les films programmés dans la semaine en cours
+/**
+ * Récupérer les films programmés dans la semaine en cours
+ * ⚡ PERFORMANCE: Optimized grouping algorithm
+ * - Uses a plain JS object (Object.create(null)) instead of Map for O(1) lookups without prototype overhead
+ * - Single pass iteration with classic for loop avoiding iterator allocations
+ * - Tracks result array alongside map to avoid slow Object.values() at the end
+ */
 export async function getWeeklyFilms(
   db: DB,
   weekStart: string
@@ -256,11 +273,15 @@ export async function getWeeklyFilms(
   );
 
   // Regrouper par film
-  const filmsMap = new Map<number, Film & { cinemas: Cinema[] }>();
+  const resultList: Array<Film & { cinemas: Cinema[] }> = [];
+  const filmsMap: Record<number, Film & { cinemas: Cinema[] }> = Object.create(null);
 
-  for (const row of result.rows) {
-    if (!filmsMap.has(row.id)) {
-      filmsMap.set(row.id, {
+  for (let i = 0; i < result.rows.length; i++) {
+    const row = result.rows[i];
+    let film = filmsMap[row.id];
+
+    if (!film) {
+      film = {
         id: row.id,
         title: row.title,
         original_title: row.original_title ?? undefined,
@@ -280,10 +301,11 @@ export async function getWeeklyFilms(
         source_url: row.source_url,
         trailer_url: row.trailer_url ?? undefined,
         cinemas: [],
-      });
+      };
+      filmsMap[row.id] = film;
+      resultList.push(film);
     }
 
-    const film = filmsMap.get(row.id)!;
     film.cinemas.push({
       id: row.cinema_id,
       name: row.cinema_name,
@@ -295,7 +317,7 @@ export async function getWeeklyFilms(
     });
   }
 
-  return Array.from(filmsMap.values());
+  return resultList;
 }
 
 // --- Film Search ---
