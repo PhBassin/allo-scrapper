@@ -1,3 +1,4 @@
+import pLimit from 'p-limit';
 import { db, type DB } from '../db/client.js';
 import { logger } from '../utils/logger.js';
 import {
@@ -106,6 +107,254 @@ export interface ScrapeOptions {
   pendingAttempts?: Array<{ cinema_id: string; date: string }>;  // For resume mode
 }
 
+/**
+ * Process a single cinema and all its dates.
+ * Extracted from runScraper for concurrency support.
+ */
+async function processCinema(
+  cinema: CinemaConfig,
+  dates: string[],
+  options: ScrapeOptions | undefined,
+  theaterDelayMs: number,
+  movieDelayMs: number,
+  progress: ProgressPublisher | undefined,
+  summary: ScrapeSummary,
+  index: number,
+  total: number,
+  isAborted: () => boolean
+): Promise<void> {
+  if (isAborted()) return;
+
+  const strategy = getStrategyBySource(cinema.source || 'allocine');
+
+  await progress?.emit({
+    type: 'cinema_started',
+    cinema_name: cinema.name,
+    cinema_id: cinema.id,
+    index: index + 1,
+  });
+
+  let cinemaFilmsCount = 0;
+  let cinemaShowtimesCount = 0;
+  let successfulDates = 0;
+
+  logger.info(`Processing cinema using ${strategy.sourceName} strategy`, { cinema: cinema.name, id: cinema.id });
+
+  let availableDates: string[] = [];
+  try {
+    const meta = await strategy.loadTheaterMetadata(db, cinema);
+    availableDates = meta.availableDates;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorType = classifyError(error);
+    logger.error('Failed to load theater metadata', { cinema: cinema.name, error: errorMessage });
+    summary.errors.push({ 
+      cinema_name: cinema.name, 
+      cinema_id: cinema.id,
+      error: errorMessage,
+      error_type: errorType,
+      http_status_code: (error as any).statusCode,
+    });
+    summary.failed_cinemas++;
+    return;
+  }
+
+  const datesToScrape = dates.filter(d => availableDates.includes(d));
+  const skippedDates = dates.filter(d => !availableDates.includes(d));
+
+  if (skippedDates.length > 0) {
+    logger.info('Skipping dates not yet published', { count: skippedDates.length, dates: skippedDates });
+  }
+  
+  // In resume mode, only scrape dates from pendingAttempts
+  let finalDatesToScrape = datesToScrape;
+  if (options?.resumeMode && options?.pendingAttempts) {
+    const pendingDatesForCinema = options.pendingAttempts
+      .filter(a => a.cinema_id === cinema.id)
+      .map(a => a.date);
+    
+    finalDatesToScrape = datesToScrape.filter(d => pendingDatesForCinema.includes(d));
+    
+    logger.info('Resume mode: filtered to pending attempts', { 
+      cinema: cinema.name, 
+      allDates: datesToScrape.length,
+      pendingDates: finalDatesToScrape.length,
+    });
+  }
+  
+  logger.info('Dates to scrape', { cinema: cinema.name, count: finalDatesToScrape.length });
+
+  for (const date of finalDatesToScrape) {
+    if (isAborted()) break;
+
+    logger.info('Attempting date', { cinema: cinema.name, date });
+    
+    // Track attempt in database if reportId provided
+    let attemptId: number | undefined;
+    if (options?.reportId) {
+      try {
+        attemptId = await createScrapeAttempt(db, {
+          report_id: options.reportId,
+          cinema_id: cinema.id,
+          date: date,
+          status: 'pending',
+        });
+      } catch (error) {
+        logger.error('Failed to create scrape attempt', { error });
+      }
+    }
+    
+    try {
+      const { filmsCount, showtimesCount } = await strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
+      cinemaFilmsCount += filmsCount;
+      cinemaShowtimesCount += showtimesCount;
+      successfulDates++;
+      logger.info('Date scraped successfully', { date, films: filmsCount, showtimes: showtimesCount });
+      
+      // Update attempt as successful
+      if (attemptId) {
+        try {
+          await updateScrapeAttempt(db, attemptId, {
+            status: 'success',
+            films_scraped: filmsCount,
+            showtimes_scraped: showtimesCount,
+          });
+        } catch (error) {
+          logger.error('Failed to update scrape attempt', { error });
+        }
+      }
+    } catch (error) {
+      // Detect rate limiting and signal abortion
+      if (error instanceof RateLimitError) {
+        logger.error('Rate limit detected - stopping all scraping', { 
+          cinema: cinema.name, 
+          date, 
+          statusCode: error.statusCode 
+        });
+        
+        const errorType = classifyError(error);
+        summary.errors.push({
+          cinema_name: cinema.name,
+          cinema_id: cinema.id,
+          date: date,
+          error: error.message,
+          error_type: errorType,
+          http_status_code: error.statusCode,
+        });
+
+        // Update attempt as rate_limited
+        if (attemptId) {
+          try {
+            await updateScrapeAttempt(db, attemptId, {
+              status: 'rate_limited',
+              error_type: errorType,
+              error_message: error.message,
+              http_status_code: error.statusCode,
+            });
+          } catch (updateError) {
+            logger.error('Failed to update scrape attempt', { error: updateError });
+          }
+        }
+
+        // Mark remaining dates as not_attempted
+        if (options?.reportId) {
+          const remainingDates = finalDatesToScrape.slice(finalDatesToScrape.indexOf(date) + 1);
+          for (const remainingDate of remainingDates) {
+            try {
+              await createScrapeAttempt(db, {
+                report_id: options.reportId,
+                cinema_id: cinema.id,
+                date: remainingDate,
+                status: 'not_attempted',
+              });
+            } catch (error) {
+              logger.error('Failed to mark attempt as not_attempted', { error });
+            }
+          }
+        }
+
+        await progress?.emit({
+          type: 'date_failed',
+          cinema_name: cinema.name,
+          date: date,
+          error: error.message
+        });
+
+        // Mark status as rate_limited
+        summary.status = 'rate_limited';
+        return;
+      }
+
+      // Handle other errors normally
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorType = classifyError(error);
+      logger.error('Date scrape failed', { cinema: cinema.name, date, error: errorMessage });
+      
+      summary.errors.push({
+        cinema_name: cinema.name,
+        cinema_id: cinema.id,
+        date: date,
+        error: errorMessage,
+        error_type: errorType,
+        http_status_code: (error as any).statusCode,
+      });
+
+      // Update attempt as failed
+      if (attemptId) {
+        try {
+          await updateScrapeAttempt(db, attemptId, {
+            status: 'failed',
+            error_type: errorType,
+            error_message: errorMessage,
+            http_status_code: (error as any).statusCode,
+          });
+        } catch (updateError) {
+          logger.error('Failed to update scrape attempt', { error: updateError });
+        }
+      }
+
+      await progress?.emit({
+        type: 'date_failed',
+        cinema_name: cinema.name,
+        date: date,
+        error: errorMessage
+      });
+
+      continue;
+    }
+  }
+
+  const cinemaFailed = successfulDates === 0 && finalDatesToScrape.length > 0;
+
+  logger.info('Cinema summary', {
+    cinema: cinema.name,
+    successfulDates,
+    totalDates: finalDatesToScrape.length,
+    films: cinemaFilmsCount,
+    showtimes: cinemaShowtimesCount,
+  });
+
+  if (!cinemaFailed) {
+    summary.successful_cinemas++;
+    summary.total_films += cinemaFilmsCount;
+    summary.total_showtimes += cinemaShowtimesCount;
+    await progress?.emit({
+      type: 'cinema_completed',
+      cinema_name: cinema.name,
+      total_films: cinemaFilmsCount,
+    });
+  } else {
+    summary.failed_cinemas++;
+    logger.error('Cinema failed completely', { cinema: cinema.name, dates: finalDatesToScrape.length });
+  }
+
+  // Apply delay between cinemas (except after the last one)
+  if (index < total - 1 && !isAborted()) {
+    logger.info('Waiting before next cinema', { delayMs: theaterDelayMs });
+    await delay(theaterDelayMs);
+  }
+}
+
 export async function runScraper(
   progress?: ProgressPublisher,
   options?: ScrapeOptions
@@ -128,6 +377,7 @@ export async function runScraper(
   // Read delay configuration from environment
   const theaterDelayMs = parseInt(process.env.SCRAPE_THEATER_DELAY_MS || '3000', 10);
   const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
+  const concurrency = parseInt(process.env.SCRAPER_CONCURRENCY || '2', 10);
 
   try {
     let cinemas = await getCinemaConfigs(db);
@@ -175,7 +425,7 @@ export async function runScraper(
 
     const dates = getScrapeDates(scrapeMode, scrapeDays);
     logger.info('Scrape config', { mode: scrapeMode, dates: dates.length, scrapeDays });
-    logger.info('Delay config', { theaterDelayMs, movieDelayMs });
+    logger.info('Delay config', { theaterDelayMs, movieDelayMs, concurrency });
 
     summary.total_cinemas = cinemas.length;
     summary.total_dates = dates.length;
@@ -186,265 +436,25 @@ export async function runScraper(
       total_dates: dates.length,
     });
 
-    for (let i = 0; i < cinemas.length; i++) {
-      const cinema = cinemas[i];
-      const strategy = getStrategyBySource(cinema.source || 'allocine');
+    const limit = pLimit(concurrency);
+    const isAborted = () => summary.status === 'rate_limited';
 
-      await progress?.emit({
-        type: 'cinema_started',
-        cinema_name: cinema.name,
-        cinema_id: cinema.id,
-        index: i + 1,
-      });
+    const tasks = cinemas.map((cinema, i) => 
+      limit(() => processCinema(
+        cinema,
+        dates,
+        options,
+        theaterDelayMs,
+        movieDelayMs,
+        progress,
+        summary,
+        i,
+        cinemas.length,
+        isAborted
+      ))
+    );
 
-      let cinemaFilmsCount = 0;
-      let cinemaShowtimesCount = 0;
-      let successfulDates = 0;
-
-      logger.info(`Processing cinema using ${strategy.sourceName} strategy`, { cinema: cinema.name, id: cinema.id });
-
-      let availableDates: string[] = [];
-      try {
-        const meta = await strategy.loadTheaterMetadata(db, cinema);
-        availableDates = meta.availableDates;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorType = classifyError(error);
-        logger.error('Failed to load theater metadata', { cinema: cinema.name, error: errorMessage });
-        summary.errors.push({ 
-          cinema_name: cinema.name, 
-          cinema_id: cinema.id,
-          error: errorMessage,
-          error_type: errorType,
-          http_status_code: (error as any).statusCode,
-        });
-        summary.failed_cinemas++;
-        continue;
-      }
-
-      const datesToScrape = dates.filter(d => availableDates.includes(d));
-      const skippedDates = dates.filter(d => !availableDates.includes(d));
-
-      if (skippedDates.length > 0) {
-        logger.info('Skipping dates not yet published', { count: skippedDates.length, dates: skippedDates });
-      }
-      
-      // In resume mode, only scrape dates from pendingAttempts
-      let finalDatesToScrape = datesToScrape;
-      if (options?.resumeMode && options?.pendingAttempts) {
-        const pendingDatesForCinema = options.pendingAttempts
-          .filter(a => a.cinema_id === cinema.id)
-          .map(a => a.date);
-        
-        finalDatesToScrape = datesToScrape.filter(d => pendingDatesForCinema.includes(d));
-        
-        logger.info('Resume mode: filtered to pending attempts', { 
-          cinema: cinema.name, 
-          allDates: datesToScrape.length,
-          pendingDates: finalDatesToScrape.length,
-        });
-      }
-      
-      logger.info('Dates to scrape', { cinema: cinema.name, count: finalDatesToScrape.length });
-
-      // Track if rate limited to stop scraping entirely
-      let rateLimited = false;
-
-      for (const date of finalDatesToScrape) {
-        logger.info('Attempting date', { cinema: cinema.name, date });
-        
-        // Track attempt in database if reportId provided
-        let attemptId: number | undefined;
-        if (options?.reportId) {
-          try {
-            attemptId = await createScrapeAttempt(db, {
-              report_id: options.reportId,
-              cinema_id: cinema.id,
-              date: date,
-              status: 'pending',
-            });
-          } catch (error) {
-            logger.error('Failed to create scrape attempt', { error });
-          }
-        }
-        
-        try {
-          const { filmsCount, showtimesCount } = await strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
-          cinemaFilmsCount += filmsCount;
-          cinemaShowtimesCount += showtimesCount;
-          successfulDates++;
-          logger.info('Date scraped successfully', { date, films: filmsCount, showtimes: showtimesCount });
-          
-          // Update attempt as successful
-          if (attemptId) {
-            try {
-              await updateScrapeAttempt(db, attemptId, {
-                status: 'success',
-                films_scraped: filmsCount,
-                showtimes_scraped: showtimesCount,
-              });
-            } catch (error) {
-              logger.error('Failed to update scrape attempt', { error });
-            }
-          }
-        } catch (error) {
-          // Detect rate limiting and stop immediately
-          if (error instanceof RateLimitError) {
-            logger.error('Rate limit detected - stopping all scraping', { 
-              cinema: cinema.name, 
-              date, 
-              statusCode: error.statusCode 
-            });
-            
-            const errorType = classifyError(error);
-            summary.errors.push({
-              cinema_name: cinema.name,
-              cinema_id: cinema.id,
-              date: date,
-              error: error.message,
-              error_type: errorType,
-              http_status_code: error.statusCode,
-            });
-
-            // Update attempt as rate_limited
-            if (attemptId) {
-              try {
-                await updateScrapeAttempt(db, attemptId, {
-                  status: 'rate_limited',
-                  error_type: errorType,
-                  error_message: error.message,
-                  http_status_code: error.statusCode,
-                });
-              } catch (updateError) {
-                logger.error('Failed to update scrape attempt', { error: updateError });
-              }
-            }
-
-            // Mark remaining dates as not_attempted
-            if (options?.reportId) {
-              const remainingDates = finalDatesToScrape.slice(finalDatesToScrape.indexOf(date) + 1);
-              for (const remainingDate of remainingDates) {
-                try {
-                  await createScrapeAttempt(db, {
-                    report_id: options.reportId,
-                    cinema_id: cinema.id,
-                    date: remainingDate,
-                    status: 'not_attempted',
-                  });
-                } catch (error) {
-                  logger.error('Failed to mark attempt as not_attempted', { error });
-                }
-              }
-              
-              // Mark remaining cinemas and all their dates as not_attempted
-              const remainingCinemas = cinemas.slice(i + 1);
-              for (const remainingCinema of remainingCinemas) {
-                for (const futureDate of datesToScrape) {
-                  try {
-                    await createScrapeAttempt(db, {
-                      report_id: options.reportId,
-                      cinema_id: remainingCinema.id,
-                      date: futureDate,
-                      status: 'not_attempted',
-                    });
-                  } catch (error) {
-                    logger.error('Failed to mark attempt as not_attempted', { error });
-                  }
-                }
-              }
-            }
-
-            await progress?.emit({
-              type: 'date_failed',
-              cinema_name: cinema.name,
-              date: date,
-              error: error.message
-            });
-
-            // Mark status as rate_limited and break out of both loops
-            summary.status = 'rate_limited';
-            rateLimited = true;
-            break;
-          }
-
-          // Handle other errors normally
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          const errorType = classifyError(error);
-          logger.error('Date scrape failed', { cinema: cinema.name, date, error: errorMessage });
-          
-          summary.errors.push({
-            cinema_name: cinema.name,
-            cinema_id: cinema.id,
-            date: date,
-            error: errorMessage,
-            error_type: errorType,
-            http_status_code: (error as any).statusCode,
-          });
-
-          // Update attempt as failed
-          if (attemptId) {
-            try {
-              await updateScrapeAttempt(db, attemptId, {
-                status: 'failed',
-                error_type: errorType,
-                error_message: errorMessage,
-                http_status_code: (error as any).statusCode,
-              });
-            } catch (updateError) {
-              logger.error('Failed to update scrape attempt', { error: updateError });
-            }
-          }
-
-          await progress?.emit({
-            type: 'date_failed',
-            cinema_name: cinema.name,
-            date: date,
-            error: errorMessage
-          });
-
-          continue;
-        }
-      }
-
-      // If rate limited, stop processing remaining cinemas
-      if (rateLimited) {
-        logger.warn('Stopping scrape due to rate limit', { 
-          processedCinemas: i + 1, 
-          totalCinemas: cinemas.length 
-        });
-        break;
-      }
-
-      const cinemaFailed = successfulDates === 0 && finalDatesToScrape.length > 0;
-
-      logger.info('Cinema summary', {
-        cinema: cinema.name,
-        successfulDates,
-        totalDates: finalDatesToScrape.length,
-        films: cinemaFilmsCount,
-        showtimes: cinemaShowtimesCount,
-      });
-
-      if (!cinemaFailed) {
-        summary.successful_cinemas++;
-        summary.total_films += cinemaFilmsCount;
-        summary.total_showtimes += cinemaShowtimesCount;
-        await progress?.emit({
-          type: 'cinema_completed',
-          cinema_name: cinema.name,
-          total_films: cinemaFilmsCount,
-        });
-      } else {
-        summary.failed_cinemas++;
-        logger.error('Cinema failed completely', { cinema: cinema.name, dates: datesToScrape.length });
-      }
-
-      // Apply delay between cinemas (except after the last one)
-      if (i < cinemas.length - 1) {
-        logger.info('Waiting before next cinema', { delayMs: theaterDelayMs });
-        await delay(theaterDelayMs);
-      }
-    }
+    await Promise.allSettled(tasks);
 
     summary.duration_ms = Date.now() - startTime;
     logger.info('Scraping completed', { summary });
