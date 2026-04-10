@@ -646,7 +646,7 @@ Authorization: Bearer <org-admin-token>
 ```
 
 **Export Contents:**
-- Organization metadata (name, plan, trial status)
+- Organization metadata (name, plan, trial status) - *sensitive internal fields are automatically filtered for privacy*
 - All cinemas and locations
 - Last 7 days of showtimes
 - Weekly reports

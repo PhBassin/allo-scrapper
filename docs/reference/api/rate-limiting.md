@@ -63,6 +63,7 @@ Different endpoint types have different rate limits to balance security and usab
 | **Protected** | `/api/reports/*` | 15 min | 60 | `RATE_LIMIT_PROTECTED_MAX` |
 | **Scraper** | `/api/scraper/trigger` | 15 min | 10 | `RATE_LIMIT_SCRAPER_MAX` |
 | **Public** | `/api/films/*`, `/api/cinemas/*` | 15 min | 100 | `RATE_LIMIT_PUBLIC_MAX` |
+| **SaaS Slug** | `/api/saas/orgs/:slug/available` | 15 min | 50 | `RATE_LIMIT_SAAS_SLUG_MAX` |
 
 **¹ Note**: Authentication endpoint only counts **failed login attempts**. Successful logins don't count toward the limit (`skipSuccessfulRequests: true`).
 
@@ -338,6 +339,7 @@ RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # Registration window (1 hour)
 RATE_LIMIT_PROTECTED_MAX=60         # Protected endpoints
 RATE_LIMIT_SCRAPER_MAX=10           # Scraper trigger
 RATE_LIMIT_PUBLIC_MAX=100           # Public endpoints
+RATE_LIMIT_SAAS_SLUG_MAX=50         # SaaS slug check (tenant enumeration prevention)
 ```
 
 ---

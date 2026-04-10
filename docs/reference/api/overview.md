@@ -178,6 +178,9 @@ RATE_LIMIT_SCRAPER_MAX=10
 
 # Public endpoints limit (default: 100)
 RATE_LIMIT_PUBLIC_MAX=100
+
+# SaaS Slug check limit (default: 50)
+RATE_LIMIT_SAAS_SLUG_MAX=50
 ```
 
 ### Practical Examples
@@ -254,7 +257,7 @@ curl -X POST http://localhost:3000/api/auth/login \
 | [Auth](./auth.md) | `/api/auth/register` | POST | No |
 | [Auth](./auth.md) | `/api/auth/change-password` | POST | Yes |
 | [Scraper](./scraper.md) | `/api/scraper/trigger` | POST | `scraper:trigger` |
-| [Scraper](./scraper.md) | `/api/scraper/status` | GET | No |
+| [Scraper](./scraper.md) | `/api/scraper/status` | GET | Yes (Admin) |
 | [Scraper](./scraper.md) | `/api/scraper/progress` | GET (SSE) | No |
 | [Reports](./reports.md) | `/api/reports` | GET | `reports:list` |
 | [Reports](./reports.md) | `/api/reports/:id` | GET | `reports:view` |
