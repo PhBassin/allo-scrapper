@@ -23,6 +23,15 @@ const orgCreationLimiter = rateLimit({
   message: { success: false, error: 'Too many registration attempts, please try again later.' },
 });
 
+/** Rate limit: 50 slug availability checks per 15 minutes per IP */
+const slugCheckLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env['RATE_LIMIT_SAAS_SLUG_MAX'] ?? '50', 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, available: false, error: 'Too many availability checks, please try again later.' },
+});
+
 export function createRegisterRouter(): Router {
   const router = Router();
 
@@ -113,7 +122,7 @@ export function createRegisterRouter(): Router {
    * GET /api/saas/orgs/:slug/available
    * Quick slug availability check (public, no auth).
    */
-  router.get('/saas/orgs/:slug/available', async (req, res) => {
+  router.get('/saas/orgs/:slug/available', slugCheckLimiter, async (req, res) => {
     const slug = req.params['slug'];
     if (!SLUG_PATTERN.test(slug)) {
       return res.status(400).json({ success: false, available: false, error: 'Invalid slug format' });
