@@ -35,22 +35,18 @@ export class QuotaService {
 
   /**
    * Returns the usage row for the current month, creating it (all zeros) if absent.
+   * Uses atomic UPSERT to prevent race conditions during monthly row creation.
    */
   async getOrCreateUsage(orgId: number): Promise<OrgUsage> {
     const month = currentMonthDate();
-    const existing = await this.db.query<OrgUsage>(
-      `SELECT * FROM org_usage WHERE org_id = $1 AND month = $2`,
-      [orgId, month]
-    );
-    if (existing.rows.length > 0) return existing.rows[0];
-
-    const inserted = await this.db.query<OrgUsage>(
+    const result = await this.db.query<OrgUsage>(
       `INSERT INTO org_usage (org_id, month)
        VALUES ($1, $2)
+       ON CONFLICT (org_id, month) DO UPDATE SET org_id = EXCLUDED.org_id
        RETURNING *`,
       [orgId, month]
     );
-    return inserted.rows[0];
+    return result.rows[0];
   }
 
   /**
