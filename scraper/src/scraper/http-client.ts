@@ -4,8 +4,15 @@ import puppeteer, { type Browser } from 'puppeteer-core';
 import { logger } from '../utils/logger.js';
 import { ALLOCINE_BASE_URL } from './utils.js';
 import { HttpError, RateLimitError } from '../utils/errors.js';
+import { CircuitBreaker } from './circuit-breaker.js';
 
 const FETCH_TIMEOUT_MS = 15000;
+
+export const circuitBreaker = new CircuitBreaker(5, 60000, (err) => {
+  if (err instanceof RateLimitError) return false;
+  if (err instanceof HttpError && err.statusCode && err.statusCode < 500) return false;
+  return true;
+});
 
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -81,31 +88,33 @@ export interface TheaterInitialData {
  * separately via the JSON API (fetchShowtimesJson).
  */
 export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterInitialData> {
-  const browser = await getBrowser();
-  const context = await browser.createBrowserContext();
-  const page = await context.newPage();
+  return circuitBreaker.execute(async () => {
+    const browser = await getBrowser();
+    const context = await browser.createBrowserContext();
+    const page = await context.newPage();
 
-  try {
-    await page.setUserAgent(USER_AGENT);
-    logger.info('Loading theater page', { url: cinemaBaseUrl });
-    await page.goto(cinemaBaseUrl, { waitUntil: 'networkidle0', timeout: 60000 });
+    try {
+      await page.setUserAgent(USER_AGENT);
+      logger.info('Loading theater page', { url: cinemaBaseUrl });
+      await page.goto(cinemaBaseUrl, { waitUntil: 'networkidle0', timeout: 60000 });
 
-    const html = await page.content();
+      const html = await page.content();
 
-    // Extract available dates from the data-showtimes-dates attribute
-    const availableDates = await page.evaluate(() => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const el = (globalThis as any).document?.querySelector('#theaterpage-showtimes-index-ui');
-      const raw = el?.getAttribute('data-showtimes-dates');
-      if (!raw) return [] as string[];
-      try { return JSON.parse(raw) as string[]; } catch { return [] as string[]; }
-    });
+      // Extract available dates from the data-showtimes-dates attribute
+      const availableDates = await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const el = (globalThis as any).document?.querySelector('#theaterpage-showtimes-index-ui');
+        const raw = el?.getAttribute('data-showtimes-dates');
+        if (!raw) return [] as string[];
+        try { return JSON.parse(raw) as string[]; } catch { return [] as string[]; }
+      });
 
-    logger.info('Available dates on page', { dates: availableDates });
-    return { html, availableDates };
-  } finally {
-    await context.close();
-  }
+      logger.info('Available dates on page', { dates: availableDates });
+      return { html, availableDates };
+    } finally {
+      await context.close();
+    }
+  });
 }
 
 /**
@@ -182,42 +191,44 @@ export async function fetchFilmPage(filmId: number): Promise<string> {
 
   logger.info('Fetching film page', { url });
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return circuitBreaker.execute(async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': USER_AGENT,
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Cache-Control': 'no-cache',
-      },
-    });
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': USER_AGENT,
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Cache-Control': 'no-cache',
+        },
+      });
 
-    if (!response.ok) {
-      // Detect rate limiting specifically
-      if (response.status === 429) {
-        throw new RateLimitError(
-          `Rate limit exceeded for film ${filmId}`,
+      if (!response.ok) {
+        // Detect rate limiting specifically
+        if (response.status === 429) {
+          throw new RateLimitError(
+            `Rate limit exceeded for film ${filmId}`,
+            response.status,
+            url
+          );
+        }
+
+        // Throw generic HttpError for other failures
+        throw new HttpError(
+          `Failed to fetch film page ${filmId}: ${response.status} ${response.statusText}`,
           response.status,
           url
         );
       }
 
-      // Throw generic HttpError for other failures
-      throw new HttpError(
-        `Failed to fetch film page ${filmId}: ${response.status} ${response.statusText}`,
-        response.status,
-        url
-      );
+      return response.text();
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    return response.text();
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  });
 }
 
 // Ajouter un délai entre les requêtes pour éviter le rate limiting

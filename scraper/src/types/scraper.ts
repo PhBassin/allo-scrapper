@@ -126,5 +126,6 @@ export interface ScrapeSummary {
     error_type?: 'http_429' | 'http_5xx' | 'http_4xx' | 'network' | 'parse' | 'timeout';
     http_status_code?: number;
   }>;
-  status?: 'success' | 'partial_success' | 'failed' | 'rate_limited';
+  status?: 'success' | 'partial_success' | 'failed' | 'rate_limited' | 'circuit_open';
+  circuit_state?: 'closed' | 'open' | 'half-open';
 }

@@ -30,6 +30,9 @@ vi.mock('../../../src/scraper/http-client.js', () => ({
   fetchFilmPage: vi.fn(),
   delay: vi.fn(),
   closeBrowser: vi.fn(),
+  circuitBreaker: {
+    getState: vi.fn().mockReturnValue('closed'),
+  },
 }));
 
 vi.mock('../../../src/scraper/theater-parser.js', () => ({
