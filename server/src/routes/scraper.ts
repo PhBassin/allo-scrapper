@@ -122,7 +122,7 @@ router.post('/resume/:reportId', scraperLimiter, requireAuth, async (req: AuthRe
 });
 
 // GET /api/scraper/status - Get current scrape status
-router.get('/status', scraperLimiter, async (req, res, next) => {
+router.get('/status', scraperLimiter, requireAuth, async (req, res, next) => {
   const dbConn = getDbFromRequest(req);
   const scraperService = new ScraperService(dbConn);
 
