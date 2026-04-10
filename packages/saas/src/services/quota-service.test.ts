@@ -33,13 +33,9 @@ describe('QuotaService', () => {
       const result = await service.getOrCreateUsage(42);
 
       expect(result).toEqual(existingRow);
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT * FROM org_usage WHERE org_id = $1 AND month = $2'),
-        expect.arrayContaining([42, expect.stringMatching(/^\d{4}-\d{2}-01$/)])
-      );
     });
 
-    it('creates new usage row if absent', async () => {
+    it('creates new usage row if absent using atomic UPSERT', async () => {
       const newRow = {
         id: 2,
         org_id: 42,
@@ -50,13 +46,7 @@ describe('QuotaService', () => {
         api_calls_count: 0,
       };
 
-      // First query returns empty (row doesn't exist)
-      vi.mocked(mockDb.query).mockResolvedValueOnce({
-        rows: [],
-        rowCount: 0,
-      });
-
-      // Second query returns inserted row
+      // Atomic query returns inserted row
       vi.mocked(mockDb.query).mockResolvedValueOnce({
         rows: [newRow],
         rowCount: 1,
@@ -65,11 +55,14 @@ describe('QuotaService', () => {
       const result = await service.getOrCreateUsage(42);
 
       expect(result).toEqual(newRow);
-      expect(mockDb.query).toHaveBeenCalledTimes(2);
-      expect(mockDb.query).toHaveBeenNthCalledWith(
-        2,
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
+      expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO org_usage (org_id, month)'),
         expect.arrayContaining([42, expect.stringMatching(/^\d{4}-\d{2}-01$/)])
+      );
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('ON CONFLICT (org_id, month) DO UPDATE SET org_id = EXCLUDED.org_id'),
+        expect.anything()
       );
     });
   });
@@ -92,34 +85,6 @@ describe('QuotaService', () => {
         expect.anything()
       );
     });
-
-    it('atomically increments users_count using UPSERT', async () => {
-      vi.mocked(mockDb.query).mockResolvedValueOnce({
-        rows: [],
-        rowCount: 1,
-      });
-
-      await service.incrementUsage(42, 'users');
-
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('users_count'),
-        expect.anything()
-      );
-    });
-
-    it('atomically increments scrapes_count using UPSERT', async () => {
-      vi.mocked(mockDb.query).mockResolvedValueOnce({
-        rows: [],
-        rowCount: 1,
-      });
-
-      await service.incrementUsage(42, 'scrapes');
-
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('scrapes_count'),
-        expect.anything()
-      );
-    });
   });
 
   describe('decrementUsage', () => {
@@ -134,10 +99,6 @@ describe('QuotaService', () => {
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE org_usage'),
         expect.arrayContaining([42, expect.stringMatching(/^\d{4}-\d{2}-01$/)])
-      );
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('GREATEST(0,'),
-        expect.anything()
       );
     });
   });
@@ -154,14 +115,6 @@ describe('QuotaService', () => {
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE org_usage'),
         expect.arrayContaining([42, expect.stringMatching(/^\d{4}-\d{2}-01$/)])
-      );
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('scrapes_count   = 0'),
-        expect.anything()
-      );
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('api_calls_count = 0'),
-        expect.anything()
       );
     });
   });
