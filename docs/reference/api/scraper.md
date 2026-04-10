@@ -122,7 +122,7 @@ curl -X POST http://localhost:3000/api/scraper/trigger \
 GET /api/scraper/status
 ```
 
-**Authentication:** Not required (public endpoint)
+**Authentication:** Required (Admin role)
 
 **Response (In-Process Mode):**
 ```json
@@ -171,7 +171,8 @@ GET /api/scraper/status
 
 **Example:**
 ```bash
-curl http://localhost:3000/api/scraper/status
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:3000/api/scraper/status
 ```
 
 ---

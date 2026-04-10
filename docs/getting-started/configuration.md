@@ -312,6 +312,10 @@ See [Rate Limiting Reference](../reference/api/rate-limiting.md) for full docume
 - **Description**: Max requests per window for public read endpoints (films, cinemas)
 - **Default**: `100`
 
+#### `RATE_LIMIT_SAAS_SLUG_MAX`
+- **Description**: Max slug availability checks per 15-minute window per IP (SaaS only)
+- **Default**: `50`
+
 #### `RATE_LIMIT_HEALTH_MAX`
 - **Description**: Max health-check requests per **minute** per IP address
 - **Default**: `10`
