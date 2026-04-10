@@ -9,6 +9,7 @@ const mockSubscribeToProgress = vi.fn();
 const mockPublishScheduleChange = vi.fn();
 
 let currentMockUser = { role_name: 'admin', is_system_role: true, permissions: [], id: 1, username: 'admin' };
+let failAuth = false;
 
 vi.mock('../services/scraper-service.js', () => {
   return {
@@ -27,7 +28,8 @@ vi.mock('../db/client.js', () => ({
 }));
 
 vi.mock('../middleware/auth.js', () => ({
-  requireAuth: (req: any, _res: any, next: any) => {
+  requireAuth: (req: any, res: any, next: any) => {
+    if (failAuth) return res.status(401).json({ error: 'Unauthorized' });
     req.user = currentMockUser;
     next();
   },
@@ -86,6 +88,7 @@ describe('Routes - Scraper', () => {
     mockTriggerScrape.mockResolvedValue({ reportId: 42, queueDepth: 1 });
     mockGetStatus.mockResolvedValue({ isRunning: false, latestReport: null });
     mockPublishScheduleChange.mockResolvedValue(undefined);
+    failAuth = false;
   });
 
   describe('POST /api/scraper/trigger', () => {
@@ -155,6 +158,14 @@ describe('Routes - Scraper', () => {
   });
 
   describe('GET /api/scraper/status', () => {
+    it('should require authentication', async () => {
+      failAuth = true;
+      const app = await setupApp();
+      const response = await request(app).get('/api/scraper/status');
+
+      expect(response.status).toBe(401);
+    });
+
     it('should return the status from the service', async () => {
       mockGetStatus.mockResolvedValue({ isRunning: true, latestReport: { id: 99 } });
       const app = await setupApp();
