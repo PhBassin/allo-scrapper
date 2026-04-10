@@ -5,6 +5,8 @@ import { logger } from '../utils/logger.js';
 import { ALLOCINE_BASE_URL } from './utils.js';
 import { HttpError, RateLimitError } from '../utils/errors.js';
 
+const FETCH_TIMEOUT_MS = 15000;
+
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -129,34 +131,42 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
   const url = constructed.href;
   logger.info('Fetching showtimes JSON', { url });
 
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': USER_AGENT,
-      Accept: 'application/json',
-      'Accept-Language': 'fr-FR,fr;q=0.9',
-      Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${cinemaId}.html`,
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-  if (!response.ok) {
-    // Detect rate limiting specifically
-    if (response.status === 429) {
-      throw new RateLimitError(
-        `Rate limit exceeded for ${cinemaId} on ${date}`,
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'application/json',
+        'Accept-Language': 'fr-FR,fr;q=0.9',
+        Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${cinemaId}.html`,
+      },
+    });
+
+    if (!response.ok) {
+      // Detect rate limiting specifically
+      if (response.status === 429) {
+        throw new RateLimitError(
+          `Rate limit exceeded for ${cinemaId} on ${date}`,
+          response.status,
+          url
+        );
+      }
+
+      // Throw generic HttpError for other failures
+      throw new HttpError(
+        `Failed to fetch showtimes JSON for ${cinemaId} on ${date}: ${response.status} ${response.statusText}`,
         response.status,
         url
       );
     }
 
-    // Throw generic HttpError for other failures
-    throw new HttpError(
-      `Failed to fetch showtimes JSON for ${cinemaId} on ${date}: ${response.status} ${response.statusText}`,
-      response.status,
-      url
-    );
+    return response.json();
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return response.json();
 }
 
 export async function fetchFilmPage(filmId: number): Promise<string> {
@@ -172,34 +182,42 @@ export async function fetchFilmPage(filmId: number): Promise<string> {
 
   logger.info('Fetching film page', { url });
 
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': USER_AGENT,
-      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-      'Cache-Control': 'no-cache',
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-  if (!response.ok) {
-    // Detect rate limiting specifically
-    if (response.status === 429) {
-      throw new RateLimitError(
-        `Rate limit exceeded for film ${filmId}`,
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache',
+      },
+    });
+
+    if (!response.ok) {
+      // Detect rate limiting specifically
+      if (response.status === 429) {
+        throw new RateLimitError(
+          `Rate limit exceeded for film ${filmId}`,
+          response.status,
+          url
+        );
+      }
+
+      // Throw generic HttpError for other failures
+      throw new HttpError(
+        `Failed to fetch film page ${filmId}: ${response.status} ${response.statusText}`,
         response.status,
         url
       );
     }
 
-    // Throw generic HttpError for other failures
-    throw new HttpError(
-      `Failed to fetch film page ${filmId}: ${response.status} ${response.statusText}`,
-      response.status,
-      url
-    );
+    return response.text();
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return response.text();
 }
 
 // Ajouter un délai entre les requêtes pour éviter le rate limiting
