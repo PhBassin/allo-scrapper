@@ -21,13 +21,13 @@
     "@types/bcryptjs": "^3.0.0",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^25.4.0",
+    "@types/node": "^25.5.2",
     "@types/supertest": "^7.2.0",
     "@vitest/coverage-v8": "^4.0.18",
     "supertest": "^7.2.2",
     "tsx": "^4.19.2",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.1"
+    "vitest": "^4.1.4"
   },
   "peerDependencies": {
     "pg": "^8.20.0"
