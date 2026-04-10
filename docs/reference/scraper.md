@@ -216,6 +216,7 @@ Controlled by `SCRAPE_MODE` environment variable:
 | `SCRAPE_CRON_SCHEDULE` | Cron expression for scheduled scraping | `0 8 * * 3` | `0 3 * * *` |
 | `SCRAPE_THEATER_DELAY_MS` | Delay between cinema scrapes (ms) | `3000` | `5000` |
 | `SCRAPE_MOVIE_DELAY_MS` | Delay between film detail fetches (ms) | `500` | `1000` |
+| `SCRAPER_CONCURRENCY` | Number of cinemas to process concurrently | `2` | `3` |
 | `SCRAPE_DAYS` | Number of days to scrape (1-14) | `7` | `14` |
 | `SCRAPE_MODE` | Start date mode | `weekly` | `from_today_limited` |
 
