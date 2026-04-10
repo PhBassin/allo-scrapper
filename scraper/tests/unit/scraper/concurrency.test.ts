@@ -23,6 +23,9 @@ vi.mock('../../../src/scraper/strategy-factory.js', () => ({
 vi.mock('../../../src/scraper/http-client.js', () => ({
   closeBrowser: vi.fn().mockResolvedValue(undefined),
   delay: vi.fn().mockResolvedValue(undefined),
+  circuitBreaker: {
+    getState: vi.fn().mockReturnValue('closed'),
+  },
 }));
 
 describe('runScraper concurrency', () => {

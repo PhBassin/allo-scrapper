@@ -1,16 +1,14 @@
 import pLimit from 'p-limit';
 import { db, type DB } from '../db/client.js';
 import { logger } from '../utils/logger.js';
-import {
-  getCinemaConfigs,
-  getCinemas,
-} from '../db/cinema-queries.js';
-import { closeBrowser, delay } from './http-client.js';
+import { getCinemaConfigs, getCinemas } from '../db/cinema-queries.js';
+import { closeBrowser, delay, circuitBreaker } from './http-client.js';
 import { getScrapeDates, type ScrapeMode } from '../utils/date.js';
 import type { CinemaConfig, Cinema, ProgressEvent, ScrapeSummary } from '../types/scraper.js';
 import { getStrategyByUrl, getStrategyBySource } from './strategy-factory.js';
 import { RateLimitError } from '../utils/errors.js';
 import { classifyError } from '../utils/error-classifier.js';
+import { CircuitOpenError } from './circuit-breaker.js';
 import {
   createScrapeAttempt,
   updateScrapeAttempt,
@@ -145,6 +143,26 @@ async function processCinema(
     const meta = await strategy.loadTheaterMetadata(db, cinema);
     availableDates = meta.availableDates;
   } catch (error) {
+    if (error instanceof RateLimitError || error instanceof CircuitOpenError) {
+      const isRateLimit = error instanceof RateLimitError;
+      logger.error(isRateLimit ? 'Rate limit detected - stopping all scraping' : 'Circuit open detected - stopping all scraping', { 
+        cinema: cinema.name, 
+        error: error.message 
+      });
+      summary.status = isRateLimit ? 'rate_limited' : 'circuit_open';
+      
+      const errorType = classifyError(error);
+      summary.errors.push({
+        cinema_name: cinema.name,
+        cinema_id: cinema.id,
+        error: error.message,
+        error_type: errorType,
+        http_status_code: (error as any).statusCode,
+      });
+      summary.failed_cinemas++;
+      return;
+    }
+
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorType = classifyError(error);
     logger.error('Failed to load theater metadata', { cinema: cinema.name, error: errorMessage });
@@ -223,10 +241,11 @@ async function processCinema(
           logger.error('Failed to update scrape attempt', { error });
         }
       }
-    } catch (error) {
-      // Detect rate limiting and signal abortion
-      if (error instanceof RateLimitError) {
-        logger.error('Rate limit detected - stopping all scraping', { 
+    } catch (error: any) {
+      // Detect rate limiting or circuit breaker open and signal abortion
+      if (error instanceof RateLimitError || error instanceof CircuitOpenError) {
+        const isRateLimit = error instanceof RateLimitError;
+        logger.error(isRateLimit ? 'Rate limit detected - stopping all scraping' : 'Circuit open detected - stopping all scraping', { 
           cinema: cinema.name, 
           date, 
           statusCode: error.statusCode 
@@ -242,11 +261,11 @@ async function processCinema(
           http_status_code: error.statusCode,
         });
 
-        // Update attempt as rate_limited
+        // Update attempt as rate_limited or failed
         if (attemptId) {
           try {
             await updateScrapeAttempt(db, attemptId, {
-              status: 'rate_limited',
+              status: isRateLimit ? 'rate_limited' : 'failed',
               error_type: errorType,
               error_message: error.message,
               http_status_code: error.statusCode,
@@ -280,8 +299,8 @@ async function processCinema(
           error: error.message
         });
 
-        // Mark status as rate_limited
-        summary.status = 'rate_limited';
+        // Mark status
+        summary.status = isRateLimit ? 'rate_limited' : 'circuit_open';
         return;
       }
 
@@ -437,7 +456,7 @@ export async function runScraper(
     });
 
     const limit = pLimit(concurrency);
-    const isAborted = () => summary.status === 'rate_limited';
+    const isAborted = () => summary.status === 'rate_limited' || summary.status === 'circuit_open';
 
     const tasks = cinemas.map((cinema, i) => 
       limit(() => processCinema(
@@ -457,6 +476,7 @@ export async function runScraper(
     await Promise.allSettled(tasks);
 
     summary.duration_ms = Date.now() - startTime;
+    summary.circuit_state = circuitBreaker.getState();
     logger.info('Scraping completed', { summary });
     await closeBrowser();
 
@@ -476,6 +496,7 @@ export async function runScraper(
       http_status_code: (error as any).statusCode,
     });
     summary.duration_ms = Date.now() - startTime;
+    summary.circuit_state = circuitBreaker.getState();
     await progress?.emit({ type: 'failed', error: errorMessage });
     throw error;
   }
