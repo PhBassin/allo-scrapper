@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { useEffect, useContext, Suspense, lazy, useState } from 'react';
 import Layout from './components/Layout';
@@ -210,12 +211,35 @@ function SaasRoutes() {
 
 function App() {
   const [saasEnabled, setSaasEnabled] = useState<boolean | null>(null);
+  const [error, setError] = useState<boolean>(false);
 
   useEffect(() => {
     getConfig()
       .then((cfg) => setSaasEnabled(cfg.saasEnabled))
-      .catch(() => setSaasEnabled(false)); // safe fallback — standalone mode
+      .catch((err) => {
+        console.error('Failed to load config:', err);
+        setError(true);
+      });
   }, []);
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="max-w-md w-full text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-2">Configuration Error</h1>
+          <p className="text-gray-600 mb-4">
+            Failed to load application configuration. Please check your connection and try again.
+          </p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Wait until config is loaded before rendering routes
   if (saasEnabled === null) {

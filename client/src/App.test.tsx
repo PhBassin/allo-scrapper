@@ -272,7 +272,7 @@ describe('App — SaaS conditional routing', () => {
     expect(screen.queryByTestId('landing-page')).not.toBeInTheDocument();
   });
 
-  it('defaults to standalone mode when config fetch fails', async () => {
+  it('shows error screen when config fetch fails', async () => {
     vi.mocked(getConfig).mockRejectedValue(new Error('Network error'));
 
     render(<App />);
@@ -280,8 +280,10 @@ describe('App — SaaS conditional routing', () => {
     await waitFor(() => {
       expect(getConfig).toHaveBeenCalled();
     });
-    // Should not render LandingPage (standalone fallback)
+    
+    // Should show error message
+    expect(screen.getByText(/failed to load application configuration/i)).toBeInTheDocument();
+    // Should NOT render LandingPage
     expect(screen.queryByTestId('landing-page')).not.toBeInTheDocument();
   });
 });
-
