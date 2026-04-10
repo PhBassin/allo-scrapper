@@ -18,7 +18,9 @@ export const errorHandler = (
 
     return res.status(error.statusCode).json({
       success: false,
-      error: error.message,
+      error: error.statusCode >= 500 && process.env.NODE_ENV === 'production'
+        ? 'Internal server error'
+        : error.message,
       ...(error.details && { details: error.details })
     });
   }
