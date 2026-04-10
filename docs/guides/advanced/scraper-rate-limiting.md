@@ -34,8 +34,8 @@ AlloCiné (and most websites) actively monitor and throttle aggressive automated
 |--------|---|---|---|
 | **Theater Delay** | 3000ms | 2000-5000ms | <1000ms |
 | **Movie Delay** | 500ms | 300-1000ms | <200ms |
-| **Concurrent Requests** | 1 (sequential) | 1-2 per instance | >2 |
-| **Request Timeouts** | 60s | 30-120s | >180s |
+| **Concurrent Requests** | 2 | 1-2 per instance | >2 |
+| **Request Timeouts** | 15s | 10-30s | >60s |
 
 ---
 
