@@ -1,3 +1,4 @@
+import { validateInputSize } from "../middleware/input-validation.js";
 import { parseStrictInt } from '../utils/number.js';
 import express, { Response, NextFunction } from 'express';
 import type { ApiResponse } from '../types/api.js';
@@ -21,6 +22,8 @@ import { getPendingScrapeAttempts } from '../db/scrape-attempt-queries.js';
 import { getDbFromRequest } from '../utils/db-from-request.js';
 
 const router = express.Router();
+
+router.use(validateInputSize({ maxArrayLength: 100, maxTotalSize: 50 * 1024 }));
 
 // POST /api/scraper/trigger - Start a manual scrape (delegates to Redis microservice)
 router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, res: Response, next: NextFunction) => {

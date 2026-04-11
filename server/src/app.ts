@@ -13,6 +13,7 @@ import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
 import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
 import { generateThemeCSS } from './services/theme-generator.js';
+import { validateInputSize } from "./middleware/input-validation.js";
 import { errorHandler } from './middleware/error-handler.js';
 import type { DB } from './db/client.js';
 
@@ -116,6 +117,7 @@ export function createApp() {
   );
   app.use(cors(getCorsOptions()));
   app.use(morgan('combined'));
+  app.use(validateInputSize());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
