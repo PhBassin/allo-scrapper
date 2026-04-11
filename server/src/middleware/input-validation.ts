@@ -21,7 +21,7 @@ class ValidationError extends Error {
   }
 }
 
-function validateObject(obj: any, limits: ValidationLimits, path: string = '', depth: number = 0) {
+function validateObject(obj: any, limits: ValidationLimits, path: string = '', depth: number = 0): void {
   if (!obj || typeof obj !== 'object') return;
 
   if (limits.maxObjectDepth && depth > limits.maxObjectDepth) {
@@ -39,7 +39,6 @@ function validateObject(obj: any, limits: ValidationLimits, path: string = '', d
       if (limits.maxArrayLength && value.length > limits.maxArrayLength) {
         throw new ValidationError(`Array parameter '${currentPath}' has too many items (max ${limits.maxArrayLength})`, currentPath);
       }
-      // Recursively validate array items
       for (let i = 0; i < value.length; i++) {
         validateObject(value[i], limits, `${currentPath}[${i}]`, depth + 1);
       }
@@ -52,25 +51,23 @@ function validateObject(obj: any, limits: ValidationLimits, path: string = '', d
 export function validateInputSize(customLimits?: Partial<ValidationLimits>) {
   const limits = { ...DEFAULT_LIMITS, ...customLimits };
 
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      // Check total request size via Content-Length header
       const contentLength = parseInt(req.headers['content-length'] || '0', 10);
       if (limits.maxTotalSize && contentLength > limits.maxTotalSize) {
-        return res.status(413).json({
+        res.status(413).json({
           success: false,
           error: 'Request payload too large',
           maxSize: limits.maxTotalSize,
           received: contentLength,
         });
+        return;
       }
 
-      // Validate query parameters
       if (req.query) {
         validateObject(req.query, limits, 'query');
       }
 
-      // Validate body parameters
       if (req.body) {
         validateObject(req.body, limits, 'body');
       }
@@ -78,11 +75,12 @@ export function validateInputSize(customLimits?: Partial<ValidationLimits>) {
       next();
     } catch (error) {
       if (error instanceof ValidationError) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: error.message,
           field: error.field,
         });
+        return;
       }
       next(error);
     }
