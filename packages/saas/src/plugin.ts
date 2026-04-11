@@ -14,6 +14,7 @@ import { createOnboardingRouter } from './routes/onboarding.js';
 import { createSuperadminRouter } from './routes/superadmin.js';
 import { createOrgMetricsMiddleware, getOrgRegistry } from './middleware/org-metrics.js';
 import { startQuotaResetScheduler } from './quota-reset-scheduler.js';
+import { logger } from './utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,7 +62,7 @@ export const saasPlugin: AppPlugin = {
         const metrics = await getOrgRegistry().metrics();
         res.end(metrics);
       } catch (error) {
-        console.error('Metrics endpoint error:', error);
+        logger.error('Metrics endpoint error:', error);
         res.status(500).end('Error generating metrics');
       }
     });

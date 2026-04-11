@@ -6,6 +6,7 @@
  */
 import crypto from 'crypto';
 import type { DB, Organization } from '../db/types.js';
+import { logger } from '../utils/logger.js';
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -86,7 +87,7 @@ export class EmailService {
     orgSlug: string
   ): Promise<void> {
     if (!process.env['SMTP_HOST']) {
-      console.log(
+      logger.info(
         `[EmailService] SMTP not configured. Verification email stub:\n` +
         `  To: ${to}\n` +
         `  Org: ${orgSlug}\n` +

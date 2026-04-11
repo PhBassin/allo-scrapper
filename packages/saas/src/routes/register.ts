@@ -11,6 +11,7 @@ import { createOrg } from '../services/org-service.js';
 import { SaasAuthService } from '../services/saas-auth-service.js';
 import { EmailService } from '../services/email-service.js';
 import type { DB, Pool } from '../db/types.js';
+import { logger } from '../utils/logger.js';
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
 
@@ -95,7 +96,7 @@ export function createRegisterRouter(): Router {
     emailService.storeVerificationToken(org, adminUser.id, prefixedToken).then(() =>
       emailService.sendVerificationEmail(adminEmail, prefixedToken, org.slug)
     ).catch((err: unknown) => {
-      console.error('[register] Failed to send verification email:', err);
+      logger.error('[register] Failed to send verification email:', err);
     });
 
     return res.status(201).json({

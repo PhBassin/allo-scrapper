@@ -4,6 +4,7 @@
  */
 import { Registry, Counter } from 'prom-client';
 import type { Request, Response, NextFunction } from 'express';
+import { logger } from '../utils/logger.js';
 
 // Create a separate registry for org metrics (separate from server metrics)
 const orgRegistry = new Registry();
@@ -38,7 +39,7 @@ export function createOrgMetricsMiddleware() {
           status,
         });
       } catch (error) {
-        console.error('Org metrics error:', error);
+        logger.error('Org metrics error:', error);
       }
     });
 
