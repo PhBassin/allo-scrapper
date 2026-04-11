@@ -7,6 +7,7 @@ import { SuperadminAuthService } from '../services/superadmin-auth-service.js';
 import { requireSuperadmin } from '../middleware/superadmin-auth.js';
 import type { DB, Pool, Organization } from '../db/types.js';
 import jwt from 'jsonwebtoken';
+import { logger } from '../utils/logger.js';
 
 export function createSuperadminRouter(): Router {
   const router = Router();
@@ -40,7 +41,7 @@ export function createSuperadminRouter(): Router {
         data: result,
       });
     } catch (error) {
-      console.error('Superadmin login error:', error);
+      logger.error('Superadmin login error:', error);
       res.status(500).json({
         success: false,
         error: 'INTERNAL_SERVER_ERROR',
@@ -90,7 +91,7 @@ export function createSuperadminRouter(): Router {
         },
       });
     } catch (error) {
-      console.error('Dashboard error:', error);
+      logger.error('Dashboard error:', error);
       res.status(500).json({
         success: false,
         error: 'INTERNAL_SERVER_ERROR',
@@ -153,7 +154,7 @@ export function createSuperadminRouter(): Router {
         },
       });
     } catch (error) {
-      console.error('List orgs error:', error);
+      logger.error('List orgs error:', error);
       res.status(500).json({
         success: false,
         error: 'INTERNAL_SERVER_ERROR',
@@ -211,7 +212,7 @@ export function createSuperadminRouter(): Router {
         client.release();
       }
     } catch (error) {
-      console.error('Get org detail error:', error);
+      logger.error('Get org detail error:', error);
       res.status(500).json({
         success: false,
         error: 'INTERNAL_SERVER_ERROR',
@@ -238,7 +239,7 @@ export function createSuperadminRouter(): Router {
         data: { message: 'Organization suspended' },
       });
     } catch (error) {
-      console.error('Suspend org error:', error);
+      logger.error('Suspend org error:', error);
       res.status(500).json({
         success: false,
         error: 'INTERNAL_SERVER_ERROR',
@@ -265,7 +266,7 @@ export function createSuperadminRouter(): Router {
         data: { message: 'Organization reactivated' },
       });
     } catch (error) {
-      console.error('Reactivate org error:', error);
+      logger.error('Reactivate org error:', error);
       res.status(500).json({
         success: false,
         error: 'INTERNAL_SERVER_ERROR',
@@ -323,7 +324,7 @@ export function createSuperadminRouter(): Router {
         data: { message: 'Plan updated' },
       });
     } catch (error) {
-      console.error('Change plan error:', error);
+      logger.error('Change plan error:', error);
       res.status(500).json({
         success: false,
         error: 'INTERNAL_SERVER_ERROR',
@@ -355,7 +356,7 @@ export function createSuperadminRouter(): Router {
         data: { message: 'Trial reset to 14 days' },
       });
     } catch (error) {
-      console.error('Reset trial error:', error);
+      logger.error('Reset trial error:', error);
       res.status(500).json({
         success: false,
         error: 'INTERNAL_SERVER_ERROR',
@@ -475,7 +476,7 @@ export function createSuperadminRouter(): Router {
         client.release();
       }
     } catch (error) {
-      console.error('Impersonation error:', error);
+      logger.error('Impersonation error:', error);
       res.status(500).json({
         success: false,
         error: 'INTERNAL_SERVER_ERROR',
@@ -522,7 +523,7 @@ export function createSuperadminRouter(): Router {
         },
       });
     } catch (error) {
-      console.error('Audit log error:', error);
+      logger.error('Audit log error:', error);
       res.status(500).json({
         success: false,
         error: 'INTERNAL_SERVER_ERROR',

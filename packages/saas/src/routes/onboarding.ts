@@ -13,6 +13,7 @@ import type { DB, Pool } from '../db/types.js';
 import { EmailService } from '../services/email-service.js';
 import { InvitationService } from '../services/invitation-service.js';
 import { SaasAuthService } from '../services/saas-auth-service.js';
+import { logger } from '../utils/logger.js';
 
 /** Rate limit: 10 email verification attempts per 15 minutes per IP */
 const verifyEmailLimiter = rateLimit({
@@ -81,7 +82,7 @@ export function createOnboardingRouter(): Router {
       await emailSvc.markEmailVerified(org, userId);
       res.status(200).json({ success: true });
     } catch (err) {
-      console.error('[onboarding] verify-email error:', err);
+      logger.error('[onboarding] verify-email error:', err);
       res.status(500).json({ success: false, error: 'INTERNAL_ERROR' });
     }
   });
@@ -147,7 +148,7 @@ export function createOnboardingRouter(): Router {
 
       res.status(201).json({ success: true, token: jwtToken });
     } catch (err) {
-      console.error('[onboarding] join error:', err);
+      logger.error('[onboarding] join error:', err);
       res.status(500).json({ success: false, error: 'INTERNAL_ERROR' });
     }
   });
@@ -194,7 +195,7 @@ export function createOnboardingRouter(): Router {
 
       res.status(201).json({ success: true, token: invitation.token, invitation });
     } catch (err) {
-      console.error('[onboarding] create-invitation error:', err);
+      logger.error('[onboarding] create-invitation error:', err);
       res.status(500).json({ success: false, error: 'INTERNAL_ERROR' });
     }
   });

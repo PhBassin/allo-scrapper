@@ -4,6 +4,15 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { DB, Organization } from '../db/types.js';
+import { logger } from '../utils/logger.js';
+
+vi.mock('../utils/logger.js', () => ({
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+  },
+}));
 
 function makeDb(): DB {
   return {
@@ -145,13 +154,16 @@ describe('EmailService', () => {
   });
 
   describe('sendVerificationEmail', () => {
-    it('does not throw when SMTP_HOST is not set (console-log stub)', async () => {
+    it('logs verification email stub using structured logger when SMTP_HOST is not set', async () => {
       delete process.env['SMTP_HOST'];
       const { EmailService } = await import('./email-service.js');
       const svc = new EmailService(db);
-      await expect(
-        svc.sendVerificationEmail('user@example.com', 'acme:abc123', 'acme')
-      ).resolves.not.toThrow();
+      
+      await svc.sendVerificationEmail('user@example.com', 'acme:abc123', 'acme');
+      
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('[EmailService] SMTP not configured')
+      );
     });
   });
 });

@@ -10,6 +10,7 @@
 
 import { QuotaService } from './services/quota-service.js';
 import type { DB } from './db/types.js';
+import { logger } from './utils/logger.js';
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -52,15 +53,15 @@ async function runMonthlyReset(db: DB): Promise<void> {
     for (const org of result.rows) {
       try {
         await quotaService.resetMonthlyUsage(org.id);
-        console.log(`[quota-reset] Reset monthly usage for org ${org.slug} (id=${org.id})`);
+        logger.info(`[quota-reset] Reset monthly usage for org ${org.slug} (id=${org.id})`);
       } catch (error) {
-        console.error(`[quota-reset] Failed to reset org ${org.slug}:`, error);
+        logger.error(`[quota-reset] Failed to reset org ${org.slug}:`, error);
       }
     }
 
-    console.log(`[quota-reset] Monthly reset completed for ${result.rows.length} organizations`);
+    logger.info(`[quota-reset] Monthly reset completed for ${result.rows.length} organizations`);
   } catch (error) {
-    console.error('[quota-reset] Monthly reset failed:', error);
+    logger.error('[quota-reset] Monthly reset failed:', error);
   }
 }
 
@@ -74,7 +75,7 @@ export function startQuotaResetScheduler(db: DB): NodeJS.Timeout {
 
   // Schedule first run at midnight UTC
   const initialDelayMs = msUntilMidnightUTC();
-  console.log(
+  logger.info(
     `[quota-reset] Scheduler started. First check in ${Math.round(initialDelayMs / 1000 / 60)} minutes`
   );
 
