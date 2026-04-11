@@ -19,6 +19,7 @@ COPY client/package.json ./client/
 COPY server/package.json ./server/
 COPY scraper/package.json ./scraper/
 COPY packages/saas/package.json ./packages/saas/
+COPY packages/logger/package.json ./packages/logger/
 
 # Install all dependencies using legacy-peer-deps
 RUN rm -f package-lock.json && \
@@ -42,15 +43,18 @@ COPY client/package.json ./client/
 COPY server/package.json ./server/
 COPY scraper/package.json ./scraper/
 COPY packages/saas/package.json ./packages/saas/
+COPY packages/logger/package.json ./packages/logger/
 
 # Copy source
 COPY server/src ./server/src
 COPY scraper/src ./scraper/src
 COPY scraper/tsconfig.json ./scraper/
 COPY packages/saas/ ./packages/saas/
+COPY packages/logger/ ./packages/logger/
 
 # Build TypeScript
-RUN npm run build --workspace=allo-scrapper-scraper && \
+RUN npm run build --workspace=@allo-scrapper/logger && \
+    npm run build --workspace=allo-scrapper-scraper && \
     npm run build --workspace=@allo-scrapper/saas && \
     rm -rf node_modules/.cache
 
@@ -89,6 +93,7 @@ COPY --chown=nodejs:nodejs client/package.json ./client/
 COPY --chown=nodejs:nodejs server/package.json ./server/
 COPY --chown=nodejs:nodejs scraper/package.json ./scraper/
 COPY --chown=nodejs:nodejs packages/saas/package.json ./packages/saas/
+COPY --chown=nodejs:nodejs packages/logger/package.json ./packages/logger/
 
 # Install production dependencies only for scraper workspace
 # Use --omit=optional to skip platform-specific bindings
@@ -99,6 +104,7 @@ RUN npm install --omit=dev --workspace=allo-scrapper-scraper --legacy-peer-deps 
 # Copy built application
 COPY --from=builder --chown=nodejs:nodejs /app/scraper/dist ./scraper/dist
 COPY --from=builder --chown=nodejs:nodejs /app/packages/saas/dist ./packages/saas/dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/logger/dist ./packages/logger/dist
 
 ENV CHROME_PATH=/usr/bin/chromium-headless-shell
 
