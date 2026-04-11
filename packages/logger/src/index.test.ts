@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-// @ts-ignore - createLogger will be implemented later
 import { createLogger } from './index.js';
 
 describe('Shared Logger', () => {
