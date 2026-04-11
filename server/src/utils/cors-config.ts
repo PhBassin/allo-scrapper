@@ -4,15 +4,10 @@ export const getCorsOptions = (): CorsOptions => {
   const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
   const allowedOrigins = allowedOriginsEnv
     ? allowedOriginsEnv.split(',').map((origin) => origin.trim())
-    : ['http://localhost:5173']; // Default to Vite dev server
+    : ['http://localhost:5173'];
 
   return {
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      const isProduction = process.env.NODE_ENV === 'production';
-
-      // Allow requests with no origin (like mobile apps, curl, or same-origin GETs)
-      // Browsers don't send Origin for same-origin GET/HEAD requests.
-      // Docker health checks also don't send Origin.
+    origin: (origin, callback) => {
       if (!origin) {
         return callback(null, true);
       }
