@@ -1,3 +1,4 @@
+import { validateInputSize } from "../middleware/input-validation.js";
 import { parseStrictInt } from '../utils/number.js';
 import express, { NextFunction } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
@@ -20,6 +21,8 @@ import { ValidationError, NotFoundError, AuthError } from '../utils/errors.js';
 import { getDbFromRequest } from '../utils/db-from-request.js';
 
 const router = express.Router();
+
+router.use(validateInputSize({ maxStringLength: 254 }));
 
 // Username validation regex: alphanumeric only, 3-15 characters
 const USERNAME_REGEX = /^[a-zA-Z0-9]{3,15}$/;

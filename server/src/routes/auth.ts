@@ -1,3 +1,4 @@
+import { validateInputSize } from "../middleware/input-validation.js";
 import express, { Request, Response, NextFunction } from 'express';
 import type { DB } from '../db/client.js';
 import type { ApiResponse } from '../types/api.js';
@@ -9,6 +10,8 @@ import type { PermissionName } from '../types/role.js';
 import { ValidationError, AuthError, NotFoundError } from '../utils/errors.js';
 
 const router = express.Router();
+
+router.use(validateInputSize({ maxStringLength: 254 }));
 
 export interface AuthResponse {
     token: string;

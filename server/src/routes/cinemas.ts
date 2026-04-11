@@ -1,3 +1,4 @@
+import { validateInputSize } from "../middleware/input-validation.js";
 import express from 'express';
 import { CinemaService } from '../services/cinema-service.js';
 import { getWeekStart } from '../utils/date.js';
@@ -9,6 +10,8 @@ import { ValidationError, NotFoundError } from '../utils/errors.js';
 import { getDbFromRequest } from '../utils/db-from-request.js';
 
 const router = express.Router();
+
+router.use(validateInputSize({ maxStringLength: 200 }));
 
 // GET /api/cinemas - Get all cinemas
 router.get('/', publicLimiter, async (req, res, next) => {
