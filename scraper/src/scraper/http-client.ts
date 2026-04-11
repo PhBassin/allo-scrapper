@@ -14,8 +14,17 @@ export const circuitBreaker = new CircuitBreaker(5, 60000, (err) => {
   return true;
 });
 
-const USER_AGENT =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const USER_AGENTS = [
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
+];
+
+function getRandomUserAgent(): string {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
 
 /**
  * Validates cinema ID format (e.g., "C0072", "W7517")
@@ -94,7 +103,7 @@ export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterIn
     const page = await context.newPage();
 
     try {
-      await page.setUserAgent(USER_AGENT);
+      await page.setUserAgent(getRandomUserAgent());
       logger.info('Loading theater page', { url: cinemaBaseUrl });
       await page.goto(cinemaBaseUrl, { waitUntil: 'networkidle0', timeout: 60000 });
 
@@ -147,7 +156,7 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': USER_AGENT,
+        'User-Agent': getRandomUserAgent(),
         Accept: 'application/json',
         'Accept-Language': 'fr-FR,fr;q=0.9',
         Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${cinemaId}.html`,
@@ -199,7 +208,7 @@ export async function fetchFilmPage(filmId: number): Promise<string> {
       const response = await fetch(url, {
         signal: controller.signal,
         headers: {
-          'User-Agent': USER_AGENT,
+          'User-Agent': getRandomUserAgent(),
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
           'Cache-Control': 'no-cache',
