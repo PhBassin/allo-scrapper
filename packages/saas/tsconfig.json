@@ -25,6 +25,9 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
+  "references": [
+    { "path": "../logger" }
+  ],
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/**/*.spec.ts", "../../server/**/*"]
 }

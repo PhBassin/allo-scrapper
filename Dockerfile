@@ -21,6 +21,7 @@ COPY client/package.json ./client/
 COPY server/package.json ./server/
 COPY scraper/package.json ./scraper/
 COPY packages/saas/package.json ./packages/saas/
+COPY packages/logger/package.json ./packages/logger/
 
 # Install all dependencies using legacy-peer-deps for React hooks ESLint plugin
 # Remove package-lock.json to regenerate with correct platform-specific bindings
@@ -66,9 +67,11 @@ COPY package.json package-lock.json ./
 # Copy backend source
 COPY server/ ./server/
 COPY packages/saas/ ./packages/saas/
+COPY packages/logger/ ./packages/logger/
 
 # Build backend workspace
-RUN npm run build --workspace=allo-scrapper-server && \
+RUN npm run build --workspace=@allo-scrapper/logger && \
+    npm run build --workspace=allo-scrapper-server && \
     npm run build --workspace=@allo-scrapper/saas && \
     rm -rf node_modules/.cache
 
@@ -97,6 +100,7 @@ COPY --chown=nodejs:nodejs client/package.json ./client/
 COPY --chown=nodejs:nodejs server/package.json ./server/
 COPY --chown=nodejs:nodejs scraper/package.json ./scraper/
 COPY --chown=nodejs:nodejs packages/saas/package.json ./packages/saas/
+COPY --chown=nodejs:nodejs packages/logger/package.json ./packages/logger/
 
 # Install only production dependencies for the server workspace
 # Remove package-lock.json and regenerate to get correct platform-specific bindings
@@ -112,6 +116,7 @@ RUN rm -f package-lock.json && \
 # Copy built backend from builder
 COPY --from=backend-builder --chown=nodejs:nodejs /app/server/dist ./server/dist
 COPY --from=backend-builder --chown=nodejs:nodejs /app/packages/saas/dist ./packages/saas/dist
+COPY --from=backend-builder --chown=nodejs:nodejs /app/packages/logger/dist ./packages/logger/dist
 # Copy only the JSON config file, not the entire directory (to preserve compiled JS files)
 COPY --from=backend-builder --chown=nodejs:nodejs /app/server/src/config/cinemas.json ./server/dist/config/cinemas.json
 

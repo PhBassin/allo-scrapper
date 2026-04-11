@@ -11,6 +11,7 @@ dist/
 server/dist/
 client/dist/
 .astro/
+*.tsbuildinfo
 
 # Environment variables
 .env
