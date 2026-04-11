@@ -1,0 +1,21 @@
+{
+  "name": "@allo-scrapper/logger",
+  "version": "1.0.0",
+  "description": "Shared structured logger for Allo-Scrapper",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  }
+}
