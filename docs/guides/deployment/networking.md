@@ -521,15 +521,6 @@ ALLOWED_ORIGINS=https://cinema.example.com,https://www.cinema.example.com
 - Use reverse proxy with authentication
 - Enable rate limiting
 
-### 5. Origin Header Requirement (Production)
-
-To prevent CORS bypasses via server-to-server requests or CLI tools that don't send an `Origin` header, the application requires an `Origin` header in production mode (`NODE_ENV=production`).
-
-- **Production**: Requests without an `Origin` header will be rejected with an error.
-- **Development**: Requests without an `Origin` header are allowed for local testing with `curl` or Postman.
-
-If you are calling the API from a backend service or a script in production, ensure you include an `Origin` header that matches one of the entries in `ALLOWED_ORIGINS`.
-
 ---
 
 ## Related Documentation
