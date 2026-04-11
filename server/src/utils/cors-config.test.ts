@@ -76,6 +76,7 @@ describe('getCorsOptions', () => {
       expect(callback).toHaveBeenCalledWith(expect.any(Error));
       const error = callback.mock.calls[0][0];
       expect(error.message).toContain('Origin header required in production');
+      expect(error.message).toContain('networking.md');
     }
   });
 

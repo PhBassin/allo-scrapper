@@ -8,7 +8,20 @@ export const getCorsOptions = (): CorsOptions => {
 
   return {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
+      const isProduction = process.env.NODE_ENV === 'production';
+
+      // Production: Require Origin header from browsers
+      if (isProduction && !origin) {
+        return callback(
+          new Error(
+            'Origin header required in production. ' +
+            'Browser requests without an Origin header are blocked for security. ' +
+            'See docs/guides/deployment/networking.md for details.'
+          )
+        );
+      }
+
+      // Allow requests with no origin (like mobile apps or curl requests) in non-production
       if (!origin) {
         return callback(null, true);
       }
