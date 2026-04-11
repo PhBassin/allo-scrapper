@@ -48,8 +48,39 @@ describe('getCorsOptions', () => {
     }
   });
 
-  it('should allow requests with no origin (like mobile apps or curl)', () => {
+  it('should allow requests with no origin in development', () => {
+    process.env.NODE_ENV = 'development';
     process.env.ALLOWED_ORIGINS = 'http://example.com';
+    const options = getCorsOptions();
+
+    const originCheck = options.origin;
+    const callback = vi.fn();
+
+    if (typeof originCheck === 'function') {
+      // @ts-ignore
+      originCheck(undefined, callback);
+      expect(callback).toHaveBeenCalledWith(null, true);
+    }
+  });
+
+  it('should block requests with no origin in production', () => {
+    process.env.NODE_ENV = 'production';
+    const options = getCorsOptions();
+
+    const originCheck = options.origin;
+    const callback = vi.fn();
+
+    if (typeof originCheck === 'function') {
+      // @ts-ignore
+      originCheck(undefined, callback);
+      expect(callback).toHaveBeenCalledWith(expect.any(Error));
+      const error = callback.mock.calls[0][0];
+      expect(error.message).toContain('Origin header required in production');
+    }
+  });
+
+  it('should allow requests with no origin if not in production (legacy behavior)', () => {
+    delete process.env.NODE_ENV;
     const options = getCorsOptions();
 
     const originCheck = options.origin;
