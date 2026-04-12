@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { registerOrg, checkSlugAvailable } from '../api/saas';
 import apiClient from '../api/client';
+import { AuthContext } from '../contexts/AuthContext';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -39,6 +40,7 @@ type SlugState = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
  */
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   // ── Shared state ────────────────────────────────────────────────────────
   const [step, setStep] = useState(1);
@@ -143,8 +145,16 @@ const RegisterPage: React.FC = () => {
         adminPassword,
       });
 
-      // Store the org-scoped JWT
-      localStorage.setItem('token', result.token);
+      // Update AuthContext state
+      login(result.token, {
+        id: result.admin.id,
+        username: result.admin.username,
+        role_id: result.admin.role_id,
+        role_name: result.admin.role_name,
+        is_system_role: true, // admin in tenant is a system role
+        permissions: [], // Will be loaded from permissions table in phase 3
+        org_slug: result.org.slug,
+      });
 
       // Fire-and-forget: add cinema + trigger scrape if URL provided
       const url = skipCinema ? '' : cinemaUrl.trim();
