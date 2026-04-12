@@ -251,27 +251,30 @@ git commit -m "docs: update README with <feature>"        # DOCS — if applicab
 
 ---
 
-## Step 7: Pull Request
+## Step 7: CI — Push & Verify
 
+**CRITICAL: You MUST verify the build status in the remote repository.**
+
+1. **Push branch:** `git push -u origin <branch-name>`
+2. **Watch CI status:** `gh pr checks <pr-number> --watch`
+3. **Fix failures:** If CI fails, analyze logs (`gh run view <id> --log`), fix locally, and follow the atomic commit/push/verify cycle.
+
+### Local CI Simulation (Recommended Before Push)
+
+To avoid failing CI in the remote, run these commands locally:
+
+**Client (Frontend):**
 ```bash
-# Push branch
-git push -u origin <type>/<issue-number>-<short-description>
-
-# Create PR
-gh pr create --title "feat(scope): description" --body "## Summary
-- Change 1
-- Change 2
-
-Closes #<issue-number>"
+cd client
+npm run build    # Runs tsc -b && vite build
 ```
 
-**Before requesting review:**
-- [ ] All tests pass (`npm run test:run`)
-- [ ] Code coverage maintained
-- [ ] Conventional Commits used
-- [ ] Documentation updated (if applicable)
-- [ ] Version label added (`patch`, `minor`, or `major`)
-- [ ] Issue referenced in PR body
+**Server (Backend):**
+```bash
+cd server
+npm run test:run # Runs vitest once
+npm run build    # Runs tsc -b
+```
 
 **After merge:**
 
