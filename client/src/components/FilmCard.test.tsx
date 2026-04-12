@@ -9,6 +9,7 @@ const mockFilm: FilmWithShowtimes = {
   title: 'Test Movie',
   original_title: 'Original Movie',
   genres: ['Action', 'Drama'],
+  actors: ['Actor 1', 'Actor 2'],
   poster_url: 'http://example.com/poster.jpg',
   synopsis: 'A test movie synopsis.',
   duration_minutes: 120,
