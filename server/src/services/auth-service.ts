@@ -35,6 +35,9 @@ export class AuthService {
     // Parse JWT expiration from env var (default: 24h)
     const expiresIn = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '24h');
 
+    const saasEnabled = process.env.SAAS_ENABLED === 'true';
+    const isPlatformAdmin = saasEnabled && user.is_system_role && user.role_name === 'admin';
+
     const token = jwt.sign(
       {
         id: user.id,
@@ -42,6 +45,7 @@ export class AuthService {
         role_name: user.role_name,
         is_system_role: user.is_system_role,
         permissions,
+        ...(isPlatformAdmin ? { scope: 'superadmin' } : {}),
       },
       secret,
       { expiresIn: expiresIn as any }
