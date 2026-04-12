@@ -120,6 +120,9 @@ function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
             <Link 
               to={`/film/${film.id}`} 
               className="text-sm font-bold text-gray-500 hover:text-primary transition"
+              aria-label={`Voir la fiche complète de ${film.title}`}
+              aria-hidden="true"
+              tabIndex={-1}
             >
               Fiche complète →
             </Link>
