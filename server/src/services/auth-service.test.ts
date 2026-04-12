@@ -68,6 +68,39 @@ describe('AuthService', () => {
       expect(result.user.username).toBe('user');
       expect(result.user.permissions).toEqual(['users:read']);
     });
+
+    it('should NOT grant superadmin scope via regular login even with SAAS_ENABLED', async () => {
+      // Set SAAS_ENABLED to true
+      process.env.SAAS_ENABLED = 'true';
+
+      const mockUser = { 
+        id: 1, 
+        username: 'admin', 
+        role_id: 1, 
+        role_name: 'admin', 
+        is_system_role: true, 
+        password_hash: 'hash' 
+      };
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockUser as any);
+      vi.mocked(bcrypt.compare).mockResolvedValue(true);
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:read'] as any);
+      vi.mocked(jwt.sign).mockReturnValue('mock-token' as any);
+
+      const result = await authService.login('admin', 'password');
+
+      // Verify jwt.sign was NOT called with scope: 'superadmin'
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.not.objectContaining({ scope: 'superadmin' }),
+        expect.any(String),
+        expect.any(Object)
+      );
+
+      // Verify response does NOT include scope
+      expect(result.user).not.toHaveProperty('scope');
+
+      // Clean up
+      delete process.env.SAAS_ENABLED;
+    });
   });
 
   describe('register', () => {

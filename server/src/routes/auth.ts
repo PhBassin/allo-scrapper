@@ -22,7 +22,6 @@ export interface AuthResponse {
         role_name: string;
         is_system_role: boolean;
         permissions: PermissionName[];
-        scope?: string;
     };
 }
 
