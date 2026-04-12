@@ -562,8 +562,8 @@ VITE_SAAS_ENABLED=true
 
 **Default Credentials:**
 ```
-Username: superadmin
-Password: changeme
+Username: admin
+Password: <same as default admin account, logged at startup>
 ```
 
 ⚠️ **CRITICAL:** Change the default superadmin password immediately after first login.
@@ -599,8 +599,8 @@ Password: changeme
 # Authentication
 POST /api/superadmin/login
 {
-  "username": "superadmin",
-  "password": "changeme"
+  "username": "admin",
+  "password": "your-generated-admin-password"
 }
 
 # Dashboard metrics
