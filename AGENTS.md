@@ -25,11 +25,13 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 4. GREEN   → Write minimal code to make tests pass
 5. DOCS    → Update README.md / AGENTS.md if API or behaviour changed
 6. COMMIT  → Atomic commits with Conventional Commits format
-7. PR      → Open Pull Request referencing the issue, wait for review
+7. CI      → Push and check GitHub Actions status (fix any failures)
+8. PR      → Open/Update Pull Request referencing the issue, wait for review
              → After merge: use cleanup skill or manually switch back to develop, pull latest
 ```
 
 **Conditional steps (not always required):**
+- **CI Fix** — If CI fails, you MUST analyze logs (`gh run view <id> --log`) and fix the root cause before requesting review.
 - **Docker build** — run `docker compose build` before pushing if Dockerfile or dependencies changed
 - **E2E tests** — Run Playwright integration tests (`npm run e2e`) when modifying frontend workflows, API interactions, or real-time features
 

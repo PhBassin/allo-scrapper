@@ -106,7 +106,6 @@ export async function getAdminSettings(orgSlug?: string): Promise<AppSettings> {
  */
 export async function updateSettings(updates: AppSettingsUpdate, orgSlug?: string): Promise<AppSettings> {
   const url = orgSlug ? `/org/${orgSlug}/settings/admin` : '/settings';
-  const method = orgSlug ? 'put' : 'put'; // Both are PUT, but keep the structure
   const response = await apiClient.put<ApiResponse<AppSettings>>(url, updates);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to update settings');
