@@ -94,6 +94,8 @@ RUN chown nodejs:nodejs /app
 
 USER nodejs
 
+ENV SAAS_ENABLED=true
+
 # Copy package files for production install
 COPY --chown=nodejs:nodejs package.json package-lock.json ./
 COPY --chown=nodejs:nodejs client/package.json ./client/

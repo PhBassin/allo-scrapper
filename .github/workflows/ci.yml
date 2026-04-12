@@ -24,6 +24,9 @@ jobs:
     permissions:
       contents: read
 
+    env:
+      SAAS_ENABLED: 'true'
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
