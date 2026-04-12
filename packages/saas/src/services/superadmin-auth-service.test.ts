@@ -30,25 +30,40 @@ describe('SuperadminAuthService', () => {
   });
 
   describe('login', () => {
-    it('should return token for valid credentials', async () => {
+    it('should return token for valid system admin credentials from users table', async () => {
       const hashedPassword = 'hashed_superpass123';
       vi.mocked(mockDb.query).mockResolvedValue({
         rows: [{
-          id: 'super-1',
-          username: 'superadmin',
+          id: 1,
+          username: 'admin',
           password_hash: hashedPassword,
+          role_id: 1,
+          role_name: 'admin',
+          is_system_role: true,
         }],
         rowCount: 1,
       });
       mockCompare.mockResolvedValue(true);
 
-      const result = await service.login('superadmin', 'superpass123');
+      const result = await service.login('admin', 'superpass123');
 
       expect(result).toBeDefined();
       expect(result?.token).toBeDefined();
       expect(mockDb.query).toHaveBeenCalledWith(
-        'SELECT id, username, password_hash FROM superadmins WHERE username = $1',
-        ['superadmin']
+        expect.stringContaining('FROM users'),
+        ['admin']
+      );
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('JOIN roles'),
+        ['admin']
+      );
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining("is_system_role = true"),
+        ['admin']
+      );
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining("role_name = 'admin'"),
+        ['admin']
       );
     });
 
@@ -64,17 +79,44 @@ describe('SuperadminAuthService', () => {
       const hashedPassword = 'hashed_correctpass';
       vi.mocked(mockDb.query).mockResolvedValue({
         rows: [{
-          id: 'super-1',
-          username: 'superadmin',
+          id: 1,
+          username: 'admin',
           password_hash: hashedPassword,
+          role_id: 1,
+          role_name: 'admin',
+          is_system_role: true,
         }],
         rowCount: 1,
       });
       mockCompare.mockResolvedValue(false);
 
-      const result = await service.login('superadmin', 'wrongpass');
+      const result = await service.login('admin', 'wrongpass');
 
       expect(result).toBeNull();
+    });
+
+    it('should return null for non-system-admin user', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 });
+
+      const result = await service.login('regularuser', 'password123');
+
+      expect(result).toBeNull();
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining("is_system_role = true"),
+        ['regularuser']
+      );
+    });
+
+    it('should return null for system user with non-admin role', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 });
+
+      const result = await service.login('operator', 'password123');
+
+      expect(result).toBeNull();
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining("role_name = 'admin'"),
+        ['operator']
+      );
     });
   });
 
