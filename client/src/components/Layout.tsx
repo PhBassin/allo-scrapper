@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useContext, useState, useEffect, useRef } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { SettingsContext } from '../contexts/SettingsContext';
+import { ConfigContext } from '../contexts/ConfigContext';
 import { ADMIN_PERMISSIONS } from '../utils/adminPermissions';
 
 interface LayoutProps {
@@ -11,8 +12,9 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, title }: LayoutProps) {
-  const { isAuthenticated, user, logout, hasPermission } = useContext(AuthContext);
+  const { isAuthenticated, user, logout, hasPermission, isAdmin } = useContext(AuthContext);
   const { publicSettings } = useContext(SettingsContext);
+  const { saasEnabled } = useContext(ConfigContext);
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
@@ -122,6 +124,11 @@ export default function Layout({ children, title }: LayoutProps) {
               {hasAdminAccess && (
                 <Link to="/admin?tab=cinemas" className="hover:text-primary transition">
                   Admin
+                </Link>
+              )}
+              {saasEnabled && isAdmin && (
+                <Link to="/superadmin" className="hover:text-primary transition text-amber-400 font-semibold" data-testid="superadmin-portal-link">
+                  SaaS Portal
                 </Link>
               )}
               <div className="border-l border-gray-600 h-6"></div>

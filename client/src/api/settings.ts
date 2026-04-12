@@ -80,8 +80,9 @@ export interface AppSettingsExport {
 /**
  * Get public settings (no authentication required)
  */
-export async function getPublicSettings(): Promise<AppSettingsPublic> {
-  const response = await apiClient.get<ApiResponse<AppSettingsPublic>>('/settings');
+export async function getPublicSettings(orgSlug?: string): Promise<AppSettingsPublic> {
+  const url = orgSlug ? `/org/${orgSlug}/settings` : '/settings';
+  const response = await apiClient.get<ApiResponse<AppSettingsPublic>>(url);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch public settings');
   }
@@ -91,8 +92,9 @@ export async function getPublicSettings(): Promise<AppSettingsPublic> {
 /**
  * Get full settings (admin only)
  */
-export async function getAdminSettings(): Promise<AppSettings> {
-  const response = await apiClient.get<ApiResponse<AppSettings>>('/settings/admin');
+export async function getAdminSettings(orgSlug?: string): Promise<AppSettings> {
+  const url = orgSlug ? `/org/${orgSlug}/settings/admin` : '/settings/admin';
+  const response = await apiClient.get<ApiResponse<AppSettings>>(url);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch admin settings');
   }
@@ -102,8 +104,10 @@ export async function getAdminSettings(): Promise<AppSettings> {
 /**
  * Update settings (admin only)
  */
-export async function updateSettings(updates: AppSettingsUpdate): Promise<AppSettings> {
-  const response = await apiClient.put<ApiResponse<AppSettings>>('/settings', updates);
+export async function updateSettings(updates: AppSettingsUpdate, orgSlug?: string): Promise<AppSettings> {
+  const url = orgSlug ? `/org/${orgSlug}/settings/admin` : '/settings';
+  const method = orgSlug ? 'put' : 'put'; // Both are PUT, but keep the structure
+  const response = await apiClient.put<ApiResponse<AppSettings>>(url, updates);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to update settings');
   }

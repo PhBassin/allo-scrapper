@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { useEffect, useContext, Suspense, lazy, useState } from 'react';
+import { useEffect, useContext, Suspense, lazy } from 'react';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import CinemaPage from './pages/CinemaPage';
@@ -17,6 +17,8 @@ import { AuthProvider } from './contexts/AuthProvider';
 import { SettingsProvider } from './contexts/SettingsProvider';
 import { SettingsContext } from './contexts/SettingsContext';
 import { TenantProvider } from './contexts/TenantProvider';
+import { ConfigProvider } from './contexts/ConfigProvider';
+import { ConfigContext } from './contexts/ConfigContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequirePermission from './components/RequirePermission';
 import { RequireSuperadmin } from './components/RequireSuperadmin';
@@ -24,7 +26,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { useTheme } from './hooks/useTheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ADMIN_PERMISSIONS } from './utils/adminPermissions';
-import { getConfig } from './api/saas';
 
 // Lazy load devtools only in development
 const ReactQueryDevtools = import.meta.env.DEV
@@ -179,29 +180,31 @@ function SaasRoutes() {
         path="/org/:slug/*"
         element={
           <TenantProvider>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/cinema/:id" element={<CinemaPage />} />
-                <Route path="/film/:id" element={<FilmPage />} />
-                <Route
-                  path="/change-password"
-                  element={
-                    <ProtectedRoute>
-                      <ChangePasswordPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin"
-                  element={
-                    <RequirePermission anyOf={ADMIN_PERMISSIONS}>
-                      <AdminPage />
-                    </RequirePermission>
-                  }
-                />
-              </Routes>
-            </Layout>
+            <SettingsProvider>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/cinema/:id" element={<CinemaPage />} />
+                  <Route path="/film/:id" element={<FilmPage />} />
+                  <Route
+                    path="/change-password"
+                    element={
+                      <ProtectedRoute>
+                        <ChangePasswordPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <RequirePermission anyOf={ADMIN_PERMISSIONS}>
+                        <AdminPage />
+                      </RequirePermission>
+                    }
+                  />
+                </Routes>
+              </Layout>
+            </SettingsProvider>
           </TenantProvider>
         }
       />
@@ -209,57 +212,35 @@ function SaasRoutes() {
   );
 }
 
-function App() {
-  const [saasEnabled, setSaasEnabled] = useState<boolean | null>(null);
-  const [error, setError] = useState<boolean>(false);
+function MainContent() {
+  const { saasEnabled, isLoading } = useContext(ConfigContext);
 
-  useEffect(() => {
-    getConfig()
-      .then((cfg) => setSaasEnabled(cfg.saasEnabled))
-      .catch((err) => {
-        console.error('Failed to load config:', err);
-        setError(true);
-      });
-  }, []);
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md w-full text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-2">Configuration Error</h1>
-          <p className="text-gray-600 mb-4">
-            Failed to load application configuration. Please check your connection and try again.
-          </p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Wait until config is loaded before rendering routes
-  if (saasEnabled === null) {
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
   return (
+    <BrowserRouter>
+      {saasEnabled ? (
+        <SaasRoutes />
+      ) : (
+        <SettingsProvider>
+          <AppRoutes />
+        </SettingsProvider>
+      )}
+    </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <BrowserRouter>
-            {saasEnabled ? (
-              <SaasRoutes />
-            ) : (
-              <SettingsProvider>
-                <AppRoutes />
-              </SettingsProvider>
-            )}
-          </BrowserRouter>
-        </AuthProvider>
+        <ConfigProvider>
+          <AuthProvider>
+            <MainContent />
+          </AuthProvider>
+        </ConfigProvider>
         <Suspense fallback={null}>
           <ReactQueryDevtools initialIsOpen={false} />
         </Suspense>

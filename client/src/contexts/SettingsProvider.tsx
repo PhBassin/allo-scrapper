@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useParams } from 'react-router-dom';
 import { SettingsContext } from './SettingsContext';
 import { getPublicSettings, getAdminSettings, updateSettings as apiUpdateSettings, type AppSettings, type AppSettingsPublic, type AppSettingsUpdate } from '../api/settings';
 
@@ -7,6 +8,7 @@ interface SettingsProviderProps {
 }
 
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
+    const { slug } = useParams<{ slug: string }>();
     const [publicSettings, setPublicSettings] = useState<AppSettingsPublic | null>(null);
     const [adminSettings, setAdminSettings] = useState<AppSettings | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +19,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         setIsLoading(true);
         setError(null);
         try {
-            const settings = await getPublicSettings();
+            const settings = await getPublicSettings(slug);
             setPublicSettings(settings);
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to load settings';
@@ -27,13 +29,13 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
             setIsLoading(false);
             setIsLoadingPublic(false);
         }
-    }, []);
+    }, [slug]);
 
     const refreshAdminSettings = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const settings = await getAdminSettings();
+            const settings = await getAdminSettings(slug);
             setAdminSettings(settings);
             setPublicSettings({
                 site_name: settings.site_name,
@@ -60,13 +62,13 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [slug]);
 
     const updateSettings = useCallback(async (updates: AppSettingsUpdate): Promise<AppSettings> => {
         setIsLoading(true);
         setError(null);
         try {
-            const updatedSettings = await apiUpdateSettings(updates);
+            const updatedSettings = await apiUpdateSettings(updates, slug);
             setAdminSettings(updatedSettings);
             setPublicSettings({
                 site_name: updatedSettings.site_name,
@@ -94,7 +96,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [slug]);
 
     useEffect(() => {
         refreshPublicSettings();
