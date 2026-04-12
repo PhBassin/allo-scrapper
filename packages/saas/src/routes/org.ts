@@ -13,6 +13,7 @@
  */
 import { Router, type Response, type NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { resolveTenant } from '../middleware/tenant.js';
 import { checkQuota } from '../middleware/quota.js';
 
@@ -50,16 +51,33 @@ const USERNAME_REGEX = /^[a-zA-Z0-9]{3,15}$/;
 /**
  * Validates that the JWT org_slug claim (if present) matches the :slug route param.
  * Prevents a token minted for org-a from accessing org-b's data.
+ *
+ * Runs as a top-level middleware, so we must decode the token here (without
+ * relying on req.user being populated by later requireAuth).
  */
-// @ts-ignore
 const requireOrgAuth = (req: any, res: Response, next: NextFunction) => {
-  const tokenSlug = req.user?.org_slug;
-  const routeSlug = req.params['slug'];
-
-  if (tokenSlug && routeSlug && tokenSlug !== routeSlug) {
-    return next(new AuthError('Access denied: organization mismatch', 403));
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return next();
   }
-  next();
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET not configured');
+    
+    // Decode without full verification first to check slug
+    const decoded = jwt.decode(token) as { org_slug?: string } | null;
+    
+    if (decoded?.org_slug && decoded.org_slug !== req.params['slug']) {
+      res.status(403).json({ success: false, error: 'Token does not match organization' });
+      return;
+    }
+    
+    next();
+  } catch (error) {
+    next();
+  }
 };
 
 export function createOrgRouter(): Router {
@@ -99,6 +117,9 @@ export function createOrgRouter(): Router {
   router.use('/reports', protectedLimiter, reportsRouter);
 
   // ── Scraper ─────────────────────────────────────────────────────────────────
+  // Add back missing quota guards for trigger and resume (#741)
+  router.post('/scraper/trigger', protectedLimiter, checkQuota('scrapes') as any);
+  router.post('/scraper/resume/:reportId', protectedLimiter, checkQuota('scrapes') as any);
   router.use('/scraper', protectedLimiter, scraperRouter);
 
   // ── Org Settings ────────────────────────────────────────────────────────────

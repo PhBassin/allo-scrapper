@@ -46,6 +46,12 @@ describe('SuperadminAuthService', () => {
 
       expect(result).toBeDefined();
       expect(result?.token).toBeDefined();
+      expect(result?.user).toEqual({
+        id: 'super-1',
+        username: 'superadmin',
+        scope: 'superadmin',
+        permissions: [],
+      });
       expect(mockDb.query).toHaveBeenCalledWith(
         'SELECT id, username, password_hash FROM superadmins WHERE username = $1',
         ['superadmin']

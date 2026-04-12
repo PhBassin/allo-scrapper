@@ -16,12 +16,13 @@ router.use(validateInputSize({ maxStringLength: 254 }));
 export interface AuthResponse {
     token: string;
     user: {
-        id: number;
+        id: number | string;
         username: string;
         role_id: number;
         role_name: string;
         is_system_role: boolean;
         permissions: PermissionName[];
+        scope?: string;
     };
 }
 
