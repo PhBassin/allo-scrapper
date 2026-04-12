@@ -126,7 +126,7 @@ export default function Layout({ children, title }: LayoutProps) {
                   Admin
                 </Link>
               )}
-              {saasEnabled && isAdmin && (
+              {saasEnabled && isAdmin && !user?.org_slug && (
                 <Link to="/superadmin" className="hover:text-primary transition text-amber-400 font-semibold" data-testid="superadmin-portal-link">
                   SaaS Portal
                 </Link>

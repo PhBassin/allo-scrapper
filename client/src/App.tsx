@@ -160,7 +160,16 @@ function SaasRoutes() {
   return (
     <Routes>
       {/* Public SaaS pages */}
-      <Route path="/" element={<LandingPage />} />
+      <Route
+        path="/"
+        element={
+          <SettingsProvider>
+            <Layout>
+              <LandingPage />
+            </Layout>
+          </SettingsProvider>
+        }
+      />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
