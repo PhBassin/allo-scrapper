@@ -60,6 +60,7 @@ export class AuthService {
         role_name: user.role_name,
         is_system_role: user.is_system_role,
         permissions,
+        scope: isPlatformAdmin ? 'superadmin' : undefined,
       },
     };
   }

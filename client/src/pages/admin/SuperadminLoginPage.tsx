@@ -2,9 +2,10 @@
  * Superadmin login page.
  * Authenticates via /api/superadmin/login and stores JWT in localStorage.
  */
-import { useState, type FormEvent } from 'react';
+import { useState, useContext, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../../api/client';
+import { AuthContext } from '../../contexts/AuthContext';
 
 export default function SuperadminLoginPage() {
   const [username, setUsername] = useState('');
@@ -12,6 +13,7 @@ export default function SuperadminLoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -22,8 +24,8 @@ export default function SuperadminLoginPage() {
       const response = await apiClient.post('/superadmin/login', { username, password });
 
       if (response.data.success) {
-        const { token } = response.data.data;
-        localStorage.setItem('token', token);
+        const { token, user } = response.data.data;
+        login(token, user);
         navigate('/superadmin', { replace: true });
       } else {
         setError(response.data.error || 'Login failed');

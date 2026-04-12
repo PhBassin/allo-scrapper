@@ -2,13 +2,14 @@ import { createContext } from 'react';
 import type { PermissionName } from '../types/role';
 
 export interface User {
-    id: number;
+    id: number | string;
     username: string;
-    role_id: number;
-    role_name: string;
-    is_system_role: boolean;
+    role_id?: number;
+    role_name?: string;
+    is_system_role?: boolean;
     permissions: PermissionName[];
     org_slug?: string;
+    scope?: string;
 }
 
 export interface AuthContextType {

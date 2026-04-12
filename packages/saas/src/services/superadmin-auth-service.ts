@@ -17,9 +17,9 @@ export class SuperadminAuthService {
 
   /**
    * Authenticate a superadmin by username and password.
-   * Returns a JWT token if credentials are valid, null otherwise.
+   * Returns a JWT token and user info if credentials are valid, null otherwise.
    */
-  async login(username: string, password: string): Promise<{ token: string } | null> {
+  async login(username: string, password: string): Promise<{ token: string; user: { id: string; username: string; scope: string; permissions: string[] } } | null> {
     // Fetch superadmin from database
     const result = await this.db.query<SuperadminRow>(
       'SELECT id, username, password_hash FROM superadmins WHERE username = $1',
@@ -39,7 +39,15 @@ export class SuperadminAuthService {
 
     // Mint JWT with scope=superadmin
     const token = this.mintSuperadminJwt(superadmin.id, superadmin.username);
-    return { token };
+    return {
+      token,
+      user: {
+        id: superadmin.id,
+        username: superadmin.username,
+        scope: 'superadmin',
+        permissions: [],
+      },
+    };
   }
 
   /**

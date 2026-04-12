@@ -3,7 +3,8 @@
  * Checks for scope='superadmin' in the JWT payload.
  */
 import { Navigate } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { useContext, type ReactNode } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
 
 interface RequireSuperadminProps {
   children: ReactNode;
@@ -44,9 +45,12 @@ function decodeToken(): { scope?: string } | null {
 }
 
 export function RequireSuperadmin({ children }: RequireSuperadminProps) {
+  const { user } = useContext(AuthContext);
   const decoded = decodeToken();
   
-  if (!decoded || decoded.scope !== 'superadmin') {
+  const isSuperadmin = (decoded && decoded.scope === 'superadmin') || (user?.scope === 'superadmin');
+  
+  if (!isSuperadmin) {
     return <Navigate to="/superadmin/login" replace />;
   }
 
