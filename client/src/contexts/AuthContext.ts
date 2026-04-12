@@ -8,6 +8,7 @@ export interface User {
     role_name: string;
     is_system_role: boolean;
     permissions: PermissionName[];
+    org_slug?: string;
 }
 
 export interface AuthContextType {

@@ -10,6 +10,19 @@ interface RequireSuperadminProps {
 }
 
 /**
+ * Decode Base64URL to string.
+ */
+function decodeBase64Url(value: string): string | null {
+  try {
+    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    return atob(padded);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Decode JWT payload from localStorage token.
  * Returns null if no token or invalid token.
  */
@@ -21,9 +34,10 @@ function decodeToken(): { scope?: string } | null {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
 
-    const payload = parts[1];
-    const decoded = JSON.parse(atob(payload));
-    return decoded;
+    const payloadJson = decodeBase64Url(parts[1]);
+    if (!payloadJson) return null;
+
+    return JSON.parse(payloadJson);
   } catch {
     return null;
   }
