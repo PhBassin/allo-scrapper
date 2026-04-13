@@ -15,8 +15,12 @@ BEGIN;
 -- Note: audit_log.actor_id is a soft reference (no FK), so this is safe
 DROP TABLE IF EXISTS superadmins CASCADE;
 
-RAISE NOTICE 'Migration saas_007_unify_superadmin_credentials successful';
-RAISE NOTICE 'Superadmin login now uses public.users for system admin accounts';
-RAISE NOTICE 'Credentials stay in sync - password changes via /api/auth/change-password now work for both regular admin and superadmin login';
+-- Notify about the migration success
+DO $$
+BEGIN
+  RAISE NOTICE 'Migration saas_007_unify_superadmin_credentials successful';
+  RAISE NOTICE 'Superadmin login now uses public.users for system admin accounts';
+  RAISE NOTICE 'Credentials stay in sync - password changes via /api/auth/change-password now work for both regular admin and superadmin login';
+END $$;
 
 COMMIT;
