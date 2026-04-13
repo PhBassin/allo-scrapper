@@ -557,6 +557,54 @@ cd scraper && npm test
 
 ---
 
+## Docker Build Gotcha: Workspace Dependencies
+
+**CRITICAL: Docker production stage must install ALL workspace packages, not just the server.**
+
+### The Problem
+
+When `SAAS_ENABLED=true`, the server dynamically imports workspace packages at runtime:
+
+```typescript
+// server/src/index.ts
+const mod = await import('@allo-scrapper/saas' as string);
+```
+
+If the production Docker stage only installs the `allo-scrapper-server` workspace:
+```dockerfile
+npm install --omit=dev --workspace=allo-scrapper-server  # ❌ WRONG
+```
+
+Then Node.js **cannot resolve** `@allo-scrapper/saas`, even though:
+- The compiled files exist in `/app/packages/saas/dist`
+- The `package.json` exists in `/app/packages/saas/package.json`
+
+### Why This Happens
+
+npm workspaces use **symlinks** in `node_modules/@allo-scrapper/` to make packages importable. Without running `npm install` for the workspace, these symlinks don't exist, and module resolution fails.
+
+### The Solution
+
+Install all workspaces in production:
+
+```dockerfile
+# ✅ CORRECT: Install all workspaces
+npm install --omit=dev --workspaces --legacy-peer-deps
+```
+
+The `--omit=dev` flag prevents bloat by excluding devDependencies (vitest, typescript, etc.).
+
+### When to Update This
+
+If you add a new workspace package that the server imports at runtime, ensure:
+1. The workspace is listed in root `package.json` workspaces array
+2. The Dockerfile uses `--workspaces` (already done with this fix)
+3. The workspace's `dist/` is copied in the production stage
+
+**No Dockerfile update needed** if using `--workspaces` (it includes all automatically).
+
+---
+
 ## Database Migration Best Practices
 
 **CRITICAL: All database migrations must be idempotent** to avoid failures when starting fresh installations.
@@ -998,15 +1046,15 @@ When `SAAS_ENABLED=true`, the superadmin portal (`/superadmin`) uses a separate 
 
 ```sql
 -- SuperadminAuthService.login() queries:
-SELECT u.id, u.username, u.password_hash, u.role_id, r.name as role_name, r.is_system_role
+SELECT u.id, u.username, u.password_hash, u.role_id, r.name as role_name, r.is_system as is_system_role
 FROM users u
 JOIN roles r ON u.role_id = r.id
 WHERE u.username = $1
-  AND r.is_system_role = true
+  AND r.is_system = true
   AND r.name = 'admin'
 ```
 
-Only users with `is_system_role = true` AND `role_name = 'admin'` can log in via the superadmin endpoint. The JWT token includes `scope: 'superadmin'` to grant elevated privileges.
+Only users with `is_system = true` (aliased as `is_system_role` in the result) AND `role_name = 'admin'` can log in via the superadmin endpoint. The JWT token includes `scope: 'superadmin'` to grant elevated privileges.
 
 ### Credential Sync
 
