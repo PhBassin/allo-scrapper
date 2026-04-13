@@ -2,7 +2,7 @@
 title: 'Fix SaaS login redirect for system admins'
 type: 'bugfix'
 created: '2026-04-13'
-status: 'in-progress'
+status: 'done'
 baseline_commit: '10f2e9ed15f99bb2ff92102b90c379fadc35cd97'
 context: []
 ---
@@ -73,7 +73,7 @@ context: []
 
 ## Spec Change Log
 
-- **2026-04-13**: Initial spec created based on issue #267
+- **2026-04-13**: Initial spec created based on user report (issue #827)
 - **2026-04-13**: Implementation completed following TDD workflow
   - Added `org_slug?: string` to User interface
   - Created `navigation.ts` utility with comprehensive tests
@@ -81,6 +81,7 @@ context: []
   - Added 6 integration tests verifying all acceptance criteria
   - All tests written before implementation (RED → GREEN TDD cycle)
   - Commits: 1265610 (RED), 64017cd (GREEN), f868240 (integration), 4b1783b (tests)
+- **2026-04-13**: Issue #827 created to track this bugfix
 
 ## Design Notes
 
@@ -127,3 +128,37 @@ System admins shouldn't be accessing tenant routes directly. If they arrived at 
 - Start Docker with `SAAS_ENABLED=true`, log in as system admin (username: `admin`, password from logs), verify redirect to `/superadmin`
 - Register a new org user via `/register`, log in, verify redirect to `/org/{slug}`
 - Access a protected route while logged out (e.g., `/org/{slug}/admin`), log in, verify redirect back to the protected route
+
+## Suggested Review Order
+
+**Core redirect logic**
+
+- Entry point: new utility with three-tier precedence logic (system admin → org user → fallback)
+  [`navigation.ts:15`](../../client/src/utils/navigation.ts#L15)
+
+- System admin detection: all three conditions required to avoid false positives
+  [`navigation.ts:18`](../../client/src/utils/navigation.ts#L18)
+
+- Org user path validation: ensures `from` matches user's org before honoring
+  [`navigation.ts:25`](../../client/src/utils/navigation.ts#L25)
+
+**Integration point**
+
+- LoginPage integration: replaces hardcoded redirect with intelligent destination
+  [`LoginPage.tsx:40`](../../client/src/pages/LoginPage.tsx#L40)
+
+- From parameter extraction: now optional (undefined instead of default '/')
+  [`LoginPage.tsx:25`](../../client/src/pages/LoginPage.tsx#L25)
+
+**Type extension**
+
+- User interface enhancement: added org_slug field for SaaS tenant association
+  [`AuthContext.ts:11`](../../client/src/contexts/AuthContext.ts#L11)
+
+**Test coverage**
+
+- Navigation utility tests: 13 test cases covering all I/O matrix scenarios
+  [`navigation.test.ts:1`](../../client/src/utils/navigation.test.ts#L1)
+
+- LoginPage integration tests: 6 end-to-end redirect verification tests
+  [`LoginPage.test.tsx:73`](../../client/src/pages/LoginPage.test.tsx#L73)
