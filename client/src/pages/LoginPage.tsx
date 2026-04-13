@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import apiClient from '../api/client';
+import { determinePostLoginDestination } from '../utils/navigation';
 
 interface LoginLocationState {
     from?: {
@@ -21,7 +22,7 @@ const LoginPage: React.FC = () => {
     const location = useLocation();
     const locationState = location.state as LoginLocationState | null;
 
-    const from = locationState?.from?.pathname || '/';
+    const from = locationState?.from?.pathname;
     const sessionExpired = locationState?.reason === 'session_expired';
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -36,7 +37,8 @@ const LoginPage: React.FC = () => {
                 // API returns { success: true, data: { token, user } }
                 const { token, user } = response.data.data;
                 login(token, user);
-                navigate(from, { replace: true });
+                const destination = determinePostLoginDestination(user, from);
+                navigate(destination, { replace: true });
             } else {
                 setError(response.data.error || 'Login failed');
             }
