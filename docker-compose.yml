@@ -70,6 +70,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
+      # SaaS mode (optional, default: false for single-tenant)
+      SAAS_ENABLED: ${SAAS_ENABLED:-false}
     depends_on:
       ics-db:
         condition: service_healthy
