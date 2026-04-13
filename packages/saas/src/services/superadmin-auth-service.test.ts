@@ -58,11 +58,11 @@ describe('SuperadminAuthService', () => {
         ['admin']
       );
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining("is_system_role = true"),
+        expect.stringContaining("is_system = true"),
         ['admin']
       );
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining("role_name = 'admin'"),
+        expect.stringContaining("r.name = 'admin'"),
         ['admin']
       );
     });
@@ -102,7 +102,7 @@ describe('SuperadminAuthService', () => {
 
       expect(result).toBeNull();
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining("is_system_role = true"),
+        expect.stringContaining("is_system = true"),
         ['regularuser']
       );
     });
@@ -114,7 +114,7 @@ describe('SuperadminAuthService', () => {
 
       expect(result).toBeNull();
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining("role_name = 'admin'"),
+        expect.stringContaining("r.name = 'admin'"),
         ['operator']
       );
     });

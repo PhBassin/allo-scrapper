@@ -26,11 +26,11 @@ export class SuperadminAuthService {
   async login(username: string, password: string): Promise<{ token: string } | null> {
     // Fetch system admin user from public.users table
     const result = await this.db.query<SuperadminRow>(
-      `SELECT u.id, u.username, u.password_hash, u.role_id, r.name as role_name, r.is_system_role
+      `SELECT u.id, u.username, u.password_hash, u.role_id, r.name as role_name, r.is_system as is_system_role
        FROM users u
        JOIN roles r ON u.role_id = r.id
        WHERE u.username = $1
-         AND r.is_system_role = true
+         AND r.is_system = true
          AND r.name = 'admin'`,
       [username]
     );
