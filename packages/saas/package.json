@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "SaaS overlay plugin for Allo-Scrapper — multi-tenant support",
   "type": "module",
-  "main": "dist/plugin.js",
-  "types": "dist/plugin.d.ts",
+  "main": "dist/packages/saas/src/plugin.js",
+  "types": "dist/packages/saas/src/plugin.d.ts",
   "scripts": {
     "build": "tsc -b",
     "test": "vitest",

@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { createApp, applyPlugins } from './app.js';
+import { createApp, applyPlugins, registerFallbackHandlers } from './app.js';
 import type { AppPlugin } from './app.js';
 import { db, pool } from './db/client.js';
 import { initializeDatabase } from './db/schema.js';
@@ -61,6 +61,9 @@ async function startServer() {
     } else {
       logger.info('🔌 Running in standalone mode (SAAS_ENABLED != true)');
     }
+
+    // Register fallback handlers (404, SPA) AFTER plugins have registered routes
+    registerFallbackHandlers(app);
 
     // Start server
     const server = app.listen(Number(PORT), () => {

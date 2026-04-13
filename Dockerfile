@@ -102,11 +102,26 @@ COPY --chown=nodejs:nodejs scraper/package.json ./scraper/
 COPY --chown=nodejs:nodejs packages/saas/package.json ./packages/saas/
 COPY --chown=nodejs:nodejs packages/logger/package.json ./packages/logger/
 
-# Install only production dependencies for the server workspace
+# ----------------------------------------------------------------------------
+# Workspace Dependencies for Production Runtime
+# ----------------------------------------------------------------------------
+# The application uses npm workspaces (@allo-scrapper/saas, @allo-scrapper/logger).
+# These workspace packages must be installed in production for Node.js module
+# resolution to work, even though their compiled files are copied from the builder.
+#
+# Why --workspaces is required:
+# 1. Dynamic imports (e.g., await import('@allo-scrapper/saas')) require the
+#    package to be resolvable via node_modules/@allo-scrapper/saas
+# 2. npm workspaces create symlinks in node_modules/ during install
+# 3. Without installation, import paths fail at runtime even if dist/ exists
+#
+# The --omit=dev flag ensures only production dependencies are installed
+# (devDependencies like vitest, typescript, etc. are excluded).
+# ----------------------------------------------------------------------------
 # Remove package-lock.json and regenerate to get correct platform-specific bindings
 # (sharp, and any other native modules need this for Alpine Linux)
 RUN rm -f package-lock.json && \
-    npm install --omit=dev --workspace=allo-scrapper-server --legacy-peer-deps && \
+    npm install --omit=dev --workspaces --legacy-peer-deps && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/*
 
@@ -120,8 +135,19 @@ COPY --from=backend-builder --chown=nodejs:nodejs /app/packages/logger/dist ./pa
 # Copy only the JSON config file, not the entire directory (to preserve compiled JS files)
 COPY --from=backend-builder --chown=nodejs:nodejs /app/server/src/config/cinemas.json ./server/dist/config/cinemas.json
 
+# Create @server symlink for SaaS module resolution
+# The SaaS package uses @server/* imports which TypeScript doesn't resolve at build time
+# Create a symlink in node_modules to map @server -> server/dist
+USER root
+RUN mkdir -p /app/node_modules && \
+    ln -s /app/server/dist /app/node_modules/@server && \
+    chown -R nodejs:nodejs /app/node_modules
+USER nodejs
+
 # Copy database migrations
 COPY --chown=nodejs:nodejs migrations ./migrations
+# Copy SaaS migrations (needed when SAAS_ENABLED=true)
+COPY --chown=nodejs:nodejs packages/saas/migrations ./packages/saas/migrations
 
 # Copy built frontend from builder into server's public directory so it can serve it
 COPY --from=frontend-builder --chown=nodejs:nodejs /app/client/dist ./server/public

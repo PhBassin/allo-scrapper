@@ -7,9 +7,12 @@ import jwt from 'jsonwebtoken';
 import type { DB } from '../db/types.js';
 
 interface SuperadminRow {
-  id: string;
+  id: number;
   username: string;
   password_hash: string;
+  role_id: number;
+  role_name: string;
+  is_system_role: boolean;
 }
 
 export class SuperadminAuthService {
@@ -17,28 +20,34 @@ export class SuperadminAuthService {
 
   /**
    * Authenticate a superadmin by username and password.
+   * Queries the public.users table for system admin accounts.
    * Returns a JWT token if credentials are valid, null otherwise.
    */
   async login(username: string, password: string): Promise<{ token: string } | null> {
-    // Fetch superadmin from database
+    // Fetch system admin user from public.users table
     const result = await this.db.query<SuperadminRow>(
-      'SELECT id, username, password_hash FROM superadmins WHERE username = $1',
+      `SELECT u.id, u.username, u.password_hash, u.role_id, r.name as role_name, r.is_system as is_system_role
+       FROM users u
+       JOIN roles r ON u.role_id = r.id
+       WHERE u.username = $1
+         AND r.is_system = true
+         AND r.name = 'admin'`,
       [username]
     );
 
-    const superadmin = result.rows[0];
-    if (!superadmin) {
+    const admin = result.rows[0];
+    if (!admin) {
       return null;
     }
 
     // Verify password
-    const valid = await bcrypt.compare(password, superadmin.password_hash);
+    const valid = await bcrypt.compare(password, admin.password_hash);
     if (!valid) {
       return null;
     }
 
     // Mint JWT with scope=superadmin
-    const token = this.mintSuperadminJwt(superadmin.id, superadmin.username);
+    const token = this.mintSuperadminJwt(String(admin.id), admin.username);
     return { token };
   }
 

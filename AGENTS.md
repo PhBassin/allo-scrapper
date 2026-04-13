@@ -557,6 +557,54 @@ cd scraper && npm test
 
 ---
 
+## Docker Build Gotcha: Workspace Dependencies
+
+**CRITICAL: Docker production stage must install ALL workspace packages, not just the server.**
+
+### The Problem
+
+When `SAAS_ENABLED=true`, the server dynamically imports workspace packages at runtime:
+
+```typescript
+// server/src/index.ts
+const mod = await import('@allo-scrapper/saas' as string);
+```
+
+If the production Docker stage only installs the `allo-scrapper-server` workspace:
+```dockerfile
+npm install --omit=dev --workspace=allo-scrapper-server  # ❌ WRONG
+```
+
+Then Node.js **cannot resolve** `@allo-scrapper/saas`, even though:
+- The compiled files exist in `/app/packages/saas/dist`
+- The `package.json` exists in `/app/packages/saas/package.json`
+
+### Why This Happens
+
+npm workspaces use **symlinks** in `node_modules/@allo-scrapper/` to make packages importable. Without running `npm install` for the workspace, these symlinks don't exist, and module resolution fails.
+
+### The Solution
+
+Install all workspaces in production:
+
+```dockerfile
+# ✅ CORRECT: Install all workspaces
+npm install --omit=dev --workspaces --legacy-peer-deps
+```
+
+The `--omit=dev` flag prevents bloat by excluding devDependencies (vitest, typescript, etc.).
+
+### When to Update This
+
+If you add a new workspace package that the server imports at runtime, ensure:
+1. The workspace is listed in root `package.json` workspaces array
+2. The Dockerfile uses `--workspaces` (already done with this fix)
+3. The workspace's `dist/` is copied in the production stage
+
+**No Dockerfile update needed** if using `--workspaces` (it includes all automatically).
+
+---
+
 ## Database Migration Best Practices
 
 **CRITICAL: All database migrations must be idempotent** to avoid failures when starting fresh installations.
@@ -976,6 +1024,126 @@ npm run dev
 - Check `permission_category_labels` table has entry for that category_key
 - Verify `label_en` or `label_fr` are not NULL
 - Restart frontend to clear cached labels
+
+---
+
+## Superadmin Authentication Architecture (SaaS Mode)
+
+**CRITICAL: Superadmin and regular admin accounts share the same credentials.**
+
+When `SAAS_ENABLED=true`, the superadmin portal (`/superadmin`) uses a separate authentication endpoint but queries the same credential store as regular admin login.
+
+### Authentication Flow
+
+**Two login endpoints, one credential source:**
+
+| Endpoint | Queries Table | JWT Scope | Purpose |
+|---|---|---|---|
+| `POST /api/auth/login` | `public.users` | None | Regular admin portal |
+| `POST /api/superadmin/login` | `public.users` (system admins only) | `scope: 'superadmin'` | SaaS superadmin portal |
+
+**How superadmin login works:**
+
+```sql
+-- SuperadminAuthService.login() queries:
+SELECT u.id, u.username, u.password_hash, u.role_id, r.name as role_name, r.is_system as is_system_role
+FROM users u
+JOIN roles r ON u.role_id = r.id
+WHERE u.username = $1
+  AND r.is_system = true
+  AND r.name = 'admin'
+```
+
+Only users with `is_system = true` (aliased as `is_system_role` in the result) AND `role_name = 'admin'` can log in via the superadmin endpoint. The JWT token includes `scope: 'superadmin'` to grant elevated privileges.
+
+### Credential Sync
+
+**No sync needed** — there is only one password hash stored in `public.users`.
+
+When a system admin changes their password via:
+- `POST /api/auth/change-password` → updates `users.password_hash`
+- The new password immediately works for both login endpoints
+
+### Migration History
+
+- **saas_006_add_superadmin.sql** — Created the (now removed) `superadmins` table + `audit_log`
+- **saas_007_unify_superadmin_credentials.sql** — Dropped the redundant `superadmins` table, unified credentials to `public.users`
+
+The `audit_log` table remains and uses `actor_id` as a soft reference (no FK constraint).
+
+### Security Model
+
+**Separation by JWT scope, not by credential store:**
+
+- Regular admin JWT: `{ id, username, role_name: 'admin', is_system_role: true, permissions[] }`
+- Superadmin JWT: `{ id, username, scope: 'superadmin' }`
+
+The `requireSuperadmin` middleware checks for `scope === 'superadmin'`. Regular admin tokens (without scope) are rejected with `403 INSUFFICIENT_PRIVILEGES`.
+
+### Client-Side Behavior
+
+**"SaaS Portal" link visibility** (in `Layout.tsx`):
+
+```tsx
+{saasEnabled && isAdmin && !user?.org_slug && (
+  <Link to="/superadmin">SaaS Portal</Link>
+)}
+```
+
+**Three conditions must ALL be true:**
+1. `saasEnabled` — from server-side feature flag
+2. `isAdmin` — computed as `role_name === 'admin' && is_system_role === true`
+3. `!user?.org_slug` — ensures impersonated sessions never show the link
+
+**Superadmin portal access guard** (`RequireSuperadmin.tsx`):
+- Decodes JWT client-side
+- Checks `decoded.scope === 'superadmin'`
+- Redirects to `/superadmin/login` if not authorized
+
+### Default Admin Account
+
+The default system admin is seeded by `migrations/007_seed_default_admin.sql`:
+
+```sql
+INSERT INTO users (username, password_hash, role_id)
+SELECT 'admin', '<bcrypt_hash>', r.id
+FROM roles r
+WHERE r.name = 'admin' AND r.is_system_role = true
+ON CONFLICT (username) DO NOTHING
+```
+
+This user can log in to:
+- Regular admin portal: `POST /api/auth/login` → JWT without scope
+- Superadmin portal: `POST /api/superadmin/login` → JWT with `scope: 'superadmin'`
+
+Both use the same password.
+
+### Testing Superadmin Auth
+
+```bash
+# Test regular admin login
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"<password>"}'
+
+# Test superadmin login (same credentials)
+curl -X POST http://localhost:3000/api/superadmin/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"<password>"}'
+
+# Verify JWT scope
+echo "<token>" | cut -d. -f2 | base64 -d | jq .scope
+# Regular admin: null
+# Superadmin: "superadmin"
+```
+
+### Important Notes
+
+- **No separate superadmin table** — removed in saas_007 migration
+- **Password changes sync automatically** — only one password hash exists
+- **audit_log.actor_id** — stores superadmin user ID as string (casted from integer)
+- **Same JWT_SECRET** — both endpoints use the same secret, differentiated by `scope` claim
+- **No superadmin-specific password change endpoint** — use regular `/api/auth/change-password`
 
 ---
 
