@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import type { DB } from './db/client.js';
 import type { Pool } from 'pg';
-import { createApp, applyPlugins, type AppPlugin } from './app.js';
+import { createApp, applyPlugins, registerFallbackHandlers, type AppPlugin } from './app.js';
 
 // Mock dependencies
 vi.mock('./services/theme-generator.js');
@@ -21,6 +21,7 @@ describe('App - Theme Endpoint', () => {
     process.env.NODE_ENV = 'development';
     app = createApp();
     app.set('db', mockDb);
+    registerFallbackHandlers(app); // Register 404 and SPA fallback handlers
     vi.clearAllMocks();
   });
 
