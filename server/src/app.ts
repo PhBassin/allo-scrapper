@@ -244,7 +244,18 @@ export function createApp() {
     }
   });
 
-  // 404 handler for API routes (must be BEFORE SPA fallback)
+  // Error handler (registered early, but will catch errors from all routes including plugins)
+  app.use(errorHandler);
+
+  return app;
+}
+
+/**
+ * Register final catch-all handlers after plugins have registered their routes.
+ * MUST be called after applyPlugins() to avoid catching plugin routes.
+ */
+export function registerFallbackHandlers(app: Express): void {
+  // 404 handler for API routes (must be AFTER plugin routes, BEFORE SPA fallback)
   app.use(/^\/api(?:\/(.*))?$/, (_req, res) => {
     res.status(404).json({
       success: false,
@@ -262,9 +273,4 @@ export function createApp() {
       res.sendFile(path.join(publicPath, 'index.html'));
     });
   }
-
-  // Error handler
-  app.use(errorHandler);
-
-  return app;
 }
