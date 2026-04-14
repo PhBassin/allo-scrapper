@@ -68,6 +68,88 @@ describe('AuthService', () => {
       expect(result.user.username).toBe('user');
       expect(result.user.permissions).toEqual(['users:read']);
     });
+
+    it('should include scope:superadmin in JWT for system admin users', async () => {
+      const mockSystemAdmin = {
+        id: 1,
+        username: 'admin',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+        password_hash: 'hash'
+      };
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockSystemAdmin as any);
+      vi.mocked(bcrypt.compare).mockResolvedValue(true);
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:read'] as any);
+      vi.mocked(jwt.sign).mockReturnValue('mock-token' as any);
+
+      await authService.login('admin', 'password');
+
+      // Verify jwt.sign was called with scope: 'superadmin' in payload
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scope: 'superadmin',
+          id: 1,
+          username: 'admin',
+          role_name: 'admin',
+          is_system_role: true,
+        }),
+        expect.any(String),
+        expect.any(Object)
+      );
+    });
+
+    it('should NOT include scope in JWT for regular admin users (is_system_role=false)', async () => {
+      const mockRegularAdmin = {
+        id: 2,
+        username: 'orgadmin',
+        role_id: 2,
+        role_name: 'admin',
+        is_system_role: false,
+        password_hash: 'hash'
+      };
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockRegularAdmin as any);
+      vi.mocked(bcrypt.compare).mockResolvedValue(true);
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:read'] as any);
+      vi.mocked(jwt.sign).mockReturnValue('mock-token' as any);
+
+      await authService.login('orgadmin', 'password');
+
+      // Verify jwt.sign was called WITHOUT scope in payload
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          scope: expect.anything(),
+        }),
+        expect.any(String),
+        expect.any(Object)
+      );
+    });
+
+    it('should NOT include scope in JWT for non-admin system users', async () => {
+      const mockSystemUser = {
+        id: 3,
+        username: 'systemuser',
+        role_id: 3,
+        role_name: 'viewer',
+        is_system_role: true,
+        password_hash: 'hash'
+      };
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockSystemUser as any);
+      vi.mocked(bcrypt.compare).mockResolvedValue(true);
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['schedules:read'] as any);
+      vi.mocked(jwt.sign).mockReturnValue('mock-token' as any);
+
+      await authService.login('systemuser', 'password');
+
+      // Verify jwt.sign was called WITHOUT scope in payload
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          scope: expect.anything(),
+        }),
+        expect.any(String),
+        expect.any(Object)
+      );
+    });
   });
 
   describe('register', () => {
