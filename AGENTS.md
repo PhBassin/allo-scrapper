@@ -1029,56 +1029,88 @@ npm run dev
 
 ## Superadmin Authentication Architecture (SaaS Mode)
 
-**CRITICAL: Superadmin and regular admin accounts share the same credentials.**
+**CRITICAL: System administrators receive superadmin-scoped JWT automatically from the main login endpoint.**
 
-When `SAAS_ENABLED=true`, the superadmin portal (`/superadmin`) uses a separate authentication endpoint but queries the same credential store as regular admin login.
+When `SAAS_ENABLED=true`, system administrators can access the superadmin portal (`/superadmin`) using the same credentials they use for regular admin access. The authentication system automatically detects system admins and grants appropriate privileges.
 
-### Authentication Flow
+### Unified Authentication Flow
 
-**Two login endpoints, one credential source:**
+**One login endpoint, automatic scope detection:**
 
 | Endpoint | Queries Table | JWT Scope | Purpose |
 |---|---|---|---|
-| `POST /api/auth/login` | `public.users` | None | Regular admin portal |
-| `POST /api/superadmin/login` | `public.users` (system admins only) | `scope: 'superadmin'` | SaaS superadmin portal |
+| `POST /api/auth/login` | `public.users` | Auto-detected | All users (regular, org admins, system admins) |
 
-**How superadmin login works:**
+**How automatic scope assignment works:**
 
-```sql
--- SuperadminAuthService.login() queries:
-SELECT u.id, u.username, u.password_hash, u.role_id, r.name as role_name, r.is_system as is_system_role
-FROM users u
-JOIN roles r ON u.role_id = r.id
-WHERE u.username = $1
-  AND r.is_system = true
-  AND r.name = 'admin'
+```typescript
+// AuthService.login() automatically adds scope for system admins
+if (user.is_system_role && user.role_name === 'admin') {
+  payload.scope = 'superadmin';
+}
 ```
 
-Only users with `is_system = true` (aliased as `is_system_role` in the result) AND `role_name = 'admin'` can log in via the superadmin endpoint. The JWT token includes `scope: 'superadmin'` to grant elevated privileges.
+**JWT payload examples:**
 
-### Credential Sync
+```javascript
+// System admin (is_system_role=true AND role_name='admin')
+{
+  id: 1,
+  username: 'admin',
+  role_name: 'admin',
+  is_system_role: true,
+  permissions: [...],
+  scope: 'superadmin'  // ← Automatically added
+}
 
-**No sync needed** — there is only one password hash stored in `public.users`.
+// Regular admin or org admin (is_system_role=false)
+{
+  id: 2,
+  username: 'orgadmin',
+  role_name: 'admin',
+  is_system_role: false,
+  permissions: [...]
+  // No scope field
+}
 
-When a system admin changes their password via:
-- `POST /api/auth/change-password` → updates `users.password_hash`
-- The new password immediately works for both login endpoints
+// Non-admin system user
+{
+  id: 3,
+  username: 'viewer',
+  role_name: 'viewer',
+  is_system_role: true,
+  permissions: [...]
+  // No scope field
+}
+```
+
+### Single Sign-On Behavior
+
+1. System admin logs in via `/login` page
+2. `POST /api/auth/login` endpoint authenticates user
+3. `AuthService` detects: `is_system_role === true && role_name === 'admin'`
+4. JWT payload includes `scope: 'superadmin'`
+5. User is redirected to `/superadmin` portal
+6. `RequireSuperadmin` guard verifies `scope === 'superadmin'`
+7. **No second login required** ✅
 
 ### Migration History
 
 - **saas_006_add_superadmin.sql** — Created the (now removed) `superadmins` table + `audit_log`
-- **saas_007_unify_superadmin_credentials.sql** — Dropped the redundant `superadmins` table, unified credentials to `public.users`
+- **saas_007_unify_superadmin_credentials.sql** — Dropped redundant `superadmins` table, unified credentials to `public.users`
+- **Issue #830** — Removed `/api/superadmin/login` endpoint, unified authentication to single endpoint with automatic scope detection
 
 The `audit_log` table remains and uses `actor_id` as a soft reference (no FK constraint).
 
 ### Security Model
 
-**Separation by JWT scope, not by credential store:**
+**Separation by JWT scope, automatic assignment:**
 
-- Regular admin JWT: `{ id, username, role_name: 'admin', is_system_role: true, permissions[] }`
-- Superadmin JWT: `{ id, username, scope: 'superadmin' }`
+- System admin JWT: `{ id, username, role_name: 'admin', is_system_role: true, permissions[], scope: 'superadmin' }`
+- Regular admin JWT: `{ id, username, role_name: 'admin', is_system_role: false, permissions[] }`
+- Non-admin JWT: `{ id, username, role_name: 'viewer', is_system_role: true, permissions[] }`
 
-The `requireSuperadmin` middleware checks for `scope === 'superadmin'`. Regular admin tokens (without scope) are rejected with `403 INSUFFICIENT_PRIVILEGES`.
+The `requireSuperadmin` middleware checks for `scope === 'superadmin'`. Tokens without this scope are rejected with `403 INSUFFICIENT_PRIVILEGES`.
 
 ### Client-Side Behavior
 
@@ -1098,7 +1130,7 @@ The `requireSuperadmin` middleware checks for `scope === 'superadmin'`. Regular 
 **Superadmin portal access guard** (`RequireSuperadmin.tsx`):
 - Decodes JWT client-side
 - Checks `decoded.scope === 'superadmin'`
-- Redirects to `/superadmin/login` if not authorized
+- Redirects to `/login` if not authorized (no separate superadmin login page)
 
 ### Default Admin Account
 
@@ -1112,38 +1144,39 @@ WHERE r.name = 'admin' AND r.is_system_role = true
 ON CONFLICT (username) DO NOTHING
 ```
 
-This user can log in to:
-- Regular admin portal: `POST /api/auth/login` → JWT without scope
-- Superadmin portal: `POST /api/superadmin/login` → JWT with `scope: 'superadmin'`
-
-Both use the same password.
+This user receives `scope: 'superadmin'` automatically when logging in via `/api/auth/login`.
 
 ### Testing Superadmin Auth
 
 ```bash
-# Test regular admin login
+# Test system admin login (automatically gets superadmin scope)
 curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"<password>"}'
-
-# Test superadmin login (same credentials)
-curl -X POST http://localhost:3000/api/superadmin/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"<password>"}'
 
 # Verify JWT scope
 echo "<token>" | cut -d. -f2 | base64 -d | jq .scope
-# Regular admin: null
-# Superadmin: "superadmin"
+# Expected output: "superadmin"
+
+# Test regular user login (no scope)
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"regularuser","password":"<password>"}'
+
+# Verify JWT scope
+echo "<token>" | cut -d. -f2 | base64 -d | jq .scope
+# Expected output: null
 ```
 
 ### Important Notes
 
-- **No separate superadmin table** — removed in saas_007 migration
-- **Password changes sync automatically** — only one password hash exists
+- **Single authentication endpoint** — `/api/auth/login` serves all users
+- **Automatic scope detection** — no manual intervention needed
+- **No separate superadmin login page** — removed in #830
+- **No separate superadmin endpoint** — `/api/superadmin/login` removed in #830
+- **Password changes work immediately** — only one password hash in `public.users`
 - **audit_log.actor_id** — stores superadmin user ID as string (casted from integer)
-- **Same JWT_SECRET** — both endpoints use the same secret, differentiated by `scope` claim
-- **No superadmin-specific password change endpoint** — use regular `/api/auth/change-password`
+- **Same JWT_SECRET** — all tokens use the same secret, differentiated by `scope` claim
 
 ---
 
