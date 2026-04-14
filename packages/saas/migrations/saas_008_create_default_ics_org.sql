@@ -94,7 +94,7 @@ BEGIN
     id                   SERIAL PRIMARY KEY,
     username             VARCHAR(255) NOT NULL UNIQUE,
     password_hash        TEXT,
-    role_id              INTEGER NOT NULL DEFAULT 1 REFERENCES org_ics.roles(id),
+    role_id              INTEGER NOT NULL REFERENCES org_ics.roles(id),
     email_verified       BOOLEAN NOT NULL DEFAULT FALSE,
     verification_token   TEXT,
     verification_expires TIMESTAMPTZ,
@@ -108,7 +108,7 @@ BEGIN
   CREATE TABLE IF NOT EXISTS org_ics.invitations (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email       VARCHAR(255) NOT NULL,
-    role_id     INTEGER NOT NULL DEFAULT 1 REFERENCES org_ics.roles(id),
+    role_id     INTEGER NOT NULL REFERENCES org_ics.roles(id),
     token       TEXT NOT NULL UNIQUE,
     expires_at  TIMESTAMPTZ NOT NULL,
     accepted_at TIMESTAMPTZ,
@@ -433,11 +433,20 @@ BEGIN
     schema_exists BOOL;
     admin_exists BOOL;
     quota_exists BOOL;
+    quota_counts RECORD;
   BEGIN
     SELECT COUNT(*) INTO org_count FROM public.organizations WHERE slug = 'ics';
     SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = 'org_ics') INTO schema_exists;
     SELECT EXISTS(SELECT 1 FROM org_ics.users LIMIT 1) INTO admin_exists;
-    SELECT EXISTS(SELECT 1 FROM public.org_usage WHERE org_id = (SELECT id FROM public.organizations WHERE slug = 'ics')) INTO quota_exists;
+    
+    -- P10 fix: Verify quota exists AND has correct initial values
+    SELECT cinemas_count, users_count, scrapes_count, api_calls_count
+    INTO quota_counts
+    FROM public.org_usage
+    WHERE org_id = (SELECT id FROM public.organizations WHERE slug = 'ics')
+    LIMIT 1;
+    
+    quota_exists := FOUND;
     
     IF org_count = 0 THEN
       RAISE EXCEPTION 'Migration verification failed: org ics not created';
@@ -449,6 +458,13 @@ BEGIN
     
     IF NOT quota_exists THEN
       RAISE EXCEPTION 'Migration verification failed: quota tracking not initialized';
+    END IF;
+    
+    -- P10 fix: Warn if quota counts are non-zero (indicates re-run of migration)
+    IF quota_counts.cinemas_count != 0 OR quota_counts.users_count != 0 OR 
+       quota_counts.scrapes_count != 0 OR quota_counts.api_calls_count != 0 THEN
+      RAISE WARNING 'Quota tracking exists but counts are non-zero (migration may have been re-run): cinemas=%, users=%, scrapes=%, api_calls=%',
+        quota_counts.cinemas_count, quota_counts.users_count, quota_counts.scrapes_count, quota_counts.api_calls_count;
     END IF;
     
     IF NOT admin_exists THEN
