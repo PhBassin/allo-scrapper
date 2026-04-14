@@ -35,17 +35,21 @@ export class AuthService {
     // Parse JWT expiration from env var (default: 24h)
     const expiresIn = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '24h');
 
-    const token = jwt.sign(
-      {
-        id: user.id,
-        username: user.username,
-        role_name: user.role_name,
-        is_system_role: user.is_system_role,
-        permissions,
-      },
-      secret,
-      { expiresIn: expiresIn as any }
-    );
+    // Add scope: 'superadmin' for system admins to enable single sign-on
+    const payload: Record<string, any> = {
+      id: user.id,
+      username: user.username,
+      role_name: user.role_name,
+      is_system_role: user.is_system_role,
+      permissions,
+    };
+
+    // System admins (is_system_role=true AND role_name='admin') get superadmin scope
+    if (user.is_system_role && user.role_name === 'admin') {
+      payload.scope = 'superadmin';
+    }
+
+    const token = jwt.sign(payload, secret, { expiresIn: expiresIn as any });
 
     return {
       token,
