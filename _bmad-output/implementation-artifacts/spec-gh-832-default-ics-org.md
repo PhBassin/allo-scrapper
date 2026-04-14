@@ -2,7 +2,8 @@
 title: 'Create default ICS organization in SaaS mode'
 type: 'feature'
 created: '2026-04-14'
-status: 'ready-for-dev'
+status: 'done'
+completed: '2026-04-14'
 baseline_commit: '914078dc62075f797adbe606d56d914823f2fd08'
 context: []
 ---
