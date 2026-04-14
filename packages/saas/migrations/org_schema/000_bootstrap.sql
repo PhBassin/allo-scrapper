@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS org_settings (
   scrape_mode         VARCHAR(20) NOT NULL DEFAULT 'weekly' CHECK (scrape_mode IN ('daily', 'weekly', 'manual')),
   scrape_days         INTEGER NOT NULL DEFAULT 7 CHECK (scrape_days > 0),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_by          INTEGER REFERENCES users(id)
+  updated_by          INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- Seed default org settings (one row only)
