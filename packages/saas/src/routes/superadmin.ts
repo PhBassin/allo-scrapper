@@ -1,9 +1,11 @@
 /**
  * Superadmin REST API routes.
  * Provides dashboard metrics, org management, impersonation, and audit log access.
+ * 
+ * Note: Authentication is now handled by the main /api/auth/login endpoint,
+ * which automatically grants superadmin-scoped JWT to system admins.
  */
 import { Router, type Request, type Response } from 'express';
-import { SuperadminAuthService } from '../services/superadmin-auth-service.js';
 import { requireSuperadmin } from '../middleware/superadmin-auth.js';
 import type { DB, Pool, Organization } from '../db/types.js';
 import jwt from 'jsonwebtoken';
@@ -11,43 +13,6 @@ import { logger } from '../utils/logger.js';
 
 export function createSuperadminRouter(): Router {
   const router = Router();
-
-  // POST /api/superadmin/login (public - no auth)
-  router.post('/login', async (req: Request, res: Response) => {
-    try {
-      const { username, password } = req.body;
-      if (!username || !password) {
-        res.status(400).json({
-          success: false,
-          error: 'MISSING_CREDENTIALS',
-        });
-        return;
-      }
-
-      const db = req.app.get('db') as DB;
-      const authService = new SuperadminAuthService(db);
-      const result = await authService.login(username, password);
-
-      if (!result) {
-        res.status(401).json({
-          success: false,
-          error: 'INVALID_CREDENTIALS',
-        });
-        return;
-      }
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      logger.error('Superadmin login error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'INTERNAL_SERVER_ERROR',
-      });
-    }
-  });
 
   // GET /api/superadmin/dashboard (protected)
   router.get('/dashboard', requireSuperadmin, async (req: Request, res: Response) => {

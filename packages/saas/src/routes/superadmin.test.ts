@@ -5,20 +5,6 @@ import { createSuperadminRouter } from './superadmin.js';
 import type { DB, Pool } from '../db/types.js';
 import jwt from 'jsonwebtoken';
 
-import bcrypt from 'bcryptjs';
-
-const { mockCompare, mockHash } = vi.hoisted(() => ({
-  mockCompare: vi.fn(),
-  mockHash: vi.fn(),
-}));
-
-vi.mock('bcryptjs', () => ({
-  default: {
-    compare: mockCompare,
-    hash: mockHash,
-  },
-}));
-
 describe('Superadmin Routes', () => {
   let app: Express;
   let mockDb: DB;
@@ -39,41 +25,6 @@ describe('Superadmin Routes', () => {
     app.set('db', mockDb);
     app.set('pool', mockPool);
     app.use('/api/superadmin', createSuperadminRouter());
-  });
-
-  describe('POST /api/superadmin/login', () => {
-    it('should return token for valid credentials', async () => {
-      const hashedPassword = 'hashed_superpass123';
-      vi.mocked(mockDb.query).mockResolvedValue({
-        rows: [{
-          id: 'super-1',
-          username: 'superadmin',
-          password_hash: hashedPassword,
-        }],
-        rowCount: 1,
-      });
-      mockCompare.mockResolvedValue(true);
-
-      const response = await request(app)
-        .post('/api/superadmin/login')
-        .send({ username: 'superadmin', password: 'superpass123' });
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.token).toBeDefined();
-    });
-
-    it('should return 401 for invalid credentials', async () => {
-      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 });
-
-      const response = await request(app)
-        .post('/api/superadmin/login')
-        .send({ username: 'superadmin', password: 'wrongpass' });
-
-      expect(response.status).toBe(401);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('INVALID_CREDENTIALS');
-    });
   });
 
   describe('GET /api/superadmin/dashboard', () => {
