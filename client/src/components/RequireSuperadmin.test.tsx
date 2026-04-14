@@ -21,7 +21,7 @@ describe('RequireSuperadmin', () => {
     vi.clearAllMocks();
   });
 
-  it('should redirect to /superadmin/login when no token', () => {
+  it('should redirect to /login when no token', () => {
     const TestApp = () => (
       <BrowserRouter>
         <Routes>
@@ -30,7 +30,7 @@ describe('RequireSuperadmin', () => {
               <div>Superadmin Content</div>
             </RequireSuperadmin>
           } />
-          <Route path="/superadmin/login" element={<div>Login Page</div>} />
+          <Route path="/login" element={<div>Login Page</div>} />
         </Routes>
       </BrowserRouter>
     );
@@ -54,7 +54,7 @@ describe('RequireSuperadmin', () => {
               <div>Superadmin Content</div>
             </RequireSuperadmin>
           } />
-          <Route path="/superadmin/login" element={<div>Login Page</div>} />
+          <Route path="/login" element={<div>Login Page</div>} />
         </Routes>
       </BrowserRouter>
     );
@@ -77,7 +77,7 @@ describe('RequireSuperadmin', () => {
               <div>Superadmin Content</div>
             </RequireSuperadmin>
           } />
-          <Route path="/superadmin/login" element={<div>Login Page</div>} />
+          <Route path="/login" element={<div>Login Page</div>} />
         </Routes>
       </BrowserRouter>
     );
@@ -100,7 +100,7 @@ describe('RequireSuperadmin', () => {
               <div>Superadmin Content</div>
             </RequireSuperadmin>
           } />
-          <Route path="/superadmin/login" element={<div>Login Page</div>} />
+          <Route path="/login" element={<div>Login Page</div>} />
         </Routes>
       </BrowserRouter>
     );

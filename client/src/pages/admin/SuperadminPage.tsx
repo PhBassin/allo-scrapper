@@ -128,7 +128,7 @@ export default function SuperadminPage() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    window.location.href = '/superadmin/login';
+    window.location.href = '/login';
   };
 
   return (

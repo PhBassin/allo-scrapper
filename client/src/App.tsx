@@ -8,7 +8,6 @@ import FilmPage from './pages/FilmPage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import AdminPage from './pages/admin/AdminPage';
-import SuperadminLoginPage from './pages/admin/SuperadminLoginPage';
 import SuperadminPage from './pages/admin/SuperadminPage';
 import LandingPage from './pages/LandingPage';
 import RegisterPage from './pages/RegisterPage';
@@ -164,7 +163,6 @@ function SaasRoutes() {
       <Route path="/register" element={<RegisterPage />} />
 
       {/* Superadmin routes */}
-      <Route path="/superadmin/login" element={<SuperadminLoginPage />} />
       <Route
         path="/superadmin/*"
         element={

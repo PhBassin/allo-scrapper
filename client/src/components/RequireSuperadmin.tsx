@@ -1,6 +1,9 @@
 /**
  * Route guard component that only allows superadmin access.
  * Checks for scope='superadmin' in the JWT payload.
+ * 
+ * System admins receive superadmin-scoped JWT automatically from /api/auth/login.
+ * If no valid superadmin token exists, redirects to main login page.
  */
 import { Navigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -33,7 +36,7 @@ export function RequireSuperadmin({ children }: RequireSuperadminProps) {
   const decoded = decodeToken();
   
   if (!decoded || decoded.scope !== 'superadmin') {
-    return <Navigate to="/superadmin/login" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
