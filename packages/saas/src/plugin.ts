@@ -11,7 +11,6 @@ import type { Express } from 'express';
 import { createRegisterRouter } from './routes/register.js';
 import { createOrgRouter } from './routes/org.js';
 import { createOnboardingRouter } from './routes/onboarding.js';
-import { createSuperadminRouter } from './routes/superadmin.js';
 import { createOrgMetricsMiddleware, getOrgRegistry } from './middleware/org-metrics.js';
 import { startQuotaResetScheduler } from './quota-reset-scheduler.js';
 import { logger } from './utils/logger.js';
@@ -51,9 +50,6 @@ export const saasPlugin: AppPlugin = {
 
     // Email verification & member invitation flows
     app.use('/api', createOnboardingRouter());
-
-    // Superadmin routes (protected by requireSuperadmin middleware)
-    app.use('/api/superadmin', createSuperadminRouter());
 
     // Prometheus metrics endpoint for org-level metrics (open/unauthenticated)
     app.get('/api/saas/metrics', async (_req, res) => {
