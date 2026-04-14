@@ -8,6 +8,14 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ) => {
+  // Handle JSON syntax errors from express.json()
+  if (err instanceof SyntaxError && 'status' in err && (err as any).status === 400 && 'body' in err) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid JSON payload'
+    });
+  }
+
   if (err && (err instanceof AppError || ('statusCode' in err && typeof (err as any).statusCode === 'number'))) {
     const error = err as AppError;
     if (error.statusCode >= 500) {
