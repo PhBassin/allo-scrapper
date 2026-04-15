@@ -2,7 +2,7 @@
 title: 'Add foreign key indexes to org schema bootstrap'
 type: 'perf'
 created: '2026-04-15'
-status: 'ready-for-dev'
+status: 'done'
 baseline_commit: '0473b29db8b8f9e8f8f8f8f8f8f8f8f8f8f8f8f8'
 context: []
 ---
