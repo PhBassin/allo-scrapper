@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Delete short-lived tags and old images
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           PACKAGE_NAME: ${{ matrix.package_name }}
         with:
