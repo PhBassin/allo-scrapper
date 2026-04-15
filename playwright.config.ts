@@ -1,5 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const scrapeSpecs = [
+  '**/scrape-progress.spec.ts',
+  '**/cinema-scrape.spec.ts',
+  '**/reports-navigation.spec.ts',
+  '**/day-filter.spec.ts',
+];
+
 /**
  * Playwright configuration for E2E tests
  * @see https://playwright.dev/docs/test-configuration
@@ -37,7 +44,17 @@ export default defineConfig({
   /* Configure projects for major browsers */
   projects: [
     {
+      name: 'chromium-scrape-serial',
+      testMatch: scrapeSpecs,
+      fullyParallel: false,
+      workers: 1,
+      retries: 0,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
       name: 'chromium',
+      dependencies: ['chromium-scrape-serial'],
+      testIgnore: scrapeSpecs,
       use: { ...devices['Desktop Chrome'] },
     },
 
