@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
+CREATE INDEX IF NOT EXISTS idx_users_role_id ON users(role_id);
 
 -- Invitations table (pending member invitations)
 CREATE TABLE IF NOT EXISTS invitations (
@@ -47,6 +48,8 @@ CREATE TABLE IF NOT EXISTS invitations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations (token);
+CREATE INDEX IF NOT EXISTS idx_invitations_role_id ON invitations(role_id);
+CREATE INDEX IF NOT EXISTS idx_invitations_created_by ON invitations(created_by);
 
 -- Org Settings table (white-label customization for this org)
 CREATE TABLE IF NOT EXISTS org_settings (
@@ -67,6 +70,8 @@ CREATE TABLE IF NOT EXISTS org_settings (
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_by          INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_org_settings_updated_by ON org_settings(updated_by);
 
 -- Seed default org settings (one row only)
 INSERT INTO org_settings (id, site_name)

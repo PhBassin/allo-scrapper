@@ -87,4 +87,19 @@ describe('saasPlugin', () => {
 
     expect(migrationFiles).toContain('saas_009_fix_org_settings_fk_cascade.sql');
   });
+
+  it('includes saas_010_add_fk_indexes.sql in migrations directory', async () => {
+    const path = await import('path');
+    const fs = await import('fs/promises');
+    const { fileURLToPath } = await import('url');
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const migrationsDir = path.join(__dirname, './migrations');
+
+    const files = await fs.readdir(migrationsDir);
+    const migrationFiles = files.filter((f) => f.endsWith('.sql')).sort();
+
+    expect(migrationFiles).toContain('saas_010_add_fk_indexes.sql');
+  });
 });
