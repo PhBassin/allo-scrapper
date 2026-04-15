@@ -8,7 +8,7 @@ export default defineConfig({
   testDir: './e2e',
   
   /* Run tests in files in parallel */
-  fullyParallel: false, // Sequential for scrape tests to avoid conflicts
+  fullyParallel: true,
   
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
@@ -17,7 +17,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   
   /* Opt out of parallel tests on CI. */
-  workers: 1, // Single worker to avoid scrape conflicts
+  workers: process.env.CI ? 2 : 4,
   
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
