@@ -1180,7 +1180,51 @@ echo "<token>" | cut -d. -f2 | base64 -d | jq .scope
 
 ---
 
+## Dependabot Grouped Updates
 
+**IMPORTANT: Dependabot automatically groups dependency updates to reduce PR noise.**
+
+### How It Works
+
+Dependabot creates **2-3 grouped PRs per week** instead of individual PRs for each dependency:
+
+1. **npm minor/patch updates** → Single PR with all safe updates
+2. **npm major updates** → Separate PR for breaking changes
+3. **GitHub Actions updates** → Separate PR for workflow changes
+
+**Example:**
+- **Before:** 7+ individual PRs (#843-#849) requiring manual consolidation
+- **After:** 2-3 grouped PRs automatically
+
+### Handling Dependabot PRs
+
+**Review Process:**
+1. Wait for Dependabot to create grouped PR (every Monday 09:00 Europe/Paris)
+2. Check PR title: `chore(deps): update npm dependencies` or `ci(deps): update GitHub Actions dependencies`
+3. Review all changes in the PR (multiple package.json files updated)
+4. Run full test suite: `npm test`
+5. Add version label: `patch` for minor/patch, `major` for major updates
+6. Merge when tests pass
+
+**DO NOT:**
+- ❌ Create manual dependency update PRs (let Dependabot handle it)
+- ❌ Close grouped PRs without reviewing (they contain multiple updates)
+- ❌ Cherry-pick individual dependencies from grouped PR
+- ❌ Update dependencies in feature branches (causes merge conflicts)
+
+**Configuration Location:**
+- `.github/dependabot.yml` - Dependabot configuration
+- `docs/dependabot-configuration.md` - Full documentation
+
+**Troubleshooting:**
+If Dependabot creates individual PRs instead of grouped:
+1. Check `.github/dependabot.yml` syntax (no YAML errors)
+2. Wait for next scheduled run (takes effect on next Monday)
+3. Close old individual PRs after grouped PR is merged
+
+**Reference:** Issue #857, PR #856 (manual consolidation example)
+
+---
 
 If unclear about requirements:
 1. Check existing code patterns in the relevant directory
