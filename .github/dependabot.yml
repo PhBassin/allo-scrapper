@@ -1,31 +1,80 @@
+# Dependabot Configuration
+# Automatically groups dependency updates to reduce PR noise
+# Previous pattern: 7+ individual PRs per week (see PRs #843-#849)
+# New pattern: 2-3 grouped PRs per week (npm minor/patch, npm major, GitHub Actions)
+
 version: 2
 updates:
+  # ========================================
+  # NPM Dependencies (All Workspaces)
+  # ========================================
+  # Single configuration for root manages all workspaces
+  # Leverages npm workspaces: client, server, scraper, packages/saas, packages/logger
   - package-ecosystem: npm
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
-
-  - package-ecosystem: npm
-    directory: "/server"
-    schedule:
-      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: "Europe/Paris"
     open-pull-requests-limit: 10
+    
+    # Group updates to minimize PR count
+    groups:
+      # Group all minor and patch updates together
+      npm-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      
+      # Separate group for major version updates (potential breaking changes)
+      npm-major:
+        patterns:
+          - "*"
+        update-types:
+          - major
+    
+    # Apply labels for PR categorization
+    labels:
+      - "dependencies"
+      - "npm"
+    
+    # Use conventional commit format matching project style
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+    
+    # Ignore specific packages if needed (uncomment to use)
+    # ignore:
+    #   - dependency-name: "package-name"
+    #     versions: ["1.x", "2.x"]
 
-  - package-ecosystem: npm
-    directory: "/client"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-
-  - package-ecosystem: npm
-    directory: "/scraper"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-
+  # ========================================
+  # GitHub Actions
+  # ========================================
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: "Europe/Paris"
     open-pull-requests-limit: 5
+    
+    # Group all GitHub Actions updates together
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ci"
+    
+    commit-message:
+      prefix: "ci(deps)"
+      include: "scope"
