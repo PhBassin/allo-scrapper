@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import { createOrg } from '../services/org-service.js';
 import { SaasAuthService } from '../services/saas-auth-service.js';
 import { logger } from '../utils/logger.js';
@@ -24,7 +25,7 @@ interface TestFixturesDependencies {
 }
 
 function randomSuffix(): string {
-  return Math.random().toString(36).slice(2, 8);
+  return randomBytes(4).toString('hex').slice(0, 6);
 }
 
 function workerTag(): string {
