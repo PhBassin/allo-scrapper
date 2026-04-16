@@ -1,0 +1,123 @@
+# generated: 2026-04-15
+# last_updated: 2026-04-15
+# project: allo-scrapper
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-04-15
+last_updated: 2026-04-15T00:00:00Z
+project: allo-scrapper
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 0: Test Infrastructure Setup (Technical Blocker)
+  # ⚡ MUST complete before Epic 1 begins
+  # ─────────────────────────────────────────────────────────────
+  epic-0: in-progress
+  0-1-enable-playwright-parallel-execution: done
+  0-2-implement-multi-tenant-test-fixture-api: backlog
+  0-3-setup-redis-testcontainers-in-ci: backlog
+  0-4-create-auto-cleanup-test-utilities: backlog
+  epic-0-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 1: Multi-Tenant Security & Isolation Hardening
+  # 🔴 BLOCKER — requires Epic 0 complete
+  # ─────────────────────────────────────────────────────────────
+  epic-1: backlog
+  1-1-implement-org-id-validation-middleware: backlog
+  1-2-add-org-id-to-all-observability-traces: backlog
+  1-3-e2e-multi-tenant-cinema-isolation-test: backlog
+  1-4-e2e-multi-tenant-user-management-isolation-test: backlog
+  1-5-e2e-multi-tenant-schedule-isolation-test: backlog
+  1-6-api-level-tenant-isolation-enforcement-tests: backlog
+  epic-1-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 2: Scraper Job Queue Reliability & Failure Handling
+  # 🔴 HIGH — requires Epic 0 (Stories 0.2, 0.3) complete
+  # ─────────────────────────────────────────────────────────────
+  epic-2: backlog
+  2-1-implement-dead-letter-queue-for-failed-scraper-jobs: backlog
+  2-2-add-exponential-backoff-retry-logic-for-redis-failures: backlog
+  2-3-redis-job-queue-load-testing-100-concurrent-jobs: backlog
+  2-4-redis-reconnection-handling-during-job-processing: backlog
+  2-5-e2e-scraper-progress-tracking-with-10-concurrent-jobs: backlog
+  2-6-dlq-api-endpoints-api-only-no-ui: backlog
+  epic-2-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 3: Real-Time Communication & Protection (SSE + Rate Limiting)
+  # 🔴 HIGH — implementation order: 3.7 → 3.1 → 3.5 → (3.2, 3.3, 3.4, 3.6, 3.8 parallel)
+  # ─────────────────────────────────────────────────────────────
+  epic-3: backlog
+  3-1-implement-sse-heartbeat-mechanism: backlog
+  3-2-implement-client-sse-reconnection-logic: backlog
+  3-3-sse-long-running-connection-validation-10-minutes: backlog
+  3-4-sse-concurrent-client-load-test-50-clients: backlog
+  3-5-rate-limiting-burst-scenario-tests: backlog
+  3-6-rate-limiting-window-reset-validation: backlog
+  3-7-localhost-exemption-for-docker-health-probes: backlog
+  3-8-rate-limiting-documentation: backlog
+  epic-3-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 4: Database Migration Reliability & Idempotency
+  # 🟡 MEDIUM
+  # ─────────────────────────────────────────────────────────────
+  epic-4: backlog
+  4-1-enforce-migration-idempotency-checks-in-migrations: backlog
+  4-2-add-verification-steps-to-all-migrations: backlog
+  4-3-ci-pipeline-migration-idempotency-validation: backlog
+  epic-4-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 5: White-Label Theme Consistency & Validation
+  # 🟢 LOW
+  # ─────────────────────────────────────────────────────────────
+  epic-5: backlog
+  5-1-theme-switching-e2e-regression-tests: backlog
+  5-2-csp-strict-mode-validation: backlog
+  epic-5-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 6: Email Template Validation & Branding
+  # 🟢 LOW
+  # ─────────────────────────────────────────────────────────────
+  epic-6: backlog
+  6-1-email-template-cross-client-rendering-tests: backlog
+  6-2-email-template-branding-consistency: backlog
+  epic-6-retrospective: optional

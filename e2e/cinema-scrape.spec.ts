@@ -8,6 +8,8 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Cinema Page - Cinema-Specific Scrape', () => {
+  test.describe.configure({ mode: 'serial' }); // Triggers real scrapes — must be sequential
+
   test.beforeEach(async ({ page }) => {
     // Listen for console messages and errors
     page.on('console', msg => console.log('BROWSER:', msg.text()));

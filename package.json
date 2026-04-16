@@ -40,6 +40,7 @@
     "clean": "rm -rf server/dist client/dist scraper/dist server/node_modules client/node_modules scraper/node_modules node_modules package-lock.json client/package-lock.json server/package-lock.json scraper/package-lock.json",
     "test": "npm test --workspaces --if-present",
     "e2e": "playwright test",
+    "e2e:benchmark:parallel": "bash ./scripts/e2e-benchmark-parallel.sh",
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui",
     "integration-test": "./scripts/integration-test.sh"

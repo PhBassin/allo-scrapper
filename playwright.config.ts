@@ -1,5 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const scrapeSpecs = [
+  '**/scrape-progress.spec.ts',
+  '**/cinema-scrape.spec.ts',
+  '**/reports-navigation.spec.ts',
+  '**/day-filter.spec.ts',
+];
+
 /**
  * Playwright configuration for E2E tests
  * @see https://playwright.dev/docs/test-configuration
@@ -8,7 +15,7 @@ export default defineConfig({
   testDir: './e2e',
   
   /* Run tests in files in parallel */
-  fullyParallel: false, // Sequential for scrape tests to avoid conflicts
+  fullyParallel: true,
   
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
@@ -17,7 +24,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   
   /* Opt out of parallel tests on CI. */
-  workers: 1, // Single worker to avoid scrape conflicts
+  workers: process.env.CI ? 2 : 4,
   
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
@@ -37,7 +44,17 @@ export default defineConfig({
   /* Configure projects for major browsers */
   projects: [
     {
+      name: 'chromium-scrape-serial',
+      testMatch: scrapeSpecs,
+      fullyParallel: false,
+      workers: 1,
+      retries: 0,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
       name: 'chromium',
+      dependencies: ['chromium-scrape-serial'],
+      testIgnore: scrapeSpecs,
       use: { ...devices['Desktop Chrome'] },
     },
 

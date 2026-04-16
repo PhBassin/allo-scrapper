@@ -8,6 +8,8 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Scrape Progress Visibility', () => {
+  test.describe.configure({ mode: 'serial' }); // Triggers real scrapes — must be sequential
+
   test.beforeEach(async ({ page }) => {
     // Listen for console messages
     page.on('console', msg => console.log('BROWSER:', msg.text()));
