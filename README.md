@@ -798,6 +798,12 @@ We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for:
 
 For AI coding agents, see [AGENTS.md](./AGENTS.md) for mandatory workflow and TDD requirements.
 
+**SaaS E2E fixture endpoints (test mode only):**
+- Use `POST /test/seed-org` (or compatibility alias `POST /api/test/seed-org`) to create an isolated tenant for parallel Playwright workers.
+- Use `DELETE /test/cleanup-org/:id` (or `DELETE /api/test/cleanup-org/:id`) in teardown to remove tenant data and schema.
+- Endpoints are available only with `NODE_ENV=test`; production mode returns `404`.
+- See full examples and troubleshooting in [`docs/guides/development/testing.md`](./docs/guides/development/testing.md).
+
 **Quick contribution checklist:**
 1. Create an issue first (bug/feature/task)
 2. Create a feature branch from `develop`

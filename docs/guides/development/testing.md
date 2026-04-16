@@ -227,6 +227,53 @@ npx playwright test --headed --debug
 4. **Handle timing** - Scrapes may complete quickly; use appropriate timeouts
 5. **Clean state** - Restart Docker between test sessions if needed: `docker compose restart ics-web`
 
+### SaaS Test Fixture API (Parallel-Safe)
+
+When running SaaS E2E tests with parallel workers, use the test fixture API to create and clean isolated organizations per test.
+
+**Availability:**
+- Enabled only when `NODE_ENV=test`
+- Mounted at `/test/*` (and `/api/test/*` compatibility alias)
+- Not available in production mode (`404`)
+
+**Endpoints:**
+
+```bash
+# Seed a dedicated test org
+curl -X POST http://localhost:3000/test/seed-org \
+  -H "Content-Type: application/json" \
+  -d '{
+    "slug": "pw-worker-1-case-a",
+    "name": "Playwright Worker 1",
+    "adminEmail": "admin+worker1@test.local",
+    "adminPassword": "P@ssw0rd-Worker-1"
+  }'
+
+# Cleanup by org id returned from seed response
+curl -X DELETE http://localhost:3000/test/cleanup-org/123
+```
+
+**Seed Response Includes:**
+- `org_id`, `org_slug`, `schema_name`
+- admin credentials (for test login)
+- `seeded_counts` with minimum test data (`users`, `cinemas`, `showtimes`)
+- `duration_ms` for performance tracking
+
+**Cleanup Strategy:**
+- Each test should cleanup its own `org_id` in teardown
+- Keep a fallback `afterAll` cleanup list to remove orphan orgs after failures
+- Cleanup removes org row and tenant schema objects to avoid cross-test pollution
+
+**Parallel Safety Guarantees:**
+- Unique org/user/cinema/showtime identifiers per worker
+- No shared mutable state between fixture calls
+- Designed for `workers > 1` Playwright execution
+
+**Troubleshooting:**
+- `404` on fixture endpoint: verify `NODE_ENV=test` and SaaS plugin enabled
+- Duplicate slug conflict: omit `slug` or use worker-scoped unique slugs
+- Orphan data after interrupted run: call cleanup endpoint for each tracked `org_id`
+
 ### Known Limitations
 
 - Scrapes complete quickly in Docker, so some timing-sensitive tests may need adjustments
