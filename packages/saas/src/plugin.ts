@@ -12,6 +12,7 @@ import { createRegisterRouter } from './routes/register.js';
 import { createOrgRouter } from './routes/org.js';
 import { createOnboardingRouter } from './routes/onboarding.js';
 import { createSuperadminRouter } from './routes/superadmin.js';
+import { createTestFixturesRouter } from './routes/test-fixtures.js';
 import { createOrgMetricsMiddleware, getOrgRegistry } from './middleware/org-metrics.js';
 import { startQuotaResetScheduler } from './quota-reset-scheduler.js';
 import { logger } from './utils/logger.js';
@@ -48,6 +49,12 @@ export const saasPlugin: AppPlugin = {
 
     // Registration & slug availability
     app.use('/api', createRegisterRouter());
+
+    // Test-only fixture endpoints for parallel E2E setup/cleanup
+    if (process.env.NODE_ENV === 'test') {
+      app.use('/test', createTestFixturesRouter());
+      app.use('/api/test', createTestFixturesRouter());
+    }
 
     // Email verification & member invitation flows
     app.use('/api', createOnboardingRouter());

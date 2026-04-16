@@ -13,6 +13,7 @@
  */
 import { Router, type Response, type NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { resolveTenant } from '../middleware/tenant.js';
 import { checkQuota } from '../middleware/quota.js';
 
@@ -47,17 +48,50 @@ import { validatePasswordStrength } from '@server/utils/security.js';
 // ── Inline org-specific helpers ─────────────────────────────────────────────
 const USERNAME_REGEX = /^[a-zA-Z0-9]{3,15}$/;
 
+function getTokenOrgSlug(req: any): string | undefined {
+  if (typeof req.user?.org_slug === 'string') {
+    return req.user.org_slug;
+  }
+
+  const authHeader = req.headers?.authorization as string | undefined;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return undefined;
+  }
+
+  const token = authHeader.slice(7);
+  const secret = process.env.JWT_SECRET?.trim();
+  if (!secret) {
+    return undefined;
+  }
+
+  try {
+    const decoded = jwt.verify(token, secret) as Record<string, unknown>;
+    if (decoded && typeof decoded === 'object') {
+      req.user = { ...(req.user ?? {}), ...decoded };
+      const orgSlug = decoded['org_slug'];
+      return typeof orgSlug === 'string' ? orgSlug : undefined;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
 /**
  * Validates that the JWT org_slug claim (if present) matches the :slug route param.
  * Prevents a token minted for org-a from accessing org-b's data.
  */
 // @ts-ignore
 const requireOrgAuth = (req: any, res: Response, next: NextFunction) => {
-  const tokenSlug = req.user?.org_slug;
+  const tokenSlug = getTokenOrgSlug(req);
   const routeSlug = req.params['slug'];
 
   if (tokenSlug && routeSlug && tokenSlug !== routeSlug) {
-    return next(new AuthError('Access denied: organization mismatch', 403));
+    return res.status(403).json({
+      success: false,
+      error: 'Access denied: token does not match organization',
+    });
   }
   next();
 };
@@ -99,6 +133,7 @@ export function createOrgRouter(): Router {
   router.use('/reports', protectedLimiter, reportsRouter);
 
   // ── Scraper ─────────────────────────────────────────────────────────────────
+  router.post('/scraper/trigger', checkQuota('scrapes') as any);
   router.use('/scraper', protectedLimiter, scraperRouter);
 
   // ── Org Settings ────────────────────────────────────────────────────────────
