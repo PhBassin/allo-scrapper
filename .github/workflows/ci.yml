@@ -43,6 +43,17 @@ jobs:
         run: npm run test:run
         working-directory: server
 
+      - name: Run Redis integration tests
+        run: npm run test:integration
+        working-directory: server
+
+      - name: Redis integration diagnostics (on failure)
+        if: failure()
+        run: |
+          echo "Redis integration tests failed."
+          echo "Container diagnostics are emitted by integration tests on failure."
+          echo "If needed, rerun locally: npm run test:integration --workspace=allo-scrapper-server"
+
       - name: Check test coverage
         run: npm run test:coverage
         working-directory: server
