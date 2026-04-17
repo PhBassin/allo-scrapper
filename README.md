@@ -689,6 +689,12 @@ docker compose --profile monitoring up -d
 
 ### Security Considerations
 
+**Tenant Boundary Enforcement (org_id):**
+- In org-scoped SaaS routes (`/api/org/:slug/*`), request tenant context is enforced from JWT (`org_id`/`org_slug`).
+- Any explicit cross-tenant override attempt (example: `GET /api/cinemas?org_id=<other-org>`) is rejected with `403` and message `Cross-tenant access denied`.
+- Forged `org_id` values in request bodies are sanitized to the authenticated tenant context before handler execution.
+- Boundary violations are logged as structured security events with `org_id`, `requested_org_id`, `user_id`, `method`, and `path`.
+
 **JWT Token Scopes:**
 - Superadmin tokens include `scope: 'superadmin'` claim
 - Standard organization tokens include `scope: 'user'` and `orgId`

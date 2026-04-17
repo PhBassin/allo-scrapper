@@ -30,9 +30,34 @@ vi.mock('../utils/date.js', () => ({
 }));
 
 // Setup Express app for testing
-async function setupApp() {
+type SetupAppOptions = {
+  mountPath?: '/api/cinemas' | '/api/org/:slug/cinemas';
+  injectOrgContext?: boolean;
+  authenticatedOrgId?: number;
+};
+
+async function setupApp(options: SetupAppOptions = {}) {
+  const {
+    mountPath = '/api/cinemas',
+    injectOrgContext = false,
+    authenticatedOrgId,
+  } = options;
+
   vi.doMock('../middleware/auth.js', () => ({
-    requireAuth: (req: any, res: any, next: any) => next()
+    requireAuth: (req: any, res: any, next: any) => {
+      if (typeof authenticatedOrgId === 'number') {
+        req.user = {
+          id: 100,
+          username: 'tester',
+          role_name: 'admin',
+          is_system_role: true,
+          permissions: ['cinemas:read', 'cinemas:create', 'cinemas:update', 'cinemas:delete'],
+          org_id: authenticatedOrgId,
+          org_slug: 'acme',
+        };
+      }
+      next();
+    }
   }));
 
   vi.doMock('../middleware/permission.js', () => ({
@@ -48,8 +73,15 @@ async function setupApp() {
   app.use(express.json());
   app.set('db', {});
 
+  if (injectOrgContext) {
+    app.use((req, _res, next) => {
+      (req as unknown as { org?: { id: number; slug: string } }).org = { id: 1, slug: 'acme' };
+      next();
+    });
+  }
+
   const { default: cinemasRouter } = await import('./cinemas.js');
-  app.use('/api/cinemas', cinemasRouter);
+  app.use(mountPath, cinemasRouter);
   
   app.use(errorHandler);
 
@@ -72,6 +104,37 @@ describe('Routes - Cinemas', () => {
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(1);
       expect(mockGetAllCinemas).toHaveBeenCalled();
+    });
+
+    it('should reject cross-tenant query mismatch in org-scoped route', async () => {
+      const app = await setupApp({
+        mountPath: '/api/org/:slug/cinemas',
+        injectOrgContext: true,
+        authenticatedOrgId: 1,
+      });
+
+      const response = await request(app).get('/api/org/acme/cinemas?org_id=2');
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Cross-tenant access denied');
+      expect(mockGetAllCinemas).not.toHaveBeenCalled();
+    });
+
+    it('should allow org-scoped read without query org_id and keep scoped response', async () => {
+      mockGetAllCinemas.mockResolvedValue([
+        { id: 'A1', name: 'Cinema Org A' },
+      ]);
+      const app = await setupApp({
+        mountPath: '/api/org/:slug/cinemas',
+        injectOrgContext: true,
+        authenticatedOrgId: 1,
+      });
+
+      const response = await request(app).get('/api/org/acme/cinemas');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual([{ id: 'A1', name: 'Cinema Org A' }]);
+      expect(response.body.data).not.toContainEqual(expect.objectContaining({ id: 'B1' }));
     });
   });
 
@@ -106,6 +169,27 @@ describe('Routes - Cinemas', () => {
       
       expect(response.status).toBe(201);
       expect(mockAddCinemaManual).toHaveBeenCalledWith('C0099', 'Test', 'https://...');
+    });
+
+    it('should allow org-scoped create and sanitize forged org_id from body', async () => {
+      mockAddCinemaManual.mockResolvedValue({ id: 'C0100', name: 'Tenant Cinema', url: 'https://tenant.example' });
+      const app = await setupApp({
+        mountPath: '/api/org/:slug/cinemas',
+        injectOrgContext: true,
+        authenticatedOrgId: 1,
+      });
+
+      const response = await request(app)
+        .post('/api/org/acme/cinemas')
+        .send({
+          id: 'C0100',
+          name: 'Tenant Cinema',
+          url: 'https://tenant.example',
+          org_id: 999,
+        });
+
+      expect(response.status).toBe(201);
+      expect(mockAddCinemaManual).toHaveBeenCalledWith('C0100', 'Tenant Cinema', 'https://tenant.example');
     });
   });
 

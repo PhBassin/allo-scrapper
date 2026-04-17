@@ -222,3 +222,21 @@ If you have questions or need help with testing:
 2. Check existing test files for patterns
 3. Run tests in UI mode for interactive exploration
 4. Consult Vitest documentation for advanced features
+
+---
+
+## Tenant Boundary Assertions (SaaS)
+
+When validating multi-tenant org-boundary behavior for cinemas routes:
+
+- Use org-scoped route topology: `/api/org/:slug/cinemas`
+- Expected cross-tenant denial contract:
+  - Request: `GET /api/org/acme/cinemas?org_id=<other-org-id>`
+  - Response: `403 Forbidden`
+  - Error payload: `{"success": false, "error": "Cross-tenant access denied"}`
+- Validate forged body org handling on create path:
+  - Request: `POST /api/org/:slug/cinemas` with body containing foreign `org_id`
+  - Expected: request succeeds for authenticated tenant flow; forged `org_id` is ignored/sanitized to JWT tenant context
+- Assert middleware chain guarantees remain present on cinemas routes:
+  - Read path includes org-aware auth/permission wrappers + `enforceOrgBoundary`
+  - Write path includes `requireAuth`, `requirePermission`, and `enforceOrgBoundary`
