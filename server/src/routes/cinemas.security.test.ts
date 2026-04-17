@@ -50,6 +50,18 @@ function getMiddlewareNames(path: string, method: 'get' | 'post' | 'put' | 'dele
   return layer.route.stack.map((s: any) => s.name);
 }
 
+function expectMiddlewareOrder(
+  names: string[],
+  orderedMiddleware: string[],
+): void {
+  let lastIndex = -1;
+  for (const middlewareName of orderedMiddleware) {
+    const index = names.indexOf(middlewareName);
+    expect(index).toBeGreaterThan(lastIndex);
+    lastIndex = index;
+  }
+}
+
 describe('Routes - Cinemas - Security', () => {
   let mockRes: any;
   let mockReq: any;
@@ -96,8 +108,7 @@ describe('Routes - Cinemas - Security', () => {
   describe('Middleware - Permission protection on mutation routes', () => {
     it('POST / should require both requireAuth and requirePermission middleware', () => {
       const names = getMiddlewareNames('/', 'post');
-      expect(names).toContain('requireAuth');
-      expect(names).toContain('requirePermission');
+      expectMiddlewareOrder(names, ['requireAuth', 'requirePermission', 'enforceOrgBoundary']);
     });
 
     it('PUT /:id should require both requireAuth and requirePermission middleware', () => {
@@ -116,6 +127,9 @@ describe('Routes - Cinemas - Security', () => {
       const names = getMiddlewareNames('/', 'get');
       expect(names).not.toContain('requireAuth');
       expect(names).not.toContain('requirePermission');
+      expect(names).toContain('requireAuthForOrgRequests');
+      expect(names).toContain('requireCinemaReadPermissionForOrgRequests');
+      expect(names).toContain('enforceOrgBoundary');
     });
 
     it('GET /:id should NOT require authentication', () => {

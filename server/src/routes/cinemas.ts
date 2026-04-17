@@ -8,13 +8,33 @@ import { requireAuth } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
 import { getDbFromRequest } from '../utils/db-from-request.js';
+import { enforceOrgBoundary } from '../middleware/org-boundary.js';
 
 const router = express.Router();
+
+function requireAuthForOrgRequests(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  if ((req as unknown as { org?: unknown }).org) {
+    requireAuth(req as any, res, next);
+    return;
+  }
+
+  next();
+}
+
+const cinemasReadPermissionForOrg = requirePermission('cinemas:read');
+function requireCinemaReadPermissionForOrgRequests(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  if ((req as unknown as { org?: unknown }).org) {
+    cinemasReadPermissionForOrg(req as any, res, next);
+    return;
+  }
+
+  next();
+}
 
 router.use(validateInputSize({ maxStringLength: 200 }));
 
 // GET /api/cinemas - Get all cinemas
-router.get('/', publicLimiter, async (req, res, next) => {
+router.get('/', publicLimiter, requireAuthForOrgRequests, requireCinemaReadPermissionForOrgRequests, enforceOrgBoundary, async (req, res, next) => {
   try {
     const db = getDbFromRequest(req);
     const cinemaService = new CinemaService(db);
@@ -32,7 +52,7 @@ router.get('/', publicLimiter, async (req, res, next) => {
 });
 
 // POST /api/cinemas - Add a new cinema
-router.post('/', protectedLimiter, requireAuth, requirePermission('cinemas:create'), async (req, res, next) => {
+router.post('/', protectedLimiter, requireAuth, requirePermission('cinemas:create'), enforceOrgBoundary, async (req, res, next) => {
   try {
     const db = getDbFromRequest(req);
     const cinemaService = new CinemaService(db);
