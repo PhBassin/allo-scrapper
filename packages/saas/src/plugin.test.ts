@@ -58,6 +58,7 @@ describe('saasPlugin', () => {
     );
   });
 
+
   it('includes saas_008_create_default_ics_org.sql in migrations directory', async () => {
     const path = await import('path');
     const fs = await import('fs/promises');

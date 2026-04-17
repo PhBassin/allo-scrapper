@@ -276,6 +276,36 @@ Troubleshooting:
 - Repeated cleanup is idempotent; `404` on already-deleted orgs is treated as skipped
 - Global cleanup only targets test-prefixed and recent org records to avoid unsafe deletions
 
+### Multi-Tenant Fixture API (SaaS test runtime)
+
+When running SaaS tests in `NODE_ENV=test`, the plugin exposes fixture endpoints for deterministic org setup/teardown:
+
+- `POST /test/seed-org`
+- `DELETE /test/cleanup-org/:id`
+
+Example:
+
+```bash
+# Seed one org fixture
+curl -X POST http://localhost:3000/test/seed-org \
+  -H "Content-Type: application/json" \
+  -d '{"slug":"e2e-demo","name":"E2E Demo Org"}'
+
+# Cleanup the same org
+curl -X DELETE http://localhost:3000/test/cleanup-org/41
+```
+
+Behavior and safety:
+- Endpoints are intended for tests only and return `404` outside test runtime.
+- Seeding returns `org_id`, `org_slug`, `schema_name`, and admin credentials shape used by Playwright fixtures.
+- Cleanup drops the tenant schema and removes the org row to prevent orphaned artifacts.
+- Parallel test runs should use unique slugs per worker/test to avoid collisions.
+
+Troubleshooting:
+- If `/test/*` returns `404` in local dev, verify you are running with `NODE_ENV=test`.
+- If cleanup fails, inspect logs for `org_id`, status, and SQL error context.
+- Repeated cleanup calls for already-deleted orgs are treated as safe/expected skips by fixture tooling.
+
 ### Known Limitations
 
 - Scrapes complete quickly in Docker, so some timing-sensitive tests may need adjustments

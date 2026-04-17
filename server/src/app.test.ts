@@ -374,4 +374,38 @@ describe('AppPlugin / applyPlugins', () => {
     const a = createApp();
     expect(a).toBeDefined();
   });
+
+  it('keeps /test/* returning 404 instead of SPA fallback in production', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    try {
+      const appWithPlugin = createApp();
+      const pool = {} as Pool;
+      const db = {} as DB;
+
+      appWithPlugin.set('db', db);
+      appWithPlugin.set('pool', pool);
+
+      const { createTestFixturesNotFoundRouter } = await import('../../packages/saas/src/routes/test-fixtures.js');
+      const saasPlugin: AppPlugin = {
+        name: '@allo-scrapper/saas',
+        register: async (app) => {
+          app.use('/test', createTestFixturesNotFoundRouter());
+        },
+      };
+
+      await applyPlugins(appWithPlugin, [saasPlugin], { pool, db });
+      registerFallbackHandlers(appWithPlugin);
+
+      const res = await request(appWithPlugin)
+        .post('/test/seed-org')
+        .send({});
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
 });
