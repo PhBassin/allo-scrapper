@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-15
-last_updated: 2026-04-17T19:24:00Z
+last_updated: 2026-04-17T19:52:14Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -48,7 +48,7 @@ development_status:
   # ─────────────────────────────────────────────────────────────
   epic-0: in-progress
   0-1-enable-playwright-parallel-execution: done
-  0-2-implement-multi-tenant-test-fixture-api: backlog
+  0-2-implement-multi-tenant-test-fixture-api: done
   0-3-setup-redis-testcontainers-in-ci: done
   0-4-create-auto-cleanup-test-utilities: done
   epic-0-retrospective: optional

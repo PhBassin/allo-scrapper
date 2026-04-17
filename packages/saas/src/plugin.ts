@@ -12,6 +12,7 @@ import { createRegisterRouter } from './routes/register.js';
 import { createOrgRouter } from './routes/org.js';
 import { createOnboardingRouter } from './routes/onboarding.js';
 import { createSuperadminRouter } from './routes/superadmin.js';
+import { createTestFixturesNotFoundRouter, createTestFixturesRouter } from './routes/test-fixtures.js';
 import { createOrgMetricsMiddleware, getOrgRegistry } from './middleware/org-metrics.js';
 import { startQuotaResetScheduler } from './quota-reset-scheduler.js';
 import { logger } from './utils/logger.js';
@@ -54,6 +55,15 @@ export const saasPlugin: AppPlugin = {
 
     // Superadmin routes (protected by requireSuperadmin middleware)
     app.use('/api/superadmin', createSuperadminRouter());
+
+    // Test fixture routes: mounted in test runtime only.
+    // In non-test runtimes, explicitly deny /test/* to avoid SPA fallback (production)
+    // returning index.html with 200.
+    if (process.env['NODE_ENV'] === 'test') {
+      app.use('/test', createTestFixturesRouter());
+    } else {
+      app.use('/test', createTestFixturesNotFoundRouter());
+    }
 
     // Prometheus metrics endpoint for org-level metrics (open/unauthenticated)
     app.get('/api/saas/metrics', async (_req, res) => {

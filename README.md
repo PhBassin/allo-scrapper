@@ -808,6 +808,11 @@ For AI coding agents, see [AGENTS.md](./AGENTS.md) for mandatory workflow and TD
 - Enable fixture-backed org seeding with `E2E_ENABLE_ORG_FIXTURE=true`.
 - See [`docs/guides/development/testing.md`](./docs/guides/development/testing.md) for usage and safety rules.
 
+**SaaS fixture API (test runtime):**
+- In `NODE_ENV=test`, SaaS exposes `POST /test/seed-org` and `DELETE /test/cleanup-org/:id` for deterministic multi-tenant test setup.
+- Outside test runtime these endpoints are intentionally unavailable (`404`).
+- See [`docs/guides/development/testing.md`](./docs/guides/development/testing.md) for payload examples and troubleshooting.
+
 **Quick contribution checklist:**
 1. Create an issue first (bug/feature/task)
 2. Create a feature branch from `develop`
