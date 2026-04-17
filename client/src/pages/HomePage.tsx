@@ -24,13 +24,15 @@ export default function HomePage() {
     queryFn: () => selectedDate ? getFilmsByDate(selectedDate) : getWeeklyFilms(),
   });
 
-  const allFilms = filmsData?.films || [];
-  // When "Maintenant" is active, hide films whose showtimes are all in the past
-  const films = afterTime
-    ? allFilms.filter(film =>
-        film.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
-      )
-    : allFilms;
+  // ⚡ PERFORMANCE: Memoize filtering logic to avoid expensive nested array iterations
+  // on every render (e.g. when interacting with the search bar or scrolling).
+  const films = useMemo(() => {
+    const allFilms = filmsData?.films || [];
+    if (!afterTime) return allFilms;
+    return allFilms.filter(film =>
+      film.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
+    );
+  }, [filmsData?.films, afterTime]);
   const weekStart = filmsData?.weekStart || '';
 
   const isLoading = isLoadingCinemas || isLoadingFilms;
