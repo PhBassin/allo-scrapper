@@ -1,4 +1,5 @@
 import { test as base, expect, type APIRequestContext, type TestInfo } from '@playwright/test';
+import { randomBytes } from 'crypto';
 import { cleanupAllTrackedOrgs, cleanupTestOrgs, registerTestOrg, type DeleteResult } from './org-cleanup';
 
 interface SeededOrg {
@@ -20,7 +21,7 @@ type OrgFixtures = {
 function buildTestSlug(testInfo: TestInfo): string {
   const worker = `w${testInfo.workerIndex}`;
   const stamp = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 8);
+  const rand = randomBytes(4).toString('hex');
   return `e2e-test-${worker}-${stamp}-${rand}`;
 }
 
