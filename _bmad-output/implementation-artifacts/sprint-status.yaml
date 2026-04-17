@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-15
-last_updated: 2026-04-17T19:18:00Z
+last_updated: 2026-04-17T19:24:00Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -57,8 +57,8 @@ development_status:
   # EPIC 1: Multi-Tenant Security & Isolation Hardening
   # 🔴 BLOCKER — requires Epic 0 complete
   # ─────────────────────────────────────────────────────────────
-  epic-1: backlog
-  1-1-implement-org-id-validation-middleware: backlog
+  epic-1: in-progress
+  1-1-implement-org-id-validation-middleware: ready-for-dev
   1-2-add-org-id-to-all-observability-traces: backlog
   1-3-e2e-multi-tenant-cinema-isolation-test: backlog
   1-4-e2e-multi-tenant-user-management-isolation-test: backlog
