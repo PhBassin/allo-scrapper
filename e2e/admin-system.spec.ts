@@ -1,4 +1,6 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/org-fixture';
+
+const useOrgFixture = process.env['E2E_ENABLE_ORG_FIXTURE'] === 'true';
 
 // Helper function to login (reuse across tests to avoid rate limits)
 async function loginAsAdmin(page: any) {
@@ -10,6 +12,12 @@ async function loginAsAdmin(page: any) {
 }
 
 test.describe('Admin System Information Page', () => {
+  test.beforeEach(async ({ seedTestOrg }) => {
+    if (useOrgFixture) {
+      await seedTestOrg();
+    }
+  });
+
   // Use serial mode to avoid rate limiting issues with multiple logins
   test.describe.configure({ mode: 'serial' });
 
@@ -154,7 +162,11 @@ test.describe('Admin System Information Page', () => {
       // Should be able to toggle
       const isChecked = await checkbox.isChecked();
       await checkbox.click();
-      await expect(checkbox).toHaveAttribute('checked', isChecked ? null : '');
+      if (isChecked) {
+        await expect(checkbox).not.toBeChecked();
+      } else {
+        await expect(checkbox).toBeChecked();
+      }
     });
   });
 

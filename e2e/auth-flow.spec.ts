@@ -1,6 +1,13 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/org-fixture';
+
+const useOrgFixture = process.env['E2E_ENABLE_ORG_FIXTURE'] === 'true';
 
 test.describe('Authentication Flow', () => {
+    test.beforeEach(async ({ seedTestOrg }) => {
+        if (useOrgFixture) {
+            await seedTestOrg();
+        }
+    });
 
     test('reports page redirects unauthenticated users to login', async ({ page }) => {
         // Navigate directly to the protected route

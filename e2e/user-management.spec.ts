@@ -1,6 +1,14 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/org-fixture';
+
+const useOrgFixture = process.env['E2E_ENABLE_ORG_FIXTURE'] === 'true';
 
 test.describe('User Management', () => {
+  test.beforeEach(async ({ seedTestOrg }) => {
+    if (useOrgFixture) {
+      await seedTestOrg();
+    }
+  });
+
   // Helper function to login as admin
   async function loginAsAdmin(page: any) {
     await page.goto('/login');
