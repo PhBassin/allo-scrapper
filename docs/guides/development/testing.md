@@ -246,6 +246,36 @@ Troubleshooting:
 - If Testcontainers cannot pull images, verify network access to Docker registry
 - On test failure, integration tests print Redis diagnostics including effective `REDIS_URL`
 
+### Playwright Auto-Cleanup Utilities (Org Fixtures)
+
+Parallel Playwright runs can create tenant org test data via fixture API. Use the shared org fixture layer to ensure deterministic cleanup.
+
+```ts
+import { test, expect } from './fixtures/org-fixture';
+
+test('example with seeded org', async ({ seedTestOrg, page }) => {
+  const org = await seedTestOrg();
+  await page.goto('/login');
+  await expect(page).toHaveURL(/\/login/);
+});
+```
+
+Behavior:
+- `seedTestOrg()` creates an org with deterministic `e2e-test-*` slug markers
+- per-test `afterEach` cleanup removes tracked orgs for current test id/worker
+- global teardown performs orphan cleanup fallback using strict eligibility rules
+
+Enable fixture-backed seeding in migrated specs:
+
+```bash
+E2E_ENABLE_ORG_FIXTURE=true npx playwright test
+```
+
+Troubleshooting:
+- If teardown reports failures, inspect logs with `org_id`, `test_id`, `worker_id`
+- Repeated cleanup is idempotent; `404` on already-deleted orgs is treated as skipped
+- Global cleanup only targets test-prefixed and recent org records to avoid unsafe deletions
+
 ### Known Limitations
 
 - Scrapes complete quickly in Docker, so some timing-sensitive tests may need adjustments

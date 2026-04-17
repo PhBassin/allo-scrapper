@@ -13,6 +13,8 @@ const scrapeSpecs = [
  */
 export default defineConfig({
   testDir: './e2e',
+  globalTeardown: './e2e/global-teardown.ts',
+  testIgnore: ['**/*.test.ts'],
   
   /* Run tests in files in parallel */
   fullyParallel: true,

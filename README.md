@@ -803,6 +803,11 @@ For AI coding agents, see [AGENTS.md](./AGENTS.md) for mandatory workflow and TD
 - Tests start and stop Redis automatically using Testcontainers (no manual Redis Compose setup).
 - See [`docs/guides/development/testing.md`](./docs/guides/development/testing.md) for troubleshooting details.
 
+**Playwright org auto-cleanup utilities:**
+- Use shared fixture utilities to seed and cleanup test organizations safely in parallel E2E runs.
+- Enable fixture-backed org seeding with `E2E_ENABLE_ORG_FIXTURE=true`.
+- See [`docs/guides/development/testing.md`](./docs/guides/development/testing.md) for usage and safety rules.
+
 **Quick contribution checklist:**
 1. Create an issue first (bug/feature/task)
 2. Create a feature branch from `develop`
