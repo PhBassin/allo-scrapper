@@ -798,6 +798,11 @@ We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for:
 
 For AI coding agents, see [AGENTS.md](./AGENTS.md) for mandatory workflow and TDD requirements.
 
+**Redis integration tests (Testcontainers):**
+- Run `npm run test:integration --workspace=allo-scrapper-server` to execute Redis-backed integration tests.
+- Tests start and stop Redis automatically using Testcontainers (no manual Redis Compose setup).
+- See [`docs/guides/development/testing.md`](./docs/guides/development/testing.md) for troubleshooting details.
+
 **Quick contribution checklist:**
 1. Create an issue first (bug/feature/task)
 2. Create a feature branch from `develop`

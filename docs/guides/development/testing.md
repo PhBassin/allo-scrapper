@@ -227,6 +227,25 @@ npx playwright test --headed --debug
 4. **Handle timing** - Scrapes may complete quickly; use appropriate timeouts
 5. **Clean state** - Restart Docker between test sessions if needed: `docker compose restart ics-web`
 
+### Redis Integration Tests (Testcontainers)
+
+Server integration tests can start Redis automatically with Testcontainers; no manual `docker compose up redis` is required.
+
+```bash
+# Run server integration tests using Testcontainers-managed Redis
+npm run test:integration --workspace=allo-scrapper-server
+```
+
+What this covers:
+- real Redis connectivity using runtime host/port mapping
+- queue write/depth behavior
+- Redis pub/sub event flow
+
+Troubleshooting:
+- If Docker is not running, start Docker Desktop/daemon and rerun
+- If Testcontainers cannot pull images, verify network access to Docker registry
+- On test failure, integration tests print Redis diagnostics including effective `REDIS_URL`
+
 ### Known Limitations
 
 - Scrapes complete quickly in Docker, so some timing-sensitive tests may need adjustments
