@@ -12,18 +12,23 @@ import {
   healthCheckLimiter,
 } from './rate-limit.js';
 
-// Helper: sign a minimal JWT for rate-limit key tests (secret doesn't matter — we use jwt.decode)
+const TEST_JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
+
+// Helper: sign a minimal JWT for rate-limit key tests (must be verified against TEST_JWT_SECRET)
 const makeToken = (userId: number): string =>
-  jwt.sign({ id: userId, username: `user${userId}` }, 'test-secret');
+  jwt.sign({ id: userId, username: `user${userId}` }, TEST_JWT_SECRET);
 
 describe('Rate Limiting Middleware', () => {
   let app: express.Application;
 
   let originalNodeEnv: string | undefined;
+  let originalJwtSecret: string | undefined;
 
   beforeEach(() => {
     originalNodeEnv = process.env.NODE_ENV;
+    originalJwtSecret = process.env.JWT_SECRET;
     process.env.NODE_ENV = 'development';
+    process.env.JWT_SECRET = TEST_JWT_SECRET;
     app = express();
     app.use(express.json());
     // Trust proxy to enable rate limiting in tests
@@ -32,6 +37,11 @@ describe('Rate Limiting Middleware', () => {
 
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
+    if (originalJwtSecret === undefined) {
+      delete process.env.JWT_SECRET;
+    } else {
+      process.env.JWT_SECRET = originalJwtSecret;
+    }
   });
 
   describe('generalLimiter', () => {
