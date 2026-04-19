@@ -49,6 +49,68 @@ describe('ScraperService', () => {
         options: { cinemaId: 'C1', filmId: 123 }
       }));
     });
+
+    it('should attach org observability context to queued job metadata', async () => {
+      const mockPublish = vi.fn().mockResolvedValue(1);
+      vi.mocked(redisClient.getRedisClient).mockReturnValue({ publishJob: mockPublish } as any);
+      vi.mocked(reportQueries.createScrapeReport).mockResolvedValue(45 as any);
+      vi.mocked(cinemaQueries.getCinemas).mockResolvedValue([{ id: 'C1' }] as any);
+
+      await scraperService.triggerScrape(
+        { cinemaId: 'C1' },
+        {
+          endpoint: '/api/org/acme/scraper/trigger',
+          method: 'POST',
+          user: {
+            id: 101,
+            username: 'tenant-admin',
+            role_name: 'admin',
+            is_system_role: false,
+            permissions: [],
+            org_id: 77,
+            org_slug: 'acme',
+          },
+        }
+      );
+
+      expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
+        traceContext: expect.objectContaining({
+          org_id: '77',
+          org_slug: 'acme',
+          user_id: '101',
+          endpoint: '/api/org/acme/scraper/trigger',
+          method: 'POST',
+        }),
+      }));
+    });
+
+    it('should include traceparent in trace context when provided', async () => {
+      const mockPublish = vi.fn().mockResolvedValue(1);
+      vi.mocked(redisClient.getRedisClient).mockReturnValue({ publishJob: mockPublish } as any);
+      vi.mocked(reportQueries.createScrapeReport).mockResolvedValue(47 as any);
+
+      await scraperService.triggerScrape(
+        {},
+        {
+          endpoint: '/api/scraper/trigger',
+          method: 'POST',
+          traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
+          user: {
+            id: 1,
+            username: 'admin',
+            role_name: 'admin',
+            is_system_role: true,
+            permissions: [],
+          },
+        }
+      );
+
+      expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
+        traceContext: expect.objectContaining({
+          traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
+        }),
+      }));
+    });
   });
 
   describe('getStatus', () => {
@@ -112,6 +174,40 @@ describe('ScraperService', () => {
         },
       }));
     });
+
+    it('should attach org observability context on resume jobs', async () => {
+      const mockPublish = vi.fn().mockResolvedValue(1);
+      vi.mocked(redisClient.getRedisClient).mockReturnValue({ publishJob: mockPublish } as any);
+      vi.mocked(reportQueries.createScrapeReport).mockResolvedValue(46 as any);
+
+      await scraperService.triggerResume(
+        123,
+        [{ cinema_id: 'C0042', date: '2026-03-26' }] as any,
+        {
+          endpoint: '/api/org/acme/scraper/resume/123',
+          method: 'POST',
+          user: {
+            id: 9,
+            username: 'org-user',
+            role_name: 'admin',
+            is_system_role: false,
+            permissions: [],
+            org_id: 88,
+            org_slug: 'acme',
+          },
+        }
+      );
+
+      expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
+        traceContext: expect.objectContaining({
+          org_id: '88',
+          org_slug: 'acme',
+          user_id: '9',
+          endpoint: '/api/org/acme/scraper/resume/123',
+          method: 'POST',
+        }),
+      }));
+    });
   });
 
   describe('subscribeToProgress', () => {
@@ -122,12 +218,44 @@ describe('ScraperService', () => {
       const cleanup = scraperService.subscribeToProgress(mockRes, mockOnClose);
       
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
-      expect(progressTracker.addListener).toHaveBeenCalledWith(mockRes);
+      expect(progressTracker.addListener).toHaveBeenCalledWith(mockRes, undefined);
       
       cleanup();
       
       expect(progressTracker.removeListener).toHaveBeenCalledWith(mockRes);
       expect(mockOnClose).toHaveBeenCalled();
+    });
+
+    it('should pass tenant trace context to progress tracker', () => {
+      const mockRes = { setHeader: vi.fn() };
+      const mockOnClose = vi.fn();
+
+      scraperService.subscribeToProgress(mockRes, mockOnClose, {
+        endpoint: '/api/org/acme/scraper/progress',
+        method: 'GET',
+        traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
+        user: {
+          id: 3,
+          username: 'tenant-user',
+          role_name: 'admin',
+          is_system_role: false,
+          permissions: [],
+          org_id: 42,
+          org_slug: 'acme',
+        },
+      });
+
+      expect(progressTracker.addListener).toHaveBeenCalledWith(
+        mockRes,
+        expect.objectContaining({
+          org_id: '42',
+          org_slug: 'acme',
+          user_id: '3',
+          endpoint: '/api/org/acme/scraper/progress',
+          method: 'GET',
+          traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
+        })
+      );
     });
   });
 });

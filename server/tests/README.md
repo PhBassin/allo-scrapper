@@ -240,3 +240,20 @@ When validating multi-tenant org-boundary behavior for cinemas routes:
 - Assert middleware chain guarantees remain present on cinemas routes:
   - Read path includes org-aware auth/permission wrappers + `enforceOrgBoundary`
   - Write path includes `requireAuth`, `requirePermission`, and `enforceOrgBoundary`
+
+## Observability Assertions (SaaS)
+
+When validating org-aware observability across API and scraper flows:
+
+- Queue metadata propagation:
+  - `POST /api/scraper/trigger` and `POST /api/scraper/resume/:reportId` should pass tenant context to queue job `traceContext`
+  - Expected fields in trace context: `org_id`, `org_slug`, `user_id`, `endpoint`, `method`
+  - Optional distributed tracing passthrough: `traceparent` header -> `traceContext.traceparent`
+
+- Structured request logging:
+  - Scraper trigger/resume/status request logs should include `org_id`, `user_id`, and `endpoint`
+  - Error-handler logs should include tenant-aware context payload: `{ org_id, user_id, endpoint, error }`
+
+- Scraper worker correlation logs:
+  - Redis job consumer should log trace context fields when `traceContext` exists on job payload
+  - This enables Loki/Tempo drill-down by tenant during queue processing incidents

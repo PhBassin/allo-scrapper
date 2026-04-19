@@ -4,9 +4,13 @@ import request from 'supertest';
 import express from 'express';
 
 const mockTriggerScrape = vi.fn();
+const mockTriggerResume = vi.fn();
 const mockGetStatus = vi.fn();
 const mockSubscribeToProgress = vi.fn();
 const mockPublishScheduleChange = vi.fn();
+const mockGetScrapeReport = vi.fn();
+const mockGetPendingScrapeAttempts = vi.fn();
+const mockLoggerInfo = vi.fn();
 
 let currentMockUser = { role_name: 'admin', is_system_role: true, permissions: [], id: 1, username: 'admin' };
 let failAuth = false;
@@ -16,6 +20,7 @@ vi.mock('../services/scraper-service.js', () => {
     ScraperService: vi.fn().mockImplementation(function() {
       return {
         triggerScrape: mockTriggerScrape,
+        triggerResume: mockTriggerResume,
         getStatus: mockGetStatus,
         subscribeToProgress: mockSubscribeToProgress,
       };
@@ -25,6 +30,14 @@ vi.mock('../services/scraper-service.js', () => {
 
 vi.mock('../db/client.js', () => ({
   db: { query: vi.fn() }
+}));
+
+vi.mock('../db/report-queries.js', () => ({
+  getScrapeReport: (...args: unknown[]) => mockGetScrapeReport(...args),
+}));
+
+vi.mock('../db/scrape-attempt-queries.js', () => ({
+  getPendingScrapeAttempts: (...args: unknown[]) => mockGetPendingScrapeAttempts(...args),
 }));
 
 vi.mock('../middleware/auth.js', () => ({
@@ -51,6 +64,15 @@ vi.mock('../services/redis-client.js', () => ({
   getRedisClient: () => ({
     publishScheduleChange: mockPublishScheduleChange,
   }),
+}));
+
+vi.mock('../utils/logger.js', () => ({
+  logger: {
+    info: (...args: unknown[]) => mockLoggerInfo(...args),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 
 // Mock schedule queries
@@ -86,8 +108,14 @@ describe('Routes - Scraper', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockTriggerScrape.mockResolvedValue({ reportId: 42, queueDepth: 1 });
+    mockTriggerResume.mockResolvedValue({ reportId: 43, queueDepth: 1 });
     mockGetStatus.mockResolvedValue({ isRunning: false, latestReport: null });
     mockPublishScheduleChange.mockResolvedValue(undefined);
+    mockGetScrapeReport.mockResolvedValue({ id: 123, status: 'failed' });
+    mockGetPendingScrapeAttempts.mockResolvedValue([
+      { cinema_id: 'C0042', date: '2026-03-26' },
+    ]);
+    mockLoggerInfo.mockReset();
     failAuth = false;
   });
 
@@ -101,7 +129,14 @@ describe('Routes - Scraper', () => {
       
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(mockTriggerScrape).toHaveBeenCalledWith({});
+      expect(mockTriggerScrape).toHaveBeenCalledWith(
+        {},
+        expect.objectContaining({
+          endpoint: '/api/scraper/trigger',
+          method: 'POST',
+          user: expect.objectContaining({ id: 1 }),
+        })
+      );
     });
 
     it('should return 403 if user lacks permissions', async () => {
@@ -121,7 +156,14 @@ describe('Routes - Scraper', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.reportId).toBe(42);
-      expect(mockTriggerScrape).toHaveBeenCalledWith({});
+      expect(mockTriggerScrape).toHaveBeenCalledWith(
+        {},
+        expect.objectContaining({
+          endpoint: '/api/scraper/trigger',
+          method: 'POST',
+          user: expect.objectContaining({ id: 1 }),
+        })
+      );
     });
 
     it('should pass cinemaId and filmId to the service', async () => {
@@ -133,7 +175,25 @@ describe('Routes - Scraper', () => {
       });
       
       expect(response.status).toBe(200);
-      expect(mockTriggerScrape).toHaveBeenCalledWith({ cinemaId: 'C0153', filmId: 12345 });
+      expect(mockTriggerScrape).toHaveBeenCalledWith(
+        { cinemaId: 'C0153', filmId: 12345 },
+        expect.objectContaining({
+          endpoint: '/api/scraper/trigger',
+          method: 'POST',
+          user: expect.objectContaining({ id: 1 }),
+        })
+      );
+      expect(mockLoggerInfo).toHaveBeenCalledWith(
+        'Scraper trigger requested',
+        expect.objectContaining({
+          org_id: undefined,
+          user_id: 1,
+          endpoint: '/api/scraper/trigger',
+          method: 'POST',
+          cinema_id: 'C0153',
+          film_id: 12345,
+        })
+      );
     });
 
     it('should handle service errors gracefully (e.g., Cinema not found)', async () => {
@@ -176,6 +236,79 @@ describe('Routes - Scraper', () => {
       expect(response.body.data.isRunning).toBe(true);
       expect(response.body.data.latestReport.id).toBe(99);
       expect(mockGetStatus).toHaveBeenCalled();
+      expect(mockLoggerInfo).toHaveBeenCalledWith(
+        'Scraper status requested',
+        expect.objectContaining({
+          org_id: undefined,
+          user_id: 1,
+          endpoint: '/api/scraper/status',
+          method: 'GET',
+        })
+      );
+    });
+  });
+
+  describe('POST /api/scraper/resume/:reportId', () => {
+    it('should pass observability context to triggerResume', async () => {
+      const app = await setupApp();
+
+      const response = await request(app).post('/api/scraper/resume/123');
+
+      expect(response.status).toBe(200);
+      expect(mockTriggerResume).toHaveBeenCalledWith(
+        123,
+        expect.any(Array),
+        expect.objectContaining({
+          endpoint: '/api/scraper/resume/123',
+          method: 'POST',
+          user: expect.objectContaining({ id: 1 }),
+        })
+      );
+      expect(mockLoggerInfo).toHaveBeenCalledWith(
+        'Scraper resume requested',
+        expect.objectContaining({
+          org_id: undefined,
+          user_id: 1,
+          endpoint: '/api/scraper/resume/123',
+          method: 'POST',
+          report_id: 123,
+          pending_attempts: 1,
+        })
+      );
+    });
+
+    it('forwards traceparent header to observability context', async () => {
+      const app = await setupApp();
+
+      const response = await request(app)
+        .post('/api/scraper/trigger')
+        .set('traceparent', '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01')
+        .send({});
+
+      expect(response.status).toBe(200);
+      expect(mockTriggerScrape).toHaveBeenCalledWith(
+        {},
+        expect.objectContaining({
+          traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
+        })
+      );
+    });
+
+    it('rejects invalid traceparent header values', async () => {
+      const app = await setupApp();
+
+      const response = await request(app)
+        .post('/api/scraper/trigger')
+        .set('traceparent', 'invalid-value')
+        .send({});
+
+      expect(response.status).toBe(200);
+      expect(mockTriggerScrape).toHaveBeenCalledWith(
+        {},
+        expect.not.objectContaining({
+          traceparent: expect.any(String),
+        })
+      );
     });
   });
 
@@ -235,7 +368,14 @@ describe('Routes - Scraper', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.reportId).toBe(99);
       expect(response.body.data.scheduleId).toBe(1);
-      expect(mockTriggerScrape).toHaveBeenCalled();
+      expect(mockTriggerScrape).toHaveBeenCalledWith(
+        { cinemaId: undefined },
+        expect.objectContaining({
+          endpoint: '/api/scraper/schedules/1/trigger',
+          method: 'POST',
+          user: expect.objectContaining({ id: 1 }),
+        })
+      );
     });
   });
 });

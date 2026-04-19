@@ -60,6 +60,15 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
   // Support legacy jobs that predate the discriminated union (no 'type' field)
   const jobType = ('type' in job) ? job.type : 'scrape';
 
+  const traceLogContext = {
+    org_id: job.traceContext?.org_id,
+    org_slug: job.traceContext?.org_slug,
+    user_id: job.traceContext?.user_id,
+    endpoint: job.traceContext?.endpoint,
+    method: job.traceContext?.method,
+    traceparent: job.traceContext?.traceparent,
+  };
+
   // Update report status
   try {
     await updateScrapeReport(db, job.reportId, { status: 'running' });
@@ -76,10 +85,14 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
         status: 'success',
         completed_at: new Date().toISOString(),
       });
-      logger.info(`[scraper] add_cinema job ${job.reportId} completed successfully`);
+      logger.info(`[scraper] add_cinema job ${job.reportId} completed successfully`, traceLogContext);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error(`[scraper] add_cinema job ${job.reportId} failed:`, err);
+      logger.error(`[scraper] add_cinema job ${job.reportId} failed`, {
+        ...traceLogContext,
+        error: errorMessage,
+        stack: err instanceof Error ? err.stack : undefined,
+      });
       await updateScrapeReport(db, job.reportId, {
         status: 'failed',
         completed_at: new Date().toISOString(),
@@ -94,7 +107,10 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
 
   try {
     const scrapeJob = job as ScrapeJobScrape;
-    const summary = await runScraper(publisher, scrapeJob.options);
+    const summary = await runScraper(publisher, {
+      ...scrapeJob.options,
+      traceContext: job.traceContext,
+    });
 
     const status = summary.failed_cinemas === 0
       ? 'success'
@@ -118,10 +134,14 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
       errors: summary.errors,
     });
 
-    logger.info(`[scraper] Job ${job.reportId} completed with status: ${status}`);
+    logger.info(`[scraper] Job ${job.reportId} completed with status: ${status}`, traceLogContext);
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    logger.error(`[scraper] Job ${job.reportId} failed:`, err);
+    logger.error(`[scraper] Job ${job.reportId} failed`, {
+      ...traceLogContext,
+      error: errorMessage,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     scrapeJobsTotal.inc({ status: 'failed', trigger: job.triggerType });
 
     await updateScrapeReport(db, job.reportId, {
@@ -152,7 +172,14 @@ async function runOneshot(): Promise<void> {
     }
 
     const job: ScrapeJob = JSON.parse(raw);
-    logger.info(`[scraper] Processing job: reportId=${job.reportId}`);
+    logger.info('[scraper] Processing job', {
+      report_id: job.reportId,
+      org_id: job.traceContext?.org_id,
+      org_slug: job.traceContext?.org_slug,
+      user_id: job.traceContext?.user_id,
+      endpoint: job.traceContext?.endpoint,
+      method: job.traceContext?.method,
+    });
     await executeJob(job);
   } finally {
     await redis.quit();

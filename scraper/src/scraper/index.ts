@@ -9,6 +9,8 @@ import { getStrategyByUrl, getStrategyBySource } from './strategy-factory.js';
 import { RateLimitError } from '../utils/errors.js';
 import { classifyError } from '../utils/error-classifier.js';
 import { CircuitOpenError } from './circuit-breaker.js';
+import { getTracer } from '../utils/tracer.js';
+import { context, trace } from '@opentelemetry/api';
 import {
   createScrapeAttempt,
   updateScrapeAttempt,
@@ -17,6 +19,28 @@ import {
 // Progress publisher interface – allows injecting Redis publisher or a no-op
 export interface ProgressPublisher {
   emit(event: ProgressEvent): Promise<void>;
+}
+
+function setOrgSpanAttributes(traceContext?: Record<string, string>): void {
+  if (!traceContext) return;
+
+  const activeSpan = trace.getSpan(context.active());
+  if (activeSpan) {
+    if (traceContext.org_id) activeSpan.setAttribute('org_id', traceContext.org_id);
+    if (traceContext.org_slug) activeSpan.setAttribute('org_slug', traceContext.org_slug);
+    if (traceContext.user_id) activeSpan.setAttribute('user_id', traceContext.user_id);
+    if (traceContext.endpoint) activeSpan.setAttribute('endpoint', traceContext.endpoint);
+    if (traceContext.method) activeSpan.setAttribute('method', traceContext.method);
+    return;
+  }
+
+  const span = getTracer().startSpan('scraper.job.org-context');
+  if (traceContext.org_id) span.setAttribute('org_id', traceContext.org_id);
+  if (traceContext.org_slug) span.setAttribute('org_slug', traceContext.org_slug);
+  if (traceContext.user_id) span.setAttribute('user_id', traceContext.user_id);
+  if (traceContext.endpoint) span.setAttribute('endpoint', traceContext.endpoint);
+  if (traceContext.method) span.setAttribute('method', traceContext.method);
+  span.end();
 }
 
 // No-op publisher for standalone use
@@ -103,6 +127,7 @@ export interface ScrapeOptions {
   reportId?: number;  // For tracking attempts in database
   resumeMode?: boolean;  // Skip already-successful attempts
   pendingAttempts?: Array<{ cinema_id: string; date: string }>;  // For resume mode
+  traceContext?: Record<string, string>;
 }
 
 /**
@@ -378,6 +403,7 @@ export async function runScraper(
   progress?: ProgressPublisher,
   options?: ScrapeOptions
 ): Promise<ScrapeSummary> {
+  setOrgSpanAttributes(options?.traceContext);
   logger.info('Starting scraper');
 
   const summary: ScrapeSummary = {
