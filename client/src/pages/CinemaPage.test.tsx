@@ -116,6 +116,25 @@ describe('CinemaPage - renders cinema details', () => {
     await waitFor(() => {
       expect(screen.getByText(/Cinema not found/i)).toBeInTheDocument();
     });
+    expect(screen.queryByTestId('403-error-message')).not.toBeInTheDocument();
+  });
+
+  it('shows cross-tenant message for authenticated org-scoped missing cinema', async () => {
+    vi.mocked(clientApi.getCinemas).mockResolvedValue([mockCinema]);
+    vi.mocked(clientApi.getCinemaSchedule).mockRejectedValue(new Error('Cross-tenant access denied'));
+
+    renderWithClient(
+      <MemoryRouter initialEntries={['/org/acme/cinema/C9999']}>
+        <Routes>
+          <Route path="/org/:slug/cinema/:id" element={<CinemaPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('403-error-message')).toHaveTextContent(/Cross-tenant access denied/i);
+    });
+    expect(screen.getByRole('heading', { name: /403 Forbidden/i })).toBeInTheDocument();
   });
 
   it('shows first available showtimes when no showtimes exist for today', async () => {

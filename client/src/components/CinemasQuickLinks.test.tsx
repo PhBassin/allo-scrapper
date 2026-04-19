@@ -28,6 +28,13 @@ describe('CinemasQuickLinks', () => {
     expect(screen.getByText('Pathé Wepler')).toBeInTheDocument();
   });
 
+  it('exposes stable test ids for cinema isolation e2e checks', () => {
+    renderComponent();
+
+    expect(screen.getByTestId('cinema-list')).toBeInTheDocument();
+    expect(screen.getAllByTestId('cinema-list-item')).toHaveLength(2);
+  });
+
   it('shows "+ Ajouter un cinéma" button when canAddCinema is true', () => {
     renderComponent({ canAddCinema: true });
 
