@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "plugin": ["opencode-plugin-mempalace"],
   "tools": {
     "skill": true
   },
@@ -9,9 +10,13 @@
     }
   },
   "mcp": {
-    "claudette": {
+    "mempalace": {
       "type": "local",
-      "command": ["claudette", "serve"],
+      "command": [
+        "/home/debian/.local/share/pipx/venvs/mempalace/bin/python",
+        "-m",
+        "mempalace.mcp_server"
+      ],
       "enabled": true
     }
   }
