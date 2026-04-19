@@ -10,12 +10,13 @@ interface CinemasQuickLinksProps {
 
 function CinemasQuickLinks({ cinemas, canAddCinema, onAddCinema }: CinemasQuickLinksProps) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm mb-6">
+    <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm mb-6" data-testid="cinema-list">
       <div className="flex flex-wrap gap-2">
         {cinemas.map((cinema) => (
           <Link
             key={cinema.id}
             to={`/cinema/${cinema.id}`}
+            data-testid="cinema-list-item"
             className="px-3 py-1.5 bg-gray-50 text-gray-700 text-sm rounded-lg hover:bg-primary hover:text-black transition font-semibold"
           >
             {cinema.name}
