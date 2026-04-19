@@ -271,6 +271,12 @@ Enable fixture-backed seeding in migrated specs:
 E2E_ENABLE_ORG_FIXTURE=true npx playwright test
 ```
 
+Run the dedicated multi-tenant cinema isolation scenario:
+
+```bash
+E2E_ENABLE_ORG_FIXTURE=true npx playwright test e2e/multi-tenant-cinema-isolation.spec.ts --project=chromium --no-deps
+```
+
 Troubleshooting:
 - If teardown reports failures, inspect logs with `org_id`, `test_id`, `worker_id`
 - Repeated cleanup is idempotent; `404` on already-deleted orgs is treated as skipped
@@ -327,7 +333,8 @@ e2e/                              # Playwright E2E tests (12 comprehensive specs
 ├── scrape-progress.spec.ts       # Scrape progress monitoring
 ├── showtime-buttons.spec.ts      # Showtime button interactions
 ├── theme-application.spec.ts     # Theme customization
-└── user-management.spec.ts       # User CRUD operations
+├── user-management.spec.ts       # User CRUD operations
+└── multi-tenant-cinema-isolation.spec.ts  # Cross-tenant cinema isolation checks
 
 playwright.config.ts              # Playwright configuration
 scripts/integration-test.sh       # Automated full-stack test script
