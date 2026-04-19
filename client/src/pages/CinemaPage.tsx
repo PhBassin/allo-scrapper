@@ -129,7 +129,7 @@ export default function CinemaPage() {
   }
 
   if (error || !cinema) {
-    const isForbidden = Boolean(error) && error.toLowerCase().includes('cross-tenant access denied');
+    const isForbidden = typeof error === 'string' && error.toLowerCase().includes('cross-tenant access denied');
     const errorMessage = error || 'Cinema not found';
 
     return (
