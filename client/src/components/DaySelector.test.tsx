@@ -194,7 +194,7 @@ describe('DaySelector — format jour compact (une ligne)', () => {
   });
 });
 
-describe('DaySelector — bouton Maintenant (legacy compatibility)', () => {
+describe('DaySelector — toggle (legacy compatibility)', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(FIXED_NOW);
@@ -204,7 +204,7 @@ describe('DaySelector — bouton Maintenant (legacy compatibility)', () => {
     vi.useRealTimers();
   });
 
-  it('renders the Maintenant button as the first button', () => {
+  it('renders the toggle as the first button', () => {
     render(
       <DaySelector
         weekStart={WEEK_START}
@@ -214,10 +214,10 @@ describe('DaySelector — bouton Maintenant (legacy compatibility)', () => {
     );
 
     const buttons = screen.getAllByRole('button');
-    expect(buttons[0]).toHaveTextContent(/maintenant/i);
+    expect(buttons[0]).toBe(screen.getByTestId('day-selector-mode-toggle'));
   });
 
-  it('Maintenant button is enabled when today is within the week', () => {
+  it('toggle is enabled when today is within the week', () => {
     render(
       <DaySelector
         weekStart={WEEK_START}
@@ -226,11 +226,10 @@ describe('DaySelector — bouton Maintenant (legacy compatibility)', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: /maintenant/i })).not.toBeDisabled();
+    expect(screen.getByTestId('day-selector-mode-toggle')).not.toBeDisabled();
   });
 
-  it('Maintenant button is disabled when today is outside the week', () => {
-    // Week starting in the past, today is way ahead
+  it('toggle is disabled when today is outside the week', () => {
     vi.setSystemTime(new Date('2030-01-01T10:00:00'));
 
     render(
@@ -241,10 +240,10 @@ describe('DaySelector — bouton Maintenant (legacy compatibility)', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: /maintenant/i })).toBeDisabled();
+    expect(screen.getByTestId('day-selector-mode-toggle')).toBeDisabled();
   });
 
-  it('calls onNow with today date and current HH:MM when clicked', () => {
+  it('calls onNow with today date and current HH:MM when clicked in "Tous les jours" mode', () => {
     const handleNow = vi.fn();
 
     render(
@@ -256,13 +255,13 @@ describe('DaySelector — bouton Maintenant (legacy compatibility)', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /maintenant/i }));
+    fireEvent.click(screen.getByTestId('day-selector-mode-toggle'));
 
     expect(handleNow).toHaveBeenCalledOnce();
     expect(handleNow).toHaveBeenCalledWith(FIXED_TODAY, '14:00');
   });
 
-  it('shows Maintenant button as active when isNowActive is true', () => {
+  it('shows toggle as active (data-now-active) when isNowActive is true', () => {
     render(
       <DaySelector
         weekStart={WEEK_START}
@@ -272,10 +271,10 @@ describe('DaySelector — bouton Maintenant (legacy compatibility)', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: /maintenant/i })).toHaveAttribute('data-now-active', 'true');
+    expect(screen.getByTestId('day-selector-mode-toggle')).toHaveAttribute('data-now-active', 'true');
   });
 
-  it('shows Maintenant button as inactive when isNowActive is false', () => {
+  it('toggle has no data-now-active when isNowActive is false', () => {
     render(
       <DaySelector
         weekStart={WEEK_START}
@@ -285,6 +284,6 @@ describe('DaySelector — bouton Maintenant (legacy compatibility)', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: /maintenant/i })).not.toHaveAttribute('data-now-active', 'true');
+    expect(screen.getByTestId('day-selector-mode-toggle')).not.toHaveAttribute('data-now-active', 'true');
   });
 });

@@ -12,20 +12,19 @@ interface DaySelectorProps {
 // re-initialization during loops or frequent re-renders
 const fmtWeekday = new Intl.DateTimeFormat('fr-FR', { weekday: 'short' });
 const fmtDay     = new Intl.DateTimeFormat('fr-FR', { day: 'numeric' });
-const fmtMonth   = new Intl.DateTimeFormat('fr-FR', { month: 'short' });
 
-// fr-FR abbreviates weekdays/months with a trailing period (e.g. "lun.", "mars.")
+// fr-FR abbreviates weekdays with a trailing period (e.g. "lun.", "mar.")
 const stripDot = (s: string) => s.replace(/\.$/, '');
 
 function DaySelector({ weekStart, selectedDate, onSelectDate, onNow, isNowActive = false }: DaySelectorProps) {
   const days = useMemo(() => {
     if (!weekStart) return [];
-    
+
     const start = new Date(weekStart);
     if (isNaN(start.getTime())) return [];
 
     const result = [];
-    
+
     for (let i = 0; i < 7; i++) {
       const date = new Date(start);
       date.setDate(start.getDate() + i);
@@ -33,72 +32,73 @@ function DaySelector({ weekStart, selectedDate, onSelectDate, onNow, isNowActive
         date: date.toISOString().split('T')[0],
         weekday: stripDot(fmtWeekday.format(date)),
         day:     fmtDay.format(date),
-        month:   stripDot(fmtMonth.format(date)),
       });
     }
-    
+
     return result;
   }, [weekStart]);
 
   const today = new Date().toISOString().split('T')[0];
   const todayInWeek = days.some(d => d.date === today);
 
-  const handleNowClick = () => {
-    if (!todayInWeek) return;
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2, '0');
-    const mm = String(now.getMinutes()).padStart(2, '0');
-    onNow?.(today, `${hh}:${mm}`);
+  const handleToggleClick = () => {
+    if (isNowActive) {
+      // bascule vers "Tous les jours"
+      onSelectDate(null);
+    } else {
+      // bascule vers "Maintenant"
+      if (!todayInWeek) return;
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      onNow?.(today, `${hh}:${mm}`);
+    }
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm overflow-x-auto">
-      <div className="flex gap-2 min-w-max items-stretch">
-        {/* Maintenant button — always first */}
+    <div className="bg-white rounded-lg border border-gray-100 px-2 py-1.5 shadow-sm overflow-x-auto">
+      <div className="flex gap-1.5 min-w-max items-center">
+        {/* Toggle bi-état: Maintenant ⇄ Tous les jours */}
         <button
-          onClick={handleNowClick}
-          disabled={!todayInWeek}
+          onClick={handleToggleClick}
+          disabled={!isNowActive && !todayInWeek}
           data-now-active={isNowActive || undefined}
-          className={`px-3 py-2 text-sm rounded-lg transition font-semibold active:scale-95 flex flex-col items-center justify-center min-w-[68px] ${
+          data-testid="day-selector-mode-toggle"
+          aria-pressed={isNowActive}
+          aria-label={
+            isNowActive
+              ? 'Désactiver le filtre Maintenant et voir tous les jours'
+              : 'Filtrer pour voir uniquement les séances à venir aujourd\'hui'
+          }
+          className={`px-3 py-1.5 text-xs rounded-lg transition font-semibold active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
             isNowActive
               ? 'bg-teal-500 text-white cursor-pointer'
-              : 'bg-gray-50 text-gray-700 hover:bg-gray-100 cursor-pointer'
-          } ${!todayInWeek ? 'opacity-50 cursor-not-allowed' : ''}`}
+              : selectedDate === null
+                ? 'bg-primary text-black cursor-pointer'
+                : 'bg-gray-50 text-gray-700 hover:bg-gray-100 cursor-pointer'
+          } ${!isNowActive && !todayInWeek ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          <span className="text-base leading-none">⏱</span>
-          <span className="text-[11px] font-bold mt-0.5">Maintenant</span>
+          <span>{isNowActive ? '⏱' : '📅'}</span>
+          <span>{isNowActive ? 'Maintenant' : 'Tous les jours'}</span>
         </button>
 
-        <button
-          onClick={() => onSelectDate(null)}
-          className={`px-3 py-2 text-sm rounded-lg transition font-semibold cursor-pointer active:scale-95 flex flex-col items-center justify-center min-w-[68px] ${
-            selectedDate === null && !isNowActive
-              ? 'bg-primary text-black'
-              : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-          }`}
-          data-testid="day-selector-all"
-        >
-          <span className="text-[11px] font-bold leading-tight text-center">Tous les jours</span>
-        </button>
+        {/* Séparateur visuel */}
+        <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
 
+        {/* Jours de la semaine — format compact "Lun 21" sur une ligne */}
         {days.map((day) => (
           <button
             key={day.date}
             onClick={() => onSelectDate(day.date)}
-            className={`px-2 py-2 rounded-lg transition cursor-pointer active:scale-95 flex flex-col items-center justify-center min-w-[52px] ${
+            className={`px-3 py-1.5 text-xs rounded-lg transition cursor-pointer active:scale-95 flex items-center gap-1 whitespace-nowrap ${
               selectedDate === day.date && !isNowActive
-                ? 'bg-primary text-black'
+                ? 'bg-primary text-black font-bold'
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
             }`}
             data-testid={`day-selector-${day.date}`}
           >
-            <span className={`text-[10px] uppercase font-bold ${selectedDate === day.date && !isNowActive ? 'text-black' : 'text-gray-400'}`}>
-              {day.weekday}
-            </span>
-            <span className="text-base font-bold leading-none my-0.5">{day.day}</span>
-            <span className={`text-[10px] ${selectedDate === day.date && !isNowActive ? 'text-black' : 'text-gray-400'}`}>
-              {day.month}
-            </span>
+            <span className="uppercase font-bold">{day.weekday}</span>
+            <span className="font-bold">{day.day}</span>
           </button>
         ))}
       </div>
