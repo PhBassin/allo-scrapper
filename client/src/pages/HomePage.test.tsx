@@ -174,15 +174,15 @@ describe('HomePage — bouton Maintenant', () => {
 
   it('renders the Maintenant button in the DaySelector', async () => {
     renderHomePage();
-    await waitFor(() => expect(screen.queryByRole('button', { name: /maintenant/i })).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: /maintenant/i })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId('day-selector-mode-toggle')).toBeInTheDocument());
+    expect(screen.getByTestId('day-selector-mode-toggle')).toBeInTheDocument();
   });
 
   it('fetches today\'s films when Maintenant is clicked', async () => {
     renderHomePage();
-    await waitFor(() => expect(screen.getByRole('button', { name: /maintenant/i })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('day-selector-mode-toggle')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: /maintenant/i }));
+    fireEvent.click(screen.getByTestId('day-selector-mode-toggle'));
 
     await waitFor(() => {
       expect(clientApi.getFilmsByDate).toHaveBeenCalledWith(FIXED_TODAY);
@@ -191,9 +191,9 @@ describe('HomePage — bouton Maintenant', () => {
 
   it('hides films with only past showtimes after Maintenant click', async () => {
     renderHomePage();
-    await waitFor(() => expect(screen.getByRole('button', { name: /maintenant/i })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('day-selector-mode-toggle')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: /maintenant/i }));
+    fireEvent.click(screen.getByTestId('day-selector-mode-toggle'));
 
     await waitFor(() => {
       expect(screen.getByText('Film Futur')).toBeInTheDocument();

@@ -125,7 +125,7 @@ export default function HomePage() {
 
       {/* Sticky Header Section - Compact */}
       <div
-        className="sticky z-40 bg-gray-50/95 backdrop-blur-sm pt-3 pb-3 mb-4 shadow-sm -mx-4 px-4"
+        className="sticky z-40 bg-gray-50/95 backdrop-blur-sm pt-2 pb-2 mb-3 shadow-sm -mx-4 px-4"
         style={{ top: 'var(--layout-header-offset, 64px)' }}
         data-testid="sticky-search-date-container"
       >
