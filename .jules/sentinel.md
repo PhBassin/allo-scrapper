@@ -1,4 +1,4 @@
-## 2026-04-10 - Express 5 path-to-regexp v8 wildcard routes issue
-**Vulnerability:** Unsafe string-based catch-all routes (`{*splat}`) in Express 5 cause `TypeError: Missing parameter name` rendering the API 404 handler broken.
-**Learning:** This exposes the application to potentially leaking SPA fallback logic (sending HTML) for API endpoints instead of properly formatted JSON 404 responses.
-**Prevention:** Always use safe native regular expressions (like `/^\/api(?:\/(.*))?$/`) for wildcard/catch-all routes in Express 5 apps utilizing `path-to-regexp` v8.
+## 2026-04-19 - DoS via Unverified JWT Decoding in Rate Limiter
+**Vulnerability:** The rate limiter middleware (`server/src/middleware/rate-limit.ts`) used `jwt.decode` instead of `jwt.verify` to extract user IDs for bucketing. This allowed an attacker to create a fake JWT with another user's ID, bypassing signature validation, to artificially inflate that user's request count and lock them out of the application (Targeted DoS).
+**Learning:** Even for "non-security" operations like rate-limit key generation, unverified data extracted from a JWT is user-controlled input and cannot be trusted. The assumption that "security verification is already handled by the requireAuth middleware" was flawed because rate limiting happens before or independently of auth routing.
+**Prevention:** Always use `jwt.verify(token, secret)` whenever extracting information from a token for any stateful or critical backend operation, including rate limiting, quota tracking, or logging.
