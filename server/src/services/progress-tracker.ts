@@ -1,7 +1,16 @@
 import { Response } from 'express';
 
+export interface ProgressTraceContext {
+  org_id?: string;
+  org_slug?: string;
+  user_id?: string;
+  endpoint?: string;
+  method?: string;
+  traceparent?: string;
+}
+
 // Progress event types
-export type ProgressEvent =
+type ProgressEventPayload =
   | { type: 'started'; total_cinemas: number; total_dates: number }
   | { type: 'cinema_started'; cinema_name: string; cinema_id: string; index: number }
   | { type: 'date_started'; date: string; cinema_name: string }
@@ -15,6 +24,10 @@ export type ProgressEvent =
   | { type: 'cinema_failed'; cinema_name: string; error: string }
   | { type: 'completed'; summary: ScrapeSummary }
   | { type: 'failed'; error: string };
+
+export type ProgressEvent = ProgressEventPayload & {
+  traceContext?: ProgressTraceContext;
+};
 
 export interface ScrapeSummary {
   total_cinemas: number;
@@ -40,10 +53,12 @@ export class ProgressTracker {
   private listeners: Set<Response> = new Set();
   private events: ProgressEvent[] = [];
   private heartbeatInterval?: NodeJS.Timeout;
+  private traceContextByListener: Map<Response, ProgressTraceContext | undefined> = new Map();
 
   // Add a new SSE listener
-  addListener(res: Response): void {
+  addListener(res: Response, traceContext?: ProgressTraceContext): void {
     this.listeners.add(res);
+    this.traceContextByListener.set(res, traceContext);
 
     // Send existing events to new listener
     for (const event of this.events) {
@@ -59,6 +74,7 @@ export class ProgressTracker {
   // Remove a listener
   removeListener(res: Response): void {
     this.listeners.delete(res);
+    this.traceContextByListener.delete(res);
 
     // Stop heartbeat if no more listeners
     if (this.listeners.size === 0) {
@@ -79,10 +95,16 @@ export class ProgressTracker {
   // Send an event to a specific listener
   private sendToListener(res: Response, event: ProgressEvent): void {
     try {
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
+      const listenerTrace = this.traceContextByListener.get(res);
+      const payload: ProgressEvent = listenerTrace
+        ? { ...event, traceContext: listenerTrace }
+        : event;
+
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
     } catch (error) {
       // Listener disconnected, remove it
       this.listeners.delete(res);
+      this.traceContextByListener.delete(res);
     }
   }
 
@@ -94,6 +116,7 @@ export class ProgressTracker {
           listener.write(': heartbeat\n\n');
         } catch (error) {
           this.listeners.delete(listener);
+          this.traceContextByListener.delete(listener);
         }
       }
     }, 15000); // Every 15 seconds
@@ -121,6 +144,7 @@ export class ProgressTracker {
       }
     }
     this.listeners.clear();
+    this.traceContextByListener.clear();
   }
 
   // Get all events (for debugging or storing in database)

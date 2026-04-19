@@ -8,6 +8,7 @@ import { scraperLimiter, protectedLimiter } from '../middleware/rate-limit.js';
 import { ScraperService } from '../services/scraper-service.js';
 import { getRedisClient } from '../services/redis-client.js';
 import { AuthError, NotFoundError, ValidationError } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
 import {
   getAllSchedules,
   getScheduleById,
@@ -22,6 +23,19 @@ import { getPendingScrapeAttempts } from '../db/scrape-attempt-queries.js';
 import { getDbFromRequest } from '../utils/db-from-request.js';
 
 const router = express.Router();
+
+const TRACEPARENT_REGEX = /^[\da-f]{2}-[\da-f]{32}-[\da-f]{16}-[\da-f]{2}$/i;
+
+function getSanitizedEndpoint(req: AuthRequest): string {
+  return req.originalUrl.split('?')[0];
+}
+
+function getValidTraceparentHeader(req: AuthRequest): string | undefined {
+  const raw = req.headers.traceparent;
+  if (typeof raw !== 'string') return undefined;
+  if (!TRACEPARENT_REGEX.test(raw)) return undefined;
+  return raw;
+}
 
 router.use(validateInputSize({ maxArrayLength: 100, maxTotalSize: 50 * 1024 }));
 
@@ -48,7 +62,23 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
       }
     }
 
-    const { reportId, queueDepth } = await scraperService.triggerScrape({ cinemaId, filmId });
+    const observabilityContext = {
+      endpoint: getSanitizedEndpoint(req),
+      method: req.method,
+      user: req.user,
+      traceparent: getValidTraceparentHeader(req),
+    };
+
+    logger.info('Scraper trigger requested', {
+      org_id: req.user?.org_id,
+      user_id: req.user?.id,
+      endpoint: getSanitizedEndpoint(req),
+      method: req.method,
+      cinema_id: cinemaId,
+      film_id: filmId,
+    });
+
+    const { reportId, queueDepth } = await scraperService.triggerScrape({ cinemaId, filmId }, observabilityContext);
 
     const response: ApiResponse = {
       success: true,
@@ -103,9 +133,26 @@ router.post('/resume/:reportId', scraperLimiter, requireAuth, async (req: AuthRe
     }
 
     // Trigger a new scrape in resume mode
+    const observabilityContext = {
+      endpoint: getSanitizedEndpoint(req),
+      method: req.method,
+      user: req.user,
+      traceparent: getValidTraceparentHeader(req),
+    };
+
+    logger.info('Scraper resume requested', {
+      org_id: req.user?.org_id,
+      user_id: req.user?.id,
+      endpoint: getSanitizedEndpoint(req),
+      method: req.method,
+      report_id: reportId,
+      pending_attempts: pendingAttempts.length,
+    });
+
     const { reportId: newReportId, queueDepth } = await scraperService.triggerResume(
       reportId,
-      pendingAttempts
+      pendingAttempts,
+      observabilityContext
     );
 
     const response: ApiResponse = {
@@ -125,12 +172,19 @@ router.post('/resume/:reportId', scraperLimiter, requireAuth, async (req: AuthRe
 });
 
 // GET /api/scraper/status - Get current scrape status
-router.get('/status', scraperLimiter, requireAuth, async (req, res, next) => {
+router.get('/status', scraperLimiter, requireAuth, async (req: AuthRequest, res, next) => {
   const dbConn = getDbFromRequest(req);
   const scraperService = new ScraperService(dbConn);
 
   try {
     const statusData = await scraperService.getStatus();
+
+    logger.info('Scraper status requested', {
+      org_id: req.user?.org_id,
+      user_id: req.user?.id,
+      endpoint: getSanitizedEndpoint(req),
+      method: req.method,
+    });
 
     const response: ApiResponse = {
       success: true,
@@ -149,9 +203,15 @@ router.get('/progress', scraperLimiter, (req, res, next) => {
     const dbConn = getDbFromRequest(req);
     const scraperService = new ScraperService(dbConn);
     
+    const observabilityContext = {
+      endpoint: getSanitizedEndpoint(req as AuthRequest),
+      method: req.method,
+      user: (req as AuthRequest).user,
+    };
+
     const cleanup = scraperService.subscribeToProgress(res, () => {
       // Optional additional cleanup on route level if needed
-    });
+    }, observabilityContext);
 
     req.on('close', cleanup);
   } catch (error) {
@@ -364,6 +424,11 @@ router.post(
 
       const { reportId, queueDepth } = await scraperService.triggerScrape({
         cinemaId: schedule.target_cinemas?.[0],
+      }, {
+        endpoint: getSanitizedEndpoint(req),
+        method: req.method,
+        user: req.user,
+        traceparent: getValidTraceparentHeader(req),
       });
 
       const response: ApiResponse = {

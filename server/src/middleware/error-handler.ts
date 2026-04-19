@@ -4,10 +4,17 @@ import { AppError } from '../utils/errors.js';
 
 export const errorHandler = (
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ) => {
+  const endpoint = req.path || req.originalUrl;
+  const requestContext = {
+    org_id: (req as Request & { user?: { org_id?: number } }).user?.org_id,
+    user_id: (req as Request & { user?: { id?: number } }).user?.id,
+    endpoint,
+  };
+
   // Handle JSON syntax errors from express.json()
   if (err instanceof SyntaxError && 'status' in err && (err as any).status === 400 && 'body' in err) {
     return res.status(400).json({
@@ -19,9 +26,9 @@ export const errorHandler = (
   if (err && (err instanceof AppError || ('statusCode' in err && typeof (err as any).statusCode === 'number'))) {
     const error = err as AppError;
     if (error.statusCode >= 500) {
-      logger.error('App Error [5xx]', { error: error.message, stack: error.stack, details: error.details });
+      logger.error('App Error [5xx]', { ...requestContext, error: error.message, stack: error.stack, details: error.details });
     } else {
-      logger.warn(`App Error [${error.statusCode}]`, { error: error.message, details: error.details });
+      logger.warn(`App Error [${error.statusCode}]`, { ...requestContext, error: error.message, details: error.details });
     }
 
     return res.status(error.statusCode).json({
@@ -41,7 +48,7 @@ export const errorHandler = (
     });
   }
 
-  logger.error('Unhandled System Error', { error: err.message, stack: err.stack });
+  logger.error('Unhandled System Error', { ...requestContext, error: err.message, stack: err.stack });
 
   return res.status(500).json({
     success: false,

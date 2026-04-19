@@ -695,6 +695,12 @@ docker compose --profile monitoring up -d
 - Forged `org_id` values in request bodies are sanitized to the authenticated tenant context before handler execution.
 - Boundary violations are logged as structured security events with `org_id`, `requested_org_id`, `user_id`, `method`, and `path`.
 
+**Org-aware Trace and Log Correlation:**
+- Scraper trigger/resume jobs propagate tenant observability metadata through Redis job `traceContext` (`org_id`, `org_slug`, `user_id`, `endpoint`, `method`, optional `traceparent`).
+- Scraper workers log tenant-aware execution context for queued jobs, enabling cross-service correlation between API logs, worker logs, and queue operations.
+- SSE scraper progress connection lifecycle logs include `org_id`, `user_id`, `endpoint`, and `method` for tenant-specific troubleshooting.
+- Centralized API error logs include request context (`org_id`, `user_id`, `endpoint`, `error`) so Loki filters can isolate tenant incidents quickly.
+
 **JWT Token Scopes:**
 - Superadmin tokens include `scope: 'superadmin'` claim
 - Standard organization tokens include `scope: 'user'` and `orgId`

@@ -108,6 +108,16 @@ export class RedisJobConsumer {
         }
 
         logger.info('[RedisJobConsumer] Received job', { reportId: job.reportId, type: job.type, trigger: job.triggerType });
+        if (job.traceContext) {
+          logger.info('[RedisJobConsumer] Job trace context', {
+            reportId: job.reportId,
+            org_id: job.traceContext.org_id,
+            org_slug: job.traceContext.org_slug,
+            user_id: job.traceContext.user_id,
+            endpoint: job.traceContext.endpoint,
+            method: job.traceContext.method,
+          });
+        }
 
         try {
           await handler(job);
