@@ -1,3 +1,5 @@
 ## 2026-04-08 - Use Promise.all() to run concurrent independent queries
 **Learning:** Found sequential independent database queries in `getScraperStatus` (`server/src/services/system-info.ts`) which unnecessarily block one another, thereby creating a response time bottleneck.
-**Action:** When working on backend queries and system services, always verify that independent queries execute concurrently (using `Promise.all()`) instead of sequentially to optimize application latency.
+**Action:** When working on backend queries and system services, always verify that independent queries execute concurrently (using `Promise.all()`) instead of sequentially to optimize application latency.## 2024-05-15 - Concurrent Pagination Queries Lead to Shared Array Mutation Bug
+**Learning:** When refactoring sequential pagination queries (e.g., `COUNT(*)` and `SELECT ... LIMIT OFFSET`) to run concurrently using `Promise.all`, mutating a shared `params` array with `.push()` (as is often done in sequential execution) creates a race condition that can corrupt the parameterized queries.
+**Action:** Always create a cloned array (e.g., `const dataParams = [...params, limit, offset]`) for the query requiring additional parameters to ensure each concurrent query receives its exact, isolated parameters.
