@@ -129,10 +129,17 @@ export default function CinemaPage() {
   }
 
   if (error || !cinema) {
+    const isForbidden = Boolean(error) && error.toLowerCase().includes('cross-tenant access denied');
+    const errorMessage = error || 'Cinema not found';
+
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-red-800 mb-2">Erreur</h2>
-        <p className="text-red-600">{error || 'Cinema not found'}</p>
+        <h2 className="text-xl font-bold text-red-800 mb-2">{isForbidden ? '403 Forbidden' : 'Erreur'}</h2>
+        {isForbidden ? (
+          <p className="text-red-600" data-testid="403-error-message">{errorMessage}</p>
+        ) : (
+          <p className="text-red-600">{errorMessage}</p>
+        )}
       </div>
     );
   }
