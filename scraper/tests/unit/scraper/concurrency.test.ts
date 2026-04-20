@@ -3,6 +3,7 @@ import { runScraper, type ProgressPublisher } from '../../../src/scraper/index.j
 import { getCinemaConfigs } from '../../../src/db/cinema-queries.js';
 import { getStrategyBySource } from '../../../src/scraper/strategy-factory.js';
 import { RateLimitError } from '../../../src/utils/errors.js';
+import { getScrapeDates } from '../../../src/utils/date.js';
 
 // Mock dependencies
 vi.mock('../../../src/db/client.js', () => ({
@@ -82,6 +83,7 @@ describe('runScraper concurrency', () => {
   });
 
   it('should stop all concurrent processing on RateLimitError', async () => {
+    const [currentDate] = getScrapeDates('from_today_limited', 7);
     const cinemas = [
       { id: 'C1', name: 'Cinema 1', url: 'url1', source: 'allocine' },
       { id: 'C2', name: 'Cinema 2', url: 'url2', source: 'allocine' },
@@ -93,7 +95,7 @@ describe('runScraper concurrency', () => {
     const mockStrategy = {
       sourceName: 'allocine',
       loadTheaterMetadata: vi.fn().mockResolvedValue({ 
-        availableDates: ['2026-04-10'], 
+        availableDates: currentDate ? [currentDate] : [], 
         cinema: { id: 'C', name: 'C' } 
       }),
       scrapeTheater: vi.fn()

@@ -34,7 +34,7 @@ import { createOrgExportRouter } from './org-export.js';
 
 // ── Auth helpers (from server) ───────────────────────────────────────────────
 // @ts-ignore
-import { requireAuth } from '@server/middleware/auth.js';
+import { optionalAuth, requireAuth } from '@server/middleware/auth.js';
 // @ts-ignore
 import { requirePermission } from '@server/middleware/permission.js';
 // @ts-ignore
@@ -59,6 +59,7 @@ const requireOrgAuth = (req: any, res: Response, next: NextFunction) => {
   if (tokenSlug && routeSlug && tokenSlug !== routeSlug) {
     return next(new AuthError('Access denied: organization mismatch', 403));
   }
+
   next();
 };
 
@@ -72,7 +73,7 @@ export function createOrgRouter(): Router {
   // requireAuth verifies valid session
   // authLimiter is used (matching the pattern in server/src/routes/auth.ts)
   // so CodeQL recognises this as a properly rate-limited auth handler (CWE-307).
-  router.use(authLimiter, requireOrgAuth as any);
+  router.use(authLimiter, optionalAuth as any, requireOrgAuth as any);
 
   // ── Health / ping ───────────────────────────────────────────────────────────
   router.get('/ping', protectedLimiter, (req: any, res) => {
@@ -99,6 +100,7 @@ export function createOrgRouter(): Router {
   router.use('/reports', protectedLimiter, reportsRouter);
 
   // ── Scraper ─────────────────────────────────────────────────────────────────
+  router.post('/scraper/trigger', protectedLimiter, requireAuth as any, checkQuota('scrapes') as any);
   router.use('/scraper', protectedLimiter, scraperRouter);
 
   // ── Org Settings ────────────────────────────────────────────────────────────

@@ -60,45 +60,30 @@ describe('saasPlugin', () => {
 
 
   it('includes saas_008_create_default_ics_org.sql in migrations directory', async () => {
-    const path = await import('path');
     const fs = await import('fs/promises');
-    const { fileURLToPath } = await import('url');
+    const { getSaasMigrationDir } = await import('./plugin.js');
 
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const migrationsDir = path.join(__dirname, './migrations');
-
-    const files = await fs.readdir(migrationsDir);
+    const files = await fs.readdir(getSaasMigrationDir());
     const migrationFiles = files.filter((f) => f.endsWith('.sql')).sort();
 
     expect(migrationFiles).toContain('saas_008_create_default_ics_org.sql');
   });
 
   it('includes saas_009_fix_org_settings_fk_cascade.sql in migrations directory', async () => {
-    const path = await import('path');
     const fs = await import('fs/promises');
-    const { fileURLToPath } = await import('url');
+    const { getSaasMigrationDir } = await import('./plugin.js');
 
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const migrationsDir = path.join(__dirname, './migrations');
-
-    const files = await fs.readdir(migrationsDir);
+    const files = await fs.readdir(getSaasMigrationDir());
     const migrationFiles = files.filter((f) => f.endsWith('.sql')).sort();
 
     expect(migrationFiles).toContain('saas_009_fix_org_settings_fk_cascade.sql');
   });
 
   it('includes saas_010_add_fk_indexes.sql in migrations directory', async () => {
-    const path = await import('path');
     const fs = await import('fs/promises');
-    const { fileURLToPath } = await import('url');
+    const { getSaasMigrationDir } = await import('./plugin.js');
 
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const migrationsDir = path.join(__dirname, './migrations');
-
-    const files = await fs.readdir(migrationsDir);
+    const files = await fs.readdir(getSaasMigrationDir());
     const migrationFiles = files.filter((f) => f.endsWith('.sql')).sort();
 
     expect(migrationFiles).toContain('saas_010_add_fk_indexes.sql');

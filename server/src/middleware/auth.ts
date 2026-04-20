@@ -53,3 +53,32 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
         return res.status(401).json(response);
     }
 };
+
+export const optionalAuth = (req: AuthRequest, _res: Response, next: NextFunction): void => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        next();
+        return;
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as {
+            id: number;
+            username: string;
+            role_name: string;
+            is_system_role: boolean;
+            permissions: PermissionName[];
+            org_id?: number;
+            org_slug?: string;
+        };
+        req.user = decoded;
+    } catch {
+        // Public routes under tenant scope must remain accessible even when a client
+        // sends a stale or invalid bearer token; protected routes still enforce auth later.
+    }
+
+    next();
+};
