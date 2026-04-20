@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures/org-fixture';
+import { test, expect, assertFixtureRuntimeWithinLimit } from './fixtures/org-fixture';
 
 const useOrgFixture = process.env['E2E_ENABLE_ORG_FIXTURE'] === 'true';
 
@@ -21,6 +21,7 @@ test.describe('Multi-tenant cinema isolation', () => {
   test.skip(!useOrgFixture, 'Requires fixture-backed SaaS runtime (E2E_ENABLE_ORG_FIXTURE=true)');
 
   test('org A only sees org A cinemas and cannot access org B cinema details', async ({ page, request, seedTestOrg }) => {
+    const startedAt = Date.now();
     const orgA = await seedTestOrg();
     const orgB = await seedTestOrg();
 
@@ -145,5 +146,7 @@ test.describe('Multi-tenant cinema isolation', () => {
     await page.goto(`/org/${orgB.orgSlug}/cinema/${orgBFirstCinemaId}`);
     await expect(page.getByTestId('403-error-message')).toBeVisible();
     await expect(page.getByTestId('403-error-message')).toContainText(/cross-tenant access denied/i);
+
+    assertFixtureRuntimeWithinLimit(startedAt);
   });
 });

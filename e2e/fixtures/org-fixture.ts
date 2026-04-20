@@ -2,6 +2,9 @@ import { test as base, expect, type APIRequestContext, type TestInfo } from '@pl
 import { randomBytes } from 'crypto';
 import { cleanupAllTrackedOrgs, cleanupTestOrgs, registerTestOrg, type DeleteResult } from './org-cleanup';
 
+const DEFAULT_MAX_TEST_DURATION_MS = 120_000;
+const DEFAULT_MAX_CLEANUP_DURATION_MS = 500;
+
 interface SeededOrg {
   orgId: number;
   orgSlug: string;
@@ -17,6 +20,23 @@ type OrgFixtures = {
   seedTestOrg: () => Promise<SeededOrg>;
   autoOrgCleanup: void;
 };
+
+export function assertFixtureRuntimeWithinLimit(startedAt: number, maxDurationMs = DEFAULT_MAX_TEST_DURATION_MS): void {
+  const durationMs = Date.now() - startedAt;
+
+  expect(durationMs, `Expected E2E test to finish within ${maxDurationMs}ms, received ${durationMs}ms`).toBeLessThan(maxDurationMs);
+}
+
+export function assertFixtureCleanupSummary(
+  summary: { failed: number; durationMs: number },
+  maxDurationMs = DEFAULT_MAX_CLEANUP_DURATION_MS,
+): void {
+  expect(summary.failed, 'Expected fixture cleanup to complete without failures').toBe(0);
+  expect(
+    summary.durationMs,
+    `Expected fixture cleanup to finish within ${maxDurationMs}ms, received ${summary.durationMs}ms`,
+  ).toBeLessThan(maxDurationMs);
+}
 
 function buildTestSlug(testInfo: TestInfo): string {
   const worker = `w${testInfo.workerIndex}`;
@@ -80,6 +100,8 @@ export const test = base.extend<OrgFixtures>({
     const summary = await cleanupTestOrgs(testInfo.testId, String(testInfo.workerIndex), {
       deleteOrg: (orgId) => deleteOrg(request, orgId),
     });
+
+    assertFixtureCleanupSummary(summary);
 
     if (summary.failed > 0) {
       console.error('e2e afterEach cleanup failures', {
