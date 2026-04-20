@@ -188,7 +188,7 @@ export default function CinemaPage() {
       </div>
 
       {/* Films List for Selected Date */}
-      <div className="min-h-[300px]">
+      <div className="min-h-[300px]" data-testid="schedule-calendar">
         {filmGroups.length > 0 ? (
           <div className="space-y-6">
             {filmGroups.map(({ film, showtimes }) => (

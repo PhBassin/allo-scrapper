@@ -226,5 +226,19 @@ describe('Routes - Cinemas', () => {
       expect(response.status).toBe(200);
       expect(response.body.data.showtimes).toHaveLength(1);
     });
+
+    it('should reject cross-tenant org-scoped cinema schedule access', async () => {
+      const app = await setupApp({
+        mountPath: '/api/org/:slug/cinemas',
+        injectOrgContext: true,
+        authenticatedOrgId: 1,
+      });
+
+      const response = await request(app).get('/api/org/acme/cinemas/C0099?org_id=2');
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Cross-tenant access denied');
+      expect(mockGetCinemaShowtimes).not.toHaveBeenCalled();
+    });
   });
 });
