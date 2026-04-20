@@ -20,29 +20,30 @@ import { checkQuota } from '../middleware/quota.js';
 // These default-export routers already use getDbFromRequest(req), so they work
 // correctly under /api/org/:slug (req.dbClient set by resolveTenant).
 // @ts-ignore
-import cinemasRouter from '@server/routes/cinemas.js';
+import cinemasRouter from 'allo-scrapper-server/dist/routes/cinemas.js';
 // @ts-ignore
-import filmsRouter from '@server/routes/films.js';
+import filmsRouter from 'allo-scrapper-server/dist/routes/films.js';
 // @ts-ignore
-import reportsRouter from '@server/routes/reports.js';
+import reportsRouter from 'allo-scrapper-server/dist/routes/reports.js';
 // @ts-ignore
-import scraperRouter from '@server/routes/scraper.js';
+import scraperRouter from 'allo-scrapper-server/dist/routes/scraper.js';
 
 // ── SaaS-specific route handlers ────────────────────────────────────────────
 import orgSettingsRouter from './org-settings.js';
 import { createOrgExportRouter } from './org-export.js';
+import { logger } from '../utils/logger.js';
 
 // ── Auth helpers (from server) ───────────────────────────────────────────────
 // @ts-ignore
-import { optionalAuth, requireAuth } from '@server/middleware/auth.js';
+import { optionalAuth, requireAuth } from 'allo-scrapper-server/dist/middleware/auth.js';
 // @ts-ignore
-import { requirePermission } from '@server/middleware/permission.js';
+import { requirePermission } from 'allo-scrapper-server/dist/middleware/permission.js';
 // @ts-ignore
-import { protectedLimiter, authLimiter } from '@server/middleware/rate-limit.js';
+import { protectedLimiter, authLimiter } from 'allo-scrapper-server/dist/middleware/rate-limit.js';
 // @ts-ignore
-import { ValidationError, NotFoundError, AuthError } from '@server/utils/errors.js';
+import { ValidationError, NotFoundError, AuthError } from 'allo-scrapper-server/dist/utils/errors.js';
 // @ts-ignore
-import { validatePasswordStrength } from '@server/utils/security.js';
+import { validatePasswordStrength } from 'allo-scrapper-server/dist/utils/security.js';
 
 // ── Inline org-specific helpers ─────────────────────────────────────────────
 const USERNAME_REGEX = /^[a-zA-Z0-9]{3,15}$/;
@@ -57,6 +58,12 @@ const requireOrgAuth = (req: any, res: Response, next: NextFunction) => {
   const routeSlug = req.params['slug'];
 
   if (tokenSlug && routeSlug && tokenSlug !== routeSlug) {
+    logger.warn('Cross-tenant org route denied', {
+      user_id: req.user?.id,
+      token_org_slug: tokenSlug,
+      requested_org_slug: routeSlug,
+      endpoint: req.path,
+    });
     return next(new AuthError('Access denied: organization mismatch', 403));
   }
 
@@ -185,6 +192,17 @@ export function createOrgRouter(): Router {
         }
         const passwordError = validatePasswordStrength(password);
         if (passwordError) return next(new ValidationError(passwordError));
+
+        const globalDb = req.app.get('db') as { query: (sql: string, params?: unknown[]) => Promise<{ rows: Array<{ id: number }> }> } | undefined;
+        if (!globalDb) throw new Error('Global DB client missing');
+
+        const globalUser = await globalDb.query(
+          'SELECT id FROM users WHERE username = $1',
+          [username]
+        );
+        if (globalUser.rows[0]) {
+          return next(new ValidationError('Username already exists'));
+        }
 
         const roleId = role_id ?? 1;
         const roleCheck = await db.query(

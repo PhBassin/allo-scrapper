@@ -15,6 +15,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
+import { errorHandler } from 'allo-scrapper-server/dist/middleware/error-handler.js';
+
+const { loggerWarnMock, loggerErrorMock } = vi.hoisted(() => ({
+  loggerWarnMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
+}));
+
+vi.mock('allo-scrapper-server/dist/utils/logger.js', () => ({
+  logger: {
+    warn: loggerWarnMock,
+    error: loggerErrorMock,
+    info: vi.fn(),
+  },
+}));
 
 // The same secret configured in vitest.config.ts env
 const TEST_JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
@@ -83,6 +97,8 @@ function buildApp(
   // Mint a real JWT so requireAuth can verify it from the Authorization header
   const token = jwtUser ? mintToken(jwtUser) : undefined;
 
+  app.use(errorHandler);
+
   return { app, pool, dbClient, db, org, token };
 }
 
@@ -93,6 +109,7 @@ describe('GET /api/org/:slug/ping', () => {
     const { app } = buildApp('acme', 'active');
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
+    app.use(errorHandler);
 
     const res = await request(app).get('/api/org/acme/ping');
     expect(res.status).toBe(200);
@@ -104,6 +121,7 @@ describe('GET /api/org/:slug/ping', () => {
     const { app } = buildApp('acme', 'active');
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
+    app.use(errorHandler);
 
     const res = await request(app)
       .get('/api/org/acme/ping')
@@ -423,6 +441,74 @@ describe('POST /api/org/:slug/users — quota guard', () => {
     expect(res.status).toBe(402);
     expect(res.body.error).toBe('QUOTA_EXCEEDED');
     expect(res.body.resource).toBe('users');
+  });
+
+  it('returns 400 when the username already exists in the global user table', async () => {
+    const jwtUser = {
+      id: 1, username: 'admin', role_name: 'admin',
+      is_system_role: true, permissions: ['users:create'], org_slug: 'acme',
+    };
+    const { app, db, dbClient, token } = buildApp('acme', 'active', [], jwtUser);
+
+    dbClient.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'free', max_cinemas: 3, max_users: 5, max_scrapes_per_day: 10 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 1, org_id: 1, month: '2026-04-01', cinemas_count: 0, users_count: 0, scrapes_count: 0, api_calls_count: 0 }], rowCount: 1 });
+
+    db.query = vi.fn().mockResolvedValue({
+      rows: [{ id: 77, username: 'shareduser' }],
+      rowCount: 1,
+    });
+
+    const { createOrgRouter } = await import('./org.js');
+    app.use('/api/org/:slug', createOrgRouter());
+    app.use(errorHandler);
+
+    const res = await request(app)
+      .post('/api/org/acme/users')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ username: 'shareduser', password: 'Passw0rd!', role_id: 1 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error ?? res.body.message).toBe('Username already exists');
+    expect(db.query).toHaveBeenCalled();
+  });
+});
+
+describe('tenant user mutation isolation', () => {
+  it('returns 403 when org A token is used against org B update route', async () => {
+    const jwtUser = {
+      id: 1, username: 'admin-a', role_name: 'admin',
+      is_system_role: true, permissions: ['users:update'], org_slug: 'org-a',
+    };
+    const { app, token } = buildApp('org-b', 'active', [], jwtUser);
+
+    const { createOrgRouter } = await import('./org.js');
+    app.use('/api/org/:slug', createOrgRouter());
+
+    const res = await request(app)
+      .put('/api/org/org-b/users/999')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ role_id: 1 });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 403 when org A token is used against org B delete route', async () => {
+    const jwtUser = {
+      id: 1, username: 'admin-a', role_name: 'admin',
+      is_system_role: true, permissions: ['users:delete'], org_slug: 'org-a',
+    };
+    const { app, token } = buildApp('org-b', 'active', [], jwtUser);
+
+    const { createOrgRouter } = await import('./org.js');
+    app.use('/api/org/:slug', createOrgRouter());
+
+    const res = await request(app)
+      .delete('/api/org/org-b/users/999')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
   });
 });
 

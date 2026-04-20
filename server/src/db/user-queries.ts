@@ -12,6 +12,18 @@ export interface UserRow {
   role_name: string;
   is_system_role: boolean;
   created_at: string;
+  org_id?: number;
+  org_slug?: string;
+}
+
+interface OrganizationRow {
+  id: number;
+  slug: string;
+  schema_name: string;
+}
+
+function quoteIdentifier(identifier: string): string {
+  return `"${identifier.replace(/"/g, '""')}"`;
 }
 
 /**
@@ -129,6 +141,45 @@ export async function getUserByUsername(db: DB, username: string): Promise<UserR
     [username]
   );
   return result.rows[0];
+}
+
+export async function getTenantUserByUsername(db: DB, username: string): Promise<UserRow | undefined> {
+  const orgsResult = await db.query<OrganizationRow>(
+    'SELECT id, slug, schema_name FROM organizations ORDER BY id'
+  );
+
+  for (const org of orgsResult.rows) {
+    const schemaName = quoteIdentifier(org.schema_name);
+
+    try {
+      const result = await db.query<UserRow>(
+        `SELECT u.id, u.username, u.password_hash, u.role_id,
+                r.name AS role_name, r.is_system AS is_system_role, u.created_at,
+                $2::integer AS org_id, $3::text AS org_slug
+         FROM ${schemaName}.users u
+         JOIN ${schemaName}.roles r ON r.id = u.role_id
+         WHERE u.username = $1`,
+        [username, org.id, org.slug]
+      );
+
+      if (result.rows[0]) {
+        return result.rows[0];
+      }
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === '42P01') {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  return undefined;
+}
+
+export async function hasTenantUserWithUsername(db: DB, username: string): Promise<boolean> {
+  const tenantUser = await getTenantUserByUsername(db, username);
+  return Boolean(tenantUser);
 }
 
 /**
