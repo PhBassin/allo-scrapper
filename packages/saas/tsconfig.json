@@ -11,7 +11,8 @@
     "rootDir": "../../",
     "ignoreDeprecations": "6.0",
     "paths": {
-      "@server/*": ["../../server/src/*"]
+      "@server/*": ["../../server/src/*"],
+      "allo-scrapper-server/dist/*": ["../../server/src/*"]
     },
     "strict": true,
     "esModuleInterop": true,
