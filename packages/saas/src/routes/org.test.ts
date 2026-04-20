@@ -100,6 +100,19 @@ describe('GET /api/org/:slug/ping', () => {
     expect(res.body.org.slug).toBe('acme');
   });
 
+  it('remains public when a stale bearer token is sent', async () => {
+    const { app } = buildApp('acme', 'active');
+    const { createOrgRouter } = await import('./org.js');
+    app.use('/api/org/:slug', createOrgRouter());
+
+    const res = await request(app)
+      .get('/api/org/acme/ping')
+      .set('Authorization', 'Bearer stale.invalid.token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
   it('returns 200 with org info for trial org', async () => {
     const { app } = buildApp('acme', 'trial');
     const { createOrgRouter } = await import('./org.js');
@@ -156,7 +169,8 @@ describe('requireOrgAuth', () => {
       .get('/api/org/acme/cinemas')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(403);
-    expect(res.body.error).toMatch(/token does not match/i);
+    const errorText = [res.body?.error, res.body?.message, res.text].filter((value): value is string => typeof value === 'string').join(' ');
+    expect(errorText).toMatch(/organization mismatch/i);
   });
 
   it('passes through when JWT org_slug matches route slug', async () => {
@@ -205,18 +219,20 @@ describe('GET /api/org/:slug/cinemas', () => {
   it('returns 200 and uses the scoped dbClient', async () => {
     const jwtUser = {
       id: 1, username: 'admin', role_name: 'admin',
-      is_system_role: true, permissions: [], org_slug: 'acme',
+      is_system_role: true, permissions: ['cinemas:read'], org_slug: 'acme',
     };
     const cinemas = [{ id: 'C001', name: 'Acme Cinéma', city: 'Paris' }];
-    const { app, dbClient, db } = buildApp('acme', 'active', cinemas, jwtUser);
+    const { app, dbClient, db, token } = buildApp('acme', 'active', cinemas, jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
-    // GET /cinemas does not require auth
-    const res = await request(app).get('/api/org/acme/cinemas');
+    const res = await request(app)
+      .get('/api/org/acme/cinemas')
+      .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     // The scoped client must have been queried (not the global db)
     expect(dbClient.query).toHaveBeenCalled();
+    expect(db.query).not.toHaveBeenCalled();
   });
 });
 
@@ -416,11 +432,11 @@ describe('tenant isolation', () => {
   it('org A and org B use separate dbClients — queries do not cross', async () => {
     const jwtUserA = {
       id: 1, username: 'admin-a', role_name: 'admin',
-      is_system_role: true, permissions: [], org_slug: 'org-a',
+      is_system_role: true, permissions: ['cinemas:read'], org_slug: 'org-a',
     };
     const jwtUserB = {
       id: 2, username: 'admin-b', role_name: 'admin',
-      is_system_role: true, permissions: [], org_slug: 'org-b',
+      is_system_role: true, permissions: ['cinemas:read'], org_slug: 'org-b',
     };
 
     const cinemasA = [{ id: 'CA01', name: 'Cinema A' }];
@@ -433,9 +449,12 @@ describe('tenant isolation', () => {
     appA.use('/api/org/:slug', createOrgRouter());
     appB.use('/api/org/:slug', createOrgRouter());
 
-    // GET /cinemas does not require auth — tokens not needed here, but we pass them for realism
-    const resA = await request(appA).get('/api/org/org-a/cinemas');
-    const resB = await request(appB).get('/api/org/org-b/cinemas');
+    const resA = await request(appA)
+      .get('/api/org/org-a/cinemas')
+      .set('Authorization', `Bearer ${tokenA}`);
+    const resB = await request(appB)
+      .get('/api/org/org-b/cinemas')
+      .set('Authorization', `Bearer ${tokenB}`);
 
     expect(resA.status).toBe(200);
     expect(resB.status).toBe(200);
