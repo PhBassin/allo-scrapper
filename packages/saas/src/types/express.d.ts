@@ -1,5 +1,5 @@
 import { Organization, PoolClient } from '../db/types.js';
-import type { PermissionName } from '@server/types/role.js';
+import type { PermissionName } from 'allo-scrapper-server/dist/types/role.js';
 
 declare global {
   namespace Express {
@@ -19,7 +19,7 @@ declare global {
   }
 }
 
-declare module '@server/middleware/auth.js' {
+declare module 'allo-scrapper-server/dist/middleware/auth.js' {
   export interface AuthRequest extends Express.Request {
     org?: Organization;
     dbClient?: PoolClient;

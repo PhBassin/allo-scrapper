@@ -130,6 +130,13 @@ describe('UsersPage', () => {
   });
 
   describe('User List Display', () => {
+    it('should expose stable table test id for tenant isolation assertions', async () => {
+      renderWithAuth(<UsersPage />);
+
+      const table = await screen.findByTestId('user-management-table');
+      expect(table).toBeInTheDocument();
+    });
+
     it('should display user table with correct columns', async () => {
       renderWithAuth(<UsersPage />);
 

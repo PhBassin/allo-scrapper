@@ -12,6 +12,7 @@ import {
   updateUserRole,
   deleteUser,
   getAdminCount,
+  hasTenantUserWithUsername,
   generateRandomPassword,
 } from '../db/user-queries.js';
 import bcrypt from 'bcryptjs';
@@ -149,6 +150,10 @@ router.post(
       const passwordError = validatePasswordStrength(password);
       if (passwordError) {
         return next(new ValidationError(passwordError));
+      }
+
+      if (await hasTenantUserWithUsername(db, username)) {
+        return next(new ValidationError('Username already exists'));
       }
 
       // Validate role_id (required)

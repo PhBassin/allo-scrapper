@@ -20,6 +20,21 @@ services:
     networks:
       - allo-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: allo-scrapper-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - allo-network
+
   # Backend server in development mode with hot reload
   server:
     image: node:20-alpine
@@ -35,19 +50,26 @@ services:
     ports:
       - "${SERVER_PORT:-3000}:3000"
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-ics}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      REDIS_URL: redis://redis:6379
       PORT: 3000
       TZ: ${TZ:-Europe/Paris}
       SCRAPE_CRON_SCHEDULE: ${SCRAPE_CRON_SCHEDULE:-0 8 * * 3}
       SCRAPE_DELAY_MS: ${SCRAPE_DELAY_MS:-1000}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
+      JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      SAAS_ENABLED: ${SAAS_ENABLED:-false}
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -69,6 +91,7 @@ services:
       - "${CLIENT_PORT:-5173}:5173"
     environment:
       VITE_API_BASE_URL: http://localhost:${SERVER_PORT:-3000}/api
+      VITE_PROXY_TARGET: http://server:3000
     restart: unless-stopped
     networks:
       - allo-network

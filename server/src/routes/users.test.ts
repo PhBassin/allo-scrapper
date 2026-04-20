@@ -85,6 +85,7 @@ describe('User Management Routes', () => {
     app.use('/api/users', usersRouter);
     app.use(errorHandler);
     vi.clearAllMocks();
+    vi.mocked(userQueries.hasTenantUserWithUsername).mockResolvedValue(false);
   });
 
   describe('GET /api/users', () => {
@@ -355,6 +356,24 @@ describe('User Management Routes', () => {
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBe('Username already exists');
+    });
+
+    it('should reject usernames that already exist in a tenant schema', async () => {
+      vi.mocked(userQueries.hasTenantUserWithUsername).mockResolvedValue(true);
+
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({
+          username: 'shareduser',
+          password: 'Test1234!',
+          role_id: '1',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Username already exists');
+      expect(db.query).not.toHaveBeenCalled();
     });
 
     it('should validate password is required', async () => {

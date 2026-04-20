@@ -1,6 +1,6 @@
 # Story 1.3: E2E Multi-Tenant Cinema Isolation Test
 
-Status: review
+Status: done
 
 ## Story
 

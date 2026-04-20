@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { getUserByUsername, createUser, updateUserPassword } from '../db/user-queries.js';
+import { getUserByUsername, getTenantUserByUsername, hasTenantUserWithUsername, createUser, updateUserPassword } from '../db/user-queries.js';
 import { getPermissionNamesByRoleId } from '../db/role-queries.js';
 import type { DB } from '../db/client.js';
 import { validatePasswordStrength } from '../utils/security.js';
@@ -20,9 +20,15 @@ export class AuthService {
       throw new Error('Username and password are required');
     }
 
-    const user = await getUserByUsername(this.db, username);
-    const hashToCompare = user ? user.password_hash : DUMMY_HASH;
-    const isMatch = await bcrypt.compare(password, hashToCompare);
+    const globalUser = await getUserByUsername(this.db, username);
+    const isGlobalMatch = await bcrypt.compare(password, globalUser?.password_hash ?? DUMMY_HASH);
+
+    const user = globalUser && isGlobalMatch
+      ? globalUser
+      : await getTenantUserByUsername(this.db, username);
+    const isMatch = globalUser && isGlobalMatch
+      ? true
+      : await bcrypt.compare(password, user?.password_hash ?? DUMMY_HASH);
 
     if (!user || !isMatch) {
       throw new Error('Invalid credentials');
@@ -45,8 +51,16 @@ export class AuthService {
     };
 
     // System admins (is_system_role=true AND role_name='admin') get superadmin scope
-    if (user.is_system_role && user.role_name === 'admin') {
+    if (!user.org_slug && user.is_system_role && user.role_name === 'admin') {
       payload.scope = 'superadmin';
+    }
+
+    if (user.org_id) {
+      payload.org_id = user.org_id;
+    }
+
+    if (user.org_slug) {
+      payload.org_slug = user.org_slug;
     }
 
     const token = jwt.sign(payload, secret, { expiresIn: expiresIn as any });
@@ -60,6 +74,7 @@ export class AuthService {
         role_name: user.role_name,
         is_system_role: user.is_system_role,
         permissions,
+        org_slug: user.org_slug,
       },
     };
   }
@@ -76,6 +91,10 @@ export class AuthService {
 
     const existingUser = await getUserByUsername(this.db, username);
     if (existingUser) {
+      throw new Error('Username already exists');
+    }
+
+    if (await hasTenantUserWithUsername(this.db, username)) {
       throw new Error('Username already exists');
     }
 

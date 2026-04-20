@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { 
   getUsers, 
   getUserById, 
@@ -14,8 +14,17 @@ import apiClient from './client';
 vi.mock('./client');
 
 describe('Users API Client', () => {
+  const originalLocation = window.location;
+
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
   });
 
   describe('getUsers', () => {
@@ -77,6 +86,27 @@ describe('Users API Client', () => {
       });
 
       await expect(getUsers()).rejects.toThrow('Failed to fetch users');
+    });
+
+    it('should use org-scoped users endpoint when browsing a tenant admin route', async () => {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: {
+          ...originalLocation,
+          pathname: '/org/acme/admin',
+        },
+      });
+
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: [],
+        },
+      });
+
+      await getUsers();
+
+      expect(apiClient.get).toHaveBeenCalledWith('/org/acme/users', { params: {} });
     });
   });
 
@@ -257,6 +287,33 @@ describe('Users API Client', () => {
 
       await expect(updateUserRole(999, 1)).rejects.toThrow('User not found');
     });
+
+    it('should use org-scoped update endpoint when browsing a tenant admin route', async () => {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: {
+          ...originalLocation,
+          pathname: '/org/acme/admin',
+        },
+      });
+
+      vi.mocked(apiClient.put).mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: {
+            id: 2,
+            username: 'user1',
+            role_id: 1,
+            role_name: 'admin',
+            created_at: '2024-01-02T00:00:00Z',
+          },
+        },
+      });
+
+      await updateUserRole(2, 1);
+
+      expect(apiClient.put).toHaveBeenCalledWith('/org/acme/users/2', { role_id: 1 });
+    });
   });
 
   describe('resetUserPassword', () => {
@@ -342,6 +399,26 @@ describe('Users API Client', () => {
       });
 
       await expect(deleteUser(999)).rejects.toThrow('User not found');
+    });
+
+    it('should use org-scoped delete endpoint when browsing a tenant admin route', async () => {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: {
+          ...originalLocation,
+          pathname: '/org/acme/admin',
+        },
+      });
+
+      vi.mocked(apiClient.delete).mockResolvedValueOnce({
+        data: {
+          success: true,
+        },
+      });
+
+      await deleteUser(2);
+
+      expect(apiClient.delete).toHaveBeenCalledWith('/org/acme/users/2');
     });
   });
 });

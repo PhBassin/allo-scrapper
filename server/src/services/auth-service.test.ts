@@ -20,7 +20,7 @@ describe('AuthService', () => {
   const mockDb = {} as DB;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     vi.mocked(validatePasswordStrength).mockReturnValue(null);
     authService = new AuthService(mockDb);
     process.env.JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
@@ -34,6 +34,7 @@ describe('AuthService', () => {
 
     it('should throw error if user not found', async () => {
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue(undefined);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue(undefined);
       vi.mocked(bcrypt.compare).mockResolvedValue(false);
 
       await expect(authService.login('unknown', 'password')).rejects.toThrow('Invalid credentials');
@@ -41,6 +42,7 @@ describe('AuthService', () => {
 
     it('should throw error if password does not match', async () => {
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue({ id: 1, password_hash: 'hash' } as any);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue(undefined);
       vi.mocked(bcrypt.compare).mockResolvedValue(false);
 
       await expect(authService.login('user', 'wrong')).rejects.toThrow('Invalid credentials');
@@ -49,6 +51,7 @@ describe('AuthService', () => {
     it('should throw error if JWT_SECRET is missing', async () => {
       delete process.env.JWT_SECRET;
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue({ id: 1, password_hash: 'hash', role_id: 1 } as any);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue(undefined);
       vi.mocked(bcrypt.compare).mockResolvedValue(true);
       vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:read'] as any);
 
@@ -58,6 +61,7 @@ describe('AuthService', () => {
     it('should return token and user on success', async () => {
       const mockUser = { id: 1, username: 'user', role_id: 1, role_name: 'admin', is_system_role: true, password_hash: 'hash' };
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockUser as any);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue(undefined);
       vi.mocked(bcrypt.compare).mockResolvedValue(true);
       vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:read'] as any);
       vi.mocked(jwt.sign).mockReturnValue('mock-token' as any);
@@ -79,6 +83,7 @@ describe('AuthService', () => {
         password_hash: 'hash'
       };
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockSystemAdmin as any);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue(undefined);
       vi.mocked(bcrypt.compare).mockResolvedValue(true);
       vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:read'] as any);
       vi.mocked(jwt.sign).mockReturnValue('mock-token' as any);
@@ -109,6 +114,7 @@ describe('AuthService', () => {
         password_hash: 'hash'
       };
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockRegularAdmin as any);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue(undefined);
       vi.mocked(bcrypt.compare).mockResolvedValue(true);
       vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:read'] as any);
       vi.mocked(jwt.sign).mockReturnValue('mock-token' as any);
@@ -135,6 +141,7 @@ describe('AuthService', () => {
         password_hash: 'hash'
       };
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockSystemUser as any);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue(undefined);
       vi.mocked(bcrypt.compare).mockResolvedValue(true);
       vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['schedules:read'] as any);
       vi.mocked(jwt.sign).mockReturnValue('mock-token' as any);
@@ -145,6 +152,132 @@ describe('AuthService', () => {
       expect(jwt.sign).toHaveBeenCalledWith(
         expect.not.objectContaining({
           scope: expect.anything(),
+        }),
+        expect.any(String),
+        expect.any(Object)
+      );
+    });
+
+    it('should authenticate tenant users with org context and without superadmin scope', async () => {
+      const mockTenantUser = {
+        id: 9,
+        username: 'tenant-admin@test.local',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+        password_hash: 'hash',
+        org_id: 42,
+        org_slug: 'acme',
+      };
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(undefined);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue(mockTenantUser as any);
+      vi.mocked(bcrypt.compare).mockResolvedValue(true);
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:list'] as any);
+      vi.mocked(jwt.sign).mockReturnValue('tenant-token' as any);
+
+      const result = await authService.login('tenant-admin@test.local', 'password');
+
+      expect(result.token).toBe('tenant-token');
+      expect(result.user.org_slug).toBe('acme');
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          org_id: 42,
+          org_slug: 'acme',
+        }),
+        expect.any(String),
+        expect.any(Object)
+      );
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          scope: expect.anything(),
+        }),
+        expect.any(String),
+        expect.any(Object)
+      );
+    });
+
+    it('should prefer the global user when both global and tenant usernames match', async () => {
+      const mockGlobalUser = {
+        id: 1,
+        username: 'admin',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+        password_hash: 'global-hash',
+      };
+      const mockTenantUser = {
+        id: 9,
+        username: 'admin',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+        password_hash: 'tenant-hash',
+        org_id: 42,
+        org_slug: 'acme',
+      };
+
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockGlobalUser as any);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue(mockTenantUser as any);
+      vi.mocked(bcrypt.compare)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:read'] as any);
+      vi.mocked(jwt.sign).mockReturnValue('global-token' as any);
+
+      const result = await authService.login('admin', 'password');
+
+      expect(result.token).toBe('global-token');
+      expect(result.user.org_slug).toBeUndefined();
+      expect(userQueries.getTenantUserByUsername).not.toHaveBeenCalled();
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          username: 'admin',
+          scope: 'superadmin',
+        }),
+        expect.any(String),
+        expect.any(Object)
+      );
+    });
+
+    it('should fall back to the tenant user when the global username exists with a different password', async () => {
+      const mockGlobalUser = {
+        id: 1,
+        username: 'shared-user',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+        password_hash: 'global-hash',
+      };
+      const mockTenantUser = {
+        id: 9,
+        username: 'shared-user',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+        password_hash: 'tenant-hash',
+        org_id: 42,
+        org_slug: 'acme',
+      };
+
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockGlobalUser as any);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue(mockTenantUser as any);
+      vi.mocked(bcrypt.compare)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:list'] as any);
+      vi.mocked(jwt.sign).mockReturnValue('tenant-token' as any);
+
+      const result = await authService.login('shared-user', 'password');
+
+      expect(result.token).toBe('tenant-token');
+      expect(result.user.org_slug).toBe('acme');
+      expect(userQueries.getTenantUserByUsername).toHaveBeenCalledWith(mockDb, 'shared-user');
+      expect(bcrypt.compare).toHaveBeenNthCalledWith(1, 'password', 'global-hash');
+      expect(bcrypt.compare).toHaveBeenNthCalledWith(2, 'password', 'tenant-hash');
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          username: 'shared-user',
+          org_slug: 'acme',
         }),
         expect.any(String),
         expect.any(Object)
@@ -162,8 +295,18 @@ describe('AuthService', () => {
       await expect(authService.register('exists', 'password')).rejects.toThrow('Username already exists');
     });
 
+    it('should throw error if username already exists in a tenant schema', async () => {
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(undefined);
+      vi.mocked(userQueries.hasTenantUserWithUsername).mockResolvedValue(true);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue({ id: 9, org_slug: 'acme' } as any);
+
+      await expect(authService.register('shareduser', 'password')).rejects.toThrow('Username already exists');
+    });
+
     it('should return created user on success', async () => {
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue(undefined);
+      vi.mocked(userQueries.hasTenantUserWithUsername).mockResolvedValue(false);
+      vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue(undefined);
       vi.mocked(bcrypt.genSalt).mockResolvedValue('salt' as any);
       vi.mocked(bcrypt.hash).mockResolvedValue('hash' as any);
       vi.mocked(userQueries.createUser).mockResolvedValue({ id: 2, username: 'new', role_id: 2, role_name: 'user' } as any);

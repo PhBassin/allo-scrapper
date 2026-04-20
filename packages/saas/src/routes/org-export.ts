@@ -4,7 +4,7 @@
  */
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import type { DB } from '../db/types.js';
-import { AuthError } from '@server/utils/errors.js';
+import { AuthError } from 'allo-scrapper-server/dist/utils/errors.js';
 
 // Request augmentation moved to db/types.ts to avoid conflicts across middlewares
 
