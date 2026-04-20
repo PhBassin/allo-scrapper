@@ -1,6 +1,15 @@
 import apiClient from './client';
 import type { ApiResponse } from '../types';
 
+function getUsersBasePath(): string {
+  const match = window.location.pathname.match(/^\/org\/([^/]+)/);
+  if (!match?.[1]) {
+    return '/users';
+  }
+
+  return `/org/${encodeURIComponent(match[1])}/users`;
+}
+
 // ============================================================================
 // USER TYPES
 // ============================================================================
@@ -41,7 +50,7 @@ export async function getUsers(params?: {
   limit?: number;
   offset?: number
 }): Promise<UserPublic[]> {
-  const response = await apiClient.get<ApiResponse<UserPublic[]>>('/users', {
+  const response = await apiClient.get<ApiResponse<UserPublic[]>>(getUsersBasePath(), {
     params: params || {},
   });
 
@@ -58,7 +67,7 @@ export async function getUsers(params?: {
  * @returns User without password hash
  */
 export async function getUserById(id: number): Promise<UserPublic> {
-  const response = await apiClient.get<ApiResponse<UserPublic>>(`/users/${id}`);
+  const response = await apiClient.get<ApiResponse<UserPublic>>(`${getUsersBasePath()}/${id}`);
 
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch user');
@@ -73,7 +82,7 @@ export async function getUserById(id: number): Promise<UserPublic> {
  * @returns Created user without password hash
  */
 export async function createUser(data: UserCreate): Promise<UserPublic> {
-  const response = await apiClient.post<ApiResponse<UserPublic>>('/users', data);
+  const response = await apiClient.post<ApiResponse<UserPublic>>(getUsersBasePath(), data);
 
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to create user');
@@ -89,7 +98,11 @@ export async function createUser(data: UserCreate): Promise<UserPublic> {
  * @returns Updated user
  */
 export async function updateUserRole(id: number, roleId: number): Promise<UserPublic> {
-  const response = await apiClient.put<ApiResponse<UserPublic>>(`/users/${id}/role`, { role_id: roleId });
+  const basePath = getUsersBasePath();
+  const isTenantScoped = basePath !== '/users';
+  const endpoint = isTenantScoped ? `${basePath}/${id}` : `${basePath}/${id}/role`;
+
+  const response = await apiClient.put<ApiResponse<UserPublic>>(endpoint, { role_id: roleId });
 
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to update user role');
@@ -105,7 +118,11 @@ export async function updateUserRole(id: number, roleId: number): Promise<UserPu
  * @returns User and new password (must be shown to admin immediately)
  */
 export async function resetUserPassword(id: number): Promise<PasswordResetResult> {
-  const response = await apiClient.post<ApiResponse<PasswordResetResult>>(`/users/${id}/reset-password`);
+  const basePath = getUsersBasePath();
+  const isTenantScoped = basePath !== '/users';
+  const endpoint = isTenantScoped ? `${basePath}/${id}/change-password` : `${basePath}/${id}/reset-password`;
+
+  const response = await apiClient.post<ApiResponse<PasswordResetResult>>(endpoint);
 
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to reset password');
@@ -122,7 +139,7 @@ export async function resetUserPassword(id: number): Promise<PasswordResetResult
  * @param id User ID
  */
 export async function deleteUser(id: number): Promise<void> {
-  const response = await apiClient.delete<ApiResponse<void>>(`/users/${id}`);
+  const response = await apiClient.delete<ApiResponse<void>>(`${getUsersBasePath()}/${id}`);
 
   if (!response.data.success) {
     throw new Error(response.data.error || 'Failed to delete user');
