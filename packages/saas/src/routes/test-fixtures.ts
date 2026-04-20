@@ -61,12 +61,30 @@ async function seedTenantData(
     await client.query('BEGIN');
     await client.query(`SET LOCAL search_path TO ${schemaIdentifier}, public`);
 
+    const fixtureRoleResult = await client.query<{ id: number }>(
+      `SELECT id
+         FROM roles
+        WHERE name <> 'admin'
+        ORDER BY CASE name
+          WHEN 'viewer' THEN 1
+          WHEN 'operator' THEN 2
+          WHEN 'editor' THEN 3
+          ELSE 99
+        END,
+        id
+        LIMIT 1`
+    );
+    const fixtureRoleId = fixtureRoleResult.rows[0]?.id;
+    if (!fixtureRoleId) {
+      throw new Error('No non-admin role found in tenant schema');
+    }
+
     const viewerPassword = await bcrypt.hash(buildDefaultPassword(), 10);
     await client.query(
       `INSERT INTO users (username, password_hash, role_id)
-       VALUES ($1, $2, 3)
+       VALUES ($1, $2, $3)
        ON CONFLICT (username) DO NOTHING`,
-      [`viewer-${slug}@test.local`, viewerPassword]
+      [`viewer-${slug}@test.local`, viewerPassword, fixtureRoleId]
     );
 
     const cinemas = [1, 2, 3].map((index) => ({

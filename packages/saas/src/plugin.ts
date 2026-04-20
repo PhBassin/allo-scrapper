@@ -37,7 +37,7 @@ export const saasPlugin: AppPlugin = {
     // Self-bootstrap: run SaaS-specific DB migrations before mounting routes.
     // The dynamic import resolves at runtime inside the server process.
     // @ts-ignore — cross-rootDir import is intentional; this runs inside server
-    const migrationsModule = await import('../../../server/src/db/migrations.js') as { runMigrations: (db: unknown, dirs: string[]) => Promise<void> };
+    const migrationsModule = await import('allo-scrapper-server/dist/db/migrations.js') as { runMigrations: (db: unknown, dirs: string[]) => Promise<void> };
     await migrationsModule.runMigrations(options.db, [getSaasMigrationDir()]);
 
     // Start monthly quota reset scheduler (runs daily at midnight UTC)
@@ -90,5 +90,5 @@ export function getSaasMigrationDir(): string {
   const isProduction = process.env['NODE_ENV'] === 'production';
   return isProduction
     ? path.join('/app', 'packages', 'saas', 'migrations')
-    : path.join(__dirname, '../migrations');
+    : path.join(__dirname, '../../../../migrations');
 }

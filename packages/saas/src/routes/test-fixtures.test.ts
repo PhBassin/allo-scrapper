@@ -27,6 +27,9 @@ function buildApp(db: DB, pool: Pool) {
 function createMockPoolClient() {
   const callBySql = new Map<string, number>();
   const query = vi.fn().mockImplementation((sql: string) => {
+    if (sql.includes('SELECT id') && sql.includes('FROM roles') && sql.includes("name <> 'admin'")) {
+      return Promise.resolve({ rows: [{ id: 3 }], rowCount: 1 });
+    }
     if (sql.includes('SELECT COUNT(*)::text AS count FROM users')) {
       return Promise.resolve({ rows: [{ count: '2' }], rowCount: 1 });
     }

@@ -20,7 +20,7 @@ function getOrgSchemaBootstrapDir(): string {
   const isProduction = process.env['NODE_ENV'] === 'production';
   return isProduction
     ? path.join('/app', 'packages', 'saas', 'migrations', 'org_schema')
-    : path.join(__dirname, '../../migrations/org_schema');
+    : path.join(__dirname, '../../../../../migrations/org_schema');
 }
 
 /**
