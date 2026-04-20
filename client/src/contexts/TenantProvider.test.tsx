@@ -72,4 +72,22 @@ describe('TenantProvider', () => {
       expect(screen.getByText('Organization not found.')).toBeInTheDocument();
     });
   });
+
+  it('renders 403 screen when ping fails with org access denied', async () => {
+    const error = Object.assign(new Error('Access denied: organization mismatch'), {
+      response: {
+        status: 403,
+        data: { error: 'Access denied: organization mismatch' },
+      },
+    });
+    vi.mocked(pingOrg).mockRejectedValue(error);
+
+    renderWithSlug('other-org', <ContextInspector />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('403-error-message')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('403-error-message')).toHaveTextContent(/organization mismatch/i);
+  });
 });

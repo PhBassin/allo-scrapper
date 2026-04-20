@@ -244,9 +244,6 @@ export function createApp() {
     }
   });
 
-  // Error handler (registered early, but will catch errors from all routes including plugins)
-  app.use(errorHandler);
-
   return app;
 }
 
@@ -255,6 +252,10 @@ export function createApp() {
  * MUST be called after applyPlugins() to avoid catching plugin routes.
  */
 export function registerFallbackHandlers(app: Express): void {
+  // Error handler must be registered after plugins so plugin-route errors keep the
+  // shared JSON API contract instead of falling through to Express' HTML handler.
+  app.use(errorHandler);
+
   // 404 handler for API routes (must be AFTER plugin routes, BEFORE SPA fallback)
   app.use(/^\/api(?:\/(.*))?$/, (_req, res) => {
     res.status(404).json({

@@ -66,6 +66,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       SAAS_ENABLED: ${SAAS_ENABLED:-false}
+      E2E_ENABLE_ORG_FIXTURE: ${E2E_ENABLE_ORG_FIXTURE:-false}
     depends_on:
       db:
         condition: service_healthy

@@ -1,6 +1,6 @@
 # Story 1.5: E2E Multi-Tenant Schedule Isolation Test
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -50,22 +50,22 @@ so that users cannot view screening schedules from other organizations.
   - [x] Do not invent a new `/api/schedules?cinema_id=...` contract unless the smallest correct fix genuinely requires one; prefer locking tests to the real schedule-fetch path already used by the tenant UI
   - [x] If acceptance-criteria wording and real route topology diverge, codify the chosen tenant-scoped contract in route tests before relying on it in Playwright
 
-- [ ] Implement tenant-authenticated schedule-page assertions for org A (AC: 1)
+- [x] Implement tenant-authenticated schedule-page assertions for org A (AC: 1)
   - [x] Log in with org A admin credentials returned by the fixture seed, not legacy global credentials
   - [x] Navigate to the real tenant route shape for a cinema schedule page under org A
   - [x] Add `data-testid="schedule-calendar"` to the actual schedule/showtime container if it does not already exist
-  - [ ] Assert org A schedule content is visible and org B schedule content is absent in the rendered calendar view
+  - [x] Assert org A schedule content is visible and org B schedule content is absent in the rendered calendar view
 
-- [ ] Validate API-level denial for cross-tenant schedule access (AC: 2)
+- [x] Validate API-level denial for cross-tenant schedule access (AC: 2)
   - [x] Trigger the tenant-scoped schedule fetch for an org B cinema while authenticated as org A
   - [x] Assert the request receives `403` rather than a silent success or incidental `404`
   - [x] Assert no org B schedule payload is returned on the denied request
   - [x] Assert the denial is API-driven, not only a client-side guard or hidden navigation path
 
-- [ ] Validate network payload isolation for the schedule page (AC: 3)
+- [x] Validate network payload isolation for the schedule page (AC: 3)
   - [x] Capture the actual schedule API response used by the org A cinema page session
-  - [ ] Add a negative assertion that known org B cinema identifiers and showtime data are absent from the org A payload
-  - [ ] If the current payload does not expose explicit tenant identity fields, add the minimal stable response metadata or alternate negative assertions needed to prove org-A-only scope without broad API redesign
+  - [x] Add a negative assertion that known org B cinema identifiers and showtime data are absent from the org A payload
+  - [x] If the current payload does not expose explicit tenant identity fields, add the minimal stable response metadata or alternate negative assertions needed to prove org-A-only scope without broad API redesign
   - [x] Keep assertions deterministic and not dependent on incidental ordering of showtime entries
 
 - [x] Close UX and contract gaps required by this story (AC: 1, 2, 3)
@@ -73,9 +73,9 @@ so that users cannot view screening schedules from other organizations.
   - [x] Add or extend SaaS route tests in `packages/saas/src/routes/org.test.ts` to lock the chosen `403` contract for cross-tenant schedule access
   - [x] Preserve existing cinema-isolation behavior from Story 1.3 and avoid broad rewrites of shared films/cinemas route structure
 
-- [ ] Keep fixture cleanup and parallel safety intact (AC: 4)
+- [x] Keep fixture cleanup and parallel safety intact (AC: 4)
   - [x] Reuse `e2e/fixtures/org-fixture.ts`, `e2e/fixtures/org-cleanup.ts`, and `e2e/global-teardown.ts`
-  - [ ] Do not add ad-hoc SQL cleanup or manual tenant deletion inside the spec
+  - [x] Do not add ad-hoc SQL cleanup or manual tenant deletion inside the spec
   - [x] Reuse the shared runtime and cleanup assertions already established in Stories 1.3 and 1.4 where applicable
 
 - [x] Update tests and docs for the new E2E contract (AC: 1, 2, 3, 4)
@@ -175,10 +175,12 @@ github-copilot/gpt-5.4
 ### Debug Log References
 
 - CS execution for story 1.5 based on sprint auto-discovery after marking story 1.4 done
-- `npx vitest run src/routes/cinemas.test.ts src/routes/cinemas.security.test.ts` (server)
-- `npx vitest run src/pages/CinemaPage.test.tsx` (client)
-- `npx vitest run src/routes/org.test.ts` (packages/saas)
-- `E2E_ENABLE_ORG_FIXTURE=true npx playwright test e2e/multi-tenant-schedule-isolation.spec.ts --project=chromium --no-deps` (fixture runtime blocked locally: `/test/seed-org` returned `404`)
+- `npx vitest run src/routes/cinemas.test.ts src/routes/cinemas.security.test.ts src/app.test.ts` (server)
+- `npx vitest run src/api/client.test.ts src/pages/CinemaPage.test.tsx src/contexts/TenantProvider.test.tsx` (client)
+- `npx vitest run src/routes/test-fixtures.test.ts src/routes/org.test.ts src/plugin.test.ts src/services/org-service.test.ts` (packages/saas)
+- `npx vitest run e2e/fixtures/org-cleanup.test.ts` (fixture cleanup utilities)
+- `PLAYWRIGHT_BASE_URL=http://localhost:5174 E2E_ENABLE_ORG_FIXTURE=true npx playwright test e2e/multi-tenant-schedule-isolation.spec.ts --project=chromium --no-deps`
+- `PLAYWRIGHT_BASE_URL=http://localhost:5174 E2E_ENABLE_ORG_FIXTURE=true npx playwright test e2e/multi-tenant-schedule-isolation.spec.ts --project=chromium --no-deps --workers=4 --repeat-each=4`
 
 ### Completion Notes List
 
@@ -188,7 +190,11 @@ github-copilot/gpt-5.4
 - Added `data-testid="schedule-calendar"` coverage to `CinemaPage` and locked the selector with a focused client test.
 - Hardened the shared cinema detail route so org-scoped `GET /api/org/:slug/cinemas/:id` uses the same tenant auth, permission, and org-boundary enforcement as the list route.
 - Extended server and SaaS route tests to lock `403` behavior for cross-tenant cinema schedule access while keeping the current shared route topology intact.
-- Verified targeted client, server, and SaaS tests locally; dedicated Playwright verification is currently blocked by a local runtime configuration issue where `/test/seed-org` is not exposed.
+- Added fixture runtime opt-in, tenant-aware client cinema routing, hashed fixture IDs, and current-week seeded showtimes so the schedule page hits the correct tenant-scoped data.
+- Moved the shared API error handler to final app fallback registration so plugin org-route `403` errors return JSON instead of Express HTML error pages.
+- Updated tenant bootstrap to preserve cross-tenant `403` failures and render a dedicated forbidden state instead of collapsing them into `404 Organization not found`.
+- Hardened org creation bootstrap onto a dedicated pool client and parallelized fixture cleanup deletes so 4-worker schedule isolation runs stay deterministic.
+- Verified the story end-to-end in both single-worker and 4-worker Playwright runs against the real local SaaS dev stack.
 
 ### File List
 
@@ -197,12 +203,30 @@ github-copilot/gpt-5.4
 - `e2e/multi-tenant-schedule-isolation.spec.ts`
 - `client/src/pages/CinemaPage.tsx`
 - `client/src/pages/CinemaPage.test.tsx`
+- `client/src/api/client.ts`
+- `client/src/api/client.test.ts`
+- `client/src/contexts/TenantProvider.tsx`
+- `client/src/contexts/TenantProvider.test.tsx`
+- `server/src/app.ts`
+- `server/src/app.test.ts`
 - `server/src/routes/cinemas.ts`
 - `server/src/routes/cinemas.test.ts`
 - `server/src/routes/cinemas.security.test.ts`
+- `e2e/fixtures/org-cleanup.ts`
+- `e2e/fixtures/org-cleanup.test.ts`
+- `packages/saas/src/plugin.ts`
+- `packages/saas/src/plugin.test.ts`
+- `packages/saas/src/routes/test-fixtures.ts`
+- `packages/saas/src/routes/test-fixtures.test.ts`
+- `packages/saas/src/services/org-service.ts`
+- `packages/saas/src/services/org-service.test.ts`
+- `docs/guides/development/testing.md`
+- `docker-compose.dev.yml`
+- `README.md`
 - `packages/saas/src/routes/org.test.ts`
 
 ## Change Log
 
 - 2026-04-20: Created implementation-ready story file for multi-tenant schedule isolation with explicit route-topology guardrails, fixture reuse guidance, and concrete test/file targets.
 - 2026-04-20: Started dev-story implementation for schedule isolation by adding the dedicated Playwright spec, `schedule-calendar` instrumentation, and org-scoped cinema detail tenant-boundary enforcement; targeted tests pass, while full E2E execution is currently blocked locally because `/test/seed-org` returns `404`.
+- 2026-04-20: Completed Story 1.5 implementation and verification, including fixture runtime enablement, tenant-aware client schedule routing, hashed fixture IDs, JSON error handling for plugin routes, tenant forbidden-state rendering, concurrency-safe org bootstrap, and green Playwright validation in both single-worker and 4-worker runs.

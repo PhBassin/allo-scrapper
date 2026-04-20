@@ -122,7 +122,7 @@ export async function cleanupTestOrgs(testId: string, workerId: string, options:
   let skipped = 0;
   const deduped = matching.length - uniqueOrgIds.length;
 
-  for (const orgId of uniqueOrgIds) {
+  await Promise.all(uniqueOrgIds.map(async (orgId) => {
     const orgStart = Date.now();
     try {
       const result = await options.deleteOrg(orgId);
@@ -141,7 +141,7 @@ export async function cleanupTestOrgs(testId: string, workerId: string, options:
       failed += 1;
       logger.error('e2e cleanup delete exception', { org_id: orgId, test_id: testId, worker_id: workerId, error: error instanceof Error ? error.message : String(error) });
     }
-  }
+  }));
 
   const remaining = registry.records.filter((record) => record.testId !== testId);
   await writeRegistry(registryFilePath, { records: remaining });
@@ -175,10 +175,10 @@ export async function cleanupAllTrackedOrgs(options: CleanupOptions): Promise<Cl
     const uniqueOrgIds = [...new Set(eligibleRecords.map((record) => record.orgId))];
     deduped += eligibleRecords.length - uniqueOrgIds.length;
 
-    for (const orgId of uniqueOrgIds) {
+    await Promise.all(uniqueOrgIds.map(async (orgId) => {
       if (globallySeenOrgIds.has(orgId)) {
         deduped += 1;
-        continue;
+        return;
       }
       globallySeenOrgIds.add(orgId);
 
@@ -200,7 +200,7 @@ export async function cleanupAllTrackedOrgs(options: CleanupOptions): Promise<Cl
         failed += 1;
         logger.error('e2e global cleanup delete exception', { org_id: orgId, error: error instanceof Error ? error.message : String(error) });
       }
-    }
+    }));
 
     await rm(filePath, { force: true });
   }

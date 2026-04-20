@@ -2,7 +2,7 @@
  * RED tests for org-service.ts
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { DB } from '../db/types.js';
+import type { DB, Pool } from '../db/types.js';
 
 // We'll import after the module exists — stubbed inline for RED phase
 // import { createOrg } from './org-service.js';
@@ -11,6 +11,15 @@ function makeDb(overrides: Partial<DB> = {}): DB {
   return {
     query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
     ...overrides,
+  };
+}
+
+function makePool(db: DB): Pool & { connect: ReturnType<typeof vi.fn> } {
+  return {
+    connect: vi.fn().mockResolvedValue({
+      query: db.query,
+      release: vi.fn(),
+    }),
   };
 }
 
@@ -111,5 +120,34 @@ describe('createOrg', () => {
     );
     expect(calls.some((sql) => sql === 'BEGIN')).toBe(true);
     expect(calls.some((sql) => sql === 'COMMIT')).toBe(true);
+  });
+
+  it('uses a dedicated pool client when one is provided', async () => {
+    const org = {
+      id: 3,
+      name: 'Gamma',
+      slug: 'gamma',
+      schema_name: 'org_gamma',
+      status: 'trial',
+    };
+    const queryMock = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [org], rowCount: 1 })
+      .mockResolvedValue({ rows: [], rowCount: 0 });
+    const db = makeDb({ query: queryMock });
+    const release = vi.fn();
+    const pool = {
+      connect: vi.fn().mockResolvedValue({
+        query: queryMock,
+        release,
+      }),
+    } as unknown as Pool;
+
+    const { createOrg } = await import('./org-service.js');
+    await createOrg(db, { name: 'Gamma', slug: 'gamma' }, pool);
+
+    expect((pool.connect as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledOnce();
+    expect(release).toHaveBeenCalledOnce();
   });
 });

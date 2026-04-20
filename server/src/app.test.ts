@@ -4,6 +4,7 @@ import type { Express } from 'express';
 import type { DB } from './db/client.js';
 import type { Pool } from 'pg';
 import { createApp, applyPlugins, registerFallbackHandlers, type AppPlugin } from './app.js';
+import { AuthError } from './utils/errors.js';
 
 // Mock dependencies
 vi.mock('./services/theme-generator.js');
@@ -407,5 +408,36 @@ describe('AppPlugin / applyPlugins', () => {
     } finally {
       process.env.NODE_ENV = originalNodeEnv;
     }
+  });
+
+  it('serializes plugin route errors with the shared JSON error handler', async () => {
+    const appWithPlugin = createApp();
+    const pool = {} as Pool;
+    const db = {} as DB;
+
+    appWithPlugin.set('db', db);
+    appWithPlugin.set('pool', pool);
+
+    const failingPlugin: AppPlugin = {
+      name: 'failing-plugin',
+      register: async (registeredApp) => {
+        registeredApp.get('/api/plugin-error', (_req, _res, next) => {
+          next(new AuthError('Plugin denied', 403));
+        });
+      },
+    };
+
+    await applyPlugins(appWithPlugin, [failingPlugin], { pool, db });
+    registerFallbackHandlers(appWithPlugin);
+
+    const res = await request(appWithPlugin)
+      .get('/api/plugin-error')
+      .expect(403);
+
+    expect(res.headers['content-type']).toContain('application/json');
+    expect(res.body).toEqual({
+      success: false,
+      error: 'Plugin denied',
+    });
   });
 });

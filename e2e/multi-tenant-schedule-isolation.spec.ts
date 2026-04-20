@@ -52,16 +52,19 @@ test.describe('Multi-tenant schedule isolation', () => {
     });
     expect(orgACinemasResponse.ok()).toBe(true);
     const orgACinemasBody = await orgACinemasResponse.json() as CinemasResponse;
-    const orgAFirstCinemaId = orgACinemasBody.data[0]?.id;
-    expect(orgAFirstCinemaId).toBeTruthy();
+    const orgAFirstCinema = orgACinemasBody.data.find((cinema) => cinema.name === `Fixture Cinema 1 (${orgA.orgSlug})`);
+    expect(orgAFirstCinema).toBeDefined();
 
     const orgBCinemasResponse = await request.get(`/api/org/${orgB.orgSlug}/cinemas`, {
       headers: { Authorization: `Bearer ${orgBToken}` },
     });
     expect(orgBCinemasResponse.ok()).toBe(true);
     const orgBCinemasBody = await orgBCinemasResponse.json() as CinemasResponse;
-    const orgBFirstCinemaId = orgBCinemasBody.data[0]?.id;
-    expect(orgBFirstCinemaId).toBeTruthy();
+    const orgBFirstCinema = orgBCinemasBody.data.find((cinema) => cinema.name === `Fixture Cinema 1 (${orgB.orgSlug})`);
+    expect(orgBFirstCinema).toBeDefined();
+
+    const orgAFirstCinemaId = orgAFirstCinema!.id;
+    const orgBFirstCinemaId = orgBFirstCinema!.id;
 
     await page.goto('/');
     await page.evaluate(([token, slug]) => {
@@ -118,9 +121,12 @@ test.describe('Multi-tenant schedule isolation', () => {
     const orgBDetailPayload = await orgBDetailResponse.json() as { error?: string };
     expect(orgBDetailPayload.error).toBe('Access denied: organization mismatch');
 
-    await page.goto(`/org/${orgB.orgSlug}/cinema/${orgBFirstCinemaId}`);
-    await expect(page.getByTestId('403-error-message')).toBeVisible();
-    await expect(page.getByTestId('403-error-message')).toContainText(/access denied: organization mismatch|cross-tenant access denied/i);
+    await page.evaluate((path) => {
+      window.history.pushState({}, '', path);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }, `/org/${orgB.orgSlug}/cinema/${orgBFirstCinemaId}`);
+    await expect(page.getByRole('heading', { name: '403' })).toBeVisible();
+    await expect(page.getByText(/access denied: organization mismatch|cross-tenant access denied/i)).toBeVisible();
 
     assertFixtureRuntimeWithinLimit(startedAt);
   });

@@ -11,7 +11,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { insertOrg, isSlugAvailable, slugToSchemaName } from '../db/org-queries.js';
-import type { DB, Organization, InsertOrgInput } from '../db/types.js';
+import type { DB, Organization, InsertOrgInput, Pool } from '../db/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,28 +56,34 @@ export interface CreateOrgResult {
 
 export async function createOrg(
   db: DB,
-  input: InsertOrgInput
+  input: InsertOrgInput,
+  pool?: Pool,
 ): Promise<CreateOrgResult> {
   const slugAvailable = await isSlugAvailable(db, input.slug);
   if (!slugAvailable) {
     throw new Error(`Slug "${input.slug}" is already taken`);
   }
 
-  await db.query('BEGIN');
+  const client = pool ? await pool.connect() : null;
+  const executor = client ?? db;
+
+  await executor.query('BEGIN');
   try {
-    const org = await insertOrg(db, input);
+    const org = await insertOrg(executor, input);
     const schemaName = slugToSchemaName(input.slug);
 
     // Create the PostgreSQL schema for this org
-    await db.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
+    await executor.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
 
     // Bootstrap all org-level tables
-    await bootstrapOrgSchema(db, schemaName);
+    await bootstrapOrgSchema(executor, schemaName);
 
-    await db.query('COMMIT');
+    await executor.query('COMMIT');
     return { org, schemaCreated: true };
   } catch (err) {
-    await db.query('ROLLBACK');
+    await executor.query('ROLLBACK');
     throw err;
+  } finally {
+    client?.release();
   }
 }
