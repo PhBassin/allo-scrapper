@@ -72,6 +72,18 @@ describe('CinemaPage - renders cinema details', () => {
     expect(screen.getByRole('heading', { name: 'UGC Test' })).toBeInTheDocument();
   });
 
+  it('renders the schedule calendar container for showtime content', async () => {
+    renderWithClient(
+      <MemoryRouter initialEntries={['/cinema/C0153']}>
+        <Routes>
+          <Route path="/cinema/:id" element={<CinemaPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('schedule-calendar')).toBeInTheDocument();
+  });
+
   it('does NOT render a scrape button (scraping moved to admin)', async () => {
     renderWithClient(
       <MemoryRouter initialEntries={['/cinema/C0153']}>

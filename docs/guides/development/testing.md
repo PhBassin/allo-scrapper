@@ -284,7 +284,7 @@ Troubleshooting:
 
 ### Multi-Tenant Fixture API (SaaS test runtime)
 
-When running SaaS tests in `NODE_ENV=test`, the plugin exposes fixture endpoints for deterministic org setup/teardown:
+When running SaaS tests in `NODE_ENV=test`, or when the backend is started with `E2E_ENABLE_ORG_FIXTURE=true`, the plugin exposes fixture endpoints for deterministic org setup/teardown:
 
 - `POST /test/seed-org`
 - `DELETE /test/cleanup-org/:id`
@@ -308,7 +308,8 @@ Behavior and safety:
 - Parallel test runs should use unique slugs per worker/test to avoid collisions.
 
 Troubleshooting:
-- If `/test/*` returns `404` in local dev, verify you are running with `NODE_ENV=test`.
+- If `/test/*` returns `404` in local dev, verify the backend is running with `E2E_ENABLE_ORG_FIXTURE=true` or `NODE_ENV=test`.
+- When using the Vite dev server locally, point Playwright at the UI origin, for example: `PLAYWRIGHT_BASE_URL=http://localhost:5174`.
 - If cleanup fails, inspect logs for `org_id`, status, and SQL error context.
 - Repeated cleanup calls for already-deleted orgs are treated as safe/expected skips by fixture tooling.
 

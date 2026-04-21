@@ -1,5 +1,6 @@
 import { useState, useContext, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
 import { getWeeklyFilms, getFilmsByDate, getCinemas, addCinema } from '../api/client';
 import FilmCard from '../components/FilmCard';
 import DaySelector from '../components/DaySelector';
@@ -10,12 +11,14 @@ import CinemasQuickLinks from '../components/CinemasQuickLinks';
 
 export default function HomePage() {
   const queryClient = useQueryClient();
+  const routeParams = useParams<{ slug?: string }>();
+  const slug = routeParams?.slug;
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [afterTime, setAfterTime] = useState<string | null>(null);
   const { isAuthenticated, hasPermission } = useContext(AuthContext);
 
   const { data: cinemas = [], isLoading: isLoadingCinemas } = useQuery({
-    queryKey: ['cinemas'],
+    queryKey: ['cinemas', slug ?? null],
     queryFn: getCinemas,
   });
 
@@ -69,7 +72,7 @@ export default function HomePage() {
   const addCinemaMutation = useMutation({
     mutationFn: addCinema,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
+      queryClient.invalidateQueries({ queryKey: ['cinemas', slug ?? null] });
       queryClient.invalidateQueries({ queryKey: ['films', selectedDate] });
     },
     onError: (err: Error) => {

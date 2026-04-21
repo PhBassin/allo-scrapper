@@ -6,6 +6,7 @@
  * register() is called once at startup by applyPlugins().
  */
 import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 import path from 'path';
 import type { Express } from 'express';
 import { createRegisterRouter } from './routes/register.js';
@@ -28,6 +29,11 @@ const __dirname = path.dirname(__filename);
 interface AppPlugin {
   name: string;
   register(app: Express, options: { pool: unknown; db: unknown }): void | Promise<void>;
+}
+
+function isFixtureRuntimeEnabled(): boolean {
+  return process.env['NODE_ENV'] === 'test'
+    || (process.env['NODE_ENV'] === 'development' && process.env['E2E_ENABLE_ORG_FIXTURE'] === 'true');
 }
 
 export const saasPlugin: AppPlugin = {
@@ -59,7 +65,7 @@ export const saasPlugin: AppPlugin = {
     // Test fixture routes: mounted in test runtime only.
     // In non-test runtimes, explicitly deny /test/* to avoid SPA fallback (production)
     // returning index.html with 200.
-    if (process.env['NODE_ENV'] === 'test') {
+    if (isFixtureRuntimeEnabled()) {
       app.use('/test', createTestFixturesRouter());
     } else {
       app.use('/test', createTestFixturesNotFoundRouter());
@@ -88,7 +94,15 @@ export const saasPlugin: AppPlugin = {
  */
 export function getSaasMigrationDir(): string {
   const isProduction = process.env['NODE_ENV'] === 'production';
-  return isProduction
-    ? path.join('/app', 'packages', 'saas', 'migrations')
-    : path.join(__dirname, '../../../../migrations');
+  if (isProduction) {
+    return path.join('/app', 'packages', 'saas', 'migrations');
+  }
+
+  const candidates = [
+    path.join(__dirname, '../migrations'),
+    path.join(__dirname, '../../../../migrations'),
+  ];
+
+  const resolved = candidates.find((candidate) => existsSync(candidate));
+  return resolved ?? candidates[0];
 }

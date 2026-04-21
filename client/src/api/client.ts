@@ -23,6 +23,15 @@ const apiClient = axios.create({
   },
 });
 
+function getCinemasBasePath(): string {
+  const match = window.location.pathname.match(/^\/org\/([^/]+)/);
+  if (!match?.[1]) {
+    return '/cinemas';
+  }
+
+  return `/org/${encodeURIComponent(match[1])}/cinemas`;
+}
+
 // Add a request interceptor to include the JWT token
 apiClient.interceptors.request.use(
   (config) => {
@@ -113,7 +122,7 @@ export async function searchFilms(query: string): Promise<Film[]> {
 // ============================================================================
 
 export async function getCinemas(): Promise<Cinema[]> {
-  const response = await apiClient.get<ApiResponse<Cinema[]>>('/cinemas');
+  const response = await apiClient.get<ApiResponse<Cinema[]>>(getCinemasBasePath());
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch cinemas');
   }
@@ -124,7 +133,7 @@ export async function getCinemaSchedule(
   cinemaId: string
 ): Promise<{ showtimes: ShowtimeWithFilm[]; weekStart: string }> {
   const response = await apiClient.get<ApiResponse<{ showtimes: ShowtimeWithFilm[]; weekStart: string }>>(
-    `/cinemas/${cinemaId}`
+    `${getCinemasBasePath()}/${cinemaId}`
   );
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch cinema schedule');

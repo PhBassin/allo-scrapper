@@ -30,6 +30,17 @@ function NotFoundScreen() {
   );
 }
 
+function ForbiddenScreen({ message }: { message: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-red-800 mb-4">403</h1>
+        <p className="text-red-600" data-testid="403-error-message">{message}</p>
+      </div>
+    </div>
+  );
+}
+
 /**
  * TenantProvider
  *
@@ -42,6 +53,7 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
   const [org, setOrg] = useState<{ id: number; slug: string; name: string; status: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [forbiddenMessage, setForbiddenMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug) {
@@ -56,12 +68,29 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
       .then((result) => {
         if (!cancelled) {
           setOrg(result.org);
+          setNotFound(false);
+          setForbiddenMessage(null);
           setIsLoading(false);
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!cancelled) {
-          setNotFound(true);
+          const responseStatus = typeof error === 'object' && error !== null && 'response' in error
+            ? (error as { response?: { status?: number; data?: { error?: string } } }).response?.status
+            : undefined;
+          const responseMessage = typeof error === 'object' && error !== null && 'response' in error
+            ? (error as { response?: { status?: number; data?: { error?: string } } }).response?.data?.error
+            : undefined;
+          const message = error instanceof Error ? error.message : 'Organization not found';
+
+          if (responseStatus === 403 || /organization mismatch|cross-tenant access denied/i.test(responseMessage ?? message)) {
+            setForbiddenMessage(responseMessage ?? message);
+            setNotFound(false);
+          } else {
+            setNotFound(true);
+            setForbiddenMessage(null);
+          }
+
           setIsLoading(false);
         }
       });
@@ -77,6 +106,10 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
 
   if (notFound) {
     return <NotFoundScreen />;
+  }
+
+  if (forbiddenMessage) {
+    return <ForbiddenScreen message={forbiddenMessage} />;
   }
 
   return (

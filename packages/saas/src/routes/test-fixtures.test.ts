@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import type { DB, Pool } from '../db/types.js';
@@ -63,6 +63,12 @@ describe('test fixture routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv('NODE_ENV', 'test');
+    vi.unstubAllEnvs();
+    vi.stubEnv('NODE_ENV', 'test');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('POST /test/seed-org returns org metadata and seeded counts', async () => {
@@ -182,6 +188,46 @@ describe('test fixture routes', () => {
     expect(res.status).toBe(404);
   });
 
+  it('POST /test/seed-org returns org metadata when fixture mode is explicitly enabled outside test mode', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('E2E_ENABLE_ORG_FIXTURE', 'true');
+
+    const mockDb = {
+      query: vi.fn(),
+    } as unknown as DB;
+
+    const mockClient = createMockPoolClient();
+
+    const mockPool = {
+      connect: vi.fn().mockResolvedValue(mockClient),
+    } as unknown as Pool;
+
+    createOrgMock.mockResolvedValue({
+      org: {
+        id: 42,
+        slug: 'e2e-fixture-dev',
+        schema_name: 'org_e2e_fixture_dev',
+      },
+    });
+
+    createAdminUserMock.mockResolvedValue({
+      id: 8,
+      username: 'admin-dev@fixture.local',
+    });
+
+    const app = buildApp(mockDb, mockPool);
+    const { createTestFixturesRouter } = await import('./test-fixtures.js');
+    app.use('/test', createTestFixturesRouter());
+
+    const res = await request(app)
+      .post('/test/seed-org')
+      .send({ slug: 'e2e-fixture-dev', name: 'Fixture Dev' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.org_slug).toBe('e2e-fixture-dev');
+  });
+
   it('DELETE /test/cleanup-org/:id removes schema and org row', async () => {
     const mockDb = {
       query: vi.fn().mockResolvedValueOnce({
@@ -241,6 +287,33 @@ describe('test fixture routes', () => {
     const res = await request(app).delete('/test/cleanup-org/41');
 
     expect(res.status).toBe(404);
+  });
+
+  it('DELETE /test/cleanup-org/:id works when fixture mode is explicitly enabled outside test mode', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('E2E_ENABLE_ORG_FIXTURE', 'true');
+
+    const mockDb = {
+      query: vi.fn().mockResolvedValueOnce({
+        rows: [{ id: 41, slug: 'e2e-fixture-a', schema_name: 'org_e2e_fixture_a' }],
+        rowCount: 1,
+      }),
+    } as unknown as DB;
+
+    const mockClient = createMockPoolClient();
+
+    const mockPool = {
+      connect: vi.fn().mockResolvedValue(mockClient),
+    } as unknown as Pool;
+
+    const app = buildApp(mockDb, mockPool);
+    const { createTestFixturesRouter } = await import('./test-fixtures.js');
+    app.use('/test', createTestFixturesRouter());
+
+    const res = await request(app).delete('/test/cleanup-org/41');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
   });
 
   it('DELETE /test/cleanup-org/:id refuses non-fixture organizations', async () => {

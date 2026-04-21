@@ -74,7 +74,7 @@ export function createRegisterRouter(): Router {
       name: orgName.trim(),
       slug,
       plan_id: 1, // Free plan by default
-    });
+    }, pool);
 
     // Create admin user in the org's private schema and mint JWT
     const authService = new SaasAuthService(pool);

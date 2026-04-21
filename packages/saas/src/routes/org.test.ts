@@ -252,6 +252,26 @@ describe('GET /api/org/:slug/cinemas', () => {
     expect(dbClient.query).toHaveBeenCalled();
     expect(db.query).not.toHaveBeenCalled();
   });
+
+  it('returns 403 when org A token requests org B cinema schedule details', async () => {
+    const jwtUser = {
+      id: 1, username: 'admin-a', role_name: 'admin',
+      is_system_role: true, permissions: ['cinemas:read'], org_slug: 'org-a',
+    };
+    const { app, token } = buildApp('org-b', 'active', [], jwtUser);
+    const { createOrgRouter } = await import('./org.js');
+    app.use('/api/org/:slug', createOrgRouter());
+
+    const res = await request(app)
+      .get('/api/org/org-b/cinemas/CB01')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    const errorText = [res.body?.error, res.body?.message, res.text]
+      .filter((value): value is string => typeof value === 'string')
+      .join(' ');
+    expect(errorText).toMatch(/organization mismatch/i);
+  });
 });
 
 describe('POST /api/org/:slug/cinemas — quota guard', () => {

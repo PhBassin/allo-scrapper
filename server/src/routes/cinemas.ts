@@ -144,7 +144,7 @@ router.delete('/:id', protectedLimiter, requireAuth, requirePermission('cinemas:
 });
 
 // GET /api/cinemas/:id - Get cinema schedule
-router.get('/:id', publicLimiter, async (req, res, next) => {
+router.get('/:id', publicLimiter, requireAuthForOrgRequests, requireCinemaReadPermissionForOrgRequests, enforceOrgBoundary, async (req, res, next) => {
   try {
     const db = getDbFromRequest(req);
     const cinemaService = new CinemaService(db);

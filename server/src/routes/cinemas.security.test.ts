@@ -136,6 +136,9 @@ describe('Routes - Cinemas - Security', () => {
       const names = getMiddlewareNames('/:id', 'get');
       expect(names).not.toContain('requireAuth');
       expect(names).not.toContain('requirePermission');
+      expect(names).toContain('requireAuthForOrgRequests');
+      expect(names).toContain('requireCinemaReadPermissionForOrgRequests');
+      expect(names).toContain('enforceOrgBoundary');
     });
   });
 });

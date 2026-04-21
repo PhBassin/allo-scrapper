@@ -21,15 +21,15 @@ interface FilmGroup {
 }
 
 export default function CinemaPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id: string; slug?: string }>();
 
   const { data: cinemasData, isLoading: cinemasLoading, error: cinemasError } = useQuery({
-    queryKey: ['cinemas'],
+    queryKey: ['cinemas', slug ?? null],
     queryFn: getCinemas
   });
 
   const { data: scheduleData, isLoading: scheduleLoading, error: scheduleError } = useQuery({
-    queryKey: ['cinema-schedule', id],
+    queryKey: ['cinema-schedule', slug ?? null, id],
     queryFn: () => getCinemaSchedule(id!),
     enabled: !!id
   });
@@ -188,7 +188,7 @@ export default function CinemaPage() {
       </div>
 
       {/* Films List for Selected Date */}
-      <div className="min-h-[300px]">
+      <div className="min-h-[300px]" data-testid="schedule-calendar">
         {filmGroups.length > 0 ? (
           <div className="space-y-6">
             {filmGroups.map(({ film, showtimes }) => (

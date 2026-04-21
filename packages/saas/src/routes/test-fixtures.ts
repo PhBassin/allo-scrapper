@@ -1,10 +1,11 @@
 import { Router, type Request, type Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { createOrg } from '../services/org-service.js';
 import { SaasAuthService } from '../services/saas-auth-service.js';
 import type { DB, Pool } from '../db/types.js';
 import { logger } from '../utils/logger.js';
+import { getWeekDates, getWeekStart } from 'allo-scrapper-server/dist/utils/date.js';
 
 type SeedRequestBody = {
   slug?: string;
@@ -15,8 +16,9 @@ type SeedRequestBody = {
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
 
-function isTestRuntime(): boolean {
-  return process.env['NODE_ENV'] === 'test';
+function isFixtureRuntimeEnabled(): boolean {
+  return process.env['NODE_ENV'] === 'test'
+    || (process.env['NODE_ENV'] === 'development' && process.env['E2E_ENABLE_ORG_FIXTURE'] === 'true');
 }
 
 function buildDefaultSlug(): string {
@@ -47,6 +49,23 @@ function normalizeSeedInput(body: SeedRequestBody): {
 
 function quoteIdentifier(identifier: string): string {
   return `"${identifier.replace(/"/g, '""')}"`;
+}
+
+function buildFixtureSlugHash(slug: string, length: number): string {
+  return createHash('sha1').update(slug).digest('hex').slice(0, length);
+}
+
+function buildFixtureCinemaId(slug: string, index: number): string {
+  return `C${buildFixtureSlugHash(slug, 7)}${index}`;
+}
+
+function buildFixtureFilmId(slug: string, index: number): number {
+  const base = 100000 + (Number.parseInt(buildFixtureSlugHash(slug, 6), 16) % 700000);
+  return base + index - 1;
+}
+
+function buildFixtureShowtimeId(slug: string, index: number): string {
+  return `S${buildFixtureSlugHash(slug, 6)}${index.toString().padStart(3, '0')}`;
 }
 
 async function seedTenantData(
@@ -88,7 +107,7 @@ async function seedTenantData(
     );
 
     const cinemas = [1, 2, 3].map((index) => ({
-      id: `C${slug.replace(/-/g, '').slice(0, 8).padEnd(8, '0')}${index}`.slice(0, 9),
+      id: buildFixtureCinemaId(slug, index),
       name: `Fixture Cinema ${index} (${slug})`,
       url: `https://example.test/cinema/${slug}/${index}`,
     }));
@@ -103,9 +122,9 @@ async function seedTenantData(
     }
 
     const films = [
-      { id: 100001, title: `Fixture Film A (${slug})` },
-      { id: 100002, title: `Fixture Film B (${slug})` },
-      { id: 100003, title: `Fixture Film C (${slug})` },
+      { id: buildFixtureFilmId(slug, 1), title: `Fixture Film A (${slug})` },
+      { id: buildFixtureFilmId(slug, 2), title: `Fixture Film B (${slug})` },
+      { id: buildFixtureFilmId(slug, 3), title: `Fixture Film C (${slug})` },
     ];
 
     for (const film of films) {
@@ -117,7 +136,8 @@ async function seedTenantData(
       );
     }
 
-    const weekStart = '2026-01-14';
+    const weekStart = getWeekStart();
+    const weekDates = getWeekDates(weekStart, 5);
     const showtimeSlots = [
       '10:00', '11:30', '13:00', '14:30', '16:00',
       '17:30', '19:00', '20:30', '21:00', '22:15',
@@ -127,8 +147,8 @@ async function seedTenantData(
       const film = films[i % films.length];
       const cinema = cinemas[i % cinemas.length];
       const time = showtimeSlots[i];
-      const id = `S${slug.replace(/-/g, '').slice(0, 6)}${(i + 1).toString().padStart(3, '0')}`;
-      const date = `2026-01-${(15 + (i % 5)).toString().padStart(2, '0')}`;
+      const id = buildFixtureShowtimeId(slug, i + 1);
+      const date = weekDates[i % weekDates.length] as string;
 
       await client.query(
         `INSERT INTO showtimes (id, film_id, cinema_id, date, time, datetime_iso, week_start)
@@ -165,7 +185,7 @@ export function createTestFixturesRouter(): Router {
   const router = Router();
 
   router.post('/seed-org', async (req: Request, res: Response) => {
-    if (!isTestRuntime()) {
+    if (!isFixtureRuntimeEnabled()) {
       return res.status(404).json({ success: false, error: 'Not found' });
     }
 
@@ -180,7 +200,7 @@ export function createTestFixturesRouter(): Router {
         name: input.name,
         slug: input.slug,
         plan_id: 1,
-      });
+      }, pool);
 
       const authService = new SaasAuthService(pool);
       const admin = await authService.createAdminUser(org, input.adminEmail, input.adminPassword);
@@ -216,7 +236,7 @@ export function createTestFixturesRouter(): Router {
   });
 
   router.delete('/cleanup-org/:id', async (req: Request, res: Response) => {
-    if (!isTestRuntime()) {
+    if (!isFixtureRuntimeEnabled()) {
       return res.status(404).json({ success: false, error: 'Not found' });
     }
 
