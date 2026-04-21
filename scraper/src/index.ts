@@ -4,9 +4,10 @@ dotenv.config();
 import { logger } from './utils/logger.js';
 import { registry, scrapeJobsTotal, scrapeDurationSeconds, filmsScrapedTotal, showtimesScrapedTotal } from './utils/metrics.js';
 import { initTracing } from './utils/tracer.js';
+import type { ScrapeJobAddCinema, ScrapeJobScrape } from '@allo-scrapper/logger';
 
 import { runScraper, addCinemaAndScrape } from './scraper/index.js';
-import { getRedisPublisher, getRedisConsumer, getRedisSubscriber, disconnectRedis, type ScrapeJob, type ScrapeJobScrape, type ScrapeJobAddCinema, type ScheduleChangeEvent } from './redis/client.js';
+import { getRedisPublisher, getRedisConsumer, getRedisSubscriber, disconnectRedis, type ScrapeJob, type ScheduleChangeEvent } from './redis/client.js';
 import { db } from './db/client.js';
 import { createScrapeReport, updateScrapeReport } from './db/report-queries.js';
 import { getEnabledSchedules, updateScheduleRunStatus } from './db/schedule-queries.js';

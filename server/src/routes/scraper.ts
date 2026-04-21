@@ -37,6 +37,10 @@ function getValidTraceparentHeader(req: AuthRequest): string | undefined {
   return raw;
 }
 
+function getSingleRouteParam(value: string | string[] | undefined): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
 function canManageScraper(req: AuthRequest): boolean {
   if (req.user?.role_name === 'admin' && req.user?.is_system_role) {
     return true;
@@ -241,8 +245,13 @@ router.post('/dlq/:jobId/retry', scraperLimiter, requireAuth, async (req: AuthRe
       return next(new AuthError('Permission denied', 403));
     }
 
+    const jobId = getSingleRouteParam(req.params.jobId);
+    if (!jobId) {
+      return next(new ValidationError('Invalid DLQ job ID'));
+    }
+
     const retried = await getRedisClient().retryDlqJob(
-      req.params.jobId,
+      jobId,
       req.user?.is_system_role ? undefined : req.user?.org_id,
     );
     if (!retried) {
