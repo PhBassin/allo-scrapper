@@ -1,5 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const redisInstances: Array<{
+  subscribe: typeof subscribeMock;
+  on: typeof onMock;
+  quit: typeof quitMock;
+  blpop: typeof blpopMock;
+  lpop: typeof lpopMock;
+  rpush: typeof rpushMock;
+  publish: typeof publishMock;
+  zadd: typeof zaddMock;
+}> = [];
+
 const subscribeMock = vi.fn();
 const onMock = vi.fn();
 const quitMock = vi.fn();
@@ -21,6 +32,10 @@ vi.mock('ioredis', () => {
     rpush = rpushMock;
     publish = publishMock;
     zadd = zaddMock;
+
+    constructor() {
+      redisInstances.push(this);
+    }
   }
 
   return {
@@ -43,6 +58,7 @@ describe('scraper redis client trace context', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
+    redisInstances.length = 0;
     loggerInfoMock.mockReset();
     loggerWarnMock.mockReset();
     loggerErrorMock.mockReset();
@@ -218,6 +234,50 @@ describe('scraper redis client trace context', () => {
     );
   });
 
+  it('uses a non-blocking Redis connection for delayed retries', async () => {
+    vi.useFakeTimers();
+
+    const { RedisJobConsumer } = await import('./client.js');
+
+    const retryCandidate = {
+      type: 'scrape',
+      triggerType: 'manual',
+      reportId: 98,
+      retryCount: 0,
+    };
+
+    let releaseBlockingPop: (() => void) | null = null;
+
+    blpopMock
+      .mockResolvedValueOnce(['scrape:jobs', JSON.stringify(retryCandidate)])
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        releaseBlockingPop = () => resolve(null);
+      }))
+      .mockResolvedValueOnce(null);
+
+    const consumer = new RedisJobConsumer('redis://localhost:6379');
+
+    const startPromise = consumer.start(async () => {
+      throw new Error('retryable failure');
+    });
+
+    await Promise.resolve();
+    expect(redisInstances).toHaveLength(2);
+    expect(rpushMock).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await Promise.resolve();
+
+    expect(rpushMock).toHaveBeenCalledTimes(1);
+    expect(redisInstances[0].blpop).toBe(blpopMock);
+    expect(redisInstances[1].rpush).toBe(rpushMock);
+
+    consumer.stop();
+    releaseBlockingPop?.();
+    await consumer.disconnect();
+    await startPromise;
+  });
+
   it('uses the shared retry schedule when requeue persistence fails', async () => {
     vi.useFakeTimers();
 
@@ -355,5 +415,37 @@ describe('scraper redis client trace context', () => {
         persistence_attempt: 1,
       })
     );
+  });
+
+  it('cancels pending retry waits during disconnect', async () => {
+    vi.useFakeTimers();
+
+    const { RedisJobConsumer } = await import('./client.js');
+
+    const retryCandidate = {
+      type: 'scrape',
+      triggerType: 'manual',
+      reportId: 99,
+      retryCount: 0,
+    };
+
+    blpopMock
+      .mockResolvedValueOnce(['scrape:jobs', JSON.stringify(retryCandidate)])
+      .mockResolvedValueOnce(null);
+
+    const consumer = new RedisJobConsumer('redis://localhost:6379');
+
+    const startPromise = consumer.start(async () => {
+      consumer.stop();
+      throw new Error('retryable failure');
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await consumer.disconnect();
+    await startPromise;
+
+    expect(rpushMock).not.toHaveBeenCalled();
+    expect(quitMock).toHaveBeenCalledTimes(2);
   });
 });
