@@ -152,4 +152,23 @@ describe('executeJob dispatcher', () => {
       expect.objectContaining({ status: 'failed' })
     );
   });
+
+  it('should rethrow scraper failures when consumer mode requests propagation', async () => {
+    const failure = new Error('redis downstream failure');
+    mockRunScraper.mockRejectedValue(failure);
+
+    const { executeJob } = await import('../../src/index.js');
+
+    await expect(executeJob({
+      type: 'scrape',
+      triggerType: 'manual',
+      reportId: 46,
+    }, { rethrowOnFailure: true })).rejects.toThrow('redis downstream failure');
+
+    expect(mockUpdateScrapeReport).toHaveBeenCalledWith(
+      expect.anything(),
+      46,
+      expect.objectContaining({ status: 'failed' })
+    );
+  });
 });

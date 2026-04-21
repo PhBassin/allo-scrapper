@@ -6,6 +6,7 @@ const quitMock = vi.fn();
 const blpopMock = vi.fn();
 const publishMock = vi.fn();
 const lpopMock = vi.fn();
+const zaddMock = vi.fn();
 
 vi.mock('ioredis', () => {
   class MockRedis {
@@ -15,6 +16,7 @@ vi.mock('ioredis', () => {
     blpop = blpopMock;
     lpop = lpopMock;
     publish = publishMock;
+    zadd = zaddMock;
   }
 
   return {
@@ -117,5 +119,48 @@ describe('scraper redis client trace context', () => {
         traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
       }),
     }));
+  });
+
+  it('moves jobs to the scraper DLQ after terminal failures', async () => {
+    const { RedisJobConsumer } = await import('./client.js');
+
+    const dlqCandidate = {
+      type: 'scrape',
+      triggerType: 'manual',
+      reportId: 93,
+      retryCount: 2,
+      options: { cinemaId: 'C0042' },
+      traceContext: {
+        org_id: '42',
+        org_slug: 'acme',
+      },
+    };
+
+    blpopMock
+      .mockResolvedValueOnce(['scrape:jobs', JSON.stringify(dlqCandidate)])
+      .mockResolvedValueOnce(null);
+
+    const consumer = new RedisJobConsumer('redis://localhost:6379');
+
+    await consumer.start(async () => {
+      consumer.stop();
+      throw new Error('terminal failure');
+    });
+
+    expect(zaddMock).toHaveBeenCalledWith(
+      'scrape:jobs:dlq',
+      expect.any(Number),
+      expect.stringContaining('"retry_count":3')
+    );
+    expect(zaddMock).toHaveBeenCalledWith(
+      'scrape:jobs:dlq',
+      expect.any(Number),
+      expect.stringContaining('"failure_reason":"terminal failure"')
+    );
+    expect(zaddMock).toHaveBeenCalledWith(
+      'scrape:jobs:dlq',
+      expect.any(Number),
+      expect.stringContaining('"org_id":"42"')
+    );
   });
 });
