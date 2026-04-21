@@ -7,7 +7,7 @@ import express from 'express';
 import request from 'supertest';
 
 const SLUG_VALID = 'my-cinema';
-const JWT_SECRET = 'test-secret-minimum-32-chars-required-for-tests-abc';
+const JWT_SECRET = 'local-dev-jwt-fixture-key-1234567890abcd';
 
 function buildApp(dbOverride?: object, poolOverride?: object) {
   const app = express();
@@ -98,18 +98,19 @@ describe('POST /api/saas/orgs (register)', () => {
     };
     const db = {
       query: vi.fn()
-        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })  // isSlugAvailable (route)
-        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })  // isSlugAvailable (createOrg)
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })                 // BEGIN
-        .mockResolvedValueOnce({ rows: [org], rowCount: 1 })              // insertOrg
-        .mockResolvedValue({ rows: [], rowCount: 0 }),                    // rest (CREATE SCHEMA, bootstrap, COMMIT)
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }),
     };
+    const poolQuery = vi.fn()
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [org], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ id: 1, username: 'admin@acme.com', role_id: 1, role_name: 'admin' }], rowCount: 1 });
     const pool = {
       connect: vi.fn().mockResolvedValue({
-        query: vi.fn().mockResolvedValue({
-          rows: [{ id: 1, username: 'admin@acme.com', role_id: 1, role_name: 'admin' }],
-          rowCount: 1,
-        }),
+        query: poolQuery,
         release: vi.fn(),
       }),
     };

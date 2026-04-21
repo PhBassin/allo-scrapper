@@ -4,7 +4,7 @@
  * Verifies that register() wires SaaS migrations by calling runMigrations
  * with the SaaS migration directory.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import type { Express } from 'express';
 import request from 'supertest';
@@ -29,6 +29,11 @@ describe('saasPlugin', () => {
   beforeEach(() => {
     app = express();
     vi.clearAllMocks();
+    vi.stubEnv('JWT_SECRET', 'local-dev-jwt-fixture-key-1234567890abcd');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('has the correct plugin name', async () => {
@@ -76,6 +81,20 @@ describe('saasPlugin', () => {
 
     const res = await request(app).post('/test/seed-org').send({});
     expect(res.status).not.toBe(404);
+  });
+
+  it('keeps /test fixture routes disabled in production even when E2E fixture mode is enabled', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('E2E_ENABLE_ORG_FIXTURE', 'true');
+
+    const { saasPlugin } = await import('./plugin.js');
+    const db = { query: vi.fn() };
+    const pool = { connect: vi.fn() };
+
+    await saasPlugin.register(app, { db, pool });
+
+    const res = await request(app).post('/test/seed-org').send({});
+    expect(res.status).toBe(404);
   });
 
 
