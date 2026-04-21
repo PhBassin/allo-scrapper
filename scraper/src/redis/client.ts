@@ -1,4 +1,13 @@
 import Redis from 'ioredis';
+import {
+  createDlqJobEntry,
+  MAX_SCRAPE_JOB_RETRY_ATTEMPTS,
+  SCRAPE_DLQ_KEY,
+  SCRAPE_JOBS_KEY,
+  type DlqJobEntry,
+  type ScrapeJob,
+  type ScheduleChangeEvent,
+} from '@allo-scrapper/logger';
 import type { ProgressEvent, ScrapeSummary } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 
@@ -6,48 +15,7 @@ import { logger } from '../utils/logger.js';
 // Types
 // ---------------------------------------------------------------------------
 
-export interface ScheduleChangeEvent {
-  action: 'created' | 'updated' | 'deleted';
-  scheduleId: number;
-  schedule?: {
-    id: number;
-    name: string;
-    cron_expression: string;
-    enabled: boolean;
-    target_cinemas?: string[] | null;
-  };
-}
-
-interface BaseScrapeJob {
-  reportId: number;
-  /** OpenTelemetry trace context propagated from the HTTP request */
-  traceContext?: Record<string, string>;
-}
-
-export interface ScrapeJobScrape extends BaseScrapeJob {
-  type: 'scrape';
-  triggerType: 'manual' | 'cron';
-  options?: {
-    mode?: 'weekly' | 'from_today' | 'from_today_limited';
-    days?: number;
-    cinemaId?: string;
-    filmId?: number;
-  };
-}
-
-export interface ScrapeJobAddCinema extends BaseScrapeJob {
-  type: 'add_cinema';
-  triggerType: 'manual';
-  /** The Allociné cinema URL to add and scrape */
-  url: string;
-}
-
-/**
- * Discriminated union of all job types the scraper can process.
- * Use `job.type` (or check for presence of the field for legacy jobs) to
- * narrow to a concrete job variant.
- */
-export type ScrapeJob = ScrapeJobScrape | ScrapeJobAddCinema;
+export type { DlqJobEntry, ScheduleChangeEvent, ScrapeJob };
 
 // ---------------------------------------------------------------------------
 // RedisProgressPublisher – implements ProgressPublisher interface
@@ -123,6 +91,36 @@ export class RedisJobConsumer {
           await handler(job);
         } catch (err) {
           logger.error('[RedisJobConsumer] Job handler failed', { err });
+
+          const nextRetryCount = (job.retryCount ?? 0) + 1;
+          if (nextRetryCount >= MAX_SCRAPE_JOB_RETRY_ATTEMPTS) {
+            const failureReason = err instanceof Error ? err.message : String(err);
+            const entry: DlqJobEntry = createDlqJobEntry({
+              job: {
+                ...job,
+                retryCount: nextRetryCount,
+              },
+              failureReason,
+              retryCount: nextRetryCount,
+            });
+
+            await this.client.zadd(SCRAPE_DLQ_KEY, Date.parse(entry.timestamp), JSON.stringify(entry));
+            logger.warn('[RedisJobConsumer] Job moved to DLQ', {
+              reportId: job.reportId,
+              retry_count: nextRetryCount,
+              org_id: job.traceContext?.org_id,
+            });
+          } else {
+            await this.client.rpush(SCRAPE_JOBS_KEY, JSON.stringify({
+              ...job,
+              retryCount: nextRetryCount,
+            }));
+            logger.warn('[RedisJobConsumer] Requeued failed job', {
+              reportId: job.reportId,
+              retry_count: nextRetryCount,
+              org_id: job.traceContext?.org_id,
+            });
+          }
         }
       } catch (err: any) {
         // If connection closed cleanly during shutdown, stop

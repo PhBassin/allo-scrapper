@@ -397,6 +397,134 @@ curl http://localhost:3000/api/reports/124 \
 
 ---
 
+### List Dead-Letter Queue Jobs
+
+```http
+GET /api/scraper/dlq?page=1&pageSize=50
+```
+
+**Authentication:** Required (Bearer token)
+
+**Permission:** `scraper:trigger` or system admin
+
+**Description:** Returns scraper jobs that reached terminal failure and were moved to the Redis-backed dead-letter queue after exhausting retry attempts.
+
+**Query Parameters:**
+- `page` (integer, optional): 1-based page number. Defaults to `1`.
+- `pageSize` (integer, optional): Maximum jobs per page. Capped at `50`. Defaults to `50`.
+
+**Response (200 - success):**
+```json
+{
+  "success": true,
+  "data": {
+    "jobs": [
+      {
+        "job_id": "report-123",
+        "failure_reason": "HTTP 503",
+        "retry_count": 3,
+        "timestamp": "2026-04-21T19:00:00.000Z",
+        "cinema_id": "C0042",
+        "org_id": "7",
+        "org_slug": "acme",
+        "user_id": "12",
+        "endpoint": "/api/scraper/trigger",
+        "job": {
+          "type": "scrape",
+          "triggerType": "manual",
+          "reportId": 123,
+          "retryCount": 3,
+          "options": {
+            "cinemaId": "C0042"
+          },
+          "traceContext": {
+            "org_id": "7",
+            "org_slug": "acme",
+            "user_id": "12",
+            "endpoint": "/api/scraper/trigger"
+          }
+        }
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "pageSize": 50
+  }
+}
+```
+
+**Behavior:**
+- Jobs are returned newest first.
+- `pageSize` is clamped to `50`.
+- Non-system users only see DLQ entries for their own `org_id`.
+- The response includes the original job payload so operators can inspect the failed request context.
+
+**Response (403 - forbidden):**
+```json
+{
+  "success": false,
+  "error": "Permission denied"
+}
+```
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:3000/api/scraper/dlq?page=1&pageSize=50"
+```
+
+---
+
+### Retry Dead-Letter Queue Job
+
+```http
+POST /api/scraper/dlq/:jobId/retry
+```
+
+**Authentication:** Required (Bearer token)
+
+**Permission:** `scraper:trigger` or system admin
+
+**Description:** Requeues a dead-lettered job back onto `scrape:jobs` and resets its retry counter to `0`.
+
+**Response (200 - success):**
+```json
+{
+  "success": true,
+  "data": {
+    "job_id": "report-123",
+    "failure_reason": "HTTP 503",
+    "retry_count": 0,
+    "timestamp": "2026-04-21T19:00:00.000Z",
+    "cinema_id": "C0042",
+    "org_id": "7",
+    "job": {
+      "type": "scrape",
+      "triggerType": "manual",
+      "reportId": 123,
+      "retryCount": 0
+    }
+  }
+}
+```
+
+**Response (404 - not found):**
+```json
+{
+  "success": false,
+  "error": "DLQ job not found"
+}
+```
+
+**Example:**
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  http://localhost:3000/api/scraper/dlq/report-123/retry
+```
+
+---
+
 ## Scrape Schedules
 
 Schedule recurring scrapes using cron expressions.

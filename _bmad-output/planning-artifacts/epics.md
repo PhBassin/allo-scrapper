@@ -614,26 +614,26 @@ So that users cannot view screening schedules from other organizations.
 ### Story 1.6: API-Level Tenant Isolation Enforcement Tests
 
 As a QA engineer,
-I want integration tests that validate org_id filtering at the database query level,
-So that SQL queries automatically filter by org_id without manual WHERE clauses.
+I want integration tests that validate tenant isolation at the API and database-client injection level,
+So that org-scoped requests always execute in the correct tenant context and cannot leak cross-tenant data.
 
 **Acceptance Criteria:**
 
-**Given** a database query for cinemas is executed  
-**When** the query is built via ORM/query builder  
-**Then** the query includes `WHERE org_id = :authenticated_org_id`  
-**And** the WHERE clause is automatically added by middleware  
-**And** developers cannot accidentally omit org_id filtering
+**Given** a database query for cinemas is executed through an org-scoped SaaS route  
+**When** the request is handled via the shared router/query stack  
+**Then** the request uses the tenant-scoped database client attached by middleware  
+**And** the effective query scope is bound to the authenticated tenant context  
+**And** developers cannot accidentally bypass tenant scoping by falling back to the global DB client on org routes
 
 **Given** a user with org_id=A makes a request  
 **When** the request handler queries the database  
 **Then** all queries are scoped to org_id=A  
-**And** a database query log shows the org_id filter  
+**And** cross-tenant access attempts are rejected with a stable `403` contract before data is returned  
 **And** no cross-tenant data is returned
 
-**Given** a database migration creates a new org-scoped table  
+**Given** a database change introduces a shared `public` table that stores multi-tenant rows in this area  
 **When** the table is queried via the API  
-**Then** the query automatically filters by org_id  
+**Then** the implementation includes explicit tenant filtering by authenticated org context  
 **And** the migration includes a NOT NULL constraint on org_id column  
 **And** the migration includes an index on org_id for performance
 

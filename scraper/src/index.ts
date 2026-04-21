@@ -4,9 +4,10 @@ dotenv.config();
 import { logger } from './utils/logger.js';
 import { registry, scrapeJobsTotal, scrapeDurationSeconds, filmsScrapedTotal, showtimesScrapedTotal } from './utils/metrics.js';
 import { initTracing } from './utils/tracer.js';
+import type { ScrapeJobAddCinema, ScrapeJobScrape } from '@allo-scrapper/logger';
 
 import { runScraper, addCinemaAndScrape } from './scraper/index.js';
-import { getRedisPublisher, getRedisConsumer, getRedisSubscriber, disconnectRedis, type ScrapeJob, type ScrapeJobScrape, type ScrapeJobAddCinema, type ScheduleChangeEvent } from './redis/client.js';
+import { getRedisPublisher, getRedisConsumer, getRedisSubscriber, disconnectRedis, type ScrapeJob, type ScheduleChangeEvent } from './redis/client.js';
 import { db } from './db/client.js';
 import { createScrapeReport, updateScrapeReport } from './db/report-queries.js';
 import { getEnabledSchedules, updateScheduleRunStatus } from './db/schedule-queries.js';
@@ -55,8 +56,13 @@ const RUN_MODE: RunMode = (process.env.RUN_MODE as RunMode) ?? 'oneshot';
 // Job executor
 // ---------------------------------------------------------------------------
 
-export async function executeJob(job: ScrapeJob): Promise<void> {
+interface ExecuteJobOptions {
+  rethrowOnFailure?: boolean;
+}
+
+export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}): Promise<void> {
   const publisher = getRedisPublisher();
+  const { rethrowOnFailure = false } = options;
   // Support legacy jobs that predate the discriminated union (no 'type' field)
   const jobType = ('type' in job) ? job.type : 'scrape';
 
@@ -98,6 +104,10 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
         completed_at: new Date().toISOString(),
         errors: [{ cinema_name: 'System', error: errorMessage }],
       }).catch(() => {});
+
+      if (rethrowOnFailure) {
+        throw err;
+      }
     }
     return;
   }
@@ -149,6 +159,10 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
       completed_at: new Date().toISOString(),
       errors: [{ cinema_name: 'System', error: errorMessage }],
     }).catch(() => {});
+
+    if (rethrowOnFailure) {
+      throw err;
+    }
   }
 }
 
@@ -214,7 +228,7 @@ async function runConsumer(): Promise<void> {
   });
 
   await consumer.start(async (job) => {
-    await executeJob(job);
+    await executeJob(job, { rethrowOnFailure: true });
   });
 }
 
