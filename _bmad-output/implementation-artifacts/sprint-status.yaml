@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-15
-last_updated: 2026-04-21T17:15:00Z
+last_updated: 2026-04-21T17:39:00Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -71,7 +71,7 @@ development_status:
   # 🔴 HIGH — requires Epic 0 (Stories 0.2, 0.3) complete
   # ─────────────────────────────────────────────────────────────
   epic-2: in-progress
-  2-1-implement-dead-letter-queue-for-failed-scraper-jobs: review
+  2-1-implement-dead-letter-queue-for-failed-scraper-jobs: done
   2-2-add-exponential-backoff-retry-logic-for-redis-failures: backlog
   2-3-redis-job-queue-load-testing-100-concurrent-jobs: backlog
   2-4-redis-reconnection-handling-during-job-processing: backlog
