@@ -45,12 +45,21 @@ export class RedisProgressPublisher {
 // ---------------------------------------------------------------------------
 
 export class RedisJobConsumer {
-  private client: Redis;
+  private blockingClient: Redis;
+  private commandClient: Redis;
   private running = false;
+  private shuttingDown = false;
+  private pendingRetryOperations = new Set<Promise<void>>();
+  private readonly shutdownSignal: Promise<void>;
+  private resolveShutdownSignal: (() => void) | null = null;
 
   constructor(redisUrl: string) {
-    // Use a separate connection for blocking operations
-    this.client = new Redis(redisUrl, { lazyConnect: false });
+    // Keep blocking queue reads isolated so retry/DLQ writes are not delayed by BLPOP.
+    this.blockingClient = new Redis(redisUrl, { lazyConnect: false });
+    this.commandClient = new Redis(redisUrl, { lazyConnect: false });
+    this.shutdownSignal = new Promise((resolve) => {
+      this.resolveShutdownSignal = resolve;
+    });
   }
 
   /**
@@ -61,10 +70,27 @@ export class RedisJobConsumer {
     await new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  private async sleepUnlessShutdown(ms: number): Promise<boolean> {
+    if (this.shuttingDown) return false;
+
+    return await new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => {
+        resolve(true);
+      }, ms);
+
+      void this.shutdownSignal.then(() => {
+        clearTimeout(timer);
+        resolve(false);
+      });
+    });
+  }
+
   private async persistTerminalFailure(entry: DlqJobEntry): Promise<void> {
     for (let persistenceAttempt = 1; ; persistenceAttempt += 1) {
+      if (this.shuttingDown) return;
+
       try {
-        await this.client.zadd(SCRAPE_DLQ_KEY, Date.parse(entry.timestamp), JSON.stringify(entry));
+        await this.commandClient.zadd(SCRAPE_DLQ_KEY, Date.parse(entry.timestamp), JSON.stringify(entry));
         logger.warn('[RedisJobConsumer] Job moved to DLQ', {
           job_id: entry.job_id,
           reportId: entry.job.reportId,
@@ -75,6 +101,8 @@ export class RedisJobConsumer {
         });
         return;
       } catch (persistErr) {
+        if (this.shuttingDown) return;
+
         logger.error('[RedisJobConsumer] Failed to persist terminal job to DLQ', {
           job_id: entry.job_id,
           reportId: entry.job.reportId,
@@ -84,7 +112,9 @@ export class RedisJobConsumer {
           error: persistErr instanceof Error ? persistErr.message : String(persistErr),
           org_id: entry.org_id,
         });
-        await this.sleep(getScrapeJobRetryDelayMs(persistenceAttempt));
+
+        const shouldContinue = await this.sleepUnlessShutdown(getScrapeJobRetryDelayMs(persistenceAttempt));
+        if (!shouldContinue) return;
       }
     }
   }
@@ -100,11 +130,14 @@ export class RedisJobConsumer {
       org_id: job.traceContext?.org_id,
     });
 
-    await this.sleep(retryDelayMs);
+    const shouldContinue = await this.sleepUnlessShutdown(retryDelayMs);
+    if (!shouldContinue) return;
 
     for (let persistenceAttempt = 1; ; persistenceAttempt += 1) {
+      if (this.shuttingDown) return;
+
       try {
-        await this.client.rpush(SCRAPE_JOBS_KEY, JSON.stringify({
+        await this.commandClient.rpush(SCRAPE_JOBS_KEY, JSON.stringify({
           ...job,
           retryCount: nextRetryCount,
         }));
@@ -115,6 +148,8 @@ export class RedisJobConsumer {
         });
         return;
       } catch (persistErr) {
+        if (this.shuttingDown) return;
+
         logger.error('[RedisJobConsumer] Failed to requeue job after handler failure', {
           job_id: getDlqJobId(job),
           reportId: job.reportId,
@@ -124,9 +159,18 @@ export class RedisJobConsumer {
           error: persistErr instanceof Error ? persistErr.message : String(persistErr),
           org_id: job.traceContext?.org_id,
         });
-        await this.sleep(getScrapeJobRetryDelayMs(persistenceAttempt));
+
+        const shouldRetry = await this.sleepUnlessShutdown(getScrapeJobRetryDelayMs(persistenceAttempt));
+        if (!shouldRetry) return;
       }
     }
+  }
+
+  private trackRetryOperation(operation: Promise<void>): void {
+    this.pendingRetryOperations.add(operation);
+    void operation.finally(() => {
+      this.pendingRetryOperations.delete(operation);
+    });
   }
 
   async start(handler: (job: ScrapeJob) => Promise<void>): Promise<void> {
@@ -136,7 +180,7 @@ export class RedisJobConsumer {
     while (this.running) {
       try {
         // Block for up to 5 seconds, then loop to allow clean shutdown
-        const result = await this.client.blpop('scrape:jobs', 5);
+        const result = await this.blockingClient.blpop(SCRAPE_JOBS_KEY, 5);
 
         if (!result) continue; // Timeout, loop again
 
@@ -186,7 +230,9 @@ export class RedisJobConsumer {
 
             await this.persistTerminalFailure(entry);
           } else {
-            await this.requeueFailedJob(job, nextRetryCount, getScrapeJobRetryDelayMs(nextRetryCount), failureReason);
+            this.trackRetryOperation(
+              this.requeueFailedJob(job, nextRetryCount, getScrapeJobRetryDelayMs(nextRetryCount), failureReason)
+            );
           }
         }
       } catch (err: any) {
@@ -198,6 +244,10 @@ export class RedisJobConsumer {
       }
     }
 
+    if (this.pendingRetryOperations.size > 0) {
+      await Promise.allSettled([...this.pendingRetryOperations]);
+    }
+
     logger.info('[RedisJobConsumer] Stopped.');
   }
 
@@ -207,7 +257,14 @@ export class RedisJobConsumer {
 
   async disconnect(): Promise<void> {
     this.stop();
-    await this.client.quit();
+    this.shuttingDown = true;
+    this.resolveShutdownSignal?.();
+    this.resolveShutdownSignal = null;
+
+    await Promise.allSettled([
+      this.blockingClient.quit(),
+      this.commandClient.quit(),
+    ]);
   }
 }
 

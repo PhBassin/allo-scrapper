@@ -815,6 +815,11 @@ For AI coding agents, see [AGENTS.md](./AGENTS.md) for mandatory workflow and TD
 - Tests start and stop Redis automatically using Testcontainers (no manual Redis Compose setup).
 - See [`docs/guides/development/testing.md`](./docs/guides/development/testing.md) for troubleshooting details.
 
+**Scraper load integration tests (Testcontainers):**
+- Run `npm run test:integration --workspace=allo-scrapper-scraper` to execute real-Redis scraper queue load tests.
+- These tests validate 100+ queued jobs, retry/DLQ isolation under load, and queue-drain behavior without manual Redis setup.
+- See [`docs/guides/development/testing.md`](./docs/guides/development/testing.md) for troubleshooting details.
+
 **Playwright org auto-cleanup utilities:**
 - Use shared fixture utilities to seed and cleanup test organizations safely in parallel E2E runs.
 - Enable fixture-backed org seeding with `E2E_ENABLE_ORG_FIXTURE=true`.
