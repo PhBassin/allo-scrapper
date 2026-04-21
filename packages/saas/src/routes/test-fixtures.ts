@@ -17,7 +17,8 @@ type SeedRequestBody = {
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
 
 function isFixtureRuntimeEnabled(): boolean {
-  return process.env['NODE_ENV'] === 'test' || process.env['E2E_ENABLE_ORG_FIXTURE'] === 'true';
+  return process.env['NODE_ENV'] === 'test'
+    || (process.env['NODE_ENV'] === 'development' && process.env['E2E_ENABLE_ORG_FIXTURE'] === 'true');
 }
 
 function buildDefaultSlug(): string {

@@ -32,7 +32,8 @@ interface AppPlugin {
 }
 
 function isFixtureRuntimeEnabled(): boolean {
-  return process.env['NODE_ENV'] === 'test' || process.env['E2E_ENABLE_ORG_FIXTURE'] === 'true';
+  return process.env['NODE_ENV'] === 'test'
+    || (process.env['NODE_ENV'] === 'development' && process.env['E2E_ENABLE_ORG_FIXTURE'] === 'true');
 }
 
 export const saasPlugin: AppPlugin = {
