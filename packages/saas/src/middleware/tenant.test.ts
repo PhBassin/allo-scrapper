@@ -61,6 +61,8 @@ describe('resolveTenant', () => {
 
     expect(next).toHaveBeenCalled();
     expect(req.org).toEqual(org);
+    expect(req.dbClient).toBe(client);
+    expect(client.query).toHaveBeenNthCalledWith(2, 'SET search_path TO "org_acme", public');
     expect(client.release).toHaveBeenCalled();
   });
 

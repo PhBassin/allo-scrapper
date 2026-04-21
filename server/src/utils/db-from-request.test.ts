@@ -23,6 +23,23 @@ describe('getDbFromRequest', () => {
     expect(req.app.get).not.toHaveBeenCalled();
   });
 
+  it('prefers req.dbClient even if req.app.get("db") would return a different global client', async () => {
+    const { getDbFromRequest } = await import('./db-from-request.js');
+
+    const dbClient = { query: vi.fn(), tenant: 'scoped' };
+    const appDb = { query: vi.fn(), tenant: 'global' };
+
+    const req = {
+      dbClient,
+      app: { get: vi.fn().mockReturnValue(appDb) },
+    } as unknown as Request;
+
+    const result = getDbFromRequest(req);
+    expect(result).toBe(dbClient);
+    expect(result).not.toBe(appDb);
+    expect(req.app.get).not.toHaveBeenCalled();
+  });
+
   it('returns req.app.get("db") when req.dbClient is absent', async () => {
     const { getDbFromRequest } = await import('./db-from-request.js');
 
