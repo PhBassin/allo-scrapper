@@ -37,6 +37,15 @@ function getValidTraceparentHeader(req: AuthRequest): string | undefined {
   return raw;
 }
 
+function canManageScraper(req: AuthRequest): boolean {
+  if (req.user?.role_name === 'admin' && req.user?.is_system_role) {
+    return true;
+  }
+
+  const userPermissions = new Set(req.user?.permissions || []);
+  return userPermissions.has('scraper:trigger');
+}
+
 router.use(validateInputSize({ maxArrayLength: 100, maxTotalSize: 50 * 1024 }));
 
 // POST /api/scraper/trigger - Start a manual scrape (delegates to Redis microservice)
@@ -189,6 +198,60 @@ router.get('/status', scraperLimiter, requireAuth, async (req: AuthRequest, res,
     const response: ApiResponse = {
       success: true,
       data: statusData,
+    };
+
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/scraper/dlq - List dead-lettered scraper jobs
+router.get('/dlq', scraperLimiter, requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    if (!canManageScraper(req)) {
+      return next(new AuthError('Permission denied', 403));
+    }
+
+    const page = parseStrictInt(req.query.page);
+    const pageSize = parseStrictInt(req.query.pageSize);
+    const normalizedPage = Number.isNaN(page) ? 1 : Math.max(1, page);
+    const normalizedPageSize = Number.isNaN(pageSize) ? 50 : Math.min(Math.max(1, pageSize), 50);
+    const result = await getRedisClient().listDlqJobs(
+      normalizedPageSize,
+      normalizedPage,
+      req.user?.is_system_role ? undefined : req.user?.org_id,
+    );
+
+    const response: ApiResponse = {
+      success: true,
+      data: result,
+    };
+
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/scraper/dlq/:jobId/retry - Requeue a dead-lettered job
+router.post('/dlq/:jobId/retry', scraperLimiter, requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    if (!canManageScraper(req)) {
+      return next(new AuthError('Permission denied', 403));
+    }
+
+    const retried = await getRedisClient().retryDlqJob(
+      req.params.jobId,
+      req.user?.is_system_role ? undefined : req.user?.org_id,
+    );
+    if (!retried) {
+      return next(new NotFoundError('DLQ job not found'));
+    }
+
+    const response: ApiResponse = {
+      success: true,
+      data: retried,
     };
 
     res.json(response);

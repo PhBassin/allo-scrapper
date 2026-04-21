@@ -1,4 +1,15 @@
 import Redis from 'ioredis';
+import {
+  createDlqJobEntry,
+  matchesDlqOrg,
+  resetDlqJobForRetry,
+  SCRAPE_DLQ_KEY,
+  SCRAPE_JOBS_KEY,
+  type DlqJobEntry,
+  type ScrapeJob,
+  type ScrapeJobAddCinema,
+  type ScrapeTraceContext,
+} from '@allo-scrapper/logger';
 import type { ProgressEvent } from './progress-tracker.js';
 import { logger } from '../utils/logger.js';
 
@@ -6,10 +17,11 @@ import { logger } from '../utils/logger.js';
 // Types
 // ---------------------------------------------------------------------------
 
-interface BaseScrapeJob {
-  reportId: number;
-  /** OpenTelemetry trace context propagated from the HTTP request */
-  traceContext?: Record<string, string>;
+export interface DlqJobListResult {
+  jobs: DlqJobEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface ScheduleChangeEvent {
@@ -24,30 +36,7 @@ export interface ScheduleChangeEvent {
   };
 }
 
-export interface ScrapeJobScrape extends BaseScrapeJob {
-  type: 'scrape';
-  triggerType: 'manual' | 'cron';
-  options?: {
-    mode?: 'weekly' | 'from_today' | 'from_today_limited';
-    days?: number;
-    cinemaId?: string;
-    filmId?: number;
-    resumeMode?: boolean;
-    pendingAttempts?: Array<{ cinema_id: string; date: string }>;
-  };
-}
-
-export interface ScrapeJobAddCinema extends BaseScrapeJob {
-  type: 'add_cinema';
-  triggerType: 'manual';
-  /** The Allociné cinema URL to add and scrape */
-  url: string;
-}
-
-/**
- * Discriminated union of all job types the scraper can process.
- */
-export type ScrapeJob = ScrapeJobScrape | ScrapeJobAddCinema;
+export type { DlqJobEntry, ScrapeJob };
 
 // ---------------------------------------------------------------------------
 // RedisClient
@@ -68,18 +57,88 @@ export class RedisClient {
 
   /** Push a scrape job onto the queue. Returns the new queue length. */
   async publishJob(job: ScrapeJob): Promise<number> {
-    return this.publisher.rpush('scrape:jobs', JSON.stringify(job));
+    return this.publisher.rpush(SCRAPE_JOBS_KEY, JSON.stringify(job));
   }
 
   /** Push an add_cinema job onto the queue. Returns the new queue length. */
-  async publishAddCinemaJob(reportId: number, url: string, traceContext?: Record<string, string>): Promise<number> {
+  async publishAddCinemaJob(reportId: number, url: string, traceContext?: ScrapeTraceContext): Promise<number> {
     const job: ScrapeJobAddCinema = { type: 'add_cinema', triggerType: 'manual', reportId, url, ...(traceContext && { traceContext }) };
-    return this.publisher.rpush('scrape:jobs', JSON.stringify(job));
+    return this.publisher.rpush(SCRAPE_JOBS_KEY, JSON.stringify(job));
   }
 
   /** Return the current depth of the scrape:jobs queue. */
   async getQueueDepth(): Promise<number> {
-    return this.publisher.llen('scrape:jobs');
+    return this.publisher.llen(SCRAPE_JOBS_KEY);
+  }
+
+  async moveJobToDlq({
+    job,
+    failureReason,
+    retryCount,
+    timestamp = new Date().toISOString(),
+  }: {
+    job: ScrapeJob;
+    failureReason: string;
+    retryCount: number;
+    timestamp?: string;
+  }): Promise<DlqJobEntry> {
+    const entry = createDlqJobEntry({ job, failureReason, retryCount, timestamp });
+
+    await this.publisher.zadd(SCRAPE_DLQ_KEY, Date.parse(timestamp), JSON.stringify(entry));
+    return entry;
+  }
+
+  async listDlqJobs(pageSize: number = 50, page: number = 1, orgId?: number): Promise<DlqJobListResult> {
+    const normalizedPageSize = Math.max(1, Math.min(pageSize, 50));
+    const normalizedPage = Math.max(1, page);
+
+    const [items, total] = await Promise.all([
+      this.publisher.zrevrange(SCRAPE_DLQ_KEY, 0, -1),
+      this.publisher.zcard(SCRAPE_DLQ_KEY),
+    ]);
+
+    const parsedJobs = items.flatMap((item: string) => {
+      try {
+        return [JSON.parse(item) as DlqJobEntry];
+      } catch (error) {
+        logger.error('[RedisClient] Failed to parse DLQ entry', { error, item });
+        return [];
+      }
+    });
+
+    const filteredJobs = parsedJobs.filter((entry) => matchesDlqOrg(entry, orgId));
+    const start = (normalizedPage - 1) * normalizedPageSize;
+    const jobs = filteredJobs.slice(start, start + normalizedPageSize);
+
+    return {
+      jobs,
+      total: orgId === undefined ? total : filteredJobs.length,
+      page: normalizedPage,
+      pageSize: normalizedPageSize,
+    };
+  }
+
+  async retryDlqJob(jobId: string, orgId?: number): Promise<DlqJobEntry | null> {
+    const entries = await this.publisher.zrevrange(SCRAPE_DLQ_KEY, 0, -1);
+    const rawEntry = entries.find((item: string) => {
+      try {
+        const entry = JSON.parse(item) as DlqJobEntry;
+        return entry.job_id === jobId && matchesDlqOrg(entry, orgId);
+      } catch {
+        return false;
+      }
+    });
+
+    if (!rawEntry) {
+      return null;
+    }
+
+    const entry = JSON.parse(rawEntry) as DlqJobEntry;
+    const retriedEntry = resetDlqJobForRetry(entry);
+    await this.publisher.rpush(SCRAPE_JOBS_KEY, JSON.stringify(retriedEntry.job));
+    await this.publisher.zrem(SCRAPE_DLQ_KEY, rawEntry);
+
+    return retriedEntry;
   }
 
   // --------------------------------------------------------------------------
