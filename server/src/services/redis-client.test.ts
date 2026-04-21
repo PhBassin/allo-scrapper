@@ -31,6 +31,17 @@ describe('RedisClient', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
+    mockRedisInstance.rpush.mockReset().mockResolvedValue(1);
+    mockRedisInstance.llen.mockReset().mockResolvedValue(0);
+    mockRedisInstance.zadd.mockReset().mockResolvedValue(1);
+    mockRedisInstance.zrevrange.mockReset().mockResolvedValue([]);
+    mockRedisInstance.zcard.mockReset().mockResolvedValue(0);
+    mockRedisInstance.zrem.mockReset().mockResolvedValue(1);
+    mockRedisInstance.publish.mockReset().mockResolvedValue(1);
+    mockRedisInstance.subscribe.mockReset().mockResolvedValue(undefined);
+    mockRedisInstance.on.mockReset();
+    mockRedisInstance.quit.mockReset().mockResolvedValue('OK');
     client = new RedisClient('redis://test');
   });
 
@@ -42,6 +53,104 @@ describe('RedisClient', () => {
   it('should publish add_cinema job', async () => {
     await client.publishAddCinemaJob(42, 'http://test');
     expect(mockRedisInstance.rpush).toHaveBeenCalledWith('scrape:jobs', expect.any(String));
+  });
+
+  it('should retry publishJob with exponential backoff before succeeding', async () => {
+    vi.useFakeTimers();
+    mockRedisInstance.rpush
+      .mockRejectedValueOnce(new Error('redis timeout 1'))
+      .mockRejectedValueOnce(new Error('redis timeout 2'))
+      .mockResolvedValueOnce(1);
+
+    const publishPromise = client.publishJob({
+      type: 'scrape',
+      reportId: 11,
+      triggerType: 'manual',
+      traceContext: { org_id: '7' },
+    }).catch((error) => {
+      throw error;
+    });
+
+    await Promise.resolve();
+    expect(mockRedisInstance.rpush).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(999);
+    expect(mockRedisInstance.rpush).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await Promise.resolve();
+    expect(mockRedisInstance.rpush).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(mockRedisInstance.rpush).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await Promise.resolve();
+
+    await expect(publishPromise).resolves.toBe(1);
+    expect(mockRedisInstance.rpush).toHaveBeenCalledTimes(3);
+  });
+
+  it('should move publishJob payload to DLQ after terminal enqueue failures', async () => {
+    vi.useFakeTimers();
+    mockRedisInstance.rpush.mockRejectedValue(new Error('redis hard failure'));
+
+    const publishPromise = client.publishJob({
+      type: 'scrape',
+      reportId: 12,
+      triggerType: 'manual',
+      options: { cinemaId: 'C1234' },
+      traceContext: { org_id: '7', org_slug: 'acme' },
+    });
+    const rejectionExpectation = expect(publishPromise).rejects.toThrow('redis hard failure');
+
+    await Promise.resolve();
+    expect(mockRedisInstance.rpush).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await Promise.resolve();
+    expect(mockRedisInstance.rpush).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(2000);
+    await Promise.resolve();
+
+    await rejectionExpectation;
+    expect(mockRedisInstance.rpush).toHaveBeenCalledTimes(3);
+    expect(mockRedisInstance.zadd).toHaveBeenCalledWith(
+      'scrape:jobs:dlq',
+      expect.any(Number),
+      expect.stringContaining('"reportId":12')
+    );
+    expect(mockRedisInstance.zadd).toHaveBeenCalledWith(
+      'scrape:jobs:dlq',
+      expect.any(Number),
+      expect.stringContaining('"retry_count":3')
+    );
+  });
+
+  it('should retry publishAddCinemaJob with the same backoff contract', async () => {
+    vi.useFakeTimers();
+    mockRedisInstance.rpush
+      .mockRejectedValueOnce(new Error('redis timeout 1'))
+      .mockRejectedValueOnce(new Error('redis timeout 2'))
+      .mockResolvedValueOnce(1);
+
+    const publishPromise = client.publishAddCinemaJob(42, 'http://test', { org_id: '5' }).catch((error) => {
+      throw error;
+    });
+
+    await Promise.resolve();
+    expect(mockRedisInstance.rpush).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await Promise.resolve();
+    expect(mockRedisInstance.rpush).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(2000);
+    await Promise.resolve();
+
+    await expect(publishPromise).resolves.toBe(1);
+    expect(mockRedisInstance.rpush).toHaveBeenCalledTimes(3);
   });
 
   it('should get queue depth', async () => {

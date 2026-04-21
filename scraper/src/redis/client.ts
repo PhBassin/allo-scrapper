@@ -1,6 +1,8 @@
 import Redis from 'ioredis';
 import {
   createDlqJobEntry,
+  getDlqJobId,
+  getScrapeJobRetryDelayMs,
   MAX_SCRAPE_JOB_RETRY_ATTEMPTS,
   SCRAPE_DLQ_KEY,
   SCRAPE_JOBS_KEY,
@@ -55,6 +57,78 @@ export class RedisJobConsumer {
    * Start consuming jobs from the scrape:jobs queue.
    * Calls handler for each job. Blocks waiting for jobs (BLPOP).
    */
+  private async sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async persistTerminalFailure(entry: DlqJobEntry): Promise<void> {
+    for (let persistenceAttempt = 1; ; persistenceAttempt += 1) {
+      try {
+        await this.client.zadd(SCRAPE_DLQ_KEY, Date.parse(entry.timestamp), JSON.stringify(entry));
+        logger.warn('[RedisJobConsumer] Job moved to DLQ', {
+          job_id: entry.job_id,
+          reportId: entry.job.reportId,
+          retry_count: entry.retry_count,
+          timestamp: entry.timestamp,
+          error: entry.failure_reason,
+          org_id: entry.org_id,
+        });
+        return;
+      } catch (persistErr) {
+        logger.error('[RedisJobConsumer] Failed to persist terminal job to DLQ', {
+          job_id: entry.job_id,
+          reportId: entry.job.reportId,
+          retry_count: entry.retry_count,
+          persistence_attempt: persistenceAttempt,
+          timestamp: new Date().toISOString(),
+          error: persistErr instanceof Error ? persistErr.message : String(persistErr),
+          org_id: entry.org_id,
+        });
+        await this.sleep(getScrapeJobRetryDelayMs(persistenceAttempt));
+      }
+    }
+  }
+
+  private async requeueFailedJob(job: ScrapeJob, nextRetryCount: number, retryDelayMs: number, failureReason: string): Promise<void> {
+    logger.warn('[RedisJobConsumer] Scheduling failed job retry', {
+      job_id: getDlqJobId(job),
+      reportId: job.reportId,
+      retry_count: nextRetryCount,
+      retry_delay_ms: retryDelayMs,
+      timestamp: new Date().toISOString(),
+      error: failureReason,
+      org_id: job.traceContext?.org_id,
+    });
+
+    await this.sleep(retryDelayMs);
+
+    for (let persistenceAttempt = 1; ; persistenceAttempt += 1) {
+      try {
+        await this.client.rpush(SCRAPE_JOBS_KEY, JSON.stringify({
+          ...job,
+          retryCount: nextRetryCount,
+        }));
+        logger.warn('[RedisJobConsumer] Requeued failed job', {
+          reportId: job.reportId,
+          retry_count: nextRetryCount,
+          org_id: job.traceContext?.org_id,
+        });
+        return;
+      } catch (persistErr) {
+        logger.error('[RedisJobConsumer] Failed to requeue job after handler failure', {
+          job_id: getDlqJobId(job),
+          reportId: job.reportId,
+          retry_count: nextRetryCount,
+          persistence_attempt: persistenceAttempt,
+          timestamp: new Date().toISOString(),
+          error: persistErr instanceof Error ? persistErr.message : String(persistErr),
+          org_id: job.traceContext?.org_id,
+        });
+        await this.sleep(getScrapeJobRetryDelayMs(persistenceAttempt));
+      }
+    }
+  }
+
   async start(handler: (job: ScrapeJob) => Promise<void>): Promise<void> {
     this.running = true;
     logger.info('[RedisJobConsumer] Waiting for scrape jobs on scrape:jobs');
@@ -90,11 +164,17 @@ export class RedisJobConsumer {
         try {
           await handler(job);
         } catch (err) {
-          logger.error('[RedisJobConsumer] Job handler failed', { err });
+          const failureReason = err instanceof Error ? err.message : String(err);
+          logger.error('[RedisJobConsumer] Job handler failed', {
+            job_id: getDlqJobId(job),
+            reportId: job.reportId,
+            retry_count: (job.retryCount ?? 0) + 1,
+            timestamp: new Date().toISOString(),
+            error: failureReason,
+          });
 
           const nextRetryCount = (job.retryCount ?? 0) + 1;
           if (nextRetryCount >= MAX_SCRAPE_JOB_RETRY_ATTEMPTS) {
-            const failureReason = err instanceof Error ? err.message : String(err);
             const entry: DlqJobEntry = createDlqJobEntry({
               job: {
                 ...job,
@@ -104,22 +184,9 @@ export class RedisJobConsumer {
               retryCount: nextRetryCount,
             });
 
-            await this.client.zadd(SCRAPE_DLQ_KEY, Date.parse(entry.timestamp), JSON.stringify(entry));
-            logger.warn('[RedisJobConsumer] Job moved to DLQ', {
-              reportId: job.reportId,
-              retry_count: nextRetryCount,
-              org_id: job.traceContext?.org_id,
-            });
+            await this.persistTerminalFailure(entry);
           } else {
-            await this.client.rpush(SCRAPE_JOBS_KEY, JSON.stringify({
-              ...job,
-              retryCount: nextRetryCount,
-            }));
-            logger.warn('[RedisJobConsumer] Requeued failed job', {
-              reportId: job.reportId,
-              retry_count: nextRetryCount,
-              org_id: job.traceContext?.org_id,
-            });
+            await this.requeueFailedJob(job, nextRetryCount, getScrapeJobRetryDelayMs(nextRetryCount), failureReason);
           }
         }
       } catch (err: any) {

@@ -1,7 +1,10 @@
 import Redis from 'ioredis';
 import {
   createDlqJobEntry,
+  getDlqJobId,
+  getScrapeJobRetryDelayMs,
   matchesDlqOrg,
+  MAX_SCRAPE_JOB_RETRY_ATTEMPTS,
   resetDlqJobForRetry,
   SCRAPE_DLQ_KEY,
   SCRAPE_JOBS_KEY,
@@ -55,15 +58,64 @@ export class RedisClient {
   // Job queue (scrape:jobs)  – backend → scraper
   // --------------------------------------------------------------------------
 
+  private async sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async publishWithRetry(job: ScrapeJob): Promise<number> {
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= MAX_SCRAPE_JOB_RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        return await this.publisher.rpush(SCRAPE_JOBS_KEY, JSON.stringify(job));
+      } catch (error) {
+        lastError = error;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        logger.warn('[RedisClient] Failed to enqueue scrape job', {
+          job_id: getDlqJobId(job),
+          report_id: job.reportId,
+          retry_count: attempt,
+          timestamp: new Date().toISOString(),
+          error: errorMessage,
+        });
+
+        if (attempt >= MAX_SCRAPE_JOB_RETRY_ATTEMPTS) {
+          await this.moveJobToDlq({
+            job: {
+              ...job,
+              retryCount: attempt,
+            },
+            failureReason: errorMessage,
+            retryCount: attempt,
+          });
+
+          logger.error('[RedisClient] Job moved to DLQ after enqueue retries exhausted', {
+            job_id: getDlqJobId(job),
+            report_id: job.reportId,
+            retry_count: attempt,
+            timestamp: new Date().toISOString(),
+            error: errorMessage,
+          });
+          throw error;
+        }
+
+        await this.sleep(getScrapeJobRetryDelayMs(attempt));
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
   /** Push a scrape job onto the queue. Returns the new queue length. */
   async publishJob(job: ScrapeJob): Promise<number> {
-    return this.publisher.rpush(SCRAPE_JOBS_KEY, JSON.stringify(job));
+    return this.publishWithRetry(job);
   }
 
   /** Push an add_cinema job onto the queue. Returns the new queue length. */
   async publishAddCinemaJob(reportId: number, url: string, traceContext?: ScrapeTraceContext): Promise<number> {
     const job: ScrapeJobAddCinema = { type: 'add_cinema', triggerType: 'manual', reportId, url, ...(traceContext && { traceContext }) };
-    return this.publisher.rpush(SCRAPE_JOBS_KEY, JSON.stringify(job));
+    return this.publishWithRetry(job);
   }
 
   /** Return the current depth of the scrape:jobs queue. */

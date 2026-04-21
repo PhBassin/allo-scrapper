@@ -1,6 +1,6 @@
 import { getRedisClient } from './redis-client.js';
 import { progressTracker } from './progress-tracker.js';
-import { createScrapeReport, getLatestScrapeReport } from '../db/report-queries.js';
+import { createScrapeReport, getLatestScrapeReport, updateScrapeReport } from '../db/report-queries.js';
 import { getCinemas } from '../db/cinema-queries.js';
 import type { DB } from '../db/client.js';
 import { logger } from '../utils/logger.js';
@@ -98,16 +98,31 @@ export class ScraperService {
 
     const traceContext = this.buildTraceContext(context);
 
-    const queueDepth = await getRedisClient().publishJob({
-      type: 'scrape',
-      reportId,
-      triggerType: 'manual',
-      options: {
-        ...(cinemaId && { cinemaId }),
-        ...(filmId && { filmId }),
-      },
-      ...(traceContext && { traceContext }),
-    });
+    let queueDepth: number;
+    try {
+      queueDepth = await getRedisClient().publishJob({
+        type: 'scrape',
+        reportId,
+        triggerType: 'manual',
+        options: {
+          ...(cinemaId && { cinemaId }),
+          ...(filmId && { filmId }),
+        },
+        ...(traceContext && { traceContext }),
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      try {
+        await updateScrapeReport(this.db, reportId, {
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          errors: [{ cinema_name: 'System', error: errorMessage }],
+        });
+      } catch {
+        // Ignore report update failure and surface the original enqueue error.
+      }
+      throw error;
+    }
 
     return { reportId, queueDepth };
   }
@@ -131,16 +146,31 @@ export class ScraperService {
 
     const traceContext = this.buildTraceContext(context);
 
-    const queueDepth = await getRedisClient().publishJob({
-      type: 'scrape',
-      reportId,
-      triggerType: 'manual',
-      options: {
-        resumeMode: true,
-        pendingAttempts: pendingList,
-      },
-      ...(traceContext && { traceContext }),
-    });
+    let queueDepth: number;
+    try {
+      queueDepth = await getRedisClient().publishJob({
+        type: 'scrape',
+        reportId,
+        triggerType: 'manual',
+        options: {
+          resumeMode: true,
+          pendingAttempts: pendingList,
+        },
+        ...(traceContext && { traceContext }),
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      try {
+        await updateScrapeReport(this.db, reportId, {
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          errors: [{ cinema_name: 'System', error: errorMessage }],
+        });
+      } catch {
+        // Ignore report update failure and surface the original enqueue error.
+      }
+      throw error;
+    }
 
     return { reportId, queueDepth };
   }

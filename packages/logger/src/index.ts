@@ -61,6 +61,13 @@ export interface DlqJobEntry {
 export const SCRAPE_JOBS_KEY = 'scrape:jobs';
 export const SCRAPE_DLQ_KEY = 'scrape:jobs:dlq';
 export const MAX_SCRAPE_JOB_RETRY_ATTEMPTS = 3;
+export const SCRAPE_JOB_RETRY_DELAYS_MS = [1000, 2000, 4000] as const;
+
+export function getScrapeJobRetryDelayMs(retryAttempt: number): number {
+  if (retryAttempt <= 1) return SCRAPE_JOB_RETRY_DELAYS_MS[0];
+  if (retryAttempt === 2) return SCRAPE_JOB_RETRY_DELAYS_MS[1];
+  return SCRAPE_JOB_RETRY_DELAYS_MS[2];
+}
 
 export function getDlqJobId(job: ScrapeJob): string {
   return `report-${job.reportId}`;
