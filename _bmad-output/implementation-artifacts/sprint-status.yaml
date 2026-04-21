@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-15
-last_updated: 2026-04-21T16:37:00Z
+last_updated: 2026-04-21T16:50:00Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -63,7 +63,7 @@ development_status:
   1-3-e2e-multi-tenant-cinema-isolation-test: done
   1-4-e2e-multi-tenant-user-management-isolation-test: done
   1-5-e2e-multi-tenant-schedule-isolation-test: done
-  1-6-api-level-tenant-isolation-enforcement-tests: review
+  1-6-api-level-tenant-isolation-enforcement-tests: done
   epic-1-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────
