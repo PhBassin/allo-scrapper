@@ -118,6 +118,7 @@ describe('Routes - Cinemas', () => {
       expect(response.status).toBe(403);
       expect(response.body.error).toBe('Cross-tenant access denied');
       expect(mockGetAllCinemas).not.toHaveBeenCalled();
+      expect(mockGetAllCinemas).toHaveBeenCalledTimes(0);
     });
 
     it('should allow org-scoped read without query org_id and keep scoped response', async () => {
@@ -239,6 +240,7 @@ describe('Routes - Cinemas', () => {
       expect(response.status).toBe(403);
       expect(response.body.error).toBe('Cross-tenant access denied');
       expect(mockGetCinemaShowtimes).not.toHaveBeenCalled();
+      expect(mockGetCinemaShowtimes).toHaveBeenCalledTimes(0);
     });
   });
 });

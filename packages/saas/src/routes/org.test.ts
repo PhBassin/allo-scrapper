@@ -258,7 +258,7 @@ describe('GET /api/org/:slug/cinemas', () => {
       id: 1, username: 'admin-a', role_name: 'admin',
       is_system_role: true, permissions: ['cinemas:read'], org_slug: 'org-a',
     };
-    const { app, token } = buildApp('org-b', 'active', [], jwtUser);
+    const { app, dbClient, db, token } = buildApp('org-b', 'active', [], jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
@@ -271,6 +271,28 @@ describe('GET /api/org/:slug/cinemas', () => {
       .filter((value): value is string => typeof value === 'string')
       .join(' ');
     expect(errorText).toMatch(/organization mismatch/i);
+    expect(db.query).not.toHaveBeenCalled();
+    expect(dbClient.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses the scoped dbClient for cinema schedule details and keeps the global db untouched', async () => {
+    const jwtUser = {
+      id: 1, username: 'admin', role_name: 'admin',
+      is_system_role: true, permissions: ['cinemas:read'], org_slug: 'acme',
+    };
+    const showtimes = [{ id: 'S001', film_id: 1, cinema_id: 'C001', date: '2026-04-21', time: '14:00', datetime_iso: '2026-04-21T14:00:00.000Z', version: null, format: null, experiences: '[]', week_start: '2026-04-15', film_title: 'Acme Film', original_title: null, poster_url: null, duration_minutes: 90, release_date: null, rerelease_date: null, genres: '[]', nationality: null, director: null, screenwriters: '[]', actors: '[]', synopsis: null, certificate: null, press_rating: null, audience_rating: null, source_url: 'https://example.test', trailer_url: null }];
+    const { app, dbClient, db, token } = buildApp('acme', 'active', showtimes, jwtUser);
+    const { createOrgRouter } = await import('./org.js');
+    app.use('/api/org/:slug', createOrgRouter());
+
+    const res = await request(app)
+      .get('/api/org/acme/cinemas/C001')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(dbClient.query).toHaveBeenCalled();
+    expect(db.query).not.toHaveBeenCalled();
   });
 });
 
