@@ -50,6 +50,24 @@ describe('ScraperService', () => {
       }));
     });
 
+    it('should mark the report failed when queue publish exhausts retry attempts', async () => {
+      const publishError = new Error('redis enqueue failed');
+      const mockPublish = vi.fn().mockRejectedValue(publishError);
+      vi.mocked(redisClient.getRedisClient).mockReturnValue({ publishJob: mockPublish } as any);
+      vi.mocked(reportQueries.createScrapeReport).mockResolvedValue(48 as any);
+
+      await expect(scraperService.triggerScrape({})).rejects.toThrow('redis enqueue failed');
+
+      expect(reportQueries.updateScrapeReport).toHaveBeenCalledWith(
+        mockDb,
+        48,
+        expect.objectContaining({
+          status: 'failed',
+          errors: [{ cinema_name: 'System', error: 'redis enqueue failed' }],
+        })
+      );
+    });
+
     it('should attach org observability context to queued job metadata', async () => {
       const mockPublish = vi.fn().mockResolvedValue(1);
       vi.mocked(redisClient.getRedisClient).mockReturnValue({ publishJob: mockPublish } as any);
@@ -173,6 +191,24 @@ describe('ScraperService', () => {
           pendingAttempts: [],
         },
       }));
+    });
+
+    it('should mark the resume report failed when queue publish exhausts retry attempts', async () => {
+      const publishError = new Error('redis enqueue failed');
+      const mockPublish = vi.fn().mockRejectedValue(publishError);
+      vi.mocked(redisClient.getRedisClient).mockReturnValue({ publishJob: mockPublish } as any);
+      vi.mocked(reportQueries.createScrapeReport).mockResolvedValue(49 as any);
+
+      await expect(scraperService.triggerResume(123, [])).rejects.toThrow('redis enqueue failed');
+
+      expect(reportQueries.updateScrapeReport).toHaveBeenCalledWith(
+        mockDb,
+        49,
+        expect.objectContaining({
+          status: 'failed',
+          errors: [{ cinema_name: 'System', error: 'redis enqueue failed' }],
+        })
+      );
     });
 
     it('should attach org observability context on resume jobs', async () => {
