@@ -80,4 +80,20 @@ describe('Middleware: validateInputSize', () => {
 
     expect(res.body.error).toContain('too many items');
   });
+
+  it('should allow large base64 strings if they start with data:image/', async () => {
+    app.use(express.json({ limit: '10mb' }));
+    app.post('/test', validateInputSize({ maxStringLength: 100 }), (req, res) => {
+      res.status(200).json({ success: true });
+    });
+
+    const largeBase64 = 'data:image/png;base64,' + 'a'.repeat(200);
+
+    const res = await request(app)
+      .post('/test')
+      .send({ image: largeBase64 })
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+  });
 });
