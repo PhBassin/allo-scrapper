@@ -114,6 +114,44 @@ describe('RegisterPage — step 1', () => {
       expect(screen.getByTestId('step-2')).toBeInTheDocument();
     });
   });
+
+  it('ignores stale slug check responses (race condition)', async () => {
+    // First call (slow) returns false for 'slow-slug'
+    // Second call (fast) returns true for 'fast-slug'
+    let callCount = 0;
+    vi.mocked(checkSlugAvailable).mockImplementation((slug: string) => {
+      callCount++;
+      if (slug === 'slow-slug') {
+        return new Promise((resolve) => setTimeout(() => resolve(false), 300));
+      }
+      return Promise.resolve(true);
+    });
+
+    renderPage();
+
+    // Type first slug (triggers slow check)
+    fireEvent.change(screen.getByTestId('input-slug'), { target: { value: 'slow-slug' } });
+
+    // Wait a bit then type second slug (triggers fast check)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+    });
+
+    fireEvent.change(screen.getByTestId('input-slug'), { target: { value: 'fast-slug' } });
+
+    // Wait for fast check to resolve
+    await waitFor(() => {
+      expect(screen.getByTestId('slug-feedback')).toHaveTextContent(/available/i);
+    });
+
+    // Wait long enough for slow check to resolve too
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 400));
+    });
+
+    // Final state should still be 'available' (from fast check), not 'taken' (from slow check)
+    expect(screen.getByTestId('slug-feedback')).toHaveTextContent(/available/i);
+  });
 });
 
 describe('RegisterPage — step 2', () => {
@@ -147,6 +185,62 @@ describe('RegisterPage — step 2', () => {
   it('advances to step 3 with valid credentials', async () => {
     fireEvent.change(screen.getByTestId('input-admin-email'), {
       target: { value: 'admin@test.com' },
+    });
+    fireEvent.change(screen.getByTestId('input-admin-password'), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByTestId('btn-step2-next'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('step-3')).toBeInTheDocument();
+    });
+  });
+
+  it('rejects email without @ symbol', async () => {
+    fireEvent.change(screen.getByTestId('input-admin-email'), {
+      target: { value: 'invalidemail.com' },
+    });
+    fireEvent.change(screen.getByTestId('input-admin-password'), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByTestId('btn-step2-next'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/valid email address/i);
+    });
+  });
+
+  it('rejects email with only @ but no domain', async () => {
+    fireEvent.change(screen.getByTestId('input-admin-email'), {
+      target: { value: 'test@' },
+    });
+    fireEvent.change(screen.getByTestId('input-admin-password'), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByTestId('btn-step2-next'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/valid email address/i);
+    });
+  });
+
+  it('rejects email with spaces', async () => {
+    fireEvent.change(screen.getByTestId('input-admin-email'), {
+      target: { value: 'test user@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('input-admin-password'), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByTestId('btn-step2-next'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/valid email address/i);
+    });
+  });
+
+  it('accepts a valid email address', async () => {
+    fireEvent.change(screen.getByTestId('input-admin-email'), {
+      target: { value: 'user.name+tag@example.co.uk' },
     });
     fireEvent.change(screen.getByTestId('input-admin-password'), {
       target: { value: 'password123' },
