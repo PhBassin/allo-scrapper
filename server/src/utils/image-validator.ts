@@ -9,6 +9,8 @@ export interface ImageValidationResult {
   compressedSize?: number;
 }
 
+const MAX_INPUT_LENGTH = 2 * 1024 * 1024; // 2MB limit for the input string
+
 /**
  * Validates and compresses an image
  * @param imageData - Base64 string (with or without data URL prefix)
@@ -26,6 +28,15 @@ export async function validateImage(
     return {
       valid: false,
       error: 'Image data is empty',
+    };
+  }
+
+  // SECURITY: Check input string length before any processing
+  // This prevents memory exhaustion via extremely large base64 strings
+  if (imageData.length > MAX_INPUT_LENGTH) {
+    return {
+      valid: false,
+      error: 'Image data exceeds maximum allowed input length',
     };
   }
 
