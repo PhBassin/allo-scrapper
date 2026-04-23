@@ -32,7 +32,9 @@ function validateObject(obj: any, limits: ValidationLimits, path: string = '', d
     const currentPath = path ? `${path}.${key}` : key;
 
     if (typeof value === 'string') {
-      if (limits.maxStringLength && value.length > limits.maxStringLength) {
+      // Allow long strings if they look like base64 images
+      const isBase64Image = value.startsWith('data:image/') && value.includes(';base64,');
+      if (!isBase64Image && limits.maxStringLength && value.length > limits.maxStringLength) {
         throw new ValidationError(`String parameter '${currentPath}' is too long (max ${limits.maxStringLength} chars)`, currentPath);
       }
     } else if (Array.isArray(value)) {
