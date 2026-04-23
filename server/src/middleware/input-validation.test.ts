@@ -81,17 +81,17 @@ describe('Middleware: validateInputSize', () => {
     expect(res.body.error).toContain('too many items');
   });
 
-  it('should allow large base64 strings if they start with data:image/', async () => {
-    app.use(express.json({ limit: '10mb' }));
-    app.post('/test', validateInputSize({ maxStringLength: 100 }), (req, res) => {
+  it('should allow long base64 strings if they are intended for image uploads', async () => {
+    app.use(express.json());
+    // Set a strict limit that would normally block a base64 image
+    app.post('/upload', validateInputSize({ maxStringLength: 100 }), (req, res) => {
       res.status(200).json({ success: true });
     });
 
-    const largeBase64 = 'data:image/png;base64,' + 'a'.repeat(200);
-
+    const base64Image = 'data:image/png;base64,' + 'a'.repeat(1000); // 1000 chars > 100 limit
     const res = await request(app)
-      .post('/test')
-      .send({ image: largeBase64 })
+      .post('/upload')
+      .send({ image: base64Image })
       .expect(200);
 
     expect(res.body.success).toBe(true);
