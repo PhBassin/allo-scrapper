@@ -1,3 +1,3 @@
-## 2026-04-08 - Use Promise.all() to run concurrent independent queries
-**Learning:** Found sequential independent database queries in `getScraperStatus` (`server/src/services/system-info.ts`) which unnecessarily block one another, thereby creating a response time bottleneck.
-**Action:** When working on backend queries and system services, always verify that independent queries execute concurrently (using `Promise.all()`) instead of sequentially to optimize application latency.
+## 2026-04-15 - React useMemo Optimization Pitfalls
+**Learning:** When using `useMemo` to optimize a calculation (like a filter/map operation), relying on inline empty arrays (e.g., `|| []`) for fallback values breaks the memoization by creating a new reference on every render during loading states.
+**Action:** Define stable fallback constants outside the React component (e.g., `const EMPTY_FILMS = [];`) to ensure `useMemo` dependencies remain strictly referentially equal and effectively prevent O(N*M*K) recalculations. Always double-check imports for hooks when adding them to an existing file.
