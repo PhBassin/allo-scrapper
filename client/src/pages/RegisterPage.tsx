@@ -69,6 +69,7 @@ const RegisterPage: React.FC = () => {
 
   // ── Async slug availability check (debounced 500 ms) ────────────────────
   const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
+  const lastCheckedSlugRef = React.useRef<string>('');
 
   const checkSlug = useCallback(
     (value: string) => {
@@ -77,9 +78,17 @@ const RegisterPage: React.FC = () => {
         return;
       }
       setSlugState('checking');
+      lastCheckedSlugRef.current = value;
       checkSlugAvailable(value)
-        .then((available) => setSlugState(available ? 'available' : 'taken'))
-        .catch(() => setSlugState('idle'));
+        .then((available) => {
+          // Ignore stale responses
+          if (value !== lastCheckedSlugRef.current) return;
+          setSlugState(available ? 'available' : 'taken');
+        })
+        .catch(() => {
+          if (value !== lastCheckedSlugRef.current) return;
+          setSlugState('idle');
+        });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
@@ -120,7 +129,9 @@ const RegisterPage: React.FC = () => {
 
   const handleStep2Next = () => {
     setStep2Error('');
-    if (!adminEmail || !adminEmail.includes('@')) {
+    // RFC 5322 simplified regex for email validation
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!adminEmail || !EMAIL_REGEX.test(adminEmail)) {
       setStep2Error('Please enter a valid email address.');
       return;
     }
