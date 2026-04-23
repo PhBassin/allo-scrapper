@@ -26,7 +26,7 @@
     "@allo-scrapper/logger": "1.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
-    "dotenv": "^17.3.1",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
@@ -49,12 +49,12 @@
     "@types/node": "^25.6.0",
     "@types/pg": "^8.18.0",
     "@types/supertest": "^7.2.0",
-    "@vitest/coverage-v8": "^4.0.18",
-    "@vitest/ui": "^4.1.2",
+    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/ui": "^4.1.5",
     "supertest": "^7.2.2",
     "testcontainers": "^11.14.0",
     "tsx": "^4.19.2",
-    "typescript": "^6.0.2",
-    "vitest": "^4.1.4"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
   }
 }
