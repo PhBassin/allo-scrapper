@@ -34,33 +34,52 @@ export async function resolveTenant(
     }
   };
 
+  const org = await getOrgBySlug(client, slug);
+
+  if (!org) {
+    releaseOnce();
+    res.status(404).json({ success: false, error: 'Organization not found' });
+    return;
+  }
+
+  if (!ACTIVE_STATUSES.has(org.status)) {
+    releaseOnce();
+    res.status(403).json({ success: false, error: `Organization is ${org.status}` });
+    return;
+  }
+
+  // Scope all subsequent queries to the org's schema.
+  // NOTE: PostgreSQL does not support $1 parameterized form for SET commands.
+  // The schema name is safe: slugs are validated to [a-z0-9-] and converted
+  // to [a-z0-9_] by slugToSchemaName, making SQL injection impossible.
+  await client.query(`SET search_path TO "${org.schema_name}", public`);
+
+  req.org = org;
+  req.dbClient = client;
+
+  if (typeof res.on === 'function') {
+    res.on('finish', releaseOnce);
+    res.on('close', releaseOnce);
+  }
+
+  let nextResult: ReturnType<NextFunction>;
+
   try {
-    const org = await getOrgBySlug(client, slug);
+    nextResult = next();
+  } catch (error) {
+    releaseOnce();
+    next(error);
+    return;
+  }
 
-    if (!org) {
-      releaseOnce();
-      res.status(404).json({ success: false, error: 'Organization not found' });
-      return;
-    }
+  try {
+    await nextResult;
+  } catch (error) {
+    releaseOnce();
+    throw error;
+  }
 
-    if (!ACTIVE_STATUSES.has(org.status)) {
-      releaseOnce();
-      res.status(403).json({ success: false, error: `Organization is ${org.status}` });
-      return;
-    }
-
-    // Scope all subsequent queries to the org's schema.
-    // NOTE: PostgreSQL does not support $1 parameterized form for SET commands.
-    // The schema name is safe: slugs are validated to [a-z0-9-] and converted
-    // to [a-z0-9_] by slugToSchemaName, making SQL injection impossible.
-    await client.query(`SET search_path TO "${org.schema_name}", public`);
-
-    req.org = org;
-    req.dbClient = client;
-
-    await next();
-  } finally {
-    // Always release the client back to the pool (no-op if already released above)
+  if (typeof res.on !== 'function') {
     releaseOnce();
   }
 }
