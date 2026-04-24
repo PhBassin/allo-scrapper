@@ -175,4 +175,45 @@ describe('RedisJobConsumer load integration', () => {
     expect(dlqEntries[0]).toContain(`"reportId":${terminalFailureReportId}`);
     expect(dlqEntries[0]).toContain('"retry_count":3');
   }, 20000);
+
+  it('requeues an in-flight job after Redis reconnect without duplication', async () => {
+    const originalJob: ScrapeJob = {
+      type: 'scrape',
+      triggerType: 'manual',
+      reportId: 201,
+    };
+
+    await redis.rpush(SCRAPE_JOBS_KEY, JSON.stringify(originalJob));
+
+    const consumer = new RedisJobConsumer(redisUrl);
+    const attempts = new Map<number, number>();
+    const completions: number[] = [];
+    const startPromise = consumer.start(async (job) => {
+      const nextAttempt = (attempts.get(job.reportId) ?? 0) + 1;
+      attempts.set(job.reportId, nextAttempt);
+
+      if (nextAttempt === 1) {
+        consumer['blockingClient'].disconnect(true);
+        consumer['commandClient'].disconnect(true);
+        throw new Error('transient redis disconnect during active job');
+      }
+
+      completions.push(job.reportId);
+      consumer.stop();
+    });
+
+    try {
+      await waitFor(async () => completions.length === 1, 10000);
+    } finally {
+      await consumer.disconnect();
+      await startPromise;
+    }
+
+    expect(attempts.get(201)).toBe(2);
+    expect(completions).toEqual([201]);
+    expect(await redis.llen(SCRAPE_JOBS_KEY)).toBe(0);
+
+    const dlqEntries = await redis.zrange(SCRAPE_DLQ_KEY, 0, -1);
+    expect(dlqEntries).toHaveLength(0);
+  }, 20000);
 });
