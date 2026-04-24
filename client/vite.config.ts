@@ -1,14 +1,15 @@
-import { defineConfig, loadEnv } from 'vite'
+import type { ConfigEnv, UserConfig } from 'vite'
+import { loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default ({ mode }: ConfigEnv): UserConfig => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiBaseUrl = env.VITE_API_BASE_URL || 'http://localhost:3000/api'
   const proxyTarget = env.VITE_PROXY_TARGET || (apiBaseUrl.startsWith('http') ? new URL(apiBaseUrl).origin : 'http://localhost:3000')
 
   return {
-    plugins: [react()],
+    plugins: [...react()],
     build: {
       sourcemap: false, // Disable source maps in production
       minify: 'esbuild', // Ensure minification is enabled
@@ -27,5 +28,5 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-  }
-})
+  } as UserConfig
+}

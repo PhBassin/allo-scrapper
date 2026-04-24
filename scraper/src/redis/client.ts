@@ -46,7 +46,6 @@ export class RedisProgressPublisher {
 // ---------------------------------------------------------------------------
 
 export class RedisJobConsumer {
-  private readonly redisUrl: string;
   private blockingClient: Redis;
   private commandClient: Redis;
   private running = false;
@@ -74,7 +73,6 @@ export class RedisJobConsumer {
   private onTerminalFailureCallback: ((job: ScrapeJob, failureReason: string) => Promise<void>) | undefined;
 
   constructor(redisUrl: string) {
-    this.redisUrl = redisUrl;
     // Keep blocking queue reads isolated so retry/DLQ writes are not delayed by BLPOP.
     this.blockingClient = new Redis(redisUrl, this.createRedisOptions());
     this.commandClient = new Redis(redisUrl, this.createRedisOptions());
@@ -565,10 +563,10 @@ export class RedisJobConsumer {
 
             await this.persistTerminalFailure(entry);
           } else {
-              this.trackRetryOperation(
-                this.requeueFailedJob(job, nextRetryCount, getScrapeJobRetryDelayMs(nextRetryCount), failureReason)
-              );
-            }
+            this.trackRetryOperation(
+              this.requeueFailedJob(job, nextRetryCount, getScrapeJobRetryDelayMs(nextRetryCount), failureReason)
+            );
+          }
         } finally {
           this.activeJob = null;
         }
@@ -595,7 +593,6 @@ export class RedisJobConsumer {
     }
 
     await this.persistReconnectExhaustedJobs();
-
     logger.info('[RedisJobConsumer] Stopped.');
   }
 
