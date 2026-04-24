@@ -5,6 +5,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockRunScraper = vi.fn();
 const mockAddCinemaAndScrape = vi.fn();
 const mockUpdateScrapeReport = vi.fn().mockResolvedValue(undefined);
+const mockGetPendingScrapeAttempts = vi.fn();
+const mockGetScrapeAttemptsByReport = vi.fn();
+const mockGetCinemas = vi.fn();
+const mockDbQuery = vi.fn().mockResolvedValue({ rows: [] });
 const mockGetRedisPublisher = vi.fn().mockReturnValue({ emit: vi.fn() });
 const mockScrapeJobsTotal = { inc: vi.fn() };
 const mockScrapeDurationSeconds = { startTimer: vi.fn().mockReturnValue(vi.fn()) };
@@ -21,6 +25,15 @@ vi.mock('../../src/db/report-queries.js', () => ({
   updateScrapeReport: (...args: any[]) => mockUpdateScrapeReport(...args),
 }));
 
+vi.mock('../../src/db/scrape-attempt-queries.js', () => ({
+  getPendingScrapeAttempts: (...args: any[]) => mockGetPendingScrapeAttempts(...args),
+  getScrapeAttemptsByReport: (...args: any[]) => mockGetScrapeAttemptsByReport(...args),
+}));
+
+vi.mock('../../src/db/cinema-queries.js', () => ({
+  getCinemas: (...args: any[]) => mockGetCinemas(...args),
+}));
+
 vi.mock('../../src/redis/client.js', () => ({
   getRedisPublisher: mockGetRedisPublisher,
   getRedisConsumer: vi.fn().mockReturnValue({ start: vi.fn(), stop: vi.fn(), disconnect: vi.fn() }),
@@ -28,7 +41,7 @@ vi.mock('../../src/redis/client.js', () => ({
 }));
 
 vi.mock('../../src/db/client.js', () => ({
-  db: { end: vi.fn() },
+  db: { end: vi.fn(), query: (...args: any[]) => mockDbQuery(...args) },
 }));
 
 vi.mock('../../src/utils/logger.js', () => ({
@@ -64,6 +77,10 @@ describe('executeJob dispatcher', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockScrapeDurationSeconds.startTimer.mockReturnValue(vi.fn());
+    mockDbQuery.mockReset().mockResolvedValue({ rows: [] });
+    mockGetPendingScrapeAttempts.mockReset();
+    mockGetScrapeAttemptsByReport.mockReset().mockResolvedValue([]);
+    mockGetCinemas.mockReset().mockResolvedValue([{ id: 'C0001', name: 'Cinema 1' }]);
   });
 
   it('should dispatch scrape jobs to runScraper', async () => {
@@ -169,6 +186,87 @@ describe('executeJob dispatcher', () => {
       expect.anything(),
       46,
       expect.objectContaining({ status: 'failed' })
+    );
+  });
+
+  it('builds a resume recovery job from pending scrape attempts when checkpoint data exists', async () => {
+    mockGetPendingScrapeAttempts.mockResolvedValue([
+      { cinema_id: 'C0001', date: '2026-04-23' },
+      { cinema_id: 'C0001', date: '2026-04-24' },
+    ]);
+
+    const { buildRecoveryJob } = await import('../../src/index.js');
+
+    const recoveryJob = await buildRecoveryJob({
+      type: 'scrape',
+      triggerType: 'manual',
+      reportId: 47,
+      options: { cinemaId: 'C0001' },
+    });
+
+    expect(mockGetPendingScrapeAttempts).toHaveBeenCalledWith(expect.anything(), 47);
+    expect(recoveryJob).toEqual(expect.objectContaining({
+      type: 'scrape',
+      reportId: 47,
+      options: expect.objectContaining({
+        cinemaId: 'C0001',
+        resumeMode: true,
+        pendingAttempts: [
+          { cinema_id: 'C0001', date: '2026-04-23' },
+          { cinema_id: 'C0001', date: '2026-04-24' },
+        ],
+      }),
+    }));
+  });
+
+  it('rebuilds pending attempts from partial success checkpoints to avoid replaying successful dates', async () => {
+    mockGetPendingScrapeAttempts.mockResolvedValue([]);
+    mockGetScrapeAttemptsByReport.mockResolvedValue([
+      {
+        id: 1,
+        report_id: 48,
+        cinema_id: 'C0001',
+        date: '2026-04-23',
+        status: 'success',
+      },
+    ]);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-23T10:00:00Z'));
+
+    const { buildRecoveryJob } = await import('../../src/index.js');
+
+    const recoveryJob = await buildRecoveryJob({
+      type: 'scrape',
+      triggerType: 'manual',
+      reportId: 48,
+      options: { cinemaId: 'C0001', mode: 'from_today', days: 2 },
+    });
+
+    expect(recoveryJob).toEqual(expect.objectContaining({
+      options: expect.objectContaining({
+        resumeMode: true,
+        pendingAttempts: [{ cinema_id: 'C0001', date: '2026-04-24' }],
+      }),
+    }));
+  });
+
+  it('skips failed report updates when the consumer requests reconnect-aware propagation', async () => {
+    const failure = new Error('redis downstream failure');
+    mockRunScraper.mockRejectedValue(failure);
+
+    const { executeJob } = await import('../../src/index.js');
+
+    await expect(executeJob({
+      type: 'scrape',
+      triggerType: 'manual',
+      reportId: 49,
+    }, { rethrowOnFailure: true, skipReportFailureUpdate: true })).rejects.toThrow('redis downstream failure');
+
+    expect(mockUpdateScrapeReport).toHaveBeenCalledTimes(1);
+    expect(mockUpdateScrapeReport).toHaveBeenCalledWith(
+      expect.anything(),
+      49,
+      expect.objectContaining({ status: 'running' })
     );
   });
 });

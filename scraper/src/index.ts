@@ -10,7 +10,10 @@ import { runScraper, addCinemaAndScrape } from './scraper/index.js';
 import { getRedisPublisher, getRedisConsumer, getRedisSubscriber, disconnectRedis, type ScrapeJob, type ScheduleChangeEvent } from './redis/client.js';
 import { db } from './db/client.js';
 import { createScrapeReport, updateScrapeReport } from './db/report-queries.js';
+import { getPendingScrapeAttempts, getScrapeAttemptsByReport } from './db/scrape-attempt-queries.js';
 import { getEnabledSchedules, updateScheduleRunStatus } from './db/schedule-queries.js';
+import { getCinemas } from './db/cinema-queries.js';
+import { getScrapeDates, type ScrapeMode } from './utils/date.js';
 
 // ---------------------------------------------------------------------------
 // Metrics HTTP server (always-on, port 9091)
@@ -58,11 +61,12 @@ const RUN_MODE: RunMode = (process.env.RUN_MODE as RunMode) ?? 'oneshot';
 
 interface ExecuteJobOptions {
   rethrowOnFailure?: boolean;
+  skipReportFailureUpdate?: boolean;
 }
 
 export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}): Promise<void> {
   const publisher = getRedisPublisher();
-  const { rethrowOnFailure = false } = options;
+  const { rethrowOnFailure = false, skipReportFailureUpdate = false } = options;
   // Support legacy jobs that predate the discriminated union (no 'type' field)
   const jobType = ('type' in job) ? job.type : 'scrape';
 
@@ -99,11 +103,13 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
         error: errorMessage,
         stack: err instanceof Error ? err.stack : undefined,
       });
-      await updateScrapeReport(db, job.reportId, {
-        status: 'failed',
-        completed_at: new Date().toISOString(),
-        errors: [{ cinema_name: 'System', error: errorMessage }],
-      }).catch(() => {});
+      if (!skipReportFailureUpdate) {
+        await updateScrapeReport(db, job.reportId, {
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          errors: [{ cinema_name: 'System', error: errorMessage }],
+        }).catch(() => {});
+      }
 
       if (rethrowOnFailure) {
         throw err;
@@ -154,16 +160,105 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
     });
     scrapeJobsTotal.inc({ status: 'failed', trigger: job.triggerType });
 
-    await updateScrapeReport(db, job.reportId, {
-      status: 'failed',
-      completed_at: new Date().toISOString(),
-      errors: [{ cinema_name: 'System', error: errorMessage }],
-    }).catch(() => {});
+    if (!skipReportFailureUpdate) {
+      await updateScrapeReport(db, job.reportId, {
+        status: 'failed',
+        completed_at: new Date().toISOString(),
+        errors: [{ cinema_name: 'System', error: errorMessage }],
+      }).catch(() => {});
+    }
 
     if (rethrowOnFailure) {
       throw err;
     }
   }
+}
+
+async function getRecoveryPendingAttempts(job: ScrapeJobScrape): Promise<Array<{ cinema_id: string; date: string }>> {
+  const pendingAttempts = await getPendingScrapeAttempts(db, job.reportId);
+  if (pendingAttempts.length > 0) {
+    return pendingAttempts.map((attempt) => ({
+      cinema_id: attempt.cinema_id,
+      date: attempt.date,
+    }));
+  }
+
+  const existingAttempts = await getScrapeAttemptsByReport(db, job.reportId);
+  if (existingAttempts.length === 0) {
+    return [];
+  }
+
+  const successfulAttemptKeys = new Set(
+    existingAttempts
+      .filter((attempt) => attempt.status === 'success')
+      .map((attempt) => `${attempt.cinema_id}:${attempt.date}`)
+  );
+
+  let cinemas = await getCinemas(db);
+  if (job.options?.cinemaId) {
+    cinemas = cinemas.filter((cinema) => cinema.id === job.options?.cinemaId);
+  }
+
+  let scrapeMode: ScrapeMode = 'from_today_limited';
+  let scrapeDays = 7;
+  try {
+    const settingsResult = await db.query<{ scrape_mode: string; scrape_days: number }>(
+      'SELECT scrape_mode, scrape_days FROM app_settings WHERE id = 1'
+    );
+    if (settingsResult.rows.length > 0) {
+      scrapeMode = settingsResult.rows[0].scrape_mode as ScrapeMode;
+      scrapeDays = settingsResult.rows[0].scrape_days;
+    }
+  } catch (error) {
+    logger.warn('[scraper] Could not read scrape settings for recovery checkpoint', {
+      reportId: job.reportId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  if (job.options?.mode) scrapeMode = job.options.mode;
+  if (job.options?.days) scrapeDays = job.options.days;
+
+  const dates = getScrapeDates(scrapeMode, scrapeDays);
+
+  return cinemas.flatMap((cinema) => dates
+    .filter((date) => !successfulAttemptKeys.has(`${cinema.id}:${date}`))
+    .map((date) => ({
+      cinema_id: cinema.id,
+      date,
+    }))
+  );
+}
+
+export async function buildRecoveryJob(job: ScrapeJob): Promise<ScrapeJob> {
+  if (job.type !== 'scrape' || job.options?.resumeMode) {
+    return job;
+  }
+
+  const pendingAttempts = await getRecoveryPendingAttempts(job);
+  if (pendingAttempts.length === 0) {
+    return job;
+  }
+
+  return {
+    ...job,
+    options: {
+      ...job.options,
+      resumeMode: true,
+      pendingAttempts: pendingAttempts.map((attempt) => ({
+        cinema_id: attempt.cinema_id,
+        date: attempt.date,
+      })),
+    },
+  };
+}
+
+export async function recordTerminalJobFailure(job: ScrapeJob, failureReason: string): Promise<void> {
+  await updateScrapeReport(db, job.reportId, {
+    status: 'failed',
+    completed_at: new Date().toISOString(),
+    errors: [{ cinema_name: 'System', error: failureReason }],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -228,7 +323,10 @@ async function runConsumer(): Promise<void> {
   });
 
   await consumer.start(async (job) => {
-    await executeJob(job, { rethrowOnFailure: true });
+    await executeJob(job, { rethrowOnFailure: true, skipReportFailureUpdate: true });
+  }, {
+    buildRecoveryJob,
+    onTerminalFailure: recordTerminalJobFailure,
   });
 }
 
