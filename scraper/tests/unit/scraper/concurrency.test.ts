@@ -43,25 +43,29 @@ describe('runScraper concurrency', () => {
   });
 
   it('should process cinemas concurrently and respect limit', async () => {
+    process.env.SCRAPER_CONCURRENCY = '2';
+
     const cinemas = [
       { id: 'C1', name: 'Cinema 1', url: 'url1', source: 'allocine' },
       { id: 'C2', name: 'Cinema 2', url: 'url2', source: 'allocine' },
       { id: 'C3', name: 'Cinema 3', url: 'url3', source: 'allocine' },
       { id: 'C4', name: 'Cinema 4', url: 'url4', source: 'allocine' },
+      { id: 'C5', name: 'Cinema 5', url: 'url5', source: 'allocine' },
+      { id: 'C6', name: 'Cinema 6', url: 'url6', source: 'allocine' },
     ];
 
     (getCinemaConfigs as any).mockResolvedValue(cinemas);
 
-    const activeProcessing = new Set();
+    let activeProcessing = 0;
     let maxConcurrent = 0;
 
     const mockStrategy = {
       sourceName: 'allocine',
       loadTheaterMetadata: vi.fn().mockImplementation(async () => {
-        activeProcessing.add(Math.random());
-        maxConcurrent = Math.max(maxConcurrent, activeProcessing.size);
+        activeProcessing += 1;
+        maxConcurrent = Math.max(maxConcurrent, activeProcessing);
         await new Promise(resolve => setTimeout(resolve, 50));
-        activeProcessing.clear(); // Simplified for test
+        activeProcessing -= 1;
         return { availableDates: ['2026-04-10'], cinema: { id: 'C', name: 'C' } };
       }),
       scrapeTheater: vi.fn().mockResolvedValue({ filmsCount: 1, showtimesCount: 5 }),
@@ -74,11 +78,11 @@ describe('runScraper concurrency', () => {
     const duration = Date.now() - startTime;
 
     // With concurrency 2 and 50ms delay per cinema metadata load:
-    // Sequential would take ~200ms
-    // Concurrent 2 would take ~100ms
-    // We expect it to be faster than sequential
-    expect(duration).toBeLessThan(180); 
-    expect(summary.successful_cinemas).toBe(4);
+    // the run should progress in roughly three waves rather than starting all six at once.
+    expect(maxConcurrent).toBe(2);
+    expect(duration).toBeGreaterThanOrEqual(140);
+    expect(duration).toBeLessThan(260);
+    expect(summary.successful_cinemas).toBe(6);
     expect(mockProgress.emit).toHaveBeenCalledWith(expect.objectContaining({ type: 'completed' }));
   });
 

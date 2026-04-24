@@ -50,6 +50,7 @@ npm run test:coverage   # With coverage
 cd scraper
 npm test                # Watch mode
 npm run test:run        # Single run
+npm run test:integration # Real Redis load/integration tests
 ```
 
 ### Client Tests (Vitest + React Testing Library)
@@ -245,6 +246,25 @@ Troubleshooting:
 - If Docker is not running, start Docker Desktop/daemon and rerun
 - If Testcontainers cannot pull images, verify network access to Docker registry
 - On test failure, integration tests print Redis diagnostics including effective `REDIS_URL`
+
+### Scraper Redis Load Integration Tests (Testcontainers)
+
+The scraper workspace also includes real-Redis integration coverage for queue load and retry behavior.
+
+```bash
+# Run scraper integration tests using Testcontainers-managed Redis
+npm run test:integration --workspace=allo-scrapper-scraper
+```
+
+What this covers:
+- enqueueing and consuming 100 queued scrape jobs without loss
+- bounded retry and terminal DLQ behavior while other jobs continue processing
+- queue depth drain behavior under load
+
+Troubleshooting:
+- If Docker is not running, start Docker Desktop/daemon and rerun
+- If Testcontainers cannot pull images, verify network access to Docker registry
+- On test failure, scraper integration tests print Redis diagnostics including effective `REDIS_URL`
 
 ### Playwright Auto-Cleanup Utilities (Org Fixtures)
 

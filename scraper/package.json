@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:integration": "vitest run tests/integration",
     "test:coverage": "vitest run --coverage"
   },
   "keywords": [
@@ -47,6 +48,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.18.0",
     "@vitest/coverage-v8": "^4.0.18",
+    "testcontainers": "^11.14.0",
     "tsx": "^4.19.2",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
