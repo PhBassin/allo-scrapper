@@ -172,4 +172,60 @@ describe('resolveTenant', () => {
 
     expect(client.release).toHaveBeenCalled();
   });
+
+  it('does not release client until response finishes', async () => {
+    const { EventEmitter } = await import('events');
+    const org = { id: 1, slug: 'acme', schema_name: 'org_acme', status: 'active' };
+    const client = {
+      query: vi.fn().mockResolvedValue({ rows: [org], rowCount: 1 }),
+      release: vi.fn(),
+    };
+    const pool = { connect: vi.fn().mockResolvedValue(client) };
+    const req = makeReq('acme', pool);
+    const res = new EventEmitter() as any;
+    res.statusCode = 200;
+    res.status = vi.fn().mockReturnValue(res);
+    res.json = vi.fn().mockReturnValue(res);
+    const next = vi.fn().mockResolvedValue(undefined);
+
+    const { resolveTenant } = await import('./tenant.js');
+    const promise = resolveTenant(req as unknown as Request, res as unknown as Response, next as unknown as NextFunction);
+
+    // Wait for middleware to complete
+    await promise;
+
+    // Client must NOT be released before response finish
+    expect(client.release).not.toHaveBeenCalled();
+
+    // Simulate response finishing
+    res.emit('finish');
+
+    // Now client should be released exactly once
+    expect(client.release).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases client on response close if finish never fires', async () => {
+    const { EventEmitter } = await import('events');
+    const org = { id: 1, slug: 'acme', schema_name: 'org_acme', status: 'active' };
+    const client = {
+      query: vi.fn().mockResolvedValue({ rows: [org], rowCount: 1 }),
+      release: vi.fn(),
+    };
+    const pool = { connect: vi.fn().mockResolvedValue(client) };
+    const req = makeReq('acme', pool);
+    const res = new EventEmitter() as any;
+    res.statusCode = 200;
+    res.status = vi.fn().mockReturnValue(res);
+    res.json = vi.fn().mockReturnValue(res);
+    const next = vi.fn().mockResolvedValue(undefined);
+
+    const { resolveTenant } = await import('./tenant.js');
+    await resolveTenant(req as unknown as Request, res as unknown as Response, next as unknown as NextFunction);
+
+    expect(client.release).not.toHaveBeenCalled();
+
+    res.emit('close');
+
+    expect(client.release).toHaveBeenCalledTimes(1);
+  });
 });
