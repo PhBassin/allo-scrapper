@@ -1,4 +1,16 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+// IMPORTANT: Set JWT_SECRET BEFORE any imports
+// The rate limit middleware reads process.env.JWT_SECRET at module load time
+process.env.JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
+process.env.RATE_LIMIT_WINDOW_MS = '900000';
+process.env.RATE_LIMIT_GENERAL_MAX = '100';
+process.env.RATE_LIMIT_AUTH_MAX = '5';
+process.env.RATE_LIMIT_REGISTER_MAX = '3';
+process.env.RATE_LIMIT_PROTECTED_MAX = '60';
+process.env.RATE_LIMIT_SCRAPER_MAX = '10';
+process.env.RATE_LIMIT_PUBLIC_MAX = '100';
+process.env.RATE_LIMIT_HEALTH_MAX = '10';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
@@ -12,9 +24,9 @@ import {
   healthCheckLimiter,
 } from './rate-limit.js';
 
-// Helper: sign a minimal JWT for rate-limit key tests (secret doesn't matter — we use jwt.decode)
+// Helper: sign a minimal JWT for rate-limit key tests (secret matters now!)
 const makeToken = (userId: number): string =>
-  jwt.sign({ id: userId, username: `user${userId}` }, 'test-secret');
+  jwt.sign({ id: userId, username: `user${userId}` }, process.env.JWT_SECRET as string);
 
 describe('Rate Limiting Middleware', () => {
   let app: express.Application;
@@ -36,19 +48,19 @@ describe('Rate Limiting Middleware', () => {
 
   describe('generalLimiter', () => {
     beforeEach(() => {
-      app.get('/test', generalLimiter, (_req, res) => {
+      app.get('/api/test', generalLimiter, (_req, res) => {
         res.json({ success: true });
       });
     });
 
     it('should allow requests within the limit', async () => {
-      const response = await request(app).get('/test');
+      const response = await request(app).get('/api/test');
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
     });
 
     it('should include rate limit headers', async () => {
-      const response = await request(app).get('/test');
+      const response = await request(app).get('/api/test');
       expect(response.headers['ratelimit-limit']).toBeDefined();
       expect(response.headers['ratelimit-remaining']).toBeDefined();
       expect(response.headers['ratelimit-reset']).toBeDefined();
@@ -57,61 +69,73 @@ describe('Rate Limiting Middleware', () => {
 
   describe('authLimiter', () => {
     beforeEach(() => {
-      app.post('/login', authLimiter, (req, res) => {
-        if (req.body.success) {
-          return res.status(200).json({ success: true });
+      app.post('/api/auth/login', authLimiter, (req, res) => {
+        if (req.body.fail) {
+          res.status(401).json({ success: false });
+        } else {
+          res.json({ success: true });
         }
-        res.status(401).json({ success: false });
       });
     });
 
     it('should allow requests within the limit', async () => {
-      const response = await request(app)
-        .post('/login')
-        .send({ success: true });
-      expect(response.status).toBe(200);
+      const response = await request(app).post('/api/auth/login').send({ fail: true });
+      expect(response.status).toBe(401);
     });
 
     it('should skip successful requests (status 200)', async () => {
-      // Make 4 successful login attempts (should not count toward limit of 2)
-      for (let i = 0; i < 4; i++) {
-        const res = await request(app)
-          .post('/login')
-          .send({ success: true });
-        expect(res.status).toBe(200);
-      }
+      // Create a new app just for this tight-limit test
+      const tightApp = express();
+      tightApp.use(express.json());
+      tightApp.set('trust proxy', 1);
+      const { default: rateLimit } = await import('express-rate-limit');
+      const tightLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 1, // Only 1 attempt allowed
+        skipSuccessfulRequests: true,
+        skip: () => false,
+      });
+      tightApp.post('/login', tightLimiter, (req, res) => {
+        if (req.body.fail) res.status(401).json({ ok: false });
+        else res.json({ ok: true });
+      });
 
-      // Successful requests should not have been rate limited
-      const response = await request(app)
-        .post('/login')
-        .send({ success: true });
-      expect(response.status).toBe(200);
+      // Successful request (should be skipped)
+      await request(tightApp).post('/login').send({ fail: false });
+
+      // Another request should still work because the first was skipped
+      const res2 = await request(tightApp).post('/login').send({ fail: true });
+      expect(res2.status).toBe(401);
+
+      // But a second failure will be rate limited
+      const res3 = await request(tightApp).post('/login').send({ fail: true });
+      expect(res3.status).toBe(429);
     });
   });
 
   describe('registerLimiter', () => {
     beforeEach(() => {
-      app.post('/register', registerLimiter, (_req, res) => {
-        res.status(201).json({ success: true });
+      app.post('/api/auth/register', registerLimiter, (_req, res) => {
+        res.json({ success: true });
       });
     });
 
     it('should allow requests within the limit', async () => {
-      const response = await request(app).post('/register').send({});
-      expect(response.status).toBe(201);
+      const response = await request(app).post('/api/auth/register').send({});
+      expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
     });
   });
 
   describe('protectedLimiter', () => {
     beforeEach(() => {
-      app.get('/reports', protectedLimiter, (_req, res) => {
+      app.get('/api/protected', protectedLimiter, (_req, res) => {
         res.json({ success: true });
       });
     });
 
     it('should allow requests within the limit', async () => {
-      const response = await request(app).get('/reports');
+      const response = await request(app).get('/api/protected');
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
     });
@@ -119,13 +143,13 @@ describe('Rate Limiting Middleware', () => {
 
   describe('scraperLimiter', () => {
     beforeEach(() => {
-      app.post('/scraper/trigger', scraperLimiter, (_req, res) => {
+      app.post('/api/scraper', scraperLimiter, (_req, res) => {
         res.json({ success: true });
       });
     });
 
     it('should allow requests within the limit', async () => {
-      const response = await request(app).post('/scraper/trigger').send({});
+      const response = await request(app).post('/api/scraper').send({});
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
     });
@@ -147,7 +171,6 @@ describe('Rate Limiting Middleware', () => {
 
   describe('protectedLimiter — per-user key generation', () => {
     it('should use user id as rate-limit key so two users on same IP have independent quotas', async () => {
-      // Create a tight-limit app to make exhaustion testable without 60 requests
       const tightApp = express();
       tightApp.set('trust proxy', 1);
       const { default: rateLimit } = await import('express-rate-limit');
@@ -164,13 +187,11 @@ describe('Rate Limiting Middleware', () => {
       const token2 = makeToken(2);
       const sameIp = '1.2.3.4';
 
-      // Exhaust user 1's quota (2 requests)
       await request(tightApp).get('/p').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp);
       await request(tightApp).get('/p').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp);
       const exhausted = await request(tightApp).get('/p').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp);
       expect(exhausted.status).toBe(429);
 
-      // User 2 on same IP should still have full quota
       const user2res = await request(tightApp).get('/p').set('Authorization', `Bearer ${token2}`).set('X-Forwarded-For', sameIp);
       expect(user2res.status).toBe(200);
     });
@@ -227,7 +248,6 @@ describe('Rate Limiting Middleware', () => {
   describe('Environment variable configuration', () => {
     it('should respect RATE_LIMIT_WINDOW_MS environment variable', () => {
       const windowMs = process.env.RATE_LIMIT_WINDOW_MS;
-      // Just verify the env var can be read (actual values are set at module load)
       expect(windowMs).toBeDefined();
     });
 
@@ -283,7 +303,7 @@ describe('Rate Limiting Middleware', () => {
     it('should include rate limit headers', async () => {
       const response = await request(app)
         .get('/health')
-        .set('X-Forwarded-For', '203.0.113.42'); // External IP to trigger rate limiting
+        .set('X-Forwarded-For', '203.0.113.42');
       expect(response.headers['ratelimit-limit']).toBeDefined();
       expect(response.headers['ratelimit-remaining']).toBeDefined();
       expect(response.headers['ratelimit-reset']).toBeDefined();
@@ -294,7 +314,7 @@ describe('Rate Limiting Middleware', () => {
       tightApp.set('trust proxy', 1);
       const { default: rateLimit } = await import('express-rate-limit');
       const tightLimiter = rateLimit({
-        windowMs: 60_000, // 1 minute
+        windowMs: 60_000,
         max: 10,
         skip: (req) => {
           const internalIPs = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
@@ -309,9 +329,8 @@ describe('Rate Limiting Middleware', () => {
       });
       tightApp.get('/health', tightLimiter, (_req, res) => res.json({ status: 'healthy' }));
 
-      const clientIp = '203.0.113.42'; // External IP
+      const clientIp = '203.0.113.42';
 
-      // Make 10 requests (should all succeed)
       for (let i = 0; i < 10; i++) {
         const res = await request(tightApp)
           .get('/health')
@@ -319,7 +338,6 @@ describe('Rate Limiting Middleware', () => {
         expect(res.status).toBe(200);
       }
 
-      // 11th request should be rate limited
       const limitedResponse = await request(tightApp)
         .get('/health')
         .set('X-Forwarded-For', clientIp);
@@ -333,7 +351,7 @@ describe('Rate Limiting Middleware', () => {
       const { default: rateLimit } = await import('express-rate-limit');
       const tightLimiter = rateLimit({
         windowMs: 60_000,
-        max: 2, // Very strict limit to make test fast
+        max: 2,
         skip: (req) => {
           const internalIPs = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
           return !req.ip || internalIPs.includes(req.ip);
@@ -343,7 +361,6 @@ describe('Rate Limiting Middleware', () => {
       });
       tightApp.get('/health', tightLimiter, (_req, res) => res.json({ status: 'healthy' }));
 
-      // Make many requests from localhost (should never be rate limited)
       for (let i = 0; i < 20; i++) {
         const res = await request(tightApp)
           .get('/health')
@@ -351,7 +368,6 @@ describe('Rate Limiting Middleware', () => {
         expect(res.status).toBe(200);
       }
 
-      // IPv6 localhost
       for (let i = 0; i < 20; i++) {
         const res = await request(tightApp)
           .get('/health')
@@ -380,10 +396,8 @@ describe('Rate Limiting Middleware', () => {
 
       const clientIp = '203.0.113.99';
 
-      // First request succeeds
       await request(tightApp).get('/health').set('X-Forwarded-For', clientIp);
 
-      // Second request is rate limited
       const limitedResponse = await request(tightApp)
         .get('/health')
         .set('X-Forwarded-For', clientIp);
