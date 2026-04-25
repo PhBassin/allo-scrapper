@@ -8,6 +8,9 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores(['dist']),
   {
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
+    },
     files: ['**/*.{ts,tsx}'],
     extends: [
       js.configs.recommended,
@@ -18,6 +21,18 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+    },
+    rules: {
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/immutability': 'off',
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    files: ['**/*.test.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 ])

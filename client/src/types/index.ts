@@ -101,10 +101,14 @@ export interface ScrapeReport {
 }
 
 // Progress Event types
-export type ProgressEvent =
+export type ProgressEvent = {
+  report_id?: number;
+} & (
   | { type: 'started'; total_cinemas: number; total_dates: number }
   | { type: 'cinema_started'; cinema_name: string; cinema_id: string; index: number }
   | { type: 'date_started'; date: string; cinema_name: string }
+  | { type: 'date_stale'; date: string; cinema_name: string; actual_date: string }
+  | { type: 'date_failed'; date: string; cinema_name: string; error: string }
   | { type: 'film_started'; film_title: string; film_id: number }
   | { type: 'film_completed'; film_title: string; showtimes_count: number }
   | { type: 'film_failed'; film_title: string; error: string }
@@ -112,7 +116,8 @@ export type ProgressEvent =
   | { type: 'cinema_completed'; cinema_name: string; total_films: number }
   | { type: 'cinema_failed'; cinema_name: string; error: string }
   | { type: 'completed'; summary: ScrapeSummary }
-  | { type: 'failed'; error: string };
+  | { type: 'failed'; error: string }
+);
 
 export interface ScrapeSummary {
   total_cinemas: number;
@@ -130,7 +135,7 @@ export interface ScrapeSummary {
     error_type?: 'http_429' | 'http_5xx' | 'http_4xx' | 'network' | 'parse' | 'timeout';
     http_status_code?: number;
   }>;
-  status?: 'success' | 'partial_success' | 'failed' | 'rate_limited';
+  status?: 'success' | 'partial_success' | 'failed' | 'rate_limited' | 'circuit_open';
 }
 
 export interface ScrapeStatus {

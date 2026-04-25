@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import CinemasPage from './CinemasPage';
@@ -63,9 +63,12 @@ vi.mock('../../components/admin/DeleteCinemaDialog', () => ({
 
 // Mock ScrapeProgress to avoid SSE complexity in tests
 vi.mock('../../components/ScrapeProgress', () => ({
-  default: ({ onComplete }: { onComplete?: (success: boolean) => void }) => (
+  default: ({ onComplete, trackedJobs = [] }: { onComplete?: (success: boolean) => void; trackedJobs?: Array<{ reportId: number; cinemaName?: string }> }) => (
     <div data-testid="scrape-progress">
       <span>Scraping en cours...</span>
+      {trackedJobs.map((job) => (
+        <div key={job.reportId} data-testid="tracked-job">{job.cinemaName ?? `Report ${job.reportId}`}</div>
+      ))}
       <button onClick={() => onComplete?.(true)}>Simulate Complete</button>
     </div>
   ),
@@ -246,6 +249,17 @@ describe('CinemasPage - Per-cinema scrape button', () => {
     await waitFor(() => {
       expect(screen.getByTestId('scrape-progress')).toBeInTheDocument();
     });
+  });
+
+  it('tracks triggered per-cinema jobs for progress cards', async () => {
+    renderWithAuth(<CinemasPage />);
+
+    await screen.findByText('UGC Ciné Cité Paris');
+
+    fireEvent.click(screen.getByTestId('scrape-cinema-C0153'));
+
+    const progress = await screen.findByTestId('scrape-progress');
+    expect(within(progress).getByText('UGC Ciné Cité Paris')).toBeInTheDocument();
   });
 });
 

@@ -11,6 +11,15 @@ interface ScrapeButtonProps {
   testId?: string;
 }
 
+interface AxiosLikeError {
+  response?: {
+    status?: number;
+    data?: {
+      error?: string;
+    };
+  };
+}
+
 export default function ScrapeButton({
   onTrigger,
   onScrapeStart,
@@ -44,9 +53,9 @@ export default function ScrapeButton({
 
       // Reset success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      if (err && err.response) {
-        const axiosError = err as { response: { status?: number; data?: { error?: string } } };
+    } catch (err: unknown) {
+      const axiosError = err as AxiosLikeError;
+      if (axiosError.response) {
         if (axiosError.response.status === 409) {
           // Scrape already running, just show progress
           if (onScrapeStart) {

@@ -185,7 +185,7 @@ router.post('/resume/:reportId', scraperLimiter, requireAuth, async (req: AuthRe
 });
 
 // GET /api/scraper/status - Get current scrape status
-router.get('/status', scraperLimiter, requireAuth, async (req: AuthRequest, res, next) => {
+router.get('/status', protectedLimiter, requireAuth, async (req: AuthRequest, res, next) => {
   const dbConn = getDbFromRequest(req);
   const scraperService = new ScraperService(dbConn);
 
@@ -270,7 +270,7 @@ router.post('/dlq/:jobId/retry', scraperLimiter, requireAuth, async (req: AuthRe
 });
 
 // GET /api/scraper/progress - SSE endpoint for real-time progress
-router.get('/progress', scraperLimiter, (req, res, next) => {
+router.get('/progress', protectedLimiter, requireAuth, (req, res, next) => {
   try {
     const dbConn = getDbFromRequest(req);
     const scraperService = new ScraperService(dbConn);

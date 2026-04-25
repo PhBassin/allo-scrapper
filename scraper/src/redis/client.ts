@@ -33,6 +33,10 @@ export class RedisProgressPublisher {
 
   /** Publish a progress event to the scrape:progress pub/sub channel. */
   async emit(event: ProgressEvent): Promise<void> {
+    logger.info('[RedisProgressPublisher] Publishing progress event', {
+      type: event.type,
+      report_id: event.report_id,
+    });
     await this.client.publish('scrape:progress', JSON.stringify(event));
   }
 

@@ -1,10 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const baseURL = process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:3000';
+const baseURL = process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:5173';
 
 const scrapeSpecs = [
   '**/scrape-progress.spec.ts',
   '**/cinema-scrape.spec.ts',
+  '**/tenant-concurrent-scrape-progress.spec.ts',
   '**/reports-navigation.spec.ts',
   '**/day-filter.spec.ts',
 ];

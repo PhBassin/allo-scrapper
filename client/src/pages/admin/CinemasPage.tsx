@@ -4,6 +4,7 @@ import { getCinemas, createCinema, updateCinema, deleteCinema } from '../../api/
 import type { CinemaCreate, CinemaUpdate } from '../../api/cinemas';
 import { triggerScrape, triggerCinemaScrape, getScrapeStatus } from '../../api/client';
 import type { Cinema } from '../../types';
+import type { TrackedScrapeJob } from '../../hooks/useScrapeProgress';
 import AddCinemaModal from '../../components/admin/AddCinemaModal';
 import EditCinemaModal from '../../components/admin/EditCinemaModal';
 import DeleteCinemaDialog from '../../components/admin/DeleteCinemaDialog';
@@ -39,6 +40,7 @@ const CinemasPage: React.FC = () => {
 
   // Scraping state
   const [showProgress, setShowProgress] = useState(false);
+  const [trackedJobs, setTrackedJobs] = useState<TrackedScrapeJob[]>([]);
   const [, setScrapingCinemaId] = useState<string | null>(null);
 
   // Modal / dialog state
@@ -125,10 +127,21 @@ const CinemasPage: React.FC = () => {
   const handleScrapeComplete = useCallback(() => {
     setTimeout(() => {
       setShowProgress(false);
+      setTrackedJobs([]);
       setScrapingCinemaId(null);
       queryClient.invalidateQueries({ queryKey: ['cinemas'] });
     }, 2000);
   }, [queryClient]);
+
+  const trackJob = useCallback((reportId: number, cinemaName?: string) => {
+    setTrackedJobs((prev) => {
+      if (prev.some((job) => job.reportId === reportId)) {
+        return prev;
+      }
+
+      return [...prev, { reportId, cinemaName }];
+    });
+  }, []);
 
   // ── Filtering ────────────────────────────────────────────────────────────────
 
@@ -165,7 +178,10 @@ const CinemasPage: React.FC = () => {
         <div className="flex items-center gap-3">
           {canScrapeAll && (
             <ScrapeButton
-              onTrigger={async () => { await triggerScrape(); }}
+              onTrigger={async () => {
+                const result = await triggerScrape();
+                trackJob(result.reportId);
+              }}
               onScrapeStart={handleScrapeStart}
               buttonText="Scraper tous les cinémas"
               loadingText="Scraping..."
@@ -187,7 +203,7 @@ const CinemasPage: React.FC = () => {
       {/* Scrape Progress */}
       {showProgress && (
         <div className="mb-6">
-          <ScrapeProgress onComplete={handleScrapeComplete} />
+          <ScrapeProgress onComplete={handleScrapeComplete} trackedJobs={trackedJobs} />
         </div>
       )}
 
@@ -269,12 +285,15 @@ const CinemasPage: React.FC = () => {
                        {canScrapeSingle && (
                          <LinkButton
                            variant="success"
-                           onClick={() => {
-                             setScrapingCinemaId(cinema.id);
-                             triggerCinemaScrape(cinema.id)
-                               .then(() => handleScrapeStart())
-                               .catch(() => setScrapingCinemaId(null));
-                           }}
+                            onClick={() => {
+                              setScrapingCinemaId(cinema.id);
+                              triggerCinemaScrape(cinema.id)
+                                .then((result) => {
+                                  trackJob(result.reportId, cinema.name);
+                                  handleScrapeStart();
+                                })
+                                .catch(() => setScrapingCinemaId(null));
+                            }}
                            data-testid={`scrape-cinema-${cinema.id}`}
                          >
                            Scraper

@@ -174,6 +174,7 @@ export function createSuperadminRouter(): Router {
           },
         });
       } finally {
+        await client.query('SET search_path TO public').catch(() => {});
         client.release();
       }
     } catch (error) {
@@ -438,6 +439,7 @@ export function createSuperadminRouter(): Router {
           },
         });
       } finally {
+        await client.query('SET search_path TO public').catch(() => {});
         client.release();
       }
     } catch (error) {

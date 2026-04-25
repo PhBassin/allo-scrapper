@@ -9,6 +9,7 @@ interface SeededOrg {
   orgId: number;
   orgSlug: string;
   schemaName: string;
+  planId: number;
   admin: {
     id: number;
     username: string;
@@ -16,8 +17,12 @@ interface SeededOrg {
   };
 }
 
+interface SeedTestOrgOptions {
+  planId?: number;
+}
+
 type OrgFixtures = {
-  seedTestOrg: () => Promise<SeededOrg>;
+  seedTestOrg: (options?: SeedTestOrgOptions) => Promise<SeededOrg>;
   autoOrgCleanup: void;
 };
 
@@ -52,7 +57,7 @@ async function deleteOrg(request: APIRequestContext, orgId: number): Promise<Del
 
 export const test = base.extend<OrgFixtures>({
   seedTestOrg: async ({ request }, use, testInfo) => {
-    const seed = async (): Promise<SeededOrg> => {
+    const seed = async (options?: SeedTestOrgOptions): Promise<SeededOrg> => {
       const slug = buildTestSlug(testInfo);
       const response = await request.post('/test/seed-org', {
         data: {
@@ -60,6 +65,7 @@ export const test = base.extend<OrgFixtures>({
           name: `E2E ${slug}`,
           adminEmail: `${slug}@test.local`,
           adminPassword: `P@ss-${slug}-Aa1!`,
+          planId: options?.planId,
         },
       });
 
@@ -72,6 +78,7 @@ export const test = base.extend<OrgFixtures>({
           org_id: number;
           org_slug: string;
           schema_name: string;
+          plan_id: number;
           admin: { id: number; username: string; password: string };
         };
       };
@@ -88,6 +95,7 @@ export const test = base.extend<OrgFixtures>({
         orgId: payload.data.org_id,
         orgSlug: payload.data.org_slug,
         schemaName: payload.data.schema_name,
+        planId: payload.data.plan_id,
         admin: payload.data.admin,
       };
     };

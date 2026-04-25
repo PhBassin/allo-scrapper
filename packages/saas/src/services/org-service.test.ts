@@ -63,6 +63,7 @@ describe('createOrg', () => {
       ([sql]: [string]) => sql
     );
     expect(calls.some((sql) => sql.includes('CREATE SCHEMA'))).toBe(true);
+    expect(calls.some((sql) => sql.includes('SET search_path TO "org_acme", public'))).toBe(true);
   });
 
   it('issues BEGIN and ROLLBACK when schema creation fails', async () => {
@@ -149,5 +150,28 @@ describe('createOrg', () => {
 
     expect((pool.connect as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledOnce();
     expect(release).toHaveBeenCalledOnce();
+  });
+
+  it('seeds tenant baseline cinemas from config after schema bootstrap', async () => {
+    const org = {
+      id: 4,
+      name: 'Delta',
+      slug: 'delta',
+      schema_name: 'org_delta',
+      status: 'trial',
+    };
+    const queryMock = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [org], rowCount: 1 })
+      .mockResolvedValue({ rows: [], rowCount: 0 });
+    const db = makeDb({ query: queryMock });
+
+    const { createOrg } = await import('./org-service.js');
+    await createOrg(db, { name: 'Delta', slug: 'delta' });
+
+    const calls = queryMock.mock.calls.map(([sql]) => String(sql));
+    expect(calls.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS cinemas'))).toBe(true);
+    expect(calls.some((sql) => sql.includes('INSERT INTO cinemas (id, name, url)'))).toBe(true);
   });
 });

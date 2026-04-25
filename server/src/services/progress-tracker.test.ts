@@ -21,7 +21,13 @@ describe('ProgressTracker', () => {
       method: 'GET',
     });
 
-    tracker.emit({ type: 'started', total_cinemas: 1, total_dates: 2 });
+    tracker.emit({
+      type: 'started',
+      report_id: 1,
+      total_cinemas: 1,
+      total_dates: 2,
+      traceContext: { org_slug: 'acme' },
+    });
 
     expect(writes.length).toBe(1);
     const payload = writes[0].replace(/^data:\s*/, '').trim();
@@ -35,5 +41,70 @@ describe('ProgressTracker', () => {
       endpoint: '/api/scraper/progress',
       method: 'GET',
     }));
+  });
+
+  it('replays only matching tenant events to a tenant listener', () => {
+    const tracker = new ProgressTracker();
+
+    tracker.emit({
+      type: 'started',
+      report_id: 10,
+      total_cinemas: 1,
+      total_dates: 1,
+      traceContext: { org_slug: 'acme' },
+    });
+    tracker.emit({
+      type: 'started',
+      report_id: 11,
+      total_cinemas: 1,
+      total_dates: 1,
+      traceContext: { org_slug: 'other' },
+    });
+
+    const writes: string[] = [];
+    const listener = {
+      write: (chunk: string) => {
+        writes.push(chunk);
+      },
+      end: () => {},
+    } as any;
+
+    tracker.addListener(listener, { org_slug: 'acme' });
+
+    expect(writes).toHaveLength(1);
+    const payload = JSON.parse(writes[0].replace(/^data:\s*/, '').trim());
+    expect(payload.report_id).toBe(10);
+  });
+
+  it('forwards only matching tenant events to connected listeners', () => {
+    const tracker = new ProgressTracker();
+    const writes: string[] = [];
+
+    const listener = {
+      write: (chunk: string) => {
+        writes.push(chunk);
+      },
+      end: () => {},
+    } as any;
+
+    tracker.addListener(listener, { org_slug: 'acme' });
+    tracker.emit({
+      type: 'started',
+      report_id: 10,
+      total_cinemas: 1,
+      total_dates: 1,
+      traceContext: { org_slug: 'other' },
+    });
+    tracker.emit({
+      type: 'started',
+      report_id: 11,
+      total_cinemas: 2,
+      total_dates: 3,
+      traceContext: { org_slug: 'acme' },
+    });
+
+    expect(writes).toHaveLength(1);
+    const payload = JSON.parse(writes[0].replace(/^data:\s*/, '').trim());
+    expect(payload.report_id).toBe(11);
   });
 });

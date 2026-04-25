@@ -12,6 +12,7 @@ type SeedRequestBody = {
   name?: string;
   adminEmail?: string;
   adminPassword?: string;
+  planId?: number;
 };
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
@@ -34,6 +35,7 @@ function normalizeSeedInput(body: SeedRequestBody): {
   name: string;
   adminEmail: string;
   adminPassword: string;
+  planId: number;
 } {
   const slug = (body.slug?.trim() || buildDefaultSlug()).toLowerCase();
   if (!SLUG_PATTERN.test(slug)) {
@@ -43,8 +45,9 @@ function normalizeSeedInput(body: SeedRequestBody): {
   const name = body.name?.trim() || `Fixture ${slug}`;
   const adminEmail = body.adminEmail?.trim() || `${slug}@test.local`;
   const adminPassword = body.adminPassword || buildDefaultPassword();
+  const planId = Number.isInteger(body.planId) && (body.planId as number) > 0 ? (body.planId as number) : 1;
 
-  return { slug, name, adminEmail, adminPassword };
+  return { slug, name, adminEmail, adminPassword, planId };
 }
 
 function quoteIdentifier(identifier: string): string {
@@ -199,7 +202,7 @@ export function createTestFixturesRouter(): Router {
       const { org } = await createOrg(db, {
         name: input.name,
         slug: input.slug,
-        plan_id: 1,
+        plan_id: input.planId,
       }, pool);
 
       const authService = new SaasAuthService(pool);
@@ -209,9 +212,10 @@ export function createTestFixturesRouter(): Router {
 
       logger.info('test fixture org seeded', {
         org_id: org.id,
-        org_slug: org.slug,
-        duration_ms: Date.now() - startedAt,
-      });
+          org_slug: org.slug,
+          duration_ms: Date.now() - startedAt,
+          plan_id: input.planId,
+        });
 
       return res.status(201).json({
         success: true,
@@ -219,6 +223,7 @@ export function createTestFixturesRouter(): Router {
           org_id: org.id,
           org_slug: org.slug,
           schema_name: org.schema_name,
+          plan_id: input.planId,
           admin: {
             id: admin.id,
             username: admin.username,

@@ -1,6 +1,9 @@
 // HTTP client for fetching cinema and film pages from source website
 
 import puppeteer, { type Browser } from 'puppeteer-core';
+import { existsSync, readdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { logger } from '../utils/logger.js';
 import { ALLOCINE_BASE_URL } from './utils.js';
 import { HttpError, RateLimitError } from '../utils/errors.js';
@@ -65,11 +68,71 @@ function validateFilmId(filmId: number): void {
 // Shared browser instance to avoid launching a new browser for every request
 let _browser: Browser | null = null;
 
+function getPlaywrightCacheDir(): string {
+  const configuredPath = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  if (configuredPath && configuredPath !== '0') {
+    return configuredPath;
+  }
+
+  return join(homedir(), '.cache', 'ms-playwright');
+}
+
+function findCachedBrowserExecutable(prefix: string, executableSegments: string[]): string | undefined {
+  const cacheDir = getPlaywrightCacheDir();
+  if (!existsSync(cacheDir)) {
+    return undefined;
+  }
+
+  const matchingDirs = readdirSync(cacheDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix))
+    .map((entry) => entry.name)
+    .sort((left, right) => right.localeCompare(left, undefined, { numeric: true }));
+
+  for (const dirName of matchingDirs) {
+    const executablePath = join(cacheDir, dirName, ...executableSegments);
+    if (existsSync(executablePath)) {
+      return executablePath;
+    }
+  }
+
+  return undefined;
+}
+
+function resolveChromiumExecutablePath(): string {
+  const configuredPath = process.env.CHROME_PATH;
+  if (configuredPath) {
+    return configuredPath;
+  }
+
+  const candidates = [
+    '/usr/bin/chromium-headless-shell',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    findCachedBrowserExecutable('chromium_headless_shell-', ['chrome-headless-shell-linux64', 'chrome-headless-shell']),
+    findCachedBrowserExecutable('chromium-', ['chrome-linux64', 'chrome']),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(
+    `Chromium executable not found. Set CHROME_PATH or install a browser under one of: ${candidates.join(', ') || getPlaywrightCacheDir()}`
+  );
+}
+
 async function getBrowser(): Promise<Browser> {
   if (!_browser || !_browser.isConnected()) {
+    const executablePath = resolveChromiumExecutablePath();
+    logger.info('Launching browser', { executablePath });
+
     _browser = await puppeteer.launch({
       headless: true,
-      executablePath: process.env.CHROME_PATH ?? '/usr/bin/chromium-headless-shell',
+      executablePath,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
   }

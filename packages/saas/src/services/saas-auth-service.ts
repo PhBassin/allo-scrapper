@@ -52,6 +52,7 @@ export class SaasAuthService {
       );
       return result.rows[0];
     } finally {
+      await client.query('SET search_path TO public').catch(() => {});
       client.release();
     }
   }

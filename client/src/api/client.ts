@@ -24,12 +24,25 @@ const apiClient = axios.create({
 });
 
 function getCinemasBasePath(): string {
+  return getTenantScopedPath('/cinemas');
+}
+
+function getScraperBasePath(): string {
+  return getTenantScopedPath('/scraper');
+}
+
+function getOrgSlug(): string | undefined {
   const match = window.location.pathname.match(/^\/org\/([^/]+)/);
-  if (!match?.[1]) {
-    return '/cinemas';
+  return match?.[1];
+}
+
+export function getTenantScopedPath(path: string): string {
+  const slug = getOrgSlug();
+  if (!slug) {
+    return path;
   }
 
-  return `/org/${encodeURIComponent(match[1])}/cinemas`;
+  return `/org/${encodeURIComponent(slug)}${path}`;
 }
 
 // Add a request interceptor to include the JWT token
@@ -154,7 +167,7 @@ export async function addCinema(url: string): Promise<Cinema> {
 // ============================================================================
 
 export async function triggerScrape(): Promise<{ reportId: number; message: string }> {
-  const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger');
+  const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>(`${getScraperBasePath()}/trigger`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to trigger scrape');
   }
@@ -162,7 +175,7 @@ export async function triggerScrape(): Promise<{ reportId: number; message: stri
 }
 
 export async function triggerCinemaScrape(cinemaId: string): Promise<{ reportId: number; message: string }> {
-  const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
+  const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>(`${getScraperBasePath()}/trigger`, {
     cinemaId,
   });
   if (!response.data.success || !response.data.data) {
@@ -172,7 +185,7 @@ export async function triggerCinemaScrape(cinemaId: string): Promise<{ reportId:
 }
 
 export async function triggerFilmScrape(filmId: number): Promise<{ reportId: number; message: string }> {
-  const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
+  const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>(`${getScraperBasePath()}/trigger`, {
     filmId,
   });
   if (!response.data.success || !response.data.data) {
@@ -182,7 +195,7 @@ export async function triggerFilmScrape(filmId: number): Promise<{ reportId: num
 }
 
 export async function getScrapeStatus(): Promise<ScrapeStatus> {
-  const response = await apiClient.get<ApiResponse<ScrapeStatus>>('/scraper/status');
+  const response = await apiClient.get<ApiResponse<ScrapeStatus>>(`${getScraperBasePath()}/status`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch scrape status');
   }
@@ -190,27 +203,77 @@ export async function getScrapeStatus(): Promise<ScrapeStatus> {
 }
 
 export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onError?: (error: Error) => void): () => void {
-  const eventSource = new EventSource(`${API_BASE_URL}/scraper/progress`);
+  const controller = new AbortController();
+  const token = localStorage.getItem('token');
+  const url = `${API_BASE_URL}${getScraperBasePath()}/progress`;
 
-  eventSource.onmessage = (event) => {
+  void (async () => {
     try {
-      const data = JSON.parse(event.data);
-      onEvent(data);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'text/event-stream',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        signal: controller.signal,
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Progress stream request failed (${response.status})`);
+      }
+
+      if (!response.body) {
+        throw new Error('Progress stream is unavailable');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const messages = buffer.split(/\r?\n\r?\n/);
+        buffer = messages.pop() ?? '';
+
+        for (const message of messages) {
+          const lines = message
+            .split(/\r?\n/)
+            .filter((line) => line.startsWith('data:'));
+
+          if (lines.length === 0) {
+            continue;
+          }
+
+          const raw = lines
+            .map((line) => line.slice(5).trimStart())
+            .join('\n');
+
+          try {
+            const data = JSON.parse(raw);
+            onEvent(data);
+          } catch (error) {
+            console.error('Failed to parse SSE event:', error);
+          }
+        }
+      }
     } catch (error) {
-      console.error('Failed to parse SSE event:', error);
-    }
-  };
+      if (controller.signal.aborted) {
+        return;
+      }
 
-  eventSource.onerror = (error) => {
-    console.error('SSE connection error:', error);
-    if (onError) {
-      onError(new Error('Connection lost'));
+      console.error('SSE connection error:', error);
+      onError?.(error instanceof Error ? error : new Error('Connection lost'));
     }
-  };
+  })();
 
-  // Return unsubscribe function
   return () => {
-    eventSource.close();
+    controller.abort();
   };
 }
 
@@ -219,7 +282,7 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
 // ============================================================================
 
 export async function getSchedules(): Promise<ScrapeSchedule[]> {
-  const response = await apiClient.get<ApiResponse<ScrapeSchedule[]>>('/scraper/schedules');
+  const response = await apiClient.get<ApiResponse<ScrapeSchedule[]>>(`${getScraperBasePath()}/schedules`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch schedules');
   }
@@ -227,7 +290,7 @@ export async function getSchedules(): Promise<ScrapeSchedule[]> {
 }
 
 export async function getSchedule(id: number): Promise<ScrapeSchedule> {
-  const response = await apiClient.get<ApiResponse<ScrapeSchedule>>(`/scraper/schedules/${id}`);
+  const response = await apiClient.get<ApiResponse<ScrapeSchedule>>(`${getScraperBasePath()}/schedules/${id}`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch schedule');
   }
@@ -243,7 +306,7 @@ export interface CreateSchedulePayload {
 }
 
 export async function createSchedule(payload: CreateSchedulePayload): Promise<ScrapeSchedule> {
-  const response = await apiClient.post<ApiResponse<ScrapeSchedule>>('/scraper/schedules', payload);
+  const response = await apiClient.post<ApiResponse<ScrapeSchedule>>(`${getScraperBasePath()}/schedules`, payload);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to create schedule');
   }
@@ -259,7 +322,7 @@ export interface UpdateSchedulePayload {
 }
 
 export async function updateSchedule(id: number, payload: UpdateSchedulePayload): Promise<ScrapeSchedule> {
-  const response = await apiClient.put<ApiResponse<ScrapeSchedule>>(`/scraper/schedules/${id}`, payload);
+  const response = await apiClient.put<ApiResponse<ScrapeSchedule>>(`${getScraperBasePath()}/schedules/${id}`, payload);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to update schedule');
   }
@@ -267,7 +330,7 @@ export async function updateSchedule(id: number, payload: UpdateSchedulePayload)
 }
 
 export async function deleteSchedule(id: number): Promise<void> {
-  await apiClient.delete(`/scraper/schedules/${id}`);
+  await apiClient.delete(`${getScraperBasePath()}/schedules/${id}`);
 }
 
 // ============================================================================
@@ -331,7 +394,7 @@ export async function getReportDetails(id: number): Promise<ReportDetails> {
 }
 
 export async function resumeScrape(reportId: number): Promise<{ reportId: number; parentReportId: number; pendingAttempts: number; message: string }> {
-  const response = await apiClient.post<ApiResponse<{ reportId: number; parentReportId: number; pendingAttempts: number; message: string }>>(`/scraper/resume/${reportId}`);
+  const response = await apiClient.post<ApiResponse<{ reportId: number; parentReportId: number; pendingAttempts: number; message: string }>>(`${getScraperBasePath()}/resume/${reportId}`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to resume scrape');
   }

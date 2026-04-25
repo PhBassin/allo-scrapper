@@ -8,7 +8,7 @@ import type { ScrapeJobAddCinema, ScrapeJobScrape } from '@allo-scrapper/logger'
 
 import { runScraper, addCinemaAndScrape } from './scraper/index.js';
 import { getRedisPublisher, getRedisConsumer, getRedisSubscriber, disconnectRedis, type ScrapeJob, type ScheduleChangeEvent } from './redis/client.js';
-import { db } from './db/client.js';
+import { db, withTenantDb } from './db/client.js';
 import { createScrapeReport, updateScrapeReport } from './db/report-queries.js';
 import { getPendingScrapeAttempts, getScrapeAttemptsByReport } from './db/scrape-attempt-queries.js';
 import { getEnabledSchedules, updateScheduleRunStatus } from './db/schedule-queries.js';
@@ -79,32 +79,91 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
     traceparent: job.traceContext?.traceparent,
   };
 
-  // Update report status
-  try {
-    await updateScrapeReport(db, job.reportId, { status: 'running' });
-  } catch (err) {
-    logger.warn(`[scraper] Could not update report ${job.reportId}:`, err);
-  }
-
-  // --- add_cinema branch ---
-  if (jobType === 'add_cinema') {
-    const addCinemaJob = job as ScrapeJobAddCinema;
+  await withTenantDb(job.traceContext?.org_slug, async (jobDb) => {
+    // Update report status
     try {
-      await addCinemaAndScrape(db, addCinemaJob.url, publisher);
-      await updateScrapeReport(db, job.reportId, {
-        status: 'success',
+      await updateScrapeReport(jobDb, job.reportId, { status: 'running' });
+    } catch (err) {
+      logger.warn(`[scraper] Could not update report ${job.reportId}:`, err);
+    }
+
+    // --- add_cinema branch ---
+    if (jobType === 'add_cinema') {
+      const addCinemaJob = job as ScrapeJobAddCinema;
+      try {
+        await addCinemaAndScrape(jobDb, addCinemaJob.url, publisher);
+        await updateScrapeReport(jobDb, job.reportId, {
+          status: 'success',
+          completed_at: new Date().toISOString(),
+        });
+        logger.info(`[scraper] add_cinema job ${job.reportId} completed successfully`, traceLogContext);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        logger.error(`[scraper] add_cinema job ${job.reportId} failed`, {
+          ...traceLogContext,
+          error: errorMessage,
+          stack: err instanceof Error ? err.stack : undefined,
+        });
+        if (!skipReportFailureUpdate) {
+          await updateScrapeReport(jobDb, job.reportId, {
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            errors: [{ cinema_name: 'System', error: errorMessage }],
+          }).catch(() => {});
+        }
+
+        if (rethrowOnFailure) {
+          throw err;
+        }
+      }
+      return;
+    }
+
+    // --- scrape branch ---
+    const durationTimer = scrapeDurationSeconds.startTimer({ cinema: 'all' });
+
+    try {
+      const scrapeJob = job as ScrapeJobScrape;
+      const summary = await runScraper(publisher, {
+        reportId: job.reportId,
+        ...scrapeJob.options,
+        traceContext: job.traceContext,
+      }, jobDb);
+
+      const status = summary.failed_cinemas === 0
+        ? 'success'
+        : summary.successful_cinemas > 0
+          ? 'partial_success'
+          : 'failed';
+
+      durationTimer();
+      scrapeJobsTotal.inc({ status, trigger: job.triggerType });
+      filmsScrapedTotal.inc({ cinema: 'all' }, summary.total_films);
+      showtimesScrapedTotal.inc({ cinema: 'all' }, summary.total_showtimes);
+
+      await updateScrapeReport(jobDb, job.reportId, {
+        status,
         completed_at: new Date().toISOString(),
+        total_cinemas: summary.total_cinemas,
+        successful_cinemas: summary.successful_cinemas,
+        failed_cinemas: summary.failed_cinemas,
+        total_films_scraped: summary.total_films,
+        total_showtimes_scraped: summary.total_showtimes,
+        errors: summary.errors,
       });
-      logger.info(`[scraper] add_cinema job ${job.reportId} completed successfully`, traceLogContext);
+
+      logger.info(`[scraper] Job ${job.reportId} completed with status: ${status}`, traceLogContext);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error(`[scraper] add_cinema job ${job.reportId} failed`, {
+      logger.error(`[scraper] Job ${job.reportId} failed`, {
         ...traceLogContext,
         error: errorMessage,
         stack: err instanceof Error ? err.stack : undefined,
       });
+      scrapeJobsTotal.inc({ status: 'failed', trigger: job.triggerType });
+
       if (!skipReportFailureUpdate) {
-        await updateScrapeReport(db, job.reportId, {
+        await updateScrapeReport(jobDb, job.reportId, {
           status: 'failed',
           completed_at: new Date().toISOString(),
           errors: [{ cinema_name: 'System', error: errorMessage }],
@@ -115,67 +174,11 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
         throw err;
       }
     }
-    return;
-  }
-
-  // --- scrape branch ---
-  const durationTimer = scrapeDurationSeconds.startTimer({ cinema: 'all' });
-
-  try {
-    const scrapeJob = job as ScrapeJobScrape;
-    const summary = await runScraper(publisher, {
-      ...scrapeJob.options,
-      traceContext: job.traceContext,
-    });
-
-    const status = summary.failed_cinemas === 0
-      ? 'success'
-      : summary.successful_cinemas > 0
-        ? 'partial_success'
-        : 'failed';
-
-    durationTimer();
-    scrapeJobsTotal.inc({ status, trigger: job.triggerType });
-    filmsScrapedTotal.inc({ cinema: 'all' }, summary.total_films);
-    showtimesScrapedTotal.inc({ cinema: 'all' }, summary.total_showtimes);
-
-    await updateScrapeReport(db, job.reportId, {
-      status,
-      completed_at: new Date().toISOString(),
-      total_cinemas: summary.total_cinemas,
-      successful_cinemas: summary.successful_cinemas,
-      failed_cinemas: summary.failed_cinemas,
-      total_films_scraped: summary.total_films,
-      total_showtimes_scraped: summary.total_showtimes,
-      errors: summary.errors,
-    });
-
-    logger.info(`[scraper] Job ${job.reportId} completed with status: ${status}`, traceLogContext);
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    logger.error(`[scraper] Job ${job.reportId} failed`, {
-      ...traceLogContext,
-      error: errorMessage,
-      stack: err instanceof Error ? err.stack : undefined,
-    });
-    scrapeJobsTotal.inc({ status: 'failed', trigger: job.triggerType });
-
-    if (!skipReportFailureUpdate) {
-      await updateScrapeReport(db, job.reportId, {
-        status: 'failed',
-        completed_at: new Date().toISOString(),
-        errors: [{ cinema_name: 'System', error: errorMessage }],
-      }).catch(() => {});
-    }
-
-    if (rethrowOnFailure) {
-      throw err;
-    }
-  }
+  });
 }
 
-async function getRecoveryPendingAttempts(job: ScrapeJobScrape): Promise<Array<{ cinema_id: string; date: string }>> {
-  const pendingAttempts = await getPendingScrapeAttempts(db, job.reportId);
+async function getRecoveryPendingAttempts(jobDb: typeof db, job: ScrapeJobScrape): Promise<Array<{ cinema_id: string; date: string }>> {
+  const pendingAttempts = await getPendingScrapeAttempts(jobDb, job.reportId);
   if (pendingAttempts.length > 0) {
     return pendingAttempts.map((attempt) => ({
       cinema_id: attempt.cinema_id,
@@ -183,7 +186,7 @@ async function getRecoveryPendingAttempts(job: ScrapeJobScrape): Promise<Array<{
     }));
   }
 
-  const existingAttempts = await getScrapeAttemptsByReport(db, job.reportId);
+  const existingAttempts = await getScrapeAttemptsByReport(jobDb, job.reportId);
   if (existingAttempts.length === 0) {
     return [];
   }
@@ -194,7 +197,7 @@ async function getRecoveryPendingAttempts(job: ScrapeJobScrape): Promise<Array<{
       .map((attempt) => `${attempt.cinema_id}:${attempt.date}`)
   );
 
-  let cinemas = await getCinemas(db);
+  let cinemas = await getCinemas(jobDb);
   if (job.options?.cinemaId) {
     cinemas = cinemas.filter((cinema) => cinema.id === job.options?.cinemaId);
   }
@@ -202,9 +205,9 @@ async function getRecoveryPendingAttempts(job: ScrapeJobScrape): Promise<Array<{
   let scrapeMode: ScrapeMode = 'from_today_limited';
   let scrapeDays = 7;
   try {
-    const settingsResult = await db.query<{ scrape_mode: string; scrape_days: number }>(
-      'SELECT scrape_mode, scrape_days FROM app_settings WHERE id = 1'
-    );
+      const settingsResult = await jobDb.query<{ scrape_mode: string; scrape_days: number }>(
+        'SELECT scrape_mode, scrape_days FROM app_settings WHERE id = 1'
+      );
     if (settingsResult.rows.length > 0) {
       scrapeMode = settingsResult.rows[0].scrape_mode as ScrapeMode;
       scrapeDays = settingsResult.rows[0].scrape_days;
@@ -235,7 +238,9 @@ export async function buildRecoveryJob(job: ScrapeJob): Promise<ScrapeJob> {
     return job;
   }
 
-  const pendingAttempts = await getRecoveryPendingAttempts(job);
+  const pendingAttempts = await withTenantDb(job.traceContext?.org_slug, async (jobDb) => {
+    return await getRecoveryPendingAttempts(jobDb, job);
+  });
   if (pendingAttempts.length === 0) {
     return job;
   }
@@ -254,10 +259,12 @@ export async function buildRecoveryJob(job: ScrapeJob): Promise<ScrapeJob> {
 }
 
 export async function recordTerminalJobFailure(job: ScrapeJob, failureReason: string): Promise<void> {
-  await updateScrapeReport(db, job.reportId, {
-    status: 'failed',
-    completed_at: new Date().toISOString(),
-    errors: [{ cinema_name: 'System', error: failureReason }],
+  await withTenantDb(job.traceContext?.org_slug, async (jobDb) => {
+    await updateScrapeReport(jobDb, job.reportId, {
+      status: 'failed',
+      completed_at: new Date().toISOString(),
+      errors: [{ cinema_name: 'System', error: failureReason }],
+    });
   });
 }
 

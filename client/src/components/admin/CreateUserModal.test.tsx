@@ -35,7 +35,7 @@ describe('CreateUserModal', () => {
 
       expect(screen.getByText(/create new user/i)).toBeInTheDocument();
       expect(screen.getByLabelText('Username')).toBeInTheDocument();
-      expect(screen.getByLabelText('Password')).toBeInTheDocument();
+      expect(screen.getByLabelText(/^Password$/)).toBeInTheDocument();
       expect(screen.getByLabelText('Role')).toBeInTheDocument();
     });
 
@@ -49,7 +49,7 @@ describe('CreateUserModal', () => {
       );
 
       const usernameInput = screen.getByLabelText('Username') as HTMLInputElement;
-      const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
+      const passwordInput = screen.getByLabelText(/^Password$/) as HTMLInputElement;
       const roleSelect = screen.getByLabelText('Role') as HTMLSelectElement;
 
       expect(usernameInput.value).toBe('');
@@ -156,7 +156,7 @@ describe('CreateUserModal', () => {
         />
       );
 
-      const passwordInput = screen.getByLabelText('Password');
+      const passwordInput = screen.getByLabelText(/^Password$/);
       await user.type(passwordInput, 'Abc123!');
       await user.tab();
 
@@ -175,7 +175,7 @@ describe('CreateUserModal', () => {
         />
       );
 
-      const passwordInput = screen.getByLabelText('Password');
+      const passwordInput = screen.getByLabelText(/^Password$/);
       await user.type(passwordInput, 'abcdef123!');
       await user.tab();
 
@@ -194,7 +194,7 @@ describe('CreateUserModal', () => {
         />
       );
 
-      const passwordInput = screen.getByLabelText('Password');
+      const passwordInput = screen.getByLabelText(/^Password$/);
       await user.type(passwordInput, 'ABCDEF123!');
       await user.tab();
 
@@ -213,7 +213,7 @@ describe('CreateUserModal', () => {
         />
       );
 
-      const passwordInput = screen.getByLabelText('Password');
+      const passwordInput = screen.getByLabelText(/^Password$/);
       await user.type(passwordInput, 'Abcdefgh!');
       await user.tab();
 
@@ -232,7 +232,7 @@ describe('CreateUserModal', () => {
         />
       );
 
-      const passwordInput = screen.getByLabelText('Password');
+      const passwordInput = screen.getByLabelText(/^Password$/);
       await user.type(passwordInput, 'Abcdef123');
       await user.tab();
 
@@ -252,7 +252,7 @@ describe('CreateUserModal', () => {
       );
 
       const usernameInput = screen.getByLabelText('Username');
-      const passwordInput = screen.getByLabelText('Password');
+      const passwordInput = screen.getByLabelText(/^Password$/);
 
       await user.type(usernameInput, 'validuser123');
       await user.type(passwordInput, 'ValidPass123!');
@@ -280,7 +280,7 @@ describe('CreateUserModal', () => {
       );
 
       const usernameInput = screen.getByLabelText('Username');
-      const passwordInput = screen.getByLabelText('Password');
+      const passwordInput = screen.getByLabelText(/^Password$/);
       const createButton = screen.getByRole('button', { name: /^create$/i });
 
       await user.type(usernameInput, 'newuser123');
@@ -309,7 +309,7 @@ describe('CreateUserModal', () => {
       );
 
       const usernameInput = screen.getByLabelText('Username');
-      const passwordInput = screen.getByLabelText('Password');
+      const passwordInput = screen.getByLabelText(/^Password$/);
       const roleSelect = screen.getByLabelText('Role');
       const createButton = screen.getByRole('button', { name: /^create$/i });
 
@@ -344,7 +344,7 @@ describe('CreateUserModal', () => {
       );
 
       const usernameInput = screen.getByLabelText('Username');
-      const passwordInput = screen.getByLabelText('Password');
+      const passwordInput = screen.getByLabelText(/^Password$/);
       const createButton = screen.getByRole('button', { name: /^create$/i });
 
       await user.type(usernameInput, 'newuser');
@@ -372,7 +372,7 @@ describe('CreateUserModal', () => {
       );
 
       const usernameInput = screen.getByLabelText('Username');
-      const passwordInput = screen.getByLabelText('Password');
+      const passwordInput = screen.getByLabelText(/^Password$/);
       const createButton = screen.getByRole('button', { name: /^create$/i });
 
       await user.type(usernameInput, 'newuser');
@@ -397,7 +397,7 @@ describe('CreateUserModal', () => {
       );
 
       const usernameInput = screen.getByLabelText('Username');
-      const passwordInput = screen.getByLabelText('Password');
+      const passwordInput = screen.getByLabelText(/^Password$/);
       const createButton = screen.getByRole('button', { name: /^create$/i });
 
       await user.type(usernameInput, 'existinguser');
@@ -483,10 +483,10 @@ describe('CreateUserModal', () => {
         />
       );
 
-      const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
+      const passwordInput = screen.getByLabelText(/^Password$/) as HTMLInputElement;
       expect(passwordInput.type).toBe('password');
 
-      const toggleButton = screen.getByRole('button', { name: /show password/i });
+      const toggleButton = screen.getByRole('button', { name: /show password text/i });
       await user.click(toggleButton);
 
       expect(passwordInput.type).toBe('text');

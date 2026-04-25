@@ -3,7 +3,6 @@ import { ScraperService } from './scraper-service.js';
 import * as reportQueries from '../db/report-queries.js';
 import * as cinemaQueries from '../db/cinema-queries.js';
 import * as redisClient from './redis-client.js';
-import { progressTracker } from './progress-tracker.js';
 import { type DB } from '../db/client.js';
 
 vi.mock('../db/report-queries.js');
@@ -11,12 +10,12 @@ vi.mock('../db/cinema-queries.js');
 vi.mock('./redis-client.js');
 vi.mock('./progress-tracker.js', () => ({
   progressTracker: {
-    reset: vi.fn(),
     addListener: vi.fn(),
     removeListener: vi.fn(),
     getListenerCount: vi.fn().mockReturnValue(1),
   },
 }));
+import { progressTracker } from './progress-tracker.js';
 
 describe('ScraperService', () => {
   let scraperService: ScraperService;
@@ -42,7 +41,6 @@ describe('ScraperService', () => {
       const result = await scraperService.triggerScrape({ cinemaId: 'C1', filmId: 123 });
 
       expect(result.reportId).toBe(42);
-      expect(progressTracker.reset).toHaveBeenCalled();
       expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
         type: 'scrape',
         reportId: 42,
@@ -161,7 +159,6 @@ describe('ScraperService', () => {
       const result = await scraperService.triggerResume(123, pendingAttempts);
 
       expect(result.reportId).toBe(43);
-      expect(progressTracker.reset).toHaveBeenCalled();
       expect(reportQueries.createScrapeReport).toHaveBeenCalledWith(mockDb, 'manual', 123);
       expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
         type: 'scrape',
