@@ -9,7 +9,8 @@ const mockGetPendingScrapeAttempts = vi.fn();
 const mockGetScrapeAttemptsByReport = vi.fn();
 const mockGetCinemas = vi.fn();
 const mockDbQuery = vi.fn().mockResolvedValue({ rows: [] });
-const mockGetRedisPublisher = vi.fn().mockReturnValue({ emit: vi.fn() });
+const mockPublisherEmit = vi.fn().mockResolvedValue(undefined);
+const mockGetRedisPublisher = vi.fn().mockReturnValue({ emit: mockPublisherEmit });
 const mockScrapeJobsTotal = { inc: vi.fn() };
 const mockScrapeDurationSeconds = { startTimer: vi.fn().mockReturnValue(vi.fn()) };
 const mockFilmsScrapedTotal = { inc: vi.fn() };
@@ -81,6 +82,7 @@ describe('executeJob dispatcher', () => {
     mockGetPendingScrapeAttempts.mockReset();
     mockGetScrapeAttemptsByReport.mockReset().mockResolvedValue([]);
     mockGetCinemas.mockReset().mockResolvedValue([{ id: 'C0001', name: 'Cinema 1' }]);
+    mockPublisherEmit.mockReset().mockResolvedValue(undefined);
   });
 
   it('should dispatch scrape jobs to runScraper', async () => {
@@ -104,6 +106,13 @@ describe('executeJob dispatcher', () => {
     });
 
     expect(mockRunScraper).toHaveBeenCalledOnce();
+    expect(mockRunScraper).toHaveBeenCalledWith(
+      expect.objectContaining({ emit: mockPublisherEmit }),
+      expect.objectContaining({
+        reportId: 42,
+      }),
+      expect.anything(),
+    );
     expect(mockAddCinemaAndScrape).not.toHaveBeenCalled();
   });
 

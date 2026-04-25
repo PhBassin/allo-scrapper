@@ -95,7 +95,17 @@ export interface FilmPageData {
 }
 
 // Progress event types (published to Redis)
-export type ProgressEvent =
+export type ProgressEvent = {
+  report_id?: number;
+  traceContext?: {
+    org_id?: string;
+    org_slug?: string;
+    user_id?: string;
+    endpoint?: string;
+    method?: string;
+    traceparent?: string;
+  };
+} & (
   | { type: 'started'; total_cinemas: number; total_dates: number }
   | { type: 'cinema_started'; cinema_name: string; cinema_id: string; index: number }
   | { type: 'date_started'; date: string; cinema_name: string }
@@ -108,7 +118,8 @@ export type ProgressEvent =
   | { type: 'cinema_completed'; cinema_name: string; total_films: number }
   | { type: 'cinema_failed'; cinema_name: string; error: string }
   | { type: 'completed'; summary: ScrapeSummary }
-  | { type: 'failed'; error: string };
+  | { type: 'failed'; error: string }
+);
 
 export interface ScrapeSummary {
   total_cinemas: number;

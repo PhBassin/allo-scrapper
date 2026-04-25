@@ -118,9 +118,7 @@ describe('RegisterPage — step 1', () => {
   it('ignores stale slug check responses (race condition)', async () => {
     // First call (slow) returns false for 'slow-slug'
     // Second call (fast) returns true for 'fast-slug'
-    let callCount = 0;
     vi.mocked(checkSlugAvailable).mockImplementation((slug: string) => {
-      callCount++;
       if (slug === 'slow-slug') {
         return new Promise((resolve) => setTimeout(() => resolve(false), 300));
       }

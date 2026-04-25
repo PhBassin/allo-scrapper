@@ -1,16 +1,20 @@
-import { useScrapeProgress } from '../hooks/useScrapeProgress';
+import { useScrapeProgress, type TrackedScrapeJob } from '../hooks/useScrapeProgress';
 import type { ProgressEvent } from '../types';
 
 export interface ScrapeProgressProps {
   onComplete?: (success: boolean) => void;
+  trackedJobs?: TrackedScrapeJob[];
 }
 
-export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {}) {
-  const { events, latestEvent, error } = useScrapeProgress(onComplete);
+export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeProgressProps = {}) {
+  const { events, latestEvent, jobs, error } = useScrapeProgress(onComplete, trackedJobs);
 
-  // Only show connecting state if we have no events yet
-  // Once we have events, keep showing progress even if disconnected
-  if (events.length === 0) {
+  const hasTrackedJobs = jobs.length > 0;
+
+  // Only show the pure connecting state when we have neither SSE events nor
+  // placeholder jobs from trigger responses. Pending tracked jobs should stay
+  // visible before the first SSE event arrives.
+  if (events.length === 0 && !hasTrackedJobs) {
     return (
       <div className="border-2 rounded-lg p-6 shadow-lg bg-white border-primary" data-testid="scrape-progress">
         <div className="flex items-center gap-3">
@@ -56,8 +60,11 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
   const filmProgress = totalFilms > 0 ? (processedFilms / totalFilms) * 100 : 0;
 
   // Check if completed
-  const isCompleted = latestEvent?.type === 'completed';
-  const hasFailed = latestEvent?.type === 'failed';
+  const allJobsTerminal = jobs.length > 0 && jobs.every((job) => job.status === 'completed' || job.status === 'failed');
+  const isCompleted = allJobsTerminal && jobs.every((job) => job.status === 'completed');
+  const hasFailed = allJobsTerminal && jobs.some((job) => job.status === 'failed');
+
+  const hasMultipleJobs = jobs.length > 1 || jobs.some((job) => job.reportId != null);
 
   return (
     <div className={`border-2 rounded-lg p-6 shadow-lg ${isCompleted ? 'bg-green-50 border-green-500' : hasFailed ? 'bg-red-50 border-red-500' : 'bg-white border-primary'}`} data-testid="scrape-progress">
@@ -136,6 +143,82 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
           </p>
         )}
       </div>
+
+      {hasMultipleJobs && jobs.length > 0 && (
+        <div className="mt-6 border-t border-gray-200 pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-semibold text-gray-900">Jobs</h4>
+            <p className="text-xs text-gray-500">{jobs.length} suivi(s)</p>
+          </div>
+          <div className="space-y-3">
+            {jobs.map((job) => {
+              const cardCompleted = job.status === 'completed';
+              const cardFailed = job.status === 'failed';
+              const cardPending = job.status === 'pending';
+
+              return (
+                <div
+                  key={job.id}
+                  className={`rounded-md border p-4 ${cardCompleted ? 'border-green-300 bg-green-50' : cardFailed ? 'border-red-300 bg-red-50' : cardPending ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}
+                  data-testid="scrape-progress-card"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{job.cinemaName || `Scrape #${job.reportId ?? job.id}`}</p>
+                      {job.reportId != null && (
+                        <p className="text-xs text-gray-500">Report #{job.reportId}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-xs font-semibold uppercase ${cardCompleted ? 'text-green-700' : cardFailed ? 'text-red-700' : cardPending ? 'text-amber-700' : 'text-blue-700'}`}>
+                        {cardCompleted ? 'Termine' : cardFailed ? 'Echec' : cardPending ? 'En attente' : 'En cours'}
+                      </p>
+                      {cardCompleted && <span className="sr-only" data-testid="scrape-status-completed">completed</span>}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <div className="flex justify-between items-center mb-1 text-xs text-gray-600">
+                        <span>Cinemas</span>
+                        <span>
+                          {job.processedCinemas} / {job.totalCinemas}
+                          <span className="ml-2" data-testid="scrape-progress-percentage">{Math.round(job.cinemaProgress)}%</span>
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${job.cinemaProgress}%` }}></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-1 text-xs text-gray-600">
+                        <span>Films</span>
+                        <span>{job.processedFilms} / {job.totalFilms}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-green-500 h-2 rounded-full transition-all duration-300" style={{ width: `${job.filmProgress}%` }}></div>
+                      </div>
+                    </div>
+
+                    {job.currentFilm && !cardCompleted && !cardFailed && !cardPending && (
+                      <p className="text-xs text-gray-500">Film en cours: {job.currentFilm}</p>
+                    )}
+
+                    {cardPending && (
+                      <p className="text-xs text-amber-700">En attente du premier evenement SSE</p>
+                    )}
+
+                    {job.error && (
+                      <p className="text-xs text-red-700">{job.error}</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Error Display */}
       {error && (

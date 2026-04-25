@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-15
-last_updated: 2026-04-23T10:34:00Z
+last_updated: 2026-04-24T00:00:00Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -75,7 +75,7 @@ development_status:
   2-2-add-exponential-backoff-retry-logic-for-redis-failures: done
   2-3-redis-job-queue-load-testing-100-concurrent-jobs: done
   2-4-redis-reconnection-handling-during-job-processing: review
-  2-5-e2e-scraper-progress-tracking-with-10-concurrent-jobs: backlog
+  2-5-e2e-scraper-progress-tracking-with-10-concurrent-jobs: ready-for-dev
   2-6-dlq-api-endpoints-api-only-no-ui: backlog
   epic-2-retrospective: optional
 

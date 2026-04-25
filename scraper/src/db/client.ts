@@ -29,3 +29,31 @@ export const db = {
 };
 
 export type DB = typeof db;
+
+function slugToSchemaName(slug: string): string {
+  if (!/^[a-z0-9-]+$/.test(slug)) {
+    throw new Error(`Invalid tenant slug: ${slug}`);
+  }
+
+  return `org_${slug.replace(/-/g, '_')}`;
+}
+
+export async function withTenantDb<T>(orgSlug: string | undefined, run: (dbHandle: DB) => Promise<T>): Promise<T> {
+  if (!orgSlug) {
+    return await run(db);
+  }
+
+  const client = await pool.connect();
+  const schemaName = slugToSchemaName(orgSlug);
+
+  try {
+    await client.query(`SET search_path TO "${schemaName}", public`);
+
+    return await run({
+      query: <T extends pg.QueryResultRow = any>(text: string, params?: any[]) => client.query<T>(text, params),
+      end: async () => {},
+    });
+  } finally {
+    client.release();
+  }
+}

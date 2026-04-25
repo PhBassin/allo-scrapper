@@ -23,7 +23,7 @@ vi.mock('ioredis', () => {
 });
 
 vi.mock('../utils/logger.js', () => ({
-  logger: { error: vi.fn(), warn: vi.fn() },
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 
 describe('RedisClient', () => {

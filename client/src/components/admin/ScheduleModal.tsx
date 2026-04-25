@@ -88,9 +88,10 @@ function buildCron(
   switch (frequency) {
     case 'daily':
       return `${minute} ${hour} * * *`;
-    case 'weekly':
+    case 'weekly': {
       const days = weekdays.length > 0 ? weekdays.join(',') : '*';
       return `${minute} ${hour} * * ${days}`;
+    }
     case 'monthly':
       return `${minute} ${hour} ${monthDay} * *`;
     default:

@@ -39,7 +39,7 @@ import { optionalAuth, requireAuth } from 'allo-scrapper-server/dist/middleware/
 // @ts-ignore
 import { requirePermission } from 'allo-scrapper-server/dist/middleware/permission.js';
 // @ts-ignore
-import { protectedLimiter, authLimiter } from 'allo-scrapper-server/dist/middleware/rate-limit.js';
+import { protectedLimiter } from 'allo-scrapper-server/dist/middleware/rate-limit.js';
 // @ts-ignore
 import { ValidationError, NotFoundError, AuthError } from 'allo-scrapper-server/dist/utils/errors.js';
 // @ts-ignore
@@ -76,13 +76,10 @@ export function createOrgRouter(): Router {
   // 0. Middleware to resolve tenant and attach DB client
   router.use(resolveTenant as any);
 
-  // 1. Auth & Quota validation
-  // requireAuth verifies valid session
-  // authLimiter is used (matching the pattern in server/src/routes/auth.ts)
-  // so CodeQL recognises this as a properly rate-limited auth handler (CWE-307).
-  router.use(authLimiter, optionalAuth as any, requireOrgAuth as any);
-
   // ── Health / ping ───────────────────────────────────────────────────────────
+  // Keep tenant resolution public and lightweight. This route is hit during
+  // org-scoped page loads, so it should not be gated by the login-focused
+  // authLimiter middleware applied to the rest of the org router.
   router.get('/ping', protectedLimiter, (req: any, res) => {
     if (!req.org) throw new Error('Tenant context (req.org) missing');
     res.json({
@@ -95,6 +92,12 @@ export function createOrgRouter(): Router {
       },
     });
   });
+
+  // 1. Optional auth for tenant-aware routes.
+  // The org router does not expose login endpoints, so the login-focused
+  // authLimiter must not be applied globally here; otherwise normal tenant page
+  // loads and admin API calls can fail with misleading login-throttle errors.
+  router.use(optionalAuth as any, requireOrgAuth as any);
 
   // ── Cinemas ─────────────────────────────────────────────────────────────────
   router.post('/cinemas', protectedLimiter, checkQuota('cinemas') as any);

@@ -27,24 +27,40 @@ export async function resolveTenant(
   const client = await pool.connect();
   let released = false;
 
-  const releaseOnce = () => {
+  const releaseOnce = async () => {
     if (!released) {
       released = true;
+      try {
+        await client.query('SET search_path TO public');
+      } catch {
+        // Ignore reset failures during release.
+      }
       client.release();
     }
+  };
+
+  const scheduleReleaseOnResponse = () => {
+    const cleanup = () => {
+      res.off('finish', cleanup);
+      res.off('close', cleanup);
+      void releaseOnce();
+    };
+
+    res.once('finish', cleanup);
+    res.once('close', cleanup);
   };
 
   try {
     const org = await getOrgBySlug(client, slug);
 
     if (!org) {
-      releaseOnce();
+      await releaseOnce();
       res.status(404).json({ success: false, error: 'Organization not found' });
       return;
     }
 
     if (!ACTIVE_STATUSES.has(org.status)) {
-      releaseOnce();
+      await releaseOnce();
       res.status(403).json({ success: false, error: `Organization is ${org.status}` });
       return;
     }
@@ -57,10 +73,11 @@ export async function resolveTenant(
 
     req.org = org;
     req.dbClient = client;
+    scheduleReleaseOnResponse();
 
     await next();
-  } finally {
-    // Always release the client back to the pool (no-op if already released above)
-    releaseOnce();
+  } catch (error) {
+    await releaseOnce();
+    throw error;
   }
 }

@@ -29,12 +29,16 @@ function makeRes(): Partial<Response> & {
   body: unknown;
   status: ReturnType<typeof vi.fn>;
   json: ReturnType<typeof vi.fn>;
+  once: ReturnType<typeof vi.fn>;
+  off: ReturnType<typeof vi.fn>;
 } {
   const res = {
     statusCode: 200,
     body: null as unknown,
     status: vi.fn(),
     json: vi.fn(),
+    once: vi.fn(),
+    off: vi.fn(),
   };
   res.status.mockReturnValue(res);
   res.json.mockImplementation((body: unknown) => {
@@ -63,6 +67,14 @@ describe('resolveTenant', () => {
     expect(req.org).toEqual(org);
     expect(req.dbClient).toBe(client);
     expect(client.query).toHaveBeenNthCalledWith(2, 'SET search_path TO "org_acme", public');
+    expect(res.once).toHaveBeenCalledWith('finish', expect.any(Function));
+    expect(res.once).toHaveBeenCalledWith('close', expect.any(Function));
+    expect(client.release).not.toHaveBeenCalled();
+
+    const finishHandler = res.once.mock.calls.find(([event]) => event === 'finish')?.[1] as (() => void) | undefined;
+    finishHandler?.();
+    await Promise.resolve();
+    await Promise.resolve();
     expect(client.release).toHaveBeenCalled();
   });
 
@@ -171,5 +183,30 @@ describe('resolveTenant', () => {
     ).rejects.toThrow('downstream error');
 
     expect(client.release).toHaveBeenCalled();
+  });
+
+  it('releases the client when the response finishes after a successful downstream handler', async () => {
+    const org = { id: 1, slug: 'acme', schema_name: 'org_acme', status: 'active' };
+    const client = {
+      query: vi.fn().mockResolvedValue({ rows: [org], rowCount: 1 }),
+      release: vi.fn(),
+    };
+    const pool = { connect: vi.fn().mockResolvedValue(client) };
+    const req = makeReq('acme', pool);
+    const res = makeRes();
+    const next = vi.fn().mockResolvedValue(undefined);
+
+    const { resolveTenant } = await import('./tenant.js');
+    await resolveTenant(req as unknown as Request, res as unknown as Response, next as unknown as NextFunction);
+
+    expect(client.release).not.toHaveBeenCalled();
+
+    const closeHandler = res.once.mock.calls.find(([event]) => event === 'close')?.[1] as (() => void) | undefined;
+    closeHandler?.();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(client.release).toHaveBeenCalledTimes(1);
+    expect(client.query).toHaveBeenLastCalledWith('SET search_path TO public');
   });
 });

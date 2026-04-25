@@ -48,6 +48,29 @@ export class NoopProgressPublisher implements ProgressPublisher {
   async emit(_event: ProgressEvent): Promise<void> {}
 }
 
+function withReportId(event: ProgressEvent, reportId?: number): ProgressEvent {
+  if (reportId == null || event.report_id != null) {
+    return event;
+  }
+
+  return {
+    ...event,
+    report_id: reportId,
+  };
+}
+
+function withJobMetadata(event: ProgressEvent, options?: ScrapeOptions): ProgressEvent {
+  const withReport = withReportId(event, options?.reportId);
+  if (!options?.traceContext || withReport.traceContext) {
+    return withReport;
+  }
+
+  return {
+    ...withReport,
+    traceContext: options.traceContext,
+  };
+}
+
 /**
  * Backward compatibility wrapper for loadTheaterMetadata.
  * Delegates to the appropriate strategy based on the cinema URL.
@@ -135,6 +158,7 @@ export interface ScrapeOptions {
  * Extracted from runScraper for concurrency support.
  */
 async function processCinema(
+  db: DB,
   cinema: CinemaConfig,
   dates: string[],
   options: ScrapeOptions | undefined,
@@ -234,9 +258,9 @@ async function processCinema(
     
     // Track attempt in database if reportId provided
     let attemptId: number | undefined;
-    if (options?.reportId) {
-      try {
-        attemptId = await createScrapeAttempt(db, {
+      if (options?.reportId) {
+        try {
+          attemptId = await createScrapeAttempt(db, {
           report_id: options.reportId,
           cinema_id: cinema.id,
           date: date,
@@ -401,7 +425,8 @@ async function processCinema(
 
 export async function runScraper(
   progress?: ProgressPublisher,
-  options?: ScrapeOptions
+  options?: ScrapeOptions,
+  dbHandle: DB = db,
 ): Promise<ScrapeSummary> {
   setOrgSpanAttributes(options?.traceContext);
   logger.info('Starting scraper');
@@ -423,14 +448,21 @@ export async function runScraper(
   const theaterDelayMs = parseInt(process.env.SCRAPE_THEATER_DELAY_MS || '3000', 10);
   const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
   const concurrency = parseInt(process.env.SCRAPER_CONCURRENCY || '2', 10);
+  const scopedProgress: ProgressPublisher | undefined = progress
+    ? {
+        emit: async (event) => {
+          await progress.emit(withJobMetadata(event, options));
+        },
+      }
+    : undefined;
 
   try {
-    let cinemas = await getCinemaConfigs(db);
+    let cinemas = await getCinemaConfigs(dbHandle);
     
     // Filter to specific cinema if provided
     if (options?.cinemaId) {
       // First verify cinema exists in database (source of truth)
-      const allCinemasFromDb = await getCinemas(db);
+      const allCinemasFromDb = await getCinemas(dbHandle);
       const cinemaExistsInDb = allCinemasFromDb.some((c: Cinema) => c.id === options.cinemaId);
       
       if (!cinemaExistsInDb) {
@@ -453,7 +485,7 @@ export async function runScraper(
     let scrapeMode: ScrapeMode = 'from_today_limited';
     let scrapeDays = 7;
     try {
-      const settingsResult = await db.query<{ scrape_mode: string; scrape_days: number }>(
+      const settingsResult = await dbHandle.query<{ scrape_mode: string; scrape_days: number }>(
         'SELECT scrape_mode, scrape_days FROM app_settings WHERE id = 1'
       );
       if (settingsResult.rows.length > 0) {
@@ -475,7 +507,7 @@ export async function runScraper(
     summary.total_cinemas = cinemas.length;
     summary.total_dates = dates.length;
 
-    await progress?.emit({
+    await scopedProgress?.emit({
       type: 'started',
       total_cinemas: cinemas.length,
       total_dates: dates.length,
@@ -486,12 +518,13 @@ export async function runScraper(
 
     const tasks = cinemas.map((cinema, i) => 
       limit(() => processCinema(
+        dbHandle,
         cinema,
         dates,
         options,
         theaterDelayMs,
         movieDelayMs,
-        progress,
+        scopedProgress,
         summary,
         i,
         cinemas.length,
@@ -503,10 +536,17 @@ export async function runScraper(
 
     summary.duration_ms = Date.now() - startTime;
     summary.circuit_state = circuitBreaker.getState();
+    if (!summary.status) {
+      summary.status = summary.failed_cinemas === 0
+        ? 'success'
+        : summary.successful_cinemas > 0
+          ? 'partial_success'
+          : 'failed';
+    }
     logger.info('Scraping completed', { summary });
     await closeBrowser();
 
-    await progress?.emit({ type: 'completed', summary });
+    await scopedProgress?.emit({ type: 'completed', summary });
 
     return summary;
   } catch (error) {
@@ -523,7 +563,7 @@ export async function runScraper(
     });
     summary.duration_ms = Date.now() - startTime;
     summary.circuit_state = circuitBreaker.getState();
-    await progress?.emit({ type: 'failed', error: errorMessage });
+    await scopedProgress?.emit({ type: 'failed', error: errorMessage });
     throw error;
   }
 }

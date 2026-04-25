@@ -92,10 +92,6 @@ export class ScraperService {
 
     const reportId = await createScrapeReport(this.db, 'manual');
 
-    // Reset stale events so new SSE subscribers don't receive previous session's
-    // completed/failed events and immediately dismiss the progress panel.
-    progressTracker.reset();
-
     const traceContext = this.buildTraceContext(context);
 
     let queueDepth: number;
@@ -134,9 +130,6 @@ export class ScraperService {
   async triggerResume(parentReportId: number, pendingAttempts: ScrapeAttempt[], context?: ScrapeObservabilityContext) {
     // Create new report with parent link
     const reportId = await createScrapeReport(this.db, 'manual', parentReportId);
-
-    // Reset stale events
-    progressTracker.reset();
 
     // Build list of cinema/date pairs to retry
     const pendingList = pendingAttempts.map(a => ({

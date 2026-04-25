@@ -3,6 +3,7 @@ import express from 'express';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import {
+  authenticatedKeyGenerator,
   generalLimiter,
   authLimiter,
   registerLimiter,
@@ -13,8 +14,13 @@ import {
 } from './rate-limit.js';
 
 // Helper: sign a minimal JWT for rate-limit key tests (secret doesn't matter — we use jwt.decode)
-const makeToken = (userId: number): string =>
-  jwt.sign({ id: userId, username: `user${userId}` }, 'test-secret');
+const makeToken = (userId: number, options?: { username?: string; orgSlug?: string; scope?: string }): string =>
+  jwt.sign({
+    id: userId,
+    username: options?.username ?? `user${userId}`,
+    ...(options?.orgSlug ? { org_slug: options.orgSlug } : {}),
+    ...(options?.scope ? { scope: options.scope } : {}),
+  }, 'test-secret');
 
 describe('Rate Limiting Middleware', () => {
   let app: express.Application;
@@ -52,6 +58,31 @@ describe('Rate Limiting Middleware', () => {
       expect(response.headers['ratelimit-limit']).toBeDefined();
       expect(response.headers['ratelimit-remaining']).toBeDefined();
       expect(response.headers['ratelimit-reset']).toBeDefined();
+    });
+
+    it('should keep authenticated users on the same IP in independent limiter buckets', async () => {
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      const { default: rateLimit } = await import('express-rate-limit');
+      const tightLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 2,
+        skip: () => false,
+        keyGenerator: authenticatedKeyGenerator,
+      });
+      tightApp.get('/test', tightLimiter, (_req, res) => res.json({ ok: true }));
+
+      const token1 = makeToken(1, { username: 'admin@test.local', orgSlug: 'org-a' });
+      const token2 = makeToken(1, { username: 'admin@test.local', orgSlug: 'org-b' });
+      const sameIp = '1.2.3.4';
+
+      await request(tightApp).get('/test').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp);
+      await request(tightApp).get('/test').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp);
+      const exhausted = await request(tightApp).get('/test').set('Authorization', `Bearer ${token1}`).set('X-Forwarded-For', sameIp);
+      expect(exhausted.status).toBe(429);
+
+      const user2res = await request(tightApp).get('/test').set('Authorization', `Bearer ${token2}`).set('X-Forwarded-For', sameIp);
+      expect(user2res.status).toBe(200);
     });
   });
 
@@ -145,13 +176,32 @@ describe('Rate Limiting Middleware', () => {
     });
   });
 
+  describe('authenticatedKeyGenerator', () => {
+    it('includes tenant identity so same numeric user ids do not collide across orgs', () => {
+      const tokenA = makeToken(1, { username: 'admin@test.local', orgSlug: 'org-a' });
+      const tokenB = makeToken(1, { username: 'admin@test.local', orgSlug: 'org-b' });
+
+      const reqA = { headers: { authorization: `Bearer ${tokenA}` }, ip: '1.2.3.4' } as express.Request;
+      const reqB = { headers: { authorization: `Bearer ${tokenB}` }, ip: '1.2.3.4' } as express.Request;
+
+      expect(authenticatedKeyGenerator(reqA)).toBe('org:org-a|username:admin@test.local|id:1');
+      expect(authenticatedKeyGenerator(reqB)).toBe('org:org-b|username:admin@test.local|id:1');
+    });
+
+    it('includes scope for non-tenant privileged identities', () => {
+      const token = makeToken(1, { username: 'superadmin', scope: 'superadmin' });
+      const req = { headers: { authorization: `Bearer ${token}` }, ip: '1.2.3.4' } as express.Request;
+
+      expect(authenticatedKeyGenerator(req)).toBe('scope:superadmin|username:superadmin|id:1');
+    });
+  });
+
   describe('protectedLimiter — per-user key generation', () => {
-    it('should use user id as rate-limit key so two users on same IP have independent quotas', async () => {
+    it('should keep authenticated users on the same IP in independent limiter buckets', async () => {
       // Create a tight-limit app to make exhaustion testable without 60 requests
       const tightApp = express();
       tightApp.set('trust proxy', 1);
       const { default: rateLimit } = await import('express-rate-limit');
-      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
       const tightLimiter = rateLimit({
         windowMs: 60_000,
         max: 2,
@@ -197,11 +247,10 @@ describe('Rate Limiting Middleware', () => {
   });
 
   describe('scraperLimiter — per-user key generation', () => {
-    it('should use user id as rate-limit key so two users on same IP have independent quotas', async () => {
+    it('should keep authenticated scraper users on the same IP in independent limiter buckets', async () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
       const { default: rateLimit } = await import('express-rate-limit');
-      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
       const tightLimiter = rateLimit({
         windowMs: 60_000,
         max: 2,

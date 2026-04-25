@@ -1,5 +1,9 @@
 import { Response } from 'express';
 
+declare global {
+  var __alloScrapperProgressTracker__: ProgressTracker | undefined;
+}
+
 export interface ProgressTraceContext {
   org_id?: string;
   org_slug?: string;
@@ -26,6 +30,7 @@ type ProgressEventPayload =
   | { type: 'failed'; error: string };
 
 export type ProgressEvent = ProgressEventPayload & {
+  report_id?: number;
   traceContext?: ProgressTraceContext;
 };
 
@@ -55,6 +60,14 @@ export class ProgressTracker {
   private heartbeatInterval?: NodeJS.Timeout;
   private traceContextByListener: Map<Response, ProgressTraceContext | undefined> = new Map();
 
+  private matchesListener(event: ProgressEvent, listenerTrace?: ProgressTraceContext): boolean {
+    if (!listenerTrace?.org_slug) {
+      return true;
+    }
+
+    return event.traceContext?.org_slug === listenerTrace.org_slug;
+  }
+
   // Add a new SSE listener
   addListener(res: Response, traceContext?: ProgressTraceContext): void {
     this.listeners.add(res);
@@ -62,6 +75,9 @@ export class ProgressTracker {
 
     // Send existing events to new listener
     for (const event of this.events) {
+      if (!this.matchesListener(event, traceContext)) {
+        continue;
+      }
       this.sendToListener(res, event);
     }
 
@@ -84,12 +100,39 @@ export class ProgressTracker {
 
   // Emit a progress event to all listeners
   emit(event: ProgressEvent): void {
+    if (event.type === 'started' && !this.hasActiveJobs()) {
+      this.events = [];
+    }
+
     this.events.push(event);
 
     // Send to all connected listeners
     for (const listener of this.listeners) {
+      if (!this.matchesListener(event, this.traceContextByListener.get(listener))) {
+        continue;
+      }
       this.sendToListener(listener, event);
     }
+  }
+
+  private hasActiveJobs(): boolean {
+    const latestEventsByJob = new Map<string, ProgressEvent>();
+
+    for (const event of this.events) {
+      latestEventsByJob.set(this.getJobKey(event), event);
+    }
+
+    for (const event of latestEventsByJob.values()) {
+      if (event.type !== 'completed' && event.type !== 'failed') {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private getJobKey(event: ProgressEvent): string {
+    return event.report_id != null ? `report:${event.report_id}` : 'legacy';
   }
 
   // Send an event to a specific listener
@@ -158,5 +201,5 @@ export class ProgressTracker {
   }
 }
 
-// Singleton instance
-export const progressTracker = new ProgressTracker();
+// Use a process-global singleton so src/ and dist/ imports share listeners/events in dev.
+export const progressTracker = globalThis.__alloScrapperProgressTracker__ ??= new ProgressTracker();

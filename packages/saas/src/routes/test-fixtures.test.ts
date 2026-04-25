@@ -108,6 +108,7 @@ describe('test fixture routes', () => {
     expect(res.body.data.org_id).toBe(41);
     expect(res.body.data.org_slug).toBe('e2e-fixture-a');
     expect(res.body.data.schema_name).toBe('org_e2e_fixture_a');
+    expect(res.body.data.plan_id).toBe(1);
     expect(res.body.data.admin.username).toBe('admin@fixture.local');
     expect(res.body.data.admin.password).toBeTypeOf('string');
     expect(res.body.data.seeded).toMatchObject({
@@ -171,6 +172,49 @@ describe('test fixture routes', () => {
       .filter((call) => typeof call[0] === 'string' && (call[0] as string).includes('INSERT INTO cinemas'));
     const cinemaNames = new Set(cinemaInsertCalls.map((call) => call[1]?.[1] as string));
     expect(cinemaNames.size).toBeGreaterThanOrEqual(12);
+  });
+
+  it('POST /test/seed-org accepts an explicit plan id', async () => {
+    const mockDb = {
+      query: vi.fn(),
+    } as unknown as DB;
+
+    const mockClient = createMockPoolClient();
+    const mockPool = {
+      connect: vi.fn().mockResolvedValue(mockClient),
+    } as unknown as Pool;
+
+    createOrgMock.mockResolvedValue({
+      org: {
+        id: 601,
+        slug: 'e2e-starter',
+        schema_name: 'org_e2e_starter',
+      },
+    });
+
+    createAdminUserMock.mockResolvedValue({
+      id: 9,
+      username: 'starter-admin@test.local',
+    });
+
+    const app = buildApp(mockDb, mockPool);
+    const { createTestFixturesRouter } = await import('./test-fixtures.js');
+    app.use('/test', createTestFixturesRouter());
+
+    const res = await request(app)
+      .post('/test/seed-org')
+      .send({ slug: 'e2e-starter', planId: 2 });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.plan_id).toBe(2);
+    expect(createOrgMock).toHaveBeenCalledWith(
+      mockDb,
+      expect.objectContaining({
+        slug: 'e2e-starter',
+        plan_id: 2,
+      }),
+      mockPool,
+    );
   });
 
   it('POST /test/seed-org returns 404 outside test mode', async () => {

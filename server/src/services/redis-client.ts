@@ -205,11 +205,16 @@ export class RedisClient {
   /** Subscribe to real-time progress events from the scraper. */
   async subscribeToProgress(handler: (event: ProgressEvent) => void): Promise<void> {
     await this.subscriber.subscribe('scrape:progress');
+    logger.info('[RedisClient] Subscribed to scrape:progress');
 
     this.subscriber.on('message', (channel: string, message: string) => {
       if (channel !== 'scrape:progress') return;
       try {
         const event: ProgressEvent = JSON.parse(message);
+        logger.info('[RedisClient] Received progress event', {
+          type: event.type,
+          report_id: event.report_id,
+        });
         handler(event);
       } catch (err) {
         logger.error('[RedisClient] Failed to parse progress event:', err);

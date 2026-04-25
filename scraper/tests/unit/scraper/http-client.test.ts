@@ -12,7 +12,6 @@ vi.mock('../../../src/utils/logger.js', () => ({
   },
 }));
 
-// Mock puppeteer-core to avoid launching a real browser
 const mockPage = {
   goto: vi.fn().mockResolvedValue(null),
   content: vi.fn().mockResolvedValue('<html></html>'),
@@ -26,13 +25,16 @@ const mockContext = {
   close: vi.fn(),
 };
 
+// Mock puppeteer-core to avoid launching a real browser
+const mockLaunch = vi.fn().mockResolvedValue({
+  isConnected: vi.fn().mockReturnValue(true),
+  createBrowserContext: vi.fn().mockResolvedValue(mockContext),
+  close: vi.fn(),
+});
+
 vi.mock('puppeteer-core', () => ({
   default: {
-    launch: vi.fn().mockResolvedValue({
-      isConnected: vi.fn().mockReturnValue(true),
-      createBrowserContext: vi.fn().mockResolvedValue(mockContext),
-      close: vi.fn(),
-    }),
+    launch: mockLaunch,
   },
 }));
 
@@ -44,6 +46,7 @@ describe('http-client', () => {
   beforeEach(async () => {
     vi.resetModules();
     // Reset mock call history between tests
+    mockLaunch.mockClear();
     mockPage.goto.mockClear();
     mockPage.content.mockClear();
     mockPage.evaluate.mockClear();
@@ -231,6 +234,16 @@ describe('http-client', () => {
   // fetchTheaterPage — Puppeteer-specific behaviour
   // -------------------------------------------------------------------------
   describe('fetchTheaterPage (Puppeteer integration)', () => {
+    it('prefers CHROME_PATH when explicitly configured', async () => {
+      process.env.CHROME_PATH = '/custom/chrome';
+      await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
+
+      expect(mockLaunch).toHaveBeenCalledWith(expect.objectContaining({
+        executablePath: '/custom/chrome',
+      }));
+      delete process.env.CHROME_PATH;
+    });
+
     it('should set user agent on the page before navigation', async () => {
       await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
 

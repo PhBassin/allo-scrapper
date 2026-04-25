@@ -31,18 +31,45 @@ const skipTest = (req: any) => process.env.NODE_ENV === 'test' || !req.ip;
 const WINDOW_MS = parseEnvInt('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000); // 15 min
 
 /**
- * Key generator that buckets authenticated requests by user id.
+ * Key generator for authenticated requests.
+ *
+ * Tenant users often reuse small integer ids within different org schemas, so
+ * bucketing on `id` alone causes cross-tenant limiter collisions. Use the
+ * decoded JWT identity fields together to derive a stable per-user bucket.
  * Falls back to req.ip for unauthenticated requests.
- * Uses jwt.decode (not jwt.verify) — we only need the payload for bucketing;
- * security verification is already handled by the requireAuth middleware.
  */
 export const authenticatedKeyGenerator = (req: Request): string => {
   try {
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.decode(token) as { id?: number } | null;
-      if (decoded?.id) return `user:${decoded.id}`;
+      const decoded = jwt.decode(token) as {
+        id?: number | string;
+        username?: string;
+        org_slug?: string;
+        scope?: string;
+      } | null;
+
+      if (decoded) {
+        const parts: string[] = [];
+
+        if (decoded.scope) {
+          parts.push(`scope:${decoded.scope}`);
+        }
+        if (decoded.org_slug) {
+          parts.push(`org:${decoded.org_slug}`);
+        }
+        if (decoded.username) {
+          parts.push(`username:${decoded.username}`);
+        }
+        if (decoded.id != null) {
+          parts.push(`id:${String(decoded.id)}`);
+        }
+
+        if (parts.length > 0) {
+          return parts.join('|');
+        }
+      }
     }
   } catch {
     // fall through to IP fallback
@@ -57,6 +84,7 @@ export const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: skipTest,
+  keyGenerator: authenticatedKeyGenerator,
   message: {
     success: false,
     error: 'Too many requests, please try again later.',
@@ -138,4 +166,3 @@ export const healthCheckLimiter = rateLimit({
     error: 'Too many health check requests',
   },
 });
-
