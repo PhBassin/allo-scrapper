@@ -1,6 +1,16 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import type { Request } from 'express';
+import { validateJWTSecret } from '../utils/jwt-secret-validator.js';
+
+// Lazily load the JWT secret to allow tests to mock process.env.JWT_SECRET before the module evaluates
+let JWT_SECRET: string | undefined;
+const getJwtSecret = () => {
+  if (!JWT_SECRET) {
+    JWT_SECRET = validateJWTSecret();
+  }
+  return JWT_SECRET;
+};
 
 // Helper to parse env var as number with fallback
 const parseEnvInt = (key: string, defaultValue: number): number => {
@@ -43,12 +53,17 @@ export const authenticatedKeyGenerator = (req: Request): string => {
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.decode(token) as {
-        id?: number | string;
-        username?: string;
-        org_slug?: string;
-        scope?: string;
-      } | null;
+      let decoded: any = null;
+      try {
+        decoded = jwt.verify(token, getJwtSecret()) as {
+          id?: number | string;
+          username?: string;
+          org_slug?: string;
+          scope?: string;
+        };
+      } catch (e) {
+        // Validation failed (expired, tampered, etc.). Fall back to IP.
+      }
 
       if (decoded) {
         const parts: string[] = [];
