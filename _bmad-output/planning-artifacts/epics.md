@@ -206,6 +206,15 @@ Cinema scraping jobs are reliable under load (100+ concurrent jobs) with zero jo
 **UX-DRs covered:** UX-DR5
 **Effort:** 16-20 hours (revised from 12-16h - includes DLQ API implementation, load testing setup, performance profiling)
 **Priority:** 🔴 HIGH
+**Epic Status:** 🟡 IN-PROGRESS — 5/6 stories done, 1 ready-for-dev (2.6 DLQ API endpoints)
+
+**Progress (2026-04-26):**
+- ✅ 2-1: DLQ support (PR #904, merged)
+- ✅ 2-2: Exponential backoff retry (PR #906 + #907, merged)
+- ✅ 2-3: Load testing 100 concurrent jobs (merged, test/story-2-3-redis-load)
+- ✅ 2-4: Redis reconnection handling (PR #919, merged)
+- ✅ 2-5: E2E scraper progress tracking 10 concurrent jobs (PR #921, merged — includes tenant-scoped SSE + useScrapeProgress hook)
+- 🔵 2-6: DLQ API endpoints (story file created, ready-for-dev)
 
 **Note on DLQ UI:** Story 2.6 scoped to API-only for MVP to prevent scope creep. Admin UI (table, filters, pagination, real-time updates) can be added in future epic if needed.
 

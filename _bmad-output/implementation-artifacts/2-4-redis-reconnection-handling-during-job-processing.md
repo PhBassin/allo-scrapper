@@ -1,6 +1,12 @@
 # Story 2.4: Redis Reconnection Handling During Job Processing
 
-Status: review
+Status: done
+
+## Agent Record
+
+- **PR**: [#919 fix(scraper): harden Redis reconnect recovery](https://github.com/PhBassin/allo-scrapper/pull/919)
+- **Completed**: 2026-04-25
+- **Summary**: Implemented consumer-side reconnection state tracking. In-flight jobs tracked with `InFlightJob` model (id, checkpoint with `resumeMode` + `pendingAttempts`). On Redis disconnect: pausing is logged, in-flight jobs preserved. On success: jobs resume from checkpoint. After 3 reconnection failures: jobs go to DLQ via `moveJobToDLQ` exactly-once with `Set` guard. Full Redis client info logger support added (mocked in unit tests). Test coverage includes Redis disconnect/reconnect integration scenarios with real Redis.
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

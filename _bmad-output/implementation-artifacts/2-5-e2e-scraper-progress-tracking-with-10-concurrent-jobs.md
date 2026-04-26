@@ -1,6 +1,12 @@
 # Story 2.5: E2E Scraper Progress Tracking with 10+ Concurrent Jobs
 
-Status: ready-for-dev
+Status: done
+
+## Agent Record
+
+- **PR**: [#921 feat(saas): track tenant scrape progress by job](https://github.com/PhBassin/allo-scrapper/pull/921)
+- **Completed**: 2026-04-26
+- **Summary**: Implemented tenant-authenticated per-job scrape progress tracking in SaaS mode. Added concurrent admin-triggered jobs support with isolated SSE updates per tenant. Fixed tenant schema/bootstrap and DB scoping so fixture-backed orgs get tenant-local app tables and deterministic cinema seed data. E2E test covers 10 concurrent scrape jobs with one isolated failure scenario. Client-side hook useScrapeProgress added with focused unit tests. ProgressTracker service unit tests added in server workspace. Tests pass across all workspaces (client, server, saas, scraper).
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
