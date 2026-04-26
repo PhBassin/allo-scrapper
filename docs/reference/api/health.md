@@ -1,34 +1,33 @@
-# Health Check API
+# Health API
 
-**Last updated:** March 18, 2026 | Status: Current ✅
+## `GET /api/health`
 
-## Endpoints
+Public endpoint.
 
-### Health Check
+Current behavior:
 
-```http
-GET /api/health
-```
+- checks DB connectivity when the DB handle is available
+- caches the result for 5 seconds
+- returns `200` when healthy and `503` when unhealthy
+- uses a dedicated health limiter
 
-**Response:**
+Example healthy response:
+
 ```json
 {
-  "status": "ok",
-  "timestamp": "2026-02-15T10:30:00.000Z",
-  "name": "Allo-Scrapper"
+  "status": "healthy",
+  "database": "connected",
+  "timestamp": "2026-04-26T20:00:00.000Z",
+  "cached": false
 }
 ```
 
-**Response Fields:**
-- `status` - Always `"ok"` when service is healthy
-- `timestamp` - Current server time in ISO 8601 format
-- `name` - Application name from `APP_NAME` environment variable
+Fallback response shape when DB is unavailable in app context:
 
-**Example:**
-```bash
-curl http://localhost:3000/api/health
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-04-26T20:00:00.000Z",
+  "name": "Allo-Scrapper"
+}
 ```
-
----
-
-[← Back to API Reference](./README.md)

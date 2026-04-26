@@ -38,11 +38,11 @@ This guide covers managing user accounts through the admin panel interface. For 
    - Click "Login"
 
 2. **Access User Management**
-   - Click your username in the top-right corner
-   - Select **"Users"** from the dropdown menu
-   - Navigate to `/admin/users`
+   - Open the admin page
+   - Switch to the **Users** tab
+   - Current routes are `/admin?tab=users` in classic mode or `/org/:slug/admin?tab=users` in SaaS mode
 
-> **Note**: Only users with admin role can access user management features. Regular users will not see the "Users" option in their dropdown menu.
+> **Note**: Only users with `users:list` access can open the Users tab.
 
 ---
 
@@ -121,7 +121,7 @@ This guide covers managing user accounts through the admin panel interface. For 
 **Step-by-step instructions:**
 
 1. **Navigate to User Management**
-   - Access `/admin/users` as described above
+   - Open the Users tab as described above
 
 2. **Initiate User Creation**
    - Click the **"+ Create User"** button
@@ -494,7 +494,7 @@ Custom roles provide flexibility to create specific permission sets for differen
 **Complete process for adding admin user:**
 
 1. **Create User Account**
-   - Navigate to `/admin/users`
+   - Open the Users tab
    - Click "+ Create User"
    - Enter username following naming conventions
    - Generate secure password
@@ -525,11 +525,11 @@ Custom roles provide flexibility to create specific permission sets for differen
 **Process for adding regular user:**
 
 1. **Create User Account**
-   - Navigate to `/admin/users`
+   - Open the Users tab
    - Click "+ Create User"
    - Enter descriptive username
    - Generate secure password
-   - Leave role as "user" (default)
+   - Select the least-privileged role needed for that user
 
 2. **Verify Read-Only Access**
    - Confirm user appears in list with "user" role
@@ -546,7 +546,7 @@ Custom roles provide flexibility to create specific permission sets for differen
 **Complete process for user removal:**
 
 1. **Locate User in Admin Panel**
-   - Navigate to `/admin/users`
+   - Open the Users tab
    - Find user in the user list
    - Verify this is the correct user to remove
 

@@ -35,7 +35,7 @@
 ## Testing Quirks
 
 - `playwright.config.ts` does not start a web server. Start the app yourself before `npm run e2e`.
-- Playwright defaults to `http://localhost:3000`; override with `PLAYWRIGHT_BASE_URL`.
+- Playwright defaults to `http://localhost:5173`; override with `PLAYWRIGHT_BASE_URL`.
 - Scrape-heavy Playwright specs run in a dedicated serial project. For a single spec, `--project=chromium --no-deps` skips that dependency chain.
 - SaaS fixture endpoints `/test/seed-org` and `/test/cleanup-org/:id` exist only when `NODE_ENV=test`, or when the backend runs in `development` with `E2E_ENABLE_ORG_FIXTURE=true`. Outside that runtime, `/test/*` intentionally returns `404`.
 

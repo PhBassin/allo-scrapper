@@ -39,7 +39,7 @@ Manage users and roles.
 
 **What you'll learn:**
 - Create and delete users
-- Assign roles (admin/user)
+- Assign system and custom roles
 - Reset passwords
 - User permissions
 - Security best practices

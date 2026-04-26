@@ -1,21 +1,26 @@
 # @allo-scrapper/logger
 
-Shared structured JSON logger for Allo-Scrapper based on Winston.
+Shared Winston-based logger used by the server, scraper, and SaaS package.
 
 ## Usage
 
-### In a new package
-1. Add `@allo-scrapper/logger` to your `package.json` dependencies.
-2. Initialize and export your logger in `src/utils/logger.ts`:
+```ts
+import { createLogger } from '@allo-scrapper/logger'
 
-```typescript
-import { createLogger } from '@allo-scrapper/logger';
-
-export const logger = createLogger('your-service-name');
+export const logger = createLogger('my-service')
 ```
 
-## Features
-- **Structured JSON** in production (for Loki/Grafana ingestion).
-- **Colorized Simple Text** in development.
-- Automatically respects `LOG_LEVEL` environment variable.
-- Centralized configuration for consistent logging across microservices.
+## Behavior
+
+- honors `LOG_LEVEL`
+- development output is human-readable
+- production output is structured for log aggregation
+
+## Workspace scripts
+
+```bash
+cd packages/logger
+npm run build
+npm test
+npm run test:run
+```

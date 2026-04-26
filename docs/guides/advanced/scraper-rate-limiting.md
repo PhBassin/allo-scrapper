@@ -564,9 +564,9 @@ OTEL_ENABLED=true
 OTEL_EXPORTER_OTLP_ENDPOINT=http://ics-tempo:4317
 
 # ✅ Resilience
-SCRAPE_DAYS=7
-SCRAPE_MODE=weekly
-USE_REDIS_SCRAPER=true  # Microservice mode for isolation
+REDIS_URL=redis://ics-redis:6379
+SCRAPER_CONCURRENCY=1
+RUN_MODE=consumer
 
 # ✅ Deploymentment
 DOCKER_UID=1000

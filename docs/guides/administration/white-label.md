@@ -60,7 +60,7 @@ The white-label system allows you to completely customize your cinema applicatio
 
 1. Click your username in the top-right corner
 2. Select **"Admin Settings"** from the dropdown menu
-3. You'll be taken to `/admin/settings` with five configuration tabs
+3. Open the **Settings** tab in the admin page. Current routes are `/admin?tab=settings` in classic mode or `/org/:slug/admin?tab=settings` in SaaS mode
 
 **Authentication Required**: Only users with admin role can access these settings.
 
