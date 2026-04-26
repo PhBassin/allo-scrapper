@@ -799,6 +799,10 @@ So that I can validate real-time progress tracking under load.
 
 ### Story 2.6: DLQ API Endpoints (API-Only, No UI)
 
+> **Reconciled 2026-04-26** (Sprint Change Proposal 2026-04-26): Story 2.1 / PR #904 already shipped
+> `GET /api/scraper/dlq` and `POST /api/scraper/dlq/:jobId/retry`. Story 2.6 adds the missing
+> single-job GET and mounts admin-prefix aliases. Canonical path remains `/api/scraper/dlq`.
+
 As an admin,
 I want API endpoints to query and retry failed jobs from the DLQ,
 So that I can programmatically manage scraping failures (UI can be added in future epic).
@@ -806,28 +810,29 @@ So that I can programmatically manage scraping failures (UI can be added in futu
 **Acceptance Criteria:**
 
 **Given** failed jobs exist in the DLQ  
-**When** I request `GET /api/admin/scraper/dlq`  
-**Then** the API returns a JSON array of failed jobs  
-**And** each job includes: job_id, cinema_id, cinema_name, org_id, failure_reason, retry_count, timestamp  
-**And** jobs are sorted by timestamp (most recent first)  
-**And** the response includes pagination metadata (total, page, limit)
+**When** I request `GET /api/scraper/dlq` (canonical) or `GET /api/admin/scraper/dlq` (alias)  
+**Then** the API returns `{ success: true, data: DlqJobListResult }` where `DlqJobListResult` is `{ jobs: DlqJobEntry[], total, page, pageSize }`  
+**And** each `DlqJobEntry` includes: `job_id`, `job` (full payload), `failure_reason`, `retry_count`, `timestamp`, `cinema_id`, `org_id`  
+**And** jobs are sorted by `timestamp` descending  
+**And** pagination defaults `page=1, pageSize=50`, max `pageSize=50`  
+**And** non-system-role callers only see jobs for their own `org_id`
+
+**Given** I want details on a specific DLQ job  
+**When** I request `GET /api/scraper/dlq/:jobId` (canonical) or `GET /api/admin/scraper/dlq/:jobId` (alias)  
+**Then** the API returns `{ success: true, data: DlqJobEntry }` for that job  
+**And** a 404 is returned if the job does not exist or is out-of-scope for the caller
 
 **Given** I want to retry a failed job  
-**When** I request `POST /api/admin/scraper/dlq/:job_id/retry`  
-**Then** the job is re-queued to the active Redis queue  
-**And** the job is removed from the DLQ  
-**And** the retry counter is reset to 0  
-**And** the API returns 200 OK with confirmation message
+**When** I request `POST /api/scraper/dlq/:jobId/retry` (canonical) or `POST /api/admin/scraper/dlq/:jobId/retry` (alias)  
+**Then** the job is re-queued to the active Redis queue and removed from the DLQ  
+**And** the API returns **200 OK** with `{ success: true, data: DlqJobEntry }` (the republished entry)  
+**And** a 404 is returned if the job is not found or is out-of-scope
 
-**Given** I request a non-existent DLQ job  
-**When** I request `POST /api/admin/scraper/dlq/invalid-id/retry`  
-**Then** the API returns 404 Not Found  
-**And** the error message is "DLQ job not found"
+**Given** I request any DLQ endpoint without a valid session  
+**Then** the API returns **401 Unauthorized**
 
-**Given** I am not authenticated as admin  
-**When** I request `GET /api/admin/scraper/dlq`  
-**Then** the API returns 403 Forbidden  
-**And** the error message is "Admin privileges required"
+**Given** I have a valid session but lack scraper-management permission  
+**Then** the API returns **403 Forbidden** with `{ success: false, error: 'Permission denied' }`
 
 **Scope Note:**
 This story is **API-only** to prevent scope creep. Admin UI (table, filters, pagination, real-time updates via SSE) can be added in a future epic if needed. For MVP, admins can use curl/Postman to query and retry DLQ jobs.

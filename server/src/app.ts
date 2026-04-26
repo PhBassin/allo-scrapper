@@ -85,8 +85,24 @@ const __dirname = path.dirname(__filename);
 const serverRegistry = new Registry();
 collectDefaultMetrics({ register: serverRegistry, prefix: 'ics_web_' });
 
+function createAdminScraperAliasRouter() {
+  const router = express.Router();
+  const allowedPathPattern = /^\/dlq(?:\/[^/]+(?:\/retry)?)?$/;
+
+  router.use((req, res, next) => {
+    if (!allowedPathPattern.test(req.path)) {
+      return next();
+    }
+
+    return scraperRouter(req, res, next);
+  });
+
+  return router;
+}
+
 export function createApp() {
   const app = express();
+  const adminScraperAliasRouter = createAdminScraperAliasRouter();
 
   // Trust the first proxy to ensure accurate IP resolution for rate limiting
   app.set('trust proxy', 1);
@@ -129,6 +145,8 @@ export function createApp() {
   app.use('/api/films', filmsRouter);
   app.use('/api/cinemas', cinemasRouter);
   app.use('/api/scraper', scraperRouter);
+  // Alias mount per Sprint Change Proposal 2026-04-26; canonical path remains /api/scraper/dlq
+  app.use('/api/admin/scraper', adminScraperAliasRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/users', usersRouter);

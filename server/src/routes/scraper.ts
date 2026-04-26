@@ -238,6 +238,37 @@ router.get('/dlq', scraperLimiter, requireAuth, async (req: AuthRequest, res, ne
   }
 });
 
+// GET /api/scraper/dlq/:jobId - Get a single dead-lettered job by ID
+router.get('/dlq/:jobId', scraperLimiter, requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    if (!canManageScraper(req)) {
+      return next(new AuthError('Permission denied', 403));
+    }
+
+    const jobId = getSingleRouteParam(req.params.jobId);
+    if (!jobId) {
+      return next(new ValidationError('Invalid DLQ job ID'));
+    }
+
+    const entry = await getRedisClient().getDlqJob(
+      jobId,
+      req.user?.is_system_role ? undefined : req.user?.org_id,
+    );
+    if (!entry) {
+      return next(new NotFoundError('DLQ job not found'));
+    }
+
+    const response: ApiResponse = {
+      success: true,
+      data: entry,
+    };
+
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // POST /api/scraper/dlq/:jobId/retry - Requeue a dead-lettered job
 router.post('/dlq/:jobId/retry', scraperLimiter, requireAuth, async (req: AuthRequest, res, next) => {
   try {

@@ -198,8 +198,8 @@ describe('RedisClient', () => {
 
   it('should list DLQ jobs newest first with pagination metadata', async () => {
     mockRedisInstance.zrevrange.mockResolvedValueOnce([
-      JSON.stringify({ job_id: 'job-2', timestamp: '2026-04-21T19:00:00.000Z' }),
-      JSON.stringify({ job_id: 'job-1', timestamp: '2026-04-21T18:00:00.000Z' }),
+      JSON.stringify({ job_id: 'report-2', timestamp: '2026-04-21T19:00:00.000Z' }),
+      JSON.stringify({ job_id: 'report-1', timestamp: '2026-04-21T18:00:00.000Z' }),
     ]);
     mockRedisInstance.zcard.mockResolvedValueOnce(2);
 
@@ -208,8 +208,8 @@ describe('RedisClient', () => {
     expect(mockRedisInstance.zrevrange).toHaveBeenCalledWith('scrape:jobs:dlq', 0, -1);
     expect(result).toEqual({
       jobs: [
-        { job_id: 'job-2', timestamp: '2026-04-21T19:00:00.000Z' },
-        { job_id: 'job-1', timestamp: '2026-04-21T18:00:00.000Z' },
+        { job_id: 'report-2', timestamp: '2026-04-21T19:00:00.000Z' },
+        { job_id: 'report-1', timestamp: '2026-04-21T18:00:00.000Z' },
       ],
       total: 2,
       page: 1,
@@ -254,8 +254,8 @@ describe('RedisClient', () => {
 
   it('should filter DLQ jobs by org for tenant-scoped callers', async () => {
     mockRedisInstance.zrevrange.mockResolvedValueOnce([
-      JSON.stringify({ job_id: 'job-2', org_id: '8', timestamp: '2026-04-21T19:00:00.000Z' }),
-      JSON.stringify({ job_id: 'job-1', org_id: '7', timestamp: '2026-04-21T18:00:00.000Z' }),
+      JSON.stringify({ job_id: 'report-2', org_id: '8', timestamp: '2026-04-21T19:00:00.000Z' }),
+      JSON.stringify({ job_id: 'report-1', org_id: '7', timestamp: '2026-04-21T18:00:00.000Z' }),
     ]);
     mockRedisInstance.zcard.mockResolvedValueOnce(2);
 
@@ -263,11 +263,67 @@ describe('RedisClient', () => {
 
     expect(result).toEqual({
       jobs: [
-        { job_id: 'job-1', org_id: '7', timestamp: '2026-04-21T18:00:00.000Z' },
+        { job_id: 'report-1', org_id: '7', timestamp: '2026-04-21T18:00:00.000Z' },
       ],
       total: 1,
       page: 1,
       pageSize: 50,
+    });
+  });
+
+  describe('getDlqJob', () => {
+    it('should return the entry for system role (no org filter)', async () => {
+      const dlqEntry = {
+        job_id: 'report-10',
+        org_id: '5',
+        retry_count: 1,
+        job: { type: 'scrape', triggerType: 'manual', reportId: 10 },
+        failure_reason: 'timeout',
+        timestamp: '2026-04-21T18:00:00.000Z',
+        cinema_id: 'c1',
+      };
+      mockRedisInstance.zrevrange.mockResolvedValueOnce([JSON.stringify(dlqEntry)]);
+
+      const result = await client.getDlqJob('report-10');
+
+      expect(result).toEqual(dlqEntry);
+    });
+
+    it('should return the entry when org matches for tenant-scoped caller', async () => {
+      const dlqEntry = {
+        job_id: 'report-20',
+        org_id: '7',
+        retry_count: 0,
+        job: { type: 'scrape', triggerType: 'manual', reportId: 20 },
+        failure_reason: 'error',
+        timestamp: '2026-04-21T19:00:00.000Z',
+        cinema_id: 'c2',
+      };
+      mockRedisInstance.zrevrange.mockResolvedValueOnce([JSON.stringify(dlqEntry)]);
+
+      const result = await client.getDlqJob('report-20', 7);
+
+      expect(result).toEqual(dlqEntry);
+    });
+
+    it('should return null when job ID is not found', async () => {
+      mockRedisInstance.zrevrange.mockResolvedValueOnce([
+        JSON.stringify({ job_id: 'report-99', org_id: '7', retry_count: 0 }),
+      ]);
+
+      const result = await client.getDlqJob('missing-job');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when job belongs to a different org', async () => {
+      mockRedisInstance.zrevrange.mockResolvedValueOnce([
+        JSON.stringify({ job_id: 'report-21', org_id: '8', retry_count: 0 }),
+      ]);
+
+      const result = await client.getDlqJob('report-21', 7);
+
+      expect(result).toBeNull();
     });
   });
 
