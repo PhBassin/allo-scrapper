@@ -13,6 +13,22 @@ const mockGetPendingScrapeAttempts = vi.fn();
 const mockLoggerInfo = vi.fn();
 const mockListDlqJobs = vi.fn();
 const mockRetryDlqJob = vi.fn();
+const mockGetDlqJob = vi.fn();
+
+function mountAdminScraperDlqAlias(app: express.Express, scraperRouter: express.Router) {
+  const adminAliasRouter = express.Router();
+  const allowedPathPattern = /^\/dlq(?:\/[^/]+(?:\/retry)?)?$/;
+
+  adminAliasRouter.use((req, res, next) => {
+    if (!allowedPathPattern.test(req.path)) {
+      return next();
+    }
+
+    return scraperRouter(req, res, next);
+  });
+
+  app.use('/api/admin/scraper', adminAliasRouter);
+}
 
 let currentMockUser = { role_name: 'admin', is_system_role: true, permissions: [], id: 1, username: 'admin' };
 let failAuth = false;
@@ -67,6 +83,7 @@ vi.mock('../services/redis-client.js', () => ({
     publishScheduleChange: mockPublishScheduleChange,
     listDlqJobs: mockListDlqJobs,
     retryDlqJob: mockRetryDlqJob,
+    getDlqJob: mockGetDlqJob,
   }),
 }));
 
@@ -330,21 +347,61 @@ describe('Routes - Scraper', () => {
     });
   });
 
+  describe('GET /api/scraper/dlq/:jobId', () => {
+    it('should return a single DLQ job entry when found', async () => {
+      mockGetDlqJob.mockResolvedValue({
+        job_id: 'report-1',
+        retry_count: 2,
+        failure_reason: 'timeout',
+        timestamp: '2026-04-21T18:00:00.000Z',
+        cinema_id: 'c1',
+        org_id: '7',
+        job: { type: 'scrape', triggerType: 'manual', reportId: 5 },
+      });
+
+      const app = await setupApp({ role_name: 'user', is_system_role: false, permissions: ['scraper:trigger'], org_id: 7 });
+      const response = await request(app).get('/api/scraper/dlq/report-1');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.job_id).toBe('report-1');
+      expect(mockGetDlqJob).toHaveBeenCalledWith('report-1', 7);
+    });
+
+    it('should return 404 when DLQ job is not found', async () => {
+      mockGetDlqJob.mockResolvedValue(null);
+
+      const app = await setupApp({ role_name: 'user', is_system_role: false, permissions: ['scraper:trigger'] });
+      const response = await request(app).get('/api/scraper/dlq/missing-job');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toContain('DLQ job not found');
+    });
+
+    it('should return 403 when user lacks scraper trigger permission', async () => {
+      const app = await setupApp({ role_name: 'user', is_system_role: false, permissions: [] });
+      const response = await request(app).get('/api/scraper/dlq/job-1');
+
+      expect(response.status).toBe(403);
+      expect(mockGetDlqJob).not.toHaveBeenCalled();
+    });
+  });
+
   describe('POST /api/scraper/dlq/:jobId/retry', () => {
     it('should requeue a DLQ job and return success payload', async () => {
       mockRetryDlqJob.mockResolvedValue({
-        job_id: 'job-2',
+        job_id: 'report-2',
         retry_count: 0,
       });
 
       const app = await setupApp({ role_name: 'user', is_system_role: false, permissions: ['scraper:trigger'], org_id: 7 });
-      const response = await request(app).post('/api/scraper/dlq/job-2/retry');
+      const response = await request(app).post('/api/scraper/dlq/report-2/retry');
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.job_id).toBe('job-2');
+      expect(response.body.data.job_id).toBe('report-2');
       expect(response.body.data.retry_count).toBe(0);
-      expect(mockRetryDlqJob).toHaveBeenCalledWith('job-2', 7);
+      expect(mockRetryDlqJob).toHaveBeenCalledWith('report-2', 7);
     });
 
     it('should return 404 when DLQ job does not exist', async () => {
@@ -359,7 +416,7 @@ describe('Routes - Scraper', () => {
 
     it('should return the retried job payload with reset nested retryCount', async () => {
       mockRetryDlqJob.mockResolvedValue({
-        job_id: 'job-3',
+        job_id: 'report-3',
         retry_count: 0,
         job: {
           type: 'scrape',
@@ -370,11 +427,68 @@ describe('Routes - Scraper', () => {
       });
 
       const app = await setupApp({ role_name: 'user', is_system_role: false, permissions: ['scraper:trigger'], org_id: 7 });
-      const response = await request(app).post('/api/scraper/dlq/job-3/retry');
+      const response = await request(app).post('/api/scraper/dlq/report-3/retry');
 
       expect(response.status).toBe(200);
       expect(response.body.data.retry_count).toBe(0);
       expect(response.body.data.job.retryCount).toBe(0);
+    });
+  });
+
+  describe('Admin alias routes (/api/admin/scraper/dlq)', () => {
+    async function setupAppWithAlias(mockUser?: any) {
+      if (mockUser) {
+        currentMockUser = { role_name: 'admin', is_system_role: true, permissions: [], id: 1, username: 'admin', ...mockUser };
+      }
+      const { default: scraperRouter } = await import('./scraper.js');
+      const app = express();
+      app.use(express.json());
+      app.set('db', {});
+      app.use('/api/scraper', scraperRouter);
+      mountAdminScraperDlqAlias(app, scraperRouter);
+      app.use(errorHandler);
+      return app;
+    }
+
+    it('GET /api/admin/scraper/dlq should return same response as canonical GET /api/scraper/dlq', async () => {
+      mockListDlqJobs.mockResolvedValue({ jobs: [{ job_id: 'report-1' }], total: 1, page: 1, pageSize: 50 });
+
+      const app = await setupAppWithAlias({ role_name: 'admin', is_system_role: true, permissions: [] });
+      const response = await request(app).get('/api/admin/scraper/dlq');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.jobs[0].job_id).toBe('report-1');
+    });
+
+    it('GET /api/admin/scraper/dlq/:jobId should return same response as canonical GET /api/scraper/dlq/:jobId', async () => {
+      mockGetDlqJob.mockResolvedValue({ job_id: 'report-2', retry_count: 0 });
+
+      const app = await setupAppWithAlias({ role_name: 'admin', is_system_role: true, permissions: [] });
+      const response = await request(app).get('/api/admin/scraper/dlq/report-2');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.job_id).toBe('report-2');
+    });
+
+    it('POST /api/admin/scraper/dlq/:jobId/retry should return same response as canonical POST /api/scraper/dlq/:jobId/retry', async () => {
+      mockRetryDlqJob.mockResolvedValue({ job_id: 'report-3', retry_count: 0 });
+
+      const app = await setupAppWithAlias({ role_name: 'admin', is_system_role: true, permissions: [] });
+      const response = await request(app).post('/api/admin/scraper/dlq/report-3/retry');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.job_id).toBe('report-3');
+    });
+
+    it('GET /api/admin/scraper/status should remain unavailable', async () => {
+      const app = await setupAppWithAlias({ role_name: 'admin', is_system_role: true, permissions: [] });
+      const response = await request(app).get('/api/admin/scraper/status');
+
+      expect(response.status).toBe(404);
+      expect(mockGetStatus).not.toHaveBeenCalled();
     });
   });
 
