@@ -27,6 +27,8 @@ import filmsRouter from 'allo-scrapper-server/dist/routes/films.js';
 import reportsRouter from 'allo-scrapper-server/dist/routes/reports.js';
 // @ts-ignore
 import scraperRouter from 'allo-scrapper-server/dist/routes/scraper.js';
+// @ts-ignore
+import dlqRouter from 'allo-scrapper-server/dist/routes/admin/dlq.js';
 
 // ── SaaS-specific route handlers ────────────────────────────────────────────
 import orgSettingsRouter from './org-settings.js';
@@ -112,6 +114,9 @@ export function createOrgRouter(): Router {
   // ── Scraper ─────────────────────────────────────────────────────────────────
   router.post('/scraper/trigger', protectedLimiter, requireAuth as any, checkQuota('scrapes') as any);
   router.use('/scraper', protectedLimiter, scraperRouter);
+
+  // ── Admin DLQ (tenant-scoped) ────────────────────────────────────────────────
+  router.use('/admin/dlq', protectedLimiter, requireAuth as any, dlqRouter);
 
   // ── Org Settings ────────────────────────────────────────────────────────────
   router.use('/settings', protectedLimiter, orgSettingsRouter);

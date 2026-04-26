@@ -170,6 +170,21 @@ export class RedisClient {
     };
   }
 
+  async getDlqJobById(jobId: string, orgId?: number): Promise<DlqJobEntry | null> {
+    const entries = await this.publisher.zrevrange(SCRAPE_DLQ_KEY, 0, -1);
+    for (const item of entries) {
+      try {
+        const entry = JSON.parse(item) as DlqJobEntry;
+        if (entry.job_id === jobId && matchesDlqOrg(entry, orgId)) {
+          return entry;
+        }
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  }
+
   async retryDlqJob(jobId: string, orgId?: number): Promise<DlqJobEntry | null> {
     const entries = await this.publisher.zrevrange(SCRAPE_DLQ_KEY, 0, -1);
     const rawEntry = entries.find((item: string) => {
