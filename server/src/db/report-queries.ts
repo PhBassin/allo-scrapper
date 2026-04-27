@@ -127,22 +127,27 @@ export async function getScrapeReports(
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  // Get total count
-  const countResult = await db.query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM scrape_reports ${whereClause}`,
-    params
-  );
-  const total = parseInt(countResult.rows[0].count);
+  // Execute queries concurrently for better performance
+  // Clone params for the paginated select to avoid array mutation conflicts
+  const dataParams = [...params, limit, offset];
 
-  // Get paginated results
-  params.push(limit, offset);
-  const result = await db.query<ScrapeReport>(
-    `SELECT * FROM scrape_reports 
-     ${whereClause}
-     ORDER BY started_at DESC 
-     LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-    params
-  );
+  const [countResult, result] = await Promise.all([
+    // Get total count
+    db.query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM scrape_reports ${whereClause}`,
+      params
+    ),
+    // Get paginated results
+    db.query<ScrapeReport>(
+      `SELECT * FROM scrape_reports
+       ${whereClause}
+       ORDER BY started_at DESC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      dataParams
+    )
+  ]);
+
+  const total = parseInt(countResult.rows[0].count);
 
   return {
     reports: result.rows,
