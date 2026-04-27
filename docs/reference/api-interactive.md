@@ -489,7 +489,7 @@ REPORT_ID=$(curl -s -X POST http://localhost:3000/api/scraper/trigger \
 
 # Check scraping result
 sleep 10
-curl http://localhost:3000/api/scraper/reports/$REPORT_ID \
+curl http://localhost:3000/api/reports/$REPORT_ID \
   -H "Authorization: Bearer $TOKEN" | jq '.'
 ```
 

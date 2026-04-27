@@ -53,7 +53,7 @@ Frontend (CSS variables applied)
   - `getAllUsers()` - List users with pagination
   - `getUserById()` - Get single user
   - `createUser()` - Create with role and hashed password
-  - `updateUserRole()` - Change admin/user role
+  - `updateUserRole()` - Change a user's assigned RBAC role
   - `resetUserPassword()` - Generate secure random password
   - `deleteUser()` - Delete with safety guards
   - `getAdminCount()` - Count admins (prevents last admin deletion)
@@ -72,7 +72,7 @@ Frontend (CSS variables applied)
   - `GET /api/settings/admin` - Full settings (admin only)
   - `PUT /api/settings` - Update settings (admin only)
   - `POST /api/settings/reset` - Reset to defaults (admin only)
-  - `GET /api/settings/export` - Export JSON (admin only)
+  - `POST /api/settings/export` - Export JSON (admin only)
   - `POST /api/settings/import` - Import JSON (admin only)
   - **Tests**: `settings.test.ts`
 

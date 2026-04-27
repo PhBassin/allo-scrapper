@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - System Information API endpoints (`GET /api/system/info`, `GET /api/system/migrations`, `GET /api/system/health`)
 
 - **White-Label Branding System** — Complete customization of application appearance and branding via admin panel
-  - Admin panel UI at `/admin/settings` with 5 tabs: General, Colors, Typography, Footer, Email
+- Admin panel UI is part of the tabbed admin page (`/admin?tab=settings` in classic mode, `/org/:slug/admin?tab=settings` in SaaS mode)
   - Customizable site name, logo (PNG/JPG/SVG, max 200KB), favicon (ICO/PNG, max 50KB)
   - 9-color theme system: primary, secondary, accent, background, surface, text (primary/secondary), success, error
   - Typography selection from 15+ Google Fonts for headings and body text
@@ -142,12 +142,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GET /api/settings/admin` - Full settings including audit fields (admin only)
   - `PUT /api/settings` - Update settings with validation (admin only)
   - `POST /api/settings/reset` - Reset to defaults (admin only)
-  - `GET /api/settings/export` - Export settings as JSON backup (admin only)
+- `POST /api/settings/export` - Export settings as JSON backup (admin only)
   - `POST /api/settings/import` - Import settings from JSON (admin only)
   - `GET /api/theme.css` - Dynamically generated CSS with theme variables (public, cached with ETag)
   
 - **User Management System** — Role-based access control with comprehensive user CRUD
-  - Two roles: `admin` (full access) and `user` (cinema schedules only)
+- Built-in roles include `admin` and `operator`, with support for custom roles and granular permissions
   - Admin panel for user management (create, edit, delete users)
   - Safety guards: prevent last admin deletion, self-deletion prevention
   - Secure password reset with cryptographically random passwords

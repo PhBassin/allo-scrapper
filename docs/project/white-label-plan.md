@@ -45,7 +45,7 @@
 
 **📝 Notes d'implémentation:**
 - **Phase 7** : UI Components Library intentionnellement sautée (réutilisation composants existants)
-- **Phase 8** : Approche différente adoptée (pages séparées `/admin/settings` et `/admin/users` au lieu d'une page unique avec tabs - meilleur UX)
+- **Phase 8** : Implémentation finale consolidée dans une page admin à onglets (`/admin?tab=...`, ou `/org/:slug/admin?tab=...` en mode SaaS)
 
 ---
 
@@ -60,7 +60,7 @@
    - Footer personnalisable avec liens
 
 2. **Gestion des utilisateurs**
-   - Système de rôles (admin/user)
+   - Système de rôles RBAC (admin, operator, rôles personnalisés)
    - CRUD utilisateurs via interface admin
    - Reset password, changement de rôle
    - Protection dernier admin
@@ -136,9 +136,7 @@ CREATE INDEX idx_users_role ON users(role);
 - `GET /api/settings` - Public (sans updatedBy)
 - `PUT /api/settings` - Admin only
 - `POST /api/settings/reset` - Admin only
-- `POST /api/settings/logo` - Admin only
-- `POST /api/settings/favicon` - Admin only
-- `GET /api/settings/export` - Admin only (JSON download)
+- `POST /api/settings/export` - Admin only (JSON download)
 - `POST /api/settings/import` - Admin only (JSON upload)
 - `GET /api/theme.css` - Public (CSS dynamique)
 
@@ -147,7 +145,7 @@ CREATE INDEX idx_users_role ON users(role);
 - `POST /api/users` - Admin only
 - `DELETE /api/users/:id` - Admin only (avec guards)
 - `PUT /api/users/:id/role` - Admin only
-- `PUT /api/users/:id/reset-password` - Admin only
+- `POST /api/users/:id/reset-password` - Admin only
 
 ### Frontend (React)
 
@@ -245,9 +243,7 @@ CREATE INDEX idx_users_role ON users(role);
     - [ ] GET /api/settings (public)
     - [ ] PUT /api/settings (admin)
     - [ ] POST /api/settings/reset (admin)
-    - [ ] POST /api/settings/logo (admin)
-    - [ ] POST /api/settings/favicon (admin)
-    - [ ] GET /api/settings/export (admin)
+    - [ ] POST /api/settings/export (admin)
     - [ ] POST /api/settings/import (admin)
 - [ ] Middleware Admin
   - [ ] Modifier `server/src/middleware/auth.ts` (ajouter role)
@@ -282,7 +278,7 @@ CREATE INDEX idx_users_role ON users(role);
     - [ ] POST /api/users (admin)
     - [ ] DELETE /api/users/:id (admin, guards)
     - [ ] PUT /api/users/:id/role (admin)
-    - [ ] PUT /api/users/:id/reset-password (admin)
+    - [ ] POST /api/users/:id/reset-password (admin)
 - [ ] Modifier route auth/login
   - [ ] Inclure `role` dans JWT payload
   - [ ] Inclure `role` dans response

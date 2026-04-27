@@ -27,44 +27,42 @@ Detailed architecture and design of the cinema showtimes scraping system.
 
 ## Overview
 
-The scraper system fetches cinema showtimes from AlloCiné and stores them in PostgreSQL. It supports **two operational modes**:
+The scraper system fetches cinema showtimes from AlloCiné and stores them in PostgreSQL.
 
-1. **Legacy Mode (In-Process)**: Scraping runs inside the Express API server
-2. **Microservice Mode (Redis Queue)**: Scraping runs in a standalone container
+Current deployments use a Redis-backed worker model:
 
-Both modes share the same core scraping logic but differ in orchestration and communication.
+1. The API creates scrape reports and enqueues jobs in Redis.
+2. The standalone `scraper` service consumes those jobs.
+3. Progress is published through Redis and forwarded to clients over SSE.
 
 ---
 
 ## Scraper Modes
 
-### Mode Comparison
+### Current Runtime
 
-| Feature | Legacy (In-Process) | Microservice (Redis) |
-|---------|---------------------|----------------------|
-| **Deployment** | Single container | Two containers (API + scraper) |
-| **Dependencies** | PostgreSQL only | PostgreSQL + Redis |
-| **Scalability** | Limited (one process) | High (multiple workers) |
-| **Fault Isolation** | Low (scraper crash = API crash) | High (independent processes) |
-| **Progress Tracking** | Direct SSE events | Via Redis pub/sub |
-| **Best For** | Development, small deployments | Production, high traffic |
-| **Configuration** | `USE_REDIS_SCRAPER=false` | `USE_REDIS_SCRAPER=true` |
+| Feature | Current implementation |
+|---------|------------------------|
+| **Deployment** | Separate API and scraper processes |
+| **Dependencies** | PostgreSQL + Redis |
+| **Scalability** | Multiple workers supported |
+| **Fault Isolation** | Scraper failures are isolated from the API |
+| **Progress Tracking** | Redis pub/sub replayed to SSE |
+| **Best For** | Local queue-backed development and production |
+| **Configuration** | `RUN_MODE` on the scraper worker |
 
 ---
 
-### Mode Selection
+### Worker Modes
 
-**Use Legacy Mode when:**
-- Running locally for development
-- Managing < 10 cinemas
-- Simplicity is prioritized over scalability
-- Redis is not available
+The scraper service supports these `RUN_MODE` values:
 
-**Use Microservice Mode when:**
-- Running in production with multiple cinemas
-- Need horizontal scalability (multiple scraper workers)
-- Want fault isolation (scraper failures don't affect API)
-- Already using Redis for other purposes
+- `oneshot`
+- `consumer`
+- `cron`
+- `direct`
+
+Local queue-backed scraping typically uses `RUN_MODE=consumer`.
 
 ---
 
@@ -279,19 +277,9 @@ export async function getCinemaConfigs(db: DB): Promise<CinemaConfig[]>
 
 **Purpose**: Stream real-time progress updates to frontend
 
-**Two Implementations**:
+**Current implementation**:
 
-#### A. Direct SSE (Legacy Mode)
-```typescript
-export class DirectProgressTracker implements ProgressTracker {
-  emit(event: ProgressEvent): void {
-    // Send directly to SSE connection
-    this.res.write(`data: ${JSON.stringify(event)}\n\n`);
-  }
-}
-```
-
-#### B. Redis Publisher (Microservice Mode)
+#### Redis Publisher
 ```typescript
 export class RedisProgressPublisher implements ProgressTracker {
   emit(event: ProgressEvent): void {
@@ -356,55 +344,7 @@ API Server                    Redis                    Scraper
 
 ## Data Flow
 
-### Legacy Mode (In-Process)
-
-```
-User (Browser)
-    │
-    ↓
-POST /api/scraper/trigger
-    │
-    ↓
-┌───────────────────────────────────┐
-│  Express API Server               │
-│                                   │
-│  1. Create scrape_sessions record│
-│  2. Start scraper in-process     │
-│  3. Open SSE connection          │
-└───────┬───────────────────────────┘
-        │
-        ↓
-┌───────────────────────────────────┐
-│  Scraper Orchestrator             │
-│  server/src/services/scraper/     │
-│                                   │
-│  For each cinema:                 │
-│    - Fetch theater page (HTML)    │
-│    - Parse cinema metadata        │
-│    - For each date:               │
-│      - Fetch showtimes JSON       │
-│      - Parse showtimes            │
-│      - For each film:             │
-│        - Fetch film page (if new) │
-│        - Parse film metadata      │
-│        - Upsert to PostgreSQL     │
-│      - Delay (rate limit)         │
-│    - Emit progress events via SSE │
-└───────┬───────────────────────────┘
-        │
-        ↓
-┌───────────────────────────────────┐
-│  PostgreSQL Database              │
-│  - cinemas                        │
-│  - films                          │
-│  - showtimes                      │
-│  - scrape_sessions                │
-└───────────────────────────────────┘
-```
-
----
-
-### Microservice Mode (Redis Queue)
+### Redis Queue Flow
 
 ```
 User (Browser)

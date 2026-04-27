@@ -863,11 +863,8 @@ Fatal error: Database connection lost
 ### Scraper Configuration
 
 ```bash
-# Scraping mode (json or html)
-SCRAPE_MODE=json
-
-# Number of days to scrape (1-14)
-SCRAPE_DAYS=7
+# Scrape planning is configured in app settings
+# via the admin UI or settings API
 
 # Delay between cinemas (milliseconds)
 SCRAPE_THEATER_DELAY_MS=3000
@@ -875,11 +872,11 @@ SCRAPE_THEATER_DELAY_MS=3000
 # Delay between film detail fetches (milliseconds)
 SCRAPE_MOVIE_DELAY_MS=500
 
-# Use Redis-based scraper microservice
-USE_REDIS_SCRAPER=false
-
-# Redis connection (for microservice mode)
+# Redis connection for queue-backed scraping
 REDIS_URL=redis://ics-redis:6379
+
+# Worker mode
+RUN_MODE=consumer
 ```
 
 ---
@@ -890,11 +887,11 @@ REDIS_URL=redis://ics-redis:6379
 # Edit .env file
 nano .env
 
-# Restart server (in-process mode)
+# Restart server
 docker compose restart ics-web
 
-# Restart scraper microservice
-docker compose --profile scraper restart ics-scraper
+# Restart scraper workers
+docker compose restart ics-scraper ics-scraper-cron
 ```
 
 ---

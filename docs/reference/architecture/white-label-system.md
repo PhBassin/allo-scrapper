@@ -376,7 +376,7 @@ async function validateImage(
 ### Export Endpoint
 
 ```
-GET /api/settings/export
+POST /api/settings/export
 Authorization: Bearer <admin-token>
 
 Response: JSON file download
@@ -444,7 +444,7 @@ router.put('/settings', authenticateToken, requirePermission('settings:update'),
 **Settings Access**:
 - `GET /api/settings` - Public (no auth required)
 - `PUT /api/settings` - Requires `settings:update` permission
-- `GET /api/settings/export` - Requires `settings:export` permission
+- `POST /api/settings/export` - Requires `settings:export` permission
 - `POST /api/settings/import` - Requires `settings:import` permission
 - `GET /api/settings/admin` - Requires `settings:read` permission
 - `POST /api/settings/reset` - Requires `settings:reset` permission

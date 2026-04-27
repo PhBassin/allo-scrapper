@@ -836,7 +836,7 @@ The admin panel route uses this constant to determine access:
 
 This ensures that **any** administrative permission grants access to the admin panel UI, while specific pages within the panel still require their respective permissions. For example:
 - User with `cinemas:update` can access `/admin` (can see the panel)
-- But they cannot access `/admin/users` (requires user management permissions)
+- But they cannot open the Users tab (`/admin?tab=users`, or `/org/:slug/admin?tab=users` in SaaS mode) without the required user-management permissions
 - Individual admin pages use their own `<RequirePermission>` checks
 
 ---

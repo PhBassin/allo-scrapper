@@ -639,7 +639,7 @@ Created → Queued → Processing → Completed/Failed
 
 ```bash
 # Get report status
-curl http://localhost:3000/api/scraper/reports/42 \
+curl http://localhost:3000/api/reports/42 \
   -H "Authorization: Bearer $JWT_TOKEN"
 
 # Response

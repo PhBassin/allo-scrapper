@@ -576,7 +576,7 @@ docker compose exec ics-web npm run migrate
 
 ## User Management
 
-**Location**: `/admin/users` (future feature - in development)
+**Location**: `/?tab=users` within the admin page in classic mode, or `/org/:slug/admin?tab=users` in SaaS mode
 
 Manage user accounts and roles.
 
@@ -585,7 +585,7 @@ Manage user accounts and roles.
 1. Navigate to "Users" tab in admin panel
 2. View table of all users:
    - Username
-   - Role (admin/user)
+   - Role (admin, operator, or custom role)
    - Created date
    - Actions
 

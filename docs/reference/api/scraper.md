@@ -1,8 +1,12 @@
 # Scraper API
 
-**Note:** This API uses Server-Sent Events (SSE) for real-time progress monitoring.
+The scraping pipeline is queue-based. The server enqueues jobs onto Redis (`scrape:jobs`), the `scraper` workspace consumes them, and progress is broadcast over a Server-Sent Events stream replayed from Redis. There is no in-process scraping mode.
 
-## Scraper
+> **Removed:** Earlier docs referenced an in-process mode toggled by `USE_REDIS_SCRAPER`. That env var no longer exists in the codebase. The server always queues to Redis and the scraper container(s) always consume from Redis.
+
+All endpoints below live under `/api/scraper`. SaaS deployments scope queries by `org_id` automatically; system admins see all orgs.
+
+## Trigger Endpoints
 
 ### Trigger Manual Scrape
 
@@ -10,36 +14,28 @@
 POST /api/scraper/trigger
 ```
 
-**Authentication:** Required (Bearer token)
+**Authentication:** Required (Bearer token).
+**Permissions:**
+- No `cinemaId` (full scrape) → `scraper:trigger`.
+- With `cinemaId` (single-cinema scrape) → `scraper:trigger_single` **or** `scraper:trigger`.
+- System admins bypass permission checks.
 
 **Request Body (optional):**
 ```json
 {
-  "cinemaId": "C0153",  // Optional: scrape only this cinema (must exist in database)
-  "filmId": 12345       // Optional: scrape only this film
+  "cinemaId": "C0153",
+  "filmId": 12345
 }
 ```
 
-**Behavior:**
-- No parameters → Full scrape (all cinemas, all films, all dates)
-- `cinemaId` only → Scrape this cinema (all films, all dates for this cinema)
-- `filmId` only → Scrape this film (all cinemas showing this film)
-- Both `cinemaId` and `filmId` → Scrape this film at this specific cinema only
+| Combination | Behavior |
+|---|---|
+| _empty body_ | Full scrape (all cinemas, all dates). |
+| `cinemaId` only | All films/dates for that cinema. |
+| `filmId` only | That film at every cinema showing it. |
+| both | That film at that cinema only. |
 
-**Response (200 — started):**
-
-**In-Process Mode** (default: `USE_REDIS_SCRAPER=false`):
-```json
-{
-  "success": true,
-  "data": {
-    "reportId": 43,
-    "message": "Scrape started successfully"
-  }
-}
-```
-
-**Redis Microservice Mode** (`USE_REDIS_SCRAPER=true`):
+**Response (200):**
 ```json
 {
   "success": true,
@@ -51,63 +47,38 @@ POST /api/scraper/trigger
 }
 ```
 
-**Response Fields:**
-- `reportId` - Unique scrape report ID (can be used to track progress in database)
-- `message` - Human-readable status message
-- `queueDepth` - (Redis mode only) Number of jobs in the Redis queue after this job was added
+| Field | Meaning |
+|---|---|
+| `reportId` | New row in `scrape_reports`. Use it to poll status, follow progress, or retry. |
+| `queueDepth` | Length of `scrape:jobs` after enqueue. |
 
-**Response (404 — cinema not found):**
-```json
-{
-  "success": false,
-  "error": "Cinema not found: CXXXX"
-}
-```
-
-**Response (409 — already running):**
-```json
-{
-  "success": false,
-  "error": "A scrape is already in progress",
-  "data": {
-    "current_scrape": {
-      "started_at": "2024-02-15T10:00:00.000Z",
-      "trigger_type": "manual"
-    }
-  }
-}
-```
+**Errors:**
+- `403` — `Permission denied` if the caller lacks `scraper:trigger`/`scraper:trigger_single`.
+- `404` — `Cinema not found: <id>` raised when `cinemaId` doesn't resolve to a real cinema.
 
 **Examples:**
 ```bash
-# Get auth token first
 TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
+  -d '{"username":"admin","password":"<your-password>"}' | jq -r '.data.token')
 
-# Full scrape (all cinemas, all films)
+# Full scrape
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer $TOKEN"
 
-# Cinema-specific scrape (C-prefix)
+# Single cinema
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"cinemaId": "C0153"}'
 
-# Cinema-specific scrape (W-prefix)
-curl -X POST http://localhost:3000/api/scraper/trigger \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"cinemaId": "W7515"}'
-
-# Film-specific scrape
+# Single film
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"filmId": 12345}'
 
-# Combined: scrape specific film at specific cinema
+# Specific film at specific cinema
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -116,63 +87,74 @@ curl -X POST http://localhost:3000/api/scraper/trigger \
 
 ---
 
-### Get Scraper Status
+### Resume a Failed or Rate-Limited Scrape
+
+```http
+POST /api/scraper/resume/:reportId
+```
+
+**Authentication:** Required.
+**Permission:** `scraper:trigger` (admin bypass applies).
+
+Creates a new scrape report whose work-set is restricted to the cinema/date combinations that ended with status `failed`, `rate_limited`, or `not_attempted` in the parent report. The new report links back via `parent_report_id`.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "reportId": 124,
+    "parentReportId": 123,
+    "pendingAttempts": 5,
+    "message": "Resume job queued for microservice",
+    "queueDepth": 1
+  }
+}
+```
+
+**Errors:**
+- `400` — `Invalid report ID` or `No pending attempts to resume`.
+- `404` — `Report not found`.
+
+```bash
+curl -X POST http://localhost:3000/api/scraper/resume/123 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## Status & Progress
+
+### Get Current Status
 
 ```http
 GET /api/scraper/status
 ```
 
-**Authentication:** Required (Admin role)
+**Authentication:** Required.
 
-**Response (In-Process Mode):**
-```json
-{
-  "success": true,
-  "data": {
-    "isRunning": true,
-    "useRedisScraper": false,
-    "currentSession": {
-      "reportId": 43,
-      "triggerType": "manual",
-      "startedAt": "2024-02-15T10:00:00.000Z",
-      "status": "running"
-    },
-    "latestReport": {
-      "id": 42,
-      "completed_at": "2024-02-15T10:15:23.000Z",
-      "status": "success"
-    }
-  }
-}
-```
+Returns whether a scrape is currently active and a snapshot of the latest completed report.
 
-**Response (Redis Microservice Mode):**
+**Response (200):**
 ```json
 {
   "success": true,
   "data": {
     "isRunning": false,
-    "useRedisScraper": true,
     "currentSession": null,
     "latestReport": {
       "id": 42,
-      "completed_at": "2024-02-15T10:15:23.000Z",
+      "completed_at": "2026-04-15T10:15:23.000Z",
       "status": "success"
     }
   }
 }
 ```
 
-**Response Fields:**
-- `isRunning` - Whether a scrape is currently running in-process (always `false` in Redis mode)
-- `useRedisScraper` - Whether the Redis microservice scraper is enabled (`USE_REDIS_SCRAPER` env var)
-- `currentSession` - Current scrape session details (null in Redis mode or when no scrape is running)
-- `latestReport` - Most recent completed scrape report from database
+When a scrape is in flight, `currentSession` is populated with `reportId`, `triggerType`, `startedAt`, and `status`.
 
-**Example:**
 ```bash
-curl -H "Authorization: Bearer YOUR_TOKEN" \
-  http://localhost:3000/api/scraper/status
+curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/scraper/status
 ```
 
 ---
@@ -183,7 +165,9 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 GET /api/scraper/progress
 ```
 
-Opens a persistent Server-Sent Events connection. All previously accumulated events are replayed to new clients, then new events are streamed in real time. A heartbeat (`: heartbeat`) is sent every 15 seconds to keep the connection alive.
+**Authentication:** Required.
+
+Persistent Server-Sent Events stream. Previously buffered events for the active scrape are replayed to new subscribers, then live events are streamed. A `: heartbeat` comment is sent every 15 s to keep the connection alive.
 
 **Response Headers:**
 - `Content-Type: text/event-stream`
@@ -191,9 +175,9 @@ Opens a persistent Server-Sent Events connection. All previously accumulated eve
 - `Connection: keep-alive`
 - `X-Accel-Buffering: no`
 
-**Event Format:**
+**Event Format**
 
-All events are sent as plain `data:` lines (no named `event:` field). Each line is a JSON object with a `type` discriminator:
+All events arrive as plain `data:` lines (no named `event:` field). Each payload is JSON with a `type` discriminator:
 
 ```
 data: {"type":"started","total_cinemas":3,"total_dates":7}
@@ -219,10 +203,8 @@ data: {"type":"completed","summary":{"total_cinemas":3,"successful_cinemas":3,"f
 data: {"type":"failed","error":"Fatal error message"}
 ```
 
-**Event Types:**
-
 | Type | Emitted | Payload fields |
-|------|---------|----------------|
+|---|---|---|
 | `started` | Once at start | `total_cinemas`, `total_dates` |
 | `cinema_started` | Per cinema | `cinema_name`, `cinema_id`, `index` |
 | `date_started` | Per cinema × date | `date`, `cinema_name` |
@@ -235,15 +217,15 @@ data: {"type":"failed","error":"Fatal error message"}
 | `completed` | Once on success | `summary` (ScrapeSummary object) |
 | `failed` | Once on fatal error | `error` |
 
-**Rate Limit Handling:**
+**Rate-limit handling**
 
-When the scraper detects an HTTP 429 (Too Many Requests) response from the source server:
-1. The scrape stops immediately to avoid further rate limiting
-2. Status is set to `rate_limited` instead of `failed`
-3. A `cinema_failed` event is emitted with error_type `http_429`
-4. The final `completed` event includes `"status": "rate_limited"` in the summary
+When the scraper detects HTTP 429 from the source:
 
-**Example Rate Limited Summary:**
+1. The current scrape stops to avoid further pressure.
+2. The report status becomes `rate_limited` (not `failed`).
+3. A `cinema_failed` event with `error_type: "http_429"` is emitted.
+4. The final `completed` event includes `"status": "rate_limited"` in `summary`.
+
 ```json
 {
   "type": "completed",
@@ -268,152 +250,40 @@ When the scraper detects an HTTP 429 (Too Many Requests) response from the sourc
 }
 ```
 
-**Example:**
 ```bash
-curl -N http://localhost:3000/api/scraper/progress
+curl -N -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/scraper/progress
 ```
 
-**JavaScript Example:**
 ```javascript
-const eventSource = new EventSource('http://localhost:3000/api/scraper/progress');
-
-// All events arrive via onmessage (no named event: field)
+const eventSource = new EventSource('/api/scraper/progress');
 eventSource.onmessage = (e) => {
   const data = JSON.parse(e.data);
-  console.log('Event:', data.type, data);
-
-  if (data.type === 'completed') {
-    console.log('Scraping complete:', data.summary);
+  if (data.type === 'completed' || data.type === 'failed') {
     eventSource.close();
   }
-  if (data.type === 'failed') {
-    console.error('Scraping failed:', data.error);
-    eventSource.close();
-  }
-};
-
-eventSource.onerror = (err) => {
-  console.error('SSE connection error:', err);
-  eventSource.close();
 };
 ```
 
 ---
 
-### Resume Rate-Limited Scrape
+## Dead-Letter Queue
 
-```http
-POST /api/scraper/resume/:reportId
-```
+Jobs that exhaust their retry budget are moved to a Redis-backed DLQ. Operators can inspect the failed payloads and requeue them.
 
-**Authentication:** Required (Bearer token)
+**Permissions:** caller must hold `scraper:trigger` **or** be a system admin.
+**Tenant scoping:** non-system users only see DLQ entries that match their `org_id`.
 
-**Parameters:**
-- `reportId` (integer): ID of the parent report to resume (must have status `rate_limited`, `failed`, or `partial_success`)
-
-**Description:** Creates a new scrape report that retries only the cinema/date combinations that weren't successfully scraped in the parent report. The new report links to the parent via `parent_report_id`.
-
-**Response (200 — started):**
-
-**In-Process Mode** (`USE_REDIS_SCRAPER=false`):
-```json
-{
-  "success": true,
-  "data": {
-    "reportId": 124,
-    "parentReportId": 123,
-    "message": "Resume scrape started successfully",
-    "pendingAttempts": [
-      { "cinema_id": "C0042", "date": "2026-03-26" },
-      { "cinema_id": "C0089", "date": "2026-03-25" }
-    ]
-  }
-}
-```
-
-**Redis Microservice Mode** (`USE_REDIS_SCRAPER=true`):
-```json
-{
-  "success": true,
-  "data": {
-    "reportId": 124,
-    "parentReportId": 123,
-    "message": "Resume scrape job queued for microservice",
-    "queueDepth": 1,
-    "pendingAttempts": [
-      { "cinema_id": "C0042", "date": "2026-03-26" },
-      { "cinema_id": "C0089", "date": "2026-03-25" }
-    ]
-  }
-}
-```
-
-**Response Fields:**
-- `reportId` - New scrape report ID for the resume operation
-- `parentReportId` - Original report ID that is being resumed
-- `message` - Human-readable status message
-- `pendingAttempts` - List of cinema/date combinations that will be retried
-- `queueDepth` - (Redis mode only) Number of jobs in queue after this job was added
-
-**Response (404 — report not found):**
-```json
-{
-  "success": false,
-  "error": "Report not found: 999"
-}
-```
-
-**Response (400 — no pending attempts):**
-```json
-{
-  "success": false,
-  "error": "No pending attempts found for report 123"
-}
-```
-
-**Response (409 — already running):**
-```json
-{
-  "success": false,
-  "error": "A scrape is already in progress"
-}
-```
-
-**Examples:**
-```bash
-# Get auth token
-TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
-
-# Resume rate-limited scrape
-curl -X POST http://localhost:3000/api/scraper/resume/123 \
-  -H "Authorization: Bearer $TOKEN"
-
-# Check new report status
-curl http://localhost:3000/api/reports/124 \
-  -H "Authorization: Bearer $TOKEN"
-```
-
----
-
-### List Dead-Letter Queue Jobs
+### List DLQ Jobs
 
 ```http
 GET /api/scraper/dlq?page=1&pageSize=50
 ```
 
-**Authentication:** Required (Bearer token)
+| Query | Default | Notes |
+|---|---|---|
+| `page` | `1` | 1-based. Clamped to ≥ 1. |
+| `pageSize` | `50` | Capped at `50`. |
 
-**Permission:** `scraper:trigger` or system admin
-
-**Description:** Returns scraper jobs that reached terminal failure and were moved to the Redis-backed dead-letter queue after exhausting retry attempts.
-
-**Query Parameters:**
-- `page` (integer, optional): 1-based page number. Defaults to `1`.
-- `pageSize` (integer, optional): Maximum jobs per page. Capped at `50`. Defaults to `50`.
-
-**Response (200 - success):**
 ```json
 {
   "success": true,
@@ -434,9 +304,7 @@ GET /api/scraper/dlq?page=1&pageSize=50
           "triggerType": "manual",
           "reportId": 123,
           "retryCount": 3,
-          "options": {
-            "cinemaId": "C0042"
-          },
+          "options": { "cinemaId": "C0042" },
           "traceContext": {
             "org_id": "7",
             "org_slug": "acme",
@@ -453,73 +321,26 @@ GET /api/scraper/dlq?page=1&pageSize=50
 }
 ```
 
-**Behavior:**
-- Jobs are returned newest first.
-- `pageSize` is clamped to `50`.
-- Non-system users only see DLQ entries for their own `org_id`.
-- The response includes the original job payload so operators can inspect the failed request context.
+Newest jobs are returned first. Errors: `403` `Permission denied`.
 
-**Response (403 - forbidden):**
-```json
-{
-  "success": false,
-  "error": "Permission denied"
-}
+### Get a Single DLQ Job
+
+```http
+GET /api/scraper/dlq/:jobId
 ```
 
-**Example:**
-```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:3000/api/scraper/dlq?page=1&pageSize=50"
-```
+Returns the same shape as a single entry from the list endpoint. `404` if the job ID doesn't exist (or doesn't belong to the caller's org).
 
----
-
-### Retry Dead-Letter Queue Job
+### Retry a DLQ Job
 
 ```http
 POST /api/scraper/dlq/:jobId/retry
 ```
 
-**Authentication:** Required (Bearer token)
+Requeues the job onto `scrape:jobs` with `retry_count` reset to `0`. Response shape is the requeued job entry. `404` if not found.
 
-**Permission:** `scraper:trigger` or system admin
-
-**Description:** Requeues a dead-lettered job back onto `scrape:jobs` and resets its retry counter to `0`.
-
-**Response (200 - success):**
-```json
-{
-  "success": true,
-  "data": {
-    "job_id": "report-123",
-    "failure_reason": "HTTP 503",
-    "retry_count": 0,
-    "timestamp": "2026-04-21T19:00:00.000Z",
-    "cinema_id": "C0042",
-    "org_id": "7",
-    "job": {
-      "type": "scrape",
-      "triggerType": "manual",
-      "reportId": 123,
-      "retryCount": 0
-    }
-  }
-}
-```
-
-**Response (404 - not found):**
-```json
-{
-  "success": false,
-  "error": "DLQ job not found"
-}
-```
-
-**Example:**
 ```bash
-curl -X POST \
-  -H "Authorization: Bearer $TOKEN" \
+curl -X POST -H "Authorization: Bearer $TOKEN" \
   http://localhost:3000/api/scraper/dlq/report-123/retry
 ```
 
@@ -527,18 +348,21 @@ curl -X POST \
 
 ## Scrape Schedules
 
-Schedule recurring scrapes using cron expressions.
+Cron-style recurring scrape definitions stored in the database. Schedule changes are published to Redis (`schedule_changes`) so the `scraper` cron container reloads them without a restart.
 
-### List All Schedules
+| Permission | Endpoints |
+|---|---|
+| `scraper:schedules:list` | `GET /schedules`, `GET /schedules/:id` |
+| `scraper:schedules:create` | `POST /schedules` |
+| `scraper:schedules:update` | `PUT /schedules/:id`, `POST /schedules/:id/trigger` |
+| `scraper:schedules:delete` | `DELETE /schedules/:id` |
+
+### List Schedules
 
 ```http
 GET /api/scraper/schedules
 ```
 
-**Authentication:** Required (Bearer token)  
-**Permission:** `scraper:schedules:list`
-
-**Response (200 — success):**
 ```json
 {
   "success": true,
@@ -558,44 +382,13 @@ GET /api/scraper/schedules
 }
 ```
 
----
-
 ### Get Schedule by ID
 
 ```http
 GET /api/scraper/schedules/:id
 ```
 
-**Authentication:** Required (Bearer token)  
-**Permission:** `scraper:schedules:list`
-
-**Response (200 — success):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "Daily Morning Scrape",
-    "description": "Scrape all cinemas every morning at 6 AM",
-    "cron_expression": "0 6 * * *",
-    "enabled": true,
-    "target_cinemas": ["W7504", "C0072"],
-    "created_by": 1,
-    "created_at": "2026-03-15T10:30:00Z",
-    "updated_at": "2026-03-15T10:30:00Z"
-  }
-}
-```
-
-**Response (404 — not found):**
-```json
-{
-  "success": false,
-  "error": "Schedule not found"
-}
-```
-
----
+`404` `Schedule not found` when the ID doesn't exist.
 
 ### Create Schedule
 
@@ -603,10 +396,6 @@ GET /api/scraper/schedules/:id
 POST /api/scraper/schedules
 ```
 
-**Authentication:** Required (Bearer token)  
-**Permission:** `scraper:schedules:create`
-
-**Request Body:**
 ```json
 {
   "name": "Daily Morning Scrape",
@@ -617,40 +406,15 @@ POST /api/scraper/schedules
 }
 ```
 
-**Request Fields:**
-- `name` (string, required) - Schedule name (must be unique)
-- `description` (string, optional) - Human-readable description
-- `cron_expression` (string, required) - Cron expression (e.g., `0 6 * * *` for 6 AM daily)
-- `enabled` (boolean, optional, default: true) - Whether schedule is active
-- `target_cinemas` (array, optional) - List of cinema IDs to scrape (empty = all cinemas)
+| Field | Required | Notes |
+|---|---|---|
+| `name` | yes | Must be unique. `400` if blank, `400` `Schedule name already exists` on conflict. |
+| `cron_expression` | yes | Standard 5-field cron. |
+| `description` | no | Free text. |
+| `enabled` | no | Defaults to `true`. |
+| `target_cinemas` | no | Empty/omitted → all cinemas. |
 
-**Response (201 — created):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "Daily Morning Scrape",
-    "description": "Scrape all cinemas every morning at 6 AM",
-    "cron_expression": "0 6 * * *",
-    "enabled": true,
-    "target_cinemas": ["W7504", "C0072"],
-    "created_by": 1,
-    "created_at": "2026-03-15T10:30:00Z",
-    "updated_at": "2026-03-15T10:30:00Z"
-  }
-}
-```
-
-**Response (400 — validation error):**
-```json
-{
-  "success": false,
-  "error": "Schedule name is required"
-}
-```
-
----
+Returns `201` with the created record.
 
 ### Update Schedule
 
@@ -658,39 +422,7 @@ POST /api/scraper/schedules
 PUT /api/scraper/schedules/:id
 ```
 
-**Authentication:** Required (Bearer token)  
-**Permission:** `scraper:schedules:update`
-
-**Request Body (all fields optional):**
-```json
-{
-  "name": "Updated Schedule Name",
-  "description": "Updated description",
-  "cron_expression": "0 12 * * *",
-  "enabled": false,
-  "target_cinemas": ["W7504"]
-}
-```
-
-**Response (200 — success):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "Updated Schedule Name",
-    "description": "Updated description",
-    "cron_expression": "0 12 * * *",
-    "enabled": false,
-    "target_cinemas": ["W7504"],
-    "created_by": 1,
-    "created_at": "2026-03-15T10:30:00Z",
-    "updated_at": "2026-03-18T15:45:00Z"
-  }
-}
-```
-
----
+All fields optional; the request body is merged with the existing record. `400 Schedule name already exists` on a unique-name conflict, `404 Schedule not found` if the ID doesn't exist.
 
 ### Delete Schedule
 
@@ -698,23 +430,7 @@ PUT /api/scraper/schedules/:id
 DELETE /api/scraper/schedules/:id
 ```
 
-**Authentication:** Required (Bearer token)  
-**Permission:** `scraper:schedules:delete`
-
-**Response (204 — deleted):**
-```
-(no body)
-```
-
-**Response (404 — not found):**
-```json
-{
-  "success": false,
-  "error": "Schedule not found"
-}
-```
-
----
+`204 No Content` on success, `404 Schedule not found` otherwise.
 
 ### Trigger Schedule Immediately
 
@@ -722,23 +438,27 @@ DELETE /api/scraper/schedules/:id
 POST /api/scraper/schedules/:id/trigger
 ```
 
-**Authentication:** Required (Bearer token)  
-**Permission:** `scraper:schedules:update`
+Bypasses the cron timing and enqueues the schedule's first target cinema (or full scrape, if no targets are configured) right now.
 
-**Description:** Immediately trigger a schedule, bypassing the cron timing.
-
-**Response (200 — started):**
 ```json
 {
   "success": true,
   "data": {
     "reportId": 43,
-    "message": "Scrape job queued for microservice",
+    "scheduleId": 1,
+    "scheduleName": "Daily Morning Scrape",
+    "message": "Schedule job queued for immediate execution",
     "queueDepth": 2
   }
 }
 ```
 
 ---
+
+## Related
+
+- [Scraper System Architecture](../architecture/scraper-system.md)
+- [Reports API](./reports.md) — query the `reportId` returned by trigger/resume.
+- [Rate Limiting Reference](./rate-limiting.md)
 
 [← Back to API Reference](./README.md)
