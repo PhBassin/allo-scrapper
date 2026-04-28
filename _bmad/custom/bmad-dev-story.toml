@@ -1,0 +1,6 @@
+[workflow]
+persistent_facts = [
+  "When implementation work is complete and the user asks for it, prefer an atomic git commit that includes only task-related files.",
+  "When the user asks to publish work, push the current feature branch after a successful commit.",
+  "When the user asks for a pull request, create it with a full summary covering behavioral changes, technical changes, tests run, and any residual risks or non-functional anomalies.",
+]

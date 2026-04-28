@@ -1,6 +1,6 @@
 # Story 3.5: Rate Limiting Burst Scenario Tests
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -253,3 +253,4 @@ github-copilot/gpt-5.4
 - 2026-04-28: Validation pass added an explicit non-test runtime guardrail so burst E2E coverage cannot false-green under `skipTest`.
 - 2026-04-28: Implemented tenant-aware burst validation support with explicit protected-endpoint retry timing, a minimal visible `429` tenant screen, and a dedicated Playwright burst scenario spec; focused tests pass, but E2E verification remains blocked by local PostgreSQL extension privileges.
 - 2026-04-28: Repaired verification environment with a clean temporary PostgreSQL instance, completed focused Playwright validation for the burst scenarios, and moved the story to review.
+- 2026-04-28: Marked Story 3.5 done after merge.
