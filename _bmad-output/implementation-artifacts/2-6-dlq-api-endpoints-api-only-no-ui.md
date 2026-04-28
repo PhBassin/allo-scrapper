@@ -1,6 +1,6 @@
 # Story 2.6: Dead-Letter Queue API Endpoints (API-only, no UI)
 
-Status: review
+Status: done
 
 <!-- Note: Corrected by bmad-correct-course 2026-04-26. See sprint-change-proposal-2026-04-26.md for full rationale. -->
 
@@ -122,6 +122,11 @@ so that admins have programmatic visibility into failed scrape jobs without need
 ### Completion Notes
 
 All tasks and subtasks complete. 835 tests pass, TypeScript strict-mode clean. Story moved to `review`.
+
+### Review Findings
+
+- [x] [Review][Patch] Admin DLQ alias rejects trailing-slash forms that the canonical routes accept [server/src/app.ts:90]
+- [x] [Review][Defer] DLQ single-job lookup depends on `job_id = report-${reportId}`, which is only safe while `scrape_reports.id` remains globally unique across all tenants [server/src/routes/scraper.ts:253] — deferred, pre-existing
 
 ## File List
 

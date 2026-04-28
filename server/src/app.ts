@@ -87,7 +87,7 @@ collectDefaultMetrics({ register: serverRegistry, prefix: 'ics_web_' });
 
 function createAdminScraperAliasRouter() {
   const router = express.Router();
-  const allowedPathPattern = /^\/dlq(?:\/[^/]+(?:\/retry)?)?$/;
+  const allowedPathPattern = /^\/dlq(?:\/[^/]+(?:\/retry)?)?\/?$/;
 
   router.use((req, res, next) => {
     if (!allowedPathPattern.test(req.path)) {

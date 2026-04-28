@@ -17,7 +17,7 @@ const mockGetDlqJob = vi.fn();
 
 function mountAdminScraperDlqAlias(app: express.Express, scraperRouter: express.Router) {
   const adminAliasRouter = express.Router();
-  const allowedPathPattern = /^\/dlq(?:\/[^/]+(?:\/retry)?)?$/;
+  const allowedPathPattern = /^\/dlq(?:\/[^/]+(?:\/retry)?)?\/?$/;
 
   adminAliasRouter.use((req, res, next) => {
     if (!allowedPathPattern.test(req.path)) {
@@ -481,6 +481,17 @@ describe('Routes - Scraper', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.job_id).toBe('report-3');
+    });
+
+    it('GET /api/admin/scraper/dlq/ should accept the same trailing-slash form as the canonical route', async () => {
+      mockListDlqJobs.mockResolvedValue({ jobs: [{ job_id: 'report-1' }], total: 1, page: 1, pageSize: 50 });
+
+      const app = await setupAppWithAlias({ role_name: 'admin', is_system_role: true, permissions: [] });
+      const response = await request(app).get('/api/admin/scraper/dlq/');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.jobs[0].job_id).toBe('report-1');
     });
 
     it('GET /api/admin/scraper/status should remain unavailable', async () => {
