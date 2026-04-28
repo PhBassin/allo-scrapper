@@ -167,7 +167,7 @@ GET /api/scraper/progress
 
 **Authentication:** Required.
 
-Persistent Server-Sent Events stream. Previously buffered events for the active scrape are replayed to new subscribers, then live events are streamed. A `: heartbeat` comment is sent every 15 s to keep the connection alive.
+Persistent Server-Sent Events stream. Previously buffered events for the active scrape are replayed to new subscribers, then live events are streamed. A JSON `ping` event is sent every 30 s to keep the connection alive. Heartbeat frames are transport-only and are not replayed as scrape history to new subscribers.
 
 **Response Headers:**
 - `Content-Type: text/event-stream`
@@ -178,6 +178,10 @@ Persistent Server-Sent Events stream. Previously buffered events for the active 
 **Event Format**
 
 All events arrive as plain `data:` lines (no named `event:` field). Each payload is JSON with a `type` discriminator:
+
+```
+data: {"type":"ping","timestamp":"2026-04-28T15:18:00.000Z"}
+```
 
 ```
 data: {"type":"started","total_cinemas":3,"total_dates":7}
@@ -206,6 +210,7 @@ data: {"type":"failed","error":"Fatal error message"}
 | Type | Emitted | Payload fields |
 |---|---|---|
 | `started` | Once at start | `total_cinemas`, `total_dates` |
+| `ping` | Every 30 s while stream remains open | `timestamp` |
 | `cinema_started` | Per cinema | `cinema_name`, `cinema_id`, `index` |
 | `date_started` | Per cinema × date | `date`, `cinema_name` |
 | `film_started` | Per film | `film_title`, `film_id` |

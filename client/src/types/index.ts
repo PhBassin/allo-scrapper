@@ -116,6 +116,7 @@ export type ProgressEvent = {
   | { type: 'cinema_completed'; cinema_name: string; total_films: number }
   | { type: 'cinema_failed'; cinema_name: string; error: string }
   | { type: 'completed'; summary: ScrapeSummary }
+  | { type: 'ping'; timestamp: string }
   | { type: 'failed'; error: string }
 );
 

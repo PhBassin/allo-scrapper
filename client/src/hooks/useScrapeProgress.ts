@@ -266,6 +266,14 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void, track
     const unsubscribe = subscribeToProgress(
       (event: ProgressEvent) => {
         setState((prev) => {
+          if (event.type === 'ping') {
+            return {
+              ...prev,
+              isConnected: true,
+              error: undefined,
+            };
+          }
+
           const events = [...prev.events, event];
           const jobs = mergeTrackedJobs(events, trackedJobsRef.current);
           const allTerminal = jobs.length > 0 && jobs.every((job) => job.status === 'completed' || job.status === 'failed');
@@ -291,7 +299,7 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void, track
         setState((prev) => ({
           ...prev,
           isConnected: false,
-          error: error.message,
+          error: error.message === 'Progress stream closed' ? undefined : error.message,
           jobs: mergeTrackedJobs(prev.events, trackedJobsRef.current),
         }));
       }

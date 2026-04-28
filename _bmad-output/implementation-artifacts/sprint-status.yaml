@@ -1,5 +1,5 @@
 # generated: 2026-04-15
-# last_updated: 2026-04-28T14:19:46Z
+# last_updated: 2026-04-28T12:20:03Z
 # project: allo-scrapper
 # project_key: NOKEY
 # tracking_system: file-system
@@ -28,7 +28,7 @@
 #   - done: Retrospective has been completed
 
 generated: 2026-04-15
-last_updated: 2026-04-28T14:19:46Z
+last_updated: 2026-04-28T16:10:00Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -63,21 +63,21 @@ development_status:
   # EPIC 2: Scraper Job Queue Reliability & Failure Handling
   # 🔴 HIGH — requires Epic 0 (Stories 0.2, 0.3) complete
   # ─────────────────────────────────────────────────────────────
-  epic-2: in-progress
+  epic-2: done
   2-1-implement-dead-letter-queue-for-failed-scraper-jobs: done   # PR #904
   2-2-add-exponential-backoff-retry-logic-for-redis-failures: done # PR #906 + #907
   2-3-redis-job-queue-load-testing-100-concurrent-jobs: done      # branch test/story-2-3-redis-load
   2-4-redis-reconnection-handling-during-job-processing: done     # PR #919 — "harden Redis reconnect recovery"
   2-5-e2e-scraper-progress-tracking-with-10-concurrent-jobs: done # PR #921 — "track tenant scrape progress by job"
   2-6-dlq-api-endpoints-api-only-no-ui: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   # ─────────────────────────────────────────────────────────────
   # EPIC 3: Real-Time Communication & Protection (SSE + Rate Limiting)
   # 🔴 HIGH — implémentation order: 3.7 -> 3.1 -> 3.5 -> (3.2, 3.3, 3.4, 3.6, 3.8 parallel)
   # ─────────────────────────────────────────────────────────────
   epic-3: in-progress
-  3-1-implement-sse-heartbeat-mechanism: backlog
+  3-1-implement-sse-heartbeat-mechanism: done
   3-2-implement-client-sse-reconnection-logic: backlog
   3-3-sse-long-running-connection-validation-10-minutes: backlog
   3-4-sse-concurrent-client-load-test-50-clients: backlog

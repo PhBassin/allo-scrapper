@@ -306,6 +306,21 @@ describe('Routes - Scraper', () => {
         })
       );
     });
+
+    it('should run the SSE cleanup callback when the request closes', async () => {
+      const cleanup = vi.fn();
+      mockSubscribeToProgress.mockImplementation((res) => {
+        res.status(200).end();
+        return cleanup;
+      });
+
+      const app = await setupApp({ org_id: 42, org_slug: 'acme' });
+
+      const response = await request(app).get('/api/scraper/progress');
+
+      expect(response.status).toBe(200);
+      expect(cleanup).toHaveBeenCalled();
+    });
   });
 
   describe('GET /api/scraper/dlq', () => {

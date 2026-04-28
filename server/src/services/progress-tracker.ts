@@ -1,5 +1,8 @@
 import { Response } from 'express';
 
+const HEARTBEAT_INTERVAL_MS = 30_000;
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+
 declare global {
   var __alloScrapperProgressTracker__: ProgressTracker | undefined;
 }
@@ -59,6 +62,7 @@ export class ProgressTracker {
   private events: ProgressEvent[] = [];
   private heartbeatInterval?: NodeJS.Timeout;
   private traceContextByListener: Map<Response, ProgressTraceContext | undefined> = new Map();
+  private lastBusinessActivityByListener: Map<Response, number> = new Map();
 
   private matchesListener(event: ProgressEvent, listenerTrace?: ProgressTraceContext): boolean {
     if (!listenerTrace?.org_slug) {
@@ -72,6 +76,7 @@ export class ProgressTracker {
   addListener(res: Response, traceContext?: ProgressTraceContext): void {
     this.listeners.add(res);
     this.traceContextByListener.set(res, traceContext);
+    this.lastBusinessActivityByListener.set(res, Date.now());
 
     // Send existing events to new listener
     for (const event of this.events) {
@@ -91,6 +96,7 @@ export class ProgressTracker {
   removeListener(res: Response): void {
     this.listeners.delete(res);
     this.traceContextByListener.delete(res);
+    this.lastBusinessActivityByListener.delete(res);
 
     // Stop heartbeat if no more listeners
     if (this.listeners.size === 0) {
@@ -115,12 +121,22 @@ export class ProgressTracker {
     }
   }
 
-  private hasActiveJobs(): boolean {
+  private getLatestEventsByJob(listenerTrace?: ProgressTraceContext): Map<string, ProgressEvent> {
     const latestEventsByJob = new Map<string, ProgressEvent>();
 
     for (const event of this.events) {
+      if (listenerTrace && !this.matchesListener(event, listenerTrace)) {
+        continue;
+      }
+
       latestEventsByJob.set(this.getJobKey(event), event);
     }
+
+    return latestEventsByJob;
+  }
+
+  private hasActiveJobs(listenerTrace?: ProgressTraceContext): boolean {
+    const latestEventsByJob = this.getLatestEventsByJob(listenerTrace);
 
     for (const event of latestEventsByJob.values()) {
       if (event.type !== 'completed' && event.type !== 'failed') {
@@ -143,26 +159,54 @@ export class ProgressTracker {
         ? { ...event, traceContext: listenerTrace }
         : event;
 
+      this.lastBusinessActivityByListener.set(res, Date.now());
       res.write(`data: ${JSON.stringify(payload)}\n\n`);
     } catch (error) {
-      // Listener disconnected, remove it
-      this.listeners.delete(res);
-      this.traceContextByListener.delete(res);
+      this.removeListener(res);
+    }
+  }
+
+  private sendHeartbeatToListener(res: Response, now: number): void {
+    try {
+      res.write(`data: ${JSON.stringify({ type: 'ping', timestamp: new Date(now).toISOString() })}\n\n`);
+    } catch (error) {
+      this.removeListener(res);
+    }
+  }
+
+  private closeIdleListener(res: Response): void {
+    this.removeListener(res);
+
+    try {
+      res.end();
+    } catch (error) {
+      // Ignore errors when closing an already disconnected listener.
     }
   }
 
   // Send heartbeat to keep connections alive
   private startHeartbeat(): void {
     this.heartbeatInterval = setInterval(() => {
-      for (const listener of this.listeners) {
-        try {
-          listener.write(': heartbeat\n\n');
-        } catch (error) {
-          this.listeners.delete(listener);
-          this.traceContextByListener.delete(listener);
+      const now = Date.now();
+
+      for (const listener of [...this.listeners]) {
+        const listenerTrace = this.traceContextByListener.get(listener);
+
+        if (this.hasActiveJobs(listenerTrace)) {
+          this.sendHeartbeatToListener(listener, now);
+          continue;
         }
+
+        const lastBusinessActivity = this.lastBusinessActivityByListener.get(listener) ?? now;
+
+        if (now - lastBusinessActivity >= IDLE_TIMEOUT_MS) {
+          this.closeIdleListener(listener);
+          continue;
+        }
+
+        this.sendHeartbeatToListener(listener, now);
       }
-    }, 15000); // Every 15 seconds
+    }, HEARTBEAT_INTERVAL_MS);
   }
 
   // Stop heartbeat
@@ -188,6 +232,7 @@ export class ProgressTracker {
     }
     this.listeners.clear();
     this.traceContextByListener.clear();
+    this.lastBusinessActivityByListener.clear();
   }
 
   // Get all events (for debugging or storing in database)
