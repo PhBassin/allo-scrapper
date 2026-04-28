@@ -69,7 +69,7 @@ development_status:
   2-3-redis-job-queue-load-testing-100-concurrent-jobs: done      # branch test/story-2-3-redis-load
   2-4-redis-reconnection-handling-during-job-processing: done     # PR #919 — "harden Redis reconnect recovery"
   2-5-e2e-scraper-progress-tracking-with-10-concurrent-jobs: done # PR #921 — "track tenant scrape progress by job"
-  2-6-dlq-api-endpoints-api-only-no-ui: review
+  2-6-dlq-api-endpoints-api-only-no-ui: done
   epic-2-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────
