@@ -2,7 +2,17 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import type { Request } from 'express';
 
-const LOCALHOST_IPS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+const LOCALHOST_IPS = new Set(['127.0.0.1', '::1']);
+
+const PRIVATE_IP_PATTERNS = [
+  /^10\./,
+  /^192\.168\./,
+  /^172\.(1[6-9]|2\d|3[0-1])\./,
+  /^169\.254\./,
+  /^fc/i,
+  /^fd/i,
+  /^fe80:/i,
+];
 
 // Helper to parse env var as number with fallback
 const parseEnvInt = (key: string, defaultValue: number): number => {
@@ -79,11 +89,31 @@ export const authenticatedKeyGenerator = (req: Request): string => {
   return ipKeyGenerator(req.ip ?? 'unknown');
 };
 
-export const isTrustedLocalHealthProbe = (req: Request): boolean => {
-  const forwardedIp = req.ip ?? '';
-  const socketIp = req.socket.remoteAddress ?? '';
+const normalizeIp = (value: string): string => value.replace(/^::ffff:/, '');
 
-  return LOCALHOST_IPS.has(forwardedIp) && LOCALHOST_IPS.has(socketIp);
+const isLoopbackIp = (value: string): boolean => LOCALHOST_IPS.has(normalizeIp(value));
+
+const isPrivateIp = (value: string): boolean => PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(normalizeIp(value)));
+
+export const isTrustedLocalHealthProbe = (req: Request): boolean => {
+  const forwardedIp = normalizeIp(req.ip ?? '');
+  const socketIp = normalizeIp(req.socket.remoteAddress ?? '');
+  const rawForwardedFor = req.headers?.['x-forwarded-for'];
+
+  const forwardedChain = (Array.isArray(rawForwardedFor) ? rawForwardedFor.join(',') : rawForwardedFor ?? '')
+    .split(',')
+    .map((value) => normalizeIp(value.trim()))
+    .filter(Boolean);
+
+  if (!isLoopbackIp(forwardedIp)) {
+    return false;
+  }
+
+  if (!(isLoopbackIp(socketIp) || isPrivateIp(socketIp))) {
+    return false;
+  }
+
+  return forwardedChain.every(isLoopbackIp);
 };
 
 // General API rate limiter (applies to all /api/* routes)

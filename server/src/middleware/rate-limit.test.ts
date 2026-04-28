@@ -463,5 +463,39 @@ describe('Rate Limiting Middleware', () => {
       expect(isTrustedLocalHealthProbe(spoofedLoopbackRequest)).toBe(false);
       expect(isTrustedLocalHealthProbe(proxiedExternalRequest)).toBe(false);
     });
+
+    it('should trust loopback probes forwarded through a private container hop', () => {
+      const dockerBridgeRequest = {
+        ip: '127.0.0.1',
+        headers: { 'x-forwarded-for': '127.0.0.1' },
+        socket: { remoteAddress: '172.18.0.5' },
+      } as express.Request;
+
+      const clusterSidecarRequest = {
+        ip: '::1',
+        headers: { 'x-forwarded-for': '::1' },
+        socket: { remoteAddress: '10.42.0.9' },
+      } as express.Request;
+
+      expect(isTrustedLocalHealthProbe(dockerBridgeRequest)).toBe(true);
+      expect(isTrustedLocalHealthProbe(clusterSidecarRequest)).toBe(true);
+    });
+
+    it('should reject forwarded chains that contain a non-loopback address', () => {
+      const spoofedForwardedChainRequest = {
+        ip: '127.0.0.1',
+        headers: { 'x-forwarded-for': '203.0.113.50, 127.0.0.1' },
+        socket: { remoteAddress: '172.18.0.5' },
+      } as express.Request;
+
+      const ipv6MappedBridgeRequest = {
+        ip: '127.0.0.1',
+        headers: { 'x-forwarded-for': '127.0.0.1' },
+        socket: { remoteAddress: '::ffff:172.18.0.5' },
+      } as express.Request;
+
+      expect(isTrustedLocalHealthProbe(spoofedForwardedChainRequest)).toBe(false);
+      expect(isTrustedLocalHealthProbe(ipv6MappedBridgeRequest)).toBe(true);
+    });
   });
 });
