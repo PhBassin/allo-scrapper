@@ -1,5 +1,5 @@
 # generated: 2026-04-15
-# last_updated: 2026-04-28T19:46:00Z
+# last_updated: 2026-04-28T20:00:00Z
 # project: allo-scrapper
 # project_key: NOKEY
 # tracking_system: file-system
@@ -28,7 +28,7 @@
 #   - done: Retrospective has been completed
 
 generated: 2026-04-15
-last_updated: 2026-04-28T19:46:00Z
+last_updated: 2026-04-28T20:00:00Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -81,7 +81,7 @@ development_status:
   3-2-implement-client-sse-reconnection-logic: backlog
   3-3-sse-long-running-connection-validation-10-minutes: backlog
   3-4-sse-concurrent-client-load-test-50-clients: backlog
-  3-5-rate-limiting-burst-scenario-tests: review
+  3-5-rate-limiting-burst-scenario-tests: done
   3-6-rate-limiting-window-reset-validation: backlog
   3-7-localhost-exemption-for-docker-health-probes: done
   3-8-rate-limiting-documentation: backlog
