@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
@@ -146,6 +146,40 @@ describe('Rate Limiting Middleware', () => {
       const response = await request(app).get('/reports');
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
+    });
+
+    it('should include retry-after metadata when a protected endpoint is rate limited', async () => {
+      vi.resetModules();
+      process.env.NODE_ENV = 'development';
+      process.env.RATE_LIMIT_PROTECTED_MAX = '1';
+
+      const { protectedLimiter: tightProtectedLimiter } = await import('./rate-limit.js');
+      const tightApp = express();
+      tightApp.use(express.json());
+      tightApp.set('trust proxy', 1);
+      tightApp.get('/reports', tightProtectedLimiter, (_req, res) => {
+        res.json({ success: true });
+      });
+
+      const clientIp = '203.0.113.50';
+      const token = makeToken(99, { username: 'burst@test.local', orgSlug: 'burst-org' });
+
+      const allowed = await request(tightApp)
+        .get('/reports')
+        .set('Authorization', `Bearer ${token}`)
+        .set('X-Forwarded-For', clientIp);
+      expect(allowed.status).toBe(200);
+
+      const limited = await request(tightApp)
+        .get('/reports')
+        .set('Authorization', `Bearer ${token}`)
+        .set('X-Forwarded-For', clientIp);
+
+      expect(limited.status).toBe(429);
+      expect(limited.body.success).toBe(false);
+      expect(limited.body.error).toBe('Too many requests to this resource, please try again later.');
+      expect(limited.body.retryAfterSeconds).toBeGreaterThan(0);
+      expect(limited.headers['retry-after']).toBeDefined();
     });
   });
 

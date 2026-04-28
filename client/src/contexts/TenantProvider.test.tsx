@@ -90,4 +90,26 @@ describe('TenantProvider', () => {
 
     expect(screen.getByTestId('403-error-message')).toHaveTextContent(/organization mismatch/i);
   });
+
+  it('renders 429 screen with retry-after time when org ping is rate limited', async () => {
+    const error = Object.assign(new Error('Too many requests to this resource, please try again later.'), {
+      response: {
+        status: 429,
+        data: {
+          error: 'Too many requests to this resource, please try again later.',
+          retryAfterSeconds: 42,
+        },
+      },
+    });
+    vi.mocked(pingOrg).mockRejectedValue(error);
+
+    renderWithSlug('acme', <ContextInspector />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('429-error-message')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('429-error-message')).toHaveTextContent(/too many requests/i);
+    expect(screen.getByTestId('429-error-message')).toHaveTextContent(/42 seconds/i);
+  });
 });
