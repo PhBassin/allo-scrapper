@@ -1,5 +1,5 @@
 # generated: 2026-04-15
-# last_updated: 2026-04-26T01:05:00Z
+# last_updated: 2026-04-28T14:19:46Z
 # project: allo-scrapper
 # project_key: NOKEY
 # tracking_system: file-system
@@ -28,7 +28,7 @@
 #   - done: Retrospective has been completed
 
 generated: 2026-04-15
-last_updated: 2026-04-26T01:05:00Z
+last_updated: 2026-04-28T14:19:46Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -76,14 +76,14 @@ development_status:
   # EPIC 3: Real-Time Communication & Protection (SSE + Rate Limiting)
   # 🔴 HIGH — implémentation order: 3.7 -> 3.1 -> 3.5 -> (3.2, 3.3, 3.4, 3.6, 3.8 parallel)
   # ─────────────────────────────────────────────────────────────
-  epic-3: backlog
+  epic-3: in-progress
   3-1-implement-sse-heartbeat-mechanism: backlog
   3-2-implement-client-sse-reconnection-logic: backlog
   3-3-sse-long-running-connection-validation-10-minutes: backlog
   3-4-sse-concurrent-client-load-test-50-clients: backlog
   3-5-rate-limiting-burst-scenario-tests: backlog
   3-6-rate-limiting-window-reset-validation: backlog
-  3-7-localhost-exemption-for-docker-health-probes: backlog
+  3-7-localhost-exemption-for-docker-health-probes: done
   3-8-rate-limiting-documentation: backlog
   epic-3-retrospective: optional
 
