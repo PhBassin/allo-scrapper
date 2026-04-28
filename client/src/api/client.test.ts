@@ -191,4 +191,142 @@ describe('Cinema API Client', () => {
     unsubscribe();
     expect(mockAbort).toHaveBeenCalled();
   });
+
+  it('forwards JSON ping events from the SSE stream', async () => {
+    let resolveRead: ((value: { done: boolean; value?: Uint8Array }) => void) | undefined;
+    const onEvent = vi.fn();
+
+    globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      lastFetchCall = { input: _input, init };
+      const signal = init?.signal as AbortSignal | undefined;
+      signal?.addEventListener('abort', () => {
+        mockAbort();
+      });
+
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockImplementationOnce(() => new Promise((resolve) => {
+                resolveRead = resolve;
+              }))
+              .mockResolvedValueOnce({ done: true, value: undefined }),
+          }),
+        },
+      } as unknown as Response);
+    });
+
+    subscribeToProgress(onEvent);
+    await Promise.resolve();
+
+    resolveRead?.({
+      done: false,
+      value: new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T15:18:00.000Z"}\n\n'),
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'ping',
+      timestamp: '2026-04-28T15:18:00.000Z',
+    });
+  });
+
+  it('reports a clean EOF from the SSE stream as a disconnect error', async () => {
+    const onError = vi.fn();
+
+    globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      lastFetchCall = { input, init };
+
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => ({
+            read: vi.fn().mockResolvedValue({ done: true, value: undefined }),
+          }),
+        },
+      } as unknown as Response);
+    });
+
+    subscribeToProgress(() => {}, onError);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onError).toHaveBeenCalledWith(new Error('Progress stream closed'));
+  });
+
+  it('flushes the final buffered SSE message before reporting EOF', async () => {
+    const onEvent = vi.fn();
+    const onError = vi.fn();
+
+    globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      lastFetchCall = { input, init };
+
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({
+                done: false,
+                value: new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T16:10:00.000Z"}'),
+              })
+              .mockResolvedValueOnce({ done: true, value: undefined }),
+          }),
+        },
+      } as unknown as Response);
+    });
+
+    subscribeToProgress(onEvent, onError);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'ping',
+      timestamp: '2026-04-28T16:10:00.000Z',
+    });
+    expect(onError).toHaveBeenCalledWith(new Error('Progress stream closed'));
+  });
+
+  it('flushes the final buffered SSE message when UTF-8 data spans chunks before EOF', async () => {
+    const onEvent = vi.fn();
+    const onError = vi.fn();
+    const bytes = new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T16:10:00.000Z","label":"Cinema Étoile"}');
+    const splitAt = bytes.length - 2;
+
+    globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      lastFetchCall = { input, init };
+
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: bytes.slice(0, splitAt) })
+              .mockResolvedValueOnce({ done: false, value: bytes.slice(splitAt) })
+              .mockResolvedValueOnce({ done: true, value: undefined }),
+          }),
+        },
+      } as unknown as Response);
+    });
+
+    subscribeToProgress(onEvent, onError);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'ping',
+      timestamp: '2026-04-28T16:10:00.000Z',
+      label: 'Cinema Étoile',
+    });
+    expect(onError).toHaveBeenCalledWith(new Error('Progress stream closed'));
+  });
 });

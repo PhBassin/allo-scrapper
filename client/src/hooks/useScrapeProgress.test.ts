@@ -202,4 +202,43 @@ describe('useScrapeProgress', () => {
     expect(result.current.jobs).toHaveLength(2);
     expect(result.current.jobs.map((job) => job.cinemaName)).toEqual(['Cinema Two', 'Cinema One']);
   });
+
+  it('keeps the connection alive without polluting progress state on ping events', () => {
+    let eventCallback: (event: any) => void = () => {};
+
+    mockSubscribe.mockImplementation((cb) => {
+      eventCallback = cb;
+      return mockUnsubscribe;
+    });
+
+    const { result } = renderHook(() => useScrapeProgress());
+
+    act(() => {
+      eventCallback({ type: 'ping', timestamp: '2026-04-28T15:18:00.000Z' });
+    });
+
+    expect(result.current.isConnected).toBe(true);
+    expect(result.current.error).toBeUndefined();
+    expect(result.current.events).toEqual([]);
+    expect(result.current.jobs).toEqual([]);
+    expect(result.current.latestEvent).toBeUndefined();
+  });
+
+  it('treats a clean stream close as disconnected without surfacing an error', () => {
+    let errorCallback: (error: Error) => void = () => {};
+
+    mockSubscribe.mockImplementation((_cb, onError) => {
+      errorCallback = onError ?? (() => {});
+      return mockUnsubscribe;
+    });
+
+    const { result } = renderHook(() => useScrapeProgress());
+
+    act(() => {
+      errorCallback(new Error('Progress stream closed'));
+    });
+
+    expect(result.current.isConnected).toBe(false);
+    expect(result.current.error).toBeUndefined();
+  });
 });

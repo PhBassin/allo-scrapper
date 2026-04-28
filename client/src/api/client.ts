@@ -207,6 +207,27 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
   const token = localStorage.getItem('token');
   const url = `${API_BASE_URL}${getScraperBasePath()}/progress`;
 
+  const processMessage = (message: string) => {
+    const lines = message
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'));
+
+    if (lines.length === 0) {
+      return;
+    }
+
+    const raw = lines
+      .map((line) => line.slice(5).trimStart())
+      .join('\n');
+
+    try {
+      const data = JSON.parse(raw);
+      onEvent(data);
+    } catch (error) {
+      console.error('Failed to parse SSE event:', error);
+    }
+  };
+
   void (async () => {
     try {
       const response = await fetch(url, {
@@ -234,6 +255,16 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
       while (true) {
         const { value, done } = await reader.read();
         if (done) {
+          buffer += decoder.decode();
+
+          if (buffer.trim()) {
+            processMessage(buffer);
+            buffer = '';
+          }
+
+          if (!controller.signal.aborted) {
+            onError?.(new Error('Progress stream closed'));
+          }
           break;
         }
 
@@ -242,24 +273,7 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
         buffer = messages.pop() ?? '';
 
         for (const message of messages) {
-          const lines = message
-            .split(/\r?\n/)
-            .filter((line) => line.startsWith('data:'));
-
-          if (lines.length === 0) {
-            continue;
-          }
-
-          const raw = lines
-            .map((line) => line.slice(5).trimStart())
-            .join('\n');
-
-          try {
-            const data = JSON.parse(raw);
-            onEvent(data);
-          } catch (error) {
-            console.error('Failed to parse SSE event:', error);
-          }
+          processMessage(message);
         }
       }
     } catch (error) {
