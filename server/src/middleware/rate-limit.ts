@@ -1,6 +1,6 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 
 const LOCALHOST_IPS = new Set(['127.0.0.1', '::1']);
 
@@ -116,6 +116,35 @@ export const isTrustedLocalHealthProbe = (req: Request): boolean => {
   return forwardedChain.every(isLoopbackIp);
 };
 
+const getRetryAfterSeconds = (req: Request): number | undefined => {
+  const rateLimitState = (req as Request & { rateLimit?: { resetTime?: Date | number } }).rateLimit;
+  const resetTime = rateLimitState?.resetTime;
+
+  if (resetTime instanceof Date) {
+    return Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000));
+  }
+
+  if (typeof resetTime === 'number') {
+    return Math.max(1, Math.ceil((resetTime - Date.now()) / 1000));
+  }
+
+  return undefined;
+};
+
+const sendRateLimitedJson = (req: Request, res: Response, error: string): void => {
+  const retryAfterSeconds = getRetryAfterSeconds(req);
+
+  if (retryAfterSeconds !== undefined) {
+    res.setHeader('Retry-After', String(retryAfterSeconds));
+  }
+
+  res.status(429).json({
+    success: false,
+    error,
+    ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+  });
+};
+
 // General API rate limiter (applies to all /api/* routes)
 export const generalLimiter = rateLimit({
   windowMs: WINDOW_MS,
@@ -159,9 +188,10 @@ export const protectedLimiter = rateLimit({
   max: parseEnvInt('RATE_LIMIT_PROTECTED_MAX', 60),
   skip: skipTest,
   keyGenerator: authenticatedKeyGenerator,
-  message: {
-    success: false,
-    error: 'Too many requests to this resource, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    sendRateLimitedJson(req, res, 'Too many requests to this resource, please try again later.');
   },
 });
 

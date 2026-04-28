@@ -41,6 +41,21 @@ function ForbiddenScreen({ message }: { message: string }) {
   );
 }
 
+function TooManyRequestsScreen({ message, retryAfterSeconds }: { message: string; retryAfterSeconds?: number }) {
+  const retryText = typeof retryAfterSeconds === 'number'
+    ? ` Retry after ${retryAfterSeconds} seconds.`
+    : '';
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center max-w-md px-6">
+        <h1 className="text-4xl font-bold text-orange-800 mb-4">429</h1>
+        <p className="text-orange-700" data-testid="429-error-message">{`${message}${retryText}`}</p>
+      </div>
+    </div>
+  );
+}
+
 /**
  * TenantProvider
  *
@@ -54,6 +69,7 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [forbiddenMessage, setForbiddenMessage] = useState<string | null>(null);
+  const [rateLimitError, setRateLimitError] = useState<{ message: string; retryAfterSeconds?: number } | null>(null);
 
   useEffect(() => {
     if (!slug) {
@@ -70,25 +86,39 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
           setOrg(result.org);
           setNotFound(false);
           setForbiddenMessage(null);
+          setRateLimitError(null);
           setIsLoading(false);
         }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
           const responseStatus = typeof error === 'object' && error !== null && 'response' in error
-            ? (error as { response?: { status?: number; data?: { error?: string } } }).response?.status
+            ? (error as { response?: { status?: number; data?: { error?: string; retryAfterSeconds?: number }; headers?: Record<string, string> } }).response?.status
             : undefined;
           const responseMessage = typeof error === 'object' && error !== null && 'response' in error
-            ? (error as { response?: { status?: number; data?: { error?: string } } }).response?.data?.error
+            ? (error as { response?: { status?: number; data?: { error?: string; retryAfterSeconds?: number }; headers?: Record<string, string> } }).response?.data?.error
+            : undefined;
+          const retryAfterSeconds = typeof error === 'object' && error !== null && 'response' in error
+            ? (error as { response?: { status?: number; data?: { error?: string; retryAfterSeconds?: number }; headers?: Record<string, string> } }).response?.data?.retryAfterSeconds
+              ?? Number((error as { response?: { headers?: Record<string, string> } }).response?.headers?.['retry-after'])
             : undefined;
           const message = error instanceof Error ? error.message : 'Organization not found';
 
-          if (responseStatus === 403 || /organization mismatch|cross-tenant access denied/i.test(responseMessage ?? message)) {
+          if (responseStatus === 429 || /too many requests/i.test(responseMessage ?? message)) {
+            setRateLimitError({
+              message: responseMessage ?? message,
+              ...(Number.isFinite(retryAfterSeconds) ? { retryAfterSeconds } : {}),
+            });
+            setForbiddenMessage(null);
+            setNotFound(false);
+          } else if (responseStatus === 403 || /organization mismatch|cross-tenant access denied/i.test(responseMessage ?? message)) {
             setForbiddenMessage(responseMessage ?? message);
+            setRateLimitError(null);
             setNotFound(false);
           } else {
             setNotFound(true);
             setForbiddenMessage(null);
+            setRateLimitError(null);
           }
 
           setIsLoading(false);
@@ -110,6 +140,10 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
 
   if (forbiddenMessage) {
     return <ForbiddenScreen message={forbiddenMessage} />;
+  }
+
+  if (rateLimitError) {
+    return <TooManyRequestsScreen message={rateLimitError.message} retryAfterSeconds={rateLimitError.retryAfterSeconds} />;
   }
 
   return (

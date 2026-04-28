@@ -31,6 +31,10 @@ function getScraperBasePath(): string {
   return getTenantScopedPath('/scraper');
 }
 
+function getReportsBasePath(): string {
+  return getTenantScopedPath('/reports');
+}
+
 function getOrgSlug(): string | undefined {
   const match = window.location.pathname.match(/^\/org\/([^/]+)/);
   return match?.[1];
@@ -357,7 +361,7 @@ export async function getScrapeReports(params?: {
   status?: 'running' | 'success' | 'partial_success' | 'failed';
   triggerType?: 'manual' | 'cron';
 }): Promise<PaginatedResponse<ScrapeReport>> {
-  const response = await apiClient.get<ApiResponse<PaginatedResponse<ScrapeReport>>>('/reports', { params });
+  const response = await apiClient.get<ApiResponse<PaginatedResponse<ScrapeReport>>>(getReportsBasePath(), { params });
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch reports');
   }
@@ -365,7 +369,7 @@ export async function getScrapeReports(params?: {
 }
 
 export async function getScrapeReportById(id: number): Promise<ScrapeReport> {
-  const response = await apiClient.get<ApiResponse<ScrapeReport>>(`/reports/${id}`);
+  const response = await apiClient.get<ApiResponse<ScrapeReport>>(`${getReportsBasePath()}/${id}`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch report');
   }
@@ -400,7 +404,7 @@ export interface ReportDetails {
 }
 
 export async function getReportDetails(id: number): Promise<ReportDetails> {
-  const response = await apiClient.get<ApiResponse<ReportDetails>>(`/reports/${id}/details`);
+  const response = await apiClient.get<ApiResponse<ReportDetails>>(`${getReportsBasePath()}/${id}/details`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch report details');
   }

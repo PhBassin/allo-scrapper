@@ -25,6 +25,9 @@ vi.mock('axios', () => ({
 import {
   getCinemaSchedule,
   getCinemas,
+  getReportDetails,
+  getScrapeReportById,
+  getScrapeReports,
   getScrapeStatus,
   subscribeToProgress,
   triggerCinemaScrape,
@@ -167,6 +170,62 @@ describe('Cinema API Client', () => {
     await getScrapeStatus();
 
     expect(mockGet).toHaveBeenCalledWith('/org/acme/scraper/status');
+  });
+
+  it('uses the tenant-scoped reports endpoint on org routes', async () => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        ...originalLocation,
+        pathname: '/org/acme/admin',
+      },
+    });
+
+    mockGet.mockResolvedValueOnce({
+      data: { success: true, data: { items: [], total: 0, page: 1, pageSize: 10, totalPages: 0 } },
+    });
+
+    await getScrapeReports({ page: 1, pageSize: 10 });
+
+    expect(mockGet).toHaveBeenCalledWith('/org/acme/reports', {
+      params: { page: 1, pageSize: 10 },
+    });
+  });
+
+  it('uses the tenant-scoped report detail endpoint on org routes', async () => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        ...originalLocation,
+        pathname: '/org/acme/admin',
+      },
+    });
+
+    mockGet.mockResolvedValueOnce({
+      data: { success: true, data: { id: 42 } },
+    });
+
+    await getScrapeReportById(42);
+
+    expect(mockGet).toHaveBeenCalledWith('/org/acme/reports/42');
+  });
+
+  it('uses the tenant-scoped report details endpoint on org routes', async () => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        ...originalLocation,
+        pathname: '/org/acme/admin',
+      },
+    });
+
+    mockGet.mockResolvedValueOnce({
+      data: { success: true, data: { report: { id: 42 }, attempts: {}, summary: { total_attempts: 0, successful: 0, failed: 0, rate_limited: 0, not_attempted: 0, pending: 0 } } },
+    });
+
+    await getReportDetails(42);
+
+    expect(mockGet).toHaveBeenCalledWith('/org/acme/reports/42/details');
   });
 
   it('uses the tenant-scoped scraper progress SSE endpoint on org routes', () => {
