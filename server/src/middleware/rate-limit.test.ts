@@ -11,6 +11,7 @@ import {
   scraperLimiter,
   publicLimiter,
   healthCheckLimiter,
+  isTrustedLocalHealthProbe,
 } from './rate-limit.js';
 
 // Helper: sign a minimal JWT for rate-limit key tests (secret doesn't matter — we use jwt.decode)
@@ -440,6 +441,27 @@ describe('Rate Limiting Middleware', () => {
       expect(limitedResponse.status).toBe(429);
       expect(limitedResponse.body.success).toBe(false);
       expect(limitedResponse.body.error).toBe('Too many health check requests');
+    });
+
+    it('should only exempt localhost probes when both trusted IP and socket IP are loopback', () => {
+      const trustedLoopbackRequest = {
+        ip: '127.0.0.1',
+        socket: { remoteAddress: '::ffff:127.0.0.1' },
+      } as express.Request;
+
+      const spoofedLoopbackRequest = {
+        ip: '127.0.0.1',
+        socket: { remoteAddress: '203.0.113.50' },
+      } as express.Request;
+
+      const proxiedExternalRequest = {
+        ip: '203.0.113.50',
+        socket: { remoteAddress: '127.0.0.1' },
+      } as express.Request;
+
+      expect(isTrustedLocalHealthProbe(trustedLoopbackRequest)).toBe(true);
+      expect(isTrustedLocalHealthProbe(spoofedLoopbackRequest)).toBe(false);
+      expect(isTrustedLocalHealthProbe(proxiedExternalRequest)).toBe(false);
     });
   });
 });

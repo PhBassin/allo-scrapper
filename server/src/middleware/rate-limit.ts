@@ -2,6 +2,8 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import type { Request } from 'express';
 
+const LOCALHOST_IPS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
 // Helper to parse env var as number with fallback
 const parseEnvInt = (key: string, defaultValue: number): number => {
   const val = process.env[key];
@@ -75,6 +77,13 @@ export const authenticatedKeyGenerator = (req: Request): string => {
     // fall through to IP fallback
   }
   return ipKeyGenerator(req.ip ?? 'unknown');
+};
+
+export const isTrustedLocalHealthProbe = (req: Request): boolean => {
+  const forwardedIp = req.ip ?? '';
+  const socketIp = req.socket.remoteAddress ?? '';
+
+  return LOCALHOST_IPS.has(forwardedIp) && LOCALHOST_IPS.has(socketIp);
 };
 
 // General API rate limiter (applies to all /api/* routes)
@@ -154,11 +163,7 @@ export const publicLimiter = rateLimit({
 export const healthCheckLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: parseEnvInt('RATE_LIMIT_HEALTH_MAX', 10),
-  skip: (req) => {
-    // Exempt internal IPs (localhost, Docker, Kubernetes health probes)
-    const internalIPs = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
-    return internalIPs.includes(req.ip ?? '');
-  },
+  skip: isTrustedLocalHealthProbe,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

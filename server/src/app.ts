@@ -137,24 +137,6 @@ export function createApp() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Rate limiting for all API routes
-  app.use('/api', generalLimiter);
-
-  // API routes
-  app.use('/api/auth', authRouter);
-  app.use('/api/films', filmsRouter);
-  app.use('/api/cinemas', cinemasRouter);
-  app.use('/api/scraper', scraperRouter);
-  // Alias mount per Sprint Change Proposal 2026-04-26; canonical path remains /api/scraper/dlq
-  app.use('/api/admin/scraper', adminScraperAliasRouter);
-  app.use('/api/reports', reportsRouter);
-  app.use('/api/settings', settingsRouter);
-  app.use('/api/users', usersRouter);
-  app.use('/api/system', systemRouter);
-  app.use('/api/roles', rolesRouter);
-  app.use('/api/admin/rate-limits', rateLimitsRouter);
-  app.use('/api/config', configRouter);
-
   // Health check endpoint with database connectivity check
   // Cached for 5 seconds to prevent database connection pool exhaustion
   // Rate limited to 10 req/min per IP (localhost exempt for K8s/Docker probes)
@@ -210,6 +192,25 @@ export function createApp() {
       });
     }
   });
+
+  // Rate limiting for all API routes except /api/health, which keeps its own
+  // dedicated limiter so localhost probes can bypass generic /api quotas.
+  app.use('/api', generalLimiter);
+
+  // API routes
+  app.use('/api/auth', authRouter);
+  app.use('/api/films', filmsRouter);
+  app.use('/api/cinemas', cinemasRouter);
+  app.use('/api/scraper', scraperRouter);
+  // Alias mount per Sprint Change Proposal 2026-04-26; canonical path remains /api/scraper/dlq
+  app.use('/api/admin/scraper', adminScraperAliasRouter);
+  app.use('/api/reports', reportsRouter);
+  app.use('/api/settings', settingsRouter);
+  app.use('/api/users', usersRouter);
+  app.use('/api/system', systemRouter);
+  app.use('/api/roles', rolesRouter);
+  app.use('/api/admin/rate-limits', rateLimitsRouter);
+  app.use('/api/config', configRouter);
 
   // Theme CSS endpoint (public, with ETag caching)
   app.get('/api/theme.css', async (req, res) => {

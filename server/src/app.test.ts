@@ -12,13 +12,27 @@ vi.mock('./utils/logger.js');
 
 import * as themeGenerator from './services/theme-generator.js';
 
+const createMockDb = (queryImpl = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] })): DB => ({
+  query: queryImpl,
+  end: vi.fn(),
+} as unknown as DB);
+
+const loadNonTestAppModule = async () => {
+  vi.resetModules();
+  return import('./app.js');
+};
+
 describe('App - Theme Endpoint', () => {
   let app: Express;
   const mockDb: DB = {} as DB;
   let originalNodeEnv: string | undefined;
+  let originalGeneralMax: string | undefined;
+  let originalHealthMax: string | undefined;
 
   beforeEach(() => {
     originalNodeEnv = process.env.NODE_ENV;
+    originalGeneralMax = process.env.RATE_LIMIT_GENERAL_MAX;
+    originalHealthMax = process.env.RATE_LIMIT_HEALTH_MAX;
     process.env.NODE_ENV = 'development';
     app = createApp();
     app.set('db', mockDb);
@@ -28,6 +42,8 @@ describe('App - Theme Endpoint', () => {
 
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
+    process.env.RATE_LIMIT_GENERAL_MAX = originalGeneralMax;
+    process.env.RATE_LIMIT_HEALTH_MAX = originalHealthMax;
   });
 
   describe('GET /api/theme.css', () => {
@@ -205,6 +221,7 @@ describe('App - Theme Endpoint', () => {
 
       const res = await request(app)
         .get('/api/health')
+        .set('X-Forwarded-For', '203.0.113.10')
         .expect(200);
 
       expect(res.headers['ratelimit-limit']).toBeDefined();
@@ -223,6 +240,54 @@ describe('App - Theme Endpoint', () => {
       expect(res.body.status).toBe('ok');
       expect(res.body.timestamp).toBeDefined();
       expect(res.body.name).toBeDefined();
+    });
+
+    it('should never rate limit repeated localhost health probes through the real app stack', async () => {
+      process.env.NODE_ENV = 'development';
+      process.env.RATE_LIMIT_GENERAL_MAX = '2';
+
+      const { createApp: createNonTestApp } = await loadNonTestAppModule();
+      const localhostApp = createNonTestApp();
+      localhostApp.set('db', createMockDb());
+
+      for (const ip of ['127.0.0.1', '::1', '::ffff:127.0.0.1']) {
+        for (let i = 0; i < 20; i++) {
+          const res = await request(localhostApp)
+            .get('/api/health')
+            .set('X-Forwarded-For', ip);
+
+          expect(res.status).toBe(200);
+          expect(res.body.status).toMatch(/^(healthy|ok)$/);
+        }
+      }
+    });
+
+    it('should still rate limit external /api/health callers on the 11th request', async () => {
+      process.env.NODE_ENV = 'development';
+      process.env.RATE_LIMIT_GENERAL_MAX = '1';
+      process.env.RATE_LIMIT_HEALTH_MAX = '10';
+
+      const { createApp: createNonTestApp } = await loadNonTestAppModule();
+      const externalApp = createNonTestApp();
+      externalApp.set('db', createMockDb());
+
+      for (let i = 0; i < 10; i++) {
+        const res = await request(externalApp)
+          .get('/api/health')
+          .set('X-Forwarded-For', '203.0.113.42');
+
+        expect(res.status).toBe(200);
+      }
+
+      const limited = await request(externalApp)
+        .get('/api/health')
+        .set('X-Forwarded-For', '203.0.113.42');
+
+      expect(limited.status).toBe(429);
+      expect(limited.body).toEqual({
+        success: false,
+        error: 'Too many health check requests',
+      });
     });
   });
 
