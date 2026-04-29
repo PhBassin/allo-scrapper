@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { subscribeToProgress } from '../api/client';
+import type { ConnectionStatus } from '../api/client';
 import type { ProgressEvent } from '../types';
 
 export interface ScrapeJobState {
@@ -31,6 +32,7 @@ export interface ProgressState {
   latestEvent?: ProgressEvent;
   jobs: ScrapeJobState[];
   isConnected: boolean;
+  connectionStatus: ConnectionStatus;
   error?: string;
 }
 
@@ -227,6 +229,7 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void, track
     events: [],
     jobs: mergeTrackedJobs([], trackedJobsSnapshot),
     isConnected: true,
+    connectionStatus: 'connected',
   });
 
   // Use ref to keep stable callback reference and avoid re-subscribing
@@ -270,6 +273,7 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void, track
             return {
               ...prev,
               isConnected: true,
+              connectionStatus: 'connected',
               error: undefined,
             };
           }
@@ -291,6 +295,7 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void, track
             latestEvent: event,
             jobs,
             isConnected: true,
+            connectionStatus: 'connected',
             error: undefined,
           };
         });
@@ -299,8 +304,17 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void, track
         setState((prev) => ({
           ...prev,
           isConnected: false,
+          connectionStatus: 'disconnected',
           error: error.message === 'Progress stream closed' ? undefined : error.message,
           jobs: mergeTrackedJobs(prev.events, trackedJobsRef.current),
+        }));
+      },
+      (status: ConnectionStatus) => {
+        setState((prev) => ({
+          ...prev,
+          isConnected: status === 'connected',
+          connectionStatus: status,
+          ...(status === 'connected' ? { error: undefined } : {}),
         }));
       }
     );
@@ -319,11 +333,14 @@ export function useScrapeProgress(onComplete?: (success: boolean) => void, track
 
   const reset = () => {
     completionNotifiedRef.current = false;
-    setState({
+    setState((prev) => ({
       events: [],
       jobs: mergeTrackedJobs([], trackedJobsRef.current),
-      isConnected: state.isConnected,
-    });
+      isConnected: prev.isConnected,
+      connectionStatus: prev.connectionStatus,
+      latestEvent: undefined,
+      error: undefined,
+    }));
   };
 
   return {

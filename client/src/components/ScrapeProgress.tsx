@@ -7,14 +7,16 @@ export interface ScrapeProgressProps {
 }
 
 export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeProgressProps = {}) {
-  const { events, latestEvent, jobs, error } = useScrapeProgress(onComplete, trackedJobs);
+  const { events, latestEvent, jobs, error, connectionStatus } = useScrapeProgress(onComplete, trackedJobs);
 
   const hasTrackedJobs = jobs.length > 0;
+  const isReconnecting = connectionStatus === 'reconnecting';
+  const isDisconnected = connectionStatus === 'disconnected';
 
   // Only show the pure connecting state when we have neither SSE events nor
   // placeholder jobs from trigger responses. Pending tracked jobs should stay
   // visible before the first SSE event arrives.
-  if (events.length === 0 && !hasTrackedJobs) {
+  if (events.length === 0 && !hasTrackedJobs && !isReconnecting && !isDisconnected) {
     return (
       <div className="border-2 rounded-lg p-6 shadow-lg bg-white border-primary" data-testid="scrape-progress">
         <div className="flex items-center gap-3">
@@ -78,12 +80,30 @@ export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeP
           <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
+        ) : isReconnecting ? (
+          <div className="animate-pulse h-6 w-6 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
         ) : (
           <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
         )}
         <h3 className="text-lg font-bold text-gray-900">
-          {isCompleted ? 'Scraping terminé' : hasFailed ? 'Scraping échoué' : 'Scraping en cours'}
+          {isCompleted ? 'Scraping terminé' : hasFailed ? 'Scraping échoué' : isReconnecting ? 'Reconnexion...' : 'Scraping en cours'}
         </h3>
+      </div>
+
+      {/* Connection Status */}
+      <div className="mb-4">
+        <span
+          data-testid="sse-connection-status"
+          className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+            connectionStatus === 'connected' ? 'bg-green-100 text-green-800' :
+            connectionStatus === 'reconnecting' ? 'bg-amber-100 text-amber-800' :
+            'bg-red-100 text-red-800'
+          }`}
+        >
+          {connectionStatus === 'connected' ? 'Connecté' :
+           connectionStatus === 'reconnecting' ? 'Reconnexion...' :
+           'Déconnecté'}
+        </span>
       </div>
 
       {/* Status */}
@@ -106,6 +126,11 @@ export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeP
           </p>
           <p className="text-sm text-gray-600">
             {processedCinemas} / {totalCinemas}
+            {totalCinemas > 0 && processedCinemas < totalCinemas && (
+              <span className="ml-2 text-xs text-gray-400" data-testid="scrape-progress-eta">
+                ETA: ~{Math.round((totalCinemas - processedCinemas) * 2)} min
+              </span>
+            )}
           </p>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">

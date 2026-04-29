@@ -293,18 +293,36 @@ describe('Cinema API Client', () => {
     });
   });
 
-  it('reports a clean EOF from the SSE stream as a disconnect error', async () => {
+  it('reconnects after a clean EOF without surfacing an error', async () => {
+    vi.useFakeTimers();
     const onError = vi.fn();
+    let fetchCallCount = 0;
 
     globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       lastFetchCall = { input, init };
+
+      fetchCallCount++;
+
+      if (fetchCallCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: vi.fn().mockResolvedValue({ done: true, value: undefined }),
+            }),
+          },
+        } as unknown as Response);
+      }
 
       return Promise.resolve({
         ok: true,
         status: 200,
         body: {
           getReader: () => ({
-            read: vi.fn().mockResolvedValue({ done: true, value: undefined }),
+            read: vi.fn(() => new Promise(() => {
+              // Keep the reconnected stream open.
+            })),
           }),
         },
       } as unknown as Response);
@@ -313,28 +331,50 @@ describe('Cinema API Client', () => {
     subscribeToProgress(() => {}, onError);
     await Promise.resolve();
     await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(10);
 
-    expect(onError).toHaveBeenCalledWith(new Error('Progress stream closed'));
+    expect(onError).not.toHaveBeenCalled();
+    expect(fetchCallCount).toBeGreaterThan(1);
+
+    vi.useRealTimers();
   });
 
-  it('flushes the final buffered SSE message before reporting EOF', async () => {
+  it('flushes the final buffered SSE message before reconnecting on EOF', async () => {
+    vi.useFakeTimers();
     const onEvent = vi.fn();
     const onError = vi.fn();
+    let fetchCallCount = 0;
 
     globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       lastFetchCall = { input, init };
+
+      fetchCallCount++;
+
+      if (fetchCallCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: vi.fn()
+                .mockResolvedValueOnce({
+                  done: false,
+                  value: new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T16:10:00.000Z"}'),
+                })
+                .mockResolvedValueOnce({ done: true, value: undefined }),
+            }),
+          },
+        } as unknown as Response);
+      }
 
       return Promise.resolve({
         ok: true,
         status: 200,
         body: {
           getReader: () => ({
-            read: vi.fn()
-              .mockResolvedValueOnce({
-                done: false,
-                value: new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T16:10:00.000Z"}'),
-              })
-              .mockResolvedValueOnce({ done: true, value: undefined }),
+            read: vi.fn(() => new Promise(() => {
+              // Keep the reconnected stream open.
+            })),
           }),
         },
       } as unknown as Response);
@@ -344,32 +384,53 @@ describe('Cinema API Client', () => {
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(10);
 
     expect(onEvent).toHaveBeenCalledWith({
       type: 'ping',
       timestamp: '2026-04-28T16:10:00.000Z',
     });
-    expect(onError).toHaveBeenCalledWith(new Error('Progress stream closed'));
+    expect(onError).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 
   it('flushes the final buffered SSE message when UTF-8 data spans chunks before EOF', async () => {
+    vi.useFakeTimers();
     const onEvent = vi.fn();
     const onError = vi.fn();
     const bytes = new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T16:10:00.000Z","label":"Cinema Étoile"}');
     const splitAt = bytes.length - 2;
+    let fetchCallCount = 0;
 
     globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       lastFetchCall = { input, init };
+
+      fetchCallCount++;
+
+      if (fetchCallCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: vi.fn()
+                .mockResolvedValueOnce({ done: false, value: bytes.slice(0, splitAt) })
+                .mockResolvedValueOnce({ done: false, value: bytes.slice(splitAt) })
+                .mockResolvedValueOnce({ done: true, value: undefined }),
+            }),
+          },
+        } as unknown as Response);
+      }
 
       return Promise.resolve({
         ok: true,
         status: 200,
         body: {
           getReader: () => ({
-            read: vi.fn()
-              .mockResolvedValueOnce({ done: false, value: bytes.slice(0, splitAt) })
-              .mockResolvedValueOnce({ done: false, value: bytes.slice(splitAt) })
-              .mockResolvedValueOnce({ done: true, value: undefined }),
+            read: vi.fn(() => new Promise(() => {
+              // Keep the reconnected stream open.
+            })),
           }),
         },
       } as unknown as Response);
@@ -380,12 +441,374 @@ describe('Cinema API Client', () => {
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(10);
 
     expect(onEvent).toHaveBeenCalledWith({
       type: 'ping',
       timestamp: '2026-04-28T16:10:00.000Z',
       label: 'Cinema Étoile',
     });
-    expect(onError).toHaveBeenCalledWith(new Error('Progress stream closed'));
+    expect(onError).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  describe('SSE reconnection', () => {
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.clearAllMocks();
+      mockAbort = vi.fn();
+      lastFetchCall = undefined;
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: originalLocation,
+      });
+      window.localStorage.clear();
+    });
+
+    it('triggers reconnection after 60s without a ping event', async () => {
+      const onEvent = vi.fn();
+      const onStatusChange = vi.fn();
+
+      let resolveFirstRead: ((v: { done: boolean; value?: Uint8Array }) => void) | undefined;
+      let callCount = 0;
+      globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+        lastFetchCall = { input: _input, init };
+        callCount++;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: vi.fn()
+                .mockImplementationOnce(() => new Promise((resolve) => {
+                  resolveFirstRead = resolve;
+                }))
+                .mockImplementation(() => new Promise(() => {
+                  // Never resolves — keeps the stream open for heartbeat testing
+                })),
+            }),
+          },
+        } as unknown as Response);
+      });
+
+      subscribeToProgress(onEvent, undefined, onStatusChange);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // Send initial ping
+      resolveFirstRead?.({
+        done: false,
+        value: new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T15:00:00.000Z"}\n\n'),
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(onEvent).toHaveBeenCalledWith({ type: 'ping', timestamp: '2026-04-28T15:00:00.000Z' });
+      expect(callCount).toBe(1);
+
+      // Advance 60s — should trigger reconnection
+      await vi.advanceTimersByTimeAsync(60000);
+
+      // Should have called onStatusChange with 'reconnecting'
+      expect(onStatusChange).toHaveBeenCalledWith('reconnecting');
+
+      // Advance past the 1ms reconnect delay
+      await vi.advanceTimersByTimeAsync(100);
+
+      // Should have initiated a reconnection (new fetch call)
+      expect(callCount).toBeGreaterThan(1);
+    });
+
+    it('resets the heartbeat watchdog on each received ping', async () => {
+      const onEvent = vi.fn();
+      const onStatusChange = vi.fn();
+
+      let resolveFirstRead: ((v: { done: boolean; value?: Uint8Array }) => void) | undefined;
+      let resolveSecondRead: ((v: { done: boolean; value?: Uint8Array }) => void) | undefined;
+
+      globalThis.fetch = vi.fn(() => Promise.resolve({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockImplementationOnce(() => new Promise((resolve) => {
+                resolveFirstRead = resolve;
+              }))
+              .mockImplementationOnce(() => new Promise((resolve) => {
+                resolveSecondRead = resolve;
+              }))
+              .mockImplementation(() => new Promise(() => {
+                // Never resolves — keeps the stream open
+              })),
+          }),
+        },
+      } as unknown as Response));
+
+      subscribeToProgress(onEvent, undefined, onStatusChange);
+      await Promise.resolve();
+await Promise.resolve();
+
+      // First ping at t=0
+      resolveFirstRead?.({
+        done: false,
+        value: new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T15:00:00.000Z"}\n\n'),
+      });
+      await Promise.resolve();
+await Promise.resolve();
+
+      // Advance 30s — still within window
+      await vi.advanceTimersByTimeAsync(30000);
+
+      // Second ping at t=30 — should reset watchdog
+      resolveSecondRead?.({
+        done: false,
+        value: new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T15:00:30.000Z"}\n\n'),
+      });
+      await Promise.resolve();
+await Promise.resolve();
+
+      // Advance 30s from second ping — still within reset window
+      await vi.advanceTimersByTimeAsync(30000);
+
+      // Should NOT have triggered reconnection yet
+      expect(onStatusChange).not.toHaveBeenCalledWith('reconnecting');
+
+      // Advance another 30s — now 60s from last ping
+      await vi.advanceTimersByTimeAsync(30000);
+
+      // Now it should trigger
+      expect(onStatusChange).toHaveBeenCalledWith('reconnecting');
+    });
+
+    it('stops reconnection loop when unsubscribe is called', async () => {
+      const onEvent = vi.fn();
+      const onStatusChange = vi.fn();
+
+      let resolveFirstRead: ((v: { done: boolean; value?: Uint8Array }) => void) | undefined;
+
+      globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+        lastFetchCall = { input: _input, init };
+        const signal = init?.signal as AbortSignal | undefined;
+        signal?.addEventListener('abort', () => {
+          mockAbort();
+        });
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: vi.fn()
+                .mockImplementationOnce(() => new Promise((resolve) => {
+                  resolveFirstRead = resolve;
+                }))
+                .mockImplementation(() => new Promise(() => {
+                  // Never resolves — keeps stream open
+                })),
+            }),
+          },
+        } as unknown as Response);
+      });
+
+      const unsubscribe = subscribeToProgress(onEvent, undefined, onStatusChange);
+      await Promise.resolve();
+await Promise.resolve();
+
+      // Send initial ping
+      resolveFirstRead?.({
+        done: false,
+        value: new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T15:00:00.000Z"}\n\n'),
+      });
+      await Promise.resolve();
+await Promise.resolve();
+
+      // Advance 60s to trigger heartbeat timeout
+      await vi.advanceTimersByTimeAsync(60000);
+
+      expect(onStatusChange).toHaveBeenCalledWith('reconnecting');
+
+      // Unsubscribe during reconnection (before reconnect timer fires)
+      unsubscribe();
+      expect(mockAbort).toHaveBeenCalled();
+
+      // Advance more time — should NOT trigger another reconnection
+      mockAbort.mockClear();
+      await vi.advanceTimersByTimeAsync(100000);
+      expect(mockAbort).not.toHaveBeenCalled();
+    });
+
+    it('reconnects after clean stream EOF', async () => {
+      const onEvent = vi.fn();
+      const onError = vi.fn();
+      const onStatusChange = vi.fn();
+
+      let fetchCallCount = 0;
+
+      globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+        fetchCallCount++;
+        const signal = init?.signal as AbortSignal | undefined;
+        signal?.addEventListener('abort', () => {
+          mockAbort();
+        });
+
+        // First connection: immediate EOF (closed stream)
+        if (fetchCallCount === 1) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            body: {
+              getReader: () => ({
+                read: vi.fn().mockResolvedValue({ done: true, value: undefined }),
+              }),
+            },
+          } as unknown as Response);
+        }
+
+        // Second connection (reconnect): stays open
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: vi.fn(() => new Promise(() => {
+                // Never resolves — keeps stream open
+              })),
+            }),
+          },
+        } as unknown as Response);
+      });
+
+      subscribeToProgress(onEvent, onError, onStatusChange);
+      await Promise.resolve();
+await Promise.resolve();
+
+      // First connection closed immediately (EOF)
+      // The EOF path schedules a reconnect with 1ms delay
+      // Advance past the reconnect delay
+      await vi.advanceTimersByTimeAsync(10);
+
+      // Should have attempted reconnection
+      expect(fetchCallCount).toBeGreaterThan(1);
+    });
+
+    it('calls onStatusChange with connected when reconnection succeeds', async () => {
+      const onEvent = vi.fn();
+      const onStatusChange = vi.fn();
+
+      let resolvePing: ((v: { done: boolean; value?: Uint8Array }) => void) | undefined;
+
+      globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+        const signal = init?.signal as AbortSignal | undefined;
+        signal?.addEventListener('abort', () => {
+          mockAbort();
+        });
+
+        // Reconnection: send a ping, then keep open
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: vi.fn()
+                .mockImplementationOnce(() => new Promise((resolve) => {
+                  resolvePing = resolve;
+                }))
+                .mockImplementation(() => new Promise(() => {
+                  // Never resolves — keeps stream open
+                })),
+            }),
+          },
+        } as unknown as Response);
+      });
+
+      subscribeToProgress(onEvent, undefined, onStatusChange);
+      await Promise.resolve();
+await Promise.resolve();
+
+      // Advance 60s to trigger reconnection (no ping received during this time)
+      await vi.advanceTimersByTimeAsync(60000);
+
+      expect(onStatusChange).toHaveBeenCalledWith('reconnecting');
+
+      // Advance past reconnect delay
+      await vi.advanceTimersByTimeAsync(10);
+
+      // Reconnect succeeds — receive ping
+      resolvePing?.({
+        done: false,
+        value: new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T15:01:00.000Z"}\n\n'),
+      });
+      await Promise.resolve();
+await Promise.resolve();
+
+      expect(onStatusChange).toHaveBeenCalledWith('connected');
+    });
+
+    it('surfaces terminal HTTP failures without retrying 50 times', async () => {
+      const onError = vi.fn();
+      const onStatusChange = vi.fn();
+      let fetchCallCount = 0;
+
+      globalThis.fetch = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => {
+        fetchCallCount++;
+
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          body: null,
+        } as unknown as Response);
+      });
+
+      subscribeToProgress(() => {}, onError, onStatusChange);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(fetchCallCount).toBe(1);
+      expect(onStatusChange).toHaveBeenCalledWith('disconnected');
+      expect(onError).toHaveBeenCalledWith(new Error('Progress stream request failed (401)'));
+      expect(onStatusChange).not.toHaveBeenCalledWith('reconnecting');
+    });
+
+    it('marks the stream connected when the first successful retry opens before any ping arrives', async () => {
+      const onStatusChange = vi.fn();
+      let fetchCallCount = 0;
+
+      globalThis.fetch = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => {
+        fetchCallCount++;
+
+        if (fetchCallCount === 1) {
+          return Promise.reject(new Error('Connection lost'));
+        }
+
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: vi.fn(() => new Promise(() => {
+                // Keep the recovered stream open before the next heartbeat arrives.
+              })),
+            }),
+          },
+        } as unknown as Response);
+      });
+
+      subscribeToProgress(() => {}, undefined, onStatusChange);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(onStatusChange).toHaveBeenCalledWith('reconnecting');
+
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(fetchCallCount).toBeGreaterThan(1);
+      expect(onStatusChange).toHaveBeenCalledWith('connected');
+    });
   });
 });
