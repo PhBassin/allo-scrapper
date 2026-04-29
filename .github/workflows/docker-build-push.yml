@@ -290,7 +290,7 @@ jobs:
 
       - name: Read merged digest
         id: digest
-        run: echo "value=$(cat /tmp/merged-digest-${{ matrix.image }}.txt)" >> $GITHUB_OUTPUT
+        run: echo "value=sha256:$(cat /tmp/merged-digest-${{ matrix.image }}.txt | sed 's/sha256://')" >> $GITHUB_OUTPUT
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v4
