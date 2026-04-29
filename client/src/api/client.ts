@@ -215,7 +215,6 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
   let reconnectAttempt = 0;
   let isAborted = false;
   let initialConnect = true;
-  let hasConnectedOnce = false;
   const token = localStorage.getItem('token');
   const url = `${API_BASE_URL}${getScraperBasePath()}/progress`;
 
@@ -321,7 +320,6 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
           onStatusChange?.('connected');
         }
         initialConnect = false;
-        hasConnectedOnce = true;
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();

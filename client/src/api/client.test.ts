@@ -650,7 +650,7 @@ await Promise.resolve();
 
       let fetchCallCount = 0;
 
-      globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
         fetchCallCount++;
         const signal = init?.signal as AbortSignal | undefined;
         signal?.addEventListener('abort', () => {
@@ -755,7 +755,7 @@ await Promise.resolve();
       const onStatusChange = vi.fn();
       let fetchCallCount = 0;
 
-      globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      globalThis.fetch = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => {
         fetchCallCount++;
 
         return Promise.resolve({
@@ -779,7 +779,7 @@ await Promise.resolve();
       const onStatusChange = vi.fn();
       let fetchCallCount = 0;
 
-      globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      globalThis.fetch = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => {
         fetchCallCount++;
 
         if (fetchCallCount === 1) {
