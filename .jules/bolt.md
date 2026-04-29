@@ -1,3 +1,6 @@
 ## 2026-04-08 - Use Promise.all() to run concurrent independent queries
 **Learning:** Found sequential independent database queries in `getScraperStatus` (`server/src/services/system-info.ts`) which unnecessarily block one another, thereby creating a response time bottleneck.
 **Action:** When working on backend queries and system services, always verify that independent queries execute concurrently (using `Promise.all()`) instead of sequentially to optimize application latency.
+## 2026-04-29 - Array Mutation in Promise.all Refactoring
+**Learning:** In backend queries that utilize sequential operations (like `SELECT COUNT(*)` followed by paginated `SELECT *` with `LIMIT/OFFSET`), modifying the shared parameter array between operations works fine sequentially. However, when migrating to concurrent operations using `Promise.all()` to reduce database roundtrip latency, modifying the same parameter array (e.g. `params.push(limit, offset)`) or using a mutating pointer (e.g. `$${paramIndex++}`) creates race conditions.
+**Action:** When refactoring sequential queries into `Promise.all` in this codebase, explicitly copy parameter arrays using spread syntax `[...params, newParam]` and use static indices for SQL interpolation to ensure thread safety.
