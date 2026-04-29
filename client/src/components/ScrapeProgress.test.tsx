@@ -24,6 +24,7 @@ describe('ScrapeProgress', () => {
     // This tests Bug 1 fix: should NOT return null when events.length === 0
     const mockState: ProgressState = {
       isConnected: true,
+      connectionStatus: 'connected',
       events: [],
       jobs: [],
       latestEvent: undefined,
@@ -41,6 +42,7 @@ describe('ScrapeProgress', () => {
   it('should show loading state when not connected', () => {
     const mockState: ProgressState = {
       isConnected: false,
+      connectionStatus: 'disconnected',
       events: [],
       jobs: [],
       latestEvent: undefined,
@@ -50,12 +52,13 @@ describe('ScrapeProgress', () => {
 
     render(<ScrapeProgress />);
 
-    expect(screen.getByText(/connexion en cours/i)).toBeInTheDocument();
+    expect(screen.getByTestId('sse-connection-status')).toHaveTextContent('Déconnecté');
   });
 
   it('should show progress details when events are received', () => {
     const mockState: ProgressState = {
       isConnected: true,
+      connectionStatus: 'connected',
       events: [
         { type: 'started', total_cinemas: 3, total_dates: 7 },
         { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois', index: 0 },
@@ -77,6 +80,7 @@ describe('ScrapeProgress', () => {
   it('should show completed state when scrape finishes', () => {
     const mockState: ProgressState = {
       isConnected: true,
+      connectionStatus: 'connected',
       events: [
         { type: 'started', total_cinemas: 2, total_dates: 7 },
         { type: 'cinema_completed', cinema_name: 'Épée de Bois', total_films: 10 },
@@ -139,6 +143,7 @@ describe('ScrapeProgress', () => {
   it('should show failed state when scrape fails', () => {
     const mockState: ProgressState = {
       isConnected: true,
+      connectionStatus: 'connected',
       events: [
         { type: 'started', total_cinemas: 1, total_dates: 7 },
         { type: 'failed', error: 'Network error' },
@@ -173,6 +178,7 @@ describe('ScrapeProgress', () => {
   it('should display error message when hook reports an error', () => {
     const mockState: ProgressState = {
       isConnected: false,
+      connectionStatus: 'disconnected',
       events: [],
       jobs: [],
       latestEvent: undefined,
@@ -183,13 +189,14 @@ describe('ScrapeProgress', () => {
     render(<ScrapeProgress />);
 
     // Should still show loading state with error display
-    expect(screen.getByText(/connexion en cours/i)).toBeInTheDocument();
+    expect(screen.getByText(/erreur:/i)).toBeInTheDocument();
   });
 
   it('should call onComplete callback when passed as prop', () => {
     const onComplete = vi.fn();
     const mockState: ProgressState = {
       isConnected: true,
+      connectionStatus: 'connected',
       events: [],
       jobs: [],
       latestEvent: undefined,
@@ -206,6 +213,7 @@ describe('ScrapeProgress', () => {
   it('should show current cinema being processed', () => {
     const mockState: ProgressState = {
       isConnected: true,
+      connectionStatus: 'connected',
       events: [
         { type: 'started', total_cinemas: 3, total_dates: 7 },
         { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois', index: 0 },
@@ -224,6 +232,7 @@ describe('ScrapeProgress', () => {
   it('should show current film being processed', () => {
     const mockState: ProgressState = {
       isConnected: true,
+      connectionStatus: 'connected',
       events: [
         { type: 'started', total_cinemas: 1, total_dates: 7 },
         { type: 'film_started', film_id: 123, film_title: 'Test Film' },
@@ -243,6 +252,7 @@ describe('ScrapeProgress', () => {
     // This tests the fix: completed state should remain visible even when isConnected = false
     const mockState: ProgressState = {
       isConnected: false, // SSE connection closed
+      connectionStatus: 'disconnected',
       events: [
         { type: 'started', total_cinemas: 1, total_dates: 7 },
         { type: 'cinema_completed', cinema_name: 'Test Cinema', total_films: 5 },
@@ -309,6 +319,7 @@ describe('ScrapeProgress', () => {
   it('should display reload message when scrape completes successfully', () => {
     const mockState: ProgressState = {
       isConnected: true,
+      connectionStatus: 'connected',
       events: [
         {
           type: 'completed',
@@ -387,6 +398,7 @@ describe('ScrapeProgress', () => {
     // but with completed event still in events array
     const mockState: ProgressState = {
       isConnected: false, // SSE disconnected
+      connectionStatus: 'disconnected',
       events: [
         {
           type: 'completed',
@@ -466,6 +478,7 @@ describe('ScrapeProgress', () => {
   it('renders per-job progress cards and completion markers', () => {
     const mockState: ProgressState = {
       isConnected: true,
+      connectionStatus: 'connected',
       events: [
         { type: 'started', total_cinemas: 2, total_dates: 7 },
       ],
@@ -527,6 +540,7 @@ describe('ScrapeProgress', () => {
   it('renders pending tracked jobs before first SSE event', () => {
     const mockState: ProgressState = {
       isConnected: true,
+      connectionStatus: 'connected',
       events: [],
       jobs: [
         {
@@ -554,5 +568,141 @@ describe('ScrapeProgress', () => {
     expect(screen.getByText('Cinema Pending')).toBeInTheDocument();
     expect(screen.getByText(/en attente du premier evenement sse/i)).toBeInTheDocument();
     expect(screen.queryByText(/connexion en cours/i)).not.toBeInTheDocument();
+  });
+
+  describe('SSE reconnection UI', () => {
+    it('shows Connected status via data-testid when connectionStatus is connected', () => {
+      const mockState: ProgressState & { connectionStatus: string } = {
+        ...({
+          isConnected: true,
+          events: [{ type: 'started', total_cinemas: 1, total_dates: 1 }],
+          jobs: [],
+          latestEvent: { type: 'started', total_cinemas: 1, total_dates: 1 },
+          error: undefined,
+        } as unknown as ProgressState),
+        connectionStatus: 'connected',
+      };
+      mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
+
+      render(<ScrapeProgress />);
+
+      const status = screen.getByTestId('sse-connection-status');
+      expect(status).toHaveTextContent('Connecté');
+    });
+
+    it('shows Reconnecting status via data-testid when connectionStatus is reconnecting', () => {
+      const mockState: ProgressState & { connectionStatus: string } = {
+        ...({
+          isConnected: false,
+          events: [{ type: 'started', total_cinemas: 5, total_dates: 30 }],
+          jobs: [],
+          latestEvent: { type: 'started', total_cinemas: 5, total_dates: 30 },
+          error: undefined,
+        } as unknown as ProgressState),
+        connectionStatus: 'reconnecting',
+      };
+      mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
+
+      render(<ScrapeProgress />);
+
+      const status = screen.getByTestId('sse-connection-status');
+      expect(status).toHaveTextContent('Reconnexion...');
+    });
+
+    it('shows Disconnected status via data-testid when connectionStatus is disconnected', () => {
+      const mockState: ProgressState & { connectionStatus: string } = {
+        ...({
+          isConnected: false,
+          events: [],
+          jobs: [],
+          latestEvent: undefined,
+          error: 'Permanent connection failure',
+        } as unknown as ProgressState),
+        connectionStatus: 'disconnected',
+      };
+      mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
+
+      render(<ScrapeProgress />);
+
+      const status = screen.getByTestId('sse-connection-status');
+      expect(status).toHaveTextContent('Déconnecté');
+    });
+
+    it('keeps progress cards visible during reconnection', () => {
+      const mockState: ProgressState & { connectionStatus: string } = {
+        ...({
+          isConnected: false,
+          events: [
+            { type: 'started', total_cinemas: 3, total_dates: 7 },
+            { type: 'cinema_started', cinema_name: 'Cinema One', cinema_id: 'C1', index: 0 },
+            { type: 'cinema_completed', cinema_name: 'Cinema One', total_films: 10 },
+          ],
+          jobs: [
+            {
+              id: 'report:1',
+              reportId: 1,
+              events: [],
+              cinemaName: 'Cinema One',
+              totalCinemas: 3,
+              processedCinemas: 1,
+              totalFilms: 0,
+              processedFilms: 0,
+              cinemaProgress: 33,
+              filmProgress: 0,
+              status: 'running',
+            },
+          ],
+          latestEvent: { type: 'cinema_completed', cinema_name: 'Cinema One', total_films: 10 },
+          error: undefined,
+        } as unknown as ProgressState),
+        connectionStatus: 'reconnecting',
+      };
+      mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
+
+      render(<ScrapeProgress />);
+
+      // Connection status should show reconnecting
+      expect(screen.getByTestId('sse-connection-status')).toHaveTextContent('Reconnexion...');
+
+      // Progress card should still be visible
+      expect(screen.getByTestId('scrape-progress-card')).toBeInTheDocument();
+      expect(screen.getByTestId('scrape-progress-percentage')).toBeInTheDocument();
+      expect(screen.getByText('Cinema One')).toBeInTheDocument();
+    });
+
+    it('displays scrape-progress-eta when a job is running', () => {
+      const mockState: ProgressState & { connectionStatus: string } = {
+        ...({
+          isConnected: true,
+          events: [
+            { type: 'started', total_cinemas: 10, total_dates: 50 },
+            { type: 'cinema_started', cinema_name: 'Cinema One', cinema_id: 'C1', index: 0 },
+          ],
+          jobs: [
+            {
+              id: 'report:1',
+              reportId: 1,
+              events: [],
+              cinemaName: 'Cinema One',
+              totalCinemas: 10,
+              processedCinemas: 0,
+              totalFilms: 0,
+              processedFilms: 0,
+              cinemaProgress: 0,
+              filmProgress: 0,
+              status: 'running',
+            },
+          ],
+          latestEvent: { type: 'cinema_started', cinema_name: 'Cinema One', cinema_id: 'C1', index: 0 },
+          error: undefined,
+        } as unknown as ProgressState),
+        connectionStatus: 'connected',
+      };
+      mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
+
+      render(<ScrapeProgress />);
+
+      expect(screen.getByTestId('scrape-progress-eta')).toBeInTheDocument();
+    });
   });
 });

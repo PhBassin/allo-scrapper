@@ -12,6 +12,8 @@ import type {
   ScrapeSchedule,
 } from '../types';
 
+export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
+
 // Create axios instance
 // Use relative path by default to work with proxy in dev and same-origin in prod
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -206,10 +208,65 @@ export async function getScrapeStatus(): Promise<ScrapeStatus> {
   return response.data.data;
 }
 
-export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onError?: (error: Error) => void): () => void {
-  const controller = new AbortController();
+export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onError?: (error: Error) => void, onStatusChange?: (status: ConnectionStatus) => void): () => void {
+  let controller: AbortController | null = null;
+  let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let reconnectAttempt = 0;
+  let isAborted = false;
+  let initialConnect = true;
+  let hasConnectedOnce = false;
   const token = localStorage.getItem('token');
   const url = `${API_BASE_URL}${getScraperBasePath()}/progress`;
+
+  function isTerminalConnectionError(error: unknown): error is Error {
+    return error instanceof Error
+      && (error.message.startsWith('Progress stream request failed')
+        || error.message === 'Progress stream is unavailable');
+  }
+
+  function clearAllTimers() {
+    if (heartbeatTimer !== null) {
+      clearTimeout(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+    if (reconnectTimer !== null) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+  }
+
+  function resetHeartbeat() {
+    if (heartbeatTimer !== null) {
+      clearTimeout(heartbeatTimer);
+    }
+    heartbeatTimer = setTimeout(() => {
+      clearAllTimers();
+      controller?.abort();
+      scheduleReconnect();
+    }, 60000);
+  }
+
+  function scheduleReconnect() {
+    if (isAborted) return;
+
+    clearAllTimers();
+
+    if (reconnectAttempt >= 50) {
+      onStatusChange?.('disconnected');
+      onError?.(new Error('Max reconnection attempts reached'));
+      return;
+    }
+
+    const delay = reconnectAttempt === 0 ? 1 : Math.min(1000 * Math.pow(2, reconnectAttempt - 1), 32000);
+    reconnectAttempt++;
+
+    onStatusChange?.('reconnecting');
+
+    reconnectTimer = setTimeout(() => {
+      connect();
+    }, delay);
+  }
 
   const processMessage = (message: string) => {
     const lines = message
@@ -232,66 +289,105 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
     }
   };
 
-  void (async () => {
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Accept: 'text/event-stream',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        signal: controller.signal,
-        cache: 'no-store',
-      });
+  function connect() {
+    if (isAborted) return;
 
-      if (!response.ok) {
-        throw new Error(`Progress stream request failed (${response.status})`);
-      }
+    controller = new AbortController();
+    const signal = controller.signal;
 
-      if (!response.body) {
-        throw new Error('Progress stream is unavailable');
-      }
+    void (async () => {
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            Accept: 'text/event-stream',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          signal,
+          cache: 'no-store',
+        });
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          buffer += decoder.decode();
-
-          if (buffer.trim()) {
-            processMessage(buffer);
-            buffer = '';
-          }
-
-          if (!controller.signal.aborted) {
-            onError?.(new Error('Progress stream closed'));
-          }
-          break;
+        if (!response.ok) {
+          throw new Error(`Progress stream request failed (${response.status})`);
         }
 
-        buffer += decoder.decode(value, { stream: true });
-        const messages = buffer.split(/\r?\n\r?\n/);
-        buffer = messages.pop() ?? '';
+        if (!response.body) {
+          throw new Error('Progress stream is unavailable');
+        }
 
-        for (const message of messages) {
-          processMessage(message);
+        // Connection established
+
+        if (!initialConnect || reconnectAttempt > 0) {
+          onStatusChange?.('connected');
+        }
+        initialConnect = false;
+        hasConnectedOnce = true;
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        // Start heartbeat watchdog
+        resetHeartbeat();
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            buffer += decoder.decode();
+
+            if (buffer.trim()) {
+              processMessage(buffer);
+              buffer = '';
+            }
+
+            if (!signal.aborted && !isAborted) {
+              scheduleReconnect();
+            }
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const messages = buffer.split(/\r?\n\r?\n/);
+          buffer = messages.pop() ?? '';
+
+          for (const message of messages) {
+            if (message.includes('"type":"ping"')) {
+              resetHeartbeat();
+              reconnectAttempt = 0;
+            }
+            processMessage(message);
+          }
+        }
+      } catch (error) {
+        if (isAborted) {
+          return;
+        }
+
+        if (signal.aborted) {
+          return;
+        }
+
+        console.error('SSE connection error:', error);
+
+        if (!isAborted) {
+          if (isTerminalConnectionError(error)) {
+            onStatusChange?.('disconnected');
+            onError?.(error);
+            return;
+          }
+
+          scheduleReconnect();
         }
       }
-    } catch (error) {
-      if (controller.signal.aborted) {
-        return;
-      }
+    })();
+  }
 
-      console.error('SSE connection error:', error);
-      onError?.(error instanceof Error ? error : new Error('Connection lost'));
-    }
-  })();
+  connect();
 
   return () => {
-    controller.abort();
+    isAborted = true;
+    clearAllTimers();
+    controller?.abort();
   };
 }
 

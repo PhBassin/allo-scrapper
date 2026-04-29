@@ -241,4 +241,107 @@ describe('useScrapeProgress', () => {
     expect(result.current.isConnected).toBe(false);
     expect(result.current.error).toBeUndefined();
   });
+
+  describe('reconnection', () => {
+    it('transitions connectionStatus through reconnecting to connected', () => {
+      let statusCallback: (status: string) => void = () => {};
+
+      mockSubscribe.mockImplementation((_cb, _onError, onStatusChange) => {
+        statusCallback = onStatusChange ?? (() => {});
+        return mockUnsubscribe;
+      });
+
+      const { result } = renderHook(() => useScrapeProgress());
+
+      act(() => {
+        statusCallback('reconnecting');
+      });
+
+      expect(result.current.connectionStatus).toBe('reconnecting');
+      expect(result.current.isConnected).toBe(false);
+
+      act(() => {
+        statusCallback('connected');
+      });
+
+      expect(result.current.connectionStatus).toBe('connected');
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    it('preserves accumulated progress events across reconnection', () => {
+      let eventCallback: (event: any) => void = () => {};
+      let statusCallback: (status: string) => void = () => {};
+
+      mockSubscribe.mockImplementation((cb, _onError, onStatusChange) => {
+        eventCallback = cb;
+        statusCallback = onStatusChange ?? (() => {});
+        return mockUnsubscribe;
+      });
+
+      const { result } = renderHook(() => useScrapeProgress());
+
+      // First event arrives
+      act(() => {
+        eventCallback({ type: 'started', report_id: 10, total_cinemas: 5, total_dates: 30 });
+      });
+
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.jobs[0]?.totalCinemas).toBe(5);
+
+      // Connection drops
+      act(() => {
+        statusCallback('reconnecting');
+      });
+
+      expect(result.current.connectionStatus).toBe('reconnecting');
+
+      // Reconnect succeeds
+      act(() => {
+        statusCallback('connected');
+      });
+
+      expect(result.current.connectionStatus).toBe('connected');
+
+      // Events should still be preserved
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.jobs[0]?.totalCinemas).toBe(5);
+
+      // Second event arrives after reconnect
+      act(() => {
+        eventCallback({ type: 'cinema_started', report_id: 10, cinema_name: 'Cinema One', cinema_id: 'C1', index: 0 });
+      });
+
+      expect(result.current.events).toHaveLength(2);
+      expect(result.current.jobs[0]?.cinemaName).toBe('Cinema One');
+    });
+
+    it('clears error on successful reconnect', () => {
+      let errorCallback: (error: Error) => void = () => {};
+      let statusCallback: (status: string) => void = () => {};
+
+      mockSubscribe.mockImplementation((_cb, onError, onStatusChange) => {
+        errorCallback = onError ?? (() => {});
+        statusCallback = onStatusChange ?? (() => {});
+        return mockUnsubscribe;
+      });
+
+      const { result } = renderHook(() => useScrapeProgress());
+
+      // Connection fails with real error
+      act(() => {
+        errorCallback(new Error('Connection lost'));
+      });
+
+      expect(result.current.connectionStatus).toBe('disconnected');
+      expect(result.current.error).toBe('Connection lost');
+
+      // Reconnect succeeds
+      act(() => {
+        statusCallback('connected');
+      });
+
+      expect(result.current.connectionStatus).toBe('connected');
+      expect(result.current.error).toBeUndefined();
+    });
+  });
 });
