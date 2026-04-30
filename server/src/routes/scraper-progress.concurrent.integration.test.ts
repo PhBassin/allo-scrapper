@@ -16,6 +16,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import express from 'express';
 import type { Express, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { ProgressTracker } from '../services/progress-tracker.js';
 import type { ProgressEvent } from '../services/progress-tracker.js';
 import type { AuthRequest } from '../middleware/auth.js';
@@ -79,15 +80,21 @@ function buildDisposableApp(tracker: ProgressTracker): Express {
     }
   };
 
-  // Passthrough rate-limiter (no real IP-based limits needed in-process)
-  const passthrough = (_req: Request, _res: Response, next: NextFunction) => next();
+  // Real rate limiter to protect auth verification from request floods.
+  // Keep limits high enough for this concurrent integration test.
+  const progressRateLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 500,
+    standardHeaders: false,
+    legacyHeaders: false,
+  });
 
   // Minimal DB stub (progress route does not query the DB directly)
   app.set('db', { query: async () => ({ rows: [] }) });
 
   // SSE progress route — mirrors server/src/routes/scraper.ts:303-325
   // but wired to our isolated tracker instead of the global singleton.
-  app.get('/api/scraper/progress', passthrough, inlineRequireAuth, (req: AuthRequest, res: Response) => {
+  app.get('/api/scraper/progress', progressRateLimiter, inlineRequireAuth, (req: AuthRequest, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
