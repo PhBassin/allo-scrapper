@@ -1,3 +1,5 @@
 ## 2026-04-08 - Use Promise.all() to run concurrent independent queries
 **Learning:** Found sequential independent database queries in `getScraperStatus` (`server/src/services/system-info.ts`) which unnecessarily block one another, thereby creating a response time bottleneck.
-**Action:** When working on backend queries and system services, always verify that independent queries execute concurrently (using `Promise.all()`) instead of sequentially to optimize application latency.
+**Action:** When working on backend queries and system services, always verify that independent queries execute concurrently (using `Promise.all()`) instead of sequentially to optimize application latency.## 2026-04-09 - Use Promise.all() for sequential COUNT and SELECT queries
+**Learning:** Found sequential independent database queries in `getScrapeReports` (`server/src/db/report-queries.ts`) where a total count and paginated result were fetched sequentially.
+**Action:** When refactoring sequential Postgres database queries (like `COUNT(*)` and paginated `SELECT`s) to run concurrently via `Promise.all`, avoid mutating the shared `params` array. Instead, create a cloned array (e.g., `const dataParams = [...params, limit, offset]`) for the query requiring extra parameters to prevent race conditions and unintended query manipulation.
