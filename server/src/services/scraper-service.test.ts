@@ -251,7 +251,7 @@ describe('ScraperService', () => {
       const cleanup = scraperService.subscribeToProgress(mockRes, mockOnClose);
       
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
-      expect(progressTracker.addListener).toHaveBeenCalledWith(mockRes, undefined);
+      expect(progressTracker.addListener).toHaveBeenCalledWith(mockRes, undefined, undefined);
       
       cleanup();
       
@@ -287,7 +287,37 @@ describe('ScraperService', () => {
           endpoint: '/api/org/acme/scraper/progress',
           method: 'GET',
           traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
-        })
+        }),
+        undefined
+      );
+    });
+
+    it('should pass Last-Event-ID resume context to progress tracker', () => {
+      const mockRes = { setHeader: vi.fn() };
+      const mockOnClose = vi.fn();
+
+      scraperService.subscribeToProgress(mockRes, mockOnClose, {
+        endpoint: '/api/org/acme/scraper/progress',
+        method: 'GET',
+        user: {
+          id: 3,
+          username: 'tenant-user',
+          role_name: 'admin',
+          is_system_role: false,
+          permissions: [],
+          org_id: 42,
+          org_slug: 'acme',
+        },
+      }, '17');
+
+      expect(progressTracker.addListener).toHaveBeenCalledWith(
+        mockRes,
+        expect.objectContaining({
+          org_id: '42',
+          org_slug: 'acme',
+          user_id: '3',
+        }),
+        '17'
       );
     });
   });

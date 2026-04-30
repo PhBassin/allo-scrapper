@@ -312,9 +312,11 @@ router.get('/progress', protectedLimiter, requireAuth, (req, res, next) => {
       user: (req as AuthRequest).user,
     };
 
+    const lastEventId = req.get('Last-Event-ID');
+
     const cleanup = scraperService.subscribeToProgress(res, () => {
       // Optional additional cleanup on route level if needed
-    }, observabilityContext);
+    }, observabilityContext, lastEventId);
 
     req.on('close', cleanup);
   } catch (error) {

@@ -423,26 +423,35 @@ Fatal error: ...
 
 ```bash
 # Connect to progress stream
-curl -N http://localhost:3000/api/scraper/progress
+curl -N -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/scraper/progress
 
-# Expected heartbeat (every 15 seconds)
-: heartbeat
+# Expected heartbeat (every 30 seconds)
+data: {"type":"ping","timestamp":"2026-04-28T15:18:00.000Z"}
 
 # Expected events during scrape
-event: cinema_started
+id: 1
+data: {"type":"started","total_cinemas":3,"total_dates":7}
+
+id: 2
 data: {"type":"cinema_started","cinema_name":"UGC Ciné Cité Les Halles"}
 
-event: date_started
+id: 3
 data: {"type":"date_started","cinema_name":"UGC Ciné Cité Les Halles","date":"2026-03-05"}
 
-event: film_scraped
-data: {"type":"film_scraped","film_title":"Dune: Part Two","showtime_count":8}
-
-event: film_failed
+id: 4
 data: {"type":"film_failed","film_title":"Unknown","error":"Parser error"}
 
-event: date_completed
+id: 5
 data: {"type":"date_completed","cinema_name":"UGC Ciné Cité Les Halles","date":"2026-03-05"}
+```
+
+To test resume behavior after reconnect, reuse the last business event ID:
+
+```bash
+curl -N \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Last-Event-ID: 3" \
+  http://localhost:3000/api/scraper/progress
 ```
 
 ---
@@ -466,33 +475,40 @@ curl http://localhost:3000/api/scraper/status
    - Add `proxy_buffering off;` to nginx
 
 3. **Client timeout:**
-   - Heartbeat sent every 15 seconds
-   - Client must handle keep-alive
+   - Heartbeat `ping` frames are sent every 30 seconds
+   - Client must reset its keep-alive watchdog when `ping` frames arrive
 
 ---
 
 ### Connection Drops
 
 **Behavior:**
-- Disconnected clients **removed silently**
-- No automatic reconnection
+- Disconnected clients are removed from the server listener set
+- The first-party browser client automatically reconnects with exponential backoff
+- Reconnected clients send `Last-Event-ID` after receiving a replayable business event ID
 - No error emitted to remaining clients
 
 **Client responsibility:**
 - Detect connection drop
-- Reconnect manually
-- Handle reconnection logic
+- Reconnect manually if not using the first-party client transport
+- Preserve the last replayable business event ID and send it as `Last-Event-ID`
+- Ignore heartbeat `ping` frames for replay cursors; pings have no SSE `id:`
 
-**Example (JavaScript):**
+**Example (JavaScript with authenticated `fetch`):**
 
 ```javascript
-function connectSSE() {
-  const eventSource = new EventSource('/api/scraper/progress');
-  
-  eventSource.onerror = () => {
-    eventSource.close();
-    setTimeout(connectSSE, 5000);  // Reconnect after 5s
-  };
+let lastEventId;
+
+async function connectSSE(token) {
+  const response = await fetch('/api/scraper/progress', {
+    headers: {
+      Accept: 'text/event-stream',
+      Authorization: `Bearer ${token}`,
+      ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {}),
+    },
+  });
+
+  // Parse SSE blocks. When a non-ping block has `id:`, save it to lastEventId.
 }
 ```
 

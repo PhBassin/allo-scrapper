@@ -453,6 +453,99 @@ describe('Cinema API Client', () => {
     vi.useRealTimers();
   });
 
+  it('parses SSE id fields with multi-line data blocks', async () => {
+    const onEvent = vi.fn();
+
+    globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      lastFetchCall = { input: _input, init };
+
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({
+                done: false,
+                value: new TextEncoder().encode('id: 42\ndata: {"type":"started",\ndata: "report_id":42,"total_cinemas":1,"total_dates":1}\n\n'),
+              })
+              .mockImplementation(() => new Promise(() => {
+                // Keep the stream open after the parsed event.
+              })),
+          }),
+        },
+      } as unknown as Response);
+    });
+
+    subscribeToProgress(onEvent);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'started',
+      report_id: 42,
+      total_cinemas: 1,
+      total_dates: 1,
+    });
+  });
+
+  it('preserves id parsing when UTF-8 data spans chunks before EOF', async () => {
+    vi.useFakeTimers();
+    const onEvent = vi.fn();
+    const onError = vi.fn();
+    const bytes = new TextEncoder().encode('id: 7\ndata: {"type":"ping","timestamp":"2026-04-28T16:10:00.000Z","label":"Cinema Étoile"}');
+    const splitAt = bytes.length - 2;
+    let fetchCallCount = 0;
+
+    globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      lastFetchCall = { input, init };
+      fetchCallCount++;
+
+      if (fetchCallCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: vi.fn()
+                .mockResolvedValueOnce({ done: false, value: bytes.slice(0, splitAt) })
+                .mockResolvedValueOnce({ done: false, value: bytes.slice(splitAt) })
+                .mockResolvedValueOnce({ done: true, value: undefined }),
+            }),
+          },
+        } as unknown as Response);
+      }
+
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => ({
+            read: vi.fn(() => new Promise(() => {
+              // Keep the reconnected stream open.
+            })),
+          }),
+        },
+      } as unknown as Response);
+    });
+
+    subscribeToProgress(onEvent, onError);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'ping',
+      timestamp: '2026-04-28T16:10:00.000Z',
+      label: 'Cinema Étoile',
+    });
+    expect(onError).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
   describe('SSE reconnection', () => {
 
     beforeEach(() => {
@@ -755,7 +848,7 @@ await Promise.resolve();
       const onStatusChange = vi.fn();
       let fetchCallCount = 0;
 
-      globalThis.fetch = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => {
+      globalThis.fetch = vi.fn(() => {
         fetchCallCount++;
 
         return Promise.resolve({
@@ -779,7 +872,7 @@ await Promise.resolve();
       const onStatusChange = vi.fn();
       let fetchCallCount = 0;
 
-      globalThis.fetch = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => {
+      globalThis.fetch = vi.fn(() => {
         fetchCallCount++;
 
         if (fetchCallCount === 1) {
@@ -809,6 +902,117 @@ await Promise.resolve();
 
       expect(fetchCallCount).toBeGreaterThan(1);
       expect(onStatusChange).toHaveBeenCalledWith('connected');
+    });
+
+    it('resets the reconnect delay budget after a retry successfully reopens the stream', async () => {
+      let fetchCallCount = 0;
+
+      globalThis.fetch = vi.fn(() => {
+        fetchCallCount++;
+
+        if (fetchCallCount === 1) {
+          return Promise.reject(new Error('Connection lost'));
+        }
+
+        if (fetchCallCount === 2) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            body: {
+              getReader: () => ({
+                read: vi.fn().mockResolvedValueOnce({ done: true, value: undefined }),
+              }),
+            },
+          } as unknown as Response);
+        }
+
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: vi.fn(() => new Promise(() => {
+                // Keep the retried stream open.
+              })),
+            }),
+          },
+        } as unknown as Response);
+      });
+
+      subscribeToProgress(() => {});
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(fetchCallCount).toBe(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(fetchCallCount).toBe(2);
+
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(fetchCallCount).toBeGreaterThanOrEqual(3);
+    });
+
+    it('sends Last-Event-ID on reconnect after receiving an SSE id', async () => {
+      const onEvent = vi.fn();
+      let fetchCallCount = 0;
+
+      globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        lastFetchCall = { input, init };
+        fetchCallCount++;
+
+        if (fetchCallCount === 1) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            body: {
+              getReader: () => ({
+                read: vi.fn()
+                  .mockResolvedValueOnce({
+                    done: false,
+                    value: new TextEncoder().encode('id: 19\ndata: {"type":"started","report_id":19,"total_cinemas":1,"total_dates":1}\n\n'),
+                  })
+                  .mockResolvedValueOnce({ done: true, value: undefined }),
+              }),
+            },
+          } as unknown as Response);
+        }
+
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: vi.fn(() => new Promise(() => {
+                // Keep the reconnected stream open.
+              })),
+            }),
+          },
+        } as unknown as Response);
+      });
+
+      subscribeToProgress(onEvent);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const firstHeaders = lastFetchCall?.init?.headers as Record<string, string>;
+      expect(firstHeaders).not.toHaveProperty('Last-Event-ID');
+
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(fetchCallCount).toBeGreaterThan(1);
+      expect(onEvent).toHaveBeenCalledWith({
+        type: 'started',
+        report_id: 19,
+        total_cinemas: 1,
+        total_dates: 1,
+      });
+      expect(lastFetchCall?.init?.headers).toEqual(expect.objectContaining({
+        'Last-Event-ID': '19',
+      }));
     });
   });
 });

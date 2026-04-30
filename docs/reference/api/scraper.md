@@ -167,7 +167,12 @@ GET /api/scraper/progress
 
 **Authentication:** Required.
 
-Persistent Server-Sent Events stream. Previously buffered events for the active scrape are replayed to new subscribers, then live events are streamed. A JSON `ping` event is sent every 30 s to keep the connection alive. Heartbeat frames are transport-only and are not replayed as scrape history to new subscribers.
+Persistent Server-Sent Events stream. Previously buffered events for the active scrape are replayed to new subscribers, then live events are streamed. Replayable business events include standard SSE `id:` fields so clients can resume with `Last-Event-ID` after reconnecting. A JSON `ping` event is sent every 30 s to keep the connection alive. Heartbeat frames are transport-only: they do not include `id:` fields and are not replayed as scrape history to new subscribers.
+
+**Request Headers:**
+- `Authorization: Bearer <token>`
+- `Accept: text/event-stream`
+- `Last-Event-ID: <event-id>` optional; replays matching tenant progress events after this ID
 
 **Response Headers:**
 - `Content-Type: text/event-stream`
@@ -177,33 +182,44 @@ Persistent Server-Sent Events stream. Previously buffered events for the active 
 
 **Event Format**
 
-All events arrive as plain `data:` lines (no named `event:` field). Each payload is JSON with a `type` discriminator:
+Events are unnamed SSE messages. Business progress messages use `id:` plus one or more `data:` lines. Each payload is JSON with a `type` discriminator:
 
 ```
 data: {"type":"ping","timestamp":"2026-04-28T15:18:00.000Z"}
 ```
 
 ```
+id: 1
 data: {"type":"started","total_cinemas":3,"total_dates":7}
 
+id: 2
 data: {"type":"cinema_started","cinema_name":"Épée de Bois","cinema_id":"W7504","index":1}
 
+id: 3
 data: {"type":"date_started","date":"2026-02-19","cinema_name":"Épée de Bois"}
 
+id: 4
 data: {"type":"film_started","film_title":"Mon Film","film_id":123456}
 
+id: 5
 data: {"type":"film_completed","film_title":"Mon Film","showtimes_count":5}
 
+id: 6
 data: {"type":"film_failed","film_title":"Mon Film","error":"HTTP 404"}
 
+id: 7
 data: {"type":"date_completed","date":"2026-02-19","films_count":12}
 
+id: 8
 data: {"type":"date_failed","date":"2026-02-19","cinema_name":"Épée de Bois","error":"HTTP 503"}
 
+id: 9
 data: {"type":"cinema_completed","cinema_name":"Épée de Bois","total_films":42}
 
+id: 10
 data: {"type":"completed","summary":{"total_cinemas":3,"successful_cinemas":3,"failed_cinemas":0,"total_films":87,"total_showtimes":412,"total_dates":7,"duration_ms":34210,"errors":[]}}
 
+id: 11
 data: {"type":"failed","error":"Fatal error message"}
 ```
 
@@ -259,14 +275,31 @@ When the scraper detects HTTP 429 from the source:
 curl -N -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/scraper/progress
 ```
 
+Resume after the last processed business event:
+
+```bash
+curl -N \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Last-Event-ID: 42" \
+  http://localhost:3000/api/scraper/progress
+```
+
 ```javascript
-const eventSource = new EventSource('/api/scraper/progress');
-eventSource.onmessage = (e) => {
-  const data = JSON.parse(e.data);
-  if (data.type === 'completed' || data.type === 'failed') {
-    eventSource.close();
+let lastEventId;
+
+async function connectProgressStream(token) {
+  const response = await fetch('/api/scraper/progress', {
+    headers: {
+      Accept: 'text/event-stream',
+      Authorization: `Bearer ${token}`,
+      ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {}),
+    },
+  });
+
+  for await (const chunk of response.body) {
+    // Parse SSE blocks, store each business event `id:`, and reconnect with it.
   }
-};
+}
 ```
 
 ---
