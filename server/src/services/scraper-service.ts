@@ -182,13 +182,13 @@ export class ScraperService {
   /**
    * Subscribes an HTTP response stream to the progress tracker events.
    */
-  subscribeToProgress(res: any, onClose: () => void, context?: ScrapeObservabilityContext) {
+  subscribeToProgress(res: any, onClose: () => void, context?: ScrapeObservabilityContext, lastEventId?: string) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
 
-    progressTracker.addListener(res, this.buildProgressTraceContext(context));
+    progressTracker.addListener(res, this.buildProgressTraceContext(context), lastEventId);
     logger.info('SSE client connected', {
       listeners: progressTracker.getListenerCount(),
       org_id: context?.user?.org_id,

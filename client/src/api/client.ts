@@ -14,6 +14,11 @@ import type {
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
+interface SseMessage {
+  id?: string;
+  data: string;
+}
+
 // Create axios instance
 // Use relative path by default to work with proxy in dev and same-origin in prod
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -215,6 +220,7 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
   let reconnectAttempt = 0;
   let isAborted = false;
   let initialConnect = true;
+  let lastEventId: string | undefined;
   const token = localStorage.getItem('token');
   const url = `${API_BASE_URL}${getScraperBasePath()}/progress`;
 
@@ -267,21 +273,45 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
     }, delay);
   }
 
-  const processMessage = (message: string) => {
-    const lines = message
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith('data:'));
+  const parseFieldValue = (line: string, fieldName: string): string => {
+    const rawValue = line.slice(fieldName.length + 1);
+    return rawValue.startsWith(' ') ? rawValue.slice(1) : rawValue;
+  };
 
-    if (lines.length === 0) {
+  const parseSseMessage = (message: string): SseMessage | undefined => {
+    let id: string | undefined;
+    const dataLines: string[] = [];
+
+    for (const line of message.split(/\r?\n/)) {
+      if (line.startsWith('id:')) {
+        id = parseFieldValue(line, 'id');
+        continue;
+      }
+
+      if (line.startsWith('data:')) {
+        dataLines.push(parseFieldValue(line, 'data'));
+      }
+    }
+
+    if (dataLines.length === 0) {
+      return undefined;
+    }
+
+    return { id, data: dataLines.join('\n') };
+  };
+
+  const processMessage = (message: string) => {
+    const parsedMessage = parseSseMessage(message);
+
+    if (!parsedMessage) {
       return;
     }
 
-    const raw = lines
-      .map((line) => line.slice(5).trimStart())
-      .join('\n');
-
     try {
-      const data = JSON.parse(raw);
+      const data = JSON.parse(parsedMessage.data) as ProgressEvent;
+      if (parsedMessage.id && data.type !== 'ping') {
+        lastEventId = parsedMessage.id;
+      }
       onEvent(data);
     } catch (error) {
       console.error('Failed to parse SSE event:', error);
@@ -296,12 +326,16 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
 
     void (async () => {
       try {
+        const hadReconnectAttempt = reconnectAttempt > 0;
+        const headers: Record<string, string> = {
+          Accept: 'text/event-stream',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {}),
+        };
+
         const response = await fetch(url, {
           method: 'GET',
-          headers: {
-            Accept: 'text/event-stream',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+          headers,
           signal,
           cache: 'no-store',
         });
@@ -314,9 +348,9 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
           throw new Error('Progress stream is unavailable');
         }
 
-        // Connection established
+        reconnectAttempt = 0;
 
-        if (!initialConnect || reconnectAttempt > 0) {
+        if (!initialConnect || hadReconnectAttempt) {
           onStatusChange?.('connected');
         }
         initialConnect = false;

@@ -303,7 +303,32 @@ describe('Routes - Scraper', () => {
             org_id: 42,
             org_slug: 'acme',
           }),
-        })
+        }),
+        undefined
+      );
+    });
+
+    it('should pass Last-Event-ID header to the progress subscription', async () => {
+      mockSubscribeToProgress.mockImplementation((res, _onClose, _context, _lastEventId) => {
+        res.status(200).end();
+        return () => {};
+      });
+      const app = await setupApp({ org_id: 42, org_slug: 'acme' });
+
+      const response = await request(app)
+        .get('/api/scraper/progress')
+        .set('Last-Event-ID', '23');
+
+      expect(response.status).toBe(200);
+      expect(mockSubscribeToProgress).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Function),
+        expect.objectContaining({
+          endpoint: '/api/scraper/progress',
+          method: 'GET',
+          user: expect.objectContaining({ org_slug: 'acme' }),
+        }),
+        '23'
       );
     });
 

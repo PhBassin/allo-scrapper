@@ -56,10 +56,17 @@ export interface ScrapeSummary {
   status?: 'success' | 'partial_success' | 'failed' | 'rate_limited';
 }
 
+interface ReplayableProgressEvent {
+  id: number;
+  event: ProgressEvent;
+}
+
 // Progress tracker class
 export class ProgressTracker {
   private listeners: Set<Response> = new Set();
   private events: ProgressEvent[] = [];
+  private replayableEvents: ReplayableProgressEvent[] = [];
+  private nextEventId = 1;
   private heartbeatInterval?: NodeJS.Timeout;
   private traceContextByListener: Map<Response, ProgressTraceContext | undefined> = new Map();
   private lastBusinessActivityByListener: Map<Response, number> = new Map();
@@ -73,17 +80,29 @@ export class ProgressTracker {
   }
 
   // Add a new SSE listener
-  addListener(res: Response, traceContext?: ProgressTraceContext): void {
+  addListener(res: Response, traceContext?: ProgressTraceContext, lastEventId?: string): void {
     this.listeners.add(res);
     this.traceContextByListener.set(res, traceContext);
     this.lastBusinessActivityByListener.set(res, Date.now());
 
+    const latestReplayableEventId = this.replayableEvents.at(-1)?.id;
+    const normalizedLastEventId = this.normalizeLastEventId(lastEventId);
+    const resumeAfterId = latestReplayableEventId !== undefined
+      && normalizedLastEventId !== undefined
+      && normalizedLastEventId > latestReplayableEventId
+      ? undefined
+      : normalizedLastEventId;
+
     // Send existing events to new listener
-    for (const event of this.events) {
-      if (!this.matchesListener(event, traceContext)) {
+    for (const replayableEvent of this.replayableEvents) {
+      if (resumeAfterId !== undefined && replayableEvent.id <= resumeAfterId) {
         continue;
       }
-      this.sendToListener(res, event);
+
+      if (!this.matchesListener(replayableEvent.event, traceContext)) {
+        continue;
+      }
+      this.sendToListener(res, replayableEvent.event, replayableEvent.id);
     }
 
     // Start heartbeat if this is the first listener
@@ -108,17 +127,34 @@ export class ProgressTracker {
   emit(event: ProgressEvent): void {
     if (event.type === 'started' && !this.hasActiveJobs()) {
       this.events = [];
+      this.replayableEvents = [];
     }
 
+    const eventId = this.nextEventId++;
     this.events.push(event);
+    this.replayableEvents.push({ id: eventId, event });
 
     // Send to all connected listeners
     for (const listener of this.listeners) {
       if (!this.matchesListener(event, this.traceContextByListener.get(listener))) {
         continue;
       }
-      this.sendToListener(listener, event);
+      this.sendToListener(listener, event, eventId);
     }
+  }
+
+  private normalizeLastEventId(lastEventId?: string): number | undefined {
+    if (lastEventId === undefined) {
+      return undefined;
+    }
+
+    const normalized = lastEventId.trim();
+    if (!/^\d+$/.test(normalized)) {
+      return undefined;
+    }
+
+    const parsed = Number(normalized);
+    return Number.isSafeInteger(parsed) ? parsed : undefined;
   }
 
   private getLatestEventsByJob(listenerTrace?: ProgressTraceContext): Map<string, ProgressEvent> {
@@ -152,7 +188,7 @@ export class ProgressTracker {
   }
 
   // Send an event to a specific listener
-  private sendToListener(res: Response, event: ProgressEvent): void {
+  private sendToListener(res: Response, event: ProgressEvent, eventId: number): void {
     try {
       const listenerTrace = this.traceContextByListener.get(res);
       const payload: ProgressEvent = listenerTrace
@@ -160,7 +196,7 @@ export class ProgressTracker {
         : event;
 
       this.lastBusinessActivityByListener.set(res, Date.now());
-      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+      res.write(`id: ${eventId}\ndata: ${JSON.stringify(payload)}\n\n`);
     } catch (error) {
       this.removeListener(res);
     }
@@ -220,6 +256,8 @@ export class ProgressTracker {
   // Clear all events and listeners
   reset(): void {
     this.events = [];
+    this.replayableEvents = [];
+    this.nextEventId = 1;
     this.stopHeartbeat();
     
     // Close all active connections

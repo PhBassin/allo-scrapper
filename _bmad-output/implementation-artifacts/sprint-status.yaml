@@ -1,5 +1,5 @@
 # generated: 2026-04-15
-# last_updated: 2026-04-29T12:39:00Z
+# last_updated: 2026-04-29T16:23:03Z
 # project: allo-scrapper
 # project_key: NOKEY
 # tracking_system: file-system
@@ -28,7 +28,7 @@
 #   - done: Retrospective has been completed
 
 generated: 2026-04-15
-last_updated: 2026-04-29T12:39:00Z
+last_updated: 2026-04-29T16:23:03Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -79,7 +79,7 @@ development_status:
   epic-3: in-progress
   3-1-implement-sse-heartbeat-mechanism: done
   3-2-implement-client-sse-reconnection-logic: done
-  3-3-sse-long-running-connection-validation-10-minutes: backlog
+  3-3-sse-long-running-connection-validation-10-minutes: review
   3-4-sse-concurrent-client-load-test-50-clients: backlog
   3-5-rate-limiting-burst-scenario-tests: done
   3-6-rate-limiting-window-reset-validation: backlog
