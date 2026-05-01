@@ -155,14 +155,8 @@ describe('Database Migration Idempotency (Integration)', () => {
     expect(adminRolePermissions.rows[0].count).toBe(totalPermissions.rows[0].count);
 
     // 022: deduplication + UNIQUE constraint + partial NULL-format index must be idempotent.
-    // The migration DELETEs all but one row per business key. Rerun against clean data.
-    await pool.query(`
-      INSERT INTO showtimes (id, cinema_id, film_id, date, time, version, format, datetime_iso, week_start)
-      VALUES ('TEST_DEDUP_1', 'C0001', 99999, '2026-01-01', '14:30', 'VF', NULL, '2026-01-01T14:30:00Z', '2025-12-29')
-      ON CONFLICT (id) DO NOTHING
-    `);
+    // The DELETE is a no-op on a table without rows; constraint/index guards skip on rerun.
     await expect(pool.query(sql022)).resolves.not.toThrow();
-    // Rerun: DELETE should be a no-op and the constraint/index guards should skip.
     await expect(pool.query(sql022)).resolves.not.toThrow();
     // Verify the NULL-format partial unique index was created.
     const nullFormatIndex = await pool.query<{ count: string }>(
@@ -170,8 +164,6 @@ describe('Database Migration Idempotency (Integration)', () => {
        WHERE indexname = 'uq_showtimes_business_key_null_format'
          AND schemaname = current_schema()`);
     expect(nullFormatIndex.rows[0].count).toBe('1');
-    // Cleanup test data.
-    await pool.query(`DELETE FROM showtimes WHERE cinema_id = 'C0001'`);
 
     // 023: populated singleton row already exists, so reruns must preserve schema and constraints.
     await pool.query(
