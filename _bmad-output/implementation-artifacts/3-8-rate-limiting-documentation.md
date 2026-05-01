@@ -1,6 +1,6 @@
 # Story 3.8: Rate Limiting Documentation
 
-Status: review
+Status: done
 
 ## Story
 

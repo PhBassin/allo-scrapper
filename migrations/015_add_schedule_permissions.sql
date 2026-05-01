@@ -1,4 +1,5 @@
 -- Migration 015: Add scrape schedule management permissions
+-- Idempotency: Safe (INSERT ON CONFLICT DO NOTHING)
 -- Enables RBAC for the new scrape scheduling system.
 
 BEGIN;

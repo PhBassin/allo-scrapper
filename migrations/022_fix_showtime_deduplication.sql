@@ -1,4 +1,5 @@
 -- Migration: Fix showtime deduplication
+-- Idempotency: Safe (DELETE is idempotent, UNIQUE constraint guarded by DO $$ IF NOT EXISTS)
 -- Version: 4.7.0
 -- Date: 2026-03-30
 --
@@ -35,9 +36,19 @@ WHERE id NOT IN (
 
 -- Step 2: Add UNIQUE constraint on business key fields as a safety net.
 -- This prevents future duplicates even if a bug re-introduces non-deterministic IDs.
-ALTER TABLE showtimes
-  ADD CONSTRAINT uq_showtimes_business_key
-  UNIQUE (cinema_id, film_id, date, time, version, format);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'uq_showtimes_business_key' AND table_name = 'showtimes'
+  ) THEN
+    ALTER TABLE showtimes
+      ADD CONSTRAINT uq_showtimes_business_key
+      UNIQUE (cinema_id, film_id, date, time, version, format);
+    RAISE NOTICE 'Constraint uq_showtimes_business_key added';
+  ELSE
+    RAISE NOTICE 'Constraint uq_showtimes_business_key already exists, skipping';
+  END IF;
+END $$;
 
 COMMIT;
 

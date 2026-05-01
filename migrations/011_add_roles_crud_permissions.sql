@@ -1,4 +1,5 @@
 -- Migration 011: Add full CRUD permissions for roles management
+-- Idempotency: Safe (INSERT ON CONFLICT DO NOTHING + Repeatable UPDATE)
 -- Previously, roles management used users:* permissions as a workaround.
 -- This adds dedicated roles:list, roles:create, roles:update, roles:delete permissions.
 

@@ -1,13 +1,34 @@
 -- Add scrape configuration settings to app_settings table
+-- Idempotency: Safe (ADD COLUMN IF NOT EXISTS, constraints guarded by DO $$ IF NOT EXISTS)
 -- These replace the SCRAPE_MODE and SCRAPE_DAYS environment variables
 ALTER TABLE app_settings
   ADD COLUMN IF NOT EXISTS scrape_mode TEXT NOT NULL DEFAULT 'weekly',
   ADD COLUMN IF NOT EXISTS scrape_days INTEGER NOT NULL DEFAULT 7;
 
 -- Add constraint to ensure valid scrape_mode values
-ALTER TABLE app_settings
-  ADD CONSTRAINT valid_scrape_mode CHECK (scrape_mode IN ('weekly', 'from_today', 'from_today_limited'));
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'valid_scrape_mode' AND table_name = 'app_settings'
+  ) THEN
+    ALTER TABLE app_settings
+      ADD CONSTRAINT valid_scrape_mode CHECK (scrape_mode IN ('weekly', 'from_today', 'from_today_limited'));
+    RAISE NOTICE 'Constraint valid_scrape_mode added';
+  ELSE
+    RAISE NOTICE 'Constraint valid_scrape_mode already exists, skipping';
+  END IF;
+END $$;
 
 -- Add constraint to ensure valid scrape_days range (1-14)
-ALTER TABLE app_settings
-  ADD CONSTRAINT valid_scrape_days CHECK (scrape_days >= 1 AND scrape_days <= 14);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'valid_scrape_days' AND table_name = 'app_settings'
+  ) THEN
+    ALTER TABLE app_settings
+      ADD CONSTRAINT valid_scrape_days CHECK (scrape_days >= 1 AND scrape_days <= 14);
+    RAISE NOTICE 'Constraint valid_scrape_days added';
+  ELSE
+    RAISE NOTICE 'Constraint valid_scrape_days already exists, skipping';
+  END IF;
+END $$;
