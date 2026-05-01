@@ -27,13 +27,18 @@ export default function HomePage() {
     queryFn: () => selectedDate ? getFilmsByDate(selectedDate) : getWeeklyFilms(),
   });
 
-  const allFilms = filmsData?.films || [];
+  const allFilms = filmsData?.films;
   // When "Maintenant" is active, hide films whose showtimes are all in the past
-  const films = afterTime
-    ? allFilms.filter(film =>
-        film.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
-      )
-    : allFilms;
+  // ⚡ PERFORMANCE: Memoize expensive O(N*C*S) nested array filtering to prevent
+  // recalculation on every render. allFilms reference directly avoids new array allocations
+  const films = useMemo(() => {
+    const filmsToFilter = allFilms || [];
+    return afterTime
+      ? filmsToFilter.filter(film =>
+          film.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
+        )
+      : filmsToFilter;
+  }, [allFilms, afterTime]);
   const weekStart = filmsData?.weekStart || '';
 
   const isLoading = isLoadingCinemas || isLoadingFilms;
