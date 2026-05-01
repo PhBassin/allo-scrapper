@@ -75,6 +75,7 @@ describe('Database Migration Idempotency (Integration)', () => {
     const sql012 = await readMigrationSql('012_add_read_permissions.sql');
     const sql015 = await readMigrationSql('015_add_schedule_permissions.sql');
     const sql016 = await readMigrationSql('016_add_admin_permissions.sql');
+    const sql022 = await readMigrationSql('022_fix_showtime_deduplication.sql');
     const sql023 = await readMigrationSql('023_add_scrape_settings.sql');
 
     // 010: populated DB contains a phantom permission from out-of-band writes.
@@ -152,6 +153,25 @@ describe('Database Migration Idempotency (Integration)', () => {
        WHERE r.name = 'admin' AND r.is_system = true`
     );
     expect(adminRolePermissions.rows[0].count).toBe(totalPermissions.rows[0].count);
+
+    // 022: deduplication + UNIQUE constraint + partial NULL-format index must be idempotent.
+    // The migration DELETEs all but one row per business key. Rerun against clean data.
+    await pool.query(`
+      INSERT INTO showtimes (id, cinema_id, film_id, date, time, version, format)
+      VALUES ('test_dedup_1', 'test_cinema_022', 'test_film_022', '2026-01-01', '14:30', 'VF', NULL)
+      ON CONFLICT (id) DO NOTHING
+    `);
+    await expect(pool.query(sql022)).resolves.not.toThrow();
+    // Rerun: DELETE should be a no-op and the constraint/index guards should skip.
+    await expect(pool.query(sql022)).resolves.not.toThrow();
+    // Verify the NULL-format partial unique index was created.
+    const nullFormatIndex = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM pg_indexes
+       WHERE indexname = 'uq_showtimes_business_key_null_format'
+         AND schemaname = current_schema()`);
+    expect(nullFormatIndex.rows[0].count).toBe('1');
+    // Cleanup test data.
+    await pool.query(`DELETE FROM showtimes WHERE cinema_id = 'test_cinema_022'`);
 
     // 023: populated singleton row already exists, so reruns must preserve schema and constraints.
     await pool.query(

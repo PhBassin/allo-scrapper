@@ -22,7 +22,7 @@ BEGIN
       AND table_schema = current_schema()
   );
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql STABLE;
 
 -- Verify a column exists on a table in the current schema
 CREATE OR REPLACE FUNCTION verify_column_exists(p_table_name text, p_column_name text)
@@ -35,7 +35,7 @@ BEGIN
       AND table_schema = current_schema()
   );
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql STABLE;
 
 -- Verify a constraint exists on a table in the current schema
 CREATE OR REPLACE FUNCTION verify_constraint_exists(p_constraint_name text, p_table_name text)
@@ -48,7 +48,7 @@ BEGIN
       AND table_schema = current_schema()
   );
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql STABLE;
 
 -- Verify an index exists in the current schema
 CREATE OR REPLACE FUNCTION verify_index_exists(p_index_name text)
@@ -60,7 +60,7 @@ BEGIN
       AND schemaname = current_schema()
   );
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql STABLE;
 
 -- ============================================================================
 -- Canonical Verification Patterns (for reference / inline use)

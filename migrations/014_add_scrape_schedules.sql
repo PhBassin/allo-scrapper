@@ -79,6 +79,18 @@ BEGIN
   RAISE NOTICE 'VERIFICATION PASSED: index idx_scrape_schedules_enabled exists';
 END $$;
 
+-- Verify index idx_scrape_schedules_name exists
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE indexname = 'idx_scrape_schedules_name'
+      AND schemaname = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: index idx_scrape_schedules_name was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: index idx_scrape_schedules_name exists';
+END $$;
+
 -- Verify column was added
 DO $$
 BEGIN
