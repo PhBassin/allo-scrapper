@@ -28,7 +28,7 @@
 #   - done: Retrospective has been completed
 
 generated: 2026-04-15
-last_updated: 2026-04-30T09:23:00Z
+last_updated: 2026-04-30T18:18:51Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -82,7 +82,7 @@ development_status:
   3-3-sse-long-running-connection-validation-10-minutes: review
   3-4-sse-concurrent-client-load-test-50-clients: done
   3-5-rate-limiting-burst-scenario-tests: done
-  3-6-rate-limiting-window-reset-validation: backlog
+  3-6-rate-limiting-window-reset-validation: review
   3-7-localhost-exemption-for-docker-health-probes: done
   3-8-rate-limiting-documentation: backlog
   epic-3-retrospective: optional
