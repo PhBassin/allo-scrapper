@@ -115,7 +115,7 @@ Seed migrations (007, 009-021) are self-verifying — no additional verification
 
 ## Helper Functions
 
-See `migrations/verify_helpers.sql` for reusable SQL functions:
+See `server/src/db/verify_helpers.sql` for reusable SQL functions:
 - `verify_table_exists(p_table_name)` → BOOLEAN
 - `verify_column_exists(p_table_name, p_column_name)` → BOOLEAN
 - `verify_constraint_exists(p_constraint_name, p_table_name)` → BOOLEAN

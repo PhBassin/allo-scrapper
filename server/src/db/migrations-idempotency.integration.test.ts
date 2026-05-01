@@ -158,7 +158,7 @@ describe('Database Migration Idempotency (Integration)', () => {
     // The migration DELETEs all but one row per business key. Rerun against clean data.
     await pool.query(`
       INSERT INTO showtimes (id, cinema_id, film_id, date, time, version, format)
-      VALUES ('test_dedup_1', 'test_cinema_022', 'test_film_022', '2026-01-01', '14:30', 'VF', NULL)
+      VALUES ('TEST_DEDUP_1', 'C0001', 99999, '2026-01-01', '14:30', 'VF', NULL)
       ON CONFLICT (id) DO NOTHING
     `);
     await expect(pool.query(sql022)).resolves.not.toThrow();
@@ -171,7 +171,7 @@ describe('Database Migration Idempotency (Integration)', () => {
          AND schemaname = current_schema()`);
     expect(nullFormatIndex.rows[0].count).toBe('1');
     // Cleanup test data.
-    await pool.query(`DELETE FROM showtimes WHERE cinema_id = 'test_cinema_022'`);
+    await pool.query(`DELETE FROM showtimes WHERE cinema_id = 'C0001'`);
 
     // 023: populated singleton row already exists, so reruns must preserve schema and constraints.
     await pool.query(
