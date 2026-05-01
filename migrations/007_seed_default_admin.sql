@@ -1,4 +1,5 @@
 -- Migration: Seed default admin user (if needed)
+-- Idempotency: Safe (Marker migration only. Admin seeding logic in migrations runner uses COUNT checks and ON CONFLICT DO NOTHING)
 -- Version: 3.1.0
 -- Date: 2026-03-01
 -- Description: Creates default admin user with random password if no admin exists

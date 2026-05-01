@@ -1,4 +1,5 @@
 -- Migration 012: Add read-only permissions for cinemas and users
+-- Idempotency: Safe (INSERT ON CONFLICT DO NOTHING)
 -- These permissions were referenced in client code but didn't exist in the database.
 -- Adding them enables granular access control for view-only roles.
 

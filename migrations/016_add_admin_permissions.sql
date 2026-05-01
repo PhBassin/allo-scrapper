@@ -1,4 +1,5 @@
 -- Migration 016: Assign all permissions to admin role
+-- Idempotency: Safe (INSERT ON CONFLICT DO NOTHING)
 -- Admin has is_system_role bypass in code, but we explicitly assign
 -- all permissions to the database for transparency and tooling.
 

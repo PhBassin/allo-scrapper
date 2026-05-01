@@ -1,5 +1,7 @@
 BEGIN;
 
+-- Idempotency: Safe (DELETE is inherently idempotent. Safe to run multiple times)
+
 -- Remove any permissions that are not in the canonical list.
 -- This cleans up phantom permissions (e.g. system:read) that may have been
 -- inserted outside of migrations.
