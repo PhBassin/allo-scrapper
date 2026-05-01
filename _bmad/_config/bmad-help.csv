@@ -35,6 +35,8 @@ Core,_meta,,,,,,,,,false,https://docs.bmad-method.org/llms.txt,
 Core,bmad-brainstorming,Brainstorming,BSP,Use early in ideation or when stuck generating ideas.,,,anytime,,,false,{output_folder}/brainstorming,brainstorming session
 Core,bmad-party-mode,Party Mode,PM,Orchestrate multi-agent discussions when you need multiple perspectives or want agents to collaborate.,,,anytime,,,false,,
 Core,bmad-help,BMad Help,BH,,,,anytime,,,false,,
+Core,git-issue-branch-pr-flow,Git Issue Branch PR Flow,GP,Use when you want the full GitHub workflow handled safely: create a detailed issue with safe quoting, create an issue-numbered branch, make an atomic commit, push, and open a detailed PR.,,,anytime,,,false,,
+Core,push-flow,Push Flow,PF,Alias of Git Issue Branch PR Flow. Use when you want the full GitHub workflow handled safely: create a detailed issue, create an issue-numbered branch, make an atomic commit, push, and open a detailed PR.,,,anytime,,,false,,
 Core,bmad-index-docs,Index Docs,ID,Use when LLM needs to understand available docs without loading everything.,,,anytime,,,false,,
 Core,bmad-shard-doc,Shard Document,SD,Use when doc becomes too large (>500 lines) to manage effectively.,,[path],anytime,,,false,,
 Core,bmad-editorial-review-prose,Editorial Review - Prose,EP,Use after drafting to polish written content.,,[path],anytime,,,false,report located with target document,three-column markdown table with suggested fixes
