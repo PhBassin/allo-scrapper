@@ -8,6 +8,11 @@ import fs from 'fs/promises';
 let container: StartedTestContainer;
 let pool: pg.Pool;
 
+async function readMigrationSql(filename: string): Promise<string> {
+  const migrationsDir = path.join(process.cwd(), '../migrations');
+  return await fs.readFile(path.join(migrationsDir, filename), 'utf8');
+}
+
 describe('Database Migration Idempotency (Integration)', () => {
   beforeAll(async () => {
     container = await new GenericContainer('postgres:16-alpine')
@@ -62,43 +67,113 @@ describe('Database Migration Idempotency (Integration)', () => {
   });
 
   it('Scenario 3 & 4: Populated database - run migrations', async () => {
-    // Scenario 3 & 4: the database is already migrated and has some data.
-    // We can insert some duplicate data to make sure no unique constraints or
-    // other insert-based migrations fail if they were to run again.
-    // Wait, the migrations runner won't run applied migrations again. 
-    // We need to bypass the `schema_migrations` check to force re-running the SQL files!
-    
-    const retrofittedFiles = [
-      '010_remove_phantom_permissions.sql',
-      '011_add_roles_crud_permissions.sql',
-      '012_add_read_permissions.sql',
-      '015_add_schedule_permissions.sql',
-      '016_add_admin_permissions.sql',
-      '022_fix_showtime_deduplication.sql',
-      '023_add_scrape_settings.sql'
-    ];
+    // The first test already migrated this database. Add realistic existing data
+    // and rerun the retrofitted SQL directly to prove idempotency on a populated DB.
 
-    const migrationsDir = path.join(process.cwd(), '../migrations');
+    const sql010 = await readMigrationSql('010_remove_phantom_permissions.sql');
+    const sql011 = await readMigrationSql('011_add_roles_crud_permissions.sql');
+    const sql012 = await readMigrationSql('012_add_read_permissions.sql');
+    const sql015 = await readMigrationSql('015_add_schedule_permissions.sql');
+    const sql016 = await readMigrationSql('016_add_admin_permissions.sql');
+    const sql023 = await readMigrationSql('023_add_scrape_settings.sql');
 
-    // We don't run 007 again because it relies on the 'role' column which was dropped in 008.
+    // 010: populated DB contains a phantom permission from out-of-band writes.
+    await pool.query(
+      `INSERT INTO permissions (name, description, category)
+       VALUES ('system:read', 'Phantom permission for idempotency test', 'system')
+       ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description`
+    );
+    await expect(pool.query(sql010)).resolves.not.toThrow();
+    const phantomAfterFirstRun = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM permissions WHERE name = 'system:read'`
+    );
+    expect(phantomAfterFirstRun.rows[0].count).toBe('0');
 
-    for (const filename of retrofittedFiles) {
-      const sql = await fs.readFile(path.join(migrationsDir, filename), 'utf8');
-      
-      // Execute the migration SQL directly (bypassing schema_migrations tracking)
-      // This proves they are truly idempotent
-      await expect(pool.query(sql)).resolves.not.toThrow();
-      
-      // Let's insert some data that would conflict if not handled, for those where it makes sense
-      // For instance, another admin user or a showtime.
-    }
-    
-    // Run 022 again
-    const sql022 = await fs.readFile(path.join(migrationsDir, '022_fix_showtime_deduplication.sql'), 'utf8');
-    await expect(pool.query(sql022)).resolves.not.toThrow();
+    await expect(pool.query(sql010)).resolves.not.toThrow();
+    const phantomAfterSecondRun = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM permissions WHERE name = 'system:read'`
+    );
+    expect(phantomAfterSecondRun.rows[0].count).toBe('0');
 
-    // Run 023 again
-    const sql023 = await fs.readFile(path.join(migrationsDir, '023_add_scrape_settings.sql'), 'utf8');
+    // 011: rerun against existing permissions to hit ON CONFLICT and repeatable UPDATE.
+    await expect(pool.query(sql011)).resolves.not.toThrow();
+    await expect(pool.query(sql011)).resolves.not.toThrow();
+    const rolesCrudPermissions = await pool.query<{ name: string; description: string }>(
+      `SELECT name, description
+       FROM permissions
+       WHERE name IN ('roles:list', 'roles:create', 'roles:update', 'roles:delete', 'roles:read')
+       ORDER BY name`
+    );
+    expect(rolesCrudPermissions.rows).toHaveLength(5);
+    expect(rolesCrudPermissions.rows.find(row => row.name === 'roles:read')?.description)
+      .toBe("Voir les détails d'un rôle");
+
+    // 012: operator assignments already exist, so reruns must be harmless.
+    await expect(pool.query(sql012)).resolves.not.toThrow();
+    await expect(pool.query(sql012)).resolves.not.toThrow();
+    const operatorReadPermissions = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count
+       FROM role_permissions rp
+       JOIN roles r ON r.id = rp.role_id
+       JOIN permissions p ON p.id = rp.permission_id
+       WHERE r.name = 'operator'
+         AND p.name IN ('cinemas:read', 'users:read')`
+    );
+    expect(operatorReadPermissions.rows[0].count).toBe('2');
+
+    // 015: populated DB already has schedule permissions and assignments.
+    await expect(pool.query(sql015)).resolves.not.toThrow();
+    await expect(pool.query(sql015)).resolves.not.toThrow();
+    const schedulePermissionAssignments = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count
+       FROM role_permissions rp
+       JOIN roles r ON r.id = rp.role_id
+       JOIN permissions p ON p.id = rp.permission_id
+       WHERE r.name = 'operator'
+         AND p.name IN (
+           'scraper:schedules:list',
+           'scraper:schedules:create',
+           'scraper:schedules:update',
+           'scraper:schedules:delete'
+         )`
+    );
+    expect(schedulePermissionAssignments.rows[0].count).toBe('4');
+
+    // 016: admin role should keep one assignment per permission after reruns.
+    const totalPermissions = await pool.query<{ count: string }>(
+      'SELECT COUNT(*) AS count FROM permissions'
+    );
+    await expect(pool.query(sql016)).resolves.not.toThrow();
+    await expect(pool.query(sql016)).resolves.not.toThrow();
+    const adminRolePermissions = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count
+       FROM role_permissions rp
+       JOIN roles r ON r.id = rp.role_id
+       WHERE r.name = 'admin' AND r.is_system = true`
+    );
+    expect(adminRolePermissions.rows[0].count).toBe(totalPermissions.rows[0].count);
+
+    // 023: populated singleton row already exists, so reruns must preserve schema and constraints.
+    await pool.query(
+      `UPDATE app_settings
+       SET scrape_mode = 'from_today_limited', scrape_days = 5
+       WHERE id = 1`
+    );
     await expect(pool.query(sql023)).resolves.not.toThrow();
+    await expect(pool.query(sql023)).resolves.not.toThrow();
+    const scrapeSettings = await pool.query<{ scrape_mode: string; scrape_days: number }>(
+      'SELECT scrape_mode, scrape_days FROM app_settings WHERE id = 1'
+    );
+    expect(scrapeSettings.rows).toEqual([
+      { scrape_mode: 'from_today_limited', scrape_days: 5 },
+    ]);
+
+    const scrapeSettingsConstraints = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count
+       FROM information_schema.table_constraints
+       WHERE table_name = 'app_settings'
+         AND constraint_name IN ('valid_scrape_mode', 'valid_scrape_days')`
+    );
+    expect(scrapeSettingsConstraints.rows[0].count).toBe('2');
   });
 });
