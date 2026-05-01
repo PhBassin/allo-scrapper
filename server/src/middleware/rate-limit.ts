@@ -1,6 +1,9 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import type { Request, Response } from 'express';
+import { validateJWTSecret } from '../utils/jwt-secret-validator.js';
+
+const getJwtSecret = () => validateJWTSecret();
 
 const LOCALHOST_IPS = new Set(['127.0.0.1', '::1']);
 
@@ -55,7 +58,7 @@ export const authenticatedKeyGenerator = (req: Request): string => {
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.decode(token) as {
+        const decoded = jwt.verify(token, getJwtSecret()) as {
         id?: number | string;
         username?: string;
         org_slug?: string;
