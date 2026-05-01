@@ -75,6 +75,7 @@ describe('Database Migration Idempotency (Integration)', () => {
     const sql012 = await readMigrationSql('012_add_read_permissions.sql');
     const sql015 = await readMigrationSql('015_add_schedule_permissions.sql');
     const sql016 = await readMigrationSql('016_add_admin_permissions.sql');
+    const sql022 = await readMigrationSql('022_fix_showtime_deduplication.sql');
     const sql023 = await readMigrationSql('023_add_scrape_settings.sql');
 
     // 010: populated DB contains a phantom permission from out-of-band writes.
@@ -153,6 +154,17 @@ describe('Database Migration Idempotency (Integration)', () => {
     );
     expect(adminRolePermissions.rows[0].count).toBe(totalPermissions.rows[0].count);
 
+    // 022: deduplication + UNIQUE constraint + partial NULL-format index must be idempotent.
+    // The DELETE is a no-op on a table without rows; constraint/index guards skip on rerun.
+    await expect(pool.query(sql022)).resolves.not.toThrow();
+    await expect(pool.query(sql022)).resolves.not.toThrow();
+    // Verify the NULL-format partial unique index was created.
+    const nullFormatIndex = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM pg_indexes
+       WHERE indexname = 'uq_showtimes_business_key_null_format'
+         AND schemaname = current_schema()`);
+    expect(nullFormatIndex.rows[0].count).toBe('1');
+
     // 023: populated singleton row already exists, so reruns must preserve schema and constraints.
     await pool.query(
       `UPDATE app_settings
@@ -175,5 +187,121 @@ describe('Database Migration Idempotency (Integration)', () => {
          AND constraint_name IN ('valid_scrape_mode', 'valid_scrape_days')`
     );
     expect(scrapeSettingsConstraints.rows[0].count).toBe('2');
+  });
+
+  describe('Verification Failure Scenarios', () => {
+    it('should fail with RAISE EXCEPTION on missing table verification', async () => {
+      // Run SQL that creates a table but has a verification for a non-existent table
+      const badMigration = `
+        BEGIN;
+        CREATE TABLE IF NOT EXISTS _verify_test_table (id SERIAL PRIMARY KEY);
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_name = '_verify_nonexistent_table'
+              AND table_schema = current_schema()
+          ) THEN
+            RAISE EXCEPTION 'VERIFICATION FAILED: table _verify_nonexistent_table was not created';
+          END IF;
+        END $$;
+        COMMIT;
+      `;
+      await expect(pool.query(badMigration)).rejects.toThrow(
+        'VERIFICATION FAILED'
+      );
+    });
+
+    it('should rollback transaction when verification fails', async () => {
+      // This migration creates a table then fails verification — table should NOT exist after
+      const rollbackTest = `
+        BEGIN;
+        CREATE TABLE IF NOT EXISTS _verify_rollback_test (id SERIAL PRIMARY KEY);
+        DO $$ BEGIN
+          RAISE EXCEPTION 'VERIFICATION FAILED: intentional test failure';
+        END $$;
+        COMMIT;
+      `;
+      await expect(pool.query(rollbackTest)).rejects.toThrow(
+        'VERIFICATION FAILED'
+      );
+
+      // Transaction should have rolled back — table should NOT exist
+      const { rows } = await pool.query<{ exists: boolean }>(`
+        SELECT EXISTS (
+          SELECT 1 FROM information_schema.tables
+          WHERE table_name = '_verify_rollback_test'
+            AND table_schema = 'public'
+        ) AS exists
+      `);
+      expect(rows[0].exists).toBe(false);
+    });
+
+    it('should fail on missing column verification', async () => {
+      const badColumnMigration = `
+        BEGIN;
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'users'
+              AND column_name = '_verify_nonexistent_column'
+              AND table_schema = current_schema()
+          ) THEN
+            RAISE EXCEPTION 'VERIFICATION FAILED: column users._verify_nonexistent_column was not created';
+          END IF;
+        END $$;
+        COMMIT;
+      `;
+      await expect(pool.query(badColumnMigration)).rejects.toThrow(
+        'VERIFICATION FAILED'
+      );
+    });
+
+    it('should pass verification on idempotent re-run of same migration', async () => {
+      // Create a test migration with verification that should pass on 2nd run
+      const idempotentMigration = `
+        BEGIN;
+        CREATE TABLE IF NOT EXISTS _verify_idempotent_test (id SERIAL PRIMARY KEY);
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_name = '_verify_idempotent_test'
+              AND table_schema = current_schema()
+          ) THEN
+            RAISE EXCEPTION 'VERIFICATION FAILED: table _verify_idempotent_test was not created';
+          END IF;
+          RAISE NOTICE 'VERIFICATION PASSED: table _verify_idempotent_test exists';
+        END $$;
+        COMMIT;
+      `;
+
+      // First run should succeed
+      await expect(pool.query(idempotentMigration)).resolves.not.toThrow();
+
+      // Second run (idempotent) should also succeed — verification still passes
+      await expect(pool.query(idempotentMigration)).resolves.not.toThrow();
+
+      // Cleanup
+      await pool.query('DROP TABLE IF EXISTS _verify_idempotent_test');
+    });
+
+    it('should fail on missing constraint verification', async () => {
+      const badConstraintMigration = `
+        BEGIN;
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE constraint_name = '_verify_nonexistent_constraint'
+              AND table_name = 'users'
+              AND table_schema = current_schema()
+          ) THEN
+            RAISE EXCEPTION 'VERIFICATION FAILED: constraint _verify_nonexistent_constraint was not created';
+          END IF;
+        END $$;
+        COMMIT;
+      `;
+      await expect(pool.query(badConstraintMigration)).rejects.toThrow(
+        'VERIFICATION FAILED'
+      );
+    });
   });
 });

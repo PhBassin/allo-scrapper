@@ -50,6 +50,49 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- Verify constraint was added
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'uq_showtimes_business_key'
+      AND table_name = 'showtimes'
+      AND table_schema = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: constraint uq_showtimes_business_key was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: constraint uq_showtimes_business_key exists';
+END $$;
+
+-- Add partial unique index for rows where format IS NULL
+-- PostgreSQL treats NULLs as distinct in UNIQUE constraints, so the main
+-- constraint won't catch duplicates with NULL format. This index fills that gap.
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE indexname = 'uq_showtimes_business_key_null_format'
+      AND schemaname = current_schema()
+  ) THEN
+    CREATE UNIQUE INDEX uq_showtimes_business_key_null_format
+      ON showtimes (cinema_id, film_id, date, time, version)
+      WHERE format IS NULL;
+    RAISE NOTICE 'Index uq_showtimes_business_key_null_format created';
+  ELSE
+    RAISE NOTICE 'Index uq_showtimes_business_key_null_format already exists, skipping';
+  END IF;
+END $$;
+
+-- Verify the NULL-format index was created
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE indexname = 'uq_showtimes_business_key_null_format'
+      AND schemaname = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: index uq_showtimes_business_key_null_format was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: index uq_showtimes_business_key_null_format exists';
+END $$;
+
 COMMIT;
 
 -- Post-migration verification

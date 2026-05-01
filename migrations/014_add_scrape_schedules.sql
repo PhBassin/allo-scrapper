@@ -54,15 +54,56 @@ ON CONFLICT (name) DO NOTHING;
 -- Verify table exists
 DO $$
 BEGIN
-  IF EXISTS (
+  IF NOT EXISTS (
     SELECT 1
     FROM information_schema.tables
     WHERE table_name = 'scrape_schedules'
+      AND table_schema = current_schema()
   ) THEN
-    RAISE NOTICE 'Migration successful: scrape_schedules table created';
-  ELSE
-    RAISE EXCEPTION 'Migration failed: scrape_schedules table not created';
+    RAISE EXCEPTION 'VERIFICATION FAILED: table scrape_schedules was not created';
   END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: table scrape_schedules exists';
+END $$;
+
+-- Verify index exists
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_indexes
+    WHERE indexname = 'idx_scrape_schedules_enabled'
+      AND schemaname = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: index idx_scrape_schedules_enabled was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: index idx_scrape_schedules_enabled exists';
+END $$;
+
+-- Verify index idx_scrape_schedules_name exists
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE indexname = 'idx_scrape_schedules_name'
+      AND schemaname = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: index idx_scrape_schedules_name was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: index idx_scrape_schedules_name exists';
+END $$;
+
+-- Verify column was added
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_name = 'scrape_reports'
+      AND column_name = 'schedule_id'
+      AND table_schema = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: column scrape_reports.schedule_id was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: column scrape_reports.schedule_id exists';
 END $$;
 
 COMMIT;

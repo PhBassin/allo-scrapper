@@ -67,14 +67,42 @@ BEGIN
   END IF;
 END $$;
 
--- Verify the migration
+-- Verify the migration (canonical column checks using information_schema)
 DO $$ 
 DECLARE
     settings_row app_settings%ROWTYPE;
 BEGIN
     SELECT * INTO settings_row FROM app_settings WHERE id = 1;
     
-    -- Check new columns exist
+    -- Check new columns exist via information_schema (canonical verification)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'app_settings'
+          AND column_name = 'color_text_primary'
+          AND table_schema = current_schema()
+    ) THEN
+        RAISE EXCEPTION 'VERIFICATION FAILED: column app_settings.color_text_primary was not created';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'app_settings'
+          AND column_name = 'color_text_secondary'
+          AND table_schema = current_schema()
+    ) THEN
+        RAISE EXCEPTION 'VERIFICATION FAILED: column app_settings.color_text_secondary was not created';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'app_settings'
+          AND column_name = 'color_surface'
+          AND table_schema = current_schema()
+    ) THEN
+        RAISE EXCEPTION 'VERIFICATION FAILED: column app_settings.color_surface was not created';
+    END IF;
+    
+    -- Verify row-level defaults are populated
     IF settings_row.color_text_primary IS NULL THEN
         RAISE EXCEPTION 'Migration failed: color_text_primary is NULL';
     END IF;
@@ -104,7 +132,7 @@ BEGIN
         RAISE EXCEPTION 'Migration failed: footer_links is NULL';
     END IF;
     
-    RAISE NOTICE 'Migration successful: all new columns exist with correct values';
+    RAISE NOTICE 'VERIFICATION PASSED: all new columns exist with correct values';
 END $$;
 
 COMMIT;

@@ -62,15 +62,29 @@ CREATE INDEX IF NOT EXISTS idx_app_settings_updated_at ON app_settings(updated_a
 -- Verify the table was created
 DO $$ 
 BEGIN
-    IF EXISTS (
+    IF NOT EXISTS (
         SELECT 1 
         FROM information_schema.tables 
         WHERE table_name = 'app_settings'
+          AND table_schema = current_schema()
     ) THEN
-        RAISE NOTICE 'Migration successful: app_settings table exists';
-    ELSE
-        RAISE EXCEPTION 'Migration failed: app_settings table does not exist';
+        RAISE EXCEPTION 'VERIFICATION FAILED: table app_settings was not created';
     END IF;
+    RAISE NOTICE 'VERIFICATION PASSED: table app_settings exists';
+END $$;
+
+-- Verify index was created
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM pg_indexes 
+        WHERE indexname = 'idx_app_settings_updated_at'
+          AND schemaname = current_schema()
+    ) THEN
+        RAISE EXCEPTION 'VERIFICATION FAILED: index idx_app_settings_updated_at was not created';
+    END IF;
+    RAISE NOTICE 'VERIFICATION PASSED: index idx_app_settings_updated_at exists';
 END $$;
 
 -- Verify singleton constraint

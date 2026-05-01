@@ -22,15 +22,15 @@ CREATE TABLE IF NOT EXISTS users (
 -- Verify the table was created
 DO $$ 
 BEGIN
-    IF EXISTS (
+    IF NOT EXISTS (
         SELECT 1 
         FROM information_schema.tables 
         WHERE table_name = 'users'
+          AND table_schema = current_schema()
     ) THEN
-        RAISE NOTICE 'Migration successful: users table exists';
-    ELSE
-        RAISE EXCEPTION 'Migration failed: users table does not exist';
+        RAISE EXCEPTION 'VERIFICATION FAILED: table users was not created';
     END IF;
+    RAISE NOTICE 'VERIFICATION PASSED: table users exists';
 END $$;
 
 COMMIT;
