@@ -50,6 +50,19 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- Verify constraint was added
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'uq_showtimes_business_key'
+      AND table_name = 'showtimes'
+      AND table_schema = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: constraint uq_showtimes_business_key was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: constraint uq_showtimes_business_key exists';
+END $$;
+
 COMMIT;
 
 -- Post-migration verification

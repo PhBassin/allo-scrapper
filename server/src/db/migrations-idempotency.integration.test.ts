@@ -176,4 +176,120 @@ describe('Database Migration Idempotency (Integration)', () => {
     );
     expect(scrapeSettingsConstraints.rows[0].count).toBe('2');
   });
+
+  describe('Verification Failure Scenarios', () => {
+    it('should fail with RAISE EXCEPTION on missing table verification', async () => {
+      // Run SQL that creates a table but has a verification for a non-existent table
+      const badMigration = `
+        BEGIN;
+        CREATE TABLE IF NOT EXISTS _verify_test_table (id SERIAL PRIMARY KEY);
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_name = '_verify_nonexistent_table'
+              AND table_schema = current_schema()
+          ) THEN
+            RAISE EXCEPTION 'VERIFICATION FAILED: table _verify_nonexistent_table was not created';
+          END IF;
+        END $$;
+        COMMIT;
+      `;
+      await expect(pool.query(badMigration)).rejects.toThrow(
+        'VERIFICATION FAILED'
+      );
+    });
+
+    it('should rollback transaction when verification fails', async () => {
+      // This migration creates a table then fails verification — table should NOT exist after
+      const rollbackTest = `
+        BEGIN;
+        CREATE TABLE IF NOT EXISTS _verify_rollback_test (id SERIAL PRIMARY KEY);
+        DO $$ BEGIN
+          RAISE EXCEPTION 'VERIFICATION FAILED: intentional test failure';
+        END $$;
+        COMMIT;
+      `;
+      await expect(pool.query(rollbackTest)).rejects.toThrow(
+        'VERIFICATION FAILED'
+      );
+
+      // Transaction should have rolled back — table should NOT exist
+      const { rows } = await pool.query<{ exists: boolean }>(`
+        SELECT EXISTS (
+          SELECT 1 FROM information_schema.tables
+          WHERE table_name = '_verify_rollback_test'
+            AND table_schema = 'public'
+        ) AS exists
+      `);
+      expect(rows[0].exists).toBe(false);
+    });
+
+    it('should fail on missing column verification', async () => {
+      const badColumnMigration = `
+        BEGIN;
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'users'
+              AND column_name = '_verify_nonexistent_column'
+              AND table_schema = current_schema()
+          ) THEN
+            RAISE EXCEPTION 'VERIFICATION FAILED: column users._verify_nonexistent_column was not created';
+          END IF;
+        END $$;
+        COMMIT;
+      `;
+      await expect(pool.query(badColumnMigration)).rejects.toThrow(
+        'VERIFICATION FAILED'
+      );
+    });
+
+    it('should pass verification on idempotent re-run of same migration', async () => {
+      // Create a test migration with verification that should pass on 2nd run
+      const idempotentMigration = `
+        BEGIN;
+        CREATE TABLE IF NOT EXISTS _verify_idempotent_test (id SERIAL PRIMARY KEY);
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_name = '_verify_idempotent_test'
+              AND table_schema = current_schema()
+          ) THEN
+            RAISE EXCEPTION 'VERIFICATION FAILED: table _verify_idempotent_test was not created';
+          END IF;
+          RAISE NOTICE 'VERIFICATION PASSED: table _verify_idempotent_test exists';
+        END $$;
+        COMMIT;
+      `;
+
+      // First run should succeed
+      await expect(pool.query(idempotentMigration)).resolves.not.toThrow();
+
+      // Second run (idempotent) should also succeed — verification still passes
+      await expect(pool.query(idempotentMigration)).resolves.not.toThrow();
+
+      // Cleanup
+      await pool.query('DROP TABLE IF EXISTS _verify_idempotent_test');
+    });
+
+    it('should fail on missing constraint verification', async () => {
+      const badConstraintMigration = `
+        BEGIN;
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE constraint_name = '_verify_nonexistent_constraint'
+              AND table_name = 'users'
+              AND table_schema = current_schema()
+          ) THEN
+            RAISE EXCEPTION 'VERIFICATION FAILED: constraint _verify_nonexistent_constraint was not created';
+          END IF;
+        END $$;
+        COMMIT;
+      `;
+      await expect(pool.query(badConstraintMigration)).rejects.toThrow(
+        'VERIFICATION FAILED'
+      );
+    });
+  });
 });

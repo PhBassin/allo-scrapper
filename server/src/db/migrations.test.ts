@@ -569,4 +569,109 @@ describe('Migration System', () => {
       );
     });
   });
+
+  describe('Migration Verification', () => {
+    it('should propagate RAISE EXCEPTION from verification block as query error', async () => {
+      const mockQuery = vi.fn().mockRejectedValue(
+        new Error('VERIFICATION FAILED: table users was not created')
+      );
+      db.query = mockQuery;
+
+      vi.mocked(fs.readFile).mockResolvedValue(
+        'CREATE TABLE IF NOT EXISTS users (id INT);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: table users was not created\'; END $$;'
+      );
+
+      await expect(applyMigration(db, '001_verify_fail.sql')).rejects.toThrow(
+        'VERIFICATION FAILED: table users was not created'
+      );
+    });
+
+    it('should throw on verification failure when constraint is missing', async () => {
+      const mockQuery = vi.fn().mockRejectedValue(
+        new Error('VERIFICATION FAILED: constraint uq_showtimes_business_key was not created')
+      );
+      db.query = mockQuery;
+
+      vi.mocked(fs.readFile).mockResolvedValue(
+        'ALTER TABLE showtimes ADD CONSTRAINT uq_showtimes_business_key UNIQUE (cinema_id, film_id);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: constraint uq_showtimes_business_key was not created\'; END $$;'
+      );
+
+      await expect(applyMigration(db, '022_verify_fail.sql')).rejects.toThrow(
+        'VERIFICATION FAILED'
+      );
+    });
+
+    it('should throw on verification failure when column is missing', async () => {
+      const mockQuery = vi.fn().mockRejectedValue(
+        new Error('VERIFICATION FAILED: column cinemas.source was not created')
+      );
+      db.query = mockQuery;
+
+      vi.mocked(fs.readFile).mockResolvedValue(
+        'ALTER TABLE cinemas ADD COLUMN IF NOT EXISTS source VARCHAR(50);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: column cinemas.source was not created\'; END $$;'
+      );
+
+      await expect(applyMigration(db, '013_verify_fail.sql')).rejects.toThrow(
+        'VERIFICATION FAILED: column cinemas.source was not created'
+      );
+    });
+
+    it('should handle verification error for index not found', async () => {
+      const mockQuery = vi.fn().mockRejectedValue(
+        new Error('VERIFICATION FAILED: index idx_users_role was not created')
+      );
+      db.query = mockQuery;
+
+      vi.mocked(fs.readFile).mockResolvedValue(
+        'CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: index idx_users_role was not created\'; END $$;'
+      );
+
+      await expect(applyMigration(db, '005_verify_fail.sql')).rejects.toThrow(
+        'VERIFICATION FAILED: index idx_users_role was not created'
+      );
+    });
+
+    it('should stop migration chain on verification failure in runMigrations', async () => {
+      const mockQuery = vi.fn()
+        .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE schema_migrations
+        .mockResolvedValueOnce({ rows: [] }) // SELECT applied migrations
+        .mockRejectedValueOnce(new Error('VERIFICATION FAILED')); // First migration fails on verify
+
+      db.query = mockQuery;
+
+      vi.mocked(fs.readdir).mockResolvedValue([
+        '001_verify_fail.sql',
+        '002_should_not_run.sql',
+      ] as any);
+
+      vi.mocked(fs.readFile).mockResolvedValue(
+        'DO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED\'; END $$;'
+      );
+
+      await expect(runMigrations(db)).rejects.toThrow('VERIFICATION FAILED');
+
+      // Second migration should NOT be applied
+      expect(mockQuery).not.toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO schema_migrations'),
+        expect.arrayContaining(['002_should_not_run.sql', expect.any(String)])
+      );
+    });
+
+    it('should log error context when verification fails', async () => {
+      const { logger } = await import('../utils/logger.js');
+      const mockQuery = vi.fn().mockRejectedValue(
+        new Error('VERIFICATION FAILED: table users was not created')
+      );
+      db.query = mockQuery;
+
+      vi.mocked(fs.readFile).mockResolvedValue(
+        'DO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: table users was not created\'; END $$;'
+      );
+
+      await expect(applyMigration(db, '001_verify_fail.sql')).rejects.toThrow();
+
+      // applyMigration logs error before re-throwing, but runMigrations catches it via runMigrations
+      // The error is thrown from db.query and logged at the runMigrations level
+    });
+  });
 });

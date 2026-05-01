@@ -28,7 +28,7 @@
 #   - done: Retrospective has been completed
 
 generated: 2026-04-15
-last_updated: 2026-05-01T13:30:00Z
+last_updated: 2026-05-01T14:15:00Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -93,7 +93,7 @@ development_status:
   # ─────────────────────────────────────────────────────────────
   epic-4: in-progress
   4-1-enforce-migration-idempotency-checks-in-migrations: done
-  4-2-add-verification-steps-to-all-migrations: backlog
+  4-2-add-verification-steps-to-all-migrations: done
   4-3-ci-pipeline-migration-idempotency-validation: backlog
   epic-4-retrospective: optional
 

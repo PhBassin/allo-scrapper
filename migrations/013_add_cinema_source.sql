@@ -20,18 +20,19 @@ BEGIN
     END IF;
 END $$;
 
--- Verify the change
+-- Verify the column was added
 DO $$ 
 BEGIN
-    IF EXISTS (
+    IF NOT EXISTS (
         SELECT 1 
         FROM information_schema.columns 
-        WHERE table_name='cinemas' AND column_name='source'
+        WHERE table_name = 'cinemas'
+          AND column_name = 'source'
+          AND table_schema = current_schema()
     ) THEN
-        RAISE NOTICE 'Migration successful: cinemas.source exists';
-    ELSE
-        RAISE EXCEPTION 'Migration failed: cinemas.source does not exist';
+        RAISE EXCEPTION 'VERIFICATION FAILED: column cinemas.source was not created';
     END IF;
+    RAISE NOTICE 'VERIFICATION PASSED: column cinemas.source exists';
 END $$;
 
 COMMIT;

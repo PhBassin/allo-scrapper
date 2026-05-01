@@ -93,4 +93,60 @@ ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 DROP INDEX IF EXISTS idx_users_role;
 ALTER TABLE users DROP COLUMN IF EXISTS role;
 
+-- Verify tables were created
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_name = 'roles' AND table_schema = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: table roles was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: table roles exists';
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_name = 'permissions' AND table_schema = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: table permissions was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: table permissions exists';
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_name = 'role_permissions' AND table_schema = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: table role_permissions was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: table role_permissions exists';
+END $$;
+
+-- Verify column was added
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'users'
+      AND column_name = 'role_id'
+      AND table_schema = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: column users.role_id was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: column users.role_id exists';
+END $$;
+
+-- Verify index was created
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE indexname = 'idx_users_role_id'
+      AND schemaname = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: index idx_users_role_id was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: index idx_users_role_id exists';
+END $$;
+
 COMMIT;

@@ -1,6 +1,8 @@
 -- Add scrape configuration settings to app_settings table
 -- Idempotency: Safe (ADD COLUMN IF NOT EXISTS, constraints guarded by DO $$ IF NOT EXISTS)
 -- These replace the SCRAPE_MODE and SCRAPE_DAYS environment variables
+BEGIN;
+
 ALTER TABLE app_settings
   ADD COLUMN IF NOT EXISTS scrape_mode TEXT NOT NULL DEFAULT 'weekly',
   ADD COLUMN IF NOT EXISTS scrape_days INTEGER NOT NULL DEFAULT 7;
@@ -32,3 +34,55 @@ DO $$ BEGIN
     RAISE NOTICE 'Constraint valid_scrape_days already exists, skipping';
   END IF;
 END $$;
+
+-- Verify columns were added
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'app_settings'
+      AND column_name = 'scrape_mode'
+      AND table_schema = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: column app_settings.scrape_mode was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: column app_settings.scrape_mode exists';
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'app_settings'
+      AND column_name = 'scrape_days'
+      AND table_schema = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: column app_settings.scrape_days was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: column app_settings.scrape_days exists';
+END $$;
+
+-- Verify constraints were added
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'valid_scrape_mode'
+      AND table_name = 'app_settings'
+      AND table_schema = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: constraint valid_scrape_mode was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: constraint valid_scrape_mode exists';
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'valid_scrape_days'
+      AND table_name = 'app_settings'
+      AND table_schema = current_schema()
+  ) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: constraint valid_scrape_days was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: constraint valid_scrape_days exists';
+END $$;
+
+COMMIT;

@@ -56,24 +56,42 @@ DO $$
 DECLARE
     role_column_exists BOOLEAN;
     role_constraint_exists BOOLEAN;
+    role_index_exists BOOLEAN;
 BEGIN
     SELECT EXISTS (
         SELECT 1 
         FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'role'
+        WHERE table_name = 'users'
+          AND column_name = 'role'
+          AND table_schema = current_schema()
     ) INTO role_column_exists;
     
     SELECT EXISTS (
         SELECT 1
-        FROM information_schema.constraint_column_usage
-        WHERE table_name = 'users' AND constraint_name = 'users_role_check'
+        FROM information_schema.table_constraints
+        WHERE table_name = 'users'
+          AND constraint_name = 'users_role_check'
+          AND table_schema = current_schema()
     ) INTO role_constraint_exists;
     
-    IF role_column_exists AND role_constraint_exists THEN
-        RAISE NOTICE 'Migration successful: role column and constraint verified';
-    ELSE
-        RAISE EXCEPTION 'Migration verification failed';
+    SELECT EXISTS (
+        SELECT 1
+        FROM pg_indexes
+        WHERE indexname = 'idx_users_role'
+          AND schemaname = current_schema()
+    ) INTO role_index_exists;
+    
+    IF NOT role_column_exists THEN
+        RAISE EXCEPTION 'VERIFICATION FAILED: column users.role was not created';
     END IF;
+    IF NOT role_constraint_exists THEN
+        RAISE EXCEPTION 'VERIFICATION FAILED: constraint users_role_check was not created';
+    END IF;
+    IF NOT role_index_exists THEN
+        RAISE EXCEPTION 'VERIFICATION FAILED: index idx_users_role was not created';
+    END IF;
+    
+    RAISE NOTICE 'VERIFICATION PASSED: role column, constraint, and index verified';
 END $$;
 
 COMMIT;
