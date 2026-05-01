@@ -2,6 +2,26 @@
 
 - `packages/saas/src/plugin.ts:89` — `getSaasMigrationDir()` environment branching can select an invalid migrations path outside strict production/dev expectations; deferred as pre-existing migration-path design concern.
 
+## Deferred from: code review of PR #923 — parser validation (2026-05-01)
+
+### 🔴 Patch — `theater-parser` validation manquante
+`scraper/src/scraper/theater-parser.ts` — Ajouter `ParserStructureError` quand `#theaterpage-showtimes-index-ui` absent. Actuellement `JSON.parse(undefined)` → `SyntaxError` générique.
+
+### 🔴 Patch — `ParserStructureError` avalée dans AllocineScraperStrategy
+`scraper/src/scraper/AllocineScraperStrategy.ts:128-131` — Distinguer `ParserStructureError` des erreurs fetch. Log actuel: "Error fetching film page" même quand le fetch a réussi.
+
+### 🔴 Patch — `classifyError` ne reconnaît pas `ParserStructureError`
+`scraper/src/utils/error-classifier.ts:16-45` — Ajouter `instanceof ParserStructureError` pour classification `'structure_change'`.
+
+### 🔴 Patch — Test négatif `validateParserSelectors`
+`scraper/tests/unit/scraper/parser-validation.test.ts` — Ajouter test: HTML sans `.meta-body-info` → `{valid: false, missingSelectors: ['.meta-body-info']}`.
+
+### 🔴 Patch — Tests constantes `theater-parser`
+Ajouter test validant comportement quand `#theaterpage-showtimes-index-ui` / `.movie-card-theater` absents.
+
+### 🔴 Patch — `ParserStructureError.url` inutilisé
+`scraper/src/utils/parser-errors.ts` — Passer l'URL ou supprimer le paramètre.
+
 ## Deferred from: code review of 1-1-implement-org-id-validation-middleware (2026-04-17)
 
 - `server/src/routes/cinemas.ts:147` — Org-scoped cinema detail route remains public and may expose tenant data if not separately guarded; deferred as pre-existing route-policy issue outside this story slice.
