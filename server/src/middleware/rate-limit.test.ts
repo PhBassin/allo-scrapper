@@ -27,9 +27,13 @@ describe('Rate Limiting Middleware', () => {
   let app: express.Application;
 
   let originalNodeEnv: string | undefined;
+  let originalRateLimitWindowMs: string | undefined;
+  let originalRateLimitProtectedMax: string | undefined;
 
   beforeEach(() => {
     originalNodeEnv = process.env.NODE_ENV;
+    originalRateLimitWindowMs = process.env.RATE_LIMIT_WINDOW_MS;
+    originalRateLimitProtectedMax = process.env.RATE_LIMIT_PROTECTED_MAX;
     process.env.NODE_ENV = 'development';
     app = express();
     app.use(express.json());
@@ -39,6 +43,17 @@ describe('Rate Limiting Middleware', () => {
 
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
+    if (originalRateLimitWindowMs === undefined) {
+      delete process.env.RATE_LIMIT_WINDOW_MS;
+    } else {
+      process.env.RATE_LIMIT_WINDOW_MS = originalRateLimitWindowMs;
+    }
+    if (originalRateLimitProtectedMax === undefined) {
+      delete process.env.RATE_LIMIT_PROTECTED_MAX;
+    } else {
+      process.env.RATE_LIMIT_PROTECTED_MAX = originalRateLimitProtectedMax;
+    }
+    vi.useRealTimers();
   });
 
   describe('generalLimiter', () => {
@@ -151,6 +166,7 @@ describe('Rate Limiting Middleware', () => {
     it('should include retry-after metadata when a protected endpoint is rate limited', async () => {
       vi.resetModules();
       process.env.NODE_ENV = 'development';
+      process.env.RATE_LIMIT_WINDOW_MS = '60000';
       process.env.RATE_LIMIT_PROTECTED_MAX = '1';
 
       const { protectedLimiter: tightProtectedLimiter } = await import('./rate-limit.js');
@@ -180,6 +196,77 @@ describe('Rate Limiting Middleware', () => {
       expect(limited.body.error).toBe('Too many requests to this resource, please try again later.');
       expect(limited.body.retryAfterSeconds).toBeGreaterThan(0);
       expect(limited.headers['retry-after']).toBeDefined();
+    });
+
+    it('should reset the protected limiter after the configured window expires', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-04-30T00:00:00Z'));
+      vi.resetModules();
+      process.env.NODE_ENV = 'development';
+      process.env.RATE_LIMIT_WINDOW_MS = '60000';
+      process.env.RATE_LIMIT_PROTECTED_MAX = '1';
+
+      const { protectedLimiter: tightProtectedLimiter } = await import('./rate-limit.js');
+      const tightApp = express();
+      tightApp.use(express.json());
+      tightApp.set('trust proxy', 1);
+      tightApp.get('/reports', tightProtectedLimiter, (_req, res) => {
+        res.json({ success: true });
+      });
+
+      const clientIp = '203.0.113.60';
+      const token = makeToken(101, { username: 'reset@test.local', orgSlug: 'reset-org' });
+
+      const allowed = await request(tightApp)
+        .get('/reports')
+        .set('Authorization', `Bearer ${token}`)
+        .set('X-Forwarded-For', clientIp);
+      expect(allowed.status).toBe(200);
+
+      const limited = await request(tightApp)
+        .get('/reports')
+        .set('Authorization', `Bearer ${token}`)
+        .set('X-Forwarded-For', clientIp);
+      expect(limited.status).toBe(429);
+      expect(limited.headers['retry-after']).toBe('60');
+
+      await vi.advanceTimersByTimeAsync(60000);
+
+      const afterReset = await request(tightApp)
+        .get('/reports')
+        .set('Authorization', `Bearer ${token}`)
+        .set('X-Forwarded-For', clientIp);
+      expect(afterReset.status).toBe(200);
+    });
+
+    it('should keep same-org authenticated users in independent protected limiter buckets', async () => {
+      vi.resetModules();
+      process.env.NODE_ENV = 'development';
+      process.env.RATE_LIMIT_WINDOW_MS = '60000';
+      process.env.RATE_LIMIT_PROTECTED_MAX = '2';
+
+      const { protectedLimiter: tightProtectedLimiter } = await import('./rate-limit.js');
+      const tightApp = express();
+      tightApp.use(express.json());
+      tightApp.set('trust proxy', 1);
+      tightApp.get('/reports', tightProtectedLimiter, (_req, res) => {
+        res.json({ success: true });
+      });
+
+      const clientIp = '203.0.113.70';
+      const userAToken = makeToken(201, { username: 'admin-a@test.local', orgSlug: 'shared-org' });
+      const userBToken = makeToken(202, { username: 'admin-b@test.local', orgSlug: 'shared-org' });
+
+      await request(tightApp).get('/reports').set('Authorization', `Bearer ${userAToken}`).set('X-Forwarded-For', clientIp);
+      await request(tightApp).get('/reports').set('Authorization', `Bearer ${userAToken}`).set('X-Forwarded-For', clientIp);
+      const exhausted = await request(tightApp).get('/reports').set('Authorization', `Bearer ${userAToken}`).set('X-Forwarded-For', clientIp);
+      expect(exhausted.status).toBe(429);
+
+      const userBResponse = await request(tightApp)
+        .get('/reports')
+        .set('Authorization', `Bearer ${userBToken}`)
+        .set('X-Forwarded-For', clientIp);
+      expect(userBResponse.status).toBe(200);
     });
   });
 

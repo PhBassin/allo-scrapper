@@ -42,8 +42,33 @@ function ForbiddenScreen({ message }: { message: string }) {
 }
 
 function TooManyRequestsScreen({ message, retryAfterSeconds }: { message: string; retryAfterSeconds?: number }) {
-  const retryText = typeof retryAfterSeconds === 'number'
-    ? ` Retry after ${retryAfterSeconds} seconds.`
+  const [countdownSeconds, setCountdownSeconds] = useState<number | undefined>(retryAfterSeconds);
+
+  useEffect(() => {
+    setCountdownSeconds(retryAfterSeconds);
+
+    if (typeof retryAfterSeconds !== 'number' || retryAfterSeconds <= 0) {
+      return undefined;
+    }
+
+    const interval = window.setInterval(() => {
+      setCountdownSeconds((current) => {
+        if (typeof current !== 'number' || current <= 1) {
+          window.clearInterval(interval);
+          return 0;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [retryAfterSeconds]);
+
+  const retryText = typeof countdownSeconds === 'number'
+    ? ` Retry after ${countdownSeconds} seconds.`
     : '';
 
   return (
@@ -51,6 +76,11 @@ function TooManyRequestsScreen({ message, retryAfterSeconds }: { message: string
       <div className="text-center max-w-md px-6">
         <h1 className="text-4xl font-bold text-orange-800 mb-4">429</h1>
         <p className="text-orange-700" data-testid="429-error-message">{`${message}${retryText}`}</p>
+        {typeof countdownSeconds === 'number' ? (
+          <p className="mt-2 text-sm text-orange-600" data-testid="rate-limit-reset-timer">
+            Resets in {countdownSeconds} seconds
+          </p>
+        ) : null}
       </div>
     </div>
   );
