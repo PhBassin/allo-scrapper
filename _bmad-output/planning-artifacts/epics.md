@@ -1422,3 +1422,80 @@ So that emails are consistent with the application's visual identity.
 **Then** the email uses default Allo-Scrapper branding  
 **And** the fallback branding is professional and complete  
 **And** no broken placeholders or missing values are present
+
+---
+
+## Progress (2026-05-01 — BMAD Sync)
+
+**Status at sync date:** 4 of 7 epics complete (26/31 stories done — 84%)
+
+### Epic 0 — Test Infrastructure Setup ✅ DONE
+| Story | Status | PR |
+|-------|--------|----|
+| 0-1 — Playwright parallel execution | done | #861 |
+| 0-2 — Multi-tenant test fixture API | done | #869 |
+| 0-3 — Redis Testcontainers in CI | done | #872 |
+| 0-4 — Auto-cleanup test utilities | done | #875 |
+
+### Epic 1 — Multi-Tenant Security & Isolation ✅ DONE
+| Story | Status | PR |
+|-------|--------|----|
+| 1-1 — Org ID validation middleware | done | #878 |
+| 1-2 — Org ID to observability traces | done | #881 |
+| 1-3 — E2E cinema isolation test | done | #884 |
+| 1-4 — E2E user management isolation | done | #888 |
+| 1-5 — E2E schedule isolation test | done | #891 |
+| 1-6 — API-level tenant isolation tests | done | #895 |
+| Retrospective | done | epic-1-retro-2026-04-21.md |
+
+### Epic 2 — Scraper Job Queue Reliability ✅ DONE
+| Story | Status | PR |
+|-------|--------|----|
+| 2-1 — Dead Letter Queue | done | #900 |
+| 2-2 — Exponential backoff retry | done | #906 |
+| 2-3 — Load testing 100 jobs | done | #907 |
+| 2-4 — Redis reconnection handling | done | #919 |
+| 2-5 — E2E progress tracking 10 jobs | done | #921 |
+| 2-6 — DLQ API endpoints | done | #927, #932 |
+
+### Epic 3 — SSE + Rate Limiting ✅ DONE
+| Story | Status | PR |
+|-------|--------|----|
+| 3-7 — Localhost exemption health probes | done | #934, #936 |
+| 3-1 — SSE heartbeat mechanism | done | #935 |
+| 3-5 — Rate limiting burst tests | done | #937 |
+| 3-2 — Client SSE reconnection logic | done | #941 |
+| 3-3 — SSE long-running 10min validation | done | #944 |
+| 3-4 — SSE 50-client load test | done | #945 |
+| 3-6 — Rate limiting window reset | done | #947 |
+| 3-8 — Rate limiting documentation | done | #948 |
+
+### Epic 4 — Database Migration Idempotency ✅ DONE
+| Story | Status | PR |
+|-------|--------|----|
+| 4-1 — Migration idempotency checks | done | #949 |
+| 4-2 — Verification steps (populated DB) | done | #951 |
+| 4-3 — CI pipeline idempotency validation | done | #951 |
+
+### Epic 5 — White-Label Theme Consistency ⏳ BACKLOG
+| Story | Status |
+|-------|--------|
+| 5-1 — Theme switching E2E tests | backlog |
+| 5-2 — CSP strict mode validation | backlog |
+
+### Epic 6 — Email Template Validation ⏳ BACKLOG
+| Story | Status |
+|-------|--------|
+| 6-1 — Cross-client rendering tests | backlog |
+| 6-2 — Branding consistency | backlog |
+
+### Work Done Outside BMAD Tracking
+| PR | Title | Type |
+|----|-------|------|
+| #913, #914, #915 | Server security fixes (input validation, image DOS) | fix |
+| #916 | Client: email validation + slug race condition | fix |
+| #911 | Dependabot: npm dependency bump | chore |
+| #918 | SaaS: resolveTenant premature release fix (OPEN) | fix |
+| #923 | Scraper: parser structure validation for Allocine changes (OPEN) | fix |
+| #929 | Documentation audit refresh | docs |
+| #938 | BMAD skills and customization update | chore |
