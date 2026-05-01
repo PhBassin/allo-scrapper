@@ -157,8 +157,8 @@ describe('Database Migration Idempotency (Integration)', () => {
     // 022: deduplication + UNIQUE constraint + partial NULL-format index must be idempotent.
     // The migration DELETEs all but one row per business key. Rerun against clean data.
     await pool.query(`
-      INSERT INTO showtimes (id, cinema_id, film_id, date, time, version, format)
-      VALUES ('TEST_DEDUP_1', 'C0001', 99999, '2026-01-01', '14:30', 'VF', NULL)
+      INSERT INTO showtimes (id, cinema_id, film_id, date, time, version, format, datetime_iso)
+      VALUES ('TEST_DEDUP_1', 'C0001', 99999, '2026-01-01', '14:30', 'VF', NULL, '2026-01-01T14:30:00Z')
       ON CONFLICT (id) DO NOTHING
     `);
     await expect(pool.query(sql022)).resolves.not.toThrow();
