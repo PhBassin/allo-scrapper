@@ -1,3 +1,7 @@
-## 2026-04-08 - Use Promise.all() to run concurrent independent queries
-**Learning:** Found sequential independent database queries in `getScraperStatus` (`server/src/services/system-info.ts`) which unnecessarily block one another, thereby creating a response time bottleneck.
-**Action:** When working on backend queries and system services, always verify that independent queries execute concurrently (using `Promise.all()`) instead of sequentially to optimize application latency.
+## 2026-05-02 - Plain Object Map pattern vs Map in React Render Loop
+**Learning:** In a highly iterated array transformation (e.g. `groupByFilm`), using `Object.create(null)` combined with a standard `for` loop executes ~2x faster than a `Map` combined with `.forEach()`. However, the code reviewer noted that typical dataset sizes in the browser for this app might not yield *measurable* end-user impact from this micro-optimization, making it borderline in terms of "never sacrifice readability for micro-optimizations". Always verify if the dataset sizes (e.g., thousands of objects) justify refactoring to less idiomatic code (like manual `for` loops over `Map`).
+**Action:** When grouping or aggregating data, stick to `Map` or array `.reduce` for readability unless profiling confirms the specific function is a hot path causing frame drops with the exact dataset sizes seen in production.
+
+## 2026-05-02 - Memoization of expensive array operations
+**Learning:** Found a derived state calculation `films` in `client/src/pages/HomePage.tsx` that performed an expensive nested `.filter()` and `.some()` loop dynamically on every render to hide films whose showtimes are in the past. When this array was initialized via `filmsData?.films || []`, the inline `[]` caused the dependency to change reference every render, defeating any memoization attempts.
+**Action:** Always extract stable empty values (like `const EMPTY_ARRAY = [];`) outside the component or use `useMemo` for the default value, and rigorously wrap expensive nested array filtering (like `O(N*M)`) inside `useMemo` to prevent UI stuttering on unrelated re-renders.
