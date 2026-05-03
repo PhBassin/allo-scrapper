@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { OrgSettingsService, type OrgSettingsRow } from './org-settings-service.js';
 import type { DB, FooterLink } from '../db/types.js';
+import { extractSupportedGoogleFont, isValidThemeFontValue } from '../routes/org-settings-fonts.js';
 
 describe('OrgSettingsService', () => {
   let mockDb: DB;
@@ -20,12 +21,19 @@ describe('OrgSettingsService', () => {
     favicon_base64: 'data:image/x-icon;base64,def',
     color_primary: '#FECC00',
     color_secondary: '#1F2937',
+    color_accent: '#F59E0B',
+    color_background: '#FFFFFF',
+    color_surface: '#F3F4F6',
+    color_text_primary: '#111827',
+    color_text_secondary: '#6B7280',
+    color_success: '#10B981',
+    color_error: '#EF4444',
     font_primary: 'Inter',
     font_secondary: 'Roboto',
     footer_text: 'Contact us',
-    footer_links: JSON.stringify([{ text: 'Privacy', url: '/privacy' }]),
-    email_from_name: 'Cinema Team',
-    email_from_address: 'no-reply@example.com',
+    footer_links: JSON.stringify([{ label: 'Privacy', text: 'Privacy', url: '/privacy' }]),
+    email_from_name: 'Allo-Scrapper',
+    email_from_address: 'no-reply@allocine-scrapper.com',
     scrape_mode: 'weekly',
     scrape_days: 7,
     updated_at: '2026-04-07T00:00:00Z',
@@ -43,8 +51,8 @@ describe('OrgSettingsService', () => {
 
       expect(result).toBeDefined();
       expect(result?.site_name).toBe('My Cinema');
-      expect(result?.footer_links).toEqual([{ text: 'Privacy', url: '/privacy' }]);
-      expect(mockDb.query).toHaveBeenCalledWith('SELECT * FROM org_settings WHERE id = 1');
+      expect(result?.footer_links).toEqual([{ label: 'Privacy', text: 'Privacy', url: '/privacy' }]);
+      expect(mockDb.query).toHaveBeenCalledWith('SELECT * FROM app_settings WHERE id = 1');
     });
 
     it('returns undefined if no settings row exists', async () => {
@@ -81,7 +89,7 @@ describe('OrgSettingsService', () => {
       const updates = {
         site_name: 'New Name',
         color_primary: '#FF5733',
-        footer_links: [{ text: 'Terms', url: '/terms' }] as FooterLink[],
+        footer_links: [{ label: 'Terms', text: 'Terms', url: '/terms' }] as FooterLink[],
       };
 
       const updatedRow = { ...sampleRow, ...updates, footer_links: JSON.stringify(updates.footer_links) };
@@ -98,7 +106,7 @@ describe('OrgSettingsService', () => {
       expect(result?.color_primary).toBe('#FF5733');
       expect(result?.footer_links).toEqual(updates.footer_links);
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE org_settings'),
+        expect.stringContaining('UPDATE app_settings'),
         expect.any(Array)
       );
     });
@@ -115,9 +123,30 @@ describe('OrgSettingsService', () => {
 
       expect(result).toBeDefined();
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE org_settings'),
+        expect.stringContaining('UPDATE app_settings'),
         expect.arrayContaining([42])
       );
+    });
+  });
+
+  describe('theme font validation helpers', () => {
+    it('accepts supported Google Fonts and system fonts', () => {
+      expect(isValidThemeFontValue('Poppins')).toBe(true);
+      expect(isValidThemeFontValue('Georgia')).toBe(true);
+      expect(isValidThemeFontValue('Inter, sans-serif')).toBe(true);
+    });
+
+    it('rejects unsupported or unsafe font values', () => {
+      expect(isValidThemeFontValue('Papyrus')).toBe(false);
+      expect(isValidThemeFontValue('Roboto; color:red')).toBe(false);
+      expect(isValidThemeFontValue('')).toBe(false);
+    });
+
+    it('extracts only supported Google Fonts for CSS imports', () => {
+      expect(extractSupportedGoogleFont('Poppins')).toBe('Poppins');
+      expect(extractSupportedGoogleFont('Inter, sans-serif')).toBe('Inter');
+      expect(extractSupportedGoogleFont('Georgia')).toBeNull();
+      expect(extractSupportedGoogleFont('Papyrus')).toBeNull();
     });
   });
 });

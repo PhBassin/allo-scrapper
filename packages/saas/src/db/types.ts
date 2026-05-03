@@ -90,14 +90,15 @@ export interface Invitation {
 
 /** Footer link for org settings */
 export interface FooterLink {
-  text: string;
+  label: string;
+  text?: string;
   url: string;
 }
 
 /** Scrape mode options */
-export type ScrapeMode = 'daily' | 'weekly' | 'manual';
+export type ScrapeMode = 'weekly' | 'from_today' | 'from_today_limited';
 
-/** Full org settings row from org_schema.org_settings table */
+/** Full org settings row from tenant app_settings table */
 export interface OrgSettings {
   id: number;
   site_name: string;
@@ -105,6 +106,13 @@ export interface OrgSettings {
   favicon_base64: string | null;
   color_primary: string;
   color_secondary: string;
+  color_accent: string;
+  color_background: string;
+  color_surface: string;
+  color_text_primary: string;
+  color_text_secondary: string;
+  color_success: string;
+  color_error: string;
   font_primary: string;
   font_secondary: string;
   footer_text: string | null;
@@ -124,6 +132,13 @@ export interface OrgSettingsPublic {
   favicon_base64: string | null;
   color_primary: string;
   color_secondary: string;
+  color_accent: string;
+  color_background: string;
+  color_surface: string;
+  color_text_primary: string;
+  color_text_secondary: string;
+  color_success: string;
+  color_error: string;
   font_primary: string;
   font_secondary: string;
   footer_text: string | null;
@@ -139,6 +154,13 @@ export interface OrgSettingsUpdate {
   favicon_base64?: string | null;
   color_primary?: string;
   color_secondary?: string;
+  color_accent?: string;
+  color_background?: string;
+  color_surface?: string;
+  color_text_primary?: string;
+  color_text_secondary?: string;
+  color_success?: string;
+  color_error?: string;
   font_primary?: string;
   font_secondary?: string;
   footer_text?: string | null;
