@@ -50,3 +50,12 @@ As a maintainer, I want to merge the open PRs for tenant release (#918) and Scra
 ### Change Log
 - Merged PR #918: deferred resolveTenant client release until response finishes (Date: 2026-05-03)
 - Merged PR #923: parser selector validation to detect Allocine structure changes (Date: 2026-05-03)
+
+## Review Findings
+
+- [x] [Review][Patch] Remove out-of-scope client tweaks from this stabilization set [client/index.html:7]
+- [x] [Review][Defer] Registration route test realism vs isolation [packages/saas/src/routes/register.test.ts:12] — deferred, route-level determinism kept for this pass; broader integration-depth decision moved to dedicated test-strategy story.
+- [x] [Review][Patch] Scheduler tests no longer drive timer callbacks under fake timers [packages/saas/src/quota-reset-scheduler.test.ts:55]
+- [x] [Review][Patch] SSE concurrency test readiness helper can fail flaky and leak pending clients on timeout [server/src/routes/scraper-progress.concurrent.integration.test.ts:172]
+- [x] [Review][Patch] Brittle internal call-count assertion in org route test [packages/saas/src/routes/org.test.ts:275]
+- [x] [Review][Defer] Story-level acceptance mismatch for scraper consumer-job regression proof [scraper/*] — deferred, pre-existing

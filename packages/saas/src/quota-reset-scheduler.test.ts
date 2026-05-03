@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startQuotaResetScheduler } from './quota-reset-scheduler.js';
 import { logger } from './utils/logger.js';
 import type { DB } from './db/types.js';
@@ -32,6 +32,11 @@ describe('QuotaResetScheduler', () => {
     vi.useFakeTimers();
   });
 
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
   it('should log scheduler start using the structured logger', () => {
     vi.setSystemTime(new Date('2026-04-02T12:00:00Z'));
     startQuotaResetScheduler(mockDb as unknown as DB);
@@ -46,10 +51,8 @@ describe('QuotaResetScheduler', () => {
     mockDb.query.mockResolvedValue({ rows: [{ id: 1, slug: 'test-org' }] });
     
     startQuotaResetScheduler(mockDb as unknown as DB);
-    
-    // We only need to resolve the immediate async call to runMonthlyReset
-    await vi.setSystemTime(new Date('2026-04-01T12:00:01Z')); 
-    await vi.runAllTimersAsync();
+
+    await vi.runOnlyPendingTimersAsync();
 
     expect(mockDb.query).toHaveBeenCalledWith(
       `SELECT id, slug FROM organizations WHERE status IN ('trial', 'active')`
@@ -60,8 +63,7 @@ describe('QuotaResetScheduler', () => {
     vi.setSystemTime(new Date('2026-04-02T12:00:00Z'));
     
     startQuotaResetScheduler(mockDb as unknown as DB);
-    await vi.setSystemTime(new Date('2026-04-02T12:00:01Z'));
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     expect(mockDb.query).not.toHaveBeenCalled();
   });

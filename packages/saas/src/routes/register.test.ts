@@ -9,6 +9,14 @@ import request from 'supertest';
 const SLUG_VALID = 'my-cinema';
 const JWT_SECRET = 'local-dev-jwt-fixture-key-1234567890abcd';
 
+const { createOrgMock } = vi.hoisted(() => ({
+  createOrgMock: vi.fn(),
+}));
+
+vi.mock('../services/org-service.js', () => ({
+  createOrg: createOrgMock,
+}));
+
 function buildApp(dbOverride?: object, poolOverride?: object) {
   const app = express();
   app.use(express.json());
@@ -35,6 +43,17 @@ function buildApp(dbOverride?: object, poolOverride?: object) {
 describe('POST /api/saas/orgs (register)', () => {
   beforeEach(() => {
     vi.stubEnv('JWT_SECRET', JWT_SECRET);
+    createOrgMock.mockResolvedValue({
+      org: {
+        id: 1,
+        name: 'Acme',
+        slug: SLUG_VALID,
+        schema_name: 'org_my_cinema',
+        status: 'trial',
+        trial_ends_at: new Date().toISOString(),
+      },
+      schemaCreated: true,
+    });
   });
 
   it('returns 400 when orgName is missing', async () => {
@@ -96,6 +115,7 @@ describe('POST /api/saas/orgs (register)', () => {
       id: 1, name: 'Acme', slug: SLUG_VALID,
       schema_name: 'org_my_cinema', status: 'trial', trial_ends_at: new Date().toISOString(),
     };
+    createOrgMock.mockResolvedValueOnce({ org, schemaCreated: true });
     const db = {
       query: vi.fn()
         .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })

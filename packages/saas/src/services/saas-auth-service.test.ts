@@ -39,7 +39,8 @@ describe('SaasAuthService', () => {
       const client = {
         query: vi.fn()
           .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // SET search_path OK
-          .mockRejectedValueOnce(new Error('db error')),     // INSERT fails
+          .mockRejectedValueOnce(new Error('db error'))      // INSERT fails
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 }), // SET search_path TO public in finally
         release: vi.fn(),
       };
       const pool = { connect: vi.fn().mockResolvedValue(client) };

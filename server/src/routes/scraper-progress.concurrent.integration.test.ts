@@ -166,6 +166,35 @@ interface ClientResult {
   streamEnded: boolean;
 }
 
+async function waitForListenerCount(
+  tracker: ProgressTracker,
+  expected: number,
+  timeoutMs = 10_000,
+): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (tracker.getListenerCount() >= expected) return;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  throw new Error(
+    `Timed out waiting for ${expected} listeners (got ${tracker.getListenerCount()})`,
+  );
+}
+
+async function waitForListenerCountOrDrain(
+  tracker: ProgressTracker,
+  expected: number,
+  clientPromises: Array<Promise<ClientResult>>,
+  timeoutMs = 10_000,
+): Promise<void> {
+  try {
+    await waitForListenerCount(tracker, expected, timeoutMs);
+  } catch (error) {
+    await Promise.allSettled(clientPromises);
+    throw error;
+  }
+}
+
 function openSseClient(
   port: number,
   token: string,
@@ -303,7 +332,7 @@ describe('Story 3.4 — SSE Concurrent Client Load Test (50+ clients)', () => {
       openSseClient(port, TOKEN, 1, 45_000),
     );
 
-    await new Promise((r) => setTimeout(r, 200));
+    await waitForListenerCountOrDrain(tracker, CONCURRENT_CLIENTS, clientPromises);
     expect(tracker.getListenerCount()).toBe(CONCURRENT_CLIENTS);
 
     const results = await Promise.all(clientPromises);
@@ -332,7 +361,7 @@ describe('Story 3.4 — SSE Concurrent Client Load Test (50+ clients)', () => {
     );
 
     // Give all clients a moment to establish their connections before emitting
-    await new Promise((r) => setTimeout(r, 200));
+    await waitForListenerCountOrDrain(tracker, CONCURRENT_CLIENTS, clientPromises);
 
     expect(tracker.getListenerCount()).toBe(CONCURRENT_CLIENTS);
 
@@ -397,7 +426,7 @@ describe('Story 3.4 — SSE Concurrent Client Load Test (50+ clients)', () => {
       );
 
       // Wait for connections
-      await new Promise((r) => setTimeout(r, 200));
+      await waitForListenerCountOrDrain(freshTracker, CONCURRENT_CLIENTS, clientPromises);
       expect(freshTracker.getListenerCount()).toBe(CONCURRENT_CLIENTS);
 
       // Emit the sequence
@@ -457,7 +486,7 @@ describe('Story 3.4 — SSE Concurrent Client Load Test (50+ clients)', () => {
       );
 
       // Wait for all connections to be established
-      await new Promise((r) => setTimeout(r, 300));
+      await waitForListenerCountOrDrain(shutdownTracker, CONCURRENT_CLIENTS, clientPromises);
       expect(shutdownTracker.getListenerCount()).toBe(CONCURRENT_CLIENTS);
 
       // Trigger server shutdown and track duration
@@ -500,7 +529,7 @@ describe('Story 3.4 — SSE Concurrent Client Load Test (50+ clients)', () => {
       openSseClient(port, TOKEN, 1, 10_000),
     );
 
-    await new Promise((r) => setTimeout(r, 200));
+    await waitForListenerCountOrDrain(tracker, CONCURRENT_CLIENTS, clientPromises);
 
     tracker.emit({ type: 'started', total_cinemas: 2, total_dates: 2, report_id: 9003 });
 
