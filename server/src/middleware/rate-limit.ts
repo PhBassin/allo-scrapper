@@ -14,6 +14,11 @@ const getJwtSecret = (): string => {
   return jwtSecretCache;
 };
 
+/** Clears the cached JWT secret. Intended for use in tests only. */
+export const clearJwtSecretCache = (): void => {
+  jwtSecretCache = null;
+};
+
 const LOCALHOST_IPS = new Set(['127.0.0.1', '::1']);
 
 const PRIVATE_IP_PATTERNS = [
@@ -63,13 +68,17 @@ const WINDOW_MS = parseEnvInt('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000); // 15 min
  * Falls back to req.ip for unauthenticated requests.
  */
 export const authenticatedKeyGenerator = (req: Request): string => {
-  const jwtSecret = getJwtSecret();
-
   try {
+    // getJwtSecret() is inside try so a missing/invalid JWT_SECRET at runtime
+    // gracefully falls back to IP-based limiting rather than crashing the request.
+    const jwtSecret = getJwtSecret();
+
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      const decoded = jwt.verify(token, jwtSecret) as {
+      // Guard against comma-separated multi-value headers (e.g. "Bearer token1, Bearer token2")
+      // which Express joins into a single string. Extract only the first segment.
+      const rawToken = authHeader.slice('Bearer '.length).split(',')[0].trim();
+      const decoded = jwt.verify(rawToken, jwtSecret, { algorithms: ['HS256'] }) as {
         id?: number | string;
         username?: string;
         org_slug?: string;
@@ -98,7 +107,8 @@ export const authenticatedKeyGenerator = (req: Request): string => {
       }
     }
   } catch {
-    // fall through to IP fallback
+    // Any error (invalid secret, expired token, bad signature, algorithm mismatch, etc.)
+    // falls through silently to IP-based limiting.
   }
   return ipKeyGenerator(req.ip ?? 'unknown');
 };

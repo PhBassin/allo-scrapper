@@ -30,15 +30,17 @@ export default function HomePage() {
     queryFn: () => selectedDate ? getFilmsByDate(selectedDate) : getWeeklyFilms(),
   });
 
-  const allFilms: FilmWithShowtimes[] = filmsData?.films || EMPTY_ARRAY;
-  // ⚡ PERFORMANCE: Memoize to avoid expensive O(N*M) nested filtering on every render
-  const films = useMemo(() => {
+  // ⚡ PERFORMANCE: Memoize to avoid expensive O(N*M) nested filtering on every render.
+  // Depends on filmsData (stable React Query reference) rather than derived allFilms to
+  // prevent the memo from recomputing on every render when filmsData.films is a new array.
+  const films = useMemo((): FilmWithShowtimes[] => {
+    const allFilms = filmsData?.films ?? EMPTY_ARRAY;
     return afterTime
       ? allFilms.filter(film =>
           film.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
         )
       : allFilms;
-  }, [allFilms, afterTime]);
+  }, [filmsData, afterTime]);
   const weekStart = filmsData?.weekStart || '';
 
   const isLoading = isLoadingCinemas || isLoadingFilms;

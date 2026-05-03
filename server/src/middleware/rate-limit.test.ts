@@ -4,6 +4,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import {
   authenticatedKeyGenerator,
+  clearJwtSecretCache,
   generalLimiter,
   authLimiter,
   registerLimiter,
@@ -47,6 +48,7 @@ describe('Rate Limiting Middleware', () => {
   });
 
   afterEach(() => {
+    clearJwtSecretCache();
     process.env.NODE_ENV = originalNodeEnv;
     if (originalJwtSecret === undefined) {
       delete process.env.JWT_SECRET;
@@ -375,6 +377,43 @@ describe('Rate Limiting Middleware', () => {
         .get('/protected-malformed')
         .set('Authorization', 'Bearer not.a.valid.jwt');
       expect(response.status).toBe(200);
+    });
+
+    it('should fall back to IP when token is signed with a different secret (tampered token)', async () => {
+      // Attacker crafts a token with an arbitrary id using a different secret
+      const ATTACKER_SECRET = 'attacker-controlled-secret';
+      const tamperedToken = jwt.sign({ id: 999, username: 'victim@test.local', org_slug: 'victim-org' }, ATTACKER_SECRET);
+
+      const req = {
+        headers: { authorization: `Bearer ${tamperedToken}` },
+        ip: '9.9.9.9',
+        socket: { remoteAddress: '9.9.9.9' },
+      } as express.Request;
+
+      // Must fall back to IP key, not the crafted user key
+      const key = authenticatedKeyGenerator(req);
+      expect(key).not.toContain('victim@test.local');
+      expect(key).not.toContain('id:999');
+    });
+
+    it('should fall back to IP when token is expired', async () => {
+      // Sign a token that expired 10 seconds ago
+      const expiredToken = jwt.sign(
+        { id: 42, username: 'expired@test.local', org_slug: 'exp-org' },
+        TEST_SECRET,
+        { expiresIn: -10 }
+      );
+
+      const req = {
+        headers: { authorization: `Bearer ${expiredToken}` },
+        ip: '8.8.8.8',
+        socket: { remoteAddress: '8.8.8.8' },
+      } as express.Request;
+
+      // Expired token should fall back to IP key
+      const key = authenticatedKeyGenerator(req);
+      expect(key).not.toContain('expired@test.local');
+      expect(key).not.toContain('id:42');
     });
   });
 
