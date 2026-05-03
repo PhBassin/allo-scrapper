@@ -1,51 +1,56 @@
 # AGENTS.md
 
-## Repo Shape
+## Purpose
 
-- npm workspaces: `client`, `server`, `scraper`, `packages/saas`, `packages/logger`.
-- Real entrypoints: `client/src/main.tsx`, `server/src/index.ts`, `scraper/src/index.ts`.
-- `server` is the API/frontend host. It always initializes the DB, subscribes to Redis scrape progress, and loads `@allo-scrapper/saas` dynamically when `SAAS_ENABLED=true`.
-- `scraper` is a separate service. `RUN_MODE` supports `oneshot`, `consumer`, `cron`, and `direct`; production compose runs separate `consumer` and `cron` containers.
+Operational guide for contributors and agents in this monorepo. Prefer BMAD workflows for planning, implementation, and review.
 
-## Commands That Matter
+## Repo Map
 
-- Node/tooling: repo requires Node `>=24` and npm `>=10`.
-- Root `npm run dev` uses `docker-compose.dev.yml`. It starts `db`, `redis`, `server`, and `client` only.
-- `docker-compose.dev.yml` does **not** start the scraper worker. For end-to-end scraping in local dev, run `cd scraper && npm run dev` separately.
-- Full CI-like workspace build/typecheck: `npm run build --workspaces --if-present`.
-- Root `npm run build` is narrower: it builds only `server` and `client`.
-- There is no root lint/typecheck script. Only `client` has `npm run lint`.
+- Workspaces: `client`, `server`, `scraper`, `packages/saas`, `packages/logger`
+- Entrypoints: `client/src/main.tsx`, `server/src/index.ts`, `scraper/src/index.ts`
+- `server`: API + frontend host, DB init/migrations, Redis scrape progress subscription, dynamic SaaS load when `SAAS_ENABLED=true`
+- `scraper`: separate service with `RUN_MODE` = `oneshot|consumer|cron|direct`
 
-## Focused Verification
+## BMAD-First Workflow
 
-- Server unit tests: `cd server && npm run test:run`
-- Server Redis integration tests: `cd server && npm run test:integration`
+- Start with `bmad-help` if scope is unclear
+- Do not use `bmad-quick-dev`
+- Follow this required flow: `CS -> VS -> DS -> CR -> GP -> WAIT`
+- `CS` = Clarify Scope (confirm objective, constraints, and impacted areas)
+- `VS` = Validate Scope (check assumptions against repo/docs and acceptance criteria)
+- `DS` = Design Solution (propose implementation approach before changing code)
+- `CR` = Change Review (self-review diff, risks, and verification coverage)
+- `GP` = Git/PR Prep (stage clean changes, write conventional commit, prepare PR context)
+- `WAIT` = Stop for user direction before starting the next cycle
+- Use specialized BMAD skills only when the current step explicitly matches (PRD, architecture, test strategy, code review, etc.)
+- Standard delivery flow: issue -> branch from `develop` -> implement + verify -> PR with `Closes #<issue>`
+- Use Conventional Commits; if PR targets `main`, add exactly one label: `major|minor|patch`
+
+## Commands
+
+- Requirements: Node `>=24`, npm `>=10`
+- Dev stack: `npm run dev` (starts `db`, `redis`, `server`, `client`)
+- Scraper local dev: `cd scraper && npm run dev` (not started by `docker-compose.dev.yml`)
+- CI-like workspace build: `npm run build --workspaces --if-present`
+- Root build (narrow): `npm run build` (`server` + `client`)
+
+## Verification
+
+- Server unit: `cd server && npm run test:run`
+- Server integration: `cd server && npm run test:integration`
 - Server coverage: `cd server && npm run test:coverage`
 - Client: `cd client && npm run lint && npm run test:run && npm run build`
 - Scraper: `cd scraper && npm run test:run`
-- SaaS package: `cd packages/saas && npm run test:run`
+- SaaS: `cd packages/saas && npm run test:run`
 
-## CI And Hooks
+## CI and Hooks
 
-- Install hooks once with `./scripts/install-hooks.sh`.
-- The pre-push hook runs only `cd server && npx tsc --noEmit && npm run test:run`.
-- CI runs, in order: `npm ci --legacy-peer-deps`, `npm run build --workspaces --if-present`, `cd server && npm run test:run`, `cd server && npm run test:integration`, `cd server && npm run test:coverage`.
-- `server` integration tests rely on Testcontainers; CI does not provision Redis separately for them.
+- Install hooks once: `./scripts/install-hooks.sh`
+- Pre-push runs: `cd server && npx tsc --noEmit && npm run test:run`
+- CI order: `npm ci --legacy-peer-deps` -> `npm run build --workspaces --if-present` -> server unit -> integration -> coverage
+- Server integration tests use Testcontainers (no separate CI Redis provisioning)
 
-## Testing Quirks
-
-- `playwright.config.ts` does not start a web server. Start the app yourself before `npm run e2e`.
-- Playwright defaults to `http://localhost:5173`; override with `PLAYWRIGHT_BASE_URL`.
-- Scrape-heavy Playwright specs run in a dedicated serial project. For a single spec, `--project=chromium --no-deps` skips that dependency chain.
-- SaaS fixture endpoints `/test/seed-org` and `/test/cleanup-org/:id` exist only when `NODE_ENV=test`, or when the backend runs in `development` with `E2E_ENABLE_ORG_FIXTURE=true`. Outside that runtime, `/test/*` intentionally returns `404`.
-
-## Runtime Gotchas
-
-- `AUTO_MIGRATE` defaults to true. Server startup runs pending migrations automatically.
-- After migrations, the server seeds `server/src/config/cinemas.json` if the `cinemas` table is empty.
-- CI and Docker install dependencies from the repo root. If a local non-Docker install breaks on `sharp`, reinstall from `server/`.
-
-## Workflow Conventions
+## Runtime and Test Gotchas
 
 - Repo conventions in existing docs/templates: create an issue first, branch from `develop`, use Conventional Commits, and reference the issue in the PR.
 - Expected flow for changes: issue -> branch from `develop` -> implement/verify -> open PR -> add one version label (`major`/`minor`/`patch`) if it targets `main`.
@@ -58,7 +63,8 @@
 - After `GP`, stop and wait for an explicit new order before any `CS`, `DS`, `push-flow`, or merge-related action.
 - Do not auto-advance BMAD work just because a story reached `review` or because a PR exists; only an explicit user order unlocks the next phase.
 
-## Current Behavior Worth Trusting Over Older Docs
+## Current Source of Truth
 
-- Do not use the removed `/api/superadmin/login` flow. System admins authenticate through `/api/auth/login`; `server/src/services/auth-service.ts` adds `scope: 'superadmin'` automatically for system-role admins.
-- Vite proxies both `/api` and `/test` to the backend in local dev.
+- Superadmin login is via `/api/auth/login` (not `/api/superadmin/login`)
+- `server/src/services/auth-service.ts` adds `scope: 'superadmin'` for system-role admins
+- Vite proxies both `/api` and `/test` in local dev
