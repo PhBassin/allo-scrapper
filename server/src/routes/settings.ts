@@ -249,6 +249,14 @@ router.post('/import', protectedLimiter, requireAuth, requirePermission('setting
       return next(new ValidationError('Invalid import data format'));
     }
 
+    // Validate input lengths to prevent DoS via large payloads
+    for (const [field, limit] of Object.entries(INPUT_LIMITS)) {
+      const value = importData.settings[field as keyof AppSettingsUpdate];
+      if (typeof value === 'string' && value.length > limit) {
+        return next(new ValidationError(`${field} exceeds maximum length of ${limit} characters`));
+      }
+    }
+
     const importedSettings = await importSettings(db, importData, req.user!.id);
 
     if (!importedSettings) {

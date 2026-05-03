@@ -148,11 +148,11 @@ function normalizeFooterLinks(footerLinks: FooterLink[] | undefined): FooterLink
 function normalizeSettingsResponse<T extends Partial<AppSettingsPublic> & ServerThemeShape & LegacyThemeShape & { footer_links?: FooterLink[] }>(
   settings: T
 ): T & AppSettingsPublic {
-  const colorSurface = settings.color_surface || settings.color_border || '#E5E7EB';
-  const colorTextPrimary = settings.color_text_primary || settings.color_text || '#111827';
-  const colorTextSecondary = settings.color_text_secondary || '#6B7280';
-  const fontPrimary = settings.font_primary || settings.font_family_heading || 'Inter';
-  const fontSecondary = settings.font_secondary || settings.font_family_body || 'Inter';
+  const colorSurface = settings.color_surface ?? settings.color_border ?? '#E5E7EB';
+  const colorTextPrimary = settings.color_text_primary ?? settings.color_text ?? '#111827';
+  const colorTextSecondary = settings.color_text_secondary ?? '#6B7280';
+  const fontPrimary = settings.font_primary ?? settings.font_family_heading ?? 'Inter';
+  const fontSecondary = settings.font_secondary ?? settings.font_family_body ?? 'Inter';
 
   return {
     ...settings,
