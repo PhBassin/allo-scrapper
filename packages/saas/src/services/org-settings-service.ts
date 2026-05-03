@@ -1,9 +1,9 @@
 /**
  * Service for managing per-org white-label settings.
- * Each org has its own org_settings table in its schema (org_<slug>).
- * 
- * This is the SaaS equivalent of server/src/db/settings-queries.ts,
- * but operates on org-scoped settings instead of global app settings.
+ * Each org has its own tenant-scoped app_settings singleton row in its schema.
+ *
+ * This mirrors server/src/db/settings-queries.ts, but runs against the
+ * tenant schema selected by middleware for /api/org/:slug/* requests.
  */
 
 import type { DB } from '../db/types.js';
@@ -15,7 +15,7 @@ import type {
   ScrapeMode,
 } from '../db/types.js';
 
-// Database row interface for org_settings table
+// Database row interface for tenant app_settings table
 export interface OrgSettingsRow {
   id: number;
   site_name: string;
@@ -23,6 +23,13 @@ export interface OrgSettingsRow {
   favicon_base64: string | null;
   color_primary: string;
   color_secondary: string;
+  color_accent: string;
+  color_background: string;
+  color_surface: string;
+  color_text_primary: string;
+  color_text_secondary: string;
+  color_success: string;
+  color_error: string;
   font_primary: string;
   font_secondary: string;
   footer_text: string | null;
@@ -73,7 +80,7 @@ export class OrgSettingsService {
    */
   async getSettings(): Promise<OrgSettings | undefined> {
     const result = await this.db.query<OrgSettingsRow>(
-      'SELECT * FROM org_settings WHERE id = 1'
+      'SELECT * FROM app_settings WHERE id = 1'
     );
 
     if (result.rows.length === 0) {
@@ -117,6 +124,13 @@ export class OrgSettingsService {
       favicon_base64: 'favicon_base64',
       color_primary: 'color_primary',
       color_secondary: 'color_secondary',
+      color_accent: 'color_accent',
+      color_background: 'color_background',
+      color_surface: 'color_surface',
+      color_text_primary: 'color_text_primary',
+      color_text_secondary: 'color_text_secondary',
+      color_success: 'color_success',
+      color_error: 'color_error',
       font_primary: 'font_primary',
       font_secondary: 'font_secondary',
       footer_text: 'footer_text',
@@ -150,7 +164,7 @@ export class OrgSettingsService {
     values.push(userId);
 
     const query = `
-      UPDATE org_settings
+      UPDATE app_settings
       SET ${fields.join(', ')}
       WHERE id = 1
       RETURNING *
@@ -170,19 +184,26 @@ export class OrgSettingsService {
    */
   async resetSettings(userId: number): Promise<OrgSettings | undefined> {
     const query = `
-      UPDATE org_settings
+      UPDATE app_settings
       SET 
-        site_name = 'My Cinema',
+        site_name = 'Allo-Scrapper',
         logo_base64 = NULL,
         favicon_base64 = NULL,
         color_primary = '#FECC00',
         color_secondary = '#1F2937',
+        color_accent = '#F59E0B',
+        color_background = '#FFFFFF',
+        color_surface = '#F3F4F6',
+        color_text_primary = '#111827',
+        color_text_secondary = '#6B7280',
+        color_success = '#10B981',
+        color_error = '#EF4444',
         font_primary = 'Inter',
         font_secondary = 'Roboto',
         footer_text = NULL,
         footer_links = '[]'::jsonb,
-        email_from_name = 'Cinema Team',
-        email_from_address = 'no-reply@example.com',
+        email_from_name = 'Allo-Scrapper',
+        email_from_address = 'no-reply@allocine-scrapper.com',
         scrape_mode = 'weekly',
         scrape_days = 7,
         updated_at = NOW(),

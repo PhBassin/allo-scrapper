@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useContext, useState, useEffect, useRef } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { SettingsContext } from '../contexts/SettingsContext';
+import { getTenantScopedPath } from '../api/client';
 import { ADMIN_PERMISSIONS } from '../utils/adminPermissions';
 
 interface LayoutProps {
@@ -21,6 +22,10 @@ export default function Layout({ children, title }: LayoutProps) {
 
   const APP_NAME = publicSettings?.site_name || import.meta.env.VITE_APP_NAME || 'Allo-Scrapper';
   const logo = publicSettings?.logo_base64;
+  const homePath = getTenantScopedPath('/');
+  const adminPath = getTenantScopedPath('/admin?tab=cinemas');
+  const changePasswordPath = getTenantScopedPath('/change-password');
+  const loginPath = getTenantScopedPath('/login');
   
   // Check if user has at least one admin permission
   const hasAdminAccess = isAuthenticated && ADMIN_PERMISSIONS.some(perm => hasPermission(perm));
@@ -28,7 +33,7 @@ export default function Layout({ children, title }: LayoutProps) {
   const handleLogout = () => {
     logout();
     setIsDropdownOpen(false);
-    navigate('/');
+    navigate(homePath);
   };
 
   const toggleDropdown = () => {
@@ -103,7 +108,7 @@ export default function Layout({ children, title }: LayoutProps) {
       >
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link to="/" className="text-2xl font-bold flex items-center gap-2">
+            <Link to={homePath} className="text-2xl font-bold flex items-center gap-2">
               {logo ? (
                 <img 
                   src={logo} 
@@ -116,11 +121,11 @@ export default function Layout({ children, title }: LayoutProps) {
               <span>{APP_NAME}</span>
             </Link>
             <nav className="flex items-center gap-6">
-              <Link to="/" className="hover:text-primary transition">
+              <Link to={homePath} className="hover:text-primary transition">
                 Accueil
               </Link>
               {hasAdminAccess && (
-                <Link to="/admin?tab=cinemas" className="hover:text-primary transition">
+                <Link to={adminPath} className="hover:text-primary transition">
                   Admin
                 </Link>
               )}
@@ -151,7 +156,7 @@ export default function Layout({ children, title }: LayoutProps) {
                       data-testid="user-dropdown-menu"
                     >
                       <Link
-                        to="/change-password"
+                        to={changePasswordPath}
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
                         onClick={() => setIsDropdownOpen(false)}
                         data-testid="change-password-link"
@@ -181,7 +186,7 @@ export default function Layout({ children, title }: LayoutProps) {
                 </div>
               ) : (
                 <Link
-                  to="/login"
+                  to={loginPath}
                   className="text-sm bg-primary text-black hover:bg-yellow-500 font-medium px-4 py-2 rounded transition"
                 >
                   Connexion
@@ -193,7 +198,7 @@ export default function Layout({ children, title }: LayoutProps) {
       </header>
 
       <main className="container mx-auto px-4 py-4 flex-1">
-        {title && <h1 className="text-3xl font-bold mb-6">{title}</h1>}
+        {title && <h1 className="text-3xl font-heading font-bold mb-6">{title}</h1>}
         {children}
       </main>
 

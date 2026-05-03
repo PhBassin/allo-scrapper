@@ -33,6 +33,14 @@ body {
   font-family: var(--theme-font-body);
 }
 
+.font-heading {
+  font-family: var(--theme-font-heading);
+}
+
+.font-body {
+  font-family: var(--theme-font-body);
+}
+
 .btn-primary {
   padding: 0.5rem 1rem;
   background-color: var(--color-primary);

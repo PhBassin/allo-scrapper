@@ -57,7 +57,7 @@ export default function FilmPage() {
             )}
 
             <div className="card p-6 space-y-4">
-              <h1 className="text-2xl font-bold leading-tight">{film.title}</h1>
+              <h1 className="text-2xl font-heading font-bold leading-tight">{film.title}</h1>
               
               <div className="space-y-2 text-sm">
                 {film.duration_minutes && (
@@ -125,7 +125,7 @@ export default function FilmPage() {
         <div className="lg:col-span-2 space-y-8">
           {/* Showtimes Section */}
           <section>
-            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <h2 className="text-2xl font-heading font-bold mb-4 flex items-center gap-2">
               <span>📅 Horaires et Cinémas</span>
             </h2>
             <CinemaShowtimes cinemas={film.cinemas} />
@@ -134,7 +134,7 @@ export default function FilmPage() {
           {/* Synopsis Section */}
           {film.synopsis && (
             <section className="bg-white rounded-xl border border-gray-100 p-6">
-              <h2 className="text-xl font-bold mb-3">Synopsis</h2>
+              <h2 className="text-xl font-heading font-bold mb-3">Synopsis</h2>
               <p className="text-gray-700 leading-relaxed whitespace-pre-line">{film.synopsis}</p>
               
               {film.actors && film.actors.length > 0 && (

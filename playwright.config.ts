@@ -2,6 +2,22 @@ import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:5173';
 
+const cliArgs = process.argv.slice(2);
+const hasExplicitTestSelection = cliArgs.some((arg, index) => {
+  const previousArg = cliArgs[index - 1];
+  if (previousArg === '-g' || previousArg === '--grep' || previousArg === '--grep-invert') {
+    return true;
+  }
+
+  if (arg === '-g' || arg === '--grep' || arg === '--grep-invert') {
+    return true;
+  }
+
+  return /(^|\/).+\.(spec|test)\.[cm]?[jt]sx?$/.test(arg);
+});
+
+const scrapeProjectDependencies = hasExplicitTestSelection ? [] : ['chromium-scrape-serial'];
+
 const scrapeSpecs = [
   '**/scrape-progress.spec.ts',
   '**/cinema-scrape.spec.ts',
@@ -59,7 +75,7 @@ export default defineConfig({
     },
     {
       name: 'chromium',
-      dependencies: ['chromium-scrape-serial'],
+      dependencies: scrapeProjectDependencies,
       testIgnore: scrapeSpecs,
       use: { ...devices['Desktop Chrome'] },
     },

@@ -155,7 +155,7 @@ export default function CinemaPage() {
 
       {/* Cinema Header */}
       <div className="mb-6">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">{cinema.name}</h1>
+        <h1 className="text-3xl md:text-4xl font-heading font-bold mb-2">{cinema.name}</h1>
         
         {cinema.address && (
           <p className="text-gray-600 mb-1">
@@ -208,7 +208,7 @@ export default function CinemaPage() {
 
                   <div className="flex-grow">
                     <div className="mb-4">
-                      <h2 className="text-xl md:text-2xl font-bold mb-1">
+                      <h2 className="text-xl md:text-2xl font-heading font-bold mb-1">
                         <Link to={`/film/${film.id}`} className="hover:text-primary transition">
                           {film.title}
                         </Link>

@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
+import { getTenantScopedPath } from '../api/client';
 import type { PermissionName } from '../types/role';
 
 interface RequirePermissionProps {
@@ -30,7 +31,7 @@ const RequirePermission: React.FC<RequirePermissionProps> = ({ children, permiss
             sessionStorage.removeItem('auth:expired');
         }
 
-        return <Navigate to="/login" state={{ from: location, reason: isSessionExpired ? 'session_expired' : undefined }} replace />;
+        return <Navigate to={getTenantScopedPath('/login')} state={{ from: location, reason: isSessionExpired ? 'session_expired' : undefined }} replace />;
     }
 
     if (permission && !hasPermission(permission)) {

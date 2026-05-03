@@ -37,10 +37,23 @@ services:
 
   # Backend server in development mode with hot reload
   server:
-    image: node:20-alpine
+    image: node:24-alpine
     container_name: allo-scrapper-server-dev
     working_dir: /app
-    command: sh -c "npm install --legacy-peer-deps && npm run dev --workspace=allo-scrapper-server"
+    command: >-
+      sh -c "set -eu;
+      npm install --legacy-peer-deps;
+      npm run build --workspace=@allo-scrapper/logger;
+      npm run build --workspace=allo-scrapper-server;
+      npm run build --workspace=@allo-scrapper/saas;
+      npm run build --workspace=@allo-scrapper/logger -- --watch --preserveWatchOutput &
+      LOGGER_BUILD_PID=$!;
+      npm run build --workspace=allo-scrapper-server -- --watch --preserveWatchOutput &
+      SERVER_BUILD_PID=$!;
+      npm run build --workspace=@allo-scrapper/saas -- --watch --preserveWatchOutput &
+      SAAS_BUILD_PID=$!;
+      trap 'kill $LOGGER_BUILD_PID $SERVER_BUILD_PID $SAAS_BUILD_PID' INT TERM EXIT;
+      npx tsx watch server/dist/index.js"
     volumes:
       - .:/app
       - /app/node_modules
@@ -78,7 +91,7 @@ services:
 
   # Frontend in development mode with hot reload
   client:
-    image: node:20-alpine
+    image: node:24-alpine
     container_name: allo-scrapper-client-dev
     working_dir: /app
     command: sh -c "npm install --legacy-peer-deps && npm run dev --workspace=client -- --host"

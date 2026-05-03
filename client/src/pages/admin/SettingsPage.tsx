@@ -152,7 +152,7 @@ const SettingsPage: React.FC = () => {
                 <div className="bg-white rounded-lg shadow-sm">
                     {/* Header */}
                     <div className="border-b border-gray-200 p-6">
-                        <h1 className="text-2xl font-bold text-gray-900">White-Label Settings</h1>
+                        <h1 className="text-2xl font-heading font-bold text-gray-900">White-Label Settings</h1>
                         <p className="mt-1 text-sm text-gray-600">
                             Customize the branding and appearance of your application
                         </p>
@@ -174,7 +174,7 @@ const SettingsPage: React.FC = () => {
                                     className={`
                                         py-4 px-1 border-b-2 font-medium text-sm transition-colors cursor-pointer
                                         ${activeTab === tab.id
-                                            ? 'border-blue-500 text-blue-600'
+                                            ? 'border-primary text-primary'
                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                         }
                                     `}
@@ -190,15 +190,16 @@ const SettingsPage: React.FC = () => {
                         {activeTab === 'general' && (
                             <div className="space-y-6 max-w-2xl">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label htmlFor="site-name-input" className="block text-sm font-medium text-gray-700 mb-2">
                                         Site Name
                                     </label>
                                     <input
+                                        id="site-name-input"
                                         type="text"
                                         value={formData.site_name || ''}
                                         onChange={(e) => handleFieldChange('site_name', e.target.value)}
                                         disabled={!canUpdate}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
                                         placeholder="My Cinema Site"
                                     />
                                 </div>
@@ -302,15 +303,16 @@ const SettingsPage: React.FC = () => {
                         {activeTab === 'footer' && (
                             <div className="space-y-6 max-w-3xl">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label htmlFor="footer-text-input" className="block text-sm font-medium text-gray-700 mb-2">
                                         Footer Text
                                     </label>
                                     <textarea
+                                        id="footer-text-input"
                                         value={formData.footer_text || ''}
                                         onChange={(e) => handleFieldChange('footer_text', e.target.value)}
                                         disabled={!canUpdate}
                                         rows={3}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
                                         placeholder="© 2024 My Cinema Site. All rights reserved."
                                     />
                                 </div>
@@ -326,29 +328,31 @@ const SettingsPage: React.FC = () => {
                         {activeTab === 'email' && (
                             <div className="space-y-6 max-w-2xl">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label htmlFor="email-from-name-input" className="block text-sm font-medium text-gray-700 mb-2">
                                         From Name
                                     </label>
                                     <input
+                                        id="email-from-name-input"
                                         type="text"
                                         value={formData.email_from_name || ''}
                                         onChange={(e) => handleFieldChange('email_from_name', e.target.value)}
                                         disabled={!canUpdate}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
                                         placeholder="My Cinema Site"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label htmlFor="email-from-address-input" className="block text-sm font-medium text-gray-700 mb-2">
                                         From Email Address
                                     </label>
                                     <input
+                                        id="email-from-address-input"
                                         type="email"
                                         value={formData.email_from_address || ''}
                                         onChange={(e) => handleFieldChange('email_from_address', e.target.value)}
                                         disabled={!canUpdate}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
                                         placeholder="noreply@example.com"
                                     />
                                 </div>
@@ -377,7 +381,7 @@ const SettingsPage: React.FC = () => {
                                 </Button>
                             )}
                             {canImport && (
-                                <label className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer" data-testid="import-settings-button">
+                                <label className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2" data-testid="import-settings-button">
                                     Import
                                     <input
                                         type="file"

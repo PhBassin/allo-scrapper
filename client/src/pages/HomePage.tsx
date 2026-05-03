@@ -109,7 +109,7 @@ export default function HomePage() {
     <div className="max-w-5xl mx-auto">
       {/* Title and Date Info - Above sticky header */}
       <div className="mb-4">
-        <h1 className="text-4xl font-bold mb-3">
+        <h1 className="text-4xl font-heading font-bold mb-3" data-testid="home-page-title">
           {selectedDate ? 'Films du jour' : 'Au programme cette semaine'}
         </h1>
         {weekStart && !selectedDate && (
