@@ -20,7 +20,7 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 
 ```
 1. ISSUE   → Verify or create a GitHub issue
-2. BRANCH  → Create a dedicated feature branch from develop for this issue
+2. BRANCH  → Create a dedicated issue branch from develop using a CI-visible prefix
 3. RED     → Write failing tests first (commit before implementing)
 4. GREEN   → Write minimal code to make tests pass
 5. DOCS    → Update README.md / AGENTS.md if API or behaviour changed
@@ -31,6 +31,8 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 10. PR     → Open Pull Request only when that step is explicitly requested or otherwise clearly in scope
               → After merge: switch back to develop, pull latest
 ```
+
+For BMAD-tracked work, the GitHub issue is the visible cockpit and the repo artifacts remain the execution truth: keep one active issue per story/task, label it with `bmad` plus exactly one `phase:*` label, and link plans / story files / commits / PRs back to that issue instead of duplicating the full artifact text in GitHub.
 
 **Conditional steps (not always required):**
 - **Docker build** — run `docker compose build` before pushing if Dockerfile or dependencies changed
@@ -62,7 +64,18 @@ gh issue create --title "fix: description" --body "Details..." --label bug
 gh issue create --title "docs: description" --body "Details..." --label documentation
 ```
 
-**Note the issue number** — you will need it for the branch name, commits, and PR.
+**Note the issue number** — you will need it for the branch name, commits, labels, and PR.
+
+### BMAD Issue Labels
+
+For BMAD-tracked work, apply these labels on the issue:
+
+- `bmad`
+- exactly one phase label: `phase:gp`, `phase:ds`, `phase:cr`, `phase:wait`, or `phase:done`
+- `type:story` when the issue maps directly to a BMAD story
+- `blocked` only when the work is waiting on an external dependency or explicit decision
+
+Update the issue labels at each BMAD checkpoint instead of opening a second tracking issue.
 
 ---
 
@@ -73,16 +86,17 @@ gh issue create --title "docs: description" --body "Details..." --label document
 ```bash
 git checkout develop
 git pull origin develop
-git checkout -b feature/<issue-number>-<short-description>
+git checkout -b <type>/<issue-number>-<short-description>
 ```
 
 **Examples:**
-- `feature/259-add-cinema-modal`
-- `feature/42-fix-parser-bug`
-- `feature/266-optimize-agents-md`
+- `feat/259-add-cinema-modal`
+- `fix/42-fix-parser-bug`
+- `docs/266-optimize-agents-md`
 
 **Rules:**
 - Always branch from `develop`, never from `main` or another feature branch
+- Branch prefixes must match CI-visible patterns: `feat/`, `fix/`, `docs/`, `chore/`, `ci/`, `refactor/`, `test/`, `perf/`
 - One issue = one branch = one PR
 - NEVER push directly to `develop` or `main`
 
@@ -231,7 +245,7 @@ git commit -m "docs: update README with <feature>"        # DOCS — if applicab
 
 ```bash
 # Push branch only when that step is actually required
-git push -u origin feature/<issue-number>-<short-description>
+git push -u origin <type>/<issue-number>-<short-description>
 
 # Create PR only when explicitly requested or otherwise clearly in scope
 gh pr create --title "feat(scope): description" --body "## Summary
@@ -365,7 +379,7 @@ docker compose --profile monitoring --profile scraper up -d  # Everything
 ```bash
 git status
 git log --oneline -10
-git checkout -b feature/<issue-number>-<short-desc> develop
+git checkout -b <type>/<issue-number>-<short-desc> develop
 ```
 
 ### GitHub CLI
