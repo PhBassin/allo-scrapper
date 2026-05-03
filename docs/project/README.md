@@ -41,11 +41,11 @@ Security policies and vulnerability reporting.
 Guidelines for AI coding agents (Claude, Copilot, Cursor, etc.).
 
 **What you'll learn:**
-- Mandatory workflow (Issue → Branch → TDD → Commit → PR)
+- Mandatory workflow (Issue → Branch → TDD → Commit → local CR → GP gate → explicit-order PR)
 - Test-Driven Development (TDD) requirements
 - Conventional Commits format
 - Atomic commits strategy
-- Git Flow branching
+- Branch-from-`develop` workflow
 - White-label system guidelines
 
 **Best for:** AI agents, contributors using AI tools, understanding project standards

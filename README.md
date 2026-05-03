@@ -800,14 +800,14 @@ All documentation lives under the `/docs/` directory, organized following the [D
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for:
+We welcome contributions! Please see [Contributing Guide](./docs/guides/development/contributing.md) for:
 - Code of Conduct
-- Development workflow (Issue → Branch → TDD → PR)
+- Development workflow (Issue → Branch → TDD → Local review → PR)
 - Coding standards
 - Commit message conventions (Conventional Commits)
 - Testing requirements
 
-For AI coding agents, see [AGENTS.md](./AGENTS.md) for mandatory workflow and TDD requirements.
+For AI coding agents, see [AGENTS.md](./AGENTS.md) for the mandatory house workflow and TDD requirements. In this repository's BMAD flow, `done` means merged into `develop`, local `CR` comes before any PR, then `GP` is the mandatory checkpoint, and after `GP` the agent must wait for an explicit new order before any `CS`, `DS`, `push-flow`, or merge-related action.
 
 **Redis integration tests (Testcontainers):**
 - Run `npm run test:integration --workspace=allo-scrapper-server` to execute Redis-backed integration tests.
@@ -835,9 +835,11 @@ For AI coding agents, see [AGENTS.md](./AGENTS.md) for mandatory workflow and TD
 3. Write tests before implementation (TDD)
 4. Follow Conventional Commits format
 5. Ensure all tests pass and Docker builds
-6. Create PR referencing the issue
-7. **Add version label** to PR (`major`, `minor`, or `patch`) when targeting `main`
-8. Wait for review before merging
+6. Run local review before any PR (`CR` for BMAD-tracked work)
+7. If this is BMAD-tracked work, run `GP` after `CR` and wait for an explicit order before any PR / push-flow / merge action
+8. Create a PR referencing the issue only when that step is actually requested
+9. **Add version label** to PR (`major`, `minor`, or `patch`) when targeting `main`
+10. Wait for review before merging
 
 **Automated versioning** (PRs to `main` only):
 - Add label `major` (breaking changes), `minor` (features), or `patch` (fixes)

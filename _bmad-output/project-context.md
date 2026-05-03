@@ -185,6 +185,13 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Docs Updated**: Update README.md/AGENTS.md if API or behavior changed
 - **Version Label**: Add `patch`, `minor`, or `major` label to PR
 
+**BMAD Order Enforcement:**
+- **`done` Means Merged**: In this repository, mark a BMAD story `done` only once its work is merged into `develop`
+- **Strict Sequence**: Follow `DS -> CR -> GP -> WAIT`
+- **Post-CR Gate**: After `CR`, the next mandatory step is `GP` (Generate Plan)
+- **Wait State**: After `GP`, stop and wait for an explicit new order before any `CS`, `DS`, `push-flow`, or merge action
+- **No Auto-Advance**: Never infer permission to continue from a PR, local green tests, or a `review` status alone
+
 **Deployment & Versioning:**
 - **Automated Versioning**: PR merge to main triggers version bump based on label
 - **Docker Images**: Built automatically with version tags (vX.Y.Z, vX.Y, vX, stable, latest)

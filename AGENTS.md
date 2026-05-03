@@ -52,11 +52,16 @@ Operational guide for contributors and agents in this monorepo. Prefer BMAD work
 
 ## Runtime and Test Gotchas
 
-- `AUTO_MIGRATE=true` by default; server applies pending migrations on startup
-- After migrations, server seeds `server/src/config/cinemas.json` if the `cinemas` table is empty
-- `playwright.config.ts` does not start app; run app before `npm run e2e`
-- Playwright base URL defaults to `http://localhost:5173` (`PLAYWRIGHT_BASE_URL` to override)
-- `/test/seed-org` and `/test/cleanup-org/:id` only exist in `NODE_ENV=test` or dev with `E2E_ENABLE_ORG_FIXTURE=true`; otherwise `/test/*` returns `404`
+- Repo conventions in existing docs/templates: create an issue first, branch from `develop`, use Conventional Commits, and reference the issue in the PR.
+- Expected flow for changes: issue -> branch from `develop` -> implement/verify -> open PR -> add one version label (`major`/`minor`/`patch`) if it targets `main`.
+- PR template expects `Closes #<issue>` and a short list of test commands actually run.
+- CI branch patterns are `feat/**`, `fix/**`, `docs/**`, `chore/**`, `ci/**`, `refactor/**`, `test/**`, `perf/**`.
+- PRs merged to `main` trigger automated versioning and releases. Add exactly one version label: `major`, `minor`, or `patch`.
+- For BMAD tracking in this repository, treat `done` as **already merged into `develop`**, not merely coded locally or pushed to a PR branch.
+- BMAD order is strict: `DS -> CR -> GP -> WAIT`.
+- After a `CR`, the mandatory next step is `GP` (Generate Plan).
+- After `GP`, stop and wait for an explicit new order before any `CS`, `DS`, `push-flow`, or merge-related action.
+- Do not auto-advance BMAD work just because a story reached `review` or because a PR exists; only an explicit user order unlocks the next phase.
 
 ## Current Source of Truth
 
