@@ -43,6 +43,7 @@ vi.mock('../../src/redis/client.js', () => ({
 
 vi.mock('../../src/db/client.js', () => ({
   db: { end: vi.fn(), query: (...args: any[]) => mockDbQuery(...args) },
+  withTenantDb: vi.fn().mockImplementation(async (slug, run) => run({ end: vi.fn(), query: (...args: any[]) => mockDbQuery(...args) })),
 }));
 
 vi.mock('../../src/utils/logger.js', () => ({

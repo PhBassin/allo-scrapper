@@ -1477,11 +1477,11 @@ So that emails are consistent with the application's visual identity.
 | 4-2 — Verification steps (populated DB) | done | #951 |
 | 4-3 — CI pipeline idempotency validation | done | #951 |
 
-### Epic 5 — White-Label Theme Consistency ⏳ BACKLOG
+### Epic 5 — White-Label Theme Consistency ✅ DONE
 | Story | Status |
 |-------|--------|
-| 5-1 — Theme switching E2E tests | backlog |
-| 5-2 — CSP strict mode validation | backlog |
+| 5-1 — Theme switching E2E tests | done |
+| 5-2 — CSP strict mode validation | done |
 
 ### Epic 6 — Email Template Validation ⏳ BACKLOG
 | Story | Status |
@@ -1499,3 +1499,26 @@ So that emails are consistent with the application's visual identity.
 | #923 | Scraper: parser structure validation for Allocine changes (OPEN) | fix |
 | #929 | Documentation audit refresh | docs |
 | #938 | BMAD skills and customization update | chore |
+
+### Epic 7: Technical Debt Consolidation & Preparation
+Address technical debt accrued during earlier epics and resolve open pull requests before beginning the next major feature initiative (Epic 6). 
+
+**FRs covered:** N/A (Technical Debt)
+**NFRs covered:** NFR10 (Maintainability)
+**Effort:** 10-15 hours
+**Priority:** 🟡 MEDIUM
+
+**Definition of Done:**
+- [ ] Open stability PRs (#918, #923) are reviewed, tested, and merged
+- [ ] Theme client/server contract mismatch from Epic 5 is resolved
+- [ ] Email testing tool technical spike is completed with a clear decision
+- [ ] E2E test flakiness (missing serial execution tags) is resolved
+
+#### Story 7.1: Resolve Open Scraper & Tenant Stability PRs
+As a maintainer, I want to merge the open PRs for tenant release (#918) and Scraper parsing (#923) so that stability issues are fixed in `develop`.
+
+#### Story 7.2: Refactor Theme Variables Contract
+As a frontend developer, I want the client and server to use the exact same setting keys and CSS variables for the white-label theme so that theme rendering is not brittle.
+
+#### Story 7.3: Technical Spike - Email Testing Tool
+As a QA engineer, I want to evaluate Litmus vs Email on Acid and produce a PoC for automated email testing so that Epic 6 is unblocked.

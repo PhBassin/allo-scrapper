@@ -1,5 +1,5 @@
-# generated: 2026-04-15
-# last_updated: 2026-04-30T09:23:00Z
+# generated: 2026-05-03
+# last_updated: 2026-05-03T12:00:00Z
 # project: allo-scrapper
 # project_key: NOKEY
 # tracking_system: file-system
@@ -27,8 +27,8 @@
 #   - optional: Can be completed but not required
 #   - done: Retrospective has been completed
 
-generated: 2026-04-15
-last_updated: 2026-05-03T09:50:00Z
+generated: 2026-05-03
+last_updated: 2026-05-03T10:40:00Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -36,8 +36,7 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # ─────────────────────────────────────────────────────────────
-  # EPIC 0: Test Infrastructure Setup (Technical Blocker)
-  # ⚡ MUST complete before Epic 1 begins
+  # EPIC 0: Test Infrastructure Setup
   # ─────────────────────────────────────────────────────────────
   epic-0: done
   0-1-enable-playwright-parallel-execution: done
@@ -48,7 +47,6 @@ development_status:
 
   # ─────────────────────────────────────────────────────────────
   # EPIC 1: Multi-Tenant Security & Isolation Hardening
-  # 🔴 BLOCKER — requires Epic 0 complete
   # ─────────────────────────────────────────────────────────────
   epic-1: done
   1-1-implement-org-id-validation-middleware: done
@@ -61,20 +59,18 @@ development_status:
 
   # ─────────────────────────────────────────────────────────────
   # EPIC 2: Scraper Job Queue Reliability & Failure Handling
-  # 🔴 HIGH — requires Epic 0 (Stories 0.2, 0.3) complete
   # ─────────────────────────────────────────────────────────────
   epic-2: done
-  2-1-implement-dead-letter-queue-for-failed-scraper-jobs: done   # PR #904
-  2-2-add-exponential-backoff-retry-logic-for-redis-failures: done # PR #906 + #907
-  2-3-redis-job-queue-load-testing-100-concurrent-jobs: done      # branch test/story-2-3-redis-load
-  2-4-redis-reconnection-handling-during-job-processing: done     # PR #919 — "harden Redis reconnect recovery"
-  2-5-e2e-scraper-progress-tracking-with-10-concurrent-jobs: done # PR #921 — "track tenant scrape progress by job"
+  2-1-implement-dead-letter-queue-for-failed-scraper-jobs: done
+  2-2-add-exponential-backoff-retry-logic-for-redis-failures: done
+  2-3-redis-job-queue-load-testing-100-concurrent-jobs: done
+  2-4-redis-reconnection-handling-during-job-processing: done
+  2-5-e2e-scraper-progress-tracking-with-10-concurrent-jobs: done
   2-6-dlq-api-endpoints-api-only-no-ui: done
   epic-2-retrospective: done
 
   # ─────────────────────────────────────────────────────────────
   # EPIC 3: Real-Time Communication & Protection (SSE + Rate Limiting)
-  # 🔴 HIGH — implémentation order: 3.7 -> 3.1 -> 3.5 -> (3.2, 3.3, 3.4, 3.6, 3.8 parallel)
   # ─────────────────────────────────────────────────────────────
   epic-3: done
   3-1-implement-sse-heartbeat-mechanism: done
@@ -89,7 +85,6 @@ development_status:
 
   # ─────────────────────────────────────────────────────────────
   # EPIC 4: Database Migration Reliability & Idempotency
-  # 🟡 MEDIUM
   # ─────────────────────────────────────────────────────────────
   epic-4: done
   4-1-enforce-migration-idempotency-checks-in-migrations: done
@@ -99,18 +94,25 @@ development_status:
 
   # ─────────────────────────────────────────────────────────────
   # EPIC 5: White-Label Theme Consistency & Validation
-  # 🟢 LOW
   # ─────────────────────────────────────────────────────────────
-  epic-5: in-progress
+  epic-5: done
   5-1-theme-switching-e2e-regression-tests: done
   5-2-csp-strict-mode-validation: done
-  epic-5-retrospective: optional
+  epic-5-retrospective: done
 
   # ─────────────────────────────────────────────────────────────
   # EPIC 6: Email Template Validation & Branding
-  # 🟢 LOW
   # ─────────────────────────────────────────────────────────────
   epic-6: backlog
   6-1-email-template-cross-client-rendering-tests: backlog
   6-2-email-template-branding-consistency: backlog
   epic-6-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 7: Technical Debt Consolidation & Preparation
+  # ─────────────────────────────────────────────────────────────
+  epic-7: in-progress
+  7-1-resolve-open-scraper-and-tenant-stability-prs: done
+  7-2-refactor-theme-variables-contract: backlog
+  7-3-technical-spike-email-testing-tool: backlog
+  epic-7-retrospective: optional

@@ -83,7 +83,7 @@ describe('loadTheaterMetadata', () => {
     };
 
     mockFetchTheaterPage.mockResolvedValue({
-      html: '<html></html>',
+      html: '<section id="theaterpage-showtimes-index-ui"><article class="movie-card-theater"></article></section>',
       availableDates: ['2026-03-10'],
     });
 
@@ -116,7 +116,7 @@ describe('loadTheaterMetadata', () => {
     };
 
     mockFetchTheaterPage.mockResolvedValue({
-      html: '<html></html>',
+      html: '<section id="theaterpage-showtimes-index-ui"><article class="movie-card-theater"></article></section>',
       availableDates: ['2026-03-10', '2026-03-11'],
     });
 
@@ -147,7 +147,7 @@ describe('addCinemaAndScrape', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetchTheaterPage.mockResolvedValue({
-      html: '<html></html>',
+      html: '<section id="theaterpage-showtimes-index-ui"><article class="movie-card-theater"></article></section>',
       availableDates: [],
     });
     mockParseTheaterPage.mockReturnValue({ cinema: parsedCinema, films: [] });
@@ -200,7 +200,7 @@ describe('addCinemaAndScrape', () => {
     const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
 
     mockFetchTheaterPage.mockResolvedValue({
-      html: '<html></html>',
+      html: '<section id="theaterpage-showtimes-index-ui"><article class="movie-card-theater"></article></section>',
       availableDates: ['2026-03-10', '2026-03-11', '2026-03-12'],
     });
 
@@ -223,7 +223,7 @@ describe('addCinemaAndScrape', () => {
     const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
 
     mockFetchTheaterPage.mockResolvedValue({
-      html: '<html></html>',
+      html: '<section id="theaterpage-showtimes-index-ui"><article class="movie-card-theater"></article></section>',
       availableDates: ['2026-03-10'],
     });
 
@@ -238,7 +238,7 @@ describe('addCinemaAndScrape', () => {
     const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
 
     mockFetchTheaterPage.mockResolvedValue({
-      html: '<html></html>',
+      html: '<section id="theaterpage-showtimes-index-ui"><article class="movie-card-theater"></article></section>',
       availableDates: ['2026-03-10', '2026-03-11'],
     });
 

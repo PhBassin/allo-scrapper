@@ -1,5 +1,8 @@
 import * as cheerio from 'cheerio';
 import type { FilmPageData } from '../types/scraper.js';
+import { ParserStructureError } from '../utils/parser-errors.js';
+
+const FILM_META_INFO_SELECTOR = '.meta-body-info';
 
 function uniqueNonEmpty(values: Array<string | undefined | null>): string[] {
   const seen = new Set<string>();
@@ -111,10 +114,18 @@ function parseVisualCredits($: cheerio.CheerioAPI): {
 // Parse the film details page from the source website to extract duration and other supplementary info
 export function parseFilmPage(html: string): FilmPageData {
   const $ = cheerio.load(html);
+  const metaInfo = $(FILM_META_INFO_SELECTOR).first();
+
+  if (metaInfo.length === 0) {
+    throw new ParserStructureError(
+      `Missing required selector: ${FILM_META_INFO_SELECTOR}`,
+      FILM_META_INFO_SELECTOR
+    );
+  }
 
   let durationMinutes: number | undefined;
 
-  const metaText = $('.meta-body-info').first().text();
+  const metaText = metaInfo.text();
   const durationMatch = metaText.match(/(\d+)h\s*(\d+)min/);
 
   if (durationMatch) {

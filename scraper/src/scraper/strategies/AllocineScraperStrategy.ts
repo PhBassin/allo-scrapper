@@ -21,6 +21,8 @@ import type { CinemaConfig, WeeklyProgram, Cinema } from '../../types/scraper.js
 import { type ProgressPublisher } from '../index.js';
 import { type IScraperStrategy } from './IScraperStrategy.js';
 import { RateLimitError } from '../../utils/errors.js';
+import { ParserStructureError } from '../../utils/parser-errors.js';
+import { validateFilmPageStructure, validateTheaterPageStructure } from '../parser-health-check.js';
 
 export function shouldRefreshFilmDetails(existingFilm?: {
   duration_minutes?: number;
@@ -60,6 +62,15 @@ export class AllocineScraperStrategy implements IScraperStrategy {
     cinema: CinemaConfig
   ): Promise<{ availableDates: string[]; cinema: Cinema }> {
     const { html, availableDates } = await fetchTheaterPage(cinema.url);
+    const theaterValidation = validateTheaterPageStructure(html);
+
+    if (!theaterValidation.valid) {
+      throw new ParserStructureError(
+        `Missing required theater selector(s): ${theaterValidation.missingSelectors.join(', ')}`,
+        theaterValidation.missingSelectors[0] ?? '#theaterpage-showtimes-index-ui',
+        cinema.url
+      );
+    }
 
     const pageData = parseTheaterPage(html, cinema.id);
     const mergedCinema: Cinema = { 
@@ -108,6 +119,16 @@ export class AllocineScraperStrategy implements IScraperStrategy {
 
             try {
               const filmHtml = await fetchFilmPage(film.id);
+              const filmValidation = validateFilmPageStructure(filmHtml);
+
+              if (!filmValidation.valid) {
+                throw new ParserStructureError(
+                  `Missing required film selector(s): ${filmValidation.missingSelectors.join(', ')}`,
+                  filmValidation.missingSelectors[0] ?? '.meta-body-info',
+                  film.source_url
+                );
+              }
+
               const filmPageData = parseFilmPage(filmHtml);
 
               if (filmPageData.duration_minutes) {
@@ -126,6 +147,10 @@ export class AllocineScraperStrategy implements IScraperStrategy {
                 film.trailer_url = filmPageData.trailer_url;
               }
             } catch (error) {
+              if (error instanceof ParserStructureError) {
+                throw error;
+              }
+
               logger.warn('Error fetching film page', { filmId: film.id, error });
             } finally {
               await delay(movieDelayMs);
@@ -172,6 +197,10 @@ export class AllocineScraperStrategy implements IScraperStrategy {
             showtimes_count: filmData.showtimes.length,
           });
         } catch (error) {
+          if (error instanceof ParserStructureError) {
+            throw error;
+          }
+
           const errorMessage = error instanceof Error ? error.message : String(error);
           logger.error('Error processing film', { title: film.title, error });
           await progress?.emit({ type: 'film_failed', film_title: film.title, error: errorMessage });
@@ -189,7 +218,7 @@ export class AllocineScraperStrategy implements IScraperStrategy {
       return { filmsCount, showtimesCount };
     } catch (error) {
       // Re-throw RateLimitError immediately for scraper to handle
-      if (error instanceof RateLimitError) {
+      if (error instanceof RateLimitError || error instanceof ParserStructureError) {
         logger.error('Rate limit detected - stopping scrape', { cinema: cinema.name, date, error });
         throw error;
       }
