@@ -109,6 +109,7 @@ development_status:
   # EPIC 6: Email Template Validation & Branding
   # ─────────────────────────────────────────────────────────────
   epic-6: backlog
+  6-0-technical-spike-email-testing-tool: backlog
   6-1-email-template-cross-client-rendering-tests: backlog
   6-2-email-template-branding-consistency: backlog
   epic-6-retrospective: optional
@@ -119,5 +120,4 @@ development_status:
   epic-7: done
   7-1-resolve-open-scraper-and-tenant-stability-prs: done
   7-2-refactor-theme-variables-contract: done
-  7-3-technical-spike-email-testing-tool: backlog
   epic-7-retrospective: done
