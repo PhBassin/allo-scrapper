@@ -49,7 +49,14 @@ async function startServer() {
     if (process.env.SAAS_ENABLED === 'true') {
       logger.info('🏢 SAAS_ENABLED=true — loading SaaS plugin...');
       try {
-        const mod = await import('@allo-scrapper/saas');
+        // Dynamic import with string cast: @allo-scrapper/saas is an optional peer
+        // built as a separate workspace package. It is not resolvable by the TypeScript
+        // compiler when the server workspace is compiled in isolation (e.g. in CI before
+        // the saas package is built). The cast to string intentionally bypasses the
+        // module resolver at compile time while preserving the runtime dynamic import.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const mod = await import('@allo-scrapper/saas' as string);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         const saasPlugin: AppPlugin = mod.saasPlugin;
         await applyPlugins(app, [saasPlugin], { pool, db });
         logger.info('🏢 SaaS plugin loaded successfully');
