@@ -28,7 +28,7 @@
 #   - done: Retrospective has been completed
 
 generated: 2026-04-15
-last_updated: 2026-05-02T20:38:25Z
+last_updated: 2026-05-03T09:50:00Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -91,10 +91,10 @@ development_status:
   # EPIC 4: Database Migration Reliability & Idempotency
   # 🟡 MEDIUM
   # ─────────────────────────────────────────────────────────────
-  epic-4: in-progress
+  epic-4: done
   4-1-enforce-migration-idempotency-checks-in-migrations: done
   4-2-add-verification-steps-to-all-migrations: done
-  4-3-ci-pipeline-migration-idempotency-validation: backlog
+  4-3-ci-pipeline-migration-idempotency-validation: done
   epic-4-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────
@@ -102,8 +102,8 @@ development_status:
   # 🟢 LOW
   # ─────────────────────────────────────────────────────────────
   epic-5: in-progress
-  5-1-theme-switching-e2e-regression-tests: review
-  5-2-csp-strict-mode-validation: backlog
+  5-1-theme-switching-e2e-regression-tests: done
+  5-2-csp-strict-mode-validation: done
   epic-5-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────

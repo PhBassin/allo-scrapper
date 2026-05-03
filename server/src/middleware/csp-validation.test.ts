@@ -40,4 +40,20 @@ describe('Content Security Policy', () => {
     expect(styleSrcMatch).toBeDefined();
     expect(styleSrcMatch![0]).toContain("'unsafe-inline'");
   });
+
+  it('should restrict form submissions to same origin', async () => {
+    const app = createApp();
+    const response = await request(app).get('/api/health');
+    const cspHeader = response.headers['content-security-policy'];
+
+    expect(cspHeader).toContain("form-action 'self'");
+  });
+
+  it('should prevent clickjacking via frame-ancestors none', async () => {
+    const app = createApp();
+    const response = await request(app).get('/api/health');
+    const cspHeader = response.headers['content-security-policy'];
+
+    expect(cspHeader).toContain("frame-ancestors 'none'");
+  });
 });
