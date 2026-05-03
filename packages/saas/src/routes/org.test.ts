@@ -272,7 +272,13 @@ describe('GET /api/org/:slug/cinemas', () => {
       .join(' ');
     expect(errorText).toMatch(/organization mismatch/i);
     expect(db.query).not.toHaveBeenCalled();
-    expect(dbClient.query).toHaveBeenCalledTimes(2);
+    expect(dbClient.query).toHaveBeenCalled();
+    expect(dbClient.query.mock.calls.some(([sql]: [string]) =>
+      typeof sql === 'string' && sql.includes('SELECT * FROM organizations WHERE slug = $1')
+    )).toBe(true);
+    expect(dbClient.query.mock.calls.some(([sql]: [string]) =>
+      typeof sql === 'string' && sql.includes('SET search_path TO public')
+    )).toBe(true);
   });
 
   it('uses the scoped dbClient for cinema schedule details and keeps the global db untouched', async () => {
