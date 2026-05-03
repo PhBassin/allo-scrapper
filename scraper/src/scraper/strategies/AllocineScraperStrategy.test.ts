@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ParserStructureError } from '../../utils/parser-errors.js';
 
 const mocks = vi.hoisted(() => ({
   upsertShowtimes: vi.fn(),
@@ -7,9 +8,15 @@ const mocks = vi.hoisted(() => ({
   getFilm: vi.fn(),
   fetchShowtimesJson: vi.fn(),
   fetchFilmPage: vi.fn(),
+  fetchTheaterPage: vi.fn(),
   delay: vi.fn(),
   parseShowtimesJson: vi.fn(),
   parseFilmPage: vi.fn(),
+  upsertCinema: vi.fn(),
+}));
+
+vi.mock('../../db/cinema-queries.js', () => ({
+  upsertCinema: mocks.upsertCinema,
 }));
 
 vi.mock('../../db/showtime-queries.js', () => ({
@@ -23,6 +30,7 @@ vi.mock('../../db/film-queries.js', () => ({
 }));
 
 vi.mock('../http-client.js', () => ({
+  fetchTheaterPage: mocks.fetchTheaterPage,
   fetchShowtimesJson: mocks.fetchShowtimesJson,
   fetchFilmPage: mocks.fetchFilmPage,
   delay: mocks.delay,
@@ -73,6 +81,10 @@ describe('AllocineScraperStrategy scrapeTheater detail refresh fallback', () => 
     vi.clearAllMocks();
 
     mocks.fetchShowtimesJson.mockResolvedValue({});
+    mocks.fetchTheaterPage.mockResolvedValue({
+      html: '<section id="theaterpage-showtimes-index-ui"><article class="movie-card-theater"></article></section>',
+      availableDates: ['2026-03-28'],
+    });
     mocks.parseShowtimesJson.mockReturnValue([
       {
         film: {
@@ -100,6 +112,7 @@ describe('AllocineScraperStrategy scrapeTheater detail refresh fallback', () => 
     mocks.upsertShowtimes.mockResolvedValue(undefined);
     mocks.upsertFilm.mockResolvedValue(undefined);
     mocks.upsertWeeklyPrograms.mockResolvedValue(undefined);
+    mocks.upsertCinema.mockResolvedValue(undefined);
     mocks.delay.mockResolvedValue(undefined);
   });
 
@@ -141,5 +154,48 @@ describe('AllocineScraperStrategy scrapeTheater detail refresh fallback', () => 
     );
 
     expect(mocks.delay).toHaveBeenCalledWith(750);
+  });
+
+  it('rethrows parser structure failures from film detail parsing', async () => {
+    const strategy = new AllocineScraperStrategy();
+    mocks.fetchFilmPage.mockResolvedValue('<html><body><h1>broken</h1></body></html>');
+
+    await expect(
+      strategy.scrapeTheater(
+        {} as any,
+        {
+          id: 'C0001',
+          name: 'Cinema Test',
+          url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0001.html',
+          source: 'allocine',
+        },
+        '2026-03-28',
+        500
+      )
+    ).rejects.toThrow(ParserStructureError);
+
+    expect(mocks.upsertFilm).not.toHaveBeenCalled();
+  });
+
+  it('fails theater metadata loading when required theater selectors are missing', async () => {
+    const strategy = new AllocineScraperStrategy();
+    mocks.fetchTheaterPage.mockResolvedValue({
+      html: '<html><body><div>No theater page root</div></body></html>',
+      availableDates: ['2026-03-28'],
+    });
+
+    await expect(
+      strategy.loadTheaterMetadata(
+        {} as any,
+        {
+          id: 'C0001',
+          name: 'Cinema Test',
+          url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0001.html',
+          source: 'allocine',
+        }
+      )
+    ).rejects.toThrow(ParserStructureError);
+
+    expect(mocks.upsertCinema).not.toHaveBeenCalled();
   });
 });

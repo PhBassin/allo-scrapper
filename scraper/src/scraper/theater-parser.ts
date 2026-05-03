@@ -2,12 +2,15 @@ import * as cheerio from 'cheerio';
 import type { TheaterPageData, Cinema, FilmShowtimeData, Film, Showtime } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 
+const THEATER_PAGE_ROOT_SELECTOR = '#theaterpage-showtimes-index-ui';
+const THEATER_MOVIE_CARD_SELECTOR = '.movie-card-theater';
+
 // Parse the cinema page from the source website
 export function parseTheaterPage(html: string, cinemaId: string): TheaterPageData {
   const $ = cheerio.load(html);
 
   // Extraire les données du cinéma depuis l'attribut data-theater
-  const theaterSection = $('#theaterpage-showtimes-index-ui');
+  const theaterSection = $(THEATER_PAGE_ROOT_SELECTOR);
   const theaterDataStr = theaterSection.attr('data-theater');
 
   let cinema: Cinema = {
@@ -52,7 +55,9 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
 
   // Parser chaque film
   const films: FilmShowtimeData[] = [];
-  $('.movie-card-theater').each((_, element) => {
+  const movieCards = $(THEATER_MOVIE_CARD_SELECTOR);
+
+  movieCards.each((_, element) => {
     try {
       const filmData = parseFilmCard($, element, cinemaId, selectedDate);
       if (filmData) {
