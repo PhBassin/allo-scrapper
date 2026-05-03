@@ -25,8 +25,11 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 4. GREEN   → Write minimal code to make tests pass
 5. DOCS    → Update README.md / AGENTS.md if API or behaviour changed
 6. COMMIT  → Atomic commits with Conventional Commits format
-7. PR      → Open Pull Request referencing the issue, wait for review
-             → After merge: switch back to develop, pull latest
+7. CR      → Run local review before any PR
+8. GP      → For BMAD-tracked work, run Generate Plan after CR
+9. WAIT    → After GP, stop until an explicit new order unlocks PR / push-flow / merge work
+10. PR     → Open Pull Request only when that step is explicitly requested or otherwise clearly in scope
+              → After merge: switch back to develop, pull latest
 ```
 
 **Conditional steps (not always required):**
@@ -224,13 +227,13 @@ git commit -m "docs: update README with <feature>"        # DOCS — if applicab
 
 ---
 
-## Step 7: Pull Request
+## Step 7: Local Review / Pull Request
 
 ```bash
-# Push branch
+# Push branch only when that step is actually required
 git push -u origin feature/<issue-number>-<short-description>
 
-# Create PR
+# Create PR only when explicitly requested or otherwise clearly in scope
 gh pr create --title "feat(scope): description" --body "## Summary
 - Change 1
 - Change 2
@@ -238,12 +241,15 @@ gh pr create --title "feat(scope): description" --body "## Summary
 Closes #<issue-number>"
 ```
 
-**Before requesting review:**
+**Before any PR:**
 - [ ] All tests pass (`npm run test:run`)
 - [ ] Code coverage maintained
 - [ ] Conventional Commits used
 - [ ] Documentation updated (if applicable)
-- [ ] Issue referenced in PR body
+- [ ] Issue referenced in commit/branch context
+- [ ] Local review completed (`CR` for BMAD-tracked work)
+- [ ] If BMAD-tracked, `GP` executed after `CR`
+- [ ] After `GP`, an explicit order exists to proceed with PR / push-flow / merge work
 
 **After merge:**
 ```bash

@@ -26,9 +26,11 @@ Every contribution should follow this workflow:
 2. Plan           → Break down into tasks, identify tests needed
 3. TDD            → Write tests BEFORE implementation
 4. Implement      → Write minimal code to pass tests
-5. Atomic Commits → One logical change per commit
-6. Documentation  → Update README if needed
-7. Pull Request   → Open PR, reference issue, follow checklist
+5. Local Review   → Review the change locally before any PR (BMAD work: `CR`)
+6. Atomic Commits → One logical change per commit
+7. Documentation  → Update README / AGENTS / docs if needed
+8. BMAD Gate      → For BMAD-tracked work, run `GP` after `CR` and then wait for an explicit order
+9. Pull Request   → Open PR only when that step is explicitly requested or otherwise clearly in scope
 ```
 
 ---
@@ -378,11 +380,14 @@ Use the PR template which includes:
 
 ### Review Process
 
-1. Open PR against `develop` branch
-2. Ensure CI checks pass
-3. Request review from maintainers
-4. Address feedback with new commits (don't force-push during review)
-5. Squash if requested before merge
+1. Run local review first (`CR` for BMAD-tracked work)
+2. If this is BMAD-tracked work, run `GP` after `CR`
+3. After `GP`, wait for an explicit order before any PR / push-flow / merge action
+4. Open PR against `develop` branch only when that step is actually requested
+5. Ensure CI checks pass
+6. Request review from maintainers
+7. Address feedback with new commits (don't force-push during review)
+8. Squash if requested before merge
 
 ---
 
