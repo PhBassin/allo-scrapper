@@ -38,11 +38,11 @@ Comprehensive testing guide for all test types.
 Guidelines for contributing to the project.
 
 **What you'll learn:**
-- Branching strategy (Git Flow)
+- Branch-from-`develop` contribution workflow
 - Issue-first workflow
 - Test-Driven Development (TDD)
 - Conventional Commits format
-- Pull request process
+- Local review and pull request process
 - Code review guidelines
 
 **Best for:** Contributors, understanding project workflow

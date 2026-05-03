@@ -21,7 +21,12 @@
 #   - ready-for-dev: Story file created in stories folder
 #   - in-progress: Developer actively working on implementation
 #   - review: Ready for code review (via Dev's code-review workflow)
-#   - done: Story completed
+#   - done: Story merged into develop
+#
+# Workflow Order Reminder:
+#   - Strict BMAD order for this repo: DS -> CR -> GP -> WAIT
+#   - After CR, the mandatory next step is GP (Generate Plan)
+#   - After GP, wait for an explicit new user order before CS, DS, push-flow, or merge actions
 #
 # Retrospective Status:
 #   - optional: Can be completed but not required

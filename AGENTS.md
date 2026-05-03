@@ -52,6 +52,11 @@
 - PR template expects `Closes #<issue>` and a short list of test commands actually run.
 - CI branch patterns are `feat/**`, `fix/**`, `docs/**`, `chore/**`, `ci/**`, `refactor/**`, `test/**`, `perf/**`.
 - PRs merged to `main` trigger automated versioning and releases. Add exactly one version label: `major`, `minor`, or `patch`.
+- For BMAD tracking in this repository, treat `done` as **already merged into `develop`**, not merely coded locally or pushed to a PR branch.
+- BMAD order is strict: `DS -> CR -> GP -> WAIT`.
+- After a `CR`, the mandatory next step is `GP` (Generate Plan).
+- After `GP`, stop and wait for an explicit new order before any `CS`, `DS`, `push-flow`, or merge-related action.
+- Do not auto-advance BMAD work just because a story reached `review` or because a PR exists; only an explicit user order unlocks the next phase.
 
 ## Current Behavior Worth Trusting Over Older Docs
 
