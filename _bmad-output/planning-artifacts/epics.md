@@ -1352,6 +1352,9 @@ System emails (password reset, notifications) render correctly across email clie
 - [ ] Email testing tool configured (Litmus or Email on Acid)
 - [ ] Deployed to staging and validated
 
+### Story 6.0: Technical Spike - Email Testing Tool
+As a QA engineer, I want to evaluate Litmus vs Email on Acid and produce a PoC for automated email testing so that the rest of Epic 6 is unblocked.
+
 ### Story 6.1: Email Template Cross-Client Rendering Tests
 
 As a QA engineer,
@@ -1511,7 +1514,6 @@ Address technical debt accrued during earlier epics and resolve open pull reques
 **Definition of Done:**
 - [ ] Open stability PRs (#918, #923) are reviewed, tested, and merged
 - [ ] Theme client/server contract mismatch from Epic 5 is resolved
-- [ ] Email testing tool technical spike is completed with a clear decision
 - [ ] E2E test flakiness (missing serial execution tags) is resolved
 
 #### Story 7.1: Resolve Open Scraper & Tenant Stability PRs
@@ -1519,6 +1521,3 @@ As a maintainer, I want to merge the open PRs for tenant release (#918) and Scra
 
 #### Story 7.2: Refactor Theme Variables Contract
 As a frontend developer, I want the client and server to use the exact same setting keys and CSS variables for the white-label theme so that theme rendering is not brittle.
-
-#### Story 7.3: Technical Spike - Email Testing Tool
-As a QA engineer, I want to evaluate Litmus vs Email on Acid and produce a PoC for automated email testing so that Epic 6 is unblocked.
