@@ -15,7 +15,6 @@ import {
 } from './rate-limit.js';
 
 const TEST_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
-process.env.JWT_SECRET = TEST_SECRET;
 
 // Helper: sign a minimal JWT for rate-limit key tests
 const makeToken = (userId: number, options?: { username?: string; orgSlug?: string; scope?: string }): string =>
@@ -30,13 +29,16 @@ describe('Rate Limiting Middleware', () => {
   let app: express.Application;
 
   let originalNodeEnv: string | undefined;
+  let originalJwtSecret: string | undefined;
   let originalRateLimitWindowMs: string | undefined;
   let originalRateLimitProtectedMax: string | undefined;
 
   beforeEach(() => {
     originalNodeEnv = process.env.NODE_ENV;
+    originalJwtSecret = process.env.JWT_SECRET;
     originalRateLimitWindowMs = process.env.RATE_LIMIT_WINDOW_MS;
     originalRateLimitProtectedMax = process.env.RATE_LIMIT_PROTECTED_MAX;
+    process.env.JWT_SECRET = TEST_SECRET;
     process.env.NODE_ENV = 'development';
     app = express();
     app.use(express.json());
@@ -46,6 +48,11 @@ describe('Rate Limiting Middleware', () => {
 
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
+    if (originalJwtSecret === undefined) {
+      delete process.env.JWT_SECRET;
+    } else {
+      process.env.JWT_SECRET = originalJwtSecret;
+    }
     if (originalRateLimitWindowMs === undefined) {
       delete process.env.RATE_LIMIT_WINDOW_MS;
     } else {
