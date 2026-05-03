@@ -9,19 +9,23 @@ Operational guide for contributors and agents in this monorepo. Prefer BMAD work
 - Workspaces: `client`, `server`, `scraper`, `packages/saas`, `packages/logger`
 - Entrypoints: `client/src/main.tsx`, `server/src/index.ts`, `scraper/src/index.ts`
 - `server`: API + frontend host, DB init/migrations, Redis scrape progress subscription, dynamic SaaS load when `SAAS_ENABLED=true`
-- `scraper`: separate service with `RUN_MODE` = `oneshot|consumer|cron|direct`
+- `scraper`: separate service; `RUN_MODE` env controls behavior:
+  - `oneshot` (default): pop one job from Redis queue, execute, exit
+  - `consumer`: long-running process that polls Redis queue continuously
+  - `cron`: run scraper on a schedule via `CRON_SCHEDULE` env (no Redis)
+  - `direct`: run scraper immediately once and exit (local dev / manual use)
 
 ## BMAD-First Workflow
 
 - Start with `bmad-help` if scope is unclear
-- Do not use `bmad-quick-dev`
+- Do not use `bmad-quick-dev` — it bypasses the required `CS -> VS -> DS -> CR -> GP -> WAIT` discipline
 - Follow this required flow: `CS -> VS -> DS -> CR -> GP -> WAIT`
 - `CS` = Clarify Scope (confirm objective, constraints, and impacted areas)
-- `VS` = Validate Scope (check assumptions against repo/docs and acceptance criteria)
+- `VS` = Validate Story (check story spec, assumptions, acceptance criteria against repo/docs)
 - `DS` = Design Solution (propose implementation approach before changing code)
 - `CR` = Change Review (self-review diff, risks, and verification coverage)
 - `GP` = Git/PR Prep (stage clean changes, write conventional commit, prepare PR context)
-- `WAIT` = Stop for user direction before starting the next cycle
+- `WAIT` = Stop and wait for an explicit user message in the chat before starting the next cycle
 - Use specialized BMAD skills only when the current step explicitly matches (PRD, architecture, test strategy, code review, etc.)
 - Standard delivery flow: issue -> branch from `develop` -> implement + verify -> PR with `Closes #<issue>`
 - Use Conventional Commits; if PR targets `main`, add exactly one label: `major|minor|patch`
@@ -42,6 +46,7 @@ Operational guide for contributors and agents in this monorepo. Prefer BMAD work
 - Client: `cd client && npm run lint && npm run test:run && npm run build`
 - Scraper: `cd scraper && npm run test:run`
 - SaaS: `cd packages/saas && npm run test:run`
+- Logger: `cd packages/logger && npm run test:run`
 
 ## CI and Hooks
 
@@ -62,9 +67,3 @@ Operational guide for contributors and agents in this monorepo. Prefer BMAD work
 - After a `CR`, the mandatory next step is `GP` (Generate Plan).
 - After `GP`, stop and wait for an explicit new order before any `CS`, `DS`, `push-flow`, or merge-related action.
 - Do not auto-advance BMAD work just because a story reached `review` or because a PR exists; only an explicit user order unlocks the next phase.
-
-## Current Source of Truth
-
-- Superadmin login is via `/api/auth/login` (not `/api/superadmin/login`)
-- `server/src/services/auth-service.ts` adds `scope: 'superadmin'` for system-role admins
-- Vite proxies both `/api` and `/test` in local dev
