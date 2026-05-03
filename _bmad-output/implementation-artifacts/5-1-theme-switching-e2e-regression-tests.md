@@ -182,6 +182,26 @@ So that white-label customizations don't cause CSS conflicts.
 - [x] [Review][Patch] AC2/AC3 restaient incomplètes sur la typographie et le parcours multi-pages [`e2e/theme-application.spec.ts`] — corrigé via scénario admin réel couvrant second switch/import, navigation multi-pages, heading/body fonts et reset final nettoyant le branding précédent.
 - [x] [Review][Patch] La stack Docker de dev pouvait servir un runtime SaaS obsolète après démarrage [`docker-compose.dev.yml`] — corrigé via watchers continus pour `@allo-scrapper/logger`, `allo-scrapper-server` et `@allo-scrapper/saas`, avec runtime lancé depuis `server/dist/index.js`.
 
+#### Code Review — 2026-05-03
+
+- [x] [Review][Patch] Second `useEffect` sans dep array dans `useTheme` [`client/src/hooks/useTheme.ts`] — faux positif, dep array `[]` déjà présent
+- [x] [Review][Patch] AC1 — assertion `background-color` des `<button>` [`e2e/theme-application.spec.ts`] — faux positif, assertion déjà présente
+- [x] [Review][Patch] AC2 — `document.fonts.ready` avant assertion `fontFamily` [`e2e/theme-application.spec.ts`] — faux positif, déjà présent
+- [x] [Review][Patch] AC2 — assertion font body text [`e2e/theme-application.spec.ts`] — faux positif, déjà présente
+- [x] [Review][Patch] AC1 — assertion `background-color` du `<header>` [`e2e/theme-application.spec.ts`] — faux positif, déjà présente
+- [x] [Review][Patch] AC3 — navigation multi-pages après save [`e2e/theme-application.spec.ts`] — faux positif, film page déjà couverte
+- [x] [Review][Patch] `setColorField` sélecteur `getByLabel` ambigu [`e2e/theme-application.spec.ts`] — corrigé : sélecteur ciblant `input[type="color"]` dans le conteneur labellé
+- [x] [Review][Patch] `loginAsSeededAdmin` trailing slash `waitForURL` [`e2e/theme-application.spec.ts`] — faux positif, glob `**` matche avec ou sans slash
+- [x] [Review][Patch] `buildFixtureFilmId` incompatible auto-increment [`e2e/theme-application.spec.ts`] — faux positif, serveur fixture utilise la même fn
+- [x] [Review][Patch] `updateSettingsHandler` — `req.body` non validé comme objet [`packages/saas/src/routes/org-settings.ts`] — corrigé : guard object ajouté
+- [x] [Review][Patch] `color_surface = ""` passe le `??` opérateur [`client/src/api/settings.ts`] — corrigé : `??` → `||` dans `normalizeSettingsResponse`
+- [x] [Review][Patch] `ScrapeMode` change sans migration DB [`packages/saas/src/db/types.ts`] — faux positif, contrainte DB n'a jamais inclus `'daily'`/`'manual'`
+- [x] [Review][Patch] Pas d'assertion CSS variables disparues après reset [`e2e/theme-application.spec.ts`] — corrigé : assertions `resetRootVariables` ajoutées
+- [x] [Review][Defer] Import SaaS depuis `dist/` avec `@ts-ignore` — deferred, pré-existant
+- [x] [Review][Defer] Permissions `settings:export/import/reset` absentes du registre — deferred, hors-scope PR
+- [x] [Review][Defer] `tsx watch` sans coordination `tsc --watch` — deferred, pré-existant
+- [x] [Review][Defer] Pas de `test.describe.serial` pour writes E2E — deferred, flakiness à traiter séparément
+
 ## Dev Agent Record
 
 ### Agent Model Used

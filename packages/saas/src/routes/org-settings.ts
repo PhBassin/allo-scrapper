@@ -297,6 +297,12 @@ function validateSettingsUpdate(res: Response, updates: OrgSettingsUpdate): bool
 async function updateSettingsHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const db = req.dbClient as unknown as DB;
+
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+      res.status(400).json({ error: 'Request body must be a JSON object' });
+      return;
+    }
+
     const updates: OrgSettingsUpdate = req.body;
     const user = (req as any).user as { id: number } | undefined;
 

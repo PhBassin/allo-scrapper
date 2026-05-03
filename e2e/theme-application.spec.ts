@@ -59,11 +59,15 @@ async function setColorField(
   label: string,
   value: string,
 ) {
-  await page.getByLabel(label).evaluate((node, nextValue) => {
-    const input = node as HTMLInputElement;
-    input.value = nextValue as string;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
+  // Target the color <input> within the labelled container to avoid ambiguity
+  // when both a <label> element and an aria-label on the input share the same text.
+  const container = page.locator(`[aria-label="${label}"], label:has-text("${label}")`).first();
+  const input = container.locator('input[type="color"]').first();
+  await input.evaluate((node, nextValue) => {
+    const el = node as HTMLInputElement;
+    el.value = nextValue as string;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
   }, value);
 }
 
@@ -271,6 +275,19 @@ test.describe('White-Label Theme Application', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('header a').first()).not.toContainText(importedSettings.site_name);
     await expect(page.locator('footer')).not.toContainText(importedSettings.footer_text);
+
+    // Verify that stale CSS variables have been replaced by defaults (not the imported theme values)
+    const resetRootVariables = await page.evaluate(() => {
+      const styles = window.getComputedStyle(document.documentElement);
+      return {
+        primary: styles.getPropertyValue('--theme-color-primary').trim(),
+        heading: styles.getPropertyValue('--theme-font-heading').trim(),
+        body: styles.getPropertyValue('--theme-font-body').trim(),
+      };
+    });
+    expect(resetRootVariables.primary.toLowerCase()).not.toBe(importedSettings.color_primary.toLowerCase());
+    expect(resetRootVariables.heading.toLowerCase()).not.toContain('roboto');
+    expect(resetRootVariables.body.toLowerCase()).not.toContain('georgia');
 
     assertFixtureRuntimeWithinLimit(startedAt);
   });
