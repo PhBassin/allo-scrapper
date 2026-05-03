@@ -147,7 +147,7 @@ const AdminPage: React.FC = () => {
     <div className="max-w-7xl mx-auto">
       {/* Page title */}
       <div className="mb-6">
-        <h1 className="text-3xl md:text-4xl font-bold">Administration</h1>
+        <h1 className="text-3xl md:text-4xl font-heading font-bold">Administration</h1>
       </div>
 
       {/* Tabs navigation */}

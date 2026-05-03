@@ -160,22 +160,33 @@ export function generateCSSVariables(settings: AppSettingsPublic): string {
   --color-primary: ${settings.color_primary};
   --color-secondary: ${settings.color_secondary};
   --color-accent: ${settings.color_accent};
+  --theme-color-primary: ${settings.color_primary};
+  --theme-color-secondary: ${settings.color_secondary};
+  --theme-color-accent: ${settings.color_accent};
   
   /* Surface Colors */
   --color-background: ${settings.color_background};
   --color-surface: ${settings.color_surface};
+  --theme-color-background: ${settings.color_background};
+  --theme-color-border: ${settings.color_surface};
   
   /* Text Colors */
   --color-text-primary: ${settings.color_text_primary};
   --color-text-secondary: ${settings.color_text_secondary};
+  --theme-color-text: ${settings.color_text_primary};
+  --theme-color-text-secondary: ${settings.color_text_secondary};
   
   /* Status Colors */
   --color-success: ${settings.color_success};
   --color-error: ${settings.color_error};
+  --theme-color-success: ${settings.color_success};
+  --theme-color-error: ${settings.color_error};
   
   /* Typography */
   --font-primary: ${settings.font_primary};
   --font-secondary: ${settings.font_secondary};
+  --theme-font-heading: ${settings.font_primary};
+  --theme-font-body: ${settings.font_secondary};
 }
 `;
 }

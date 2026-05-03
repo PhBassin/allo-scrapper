@@ -62,7 +62,7 @@ const LoginPage: React.FC = () => {
     return (
         <div className="max-w-md mx-auto mt-10 px-4 sm:px-6">
             <div className="bg-white p-8 rounded-lg shadow-md">
-                <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Login</h2>
+                <h2 className="text-2xl font-heading font-bold mb-6 text-center text-gray-800">Login</h2>
 
                 {sessionExpired && !error && (
                     <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded text-sm" role="status">
@@ -82,7 +82,7 @@ const LoginPage: React.FC = () => {
                             Username
                         </label>
                         <input
-                            className="appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="appearance-none border border-border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-primary"
                             id="username"
                             type="text"
                             placeholder="Username"
@@ -98,7 +98,7 @@ const LoginPage: React.FC = () => {
                             Password
                         </label>
                         <input
-                            className="appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="appearance-none border border-border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-primary"
                             id="password"
                             type="password"
                             placeholder="********"
@@ -111,7 +111,7 @@ const LoginPage: React.FC = () => {
 
                     <div className="flex items-center justify-between">
                         <button
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 w-full transition-colors disabled:opacity-50"
+                            className="bg-primary hover:opacity-90 text-black font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 w-full transition-all disabled:opacity-50"
                             type="submit"
                             disabled={isLoading}
                         >

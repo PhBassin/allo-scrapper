@@ -184,10 +184,23 @@ describe('generateCSSVariables', () => {
     expect(result).toContain('--color-error: #EF4444');
   });
 
-  it('should generate 2 font variables', () => {
+  it('should generate all legacy theme color aliases expected by the client', () => {
     const result = generateCSSVariables(mockSettings);
-    expect(result).toContain('--font-primary: Inter, system-ui, sans-serif');
-    expect(result).toContain('--font-secondary: Roboto, system-ui, sans-serif');
+    expect(result).toContain('--theme-color-primary: #FECC00');
+    expect(result).toContain('--theme-color-secondary: #1F2937');
+    expect(result).toContain('--theme-color-accent: #3B82F6');
+    expect(result).toContain('--theme-color-background: #F9FAFB');
+    expect(result).toContain('--theme-color-text: #111827');
+    expect(result).toContain('--theme-color-text-secondary: #6B7280');
+    expect(result).toContain('--theme-color-border: #FFFFFF');
+    expect(result).toContain('--theme-color-success: #10B981');
+    expect(result).toContain('--theme-color-error: #EF4444');
+  });
+
+  it('should generate legacy theme font aliases expected by the client', () => {
+    const result = generateCSSVariables(mockSettings);
+    expect(result).toContain('--theme-font-heading: Inter, system-ui, sans-serif');
+    expect(result).toContain('--theme-font-body: Roboto, system-ui, sans-serif');
   });
 
   it('should include :root wrapper', () => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 
 interface ColorPickerProps {
     label: string;
@@ -12,6 +12,7 @@ interface ColorPickerProps {
  */
 const ColorPicker: React.FC<ColorPickerProps> = ({ label, value, onChange, disabled = false }) => {
     const [localValue, setLocalValue] = useState(value);
+    const inputId = useId();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
@@ -23,15 +24,17 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ label, value, onChange, disab
 
     return (
         <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
                 {label}
             </label>
             <div className="flex items-center gap-3">
                 <input
+                    id={inputId}
                     type="color"
                     value={isValidColor ? localValue : '#000000'}
                     onChange={handleChange}
                     disabled={disabled}
+                    aria-label={label}
                     className="h-10 w-20 rounded border border-gray-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <input

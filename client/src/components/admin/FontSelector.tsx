@@ -1,4 +1,4 @@
-import React, { useEffect, useSyncExternalStore } from 'react';
+import React, { useEffect, useId, useSyncExternalStore } from 'react';
 
 interface FontSelectorProps {
     label: string;
@@ -61,6 +61,7 @@ const FontSelector: React.FC<FontSelectorProps> = ({
 }) => {
     const fonts = POPULAR_FONTS[type];
     const fontLoaded = useFontLoaded(value);
+    const selectId = useId();
 
     useEffect(() => {
         if (!value) return;
@@ -79,10 +80,11 @@ const FontSelector: React.FC<FontSelectorProps> = ({
 
     return (
         <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label htmlFor={selectId} className="text-sm font-medium text-gray-700">
                 {label}
             </label>
             <select
+                id={selectId}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 disabled={disabled}

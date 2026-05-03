@@ -51,6 +51,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@allo-scrapper/logger': path.resolve(__dirname, '../packages/logger/src/index.ts'),
     },
   },
 });
