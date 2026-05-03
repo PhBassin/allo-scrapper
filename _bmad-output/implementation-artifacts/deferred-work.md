@@ -44,6 +44,11 @@ Ajouter test validant comportement quand `#theaterpage-showtimes-index-ui` / `.m
 - `server/src/routes/scraper-progress.concurrent.integration.test.ts:338-344,485-490` — `process.memoryUsage().rss` measures entire Vitest runner process, not just the disposable Express server. In-process testing limitation; inflated baseline from loaded modules may mask tracker leaks.
 - `server/src/routes/scraper-progress.concurrent.integration.test.ts:317,355,412` — `setTimeout(200)` for connection fan-out is a race condition. Mitigated by subsequent `getListenerCount()` assertion but may cause flaky failures in constrained CI.
 
+## Deferred from: code review of 7-2-refactor-theme-variables-contract (2026-05-03)
+
+- `client/src/api/settings.ts:130-134` — Fallback `||` écrase les valeurs intentionnellement vides (`""`) dans `normalizeSettingsResponse`. Pré-existant, hors scope 7-2. À adresser dans un story de hardening de normalisation.
+- `server/src/routes/settings.ts` — Route `/import` base sans validation `INPUT_LIMITS` ni format couleur/font. Pré-existant, hors scope 7-2. À adresser dans une story de sécurité import côté serveur.
+
 ## Deferred from: code review of 7-1-resolve-open-scraper-and-tenant-stability-prs (2026-05-03)
 
 - `scraper/*` — Story 7.1 AC requires ensuring no regressions in scraper consumer jobs, but the current stabilization diff is test-focused in `client/`, `packages/saas/`, and `server/` only; deferred as out-of-scope for this patchset and already merged story baseline.
