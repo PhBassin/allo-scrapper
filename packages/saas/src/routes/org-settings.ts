@@ -27,6 +27,7 @@ import {
 } from 'allo-scrapper-server/dist/services/theme-generator.js';
 import { requireAuth } from 'allo-scrapper-server/dist/middleware/auth.js';
 import { requirePermission } from 'allo-scrapper-server/dist/middleware/permission.js';
+import type { PermissionName } from 'allo-scrapper-server/dist/types/role.js';
 
 const router = Router();
 
@@ -327,11 +328,17 @@ async function updateSettingsHandler(req: Request, res: Response, next: NextFunc
   }
 }
 
-const requireSettingsRead = [requireAuth as any, requirePermission('settings:read') as any] as const;
-const requireSettingsUpdate = [requireAuth as any, requirePermission('settings:update') as any] as const;
-const requireSettingsExport = [requireAuth as any, requirePermission('settings:export') as any] as const;
-const requireSettingsImport = [requireAuth as any, requirePermission('settings:import') as any] as const;
-const requireSettingsReset = [requireAuth as any, requirePermission('settings:reset') as any] as const;
+const PERM_SETTINGS_READ: PermissionName    = 'settings:read';
+const PERM_SETTINGS_UPDATE: PermissionName  = 'settings:update';
+const PERM_SETTINGS_EXPORT: PermissionName  = 'settings:export';
+const PERM_SETTINGS_IMPORT: PermissionName  = 'settings:import';
+const PERM_SETTINGS_RESET: PermissionName   = 'settings:reset';
+
+const requireSettingsRead = [requireAuth as any, requirePermission(PERM_SETTINGS_READ) as any] as const;
+const requireSettingsUpdate = [requireAuth as any, requirePermission(PERM_SETTINGS_UPDATE) as any] as const;
+const requireSettingsExport = [requireAuth as any, requirePermission(PERM_SETTINGS_EXPORT) as any] as const;
+const requireSettingsImport = [requireAuth as any, requirePermission(PERM_SETTINGS_IMPORT) as any] as const;
+const requireSettingsReset = [requireAuth as any, requirePermission(PERM_SETTINGS_RESET) as any] as const;
 
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
