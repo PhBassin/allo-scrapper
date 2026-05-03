@@ -8,6 +8,9 @@ import FilmSearchBar from '../components/FilmSearchBar';
 import ScrollToTop from '../components/ScrollToTop';
 import { AuthContext } from '../contexts/AuthContext';
 import CinemasQuickLinks from '../components/CinemasQuickLinks';
+import type { FilmWithShowtimes } from '../types';
+
+const EMPTY_ARRAY: FilmWithShowtimes[] = [];
 
 export default function HomePage() {
   const queryClient = useQueryClient();
@@ -27,13 +30,15 @@ export default function HomePage() {
     queryFn: () => selectedDate ? getFilmsByDate(selectedDate) : getWeeklyFilms(),
   });
 
-  const allFilms = filmsData?.films || [];
-  // When "Maintenant" is active, hide films whose showtimes are all in the past
-  const films = afterTime
-    ? allFilms.filter(film =>
-        film.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
-      )
-    : allFilms;
+  const allFilms: FilmWithShowtimes[] = filmsData?.films || EMPTY_ARRAY;
+  // ⚡ PERFORMANCE: Memoize to avoid expensive O(N*M) nested filtering on every render
+  const films = useMemo(() => {
+    return afterTime
+      ? allFilms.filter(film =>
+          film.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
+        )
+      : allFilms;
+  }, [allFilms, afterTime]);
   const weekStart = filmsData?.weekStart || '';
 
   const isLoading = isLoadingCinemas || isLoadingFilms;

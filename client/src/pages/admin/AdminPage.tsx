@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import CinemasPage from './CinemasPage';
 import SettingsPage from './SettingsPage';
@@ -114,8 +114,8 @@ const AdminPage: React.FC = () => {
   const { hasPermission } = useContext(AuthContext);
   const currentTab = searchParams.get('tab') || 'cinemas';
 
-  // Filter tabs to only those the user has permission to see
-  const visibleTabs = tabs.filter((tab) => {
+  // ⚡ PERFORMANCE: useMemo to avoid re-filtering tabs on every render
+  const visibleTabs = useMemo(() => tabs.filter((tab) => {
     if (tab.anyPermissions) {
       return tab.anyPermissions.some((p) => hasPermission(p));
     }
@@ -123,7 +123,7 @@ const AdminPage: React.FC = () => {
       return tab.permissions.every((p) => hasPermission(p));
     }
     return !tab.permission || hasPermission(tab.permission);
-  });
+  }), [hasPermission]);
   const visibleTabIds = visibleTabs.map((t) => t.id);
 
   // Validate tab and fallback to first visible tab (or 'cinemas')

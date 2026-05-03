@@ -1,6 +1,18 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import type { Request, Response } from 'express';
+import { validateJWTSecret } from '../utils/jwt-secret-validator.js';
+
+let jwtSecretCache: string | null = null;
+
+const getJwtSecret = (): string => {
+  if (jwtSecretCache) {
+    return jwtSecretCache;
+  }
+
+  jwtSecretCache = validateJWTSecret();
+  return jwtSecretCache;
+};
 
 const LOCALHOST_IPS = new Set(['127.0.0.1', '::1']);
 
@@ -51,11 +63,13 @@ const WINDOW_MS = parseEnvInt('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000); // 15 min
  * Falls back to req.ip for unauthenticated requests.
  */
 export const authenticatedKeyGenerator = (req: Request): string => {
+  const jwtSecret = getJwtSecret();
+
   try {
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.decode(token) as {
+      const decoded = jwt.verify(token, jwtSecret) as {
         id?: number | string;
         username?: string;
         org_slug?: string;
