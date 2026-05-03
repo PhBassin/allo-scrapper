@@ -94,7 +94,7 @@ apiClient.interceptors.response.use(
 // ============================================================================
 
 export async function getWeeklyFilms(): Promise<{ films: FilmWithShowtimes[]; weekStart: string }> {
-  const response = await apiClient.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string }>>('/films');
+  const response = await apiClient.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string }>>(getTenantScopedPath('/films'));
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch films');
   }
@@ -102,7 +102,7 @@ export async function getWeeklyFilms(): Promise<{ films: FilmWithShowtimes[]; we
 }
 
 export async function getFilmsByDate(date: string): Promise<{ films: FilmWithShowtimes[]; weekStart: string; date: string }> {
-  const response = await apiClient.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string; date: string }>>('/films', {
+  const response = await apiClient.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string; date: string }>>(getTenantScopedPath('/films'), {
     params: { date }
   });
   if (!response.data.success || !response.data.data) {
@@ -112,7 +112,7 @@ export async function getFilmsByDate(date: string): Promise<{ films: FilmWithSho
 }
 
 export async function getFilmById(id: number): Promise<FilmWithShowtimes> {
-  const response = await apiClient.get<ApiResponse<FilmWithShowtimes>>(`/films/${id}`);
+  const response = await apiClient.get<ApiResponse<FilmWithShowtimes>>(`${getTenantScopedPath('/films')}/${id}`);
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch film');
   }
@@ -130,7 +130,7 @@ export async function searchFilms(query: string): Promise<Film[]> {
     return [];
   }
 
-  const response = await apiClient.get<ApiResponse<{ films: Film[]; query: string }>>('/films/search', {
+  const response = await apiClient.get<ApiResponse<{ films: Film[]; query: string }>>(`${getTenantScopedPath('/films')}/search`, {
     params: { q: query.trim() }
   });
 

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { useEffect, useContext, Suspense, lazy, useState } from 'react';
+import { useEffect, useContext, Suspense, lazy, useState, type ReactNode } from 'react';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import CinemaPage from './pages/CinemaPage';
@@ -24,6 +24,7 @@ import { useTheme } from './hooks/useTheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ADMIN_PERMISSIONS } from './utils/adminPermissions';
 import { getConfig } from './api/saas';
+import { getTenantScopedPath } from './api/client';
 
 // Lazy load devtools only in development
 const ReactQueryDevtools = import.meta.env.DEV
@@ -133,20 +134,93 @@ function AppRoutes() {
  * /register    → RegisterPage (standalone, no Layout)
  * /org/:slug/* → tenant-scoped routes wrapped in TenantProvider
  */
+function TenantLoginRedirect({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!window.location.pathname.startsWith('/org/')) {
+      return;
+    }
+
+    const handleUnauthorized = (event: Event) => {
+      const customEvent = event as CustomEvent<{ originalPath?: string; reason?: 'session_expired' }>;
+      const reason = customEvent.detail?.reason;
+      const originalPath = customEvent.detail?.originalPath ?? window.location.pathname;
+
+      if (reason === 'session_expired') {
+        sessionStorage.setItem('auth:expired', '1');
+      }
+
+      navigate(getTenantScopedPath('/login'), {
+        state: { from: { pathname: originalPath }, reason },
+        replace: true,
+      });
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, [navigate]);
+
+  return <>{children}</>;
+}
+
+function TenantAppRoutes() {
+  const { isLoadingPublic } = useContext(SettingsContext);
+
+  useTheme();
+
+  if (isLoadingPublic) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/cinema/:id" element={<CinemaPage />} />
+        <Route path="/film/:id" element={<FilmPage />} />
+        <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute>
+              <ChangePasswordPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <RequirePermission anyOf={ADMIN_PERMISSIONS}>
+              <AdminPage />
+            </RequirePermission>
+          }
+        />
+      </Routes>
+    </Layout>
+  );
+}
+
 function SaasRoutes() {
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
 
   useEffect(() => {
     const handleUnauthorized = (event: Event) => {
-      const customEvent = event as CustomEvent<{ originalPath: string; reason?: 'session_expired' }>;
+      const customEvent = event as CustomEvent<{ originalPath?: string; reason?: 'session_expired' }>;
       const reason = customEvent.detail?.reason;
+      const originalPath = customEvent.detail?.originalPath ?? window.location.pathname;
       if (reason === 'session_expired') {
         sessionStorage.setItem('auth:expired', '1');
       }
       logout();
-      navigate('/login', {
-        state: { from: { pathname: customEvent.detail.originalPath }, reason },
+
+      const loginPath = originalPath.startsWith('/org/')
+        ? getTenantScopedPath('/login')
+        : '/login';
+
+      navigate(loginPath, {
+        state: { from: { pathname: originalPath }, reason },
         replace: true,
       });
     };
@@ -177,29 +251,11 @@ function SaasRoutes() {
         path="/org/:slug/*"
         element={
           <TenantProvider>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/cinema/:id" element={<CinemaPage />} />
-                <Route path="/film/:id" element={<FilmPage />} />
-                <Route
-                  path="/change-password"
-                  element={
-                    <ProtectedRoute>
-                      <ChangePasswordPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin"
-                  element={
-                    <RequirePermission anyOf={ADMIN_PERMISSIONS}>
-                      <AdminPage />
-                    </RequirePermission>
-                  }
-                />
-              </Routes>
-            </Layout>
+            <SettingsProvider>
+              <TenantLoginRedirect>
+                <TenantAppRoutes />
+              </TenantLoginRedirect>
+            </SettingsProvider>
           </TenantProvider>
         }
       />
