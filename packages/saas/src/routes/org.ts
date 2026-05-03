@@ -19,13 +19,9 @@ import { checkQuota } from '../middleware/quota.js';
 // ── Server route handlers re-used as sub-routers ────────────────────────────
 // These default-export routers already use getDbFromRequest(req), so they work
 // correctly under /api/org/:slug (req.dbClient set by resolveTenant).
-// @ts-ignore
 import cinemasRouter from 'allo-scrapper-server/dist/routes/cinemas.js';
-// @ts-ignore
 import filmsRouter from 'allo-scrapper-server/dist/routes/films.js';
-// @ts-ignore
 import reportsRouter from 'allo-scrapper-server/dist/routes/reports.js';
-// @ts-ignore
 import scraperRouter from 'allo-scrapper-server/dist/routes/scraper.js';
 
 // ── SaaS-specific route handlers ────────────────────────────────────────────
@@ -34,15 +30,10 @@ import { createOrgExportRouter } from './org-export.js';
 import { logger } from '../utils/logger.js';
 
 // ── Auth helpers (from server) ───────────────────────────────────────────────
-// @ts-ignore
 import { optionalAuth, requireAuth } from 'allo-scrapper-server/dist/middleware/auth.js';
-// @ts-ignore
 import { requirePermission } from 'allo-scrapper-server/dist/middleware/permission.js';
-// @ts-ignore
 import { protectedLimiter } from 'allo-scrapper-server/dist/middleware/rate-limit.js';
-// @ts-ignore
 import { ValidationError, NotFoundError, AuthError } from 'allo-scrapper-server/dist/utils/errors.js';
-// @ts-ignore
 import { validatePasswordStrength } from 'allo-scrapper-server/dist/utils/security.js';
 
 // ── Inline org-specific helpers ─────────────────────────────────────────────
@@ -52,8 +43,7 @@ const USERNAME_REGEX = /^[a-zA-Z0-9]{3,15}$/;
  * Validates that the JWT org_slug claim (if present) matches the :slug route param.
  * Prevents a token minted for org-a from accessing org-b's data.
  */
-// @ts-ignore
-const requireOrgAuth = (req: any, res: Response, next: NextFunction) => {
+const requireOrgAuth = (req: any, _res: Response, next: NextFunction) => {
   const tokenSlug = req.user?.org_slug;
   const routeSlug = req.params['slug'];
 

@@ -49,8 +49,8 @@ async function startServer() {
     if (process.env.SAAS_ENABLED === 'true') {
       logger.info('🏢 SAAS_ENABLED=true — loading SaaS plugin...');
       try {
-        const mod = await import('@allo-scrapper/saas' as string);
-        const saasPlugin: AppPlugin = mod.saasPlugin ?? mod.default;
+        const mod = await import('@allo-scrapper/saas');
+        const saasPlugin: AppPlugin = mod.saasPlugin;
         await applyPlugins(app, [saasPlugin], { pool, db });
         logger.info('🏢 SaaS plugin loaded successfully');
       } catch (err) {

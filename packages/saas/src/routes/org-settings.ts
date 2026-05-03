@@ -25,9 +25,7 @@ import {
   generateCSSVariables,
   generateGoogleFontsImport,
 } from 'allo-scrapper-server/dist/services/theme-generator.js';
-// @ts-ignore
 import { requireAuth } from 'allo-scrapper-server/dist/middleware/auth.js';
-// @ts-ignore
 import { requirePermission } from 'allo-scrapper-server/dist/middleware/permission.js';
 
 const router = Router();

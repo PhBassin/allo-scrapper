@@ -16,6 +16,7 @@ import { createSuperadminRouter } from './routes/superadmin.js';
 import { createTestFixturesNotFoundRouter, createTestFixturesRouter } from './routes/test-fixtures.js';
 import { createOrgMetricsMiddleware, getOrgRegistry } from './middleware/org-metrics.js';
 import { startQuotaResetScheduler } from './quota-reset-scheduler.js';
+import type { DB } from './db/types.js';
 import { logger } from './utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -42,13 +43,11 @@ export const saasPlugin: AppPlugin = {
   async register(app, options) {
     // Self-bootstrap: run SaaS-specific DB migrations before mounting routes.
     // The dynamic import resolves at runtime inside the server process.
-    // @ts-ignore — cross-rootDir import is intentional; this runs inside server
     const migrationsModule = await import('allo-scrapper-server/dist/db/migrations.js') as { runMigrations: (db: unknown, dirs: string[]) => Promise<void> };
     await migrationsModule.runMigrations(options.db, [getSaasMigrationDir()]);
 
     // Start monthly quota reset scheduler (runs daily at midnight UTC)
-    // @ts-ignore — options.db is compatible with DB interface at runtime
-    startQuotaResetScheduler(options.db);
+    startQuotaResetScheduler(options.db as DB);
 
     // Apply org metrics middleware to all routes
     app.use(createOrgMetricsMiddleware());
