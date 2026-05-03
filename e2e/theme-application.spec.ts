@@ -1,232 +1,396 @@
-import { test, expect } from '@playwright/test';
+import { createHash } from 'node:crypto';
+import { test, expect, assertFixtureRuntimeWithinLimit } from './fixtures/org-fixture';
+
+const useOrgFixture = process.env['E2E_ENABLE_ORG_FIXTURE'] === 'true';
+
+interface ThemeSettingsPayload {
+  site_name: string;
+  color_primary: string;
+  color_secondary: string;
+  color_accent: string;
+  color_background: string;
+  color_surface: string;
+  color_text_primary: string;
+  color_text_secondary: string;
+  color_success: string;
+  color_error: string;
+  font_primary: string;
+  font_secondary: string;
+  footer_text: string;
+  footer_links: [];
+}
+
+interface SettingsResponse {
+  success: boolean;
+  data: ThemeSettingsPayload;
+}
+
+interface ThemeExportResponse {
+  success: boolean;
+  data: {
+    version: string;
+    exported_at: string;
+    exported_by: string;
+    settings: ThemeSettingsPayload & {
+      id?: number;
+      site_name: string;
+      updated_at?: string;
+      updated_by?: string | number | null;
+    };
+  };
+}
+
+async function loginAsSeededAdmin(
+  page: Parameters<typeof test>[0] extends never ? never : any,
+  orgSlug: string,
+  username: string,
+  password: string,
+) {
+  await page.goto(`/org/${orgSlug}/login`);
+  await page.fill('#username', username);
+  await page.fill('#password', password);
+  await page.click('button[type="submit"]');
+  await page.waitForURL(`**/org/${orgSlug}`);
+  await expect(page.getByTestId('home-page-title')).toBeVisible();
+}
+
+async function setColorField(
+  page: Parameters<typeof test>[0] extends never ? never : any,
+  label: string,
+  value: string,
+) {
+  await page.getByLabel(label).evaluate((node, nextValue) => {
+    const input = node as HTMLInputElement;
+    input.value = nextValue as string;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
+}
+
+function buildFixtureFilmId(slug: string, index: number): number {
+  const base = 100000 + (Number.parseInt(createHash('sha1').update(slug).digest('hex').slice(0, 6), 16) % 700000);
+  return base + index - 1;
+}
 
 test.describe('White-Label Theme Application', () => {
-  test.describe('Default Theme', () => {
-    test('should load with default theme when settings are not customized', async ({ page }) => {
-      await page.goto('/');
+  test.skip(!useOrgFixture, 'Requires fixture-backed SaaS runtime (E2E_ENABLE_ORG_FIXTURE=true)');
 
-      // Wait for theme.css to load
-      await page.waitForLoadState('networkidle');
+  test('applies seeded theme tokens to real tenant routes and visible UI', async ({ page, seedTestOrg }) => {
+    const startedAt = Date.now();
+    const org = await seedTestOrg();
 
-      // Check default site name in header
-      const header = page.locator('header a').first();
-      await expect(header).toContainText('Allo-Scrapper');
+    const themedSettings: ThemeSettingsPayload = {
+      site_name: 'Sunset Cinema Club',
+      color_primary: '#FF5733',
+      color_secondary: '#0F172A',
+      color_accent: '#F59E0B',
+      color_background: '#F8FAFC',
+      color_surface: '#E2E8F0',
+      color_text_primary: '#111827',
+      color_text_secondary: '#475569',
+      color_success: '#16A34A',
+      color_error: '#DC2626',
+      font_primary: 'Poppins',
+      font_secondary: 'Inter',
+      footer_text: 'Sunset Cinema Club — séances de la semaine',
+      footer_links: [],
+    };
 
-      // Check default logo (emoji) exists
-      const logo = page.locator('header a span').first();
-      await expect(logo).toHaveText('🎬');
+    const importedSettings: ThemeSettingsPayload = {
+      ...themedSettings,
+      site_name: 'Midnight Matinee Society',
+      color_primary: '#2563EB',
+      color_secondary: '#1E3A8A',
+      font_primary: 'Roboto',
+      font_secondary: 'Georgia',
+      footer_text: 'Midnight Matinee Society — séances spéciales',
+    };
 
-      // Check that theme.css link was injected
-      const themeCss = page.locator('link#dynamic-theme');
-      await expect(themeCss).toHaveAttribute('href', '/api/theme.css');
+    await loginAsSeededAdmin(page, org.orgSlug, org.admin.username, org.admin.password);
+    await page.goto(`/org/${org.orgSlug}/admin?tab=settings`);
+    await expect(page.getByRole('heading', { name: /white-label settings/i })).toBeVisible();
+
+    await page.getByRole('button', { name: 'General' }).click();
+    await page.getByPlaceholder('My Cinema Site').fill(themedSettings.site_name);
+
+    await page.getByRole('button', { name: 'Colors' }).click();
+    await setColorField(page, 'Primary Color', themedSettings.color_primary);
+    await setColorField(page, 'Secondary Color', themedSettings.color_secondary);
+
+    await page.getByRole('button', { name: 'Typography' }).click();
+    await page.getByLabel('Heading Font').selectOption(themedSettings.font_primary);
+    await page.getByLabel('Body Font').selectOption(themedSettings.font_secondary);
+
+    await page.getByRole('button', { name: 'Footer' }).click();
+    await page.getByPlaceholder('© 2024 My Cinema Site. All rights reserved.').fill(themedSettings.footer_text);
+
+    const saveResponsePromise = page.waitForResponse((response) => {
+      return response.url().includes(`/api/org/${org.orgSlug}/settings/admin`) && response.request().method() === 'PUT';
     });
+    await page.getByTestId('save-settings-button').click();
+    const saveResponse = await saveResponsePromise;
+    expect(saveResponse.ok()).toBe(true);
+    await expect(page.locator('text=Settings saved successfully')).toBeVisible();
 
-    test('should display default footer text', async ({ page }) => {
-      await page.goto('/');
-      await page.waitForLoadState('networkidle');
+    await page.goto(`/org/${org.orgSlug}`);
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => document.fonts.ready);
 
-      const footer = page.locator('footer');
-      await expect(footer).toContainText('Données fournies par le site source');
-      await expect(footer).toContainText('Allo-Scrapper');
+    const headerBrand = page.locator('header a').first();
+    await expect(headerBrand).toContainText(themedSettings.site_name);
+    await expect(headerBrand).not.toContainText('Allo-Scrapper');
+    await expect(page.locator('footer')).toContainText(themedSettings.footer_text);
+    await expect(page).toHaveTitle(themedSettings.site_name);
+    await expect(page).not.toHaveTitle(/Allo-Scrapper/i);
+    await expect(page.locator('link#dynamic-theme')).toHaveAttribute(
+      'href',
+      new RegExp(`/api/org/${org.orgSlug}/settings/theme\\.css\\?v=.+`),
+    );
+
+    const homeTitleStyles = await page.getByTestId('home-page-title').evaluate((node) => {
+      const styles = window.getComputedStyle(node);
+      return {
+        fontFamily: styles.fontFamily,
+      };
     });
+    expect(homeTitleStyles.fontFamily.toLowerCase()).toContain('poppins');
+
+    const rootThemeVariables = await page.evaluate(() => {
+      const styles = window.getComputedStyle(document.documentElement);
+      return {
+        primary: styles.getPropertyValue('--theme-color-primary').trim(),
+        heading: styles.getPropertyValue('--theme-font-heading').trim(),
+        body: styles.getPropertyValue('--theme-font-body').trim(),
+      };
+    });
+    expect(rootThemeVariables.primary.toLowerCase()).toBe(themedSettings.color_primary.toLowerCase());
+    expect(rootThemeVariables.heading.toLowerCase()).toContain('poppins');
+    expect(rootThemeVariables.body.toLowerCase()).toContain('inter');
+
+    const headerStyles = await headerBrand.evaluate((node) => {
+      const header = node.closest('header');
+      const styles = header ? window.getComputedStyle(header) : null;
+      return {
+        backgroundColor: styles?.backgroundColor ?? null,
+      };
+    });
+    expect(headerStyles.backgroundColor).toBe('rgb(15, 23, 42)');
+
+    await page.goto(`/org/${org.orgSlug}/login`);
+    await page.waitForLoadState('networkidle');
+
+    const loginButtonStyles = await page.getByRole('button', { name: /sign in/i }).evaluate((node) => {
+      const styles = window.getComputedStyle(node);
+      return {
+        backgroundColor: styles.backgroundColor,
+        color: styles.color,
+      };
+    });
+    expect(loginButtonStyles.backgroundColor).toBe('rgb(255, 87, 51)');
+    expect(loginButtonStyles.color).toBe('rgb(0, 0, 0)');
+
+    const bodyFontFamily = await page.locator('body').evaluate((node) => window.getComputedStyle(node).fontFamily);
+    expect(bodyFontFamily.toLowerCase()).toContain('inter');
+
+    await loginAsSeededAdmin(page, org.orgSlug, org.admin.username, org.admin.password);
+    await page.goto(`/org/${org.orgSlug}/admin?tab=settings`);
+    await expect(page.getByRole('heading', { name: /white-label settings/i })).toBeVisible();
+
+    const exportedSettingsPromise = page.waitForResponse((response) => {
+      return response.url().includes(`/api/org/${org.orgSlug}/settings/export`) && response.request().method() === 'POST';
+    });
+    await page.getByTestId('export-settings-button').click();
+    const exportedSettingsResponse = await exportedSettingsPromise;
+    expect(exportedSettingsResponse.ok()).toBe(true);
+
+    const importedPayload = {
+      version: '1.0.0',
+      exported_at: new Date().toISOString(),
+      exported_by: org.admin.username,
+      settings: importedSettings,
+    };
+
+    page.once('dialog', (dialog) => dialog.accept());
+    const importResponsePromise = page.waitForResponse((response) => {
+      return response.url().includes(`/api/org/${org.orgSlug}/settings/import`) && response.request().method() === 'POST';
+    });
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.getByTestId('import-settings-button').click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles({
+      name: 'theme-import-second-pass.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(importedPayload, null, 2)),
+    });
+    const importResponse = await importResponsePromise;
+    expect(importResponse.ok()).toBe(true);
+
+    await expect(page.locator('#site-name-input')).toHaveValue(importedSettings.site_name);
+
+    const expectedFilmId = buildFixtureFilmId(org.orgSlug, 1);
+    await page.goto(`/org/${org.orgSlug}/film/${expectedFilmId}`);
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => document.fonts.ready);
+
+    const filmTitleStyles = await page.locator('h1').first().evaluate((node) => {
+      const styles = window.getComputedStyle(node);
+      return {
+        fontFamily: styles.fontFamily,
+      };
+    });
+    expect(filmTitleStyles.fontFamily.toLowerCase()).toContain('roboto');
+
+    await expect(page.locator('header a').first()).toContainText(importedSettings.site_name);
+    await expect(page.locator('footer')).toContainText(importedSettings.footer_text);
+    await expect(page.locator('footer')).not.toContainText(themedSettings.footer_text);
+
+    const importedRootVariables = await page.evaluate(() => {
+      const styles = window.getComputedStyle(document.documentElement);
+      return {
+        primary: styles.getPropertyValue('--theme-color-primary').trim(),
+        heading: styles.getPropertyValue('--theme-font-heading').trim(),
+        body: styles.getPropertyValue('--theme-font-body').trim(),
+      };
+    });
+    expect(importedRootVariables.primary.toLowerCase()).toBe(importedSettings.color_primary.toLowerCase());
+    expect(importedRootVariables.heading.toLowerCase()).toContain('roboto');
+    expect(importedRootVariables.body.toLowerCase()).toContain('georgia');
+
+    await page.goto(`/org/${org.orgSlug}/admin?tab=settings`);
+    page.once('dialog', (dialog) => dialog.accept());
+    const resetResponsePromise = page.waitForResponse((response) => {
+      return response.url().includes(`/api/org/${org.orgSlug}/settings/admin/reset`) && response.request().method() === 'POST';
+    });
+    await page.getByTestId('reset-settings-button').click();
+    const resetResponse = await resetResponsePromise;
+    expect(resetResponse.ok()).toBe(true);
+
+    await expect(page.locator('text=Settings saved successfully')).toBeVisible();
+
+    await page.goto(`/org/${org.orgSlug}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('header a').first()).not.toContainText(importedSettings.site_name);
+    await expect(page.locator('footer')).not.toContainText(importedSettings.footer_text);
+
+    assertFixtureRuntimeWithinLimit(startedAt);
   });
 
-  test.describe('Custom Theme (Admin Settings)', () => {
-    // These tests require admin login to modify settings
-    test.beforeEach(async ({ page }) => {
-      // Login as admin
-      await page.goto('/login');
-      await page.fill('input[name="username"]', 'admin');
-      await page.fill('input[name="password"]', 'admin123');
-      await page.click('button[type="submit"]');
-      await page.waitForURL('/');
+  test('preserves legacy theme field names across export/import round-trip for a tenant admin', async ({ page, request, seedTestOrg }) => {
+    const startedAt = Date.now();
+    const org = await seedTestOrg();
+
+    const loginResponse = await request.post('/api/auth/login', {
+      data: {
+        username: org.admin.username,
+        password: org.admin.password,
+      },
     });
+    expect(loginResponse.ok()).toBe(true);
+    const loginPayload = await loginResponse.json() as {
+      success: boolean;
+      data: { token: string };
+    };
+    const authHeaders = { Authorization: `Bearer ${loginPayload.data.token}` };
 
-    test('should apply custom site name from settings', async ({ page }) => {
-      // Navigate to admin settings
-      await page.click('[data-testid="user-menu-button"]');
-      await page.click('[data-testid="admin-settings-link"]');
-      
-      // Wait for settings page to load
-      await expect(page.locator('h1')).toContainText('Settings');
+    const initialSettings: ThemeSettingsPayload = {
+      site_name: 'Export Import Palace',
+      color_primary: '#9333EA',
+      color_secondary: '#111827',
+      color_accent: '#F59E0B',
+      color_background: '#FFFFFF',
+      color_surface: '#CBD5E1',
+      color_text_primary: '#1F2937',
+      color_text_secondary: '#6B7280',
+      color_success: '#10B981',
+      color_error: '#EF4444',
+      font_primary: 'Georgia',
+      font_secondary: 'Arial',
+      footer_text: 'Initial export footer',
+      footer_links: [],
+    };
 
-      // Update site name
-      const customSiteName = 'My Custom Cinema';
-      await page.fill('input[name="site_name"]', customSiteName);
-      await page.click('button:has-text("Save Changes")');
-
-      // Wait for save confirmation
-      await expect(page.locator('text=Settings saved successfully')).toBeVisible();
-
-      // Navigate back to home
-      await page.goto('/');
-      await page.waitForLoadState('networkidle');
-
-      // Verify custom site name appears in header
-      const header = page.locator('header a').first();
-      await expect(header).toContainText(customSiteName);
-
-      // Verify custom site name appears in footer
-      const footer = page.locator('footer');
-      await expect(footer).toContainText(customSiteName);
-
-      // Verify document title
-      await expect(page).toHaveTitle(customSiteName);
-
-      // Reset site name back to default
-      await page.click('[data-testid="user-menu-button"]');
-      await page.click('[data-testid="admin-settings-link"]');
-      await page.fill('input[name="site_name"]', 'Allo-Scrapper');
-      await page.click('button:has-text("Save Changes")');
-      await expect(page.locator('text=Settings saved successfully')).toBeVisible();
+    const initialUpdateResponse = await request.put(`/api/org/${org.orgSlug}/settings/admin`, {
+      headers: authHeaders,
+      data: initialSettings,
     });
+    expect(initialUpdateResponse.ok()).toBe(true);
 
-    test('should apply custom logo from settings', async ({ page }) => {
-      // Navigate to admin settings
-      await page.click('[data-testid="user-menu-button"]');
-      await page.click('[data-testid="admin-settings-link"]');
-      
-      // Switch to General tab (logo upload)
-      await page.click('button:has-text("General")');
+    await loginAsSeededAdmin(page, org.orgSlug, org.admin.username, org.admin.password);
+    await page.goto(`/org/${org.orgSlug}/admin?tab=settings`);
+    await expect(page.getByRole('heading', { name: /white-label settings/i })).toBeVisible();
 
-      // Upload a logo (we'll use a small test image)
-      const testLogoBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-      
-      // Set logo via file input (if available) or directly update via API
-      // For E2E, we'll use the ImageUpload component which accepts paste
-      // This is a simplified test - in practice you'd upload a real image
-      
-      // Note: Logo upload testing may require additional setup
-      // Skipping actual upload in this test, focusing on verification
-      
-      // Instead, verify that logo upload UI exists
-      const logoSection = page.locator('text=Logo');
-      await expect(logoSection).toBeVisible();
+    const exportedSettingsPromise = page.waitForResponse((response) => {
+      return response.url().includes(`/api/org/${org.orgSlug}/settings/export`) && response.request().method() === 'POST';
     });
+    await page.getByTestId('export-settings-button').click();
+    const exportedSettingsResponse = await exportedSettingsPromise;
+    expect(exportedSettingsResponse.ok()).toBe(true);
+    const exportPayload = await exportedSettingsResponse.json() as ThemeExportResponse;
 
-    test('should apply custom footer text from settings', async ({ page }) => {
-      // Navigate to admin settings
-      await page.click('[data-testid="user-menu-button"]');
-      await page.click('[data-testid="admin-settings-link"]');
-      
-      // Switch to Footer tab
-      await page.click('button:has-text("Footer")');
+    expect(exportPayload.success).toBe(true);
+    expect(exportPayload.data.settings.color_text_primary).toBe(initialSettings.color_text_primary);
+    expect(exportPayload.data.settings.color_surface).toBe(initialSettings.color_surface);
+    expect(exportPayload.data.settings.font_primary).toBe(initialSettings.font_primary);
+    expect(exportPayload.data.settings.font_secondary).toBe(initialSettings.font_secondary);
 
-      // Update footer text
-      const customFooterText = 'Custom cinema database - Updated daily';
-      await page.fill('textarea[name="footer_text"]', customFooterText);
-      await page.click('button:has-text("Save Changes")');
+    const importedPayload = {
+      ...exportPayload.data,
+      settings: {
+        ...exportPayload.data.settings,
+        site_name: 'Imported Theme Palace',
+        color_primary: '#2563EB',
+        color_surface: '#D1D5DB',
+        color_text_primary: '#0F172A',
+        font_primary: 'Roboto',
+        font_secondary: 'Georgia',
+        footer_text: 'Imported footer copy',
+      },
+    };
 
-      // Wait for save confirmation
-      await expect(page.locator('text=Settings saved successfully')).toBeVisible();
-
-      // Navigate back to home
-      await page.goto('/');
-      await page.waitForLoadState('networkidle');
-
-      // Verify custom footer text
-      const footer = page.locator('footer');
-      await expect(footer).toContainText(customFooterText);
-
-      // Reset footer back to default
-      await page.click('[data-testid="user-menu-button"]');
-      await page.click('[data-testid="admin-settings-link"]');
-      await page.click('button:has-text("Footer")');
-      await page.fill('textarea[name="footer_text"]', 'Données fournies par le site source - Mise à jour hebdomadaire');
-      await page.click('button:has-text("Save Changes")');
-      await expect(page.locator('text=Settings saved successfully')).toBeVisible();
+    const importResponsePromise = page.waitForResponse((response) => {
+      return response.url().includes(`/api/org/${org.orgSlug}/settings/import`) && response.request().method() === 'POST';
     });
-
-    test('should apply custom colors from theme.css', async ({ page }) => {
-      await page.goto('/');
-      await page.waitForLoadState('networkidle');
-
-      // Verify theme.css is loaded
-      const themeCss = page.locator('link#dynamic-theme');
-      await expect(themeCss).toHaveAttribute('href', '/api/theme.css');
-
-      // Check that CSS variables are defined
-      const rootStyles = await page.evaluate(() => {
-        const root = document.documentElement;
-        const styles = getComputedStyle(root);
-        return {
-          primary: styles.getPropertyValue('--theme-color-primary'),
-          secondary: styles.getPropertyValue('--theme-color-secondary'),
-          accent: styles.getPropertyValue('--theme-color-accent'),
-        };
-      });
-
-      // Verify CSS variables exist (values come from backend)
-      expect(rootStyles.primary).toBeTruthy();
-      expect(rootStyles.secondary).toBeTruthy();
-      expect(rootStyles.accent).toBeTruthy();
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.getByTestId('import-settings-button').click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles({
+      name: 'theme-import.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(importedPayload, null, 2)),
     });
-  });
+    const importResponse = await importResponsePromise;
+    expect(importResponse.ok()).toBe(true);
 
-  test.describe('Loading State', () => {
-    test('should show loading screen while fetching settings', async ({ page }) => {
-      // Intercept the settings API call to delay it
-      await page.route('**/api/settings', async (route) => {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await route.continue();
-      });
+    await expect(page.locator('#site-name-input')).toHaveValue('Imported Theme Palace');
 
-      const navigationPromise = page.goto('/');
-      
-      // Check for loading screen
-      const loadingScreen = page.locator('text=Loading...');
-      await expect(loadingScreen).toBeVisible();
+    await page.goto(`/org/${org.orgSlug}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('header a').first()).toContainText('Imported Theme Palace');
+    await expect(page.locator('footer')).toContainText('Imported footer copy');
 
-      // Wait for navigation to complete
-      await navigationPromise;
-      await page.waitForLoadState('networkidle');
-
-      // Loading screen should be gone
-      await expect(loadingScreen).not.toBeVisible();
+    const importedRootVariables = await page.evaluate(() => {
+      const styles = window.getComputedStyle(document.documentElement);
+      return {
+        primary: styles.getPropertyValue('--theme-color-primary').trim(),
+        heading: styles.getPropertyValue('--theme-font-heading').trim(),
+        body: styles.getPropertyValue('--theme-font-body').trim(),
+      };
     });
-  });
+    expect(importedRootVariables.primary).toBe('#2563EB');
+    expect(importedRootVariables.heading.toLowerCase()).toContain('roboto');
+    expect(importedRootVariables.body.toLowerCase()).toContain('georgia');
 
-  test.describe('Favicon Update', () => {
-    test('should have a favicon link element', async ({ page }) => {
-      await page.goto('/');
-      await page.waitForLoadState('networkidle');
-
-      // Check if favicon link exists
-      const favicon = page.locator('link[rel="icon"]');
-      
-      // Favicon should exist (either default or custom)
-      const faviconCount = await favicon.count();
-      expect(faviconCount).toBeGreaterThanOrEqual(0);
-      
-      // If it exists, it should have an href
-      if (faviconCount > 0) {
-        await expect(favicon).toHaveAttribute('href', /.+/);
-      }
+    const persistedSettingsResponse = await request.get(`/api/org/${org.orgSlug}/settings/admin`, {
+      headers: authHeaders,
     });
-  });
+    expect(persistedSettingsResponse.ok()).toBe(true);
+    const persistedPayload = await persistedSettingsResponse.json() as SettingsResponse;
+    expect(persistedPayload.success).toBe(true);
+    expect(persistedPayload.data.site_name).toBe('Imported Theme Palace');
+    expect(persistedPayload.data.color_primary).toBe('#2563EB');
+    expect(persistedPayload.data.font_primary).toBe('Roboto');
+    expect(persistedPayload.data.font_secondary).toBe('Georgia');
 
-  test.describe('CSS Variable Fallbacks', () => {
-    test('should have CSS variable defaults even if API fails', async ({ page }) => {
-      // Intercept settings API to simulate failure
-      await page.route('**/api/settings', (route) => {
-        route.abort();
-      });
-
-      await page.goto('/');
-      
-      // Even with failed API, CSS variables should exist from index.css
-      const rootStyles = await page.evaluate(() => {
-        const root = document.documentElement;
-        const styles = getComputedStyle(root);
-        return {
-          primary: styles.getPropertyValue('--theme-color-primary'),
-          secondary: styles.getPropertyValue('--theme-color-secondary'),
-        };
-      });
-
-      // Verify default CSS variables from index.css
-      expect(rootStyles.primary).toContain('#FECC00');
-      expect(rootStyles.secondary).toContain('#1F2937');
-    });
+    assertFixtureRuntimeWithinLimit(startedAt);
   });
 });

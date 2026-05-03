@@ -28,7 +28,7 @@
 #   - done: Retrospective has been completed
 
 generated: 2026-04-15
-last_updated: 2026-05-01T14:15:00Z
+last_updated: 2026-05-02T20:38:25Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -101,8 +101,8 @@ development_status:
   # EPIC 5: White-Label Theme Consistency & Validation
   # 🟢 LOW
   # ─────────────────────────────────────────────────────────────
-  epic-5: backlog
-  5-1-theme-switching-e2e-regression-tests: backlog
+  epic-5: in-progress
+  5-1-theme-switching-e2e-regression-tests: review
   5-2-csp-strict-mode-validation: backlog
   epic-5-retrospective: optional
 
