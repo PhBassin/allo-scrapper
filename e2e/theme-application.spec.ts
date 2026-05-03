@@ -76,7 +76,7 @@ function buildFixtureFilmId(slug: string, index: number): number {
   return base + index - 1;
 }
 
-test.describe('White-Label Theme Application', () => {
+test.describe.serial('White-Label Theme Application', () => {
   test.skip(!useOrgFixture, 'Requires fixture-backed SaaS runtime (E2E_ENABLE_ORG_FIXTURE=true)');
 
   test('applies seeded theme tokens to real tenant routes and visible UI', async ({ page, seedTestOrg }) => {
