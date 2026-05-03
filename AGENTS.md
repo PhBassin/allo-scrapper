@@ -57,13 +57,51 @@ Operational guide for contributors and agents in this monorepo. Prefer BMAD work
 
 ## Runtime and Test Gotchas
 
-- Repo conventions in existing docs/templates: create an issue first, branch from `develop`, use Conventional Commits, and reference the issue in the PR.
-- Expected flow for changes: issue -> branch from `develop` -> implement/verify -> open PR -> add one version label (`major`/`minor`/`patch`) if it targets `main`.
-- PR template expects `Closes #<issue>` and a short list of test commands actually run.
-- CI branch patterns are `feat/**`, `fix/**`, `docs/**`, `chore/**`, `ci/**`, `refactor/**`, `test/**`, `perf/**`.
-- PRs merged to `main` trigger automated versioning and releases. Add exactly one version label: `major`, `minor`, or `patch`.
-- For BMAD tracking in this repository, treat `done` as **already merged into `develop`**, not merely coded locally or pushed to a PR branch.
+- `playwright.config.ts` does **not** start the app. Start the stack yourself before `npm run e2e`.
+- Playwright base URL defaults to `http://localhost:5173`; override with `PLAYWRIGHT_BASE_URL`.
+- Scrape-heavy specs run in project `chromium-scrape-serial`.
+- Explicit test selection disables that dependency chain; for one spec, `--project=chromium --no-deps` skips it.
+- Vite dev proxy forwards both `/api` and `/test` to the backend.
+- `/test/seed-org` and `/test/cleanup-org/:id` exist only when `NODE_ENV=test`, or when backend runs in `development` with `E2E_ENABLE_ORG_FIXTURE=true`.
+- Outside those runtimes, `/test/*` is intentionally gated and returns `404`.
+
+## Runtime Truths That Drift Easily
+
+- Dev compose sets `AUTO_MIGRATE=true` by default unless overridden.
+- After migrations, the server seeds `server/src/config/cinemas.json` when the `cinemas` table is empty.
+- Dev compose sets `SAAS_ENABLED=false` and `E2E_ENABLE_ORG_FIXTURE=false` by default unless overridden.
+- Do not use any old `/api/superadmin/login` assumption. Login goes through `/api/auth/login`.
+- JWT gets `scope: 'superadmin'` only for system-role admins with no `org_slug`.
+- CI and Docker install from the repo root; if a non-Docker local install breaks on `sharp`, reinstall from `server/`.
+
+## Workflow Gates
+
+- Repo flow stays issue-first: create or confirm the issue, branch from `develop`, implement/verify locally, then open a PR only when that step is explicitly requested or clearly in scope.
+- Branch names should use CI-visible prefixes: `feat/`, `fix/`, `docs/`, `chore/`, `ci/`, `refactor/`, `test/`, or `perf/` — not generic `feature/`.
+- For BMAD-tracked work, the GitHub issue is the visible cockpit and the repo artifacts stay the execution truth: keep one active issue per story/task, then link `_bmad-output/...`, `.hermes/plans/...`, commits, and PRs back to that issue.
+- BMAD issues should carry `bmad`, exactly one phase label among `phase:gp`, `phase:ds`, `phase:cr`, `phase:wait`, `phase:done`, and `type:story` when the issue maps to a BMAD story. Use `blocked` only when waiting on an external dependency or decision.
+- Update the BMAD issue at each checkpoint: GP delivered, DS implemented, CR verdict returned, GP-after-CR delivered, and merge to `develop`.
+- Use Conventional Commits and keep the issue linked in commits/PR text.
+- PR body should include `Closes #<issue>` plus the test commands actually run.
+- If a PR targets `main`, add exactly one version label: `major`, `minor`, or `patch`.
 - BMAD order is strict: `DS -> CR -> GP -> WAIT`.
-- After a `CR`, the mandatory next step is `GP` (Generate Plan).
+- After `CR`, the mandatory next step is `GP`.
 - After `GP`, stop and wait for an explicit new order before any `CS`, `DS`, `push-flow`, or merge-related action.
-- Do not auto-advance BMAD work just because a story reached `review` or because a PR exists; only an explicit user order unlocks the next phase.
+- Do not auto-advance because a task is in review or because a PR exists.
+- In this repo, `done` means **merged into `develop`**, not merely coded, pushed, or opened in PR.
+
+## Source-of-Truth Pointers
+
+- Commands, workspaces, engine constraints: `package.json`
+- Dev topology and default dev env flags: `docker-compose.dev.yml`
+- E2E runtime behavior and project dependency rules: `playwright.config.ts`
+- Hook installation: `scripts/install-hooks.sh`
+- Actual pre-push checks: `scripts/hooks/pre-push`
+- Dev proxy for `/api` and `/test`: `client/vite.config.ts`
+- Auth and superadmin scope truth: `server/src/services/auth-service.ts`
+- DB init + one-time cinema bootstrap seed: `server/src/db/schema.ts`
+
+## Automated Versioning / Releases
+
+- PRs merged to `main` feed the version/release workflow in `.github/workflows/version-tag.yml`.
+- If a PR targets `main`, add exactly one version label: `major`, `minor`, or `patch`.

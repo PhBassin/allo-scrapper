@@ -33,6 +33,8 @@ Every contribution should follow this workflow:
 9. Pull Request   → Open PR only when that step is explicitly requested or otherwise clearly in scope
 ```
 
+For BMAD-tracked work, treat the GitHub issue as the visible workflow cockpit: keep one active issue per story/task, keep repo artifacts (`_bmad-output/...`, `.hermes/plans/...`) as the execution truth, and move the issue through the BMAD checkpoint labels as the work progresses.
+
 ---
 
 ## Issue First
@@ -66,6 +68,31 @@ In commits and PRs, reference the issue:
 - `refs #123` - References issue without closing
 - `closes #123` - Closes issue when PR is merged
 - `fixes #123` - Same as closes (for bug fixes)
+
+### BMAD-Tracked Issue Conventions
+
+For BMAD-managed work, use GitHub issues to expose the current checkpoint without replacing the repo artifacts:
+
+- Keep **one active issue per BMAD story or docs/task-sized work item**.
+- Add label `bmad`.
+- Keep **exactly one** BMAD phase label on the issue at a time:
+  - `phase:gp`
+  - `phase:ds`
+  - `phase:cr`
+  - `phase:wait`
+  - `phase:done`
+- Add `type:story` when the issue maps directly to a BMAD story.
+- Add `blocked` only when the work is waiting on an external dependency or explicit decision.
+- Link the issue to the active plan/story/PR in comments or body updates; do not duplicate the full BMAD artifact content inside GitHub.
+
+Recommended checkpoints:
+
+1. Issue opened / scoped → `bmad` + initial type/domain labels
+2. GP delivered → `phase:gp`
+3. DS in progress / delivered → `phase:ds`
+4. Local CR running → `phase:cr`
+5. GP-after-CR delivered and waiting for order → `phase:wait`
+6. Merged into `develop` → `phase:done`
 
 ---
 
