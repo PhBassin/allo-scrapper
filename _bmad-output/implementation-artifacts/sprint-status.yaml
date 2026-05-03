@@ -33,7 +33,7 @@
 #   - done: Retrospective has been completed
 
 generated: 2026-05-03
-last_updated: 2026-05-03T10:40:00Z
+last_updated: 2026-05-03T20:45:00Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -118,6 +118,6 @@ development_status:
   # ─────────────────────────────────────────────────────────────
   epic-7: in-progress
   7-1-resolve-open-scraper-and-tenant-stability-prs: done
-  7-2-refactor-theme-variables-contract: backlog
+  7-2-refactor-theme-variables-contract: done
   7-3-technical-spike-email-testing-tool: backlog
   epic-7-retrospective: optional

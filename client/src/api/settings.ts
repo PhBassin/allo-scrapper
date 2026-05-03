@@ -59,13 +59,13 @@ export interface AppSettingsPublic {
   color_secondary: string;
   color_accent: string;
   color_background: string;
-  color_text: string;
+  color_surface: string;
+  color_text_primary: string;
   color_text_secondary: string;
-  color_border: string;
   color_success: string;
   color_error: string;
-  font_family_heading: string;
-  font_family_body: string;
+  font_primary: string;
+  font_secondary: string;
   footer_text: string | null;
   footer_links: FooterLink[];
 }
@@ -89,13 +89,13 @@ export interface AppSettingsUpdate {
   color_secondary?: string;
   color_accent?: string;
   color_background?: string;
-  color_text?: string;
+  color_surface?: string;
+  color_text_primary?: string;
   color_text_secondary?: string;
-  color_border?: string;
   color_success?: string;
   color_error?: string;
-  font_family_heading?: string;
-  font_family_body?: string;
+  font_primary?: string;
+  font_secondary?: string;
   footer_text?: string | null;
   footer_links?: FooterLink[];
   email_from_name?: string;
@@ -110,6 +110,27 @@ export interface AppSettingsExport {
   exported_at: string;
   exported_by: string;
   settings: AppSettings;
+}
+
+export function toPublicSettings(settings: AppSettingsPublic): AppSettingsPublic {
+  return {
+    site_name: settings.site_name,
+    logo_base64: settings.logo_base64,
+    favicon_base64: settings.favicon_base64,
+    color_primary: settings.color_primary,
+    color_secondary: settings.color_secondary,
+    color_accent: settings.color_accent,
+    color_background: settings.color_background,
+    color_surface: settings.color_surface,
+    color_text_primary: settings.color_text_primary,
+    color_text_secondary: settings.color_text_secondary,
+    color_success: settings.color_success,
+    color_error: settings.color_error,
+    font_primary: settings.font_primary,
+    font_secondary: settings.font_secondary,
+    footer_text: settings.footer_text,
+    footer_links: settings.footer_links,
+  };
 }
 
 function normalizeFooterLinks(footerLinks: FooterLink[] | undefined): FooterLink[] {
@@ -127,19 +148,19 @@ function normalizeFooterLinks(footerLinks: FooterLink[] | undefined): FooterLink
 function normalizeSettingsResponse<T extends Partial<AppSettingsPublic> & ServerThemeShape & LegacyThemeShape & { footer_links?: FooterLink[] }>(
   settings: T
 ): T & AppSettingsPublic {
-  const colorText = settings.color_text || settings.color_text_primary || '#111827';
+  const colorSurface = settings.color_surface || settings.color_border || '#E5E7EB';
+  const colorTextPrimary = settings.color_text_primary || settings.color_text || '#111827';
   const colorTextSecondary = settings.color_text_secondary || '#6B7280';
-  const colorBorder = settings.color_border || settings.color_surface || '#E5E7EB';
-  const fontHeading = settings.font_family_heading || settings.font_primary || 'Inter';
-  const fontBody = settings.font_family_body || settings.font_secondary || 'Inter';
+  const fontPrimary = settings.font_primary || settings.font_family_heading || 'Inter';
+  const fontSecondary = settings.font_secondary || settings.font_family_body || 'Inter';
 
   return {
     ...settings,
-    color_text: colorText,
+    color_surface: colorSurface,
+    color_text_primary: colorTextPrimary,
     color_text_secondary: colorTextSecondary,
-    color_border: colorBorder,
-    font_family_heading: fontHeading,
-    font_family_body: fontBody,
+    font_primary: fontPrimary,
+    font_secondary: fontSecondary,
     footer_links: normalizeFooterLinks(settings.footer_links),
   } as T & AppSettingsPublic;
 }
@@ -152,36 +173,12 @@ function normalizeSettingsExport(data: AppSettingsExport): AppSettingsExport {
 }
 
 function toServerSettingsUpdate(updates: AppSettingsUpdate): ServerAppSettingsUpdate {
-  const {
-    color_text,
-    color_border,
-    font_family_heading,
-    font_family_body,
-    ...rest
-  } = updates;
-
   const normalized: ServerAppSettingsUpdate = {
-    ...rest,
+    ...updates,
   };
 
-  if (rest.footer_links !== undefined) {
-    normalized.footer_links = normalizeFooterLinks(rest.footer_links);
-  }
-
-  if (color_text !== undefined) {
-    normalized.color_text_primary = color_text;
-  }
-
-  if (color_border !== undefined) {
-    normalized.color_surface = color_border;
-  }
-
-  if (font_family_heading !== undefined) {
-    normalized.font_primary = font_family_heading;
-  }
-
-  if (font_family_body !== undefined) {
-    normalized.font_secondary = font_family_body;
+  if (updates.footer_links !== undefined) {
+    normalized.footer_links = normalizeFooterLinks(updates.footer_links);
   }
 
   return normalized;

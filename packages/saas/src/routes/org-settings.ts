@@ -112,7 +112,7 @@ function toExportPayload(
   };
 }
 
-function normalizeImportSettings(rawSettings: Record<string, unknown>): OrgSettingsUpdate {
+export function normalizeImportSettings(rawSettings: Record<string, unknown>): OrgSettingsUpdate {
   const normalizedFooterLinks = Array.isArray(rawSettings.footer_links)
     ? rawSettings.footer_links.map((link) => {
         const item = typeof link === 'object' && link !== null

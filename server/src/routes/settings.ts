@@ -33,8 +33,8 @@ const INPUT_LIMITS = {
   footer_text: 500,
   email_from_name: 100,
   email_from_address: 255,
-  font_family_heading: 100,
-  font_family_body: 100,
+  font_primary: 100,
+  font_secondary: 100,
 } as const;
 
 /**

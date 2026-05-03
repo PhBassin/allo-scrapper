@@ -3,6 +3,7 @@ import apiClient from './client';
 import {
   exportSettings,
   getAdminSettings,
+  type AppSettings,
   getPublicSettings,
   importSettings,
   resetSettings,
@@ -59,12 +60,12 @@ const fullServerSettingsResponse = {
   updated_by: 42,
 };
 
-describe('settings API client compatibility', () => {
+describe('settings API contract', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('normalizes server public settings into the legacy client theme shape', async () => {
+  it('returns public settings using the canonical theme shape', async () => {
     vi.mocked(apiClient.get).mockResolvedValueOnce({
       data: {
         success: true,
@@ -75,10 +76,10 @@ describe('settings API client compatibility', () => {
     const result = await getPublicSettings();
 
     expect(apiClient.get).toHaveBeenCalledWith('/settings');
-    expect(result.color_text).toBe('#111827');
-    expect(result.color_border).toBe('#FFFFFF');
-    expect(result.font_family_heading).toBe('Playfair Display');
-    expect(result.font_family_body).toBe('Roboto');
+    expect(result.color_text_primary).toBe('#111827');
+    expect(result.color_surface).toBe('#FFFFFF');
+    expect(result.font_primary).toBe('Playfair Display');
+    expect(result.font_secondary).toBe('Roboto');
   });
 
   it('uses tenant-scoped public settings endpoints on org routes', async () => {
@@ -108,7 +109,7 @@ describe('settings API client compatibility', () => {
     });
   });
 
-  it('normalizes full admin settings into the legacy client theme shape', async () => {
+  it('returns full admin settings using the canonical theme shape', async () => {
     vi.mocked(apiClient.get).mockResolvedValueOnce({
       data: {
         success: true,
@@ -120,10 +121,10 @@ describe('settings API client compatibility', () => {
 
     expect(apiClient.get).toHaveBeenCalledWith('/settings/admin');
     expect(result.updated_by).toBe(42);
-    expect(result.color_text).toBe('#111827');
-    expect(result.color_border).toBe('#FFFFFF');
-    expect(result.font_family_heading).toBe('Playfair Display');
-    expect(result.font_family_body).toBe('Roboto');
+    expect(result.color_text_primary).toBe('#111827');
+    expect(result.color_surface).toBe('#FFFFFF');
+    expect(result.font_primary).toBe('Playfair Display');
+    expect(result.font_secondary).toBe('Roboto');
   });
 
   it('uses tenant-scoped admin settings endpoints on org admin routes', async () => {
@@ -154,7 +155,7 @@ describe('settings API client compatibility', () => {
     });
   });
 
-  it('maps legacy white-label fields to the server update contract', async () => {
+  it('sends canonical white-label fields to the server update contract', async () => {
     vi.mocked(apiClient.put).mockResolvedValueOnce({
       data: {
         success: true,
@@ -163,10 +164,10 @@ describe('settings API client compatibility', () => {
     });
 
     await updateSettings({
-      color_text: '#222222',
-      color_border: '#F3F4F6',
-      font_family_heading: 'Poppins',
-      font_family_body: 'Inter',
+      color_text_primary: '#222222',
+      color_surface: '#F3F4F6',
+      font_primary: 'Poppins',
+      font_secondary: 'Inter',
       site_name: 'Updated Cinema',
     });
 
@@ -208,7 +209,7 @@ describe('settings API client compatibility', () => {
     });
   });
 
-  it('normalizes reset responses after the server returns the new theme contract', async () => {
+  it('returns canonical reset responses', async () => {
     vi.mocked(apiClient.post).mockResolvedValueOnce({
       data: {
         success: true,
@@ -219,8 +220,8 @@ describe('settings API client compatibility', () => {
     const result = await resetSettings();
 
     expect(apiClient.post).toHaveBeenCalledWith('/settings/reset');
-    expect(result.color_text).toBe('#111827');
-    expect(result.color_border).toBe('#FFFFFF');
+    expect(result.color_text_primary).toBe('#111827');
+    expect(result.color_surface).toBe('#FFFFFF');
   });
 
   it('uses tenant-scoped reset settings endpoints on org admin routes', async () => {
@@ -250,7 +251,7 @@ describe('settings API client compatibility', () => {
     });
   });
 
-  it('normalizes exported settings into the legacy client theme shape before download/import round-trips', async () => {
+  it('returns exported settings in canonical shape before round-trips', async () => {
     vi.mocked(apiClient.post).mockResolvedValueOnce({
       data: {
         success: true,
@@ -266,10 +267,10 @@ describe('settings API client compatibility', () => {
     const result = await exportSettings();
 
     expect(apiClient.post).toHaveBeenCalledWith('/settings/export');
-    expect(result.settings.color_text).toBe('#111827');
-    expect(result.settings.color_border).toBe('#FFFFFF');
-    expect(result.settings.font_family_heading).toBe('Playfair Display');
-    expect(result.settings.font_family_body).toBe('Roboto');
+    expect(result.settings.color_text_primary).toBe('#111827');
+    expect(result.settings.color_surface).toBe('#FFFFFF');
+    expect(result.settings.font_primary).toBe('Playfair Display');
+    expect(result.settings.font_secondary).toBe('Roboto');
   });
 
   it('uses tenant-scoped export settings endpoints on org admin routes', async () => {
@@ -304,7 +305,7 @@ describe('settings API client compatibility', () => {
     });
   });
 
-  it('normalizes import payloads and responses after the server returns the new theme contract', async () => {
+  it('normalizes legacy import payloads and returns canonical responses', async () => {
     vi.mocked(apiClient.post).mockResolvedValueOnce({
       data: {
         success: true,
@@ -312,7 +313,7 @@ describe('settings API client compatibility', () => {
       },
     });
 
-    const payload: AppSettingsExport = {
+    const payloadWithLegacyKeys = {
       version: '1.0',
       exported_at: '2026-05-01T14:00:00Z',
       exported_by: 'tester',
@@ -325,11 +326,20 @@ describe('settings API client compatibility', () => {
       },
     };
 
+    const payload = payloadWithLegacyKeys as AppSettingsExport & {
+      settings: AppSettings & {
+        color_text?: string;
+        color_border?: string;
+        font_family_heading?: string;
+        font_family_body?: string;
+      };
+    };
+
     const result = await importSettings(payload);
 
     expect(apiClient.post).toHaveBeenCalledWith('/settings/import', payload);
-    expect(result.font_family_heading).toBe('Playfair Display');
-    expect(result.font_family_body).toBe('Roboto');
+    expect(result.font_primary).toBe('Playfair Display');
+    expect(result.font_secondary).toBe('Roboto');
   });
 
   it('uses tenant-scoped import settings endpoints on org admin routes', async () => {
@@ -349,7 +359,7 @@ describe('settings API client compatibility', () => {
       },
     });
 
-    const payload: AppSettingsExport = {
+    const payloadWithLegacyKeys = {
       version: '1.0',
       exported_at: '2026-05-01T14:00:00Z',
       exported_by: 'tester',
@@ -360,6 +370,15 @@ describe('settings API client compatibility', () => {
         font_family_heading: 'Playfair Display',
         font_family_body: 'Roboto',
       },
+    };
+
+    const payload = payloadWithLegacyKeys as AppSettingsExport & {
+      settings: AppSettings & {
+        color_text?: string;
+        color_border?: string;
+        font_family_heading?: string;
+        font_family_body?: string;
+      };
     };
 
     await importSettings(payload);
