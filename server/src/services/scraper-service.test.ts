@@ -11,6 +11,7 @@ vi.mock('./redis-client.js');
 vi.mock('./progress-tracker.js', () => ({
   progressTracker: {
     addListener: vi.fn(),
+    hasListener: vi.fn().mockReturnValue(true),
     removeListener: vi.fn(),
     getListenerCount: vi.fn().mockReturnValue(1),
   },
@@ -23,6 +24,8 @@ describe('ScraperService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    ScraperService.resetProgressConnectionTrackingForTests();
+    vi.mocked(progressTracker.hasListener).mockReturnValue(true);
     scraperService = new ScraperService(mockDb);
   });
 
@@ -257,6 +260,275 @@ describe('ScraperService', () => {
       
       expect(progressTracker.removeListener).toHaveBeenCalledWith(mockRes);
       expect(mockOnClose).toHaveBeenCalled();
+    });
+
+    it('should reject a fourth concurrent progress connection for the same user', () => {
+      const context = {
+        user: {
+          id: 7,
+          username: 'tenant-user',
+          role_name: 'admin',
+          is_system_role: false,
+          permissions: [],
+          org_id: 42,
+          org_slug: 'acme',
+        },
+      };
+
+      const cleanup1 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+      const cleanup2 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+      const cleanup3 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+
+      expect(() => scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context)).toThrow(
+        'Maximum of 3 concurrent progress connections per user exceeded'
+      );
+
+      cleanup1();
+      cleanup2();
+      cleanup3();
+    });
+
+    it('should scope concurrent progress connections by org slug and user id', () => {
+      const acmeContext = {
+        user: {
+          id: 7,
+          username: 'tenant-user',
+          role_name: 'admin',
+          is_system_role: false,
+          permissions: [],
+          org_id: 42,
+          org_slug: 'acme',
+        },
+      };
+      const bravoContext = {
+        user: {
+          ...acmeContext.user,
+          org_id: 77,
+          org_slug: 'bravo',
+        },
+      };
+
+      const cleanup1 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), acmeContext);
+      const cleanup2 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), acmeContext);
+      const cleanup3 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), acmeContext);
+
+      const otherTenantCleanup = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), bravoContext);
+
+      expect(() => scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), acmeContext)).toThrow(
+        'Maximum of 3 concurrent progress connections per user exceeded'
+      );
+
+      cleanup1();
+      cleanup2();
+      cleanup3();
+      otherTenantCleanup();
+    });
+
+    it('should fall back to org id in the connection key when org slug is absent', () => {
+      const firstOrgContext = {
+        user: {
+          id: 7,
+          username: 'tenant-user',
+          role_name: 'admin',
+          is_system_role: false,
+          permissions: [],
+          org_id: 42,
+        },
+      };
+      const secondOrgContext = {
+        user: {
+          ...firstOrgContext.user,
+          org_id: 77,
+        },
+      };
+
+      const cleanup1 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), firstOrgContext);
+      const cleanup2 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), firstOrgContext);
+      const cleanup3 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), firstOrgContext);
+
+      const otherTenantCleanup = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), secondOrgContext);
+
+      expect(() => scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), firstOrgContext)).toThrow(
+        'Maximum of 3 concurrent progress connections per user exceeded'
+      );
+
+      cleanup1();
+      cleanup2();
+      cleanup3();
+      otherTenantCleanup();
+    });
+
+    it('should use distinct namespaces for org slug, org id fallback, and system scope in the connection key', () => {
+      const slugContext = {
+        user: {
+          id: 7,
+          username: 'tenant-user',
+          role_name: 'admin',
+          is_system_role: false,
+          permissions: [],
+          org_id: 42,
+          org_slug: '42',
+        },
+      };
+      const orgIdFallbackContext = {
+        user: {
+          id: 7,
+          username: 'tenant-user',
+          role_name: 'admin',
+          is_system_role: false,
+          permissions: [],
+          org_id: 42,
+        },
+      };
+      const systemContext = {
+        user: {
+          id: 7,
+          username: 'system-user',
+          role_name: 'superadmin',
+          is_system_role: true,
+          permissions: [],
+        },
+      };
+
+      const cleanupSlug1 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), slugContext);
+      const cleanupSlug2 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), slugContext);
+      const cleanupSlug3 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), slugContext);
+
+      const cleanupOrgFallback = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), orgIdFallbackContext);
+      const cleanupSystem = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), systemContext);
+
+      expect(() => scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), slugContext)).toThrow(
+        'Maximum of 3 concurrent progress connections per user exceeded'
+      );
+
+      cleanupSlug1();
+      cleanupSlug2();
+      cleanupSlug3();
+      cleanupOrgFallback();
+      cleanupSystem();
+    });
+
+    it('should allow a new connection after disconnect cleanup releases the slot', () => {
+      const context = {
+        user: {
+          id: 7,
+          username: 'tenant-user',
+          role_name: 'admin',
+          is_system_role: false,
+          permissions: [],
+          org_id: 42,
+          org_slug: 'acme',
+        },
+      };
+
+      const cleanup1 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+      const cleanup2 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+      const cleanup3 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+
+      cleanup2();
+
+      const cleanup4 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+
+      cleanup1();
+      cleanup3();
+      cleanup4();
+    });
+
+    it('should release the reserved slot when tracker subscription fails', () => {
+      const context = {
+        user: {
+          id: 7,
+          username: 'tenant-user',
+          role_name: 'admin',
+          is_system_role: false,
+          permissions: [],
+          org_id: 42,
+          org_slug: 'acme',
+        },
+      };
+
+      vi.mocked(progressTracker.addListener)
+        .mockImplementationOnce(() => {
+          throw new Error('tracker failed');
+        })
+        .mockImplementation(() => undefined);
+
+      expect(() => scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context)).toThrow('tracker failed');
+
+      const cleanup1 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+      const cleanup2 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+      const cleanup3 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+
+      cleanup1();
+      cleanup2();
+      cleanup3();
+    });
+
+    it('should release the reserved slot when setting SSE headers fails before tracker subscription', () => {
+      const context = {
+        user: {
+          id: 7,
+          username: 'tenant-user',
+          role_name: 'admin',
+          is_system_role: false,
+          permissions: [],
+          org_id: 42,
+          org_slug: 'acme',
+        },
+      };
+      const setHeader = vi.fn()
+        .mockImplementationOnce(() => undefined)
+        .mockImplementationOnce(() => {
+          throw new Error('headers already sent');
+        });
+
+      expect(() => scraperService.subscribeToProgress({ setHeader }, vi.fn(), context)).toThrow('headers already sent');
+
+      const cleanup1 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+      const cleanup2 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+      const cleanup3 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+
+      expect(() => scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context)).toThrow(
+        'Maximum of 3 concurrent progress connections per user exceeded'
+      );
+
+      cleanup1();
+      cleanup2();
+      cleanup3();
+    });
+
+    it('should release the reserved slot when the listener dies during initial replay', () => {
+      const context = {
+        user: {
+          id: 7,
+          username: 'tenant-user',
+          role_name: 'admin',
+          is_system_role: false,
+          permissions: [],
+          org_id: 42,
+          org_slug: 'acme',
+        },
+      };
+
+      vi.mocked(progressTracker.addListener).mockImplementationOnce(() => undefined);
+      vi.mocked(progressTracker.hasListener)
+        .mockReturnValueOnce(false)
+        .mockReturnValue(true);
+
+      const cleanupAfterReplayFailure = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+
+      const cleanup1 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+      const cleanup2 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+      const cleanup3 = scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context);
+
+      expect(() => scraperService.subscribeToProgress({ setHeader: vi.fn() }, vi.fn(), context)).toThrow(
+        'Maximum of 3 concurrent progress connections per user exceeded'
+      );
+
+      cleanupAfterReplayFailure();
+      cleanup1();
+      cleanup2();
+      cleanup3();
     });
 
     it('should pass tenant trace context to progress tracker', () => {

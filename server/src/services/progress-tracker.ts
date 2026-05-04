@@ -123,6 +123,10 @@ export class ProgressTracker {
     }
   }
 
+  hasListener(res: Response): boolean {
+    return this.listeners.has(res);
+  }
+
   // Emit a progress event to all listeners
   emit(event: ProgressEvent): void {
     if (event.type === 'started' && !this.hasActiveJobs()) {
