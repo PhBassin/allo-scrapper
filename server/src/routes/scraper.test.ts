@@ -2,6 +2,7 @@ import { errorHandler } from '../middleware/error-handler.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
+import { AppError } from '../utils/errors.js';
 
 const mockTriggerScrape = vi.fn();
 const mockTriggerResume = vi.fn();
@@ -332,6 +333,32 @@ describe('Routes - Scraper', () => {
       );
     });
 
+    it('should preserve org_id context for the progress subscription when org_slug is absent', async () => {
+      mockSubscribeToProgress.mockImplementation((res, _onClose, _context, _lastEventId) => {
+        res.status(200).end();
+        return () => {};
+      });
+      const app = await setupApp({ org_id: 42, org_slug: undefined });
+
+      const response = await request(app).get('/api/scraper/progress');
+
+      expect(response.status).toBe(200);
+      expect(mockSubscribeToProgress).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Function),
+        expect.objectContaining({
+          endpoint: '/api/scraper/progress',
+          method: 'GET',
+          user: expect.objectContaining({
+            id: 1,
+            org_id: 42,
+            org_slug: undefined,
+          }),
+        }),
+        undefined
+      );
+    });
+
     it('should run the SSE cleanup callback when the request closes', async () => {
       const cleanup = vi.fn();
       mockSubscribeToProgress.mockImplementation((res) => {
@@ -345,6 +372,22 @@ describe('Routes - Scraper', () => {
 
       expect(response.status).toBe(200);
       expect(cleanup).toHaveBeenCalled();
+    });
+
+    it('should return 429 when the user already has 3 concurrent progress connections', async () => {
+      mockSubscribeToProgress.mockImplementation(() => {
+        throw new AppError('Maximum of 3 concurrent progress connections per user exceeded', 429);
+      });
+
+      const app = await setupApp({ org_id: 42, org_slug: 'acme' });
+
+      const response = await request(app).get('/api/scraper/progress');
+
+      expect(response.status).toBe(429);
+      expect(response.body).toEqual({
+        success: false,
+        error: 'Maximum of 3 concurrent progress connections per user exceeded',
+      });
     });
   });
 

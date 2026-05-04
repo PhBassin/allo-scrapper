@@ -7,6 +7,7 @@ import { logger } from '../utils/logger.js';
 import type { ScrapeAttempt } from '../db/scrape-attempt-queries.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import type { ProgressTraceContext } from './progress-tracker.js';
+import { AppError } from '../utils/errors.js';
 
 interface ScrapeTriggerOptions {
   cinemaId?: string;
@@ -21,7 +22,67 @@ interface ScrapeObservabilityContext {
 }
 
 export class ScraperService {
+  private static readonly MAX_PROGRESS_CONNECTIONS_PER_USER = 3;
+  private static readonly progressConnectionsByUser = new Map<string, number>();
+
   constructor(private db: DB) {}
+
+  static resetProgressConnectionTrackingForTests() {
+    this.progressConnectionsByUser.clear();
+  }
+
+  private getProgressConnectionUserKey(context?: ScrapeObservabilityContext): string | undefined {
+    if (context?.user?.id === undefined) {
+      return undefined;
+    }
+
+    const orgScope = context.user.org_slug
+      ? `slug:${context.user.org_slug}`
+      : context.user.org_id !== undefined
+        ? `org:${String(context.user.org_id)}`
+        : 'system:global';
+
+    return `${orgScope}:user:${String(context.user.id)}`;
+  }
+
+  private getActiveProgressConnectionCount(userKey?: string): number {
+    if (!userKey) {
+      return 0;
+    }
+
+    return ScraperService.progressConnectionsByUser.get(userKey) ?? 0;
+  }
+
+  private reserveProgressConnection(userKey?: string): void {
+    if (!userKey) {
+      return;
+    }
+
+    const activeConnections = this.getActiveProgressConnectionCount(userKey);
+    if (activeConnections >= ScraperService.MAX_PROGRESS_CONNECTIONS_PER_USER) {
+      throw new AppError(
+        `Maximum of ${ScraperService.MAX_PROGRESS_CONNECTIONS_PER_USER} concurrent progress connections per user exceeded`,
+        429,
+      );
+    }
+
+    ScraperService.progressConnectionsByUser.set(userKey, activeConnections + 1);
+  }
+
+  private releaseProgressConnection(userKey?: string): void {
+    if (!userKey) {
+      return;
+    }
+
+    const activeConnections = this.getActiveProgressConnectionCount(userKey);
+
+    if (activeConnections <= 1) {
+      ScraperService.progressConnectionsByUser.delete(userKey);
+      return;
+    }
+
+    ScraperService.progressConnectionsByUser.set(userKey, activeConnections - 1);
+  }
 
   private buildTraceContext(context?: ScrapeObservabilityContext): Record<string, string> | undefined {
     if (!context) return undefined;
@@ -183,24 +244,47 @@ export class ScraperService {
    * Subscribes an HTTP response stream to the progress tracker events.
    */
   subscribeToProgress(res: any, onClose: () => void, context?: ScrapeObservabilityContext, lastEventId?: string) {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+    const userKey = this.getProgressConnectionUserKey(context);
+    this.reserveProgressConnection(userKey);
 
-    progressTracker.addListener(res, this.buildProgressTraceContext(context), lastEventId);
-    logger.info('SSE client connected', {
-      listeners: progressTracker.getListenerCount(),
-      org_id: context?.user?.org_id,
-      user_id: context?.user?.id,
-      endpoint: context?.endpoint,
-      method: context?.method,
-    });
+    try {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+      progressTracker.addListener(res, this.buildProgressTraceContext(context), lastEventId);
+      if (!progressTracker.hasListener(res)) {
+        this.releaseProgressConnection(userKey);
+        return () => {};
+      }
+
+      logger.info('SSE client connected', {
+        listeners: progressTracker.getListenerCount(),
+        user_connections: this.getActiveProgressConnectionCount(userKey),
+        org_id: context?.user?.org_id,
+        user_id: context?.user?.id,
+        endpoint: context?.endpoint,
+        method: context?.method,
+      });
+    } catch (error) {
+      this.releaseProgressConnection(userKey);
+      throw error;
+    }
+
+    let cleanedUp = false;
 
     return () => {
+      if (cleanedUp) {
+        return;
+      }
+
+      cleanedUp = true;
       progressTracker.removeListener(res);
+      this.releaseProgressConnection(userKey);
       logger.info('SSE client disconnected', {
         listeners: progressTracker.getListenerCount(),
+        user_connections: this.getActiveProgressConnectionCount(userKey),
         org_id: context?.user?.org_id,
         user_id: context?.user?.id,
         endpoint: context?.endpoint,
