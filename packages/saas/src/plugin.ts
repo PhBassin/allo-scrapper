@@ -16,6 +16,7 @@ import { createSuperadminRouter } from './routes/superadmin.js';
 import { createTestFixturesNotFoundRouter, createTestFixturesRouter } from './routes/test-fixtures.js';
 import { createOrgMetricsMiddleware, getOrgRegistry } from './middleware/org-metrics.js';
 import { startQuotaResetScheduler } from './quota-reset-scheduler.js';
+import { requireSuperadmin } from './middleware/superadmin-auth.js';
 import type { DB } from './db/types.js';
 import { logger } from './utils/logger.js';
 
@@ -70,8 +71,8 @@ export const saasPlugin: AppPlugin = {
       app.use('/test', createTestFixturesNotFoundRouter());
     }
 
-    // Prometheus metrics endpoint for org-level metrics (open/unauthenticated)
-    app.get('/api/saas/metrics', async (_req, res) => {
+    // Prometheus metrics endpoint for org-level metrics
+    app.get('/api/saas/metrics', requireSuperadmin as any, async (_req, res) => {
       try {
         res.set('Content-Type', getOrgRegistry().contentType);
         const metrics = await getOrgRegistry().metrics();

@@ -8,11 +8,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import type { Express } from 'express';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const TEST_JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
+
+function mintToken(payload: Record<string, unknown>): string {
+  return jwt.sign(payload, TEST_JWT_SECRET, { expiresIn: '1h' });
+}
 
 // We spy on runMigrations imported dynamically inside plugin.ts.
 // Since plugin.ts uses a dynamic import to avoid cross-rootDir compile-time
@@ -29,7 +35,7 @@ describe('saasPlugin', () => {
   beforeEach(() => {
     app = express();
     vi.clearAllMocks();
-    vi.stubEnv('JWT_SECRET', 'local-dev-jwt-fixture-key-1234567890abcd');
+    vi.stubEnv('JWT_SECRET', TEST_JWT_SECRET);
   });
 
   afterEach(() => {
@@ -95,6 +101,40 @@ describe('saasPlugin', () => {
 
     const res = await request(app).post('/test/seed-org').send({});
     expect(res.status).toBe(404);
+  });
+
+  it('protects /api/saas/metrics behind superadmin authentication', async () => {
+    const { saasPlugin } = await import('./plugin.js');
+    const db = { query: vi.fn() };
+    const pool = { connect: vi.fn() };
+
+    await saasPlugin.register(app, { db, pool });
+
+    const unauthorized = await request(app).get('/api/saas/metrics');
+    expect(unauthorized.status).toBe(401);
+
+    const tenantToken = mintToken({
+      id: 1,
+      username: 'tenant-admin',
+      role_name: 'admin',
+      is_system_role: false,
+      permissions: ['system:health'],
+      org_slug: 'acme',
+    });
+
+    const forbidden = await request(app)
+      .get('/api/saas/metrics')
+      .set('Authorization', `Bearer ${tenantToken}`);
+    expect(forbidden.status).toBe(403);
+
+    const superadminToken = jwt.sign({ id: 'super-1', username: 'superadmin', scope: 'superadmin' }, TEST_JWT_SECRET, { expiresIn: '1h' });
+
+    const authorized = await request(app)
+      .get('/api/saas/metrics')
+      .set('Authorization', `Bearer ${superadminToken}`);
+
+    expect(authorized.status).toBe(200);
+    expect(authorized.headers['content-type']).toContain('text/plain');
   });
 
 

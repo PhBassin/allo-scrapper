@@ -339,16 +339,28 @@ describe('POST /api/org/:slug/cinemas — quota guard', () => {
 // ── Films ─────────────────────────────────────────────────────────────────────
 
 describe('GET /api/org/:slug/films', () => {
-  it('returns 200 and queries scoped client', async () => {
-    const jwtUser = {
-      id: 1, username: 'admin', role_name: 'admin',
-      is_system_role: true, permissions: [], org_slug: 'acme',
-    };
-    const { app, dbClient } = buildApp('acme', 'active', [], jwtUser);
+  it('returns 200 without authentication for public tenant film listing', async () => {
+    const { app, dbClient } = buildApp('acme', 'active', []);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
     const res = await request(app).get('/api/org/acme/films');
+    expect(res.status).toBe(200);
+    expect(dbClient.query).toHaveBeenCalled();
+  });
+
+  it('returns 200 and queries scoped client for authenticated org user', async () => {
+    const jwtUser = {
+      id: 1, username: 'admin', role_name: 'admin',
+      is_system_role: true, permissions: [], org_slug: 'acme',
+    };
+    const { app, dbClient, token } = buildApp('acme', 'active', [], jwtUser);
+    const { createOrgRouter } = await import('./org.js');
+    app.use('/api/org/:slug', createOrgRouter());
+
+    const res = await request(app)
+      .get('/api/org/acme/films')
+      .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(dbClient.query).toHaveBeenCalled();
   });

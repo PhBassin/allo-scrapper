@@ -1,5 +1,5 @@
 import express from 'express';
-import type { Express } from 'express';
+import type { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -12,6 +12,8 @@ import type { Pool } from 'pg';
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
 import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
+import { requireAuth, type AuthRequest } from './middleware/auth.js';
+import { requirePermission } from './middleware/permission.js';
 import { generateThemeCSS } from './services/theme-generator.js';
 import { validateInputSize } from "./middleware/input-validation.js";
 import { errorHandler } from './middleware/error-handler.js';
@@ -84,6 +86,45 @@ const __dirname = path.dirname(__filename);
 // ---------------------------------------------------------------------------
 const serverRegistry = new Registry();
 collectDefaultMetrics({ register: serverRegistry, prefix: 'ics_web_' });
+
+function isTrustedDockerBridgeAddress(remoteAddress: string | undefined): boolean {
+  if (!remoteAddress) {
+    return false;
+  }
+
+  const normalized = remoteAddress.replace(/^::ffff:/, '');
+  const octets = normalized.split('.');
+  if (octets.length === 4 && octets.every((segment) => /^\d+$/.test(segment))) {
+    const first = Number(octets[0]);
+    const second = Number(octets[1]);
+    return first === 172 && second >= 16 && second <= 31;
+  }
+
+  return false;
+}
+
+export function isTrustedInternalMetricsScrape(req: Request): boolean {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (typeof forwardedFor === 'string' && forwardedFor.trim() !== '') {
+    return false;
+  }
+
+  if (Array.isArray(forwardedFor) && forwardedFor.some((value) => value.trim() !== '')) {
+    return false;
+  }
+
+  return isTrustedDockerBridgeAddress(req.socket.remoteAddress);
+}
+
+function requireMetricsAccess(req: Request, res: Response, next: NextFunction): void | Response {
+  if (isTrustedInternalMetricsScrape(req)) {
+    return next();
+  }
+
+  return requireAuth(req as AuthRequest, res, () =>
+    requirePermission('system:health')(req as AuthRequest, res, next)
+  );
+}
 
 function createAdminScraperAliasRouter() {
   const router = express.Router();
@@ -253,7 +294,7 @@ export function createApp() {
   });
 
   // Prometheus metrics endpoint
-  app.get('/metrics', async (_req, res) => {
+  app.get('/metrics', requireMetricsAccess, async (_req, res) => {
     try {
       res.set('Content-Type', serverRegistry.contentType);
       res.end(await serverRegistry.metrics());

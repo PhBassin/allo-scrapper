@@ -7,6 +7,7 @@ import {
   resetSettings,
   exportSettings,
   importSettings,
+  validateFooterLinks,
 } from '../db/settings-queries.js';
 import { validateImage } from '../utils/image-validator.js';
 import type { ApiResponse } from '../types/api.js';
@@ -124,25 +125,11 @@ router.put('/', protectedLimiter, requireAuth, requirePermission('settings:updat
       }
     }
 
-    // Validate footer links to prevent stored XSS via javascript: or data: URIs
-    if (updates.footer_links && Array.isArray(updates.footer_links)) {
-      for (const link of updates.footer_links) {
-        if (link.url) {
-          try {
-            const parsedUrl = new URL(link.url, 'http://dummy.com');
-            if (
-              parsedUrl.protocol !== 'http:' &&
-              parsedUrl.protocol !== 'https:' &&
-              parsedUrl.protocol !== 'mailto:' &&
-              parsedUrl.protocol !== 'tel:'
-            ) {
-              return next(new ValidationError(`Invalid URL protocol in footer link: ${link.url}`));
-            }
-          } catch (e) {
-            return next(new ValidationError(`Invalid URL format in footer link: ${link.url}`));
-          }
-        }
-      }
+    // Validate footer links in the shared server validator
+    try {
+      validateFooterLinks(updates.footer_links);
+    } catch (error) {
+      return next(new ValidationError(error instanceof Error ? error.message : 'Invalid footer_links'));
     }
 
     // Validate scrape_mode if provided
@@ -255,6 +242,22 @@ router.post('/import', protectedLimiter, requireAuth, requirePermission('setting
       if (typeof value === 'string' && value.length > limit) {
         return next(new ValidationError(`${field} exceeds maximum length of ${limit} characters`));
       }
+    }
+
+    if (importData.settings.logo_base64) {
+      const logoValidation = await validateImage(importData.settings.logo_base64, 'logo', LOGO_MAX_SIZE);
+      if (!logoValidation.valid) {
+        return next(new ValidationError(`Invalid logo: ${logoValidation.error}`));
+      }
+      importData.settings.logo_base64 = logoValidation.compressedBase64!;
+    }
+
+    if (importData.settings.favicon_base64) {
+      const faviconValidation = await validateImage(importData.settings.favicon_base64, 'favicon', FAVICON_MAX_SIZE);
+      if (!faviconValidation.valid) {
+        return next(new ValidationError(`Invalid favicon: ${faviconValidation.error}`));
+      }
+      importData.settings.favicon_base64 = faviconValidation.compressedBase64!;
     }
 
     const importedSettings = await importSettings(db, importData, req.user!.id);

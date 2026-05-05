@@ -664,8 +664,9 @@ Authorization: Bearer <org-admin-token>
 Dedicated metrics endpoint for multi-tenant monitoring:
 
 ```bash
-# Metrics endpoint (open, unauthenticated)
+# Metrics endpoint (superadmin authentication required)
 GET /api/saas/metrics
+Authorization: Bearer <superadmin-token>
 ```
 
 **Available Metrics:**
