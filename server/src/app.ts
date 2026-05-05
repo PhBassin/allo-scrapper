@@ -11,7 +11,7 @@ import type { Pool } from 'pg';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
-import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
+import { generalLimiter, healthCheckLimiter, protectedLimiter } from './middleware/rate-limit.js';
 import { requireAuth, type AuthRequest } from './middleware/auth.js';
 import { requirePermission } from './middleware/permission.js';
 import { generateThemeCSS } from './services/theme-generator.js';
@@ -294,7 +294,7 @@ export function createApp() {
   });
 
   // Prometheus metrics endpoint
-  app.get('/metrics', requireMetricsAccess, async (_req, res) => {
+  app.get('/metrics', protectedLimiter, requireMetricsAccess, async (_req, res) => {
     try {
       res.set('Content-Type', serverRegistry.contentType);
       res.end(await serverRegistry.metrics());

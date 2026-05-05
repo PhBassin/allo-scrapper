@@ -17,6 +17,7 @@ import { createTestFixturesNotFoundRouter, createTestFixturesRouter } from './ro
 import { createOrgMetricsMiddleware, getOrgRegistry } from './middleware/org-metrics.js';
 import { startQuotaResetScheduler } from './quota-reset-scheduler.js';
 import { requireSuperadmin } from './middleware/superadmin-auth.js';
+import { protectedLimiter } from 'allo-scrapper-server/dist/middleware/rate-limit.js';
 import type { DB } from './db/types.js';
 import { logger } from './utils/logger.js';
 
@@ -72,7 +73,7 @@ export const saasPlugin: AppPlugin = {
     }
 
     // Prometheus metrics endpoint for org-level metrics
-    app.get('/api/saas/metrics', requireSuperadmin as any, async (_req, res) => {
+    app.get('/api/saas/metrics', protectedLimiter, requireSuperadmin as any, async (_req, res) => {
       try {
         res.set('Content-Type', getOrgRegistry().contentType);
         const metrics = await getOrgRegistry().metrics();
