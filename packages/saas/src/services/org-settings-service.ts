@@ -42,6 +42,47 @@ export interface OrgSettingsRow {
   updated_by: number | null;
 }
 
+function validateFooterLinks(footerLinks: FooterLink[] | undefined): void {
+  if (footerLinks === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(footerLinks)) {
+    throw new Error('footer_links must be an array');
+  }
+
+  for (const link of footerLinks) {
+    if (!link || typeof link !== 'object') {
+      throw new Error('Each footer link must be an object with label and url');
+    }
+
+    if (typeof link.label !== 'string' || link.label.trim() === '') {
+      throw new Error('Each footer link must include a non-empty label');
+    }
+
+    if (typeof link.url !== 'string' || link.url.trim() === '') {
+      throw new Error('Each footer link must include a non-empty url');
+    }
+
+    try {
+      const parsedUrl = new URL(link.url, 'http://dummy.com');
+      if (
+        parsedUrl.protocol !== 'http:'
+        && parsedUrl.protocol !== 'https:'
+        && parsedUrl.protocol !== 'mailto:'
+        && parsedUrl.protocol !== 'tel:'
+      ) {
+        throw new Error(`Invalid URL protocol in footer link: ${link.url}`);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Invalid URL protocol in footer link:')) {
+        throw error;
+      }
+      throw new Error(`Invalid URL format in footer link: ${link.url}`);
+    }
+  }
+}
+
 export class OrgSettingsService {
   constructor(private db: DB) {}
 
@@ -112,6 +153,8 @@ export class OrgSettingsService {
     updates: OrgSettingsUpdate,
     userId: number
   ): Promise<OrgSettings | undefined> {
+    validateFooterLinks(updates.footer_links);
+
     // Build dynamic UPDATE query
     const fields: string[] = [];
     const values: any[] = [];

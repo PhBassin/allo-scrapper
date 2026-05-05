@@ -85,6 +85,27 @@ describe('OrgSettingsService', () => {
   });
 
   describe('updateSettings', () => {
+    it('rejects footer_links when provided as null', async () => {
+      await expect(service.updateSettings({ footer_links: null as any }, 42)).rejects.toThrow(
+        /footer_links must be an array/i
+      );
+      expect(mockDb.query).not.toHaveBeenCalled();
+    });
+
+    it('rejects footer links missing a label', async () => {
+      await expect(
+        service.updateSettings({ footer_links: [{ url: '/terms' } as any] }, 42)
+      ).rejects.toThrow(/non-empty label/i);
+      expect(mockDb.query).not.toHaveBeenCalled();
+    });
+
+    it('rejects footer links missing a url', async () => {
+      await expect(
+        service.updateSettings({ footer_links: [{ label: 'Terms', text: 'Terms' } as any] }, 42)
+      ).rejects.toThrow(/non-empty url/i);
+      expect(mockDb.query).not.toHaveBeenCalled();
+    });
+
     it('updates settings and returns updated row', async () => {
       const updates = {
         site_name: 'New Name',

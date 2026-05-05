@@ -6,7 +6,18 @@ import { errorHandler } from '../middleware/error-handler.js';
 import type { DB } from '../db/client.js';
 
 // Mock dependencies
-vi.mock('../db/settings-queries.js');
+vi.mock('../db/settings-queries.js', async () => {
+  const actual = await vi.importActual<typeof import('../db/settings-queries.js')>('../db/settings-queries.js');
+  return {
+    ...actual,
+    getSettings: vi.fn(),
+    getPublicSettings: vi.fn(),
+    updateSettings: vi.fn(),
+    resetSettings: vi.fn(),
+    exportSettings: vi.fn(),
+    importSettings: vi.fn(),
+  };
+});
 vi.mock('../utils/image-validator.js');
 vi.mock('../middleware/auth.js', () => ({
   requireAuth: (req: any, res: any, next: any) => {
@@ -248,6 +259,39 @@ describe('Settings Routes', () => {
       expect(settingsQueries.updateSettings).not.toHaveBeenCalled();
     });
 
+    it('should reject footer_links when provided as null', async () => {
+      const response = await request(app)
+        .put('/api/settings')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ footer_links: null });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('footer_links must be an array');
+      expect(settingsQueries.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it('should reject footer links missing a label', async () => {
+      const response = await request(app)
+        .put('/api/settings')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ footer_links: [{ url: 'https://example.com' }] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('non-empty label');
+      expect(settingsQueries.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it('should reject footer links missing a url', async () => {
+      const response = await request(app)
+        .put('/api/settings')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ footer_links: [{ label: 'Privacy' }] });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('non-empty url');
+      expect(settingsQueries.updateSettings).not.toHaveBeenCalled();
+    });
+
     it('should allow footer links with safe protocols', async () => {
       const updates = {
         footer_links: [
@@ -475,6 +519,102 @@ describe('Settings Routes', () => {
       expect(response.body.success).toBe(true);
     });
 
+    it('should validate imported logo images with the same contract as update', async () => {
+      const validLogo = 'data:image/png;base64,raw-logo';
+      const importData = {
+        version: '1.0',
+        exported_at: '2026-03-01T05:00:00Z',
+        settings: {
+          site_name: 'Imported Cinema',
+          logo_base64: validLogo,
+          favicon_base64: null,
+          color_primary: '#000000',
+          color_secondary: '#FFFFFF',
+          color_accent: '#FF00FF',
+          color_background: '#FAFAFA',
+          color_surface: '#F0F0F0',
+          color_text_primary: '#000000',
+          color_text_secondary: '#666666',
+          color_success: '#00FF00',
+          color_error: '#FF0000',
+          font_primary: 'Arial',
+          font_secondary: 'Verdana',
+          footer_text: null,
+          footer_links: [],
+          email_from_name: 'Imported',
+          email_from_address: 'import@test.com',
+        },
+      };
+
+      vi.mocked(imageValidator.validateImage).mockResolvedValue({
+        valid: true,
+        compressedBase64: 'data:image/png;base64,compressed-logo',
+      });
+      vi.mocked(settingsQueries.importSettings).mockResolvedValue({
+        id: 1,
+        ...importData.settings,
+        logo_base64: 'data:image/png;base64,compressed-logo',
+        updated_at: '2026-03-01T06:00:00Z',
+        updated_by: 1,
+      } as any);
+
+      const response = await request(app)
+        .post('/api/settings/import')
+        .set('Authorization', 'Bearer valid-token')
+        .send(importData);
+
+      expect(response.status).toBe(200);
+      expect(imageValidator.validateImage).toHaveBeenCalledWith(validLogo, 'logo', 200000);
+      expect(settingsQueries.importSettings).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            logo_base64: 'data:image/png;base64,compressed-logo',
+          }),
+        }),
+        1,
+      );
+    });
+
+    it('should reject invalid imported logo images before persistence', async () => {
+      vi.mocked(imageValidator.validateImage).mockResolvedValue({
+        valid: false,
+        error: 'Invalid image data',
+      });
+
+      const response = await request(app)
+        .post('/api/settings/import')
+        .set('Authorization', 'Bearer valid-token')
+        .send({
+          version: '1.0',
+          exported_at: '2026-03-01T05:00:00Z',
+          settings: {
+            site_name: 'Imported Cinema',
+            logo_base64: 'data:image/png;base64,invalid',
+            favicon_base64: null,
+            color_primary: '#000000',
+            color_secondary: '#FFFFFF',
+            color_accent: '#FF00FF',
+            color_background: '#FAFAFA',
+            color_surface: '#F0F0F0',
+            color_text_primary: '#000000',
+            color_text_secondary: '#666666',
+            color_success: '#00FF00',
+            color_error: '#FF0000',
+            font_primary: 'Arial',
+            font_secondary: 'Verdana',
+            footer_text: null,
+            footer_links: [],
+            email_from_name: 'Imported',
+            email_from_address: 'import@test.com',
+          },
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid logo');
+      expect(settingsQueries.importSettings).not.toHaveBeenCalled();
+    });
+
     it('should reject invalid import data', async () => {
       const invalidData = {
         version: '2.0', // Wrong version
@@ -491,6 +631,45 @@ describe('Settings Routes', () => {
         .send(invalidData);
 
       expect(response.status).toBe(400);
+    });
+
+    it('should reject footer links with unsafe protocols during import', async () => {
+      const invalidData = {
+        version: '1.0',
+        exported_at: '2026-03-01T05:00:00Z',
+        settings: {
+          site_name: 'Imported Cinema',
+          logo_base64: null,
+          favicon_base64: null,
+          color_primary: '#000000',
+          color_secondary: '#FFFFFF',
+          color_accent: '#FF00FF',
+          color_background: '#FAFAFA',
+          color_surface: '#F0F0F0',
+          color_text_primary: '#000000',
+          color_text_secondary: '#666666',
+          color_success: '#00FF00',
+          color_error: '#FF0000',
+          font_primary: 'Arial',
+          font_secondary: 'Verdana',
+          footer_text: null,
+          footer_links: [{ label: 'Owned', url: 'javascript:alert(1)' }],
+          email_from_name: 'Imported',
+          email_from_address: 'import@test.com',
+        },
+      };
+
+      vi.mocked(settingsQueries.importSettings).mockRejectedValue(
+        new Error('Invalid URL protocol in footer link: javascript:alert(1)')
+      );
+
+      const response = await request(app)
+        .post('/api/settings/import')
+        .set('Authorization', 'Bearer valid-token')
+        .send(invalidData);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toMatch(/invalid url protocol/i);
     });
 
     it('should return 401 without authentication', async () => {

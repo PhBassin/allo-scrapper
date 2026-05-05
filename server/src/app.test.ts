@@ -3,7 +3,8 @@ import request from 'supertest';
 import type { Express } from 'express';
 import type { DB } from './db/client.js';
 import type { Pool } from 'pg';
-import { createApp, applyPlugins, registerFallbackHandlers, type AppPlugin } from './app.js';
+import jwt from 'jsonwebtoken';
+import { createApp, applyPlugins, registerFallbackHandlers, isTrustedInternalMetricsScrape, type AppPlugin } from './app.js';
 import { AuthError } from './utils/errors.js';
 
 // Mock dependencies
@@ -17,6 +18,12 @@ const createMockDb = (queryImpl = vi.fn().mockResolvedValue({ rows: [{ result: 1
   end: vi.fn(),
 } as unknown as DB);
 
+const TEST_JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
+
+function mintToken(payload: Record<string, unknown>): string {
+  return jwt.sign(payload, TEST_JWT_SECRET, { expiresIn: '1h' });
+}
+
 const loadNonTestAppModule = async () => {
   vi.resetModules();
   return import('./app.js');
@@ -28,6 +35,54 @@ describe('App - Theme Endpoint', () => {
   let originalNodeEnv: string | undefined;
   let originalGeneralMax: string | undefined;
   let originalHealthMax: string | undefined;
+
+  describe('isTrustedInternalMetricsScrape', () => {
+    it('accepts direct docker-network scrapes without forwarded headers', () => {
+      const req = {
+        headers: {},
+        socket: { remoteAddress: '172.18.0.5' },
+      } as any;
+
+      expect(isTrustedInternalMetricsScrape(req)).toBe(true);
+    });
+
+    it('rejects requests that present forwarded headers even from private addresses', () => {
+      const req = {
+        headers: { 'x-forwarded-for': '203.0.113.42' },
+        socket: { remoteAddress: '172.18.0.5' },
+      } as any;
+
+      expect(isTrustedInternalMetricsScrape(req)).toBe(false);
+    });
+
+    it('rejects 10.x and 192.168.x private addresses that are outside the Docker bridge trust boundary', () => {
+      const tenNetReq = {
+        headers: {},
+        socket: { remoteAddress: '10.0.0.5' },
+      } as any;
+      const lanReq = {
+        headers: {},
+        socket: { remoteAddress: '192.168.1.8' },
+      } as any;
+
+      expect(isTrustedInternalMetricsScrape(tenNetReq)).toBe(false);
+      expect(isTrustedInternalMetricsScrape(lanReq)).toBe(false);
+    });
+
+    it('rejects loopback and public addresses', () => {
+      const loopbackReq = {
+        headers: {},
+        socket: { remoteAddress: '127.0.0.1' },
+      } as any;
+      const publicReq = {
+        headers: {},
+        socket: { remoteAddress: '203.0.113.42' },
+      } as any;
+
+      expect(isTrustedInternalMetricsScrape(loopbackReq)).toBe(false);
+      expect(isTrustedInternalMetricsScrape(publicReq)).toBe(false);
+    });
+  });
 
   beforeEach(() => {
     originalNodeEnv = process.env.NODE_ENV;
@@ -292,9 +347,45 @@ describe('App - Theme Endpoint', () => {
   });
 
   describe('GET /metrics', () => {
-    it('should return Prometheus metrics', async () => {
+    it('should return 401 without authentication', async () => {
       const res = await request(app)
         .get('/metrics')
+        .expect(401);
+
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('Authentication required. No token provided.');
+    });
+
+    it('should return 403 for authenticated users without system:health permission', async () => {
+      const token = mintToken({
+        id: 1,
+        username: 'operator',
+        role_name: 'operator',
+        is_system_role: false,
+        permissions: [],
+      });
+
+      const res = await request(app)
+        .get('/metrics')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('Permission denied');
+    });
+
+    it('should return Prometheus metrics for users with system:health permission', async () => {
+      const token = mintToken({
+        id: 1,
+        username: 'operator',
+        role_name: 'operator',
+        is_system_role: false,
+        permissions: ['system:health'],
+      });
+
+      const res = await request(app)
+        .get('/metrics')
+        .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
       expect(res.headers['content-type']).toContain('text/plain');

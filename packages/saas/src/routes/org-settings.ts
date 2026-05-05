@@ -25,6 +25,7 @@ import {
   generateCSSVariables,
   generateGoogleFontsImport,
 } from 'allo-scrapper-server/dist/services/theme-generator.js';
+import { validateImage } from 'allo-scrapper-server/dist/utils/image-validator.js';
 import { requireAuth } from 'allo-scrapper-server/dist/middleware/auth.js';
 import { requirePermission } from 'allo-scrapper-server/dist/middleware/permission.js';
 import type { PermissionName } from 'allo-scrapper-server/dist/types/role.js';
@@ -34,6 +35,8 @@ const router = Router();
 const VALID_SCRAPE_MODES = ['weekly', 'from_today', 'from_today_limited'];
 const SCRAPE_DAYS_MIN = 1;
 const SCRAPE_DAYS_MAX = 14;
+const LOGO_MAX_SIZE = 200000;
+const FAVICON_MAX_SIZE = 50000;
 
 const INPUT_LIMITS = {
   site_name: 100,
@@ -55,6 +58,22 @@ const DEFAULT_THEME_SETTINGS = {
 } as const;
 
 const DEFAULT_PUBLIC_EXPORT_USER = 'org-admin';
+const REQUIRED_IMPORT_FIELDS = [
+  'site_name',
+  'color_primary',
+  'color_secondary',
+  'color_accent',
+  'color_background',
+  'color_surface',
+  'color_text_primary',
+  'color_text_secondary',
+  'color_success',
+  'color_error',
+  'font_primary',
+  'font_secondary',
+  'email_from_name',
+  'email_from_address',
+] as const;
 
 type ExportableOrgSettings = Awaited<ReturnType<OrgSettingsService['getSettings']>>;
 
@@ -70,15 +89,42 @@ type ThemeCssSettings = OrgSettingsPublic & {
 
 function normalizeFooterLinks(
   footerLinks: FooterLink[] | undefined
-): Array<{ label: string; url: string }> {
+): Array<{ label: string; text: string; url: string }> {
   if (!Array.isArray(footerLinks)) {
     return [];
   }
 
-  return footerLinks.map((link) => ({
-    label: link.label ?? link.text ?? '',
-    url: link.url ?? '',
-  }));
+  return footerLinks.map((link) => {
+    const label = link.label ?? link.text ?? '';
+
+    return {
+      label,
+      text: label,
+      url: link.url,
+    };
+  });
+}
+
+function validateImportPayload(importData: { version?: string; settings?: Record<string, unknown> }): string | null {
+  if (!importData.version || !importData.settings || typeof importData.settings !== 'object') {
+    return 'Invalid import data format';
+  }
+
+  if (importData.version !== '1.0') {
+    return `Incompatible version: ${importData.version}. Expected 1.0`;
+  }
+
+  return null;
+}
+
+function validateRequiredImportSettings(updates: OrgSettingsUpdate): string | null {
+  for (const field of REQUIRED_IMPORT_FIELDS) {
+    if (!(field in updates)) {
+      return `Missing required field in import data: ${field}`;
+    }
+  }
+
+  return null;
 }
 
 function toThemeCssSettings(settings: OrgSettingsPublic): ThemeCssSettings {
@@ -119,13 +165,17 @@ export function normalizeImportSettings(rawSettings: Record<string, unknown>): O
           ? (link as Record<string, unknown>)
           : {};
 
+        const label = item.label ?? item.text;
+        const url = item.url;
+
         return {
-          label: String(item.label ?? item.text ?? ''),
-          text: String(item.text ?? item.label ?? ''),
-          url: String(item.url ?? ''),
+          label: typeof label === 'string' ? label : '',
+          url: typeof url === 'string' ? url : '',
         };
       })
-    : undefined;
+    : rawSettings.footer_links === null
+      ? null as never
+      : undefined;
 
   const updates: OrgSettingsUpdate = {
     site_name: typeof rawSettings.site_name === 'string' ? rawSettings.site_name : undefined,
@@ -198,6 +248,28 @@ export function normalizeImportSettings(rawSettings: Record<string, unknown>): O
   ) as OrgSettingsUpdate;
 }
 
+async function validateSettingsImages(res: Response, updates: OrgSettingsUpdate): Promise<boolean> {
+  if (updates.logo_base64) {
+    const logoValidation = await validateImage(updates.logo_base64, 'logo', LOGO_MAX_SIZE);
+    if (!logoValidation.valid) {
+      res.status(400).json({ error: `Invalid logo: ${logoValidation.error}` });
+      return false;
+    }
+    updates.logo_base64 = logoValidation.compressedBase64!;
+  }
+
+  if (updates.favicon_base64) {
+    const faviconValidation = await validateImage(updates.favicon_base64, 'favicon', FAVICON_MAX_SIZE);
+    if (!faviconValidation.valid) {
+      res.status(400).json({ error: `Invalid favicon: ${faviconValidation.error}` });
+      return false;
+    }
+    updates.favicon_base64 = faviconValidation.compressedBase64!;
+  }
+
+  return true;
+}
+
 function validateSettingsUpdate(res: Response, updates: OrgSettingsUpdate): boolean {
   for (const [field, limit] of Object.entries(INPUT_LIMITS)) {
     const value = updates[field as keyof OrgSettingsUpdate];
@@ -245,10 +317,26 @@ function validateSettingsUpdate(res: Response, updates: OrgSettingsUpdate): bool
     return false;
   }
 
-  if (updates.footer_links && Array.isArray(updates.footer_links)) {
+  if (updates.footer_links !== undefined) {
+    if (!Array.isArray(updates.footer_links)) {
+      res.status(400).json({ error: 'footer_links must be an array' });
+      return false;
+    }
+
     for (const link of updates.footer_links) {
-      if (!link.url) {
-        continue;
+      if (!link || typeof link !== 'object') {
+        res.status(400).json({ error: 'Each footer link must be an object with label and url' });
+        return false;
+      }
+
+      if (typeof link.label !== 'string' || link.label.trim() === '') {
+        res.status(400).json({ error: 'Each footer link must include a non-empty label' });
+        return false;
+      }
+
+      if (typeof link.url !== 'string' || link.url.trim() === '') {
+        res.status(400).json({ error: 'Each footer link must include a non-empty url' });
+        return false;
       }
 
       try {
@@ -307,6 +395,10 @@ async function updateSettingsHandler(req: Request, res: Response, next: NextFunc
 
     if (!user) {
       res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    if (!await validateSettingsImages(res, updates)) {
       return;
     }
 
@@ -415,12 +507,23 @@ router.post('/import', ...requireSettingsImport, async (req: Request, res: Respo
       return;
     }
 
-    if (!importData.version || !importData.settings || typeof importData.settings !== 'object') {
-      res.status(400).json({ error: 'Invalid import data format' });
+    const importValidationError = validateImportPayload(importData);
+    if (importValidationError) {
+      res.status(400).json({ error: importValidationError });
       return;
     }
 
-    const updates = normalizeImportSettings(importData.settings);
+    const updates = normalizeImportSettings(importData.settings!);
+    const requiredImportSettingsError = validateRequiredImportSettings(updates);
+    if (requiredImportSettingsError) {
+      res.status(400).json({ error: requiredImportSettingsError });
+      return;
+    }
+
+    if (!await validateSettingsImages(res, updates)) {
+      return;
+    }
+
     if (!validateSettingsUpdate(res, updates)) {
       return;
     }

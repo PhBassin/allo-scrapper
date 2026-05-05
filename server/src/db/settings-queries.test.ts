@@ -207,6 +207,27 @@ describe('Settings Queries', () => {
       expect(result?.favicon_base64).toBeNull();
     });
 
+    it('should reject footer_links when provided as null', async () => {
+      await expect(updateSettings(db, { footer_links: null as any }, 1)).rejects.toThrow(
+        /footer_links must be an array/i
+      );
+      expect(db.query).not.toHaveBeenCalled();
+    });
+
+    it('should reject footer links missing a label', async () => {
+      await expect(
+        updateSettings(db, { footer_links: [{ url: 'https://example.com' } as any] }, 1)
+      ).rejects.toThrow(/non-empty label/i);
+      expect(db.query).not.toHaveBeenCalled();
+    });
+
+    it('should reject footer links missing a url', async () => {
+      await expect(
+        updateSettings(db, { footer_links: [{ label: 'Privacy' } as any] }, 1)
+      ).rejects.toThrow(/non-empty url/i);
+      expect(db.query).not.toHaveBeenCalled();
+    });
+
     it('should handle footer_links array updates', async () => {
       const updates: AppSettingsUpdate = {
         footer_links: [
@@ -389,6 +410,38 @@ describe('Settings Queries', () => {
       } as AppSettingsExport;
 
       await expect(importSettings(db, invalidExport, 1)).rejects.toThrow();
+    });
+
+    it('should reject footer links with unsafe protocols during import', async () => {
+      const invalidExport: AppSettingsExport = {
+        version: '1.0',
+        exported_at: '2026-03-01T05:00:00Z',
+        settings: {
+          site_name: 'Imported Cinema',
+          logo_base64: null,
+          favicon_base64: null,
+          color_primary: '#000000',
+          color_secondary: '#FFFFFF',
+          color_accent: '#FF00FF',
+          color_background: '#FAFAFA',
+          color_surface: '#F0F0F0',
+          color_text_primary: '#000000',
+          color_text_secondary: '#666666',
+          color_success: '#00FF00',
+          color_error: '#FF0000',
+          font_primary: 'Arial',
+          font_secondary: 'Verdana',
+          footer_text: 'Imported footer',
+          footer_links: [{ label: 'Owned', url: 'javascript:alert(1)' }],
+          email_from_name: 'Imported',
+          email_from_address: 'import@test.com',
+        },
+      };
+
+      await expect(importSettings(db, invalidExport, 1)).rejects.toThrow(
+        /invalid url protocol in footer link/i
+      );
+      expect(db.query).not.toHaveBeenCalled();
     });
   });
 });
