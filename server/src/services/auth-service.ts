@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { getUserByUsername, getTenantUserByUsername, hasTenantUserWithUsername, createUser, updateUserPassword } from '../db/user-queries.js';
 import { getPermissionNamesByRoleId } from '../db/role-queries.js';
 import type { DB } from '../db/client.js';
-import { validatePasswordStrength } from '../utils/security.js';
+import { validatePasswordStrength, validateUsername } from '../utils/security.js';
 import { logger } from '../utils/logger.js';
 import { parseJwtExpiration } from '../utils/jwt-config.js';
 import type { PermissionName } from '../types/role.js';
@@ -82,6 +82,11 @@ export class AuthService {
   async register(username?: string, password?: string) {
     if (!username || !password) {
       throw new Error('Username and password are required');
+    }
+
+    const usernameError = validateUsername(username);
+    if (usernameError) {
+      throw new Error(usernameError);
     }
 
     const passwordError = validatePasswordStrength(password);
