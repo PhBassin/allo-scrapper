@@ -65,4 +65,44 @@ describe('parseFilmPage', () => {
       'https://www.allocine.fr/video/player_gen_cmedia=19600934&cfilm=296168.html'
     );
   });
+
+  it('parses minutes-only duration for short films (< 1h)', () => {
+    const html = `
+      <div class="meta-body-info">45min</div>
+    `;
+
+    const result = parseFilmPage(html);
+
+    expect(result.duration_minutes).toBe(45);
+  });
+
+  it('parses duration with only hours (no minutes)', () => {
+    const html = `
+      <div class="meta-body-info">2h</div>
+    `;
+
+    const result = parseFilmPage(html);
+
+    expect(result.duration_minutes).toBe(120);
+  });
+
+  it('parses duration with hours and minutes without "min" suffix', () => {
+    const html = `
+      <div class="meta-body-info">2h 30</div>
+    `;
+
+    const result = parseFilmPage(html);
+
+    expect(result.duration_minutes).toBe(150);
+  });
+
+  it('parses zero duration gracefully', () => {
+    const html = `
+      <div class="meta-body-info">0min</div>
+    `;
+
+    const result = parseFilmPage(html);
+
+    expect(result.duration_minutes).toBe(0);
+  });
 });

@@ -126,17 +126,13 @@ export function parseFilmPage(html: string): FilmPageData {
   let durationMinutes: number | undefined;
 
   const metaText = metaInfo.text();
-  const durationMatch = metaText.match(/(\d+)h\s*(\d+)min/);
+  // Match "Xh Ymin", "Xh Y" (min suffix optional), "Xh", or "Ymin"
+  const durationMatch = metaText.match(/(?:(\d+)h)?\s*(?:(\d+)(?:min)?)?/);
 
-  if (durationMatch) {
-    const hours = parseInt(durationMatch[1], 10);
-    const minutes = parseInt(durationMatch[2], 10);
+  if (durationMatch && (durationMatch[1] || durationMatch[2])) {
+    const hours = durationMatch[1] ? parseInt(durationMatch[1], 10) : 0;
+    const minutes = durationMatch[2] ? parseInt(durationMatch[2], 10) : 0;
     durationMinutes = hours * 60 + minutes;
-  } else {
-    const hoursOnlyMatch = metaText.match(/(\d+)h/);
-    if (hoursOnlyMatch) {
-      durationMinutes = parseInt(hoursOnlyMatch[1], 10) * 60;
-    }
   }
 
   let trailerUrl: string | undefined;
