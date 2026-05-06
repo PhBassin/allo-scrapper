@@ -25,6 +25,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -56,19 +57,26 @@ export function getTenantScopedPath(path: string): string {
   return `/org/${encodeURIComponent(slug)}${path}`;
 }
 
-// Add a request interceptor to include the JWT token
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Auth is handled via httpOnly cookies (withCredentials: true) —
+// no manual Authorization header interceptor needed.
+
+// CSRF protection: read csrf_token cookie and send as X-CSRF-Token header
+// on state-changing requests (double-submit cookie pattern).
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+  return match ? match[1] : null;
+}
+
+apiClient.interceptors.request.use((config) => {
+  const method = (config.method || 'GET').toUpperCase();
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      config.headers['X-CSRF-Token'] = csrfToken;
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
   }
-);
+  return config;
+});
 
 // Add a response interceptor to handle 401 errors
 apiClient.interceptors.response.use(
@@ -221,7 +229,6 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
   let isAborted = false;
   let initialConnect = true;
   let lastEventId: string | undefined;
-  const token = localStorage.getItem('token');
   const url = `${API_BASE_URL}${getScraperBasePath()}/progress`;
 
   function isTerminalConnectionError(error: unknown): error is Error {
@@ -329,13 +336,13 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
         const hadReconnectAttempt = reconnectAttempt > 0;
         const headers: Record<string, string> = {
           Accept: 'text/event-stream',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {}),
         };
 
         const response = await fetch(url, {
           method: 'GET',
           headers,
+          credentials: 'include',
           signal,
           cache: 'no-store',
         });

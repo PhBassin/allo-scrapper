@@ -147,15 +147,14 @@ const RegisterPage: React.FC = () => {
     setSubmitError('');
 
     try {
-      const result = await registerOrg({
+      await registerOrg({
         orgName: orgName.trim(),
         slug,
         adminEmail,
         adminPassword,
       });
 
-      // Store the org-scoped JWT
-      localStorage.setItem('token', result.token);
+      // Auth token is set via httpOnly cookie by the backend — no localStorage needed
 
       // Fire-and-forget: add cinema + trigger scrape if URL provided
       const url = skipCinema ? '' : cinemaUrl.trim();

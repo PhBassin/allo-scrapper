@@ -117,8 +117,7 @@ export default function SuperadminPage() {
   const handleImpersonate = async (orgSlug: string) => {
     try {
       const response = await apiClient.post('/superadmin/impersonate', { org_slug: orgSlug });
-      const { token, org } = response.data.data;
-      localStorage.setItem('token', token);
+      const { org } = response.data.data;
       window.location.href = `/org/${org.slug}/`;
     } catch (err) {
       alert('Failed to impersonate organization');
@@ -126,8 +125,13 @@ export default function SuperadminPage() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
+  const handleLogout = async () => {
+    const csrfToken = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1];
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    });
     window.location.href = '/login';
   };
 

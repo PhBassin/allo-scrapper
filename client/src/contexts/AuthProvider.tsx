@@ -2,82 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { AuthContext, type User } from './AuthContext';
 
-interface JwtPayload {
-    exp?: number;
-}
-
-function decodeBase64Url(value: string): string | null {
-    try {
-        const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
-        const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
-        return atob(padded);
-    } catch {
-        return null;
-    }
-}
-
-function isTokenExpired(token: string): boolean {
-    try {
-        const parts = token.split('.');
-        if (parts.length !== 3) return true;
-
-        const payloadJson = decodeBase64Url(parts[1]);
-        if (!payloadJson) return true;
-
-        const payload = JSON.parse(payloadJson) as JwtPayload;
-        if (typeof payload.exp !== 'number') return true;
-
-        const nowInSeconds = Math.floor(Date.now() / 1000);
-        return payload.exp <= nowInSeconds;
-    } catch {
-        return true;
-    }
-}
-
-function getTokenExpiry(token: string): number | null {
-    try {
-        const parts = token.split('.');
-        if (parts.length !== 3) return null;
-
-        const payloadJson = decodeBase64Url(parts[1]);
-        if (!payloadJson) return null;
-
-        const payload = JSON.parse(payloadJson) as JwtPayload;
-        if (typeof payload.exp !== 'number') return null;
-
-        return payload.exp;
-    } catch {
-        return null;
-    }
-}
-
-function getInitialToken(): string | null {
-    const storedToken = localStorage.getItem('token');
-    if (!storedToken) return null;
-
-    if (isTokenExpired(storedToken)) {
-        sessionStorage.setItem('auth:expired', '1');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        return null;
-    }
-
-    return storedToken;
-}
-
 interface AuthProviderProps {
     children: ReactNode;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-    const [token, setToken] = useState<string | null>(getInitialToken);
-    const [user, setUser] = useState<User | null>(() => {
-        const savedUser = localStorage.getItem('user');
-        return savedUser ? JSON.parse(savedUser) : null;
-    });
+    const [token, setToken] = useState<string | null>(null);
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
     const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const isAuthenticated = !!token;
+    const isAuthenticated = !!user;
     const isAdmin = user?.role_name === 'admin' && user?.is_system_role === true;
 
     const hasPermission = (permission: string): boolean => {
@@ -93,49 +28,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
-    const scheduleExpiryTimer = (tokenToCheck: string) => {
-        clearExpiryTimer();
-        
-        const expiry = getTokenExpiry(tokenToCheck);
-        if (expiry === null) return;
-        
-        const nowInSeconds = Math.floor(Date.now() / 1000);
-        const msUntilExpiry = (expiry - nowInSeconds) * 1000;
-        
-        if (msUntilExpiry > 0) {
-            expiryTimerRef.current = setTimeout(() => {
-                setToken(null);
-                setUser(null);
-                
-                window.dispatchEvent(
-                    new CustomEvent('auth:unauthorized', {
-                        detail: { reason: 'session_expired' }
-                    })
-                );
-            }, msUntilExpiry);
-        }
-    };
-
+    // On mount, try to restore session from httpOnly cookie via /api/auth/me
     useEffect(() => {
-        if (token) {
-            localStorage.setItem('token', token);
-            scheduleExpiryTimer(token);
-        } else {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            clearExpiryTimer();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [token]);
+        const restoreSession = async () => {
+            try {
+                const response = await fetch('/api/auth/me', {
+                    credentials: 'include',
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.data) {
+                        setUser(data.data);
+                        // Token is in httpOnly cookie — we don't have it client-side,
+                        // but we keep a placeholder so AuthContext.token is non-null
+                        // for backward compatibility with existing code.
+                        setToken('cookie');
+                    }
+                }
+            } catch {
+                // Cookie not present or network error — stay logged out
+            } finally {
+                setLoading(false);
+            }
+        };
+        restoreSession();
+    }, []);
 
-    useEffect(() => {
-        if (user) {
-            localStorage.setItem('user', JSON.stringify(user));
-        } else {
-            localStorage.removeItem('user');
-        }
-    }, [user]);
-    
     useEffect(() => {
         return () => {
             clearExpiryTimer();
@@ -147,11 +65,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(newUser);
     };
 
-    const logout = () => {
+    const logout = async () => {
         clearExpiryTimer();
+        try {
+            const csrfToken = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1];
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                credentials: 'include',
+                headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+            });
+        } catch {
+            // Best-effort logout
+        }
         setToken(null);
         setUser(null);
     };
+
+    if (loading) {
+        return null; // Wait for session restoration before rendering
+    }
 
     return (
         <AuthContext.Provider value={{ isAuthenticated, token, user, isAdmin, hasPermission, login, logout }}>
