@@ -13,6 +13,8 @@ vi.mock('bcryptjs');
 vi.mock('jsonwebtoken');
 vi.mock('../utils/security.js', () => ({
   validatePasswordStrength: vi.fn(() => null),
+  validateUsername: vi.fn(() => null),
+  USERNAME_REGEX: /^[a-zA-Z0-9]{3,15}$/,
 }));
 
 describe('AuthService', () => {
@@ -301,6 +303,20 @@ describe('AuthService', () => {
       vi.mocked(userQueries.getTenantUserByUsername).mockResolvedValue({ id: 9, org_slug: 'acme' } as any);
 
       await expect(authService.register('shareduser', 'password')).rejects.toThrow('Username already exists');
+    });
+
+    it('should throw error if username format is invalid', async () => {
+      const { validateUsername } = await import('../utils/security.js');
+      vi.mocked(validateUsername).mockReturnValue('Username must be alphanumeric and 3-15 characters long');
+      
+      await expect(authService.register('ab', 'ValidPass123!')).rejects.toThrow('Username must be alphanumeric and 3-15 characters long');
+    });
+
+    it('should throw error if username contains special characters', async () => {
+      const { validateUsername } = await import('../utils/security.js');
+      vi.mocked(validateUsername).mockReturnValue('Username must be alphanumeric and 3-15 characters long');
+      
+      await expect(authService.register('user@name', 'ValidPass123!')).rejects.toThrow('Username must be alphanumeric and 3-15 characters long');
     });
 
     it('should return created user on success', async () => {

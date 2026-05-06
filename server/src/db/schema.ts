@@ -43,6 +43,40 @@ export async function initializeDatabase(extraMigrationDirs: string[] = []) {
 
   // Seed cinemas from cinemas.json if DB is empty
   await seedCinemasIfEmpty();
+
+  // Seed app_settings row if missing (defense-in-depth against silent migration failures)
+  await seedSettingsIfEmpty();
+}
+
+/**
+ * Ensures the required app_settings singleton row (id=1) exists.
+ * Idempotent — safe to call on every startup.
+ *
+ * Background: Migration 004 creates the table and inserts the default row with
+ * ON CONFLICT DO NOTHING, but the INSERT can fail silently in edge cases
+ * (transaction rollbacks, race conditions during multi-migration runs).
+ * This startup guard detects and repairs the missing row.
+ */
+export async function seedSettingsIfEmpty(): Promise<void> {
+  try {
+    const result = await db.query('SELECT id FROM app_settings WHERE id = 1');
+    if (result.rows.length > 0) {
+      logger.info('ℹ️  app_settings row exists. Skipping seed.');
+      return;
+    }
+
+    await db.query(`
+      INSERT INTO app_settings (id)
+      VALUES (1)
+      ON CONFLICT (id) DO NOTHING
+    `);
+
+    logger.info('🌱 Seeded missing app_settings row (id=1)');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('⚠️  Warning: Could not seed app_settings:', errorMessage);
+    // Non-fatal: server can still start (frontend has fallback defaults)
+  }
 }
 
 async function seedCinemasIfEmpty(): Promise<void> {

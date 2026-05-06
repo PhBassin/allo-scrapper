@@ -34,10 +34,9 @@ import { optionalAuth, requireAuth } from 'allo-scrapper-server/dist/middleware/
 import { requirePermission } from 'allo-scrapper-server/dist/middleware/permission.js';
 import { protectedLimiter } from 'allo-scrapper-server/dist/middleware/rate-limit.js';
 import { ValidationError, NotFoundError, AuthError } from 'allo-scrapper-server/dist/utils/errors.js';
-import { validatePasswordStrength } from 'allo-scrapper-server/dist/utils/security.js';
+import { validatePasswordStrength, validateUsername } from 'allo-scrapper-server/dist/utils/security.js';
 
 // ── Inline org-specific helpers ─────────────────────────────────────────────
-const USERNAME_REGEX = /^[a-zA-Z0-9]{3,15}$/;
 
 /**
  * Validates that the JWT org_slug claim (if present) matches the :slug route param.
@@ -180,9 +179,8 @@ export function createOrgRouter(): Router {
         if (!username || !password) {
           return next(new ValidationError('username and password are required'));
         }
-        if (!USERNAME_REGEX.test(username)) {
-          return next(new ValidationError('Username must be alphanumeric and 3-15 characters long'));
-        }
+        const usernameError = validateUsername(username);
+        if (usernameError) return next(new ValidationError(usernameError));
         const passwordError = validatePasswordStrength(password);
         if (passwordError) return next(new ValidationError(passwordError));
 

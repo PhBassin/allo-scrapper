@@ -101,6 +101,48 @@ Operational guide for contributors and agents in this monorepo. Prefer BMAD work
 - Auth and superadmin scope truth: `server/src/services/auth-service.ts`
 - DB init + one-time cinema bootstrap seed: `server/src/db/schema.ts`
 
+## Gotcha: `app_settings` Row Requirement
+
+### Problem
+
+The homepage becomes inaccessible when the `app_settings` table exists but the required singleton row (`id = 1`) is missing. Symptoms:
+
+- `GET /api/settings/public` returns `404`
+- Frontend `SettingsProvider` sets `publicSettings = null`
+- UI components crash or render without theme data
+
+### Root Cause
+
+Migration `004_add_app_settings.sql` creates the table and inserts the default row with `ON CONFLICT (id) DO NOTHING`. The INSERT can fail silently in edge cases (transaction rollbacks, race conditions during multi-migration runs), leaving an empty table.
+
+### Diagnostics
+
+```sql
+-- Check if the row exists
+SELECT * FROM app_settings WHERE id = 1;
+```
+
+If the query returns 0 rows, the row is missing.
+
+### Immediate Fix
+
+```sql
+INSERT INTO app_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+```
+
+All columns will fall back to their `DEFAULT` values (matching the migration schema). No need to specify all 20+ columns manually.
+
+### Prevention (Implemented)
+
+1. **Startup guard** (`server/src/db/schema.ts`): `seedSettingsIfEmpty()` runs on every server startup, checking for and repairing the missing row.
+2. **Frontend fallback** (`client/src/contexts/SettingsProvider.tsx`): `DEFAULT_PUBLIC_SETTINGS` provides sane defaults when the backend returns nothing.
+3. **AGENTS.md** (this section): Documents the gotcha for future contributors.
+
+### Verification
+
+1. **Backend guard**: `docker compose exec -T ics-db psql -U postgres -d ics -c "DELETE FROM app_settings WHERE id = 1"` then restart — server logs should show `Seeded missing app_settings row`.
+2. **Frontend fallback**: Stop the backend, load the frontend — site name should show "Allo-Scrapper" with default theme instead of crashing.
+
 ## Automated Versioning / Releases
 
 - PRs merged to `main` feed the version/release workflow in `.github/workflows/version-tag.yml`.
