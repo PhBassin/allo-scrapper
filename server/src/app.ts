@@ -2,6 +2,7 @@ import express from 'express';
 import type { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -174,6 +175,20 @@ export function createApp() {
   );
   app.use(cors(getCorsOptions()));
   app.use(morgan('combined'));
+  app.use(cookieParser());
+
+  // CSRF protection for cookie-based auth: double-submit cookie pattern.
+  // State-changing requests must include X-CSRF-Token header matching csrf_token cookie.
+  app.use((req, res, next) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+    if (!req.path.startsWith('/api/')) return next(); // only protect API routes
+    const cookieToken = req.cookies?.csrf_token;
+    const headerToken = req.headers['x-csrf-token'];
+    if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+      return res.status(403).json({ success: false, error: 'CSRF token missing or invalid' });
+    }
+    next();
+  });
 
   // Additional security headers beyond Helmet defaults
   app.use((_req, res, next) => {

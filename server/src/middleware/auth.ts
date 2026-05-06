@@ -21,17 +21,23 @@ export interface AuthRequest extends Request {
 }
 
 export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void | Response => {
-    const authHeader = req.headers.authorization;
+    // Prefer httpOnly cookie (XSS-resistant), fall back to Authorization header
+    let token = req.cookies?.auth_token ?? null;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
+        const authHeader = req.headers.authorization;
+        if (authHeader?.startsWith('Bearer ')) {
+            token = authHeader.substring(7);
+        }
+    }
+
+    if (!token) {
         const response: ApiResponse = {
             success: false,
             error: 'Authentication required. No token provided.',
         };
         return res.status(401).json(response);
     }
-
-    const token = authHeader.split(' ')[1];
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET) as {
@@ -55,14 +61,20 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
 };
 
 export const optionalAuth = (req: AuthRequest, _res: Response, next: NextFunction): void => {
-    const authHeader = req.headers.authorization;
+    // Prefer httpOnly cookie, fall back to Authorization header
+    let token = req.cookies?.auth_token ?? null;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
+        const authHeader = req.headers.authorization;
+        if (authHeader?.startsWith('Bearer ')) {
+            token = authHeader.substring(7);
+        }
+    }
+
+    if (!token) {
         next();
         return;
     }
-
-    const token = authHeader.split(' ')[1];
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET) as {
