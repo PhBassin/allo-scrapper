@@ -17,7 +17,7 @@ updates:
       day: monday
       time: "09:00"
       timezone: "Europe/Paris"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0  # Zéro PR individuelle — seuls les groupes créent des PR
     
     # Group updates to minimize PR count
     groups:
@@ -62,7 +62,7 @@ updates:
       day: monday
       time: "09:00"
       timezone: "Europe/Paris"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0  # Zéro PR individuelle — seuls les groupes créent des PR
     
     # Group all GitHub Actions updates together
     groups:
