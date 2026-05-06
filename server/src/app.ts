@@ -174,6 +174,14 @@ export function createApp() {
   );
   app.use(cors(getCorsOptions()));
   app.use(morgan('combined'));
+
+  // Additional security headers beyond Helmet defaults
+  app.use((_req, res, next) => {
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader('X-DNS-Prefetch-Control', 'off');
+    next();
+  });
   app.use(validateInputSize());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
