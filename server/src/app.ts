@@ -175,8 +175,8 @@ export function createApp() {
   app.use(cors(getCorsOptions()));
   app.use(morgan('combined'));
   app.use(validateInputSize());
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '100kb' }));
+  app.use(express.urlencoded({ limit: '100kb', extended: true }));
 
   // Health check endpoint with database connectivity check
   // Cached for 5 seconds to prevent database connection pool exhaustion
