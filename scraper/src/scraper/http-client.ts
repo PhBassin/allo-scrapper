@@ -11,6 +11,106 @@ import { CircuitBreaker } from './circuit-breaker.js';
 
 const FETCH_TIMEOUT_MS = 15000;
 
+// ── Retry configuration ─────────────────────────────────────────
+const RETRY_MAX_ATTEMPTS = 3;
+const RETRY_BASE_DELAY_MS = 1000;
+const RETRY_MAX_DELAY_MS = 10000;
+
+/**
+ * Determine whether an error is retryable (transient).
+ * 429 and 4xx client errors are NOT retried — they indicate a
+ * condition that retries won't fix (rate-limit, bad request).
+ * 5xx, network/timeout, and DNS errors ARE retried.
+ */
+function isRetryableError(err: unknown): boolean {
+  if (err instanceof RateLimitError) return false;
+  if (err instanceof HttpError && err.statusCode && err.statusCode >= 400 && err.statusCode < 500) return false;
+  return true;
+}
+
+/**
+ * Compute exponential backoff delay with jitter (±25%).
+ * delay = min(base * 2^(attempt-1), maxDelay)
+ * Then apply uniform jitter in [0.75, 1.25].
+ */
+function backoffDelay(attempt: number): number {
+  const exponential = Math.min(RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1), RETRY_MAX_DELAY_MS);
+  const jitter = 0.75 + Math.random() * 0.5; // 0.75 → 1.25
+  return Math.round(exponential * jitter);
+}
+
+/**
+ * Generic fetch with exponential-backoff retry.
+ *
+ * Retries only on transient errors (5xx, network, timeout).
+ * Does NOT retry on 429 (RateLimitError) or 4xx client errors.
+ */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  retryOn?: (err: unknown) => boolean,
+): Promise<Response> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= RETRY_MAX_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    // Merge the caller's signal with our own timeout
+    const existingSignal = init.signal ?? null;
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+    // If the caller provided a signal, forward aborts to our controller
+    if (existingSignal) {
+      if (existingSignal.aborted) {
+        clearTimeout(timeoutId);
+        throw new HttpError('Request aborted', 0, url);
+      }
+      existingSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+
+    try {
+      const response = await fetch(url, { ...init, signal: controller.signal });
+
+      if (!response.ok) {
+        // Detect rate limiting specifically
+        if (response.status === 429) {
+          throw new RateLimitError(
+            `Rate limit exceeded for ${url}`,
+            response.status,
+            url
+          );
+        }
+
+        throw new HttpError(
+          `HTTP ${response.status} ${response.statusText} for ${url}`,
+          response.status,
+          url
+        );
+      }
+
+      return response;
+    } catch (err) {
+      lastError = err;
+      clearTimeout(timeoutId);
+
+      const retryable = retryOn ? retryOn(err) : isRetryableError(err);
+      if (!retryable || attempt === RETRY_MAX_ATTEMPTS) {
+        throw err;
+      }
+
+      const delay = backoffDelay(attempt);
+      logger.warn('Retrying HTTP request', {
+        url: url.slice(0, 120),
+        attempt,
+        nextDelayMs: delay,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
 export const circuitBreaker = new CircuitBreaker(5, 60000, (err) => {
   if (err instanceof RateLimitError) return false;
   if (err instanceof HttpError && err.statusCode && err.statusCode < 500) return false;
@@ -212,42 +312,16 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
   const url = constructed.href;
   logger.info('Fetching showtimes JSON', { url });
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const response = await fetchWithRetry(url, {
+    headers: {
+      'User-Agent': getRandomUserAgent(),
+      Accept: 'application/json',
+      'Accept-Language': 'fr-FR,fr;q=0.9',
+      Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${cinemaId}.html`,
+    },
+  });
 
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': getRandomUserAgent(),
-        Accept: 'application/json',
-        'Accept-Language': 'fr-FR,fr;q=0.9',
-        Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${cinemaId}.html`,
-      },
-    });
-
-    if (!response.ok) {
-      // Detect rate limiting specifically
-      if (response.status === 429) {
-        throw new RateLimitError(
-          `Rate limit exceeded for ${cinemaId} on ${date}`,
-          response.status,
-          url
-        );
-      }
-
-      // Throw generic HttpError for other failures
-      throw new HttpError(
-        `Failed to fetch showtimes JSON for ${cinemaId} on ${date}: ${response.status} ${response.statusText}`,
-        response.status,
-        url
-      );
-    }
-
-    return response.json();
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  return response.json();
 }
 
 export async function fetchFilmPage(filmId: number): Promise<string> {
@@ -264,42 +338,16 @@ export async function fetchFilmPage(filmId: number): Promise<string> {
   logger.info('Fetching film page', { url });
 
   return circuitBreaker.execute(async () => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const response = await fetchWithRetry(url, {
+      headers: {
+        'User-Agent': getRandomUserAgent(),
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache',
+      },
+    });
 
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': getRandomUserAgent(),
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-          'Cache-Control': 'no-cache',
-        },
-      });
-
-      if (!response.ok) {
-        // Detect rate limiting specifically
-        if (response.status === 429) {
-          throw new RateLimitError(
-            `Rate limit exceeded for film ${filmId}`,
-            response.status,
-            url
-          );
-        }
-
-        // Throw generic HttpError for other failures
-        throw new HttpError(
-          `Failed to fetch film page ${filmId}: ${response.status} ${response.statusText}`,
-          response.status,
-          url
-        );
-      }
-
-      return response.text();
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    return response.text();
   });
 }
 
