@@ -35,6 +35,29 @@ export async function getFilm(db: DB, filmId: number): Promise<Film | undefined>
   const row = result.rows[0];
   if (!row) return undefined;
 
+  return rowToFilm(row);
+}
+
+/**
+ * Récupérer plusieurs films par leurs IDs en une seule requête.
+ * Évite le N+1 lorsqu'on traite plusieurs films dans une boucle.
+ */
+export async function getFilmsBatch(db: DB, filmIds: number[]): Promise<Map<number, Film>> {
+  if (filmIds.length === 0) return new Map();
+
+  const result = await db.query<FilmRow>(
+    'SELECT * FROM films WHERE id = ANY($1)',
+    [filmIds]
+  );
+
+  const map = new Map<number, Film>();
+  for (const row of result.rows) {
+    map.set(row.id, rowToFilm(row));
+  }
+  return map;
+}
+
+function rowToFilm(row: FilmRow): Film {
   return {
     id: row.id,
     title: row.title,
