@@ -4,8 +4,8 @@
  * Runs once per day at midnight UTC and resets scrapes_count + api_calls_count
  * for all organizations on the 1st of each month.
  * 
- * This is a simple in-process scheduler. For production multi-instance deployments,
- * consider using a distributed cron solution (e.g., pg_cron, BullMQ, or external service).
+ * Uses PostgreSQL advisory lock (pg_try_advisory_lock) to ensure only one
+ * instance executes the reset in multi-instance deployments.
  */
 
 import { QuotaService } from './services/quota-service.js';
@@ -13,6 +13,8 @@ import type { DB } from './db/types.js';
 import { logger } from './utils/logger.js';
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+/** PostgreSQL advisory lock key — arbitrary int64, unique to this scheduler. */
+const QUOTA_RESET_LOCK_KEY = 8675309;
 
 /**
  * Calculate milliseconds until next midnight UTC.
@@ -42,6 +44,17 @@ async function runMonthlyReset(db: DB): Promise<void> {
     return; // Not the 1st, skip
   }
 
+  // Try to acquire advisory lock — if another instance holds it, skip silently
+  const lockResult = await db.query<{ locked: boolean }>(
+    `SELECT pg_try_advisory_lock($1) AS locked`,
+    [QUOTA_RESET_LOCK_KEY]
+  );
+
+  if (!lockResult.rows[0]?.locked) {
+    logger.info('[quota-reset] Another instance is already running the monthly reset — skipping');
+    return;
+  }
+
   try {
     // Fetch all active organizations from public schema
     const result = await db.query<{ id: number; slug: string }>(
@@ -62,6 +75,9 @@ async function runMonthlyReset(db: DB): Promise<void> {
     logger.info(`[quota-reset] Monthly reset completed for ${result.rows.length} organizations`);
   } catch (error) {
     logger.error('[quota-reset] Monthly reset failed:', error);
+  } finally {
+    // Always release the lock
+    await db.query(`SELECT pg_advisory_unlock($1)`, [QUOTA_RESET_LOCK_KEY]).catch(() => {});
   }
 }
 

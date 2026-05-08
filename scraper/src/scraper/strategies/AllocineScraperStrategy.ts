@@ -6,6 +6,7 @@ import {
 import {
   upsertFilm,
   getFilm,
+  getFilmsBatch,
 } from '../../db/film-queries.js';
 import {
   upsertCinema,
@@ -104,6 +105,10 @@ export class AllocineScraperStrategy implements IScraperStrategy {
 
       logger.info('Films found for date', { count: filmShowtimesData.length, date });
 
+      // Batch-load existing films to avoid N+1 queries
+      const filmIds = filmShowtimesData.map((f) => f.film.id);
+      const existingFilms = await getFilmsBatch(db, filmIds);
+
       const weeklyPrograms: WeeklyProgram[] = [];
 
       for (const filmData of filmShowtimesData) {
@@ -112,7 +117,7 @@ export class AllocineScraperStrategy implements IScraperStrategy {
         await progress?.emit({ type: 'film_started', film_title: film.title, film_id: film.id });
 
         try {
-          const existingFilm = await getFilm(db, film.id);
+          const existingFilm = existingFilms.get(film.id);
 
           if (shouldRefreshFilmDetails(existingFilm)) {
             logger.info('Fetching film details', { title: film.title, id: film.id });
