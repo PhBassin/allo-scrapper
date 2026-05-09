@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   upsertWeeklyPrograms: vi.fn(),
   upsertFilm: vi.fn(),
   getFilm: vi.fn(),
+  getFilmsBatch: vi.fn(),
   fetchShowtimesJson: vi.fn(),
   fetchFilmPage: vi.fn(),
   fetchTheaterPage: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock('../../db/showtime-queries.js', () => ({
 vi.mock('../../db/film-queries.js', () => ({
   upsertFilm: mocks.upsertFilm,
   getFilm: mocks.getFilm,
+  getFilmsBatch: mocks.getFilmsBatch,
 }));
 
 vi.mock('../http-client.js', () => ({
@@ -99,12 +101,14 @@ describe('AllocineScraperStrategy scrapeTheater detail refresh fallback', () => 
       },
     ]);
 
-    mocks.getFilm.mockResolvedValue({
-      duration_minutes: 120,
-      director: undefined,
-      screenwriters: ['Existing Writer'],
-      trailer_url: 'https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=123.html',
-    });
+    mocks.getFilmsBatch.mockResolvedValue(new Map([
+      [123, {
+        duration_minutes: 120,
+        director: undefined,
+        screenwriters: ['Existing Writer'],
+        trailer_url: 'https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=123.html',
+      }],
+    ]));
 
     mocks.fetchFilmPage.mockRejectedValue(new Error('Rate limit exceeded for film 123'));
     mocks.parseFilmPage.mockReturnValue({});
