@@ -220,6 +220,18 @@ describe('getCurrentWeekStart', () => {
     const date = new Date(weekStart + 'T00:00:00');
     expect(date.getDay()).toBe(3); // Wednesday
   });
+
+  it('should return the correct Wednesday even just after local midnight (timezone regression)', () => {
+    // Regression: toISOString() caused off-by-one when server TZ is UTC+N and
+    // local time is past midnight but UTC is still the previous day.
+    // Simulate Sunday 00:30 local (= Saturday 22:30 UTC in Europe/Paris UTC+2).
+    // The correct weekStart must still be the Wednesday of the current local week.
+    vi.setSystemTime(new Date('2026-05-09T22:30:00Z')); // Sunday 00:30 Paris
+    const weekStart = getCurrentWeekStart();
+    expect(weekStart).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const date = new Date(weekStart + 'T00:00:00');
+    expect(date.getDay()).toBe(3); // Must be a Wednesday
+  });
 });
 
 describe('getTodayDate', () => {

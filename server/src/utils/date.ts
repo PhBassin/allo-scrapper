@@ -12,6 +12,18 @@
 
 import { logger } from '../utils/logger.js';
 
+/**
+ * Format a Date as YYYY-MM-DD using local time.
+ * Using toISOString() would convert to UTC first, causing off-by-one date
+ * errors in non-UTC timezones (e.g. Europe/Paris between 22:00–00:00 UTC).
+ */
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function getCurrentWeekStart(): string {
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0 = Sunday, 3 = Wednesday
@@ -24,7 +36,7 @@ export function getCurrentWeekStart(): string {
   
   const wednesday = new Date(today);
   wednesday.setDate(today.getDate() - offset);
-  return wednesday.toISOString().split('T')[0];
+  return formatLocalDate(wednesday);
 }
 
 // Alias for getCurrentWeekStart
@@ -51,8 +63,7 @@ export function getWeekDates(weekStart?: string, numDays: number = 7): string[] 
 }
 
 export function getTodayDate(): string {
-  const today = new Date();
-  return today.toISOString().split('T')[0];
+  return formatLocalDate(new Date());
 }
 
 export type ScrapeMode = 'weekly' | 'from_today' | 'from_today_limited';
