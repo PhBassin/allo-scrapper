@@ -60,11 +60,12 @@ describe('HTTP Client - Error Handling', () => {
 
     describe('HTTP 5xx Server Errors', () => {
       it('should throw HttpError on 503 response', async () => {
-        mockFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 503,
-          statusText: 'Service Unavailable',
-        });
+        // 5xx errors are retried 3 times before throwing — mock all attempts
+        const response503 = { ok: false, status: 503, statusText: 'Service Unavailable' };
+        mockFetch
+          .mockResolvedValueOnce(response503)
+          .mockResolvedValueOnce(response503)
+          .mockResolvedValueOnce(response503);
 
         await expect(fetchShowtimesJson('C0072', '2026-03-24')).rejects.toThrow(
           HttpError
@@ -72,11 +73,12 @@ describe('HTTP Client - Error Handling', () => {
       });
 
       it('should preserve status code in HttpError for 500', async () => {
-        mockFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          statusText: 'Internal Server Error',
-        });
+        // 5xx errors are retried 3 times before throwing — mock all attempts
+        const response500 = { ok: false, status: 500, statusText: 'Internal Server Error' };
+        mockFetch
+          .mockResolvedValueOnce(response500)
+          .mockResolvedValueOnce(response500)
+          .mockResolvedValueOnce(response500);
 
         try {
           await fetchShowtimesJson('C0072', '2026-03-24');
@@ -165,11 +167,12 @@ describe('HTTP Client - Error Handling', () => {
 
     describe('HTTP 5xx Server Errors', () => {
       it('should throw HttpError on 500 response', async () => {
-        mockFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          statusText: 'Internal Server Error',
-        });
+        // 5xx errors are retried 3 times before throwing — mock all attempts
+        const response500 = { ok: false, status: 500, statusText: 'Internal Server Error' };
+        mockFetch
+          .mockResolvedValueOnce(response500)
+          .mockResolvedValueOnce(response500)
+          .mockResolvedValueOnce(response500);
 
         try {
           await fetchFilmPage(12345);
