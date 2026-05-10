@@ -4,7 +4,7 @@ import { useEffect, useContext, Suspense, lazy, useState, type ReactNode } from 
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import CinemaPage from './pages/CinemaPage';
-import FilmPage from './pages/FilmPage';
+import MoviePage from './pages/MoviePage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import AdminPage from './pages/admin/AdminPage';
@@ -112,7 +112,7 @@ function AppRoutes() {
           }
         />
         <Route path="/cinema/:id" element={<CinemaPage />} />
-        <Route path="/film/:id" element={<FilmPage />} />
+        <Route path="/movie/:id" element={<MoviePage />} />
         <Route
           path="/admin"
           element={
@@ -179,7 +179,7 @@ function TenantAppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/cinema/:id" element={<CinemaPage />} />
-        <Route path="/film/:id" element={<FilmPage />} />
+        <Route path="/movie/:id" element={<MoviePage />} />
         <Route
           path="/change-password"
           element={

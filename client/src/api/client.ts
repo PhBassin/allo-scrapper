@@ -1,10 +1,10 @@
 import axios from 'axios';
 import type {
   ApiResponse,
-  FilmWithShowtimes,
-  Film,
+  MovieWithShowtimes,
+  Movie,
   Cinema,
-  ShowtimeWithFilm,
+  ShowtimeWithMovie,
   ScrapeReport,
   PaginatedResponse,
   ScrapeStatus,
@@ -98,55 +98,55 @@ apiClient.interceptors.response.use(
 );
 
 // ============================================================================
-// FILMS API
+// MOVIES API
 // ============================================================================
 
-export async function getWeeklyFilms(): Promise<{ films: FilmWithShowtimes[]; weekStart: string }> {
-  const response = await apiClient.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string }>>(getTenantScopedPath('/films'));
+export async function getWeeklyMovies(): Promise<{ movies: MovieWithShowtimes[]; weekStart: string }> {
+  const response = await apiClient.get<ApiResponse<{ movies: MovieWithShowtimes[]; weekStart: string }>>(getTenantScopedPath('/movies'));
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch films');
+    throw new Error(response.data.error || 'Failed to fetch movies');
   }
   return response.data.data;
 }
 
-export async function getFilmsByDate(date: string): Promise<{ films: FilmWithShowtimes[]; weekStart: string; date: string }> {
-  const response = await apiClient.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string; date: string }>>(getTenantScopedPath('/films'), {
+export async function getMoviesByDate(date: string): Promise<{ movies: MovieWithShowtimes[]; weekStart: string; date: string }> {
+  const response = await apiClient.get<ApiResponse<{ movies: MovieWithShowtimes[]; weekStart: string; date: string }>>(getTenantScopedPath('/movies'), {
     params: { date }
   });
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch films');
+    throw new Error(response.data.error || 'Failed to fetch movies');
   }
   return response.data.data;
 }
 
-export async function getFilmById(id: number): Promise<FilmWithShowtimes> {
-  const response = await apiClient.get<ApiResponse<FilmWithShowtimes>>(`${getTenantScopedPath('/films')}/${id}`);
+export async function getMovieById(id: number): Promise<MovieWithShowtimes> {
+  const response = await apiClient.get<ApiResponse<MovieWithShowtimes>>(`${getTenantScopedPath('/movies')}/${id}`);
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch film');
+    throw new Error(response.data.error || 'Failed to fetch movie');
   }
   return response.data.data;
 }
 
 /**
- * Search films using fuzzy matching
+ * Search movies using fuzzy matching
  * @param query Search query (minimum 2 characters)
- * @returns Array of films matching the search query
+ * @returns Array of movies matching the search query
  */
-export async function searchFilms(query: string): Promise<Film[]> {
+export async function searchMovies(query: string): Promise<Movie[]> {
   // Validate query locally to avoid unnecessary API calls
   if (!query || query.trim().length < 2) {
     return [];
   }
 
-  const response = await apiClient.get<ApiResponse<{ films: Film[]; query: string }>>(`${getTenantScopedPath('/films')}/search`, {
+  const response = await apiClient.get<ApiResponse<{ movies: Movie[]; query: string }>>(`${getTenantScopedPath('/movies')}/search`, {
     params: { q: query.trim() }
   });
 
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to search films');
+    throw new Error(response.data.error || 'Failed to search movies');
   }
 
-  return response.data.data.films;
+  return response.data.data.movies;
 }
 
 // ============================================================================
@@ -163,8 +163,8 @@ export async function getCinemas(): Promise<Cinema[]> {
 
 export async function getCinemaSchedule(
   cinemaId: string
-): Promise<{ showtimes: ShowtimeWithFilm[]; weekStart: string }> {
-  const response = await apiClient.get<ApiResponse<{ showtimes: ShowtimeWithFilm[]; weekStart: string }>>(
+): Promise<{ showtimes: ShowtimeWithMovie[]; weekStart: string }> {
+  const response = await apiClient.get<ApiResponse<{ showtimes: ShowtimeWithMovie[]; weekStart: string }>>(
     `${getCinemasBasePath()}/${cinemaId}`
   );
   if (!response.data.success || !response.data.data) {
@@ -203,12 +203,12 @@ export async function triggerCinemaScrape(cinemaId: string): Promise<{ reportId:
   return response.data.data;
 }
 
-export async function triggerFilmScrape(filmId: number): Promise<{ reportId: number; message: string }> {
+export async function triggerMovieScrape(movieId: number): Promise<{ reportId: number; message: string }> {
   const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>(`${getScraperBasePath()}/trigger`, {
-    filmId,
+    movieId,
   });
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to trigger film scrape');
+    throw new Error(response.data.error || 'Failed to trigger movie scrape');
   }
   return response.data.data;
 }
@@ -520,7 +520,7 @@ export interface ScrapeAttempt {
   error_type?: string | null;
   error_message?: string | null;
   http_status_code?: number | null;
-  films_scraped: number;
+  movies_scraped: number;
   showtimes_scraped: number;
   attempted_at: string;
 }

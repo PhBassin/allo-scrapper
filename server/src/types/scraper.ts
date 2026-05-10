@@ -11,8 +11,8 @@ export interface Cinema {
   url?: string; // Source website page URL for scraping
 }
 
-export interface Film {
-  id: number; // Unique film identifier
+export interface Movie {
+  id: number; // Unique movie identifier
   title: string;
   original_title?: string;
   poster_url?: string;
@@ -34,7 +34,7 @@ export interface Film {
 
 export interface Showtime {
   id: string; // Unique showtime identifier
-  film_id: number;
+  movie_id: number;
   cinema_id: string;
   date: string; // Format YYYY-MM-DD
   time: string; // Format HH:MM
@@ -48,7 +48,7 @@ export interface Showtime {
 export interface WeeklyProgram {
   id?: number;
   cinema_id: string;
-  film_id: number;
+  movie_id: number;
   week_start: string; // Date du mercredi (YYYY-MM-DD)
   is_new_this_week: boolean;
   scraped_at: string; // ISO 8601
@@ -64,14 +64,14 @@ export interface CinemaConfig {
 // Data parsed from cinema page
 export interface TheaterPageData {
   cinema: Cinema;
-  films: FilmShowtimeData[];
+  movies: MovieShowtimeData[];
   dates: string[]; // Available dates
   selected_date: string;
 }
 
-// Film data with its showtimes on cinema page
-export interface FilmShowtimeData {
-  film: Film;
+// Movie data with its showtimes on cinema page
+export interface MovieShowtimeData {
+  movie: Movie;
   showtimes: Showtime[];
   is_new_this_week: boolean;
 }
@@ -80,12 +80,12 @@ export interface CinemaWithShowtimes extends Cinema {
   showtimes: Showtime[];
 }
 
-export interface FilmWithShowtimes extends Film {
+export interface MovieWithShowtimes extends Movie {
   cinemas: CinemaWithShowtimes[];
 }
 
-// Data parsed from film details page
-export interface FilmPageData {
+// Data parsed from movie details page
+export interface MoviePageData {
   duration_minutes?: number;
   trailer_url?: string;
   director?: string;

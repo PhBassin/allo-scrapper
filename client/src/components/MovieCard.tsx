@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useState, memo } from 'react';
-import type { FilmWithShowtimes } from '../types';
+import type { MovieWithShowtimes } from '../types';
 import CinemaShowtimes from './CinemaShowtimes';
 
-interface FilmCardProps {
-  film: FilmWithShowtimes;
+interface MovieCardProps {
+  movie: MovieWithShowtimes;
   isNew?: boolean;
   initialAfterTime?: string | null;
 }
@@ -16,11 +16,11 @@ function formatDuration(minutes?: number): string {
   return `${hours}h${mins > 0 ? ` ${mins}min` : ''}`;
 }
 
-function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
+function MovieCard({ movie, isNew = false, initialAfterTime }: MovieCardProps) {
   const [showSchedule, setShowSchedule] = useState(false);
 
   return (
-    <div className="card hover:shadow-lg transition relative" data-testid="film-card">
+    <div className="card hover:shadow-lg transition relative" data-testid="movie-card">
       {isNew && (
         <div className="absolute top-2 right-2 bg-primary text-black text-xs font-bold px-2 py-1 rounded z-10">
           NOUVEAU
@@ -31,10 +31,10 @@ function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
         <div className="flex flex-col md:flex-row gap-6 mb-6">
           {/* Poster */}
           <div className="flex-shrink-0 mx-auto md:mx-0">
-            {film.poster_url ? (
+            {movie.poster_url ? (
               <img
-                src={film.poster_url}
-                alt={`Affiche de ${film.title}`}
+                src={movie.poster_url}
+                alt={`Affiche de ${movie.title}`}
                 className="w-40 md:w-32 h-60 md:h-48 object-cover rounded shadow-md"
                 loading="lazy"
               />
@@ -48,17 +48,17 @@ function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
           {/* Info */}
           <div className="flex-grow">
             <h3 className="text-2xl font-bold mb-1">
-              <Link to={`/film/${film.id}`} className="hover:text-primary transition">
-                {film.title}
+              <Link to={`/movie/${movie.id}`} className="hover:text-primary transition">
+                {movie.title}
               </Link>
             </h3>
 
-            {film.original_title && film.original_title !== film.title && (
-              <p className="text-sm text-gray-500 mb-3 italic">{film.original_title}</p>
+            {movie.original_title && movie.original_title !== movie.title && (
+              <p className="text-sm text-gray-500 mb-3 italic">{movie.original_title}</p>
             )}
 
             <div className="flex flex-wrap gap-1.5 mb-4">
-              {film.genres.map((genre) => (
+              {movie.genres.map((genre) => (
                 <span key={genre} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase rounded">
                   {genre}
                 </span>
@@ -66,40 +66,40 @@ function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600 mb-4">
-              {film.duration_minutes && (
-                <p><strong>Durée:</strong> {formatDuration(film.duration_minutes)}</p>
+              {movie.duration_minutes && (
+                <p><strong>Durée:</strong> {formatDuration(movie.duration_minutes)}</p>
               )}
-              {film.director && (
-                <p><strong>Réalisateur:</strong> {film.director}</p>
+              {movie.director && (
+                <p><strong>Réalisateur:</strong> {movie.director}</p>
               )}
-              {film.nationality && (
-                <p><strong>Nationalité:</strong> {film.nationality}</p>
+              {movie.nationality && (
+                <p><strong>Nationalité:</strong> {movie.nationality}</p>
               )}
-              {film.certificate && (
-                <p><strong>Classification:</strong> {film.certificate}</p>
+              {movie.certificate && (
+                <p><strong>Classification:</strong> {movie.certificate}</p>
               )}
             </div>
 
-            {(film.press_rating != null && film.press_rating > 0) || (film.audience_rating != null && film.audience_rating > 0) ? (
+            {(movie.press_rating != null && movie.press_rating > 0) || (movie.audience_rating != null && movie.audience_rating > 0) ? (
               <div className="flex gap-4 mb-4 pt-4 border-t border-gray-50">
-                {film.press_rating != null && film.press_rating > 0 && (
+                {movie.press_rating != null && movie.press_rating > 0 && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-yellow-500 text-lg leading-none">★</span>
-                    <span className="font-bold">{film.press_rating.toFixed(1)}</span>
+                    <span className="font-bold">{movie.press_rating.toFixed(1)}</span>
                     <span className="text-[10px] text-gray-400 uppercase font-bold">Presse</span>
                   </div>
                 )}
-                {film.audience_rating != null && film.audience_rating > 0 && (
+                {movie.audience_rating != null && movie.audience_rating > 0 && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-yellow-500 text-lg leading-none">★</span>
-                    <span className="font-bold">{film.audience_rating.toFixed(1)}</span>
+                    <span className="font-bold">{movie.audience_rating.toFixed(1)}</span>
                     <span className="text-[10px] text-gray-400 uppercase font-bold">Public</span>
                   </div>
                 )}
               </div>
             ) : null}
 
-            {film.synopsis && <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{film.synopsis}</p>}
+            {movie.synopsis && <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{movie.synopsis}</p>}
           </div>
         </div>
 
@@ -115,12 +115,12 @@ function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
               }`}
             >
               <span>{showSchedule ? '▼ Cacher les horaires' : '▶ Voir les horaires'}</span>
-              <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">{film.cinemas.length} cinémas</span>
+              <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">{movie.cinemas.length} cinémas</span>
             </button>
             <Link 
-              to={`/film/${film.id}`} 
+              to={`/movie/${movie.id}`} 
               className="text-sm font-bold text-gray-500 hover:text-primary transition"
-              aria-label={`Voir la fiche complète de ${film.title}`}
+              aria-label={`Voir la fiche complète de ${movie.title}`}
               aria-hidden="true"
               tabIndex={-1}
             >
@@ -130,7 +130,7 @@ function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
 
           {showSchedule && (
             <div className="mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-              <CinemaShowtimes cinemas={film.cinemas} initialAfterTime={initialAfterTime} />
+              <CinemaShowtimes cinemas={movie.cinemas} initialAfterTime={initialAfterTime} />
             </div>
           )}
         </div>
@@ -139,6 +139,6 @@ function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
   );
 }
 
-// ⚡ PERFORMANCE: Memoize FilmCard to prevent re-renders of the entire list
+// ⚡ PERFORMANCE: Memoize MovieCard to prevent re-renders of the entire list
 // when parent state (like scrape progress or date selection loading state) changes.
-export default memo(FilmCard);
+export default memo(MovieCard);

@@ -60,7 +60,7 @@ describe('parseTheaterPage - Cinema C0089 (Max Linder Panorama)', () => {
   });
 
   it('should parse films array', () => {
-    expect(Array.isArray(result.films)).toBe(true);
+    expect(Array.isArray(result.movies)).toBe(true);
   });
 
   it('should have selected date', () => {
@@ -68,21 +68,21 @@ describe('parseTheaterPage - Cinema C0089 (Max Linder Panorama)', () => {
   });
 
   it('should parse film data with required fields', () => {
-    if (result.films.length > 0) {
-      const firstFilm = result.films[0];
-      expect(firstFilm.film).toBeDefined();
-      expect(firstFilm.film.id).toBeGreaterThan(0);
-      expect(firstFilm.film.title).toBeTruthy();
-      expect(Array.isArray(firstFilm.showtimes)).toBe(true);
+    if (result.movies.length > 0) {
+      const firstMovie = result.movies[0];
+      expect(firstMovie.movie).toBeDefined();
+      expect(firstMovie.movie.id).toBeGreaterThan(0);
+      expect(firstMovie.movie.title).toBeTruthy();
+      expect(Array.isArray(firstMovie.showtimes)).toBe(true);
     }
   });
 
   it('should parse showtimes for each film', () => {
-    result.films.forEach((filmData) => {
-      expect(Array.isArray(filmData.showtimes)).toBe(true);
-      filmData.showtimes.forEach((showtime) => {
+    result.movies.forEach((movieData) => {
+      expect(Array.isArray(movieData.showtimes)).toBe(true);
+      movieData.showtimes.forEach((showtime) => {
         expect(showtime.id).toBeDefined();
-        expect(showtime.film_id).toBeGreaterThan(0);
+        expect(showtime.movie_id).toBeGreaterThan(0);
         expect(showtime.cinema_id).toBe('C0089');
         expect(showtime.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
         expect(showtime.time).toBeTruthy();
@@ -117,13 +117,13 @@ describe('parseTheaterPage - Regression: Cinema W7504 (Épée de Bois)', () => {
   });
 
   it('should parse films without errors', () => {
-    expect(Array.isArray(result.films)).toBe(true);
+    expect(Array.isArray(result.movies)).toBe(true);
   });
 
   it('should parse showtimes correctly', () => {
-    result.films.forEach((filmData) => {
-      expect(Array.isArray(filmData.showtimes)).toBe(true);
-      filmData.showtimes.forEach((showtime) => {
+    result.movies.forEach((movieData) => {
+      expect(Array.isArray(movieData.showtimes)).toBe(true);
+      movieData.showtimes.forEach((showtime) => {
         expect(showtime.cinema_id).toBe('W7504');
       });
     });
@@ -153,13 +153,13 @@ describe('parseTheaterPage - Regression: Cinema C0072 (Le Grand Action)', () => 
   });
 
   it('should parse films without errors', () => {
-    expect(Array.isArray(result.films)).toBe(true);
+    expect(Array.isArray(result.movies)).toBe(true);
   });
 
   it('should parse showtimes correctly', () => {
-    result.films.forEach((filmData) => {
-      expect(Array.isArray(filmData.showtimes)).toBe(true);
-      filmData.showtimes.forEach((showtime) => {
+    result.movies.forEach((movieData) => {
+      expect(Array.isArray(movieData.showtimes)).toBe(true);
+      movieData.showtimes.forEach((showtime) => {
         expect(showtime.cinema_id).toBe('C0072');
       });
     });
@@ -177,7 +177,7 @@ describe('parseTheaterPage - Edge Cases', () => {
     expect(result.cinema.address).toBe('');
     expect(result.cinema.postal_code).toBe('');
     expect(result.cinema.city).toBe('');
-    expect(result.films).toEqual([]);
+    expect(result.movies).toEqual([]);
     expect(result.dates).toEqual([]);
   });
 
@@ -203,10 +203,10 @@ describe('parseTheaterPage - Edge Cases', () => {
     expect(() => parseTheaterPage(emptyHtml, 'EMPTY')).not.toThrow();
     const result = parseTheaterPage(emptyHtml, 'EMPTY');
     expect(result.cinema.id).toBe('EMPTY');
-    expect(result.films).toEqual([]);
+    expect(result.movies).toEqual([]);
   });
 
-  it('should handle cinema with no films showing', () => {
+  it('should handle cinema with no movies showing', () => {
     const noFilmsHtml = `
       <html><body>
         <div id="theaterpage-showtimes-index-ui"
@@ -218,7 +218,7 @@ describe('parseTheaterPage - Edge Cases', () => {
     const result = parseTheaterPage(noFilmsHtml, 'NOFILMS');
     expect(result.cinema.id).toBe('NOFILMS');
     expect(result.cinema.name).toBe('Test Cinema');
-    expect(result.films).toEqual([]);
+    expect(result.movies).toEqual([]);
   });
 
   it('should return consistent structure for all cases', () => {
@@ -226,7 +226,7 @@ describe('parseTheaterPage - Edge Cases', () => {
     const result = parseTheaterPage(minimalHtml, 'CONSISTENT');
 
     expect(result).toHaveProperty('cinema');
-    expect(result).toHaveProperty('films');
+    expect(result).toHaveProperty('movies');
     expect(result).toHaveProperty('dates');
     expect(result).toHaveProperty('selected_date');
 
@@ -258,17 +258,17 @@ describe('parseTheaterPage - Data Validation', () => {
 
   it('should parse valid film IDs for all cinemas', () => {
     [c0089Result, w7504Result, c0072Result].forEach((result) => {
-      result.films.forEach((filmData) => {
-        expect(filmData.film.id).toBeGreaterThan(0);
-        expect(Number.isInteger(filmData.film.id)).toBe(true);
+      result.movies.forEach((movieData) => {
+        expect(movieData.movie.id).toBeGreaterThan(0);
+        expect(Number.isInteger(movieData.movie.id)).toBe(true);
       });
     });
   });
 
   it('should parse valid ISO dates for showtimes', () => {
     [c0089Result, w7504Result, c0072Result].forEach((result) => {
-      result.films.forEach((filmData) => {
-        filmData.showtimes.forEach((showtime) => {
+      result.movies.forEach((movieData) => {
+        movieData.showtimes.forEach((showtime) => {
           expect(showtime.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
           // Verify it's a valid date
           const date = new Date(showtime.date);
@@ -280,17 +280,17 @@ describe('parseTheaterPage - Data Validation', () => {
 
   it('should parse valid source URLs for films', () => {
     [c0089Result, w7504Result, c0072Result].forEach((result) => {
-      result.films.forEach((filmData) => {
-        expect(filmData.film.source_url).toMatch(/^https:\/\/www\.allocine\.fr/);
-        expect(filmData.film.source_url).toContain('cfilm=');
+      result.movies.forEach((movieData) => {
+        expect(movieData.movie.source_url).toMatch(/^https:\/\/www\.allocine\.fr/);
+        expect(movieData.movie.source_url).toContain('cfilm=');
       });
     });
   });
 
   it('should calculate week_start correctly', () => {
     [c0089Result, w7504Result, c0072Result].forEach((result) => {
-      result.films.forEach((filmData) => {
-        filmData.showtimes.forEach((showtime) => {
+      result.movies.forEach((movieData) => {
+        movieData.showtimes.forEach((showtime) => {
           expect(showtime.week_start).toMatch(/^\d{4}-\d{2}-\d{2}$/);
           const weekStart = new Date(showtime.week_start);
           expect(weekStart.getDay()).toBe(3); // Wednesday = 3
@@ -301,7 +301,7 @@ describe('parseTheaterPage - Data Validation', () => {
 
   it('should generate deterministic showtime IDs based on stable business fields', () => {
     // IDs must be deterministic: same cinema+film+date+time+version+format always → same ID
-    // Format: {cinema_id}_{film_id}_{date}_{time}_{version}_{format}
+    // Format: {cinema_id}_{movie_id}_{date}_{time}_{version}_{format}
     // This prevents duplicates when the same cinema is scraped multiple times in a week,
     // since Allociné's internal internalId/data-showtime-id changes on each HTTP request.
     const resultsByCinema = [
@@ -311,17 +311,17 @@ describe('parseTheaterPage - Data Validation', () => {
     ];
 
     resultsByCinema.forEach(({ result, cinemaId }) => {
-      result.films.forEach((filmData) => {
-        filmData.showtimes.forEach((showtime) => {
+      result.movies.forEach((movieData) => {
+        movieData.showtimes.forEach((showtime) => {
           // ID must contain the cinema ID to be scoped per cinema
           expect(showtime.id).toContain(cinemaId);
           // ID must contain the film ID
-          expect(showtime.id).toContain(String(filmData.film.id));
+          expect(showtime.id).toContain(String(movieData.movie.id));
           // ID must contain the date
           expect(showtime.id).toContain(showtime.date);
           // ID must contain the time
           expect(showtime.id).toContain(showtime.time);
-          // New format: {cinema_id}_{film_id}_{date}_{time}_{version}_{format}
+          // New format: {cinema_id}_{movie_id}_{date}_{time}_{version}_{format}
           expect(showtime.id).toMatch(/^[A-Z0-9]+_\d+_\d{4}-\d{2}-\d{2}_\d{2}:\d{2}_/);
         });
       });
@@ -333,8 +333,8 @@ describe('parseTheaterPage - Data Validation', () => {
     const result1 = parseTheaterPage(c0089Html, 'C0089');
     const result2 = parseTheaterPage(c0089Html, 'C0089');
 
-    const ids1 = result1.films.flatMap(f => f.showtimes.map(s => s.id)).sort();
-    const ids2 = result2.films.flatMap(f => f.showtimes.map(s => s.id)).sort();
+    const ids1 = result1.movies.flatMap(f => f.showtimes.map(s => s.id)).sort();
+    const ids2 = result2.movies.flatMap(f => f.showtimes.map(s => s.id)).sort();
 
     expect(ids1).toEqual(ids2);
     // All IDs must be unique within a single parse (no duplicates)

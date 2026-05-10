@@ -4,7 +4,7 @@
  * All routes go through resolveTenant (sets req.org + req.dbClient) and then
  * requireOrgAuth (validates JWT org_slug claim matches :slug).
  *
- * Core route handlers (cinemas, films, reports, scraper) are re-used directly
+ * Core route handlers (cinemas, movies, reports, scraper) are re-used directly
  * via router.use() sub-mounting. They pick up the tenant-scoped DB client
  * through getDbFromRequest(req) which returns req.dbClient when present.
  *
@@ -20,7 +20,7 @@ import { checkQuota } from '../middleware/quota.js';
 // These default-export routers already use getDbFromRequest(req), so they work
 // correctly under /api/org/:slug (req.dbClient set by resolveTenant).
 import cinemasRouter from 'allo-scrapper-server/dist/routes/cinemas.js';
-import filmsRouter from 'allo-scrapper-server/dist/routes/films.js';
+import moviesRouter from 'allo-scrapper-server/dist/routes/movies.js';
 import reportsRouter from 'allo-scrapper-server/dist/routes/reports.js';
 import scraperRouter from 'allo-scrapper-server/dist/routes/scraper.js';
 
@@ -92,8 +92,8 @@ export function createOrgRouter(): Router {
   router.post('/cinemas', protectedLimiter, checkQuota('cinemas') as any);
   router.use('/cinemas', protectedLimiter, cinemasRouter);
 
-  // ── Films ───────────────────────────────────────────────────────────────────
-  router.use('/films', protectedLimiter, filmsRouter);
+  // ── Movies ───────────────────────────────────────────────────────────────────
+  router.use('/movies', protectedLimiter, moviesRouter);
 
   // ── Reports ─────────────────────────────────────────────────────────────────
   router.use('/reports', protectedLimiter, reportsRouter);

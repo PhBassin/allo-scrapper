@@ -93,7 +93,7 @@ describe('Scrape Attempt Queries', () => {
 
       await updateScrapeAttempt(mockDb, 42, {
         status: 'success',
-        films_scraped: 5,
+        movies_scraped: 5,
         showtimes_scraped: 25,
       });
 
@@ -138,7 +138,7 @@ describe('Scrape Attempt Queries', () => {
           error_type: 'network',
           error_message: 'Timeout',
           http_status_code: null,
-          films_scraped: 0,
+          movies_scraped: 0,
           showtimes_scraped: 0,
           attempted_at: '2026-03-24T10:00:00Z',
         },
@@ -151,7 +151,7 @@ describe('Scrape Attempt Queries', () => {
           error_type: 'http_429',
           error_message: 'Too many requests',
           http_status_code: 429,
-          films_scraped: 0,
+          movies_scraped: 0,
           showtimes_scraped: 0,
           attempted_at: '2026-03-24T10:05:00Z',
         },
@@ -164,7 +164,7 @@ describe('Scrape Attempt Queries', () => {
           error_type: null,
           error_message: null,
           http_status_code: null,
-          films_scraped: 0,
+          movies_scraped: 0,
           showtimes_scraped: 0,
           attempted_at: '2026-03-24T10:05:00Z',
         },
@@ -206,7 +206,7 @@ describe('Scrape Attempt Queries', () => {
           error_type: null,
           error_message: null,
           http_status_code: null,
-          films_scraped: 5,
+          movies_scraped: 5,
           showtimes_scraped: 25,
           attempted_at: '2026-03-24T10:00:00Z',
         },
@@ -219,7 +219,7 @@ describe('Scrape Attempt Queries', () => {
           error_type: 'network',
           error_message: 'Connection timeout',
           http_status_code: null,
-          films_scraped: 0,
+          movies_scraped: 0,
           showtimes_scraped: 0,
           attempted_at: '2026-03-24T10:05:00Z',
         },
@@ -250,7 +250,7 @@ describe('Scrape Attempt Queries', () => {
         error_type: null,
         error_message: null,
         http_status_code: null,
-        films_scraped: 5,
+        movies_scraped: 5,
         showtimes_scraped: 25,
         attempted_at: '2026-03-24T10:00:00Z',
       };

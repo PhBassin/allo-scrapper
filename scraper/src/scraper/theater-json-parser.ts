@@ -1,4 +1,4 @@
-import type { FilmShowtimeData, Film, Showtime } from '../types/scraper.js';
+import type { MovieShowtimeData, Movie, Showtime } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 import { decodeHtmlEntities, decodeHtmlEntitiesArray } from '../utils/html-decode.js';
 
@@ -172,7 +172,7 @@ function getWeekStart(dateStr: string): string {
 
 function mapShowtimes(
   group: AllocineShowtimesGroup,
-  filmId: number,
+  movieId: number,
   cinemaId: string,
   date: string
 ): Showtime[] {
@@ -208,8 +208,8 @@ function mapShowtimes(
     const experiences: string[] = showtime.tags ?? [];
 
     showtimes.push({
-      id: `${cinemaId}_${filmId}_${actualDate}_${time}_${ver2}_${format ?? ''}`,
-      film_id: filmId,
+      id: `${cinemaId}_${movieId}_${actualDate}_${time}_${ver2}_${format ?? ''}`,
+      movie_id: movieId,
       cinema_id: cinemaId,
       date: actualDate,
       time,
@@ -227,13 +227,13 @@ function mapShowtimes(
 // ── Main parser ───────────────────────────────────────────────────────────────
 
 /**
- * Parse the Allociné internal showtimes API JSON response into FilmShowtimeData[].
+ * Parse the Allociné internal showtimes API JSON response into MovieShowtimeData[].
  */
 export function parseShowtimesJson(
   json: unknown,
   cinemaId: string,
   date: string
-): FilmShowtimeData[] {
+): MovieShowtimeData[] {
   const response = json as AllocineApiResponse;
 
   if (response.error) {
@@ -242,15 +242,15 @@ export function parseShowtimesJson(
   }
 
   const results = response.results ?? [];
-  const filmShowtimes: FilmShowtimeData[] = [];
+  const movieShowtimes: MovieShowtimeData[] = [];
 
   for (const result of results) {
     const movie = result.movie;
     if (!movie) continue;
 
-    const filmId = extractMovieId(movie);
-    if (!filmId) {
-      logger.warn('Could not extract film ID from movie', { preview: JSON.stringify(movie).substring(0, 100) });
+    const movieId = extractMovieId(movie);
+    if (!movieId) {
+      logger.warn('Could not extract movie ID from movie', { preview: JSON.stringify(movie).substring(0, 100) });
       continue;
     }
 
@@ -295,8 +295,8 @@ export function parseShowtimesJson(
     
     const { release_date, rerelease_date } = parseReleaseDate(movie.releases);
 
-    const film: Film = {
-      id: filmId,
+    const movieObj: Movie = {
+      id: movieId,
       title: decodeHtmlEntities(movie.title) ?? '',
       original_title: decodeHtmlEntities(movie.originalTitle),
       poster_url: movie.poster?.url,
@@ -311,16 +311,16 @@ export function parseShowtimesJson(
       audience_rating,
       release_date,
       rerelease_date,
-      source_url: `https://www.allocine.fr/film/fichefilm_gen_cfilm=${filmId}.html`,
+      source_url: `https://www.allocine.fr/film/fichefilm_gen_cfilm=${movieId}.html`,
     };
 
-    const showtimes = mapShowtimes(result.showtimes ?? {}, filmId, cinemaId, date);
+    const showtimes = mapShowtimes(result.showtimes ?? {}, movieId, cinemaId, date);
     const isNewThisWeek = movie.flags?.isNewRelease ?? false;
 
     if (showtimes.length > 0) {
-      filmShowtimes.push({ film, showtimes, is_new_this_week: isNewThisWeek });
+      movieShowtimes.push({ movie: movieObj, showtimes, is_new_this_week: isNewThisWeek });
     }
   }
 
-  return filmShowtimes;
+  return movieShowtimes;
 }

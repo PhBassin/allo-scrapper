@@ -17,7 +17,7 @@ describe('System Queries', () => {
       const mockDb: DB = {
         query: vi.fn().mockResolvedValue({
           rows: [
-            { version: '001_neutralize_references.sql', applied_at: new Date('2026-03-01T10:00:00Z') },
+            { version: '001_initial_core_schema.sql', applied_at: new Date('2026-03-01T10:00:00Z') },
             { version: '002_add_pg_trgm_extension.sql', applied_at: new Date('2026-03-01T10:01:00Z') },
             { version: '003_add_users_table.sql', applied_at: new Date('2026-03-01T10:02:00Z') },
           ],
@@ -28,7 +28,7 @@ describe('System Queries', () => {
 
       expect(result).toHaveLength(3);
       expect(result[0]).toEqual({
-        version: '001_neutralize_references.sql',
+        version: '001_initial_core_schema.sql',
         appliedAt: new Date('2026-03-01T10:00:00Z'),
         status: 'applied',
       });
@@ -54,7 +54,7 @@ describe('System Queries', () => {
         query: vi.fn().mockResolvedValue({
           rows: [
             // Rows returned in sorted order from query
-            { version: '001_neutralize_references.sql', applied_at: new Date('2026-03-01T10:00:00Z') },
+            { version: '001_initial_core_schema.sql', applied_at: new Date('2026-03-01T10:00:00Z') },
             { version: '002_add_pg_trgm_extension.sql', applied_at: new Date('2026-03-01T10:01:00Z') },
             { version: '003_add_users_table.sql', applied_at: new Date('2026-03-01T10:02:00Z') },
           ],
@@ -68,7 +68,7 @@ describe('System Queries', () => {
         expect.stringContaining('ORDER BY version'),
         []
       );
-      expect(result[0].version).toBe('001_neutralize_references.sql');
+      expect(result[0].version).toBe('001_initial_core_schema.sql');
       expect(result[1].version).toBe('002_add_pg_trgm_extension.sql');
       expect(result[2].version).toBe('003_add_users_table.sql');
     });
@@ -80,7 +80,7 @@ describe('System Queries', () => {
       const mockDb: DB = {
         query: vi.fn().mockResolvedValue({
           rows: [
-            { version: '001_neutralize_references.sql' },
+            { version: '001_initial_core_schema.sql' },
             { version: '002_add_pg_trgm_extension.sql' },
             { version: '003_add_users_table.sql' },
             { version: '004_add_app_settings.sql' },
@@ -97,12 +97,10 @@ describe('System Queries', () => {
             { version: '015_add_schedule_permissions.sql' },
             { version: '016_add_admin_permissions.sql' },
             { version: '017_add_rate_limited_status.sql' },
-            { version: '018_add_scrape_attempts.sql' },
             { version: '017_add_rate_limit_configs.sql' },
+            { version: '018_add_scrape_attempts.sql' },
             { version: '018_add_rate_limit_permissions.sql' },
             { version: '019_add_permission_category_labels.sql' },
-            { version: '020_add_film_screenwriters.sql' },
-            { version: '021_add_film_trailer_url.sql' },
             { version: '022_fix_showtime_deduplication.sql' },
             { version: '023_add_scrape_settings.sql' },
           ],
@@ -118,7 +116,7 @@ describe('System Queries', () => {
       const mockDb: DB = {
         query: vi.fn().mockResolvedValue({
           rows: [
-            { version: '001_neutralize_references.sql' },
+            { version: '001_initial_core_schema.sql' },
             { version: '002_add_pg_trgm_extension.sql' },
             // 003, 004, 005, 006, 007 are missing
           ],
@@ -135,7 +133,7 @@ describe('System Queries', () => {
     it('should order pending migrations by version', async () => {
       const mockDb: DB = {
         query: vi.fn().mockResolvedValue({
-          rows: [{ version: '001_neutralize_references.sql' }],
+          rows: [{ version: '001_initial_core_schema.sql' }],
         }),
       } as unknown as DB;
 
@@ -179,7 +177,7 @@ describe('System Queries', () => {
         size: '15 MB',
         tables: 10,
         cinemas: 5,
-        films: 100,
+        movies: 100,
         showtimes: 500,
       });
     });
@@ -200,7 +198,7 @@ describe('System Queries', () => {
         size: '8192 bytes',
         tables: 0,
         cinemas: 0,
-        films: 0,
+        movies: 0,
         showtimes: 0,
       });
     });
@@ -219,7 +217,7 @@ describe('System Queries', () => {
 
       expect(result.tables).toBe(25);
       expect(result.cinemas).toBe(150);
-      expect(result.films).toBe(5000);
+      expect(result.movies).toBe(5000);
       expect(result.showtimes).toBe(50000);
     });
 

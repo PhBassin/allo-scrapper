@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS scrape_attempts (
     error_type TEXT,
     error_message TEXT,
     http_status_code INTEGER,
-    films_scraped INTEGER DEFAULT 0,
+    movies_scraped INTEGER DEFAULT 0,
     showtimes_scraped INTEGER DEFAULT 0,
     attempted_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(report_id, cinema_id, date)

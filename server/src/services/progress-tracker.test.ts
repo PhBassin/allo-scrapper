@@ -311,7 +311,7 @@ describe('ProgressTracker', () => {
         total_cinemas: 1,
         successful_cinemas: 1,
         failed_cinemas: 0,
-        total_films: 1,
+        total_movies: 1,
         total_showtimes: 1,
         total_dates: 1,
         duration_ms: 1,

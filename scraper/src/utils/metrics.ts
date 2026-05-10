@@ -30,10 +30,10 @@ export const scrapeDurationSeconds = new Histogram({
   registers: [registry],
 });
 
-/** Total films scraped, labeled by cinema. */
-export const filmsScrapedTotal = new Counter({
-  name: 'films_scraped_total',
-  help: 'Total number of films scraped',
+/** Total movies scraped, labeled by cinema. */
+export const moviesScrapedTotal = new Counter({
+  name: 'movies_scraped_total',
+  help: 'Total number of movies scraped',
   labelNames: ['cinema'] as const,
   registers: [registry],
 });

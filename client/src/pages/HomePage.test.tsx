@@ -35,26 +35,26 @@ const renderWithClient = (ui: React.ReactElement) => {
   );
 };
 vi.mock('../api/client', () => ({
-  getWeeklyFilms: vi.fn(),
-  getFilmsByDate: vi.fn(),
+  getWeeklyMovies: vi.fn(),
+  getMoviesByDate: vi.fn(),
   getCinemas: vi.fn(),
   addCinema: vi.fn(),
 }));
 
 describe('HomePage', () => {
-  let mockGetWeeklyFilms: ReturnType<typeof vi.fn>;
+  let mockGetWeeklyMovies: ReturnType<typeof vi.fn>;
   let mockGetCinemas: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    mockGetWeeklyFilms = vi.fn();
+    mockGetWeeklyMovies = vi.fn();
     mockGetCinemas = vi.fn();
 
     // Re-bind mocks
-    (clientApi.getWeeklyFilms as any) = mockGetWeeklyFilms;
+    (clientApi.getWeeklyMovies as any) = mockGetWeeklyMovies;
     (clientApi.getCinemas as any) = mockGetCinemas;
 
     // Default successful responses
-    mockGetWeeklyFilms.mockResolvedValue({ films: [], weekStart: '2023-01-01' });
+    mockGetWeeklyMovies.mockResolvedValue({ movies: [], weekStart: '2023-01-01' });
     mockGetCinemas.mockResolvedValue([]);
   });
 
@@ -70,7 +70,7 @@ describe('HomePage', () => {
     );
 
     await waitFor(() => {
-      expect(mockGetWeeklyFilms).toHaveBeenCalled();
+      expect(mockGetWeeklyMovies).toHaveBeenCalled();
       expect(mockGetCinemas).toHaveBeenCalled();
     });
   });
@@ -83,7 +83,7 @@ describe('HomePage', () => {
     );
 
     await waitFor(() => {
-      expect(mockGetWeeklyFilms).toHaveBeenCalled();
+      expect(mockGetWeeklyMovies).toHaveBeenCalled();
     });
 
     // Scraping UI has been moved to admin — should never appear on HomePage
@@ -98,7 +98,7 @@ describe('HomePage', () => {
     );
 
     await waitFor(() => {
-      expect(mockGetWeeklyFilms).toHaveBeenCalled();
+      expect(mockGetWeeklyMovies).toHaveBeenCalled();
     });
 
     // Scraping UI has been moved to admin — no scrape button on public pages
@@ -113,8 +113,8 @@ describe('HomePage — bouton Maintenant', () => {
   // Current time: 13:00 — showtimes at 12:00 are past, 14:00 is future
   const FIXED_NOW = new Date('2026-03-30T13:00:00');
 
-  const makeFilmsResponse = () => ({
-    films: [
+  const makeMoviesResponse = () => ({
+    movies: [
       {
         id: 101,
         title: 'Film Passé',
@@ -163,9 +163,9 @@ describe('HomePage — bouton Maintenant', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(FIXED_NOW);
     vi.clearAllMocks();
-    (clientApi.getWeeklyFilms as any).mockResolvedValue({ films: [], weekStart: WEEK_START });
+    (clientApi.getWeeklyMovies as any).mockResolvedValue({ movies: [], weekStart: WEEK_START });
     (clientApi.getCinemas as any).mockResolvedValue([]);
-    (clientApi.getFilmsByDate as any).mockResolvedValue(makeFilmsResponse());
+    (clientApi.getMoviesByDate as any).mockResolvedValue(makeMoviesResponse());
   });
 
   afterEach(() => {
@@ -185,7 +185,7 @@ describe('HomePage — bouton Maintenant', () => {
     fireEvent.click(screen.getByTestId('day-selector-mode-toggle'));
 
     await waitFor(() => {
-      expect(clientApi.getFilmsByDate).toHaveBeenCalledWith(FIXED_TODAY);
+      expect(clientApi.getMoviesByDate).toHaveBeenCalledWith(FIXED_TODAY);
     });
   });
 

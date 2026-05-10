@@ -41,13 +41,13 @@ describe('ScraperService', () => {
       vi.mocked(reportQueries.createScrapeReport).mockResolvedValue(42 as any);
       vi.mocked(cinemaQueries.getCinemas).mockResolvedValue([{ id: 'C1' }] as any);
 
-      const result = await scraperService.triggerScrape({ cinemaId: 'C1', filmId: 123 });
+      const result = await scraperService.triggerScrape({ cinemaId: 'C1', movieId: 123 });
 
       expect(result.reportId).toBe(42);
       expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
         type: 'scrape',
         reportId: 42,
-        options: { cinemaId: 'C1', filmId: 123 }
+        options: { cinemaId: 'C1', movieId: 123 }
       }));
     });
 

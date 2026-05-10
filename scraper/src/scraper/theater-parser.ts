@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import type { TheaterPageData, Cinema, FilmShowtimeData, Film, Showtime } from '../types/scraper.js';
+import type { TheaterPageData, Cinema, MovieShowtimeData, Movie, Showtime } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 
 const THEATER_PAGE_ROOT_SELECTOR = '#theaterpage-showtimes-index-ui';
@@ -54,46 +54,46 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
   const selectedDate = theaterSection.attr('data-selected-date') || '';
 
   // Parser chaque film
-  const films: FilmShowtimeData[] = [];
+  const movies: MovieShowtimeData[] = [];
   const movieCards = $(THEATER_MOVIE_CARD_SELECTOR);
 
   movieCards.each((_, element) => {
     try {
-      const filmData = parseFilmCard($, element, cinemaId, selectedDate);
-      if (filmData) {
-        films.push(filmData);
+      const movieData = parseMovieCard($, element, cinemaId, selectedDate);
+      if (movieData) {
+        movies.push(movieData);
       }
     } catch (error) {
-      logger.error('Error parsing film card', { error });
+      logger.error('Error parsing movie card', { error });
     }
   });
 
   return {
     cinema,
-    films,
+    movies,
     dates,
     selected_date: selectedDate,
   };
 }
 
 // Parser une carte de film individuelle
-function parseFilmCard(
+function parseMovieCard(
   $: cheerio.CheerioAPI,
   element: any,
   cinemaId: string,
   date: string
-): FilmShowtimeData | null {
+): MovieShowtimeData | null {
   const $card = $(element);
 
   // Extraire l'ID du film depuis le lien
   const titleLink = $card.find('.meta-title-link');
   const href = titleLink.attr('href') || '';
-  const filmIdMatch = href.match(/cfilm=(\d+)/);
-  if (!filmIdMatch) {
-    logger.warn('Could not extract film ID from href', { href });
+  const movieIdMatch = href.match(/cfilm=(\d+)/);
+  if (!movieIdMatch) {
+    logger.warn('Could not extract movie ID from href', { href });
     return null;
   }
-  const filmId = parseInt(filmIdMatch[1], 10);
+  const movieId = parseInt(movieIdMatch[1], 10);
 
   // Titre
   const title = titleLink.text().trim();
@@ -174,8 +174,8 @@ function parseFilmCard(
     }
   });
 
-  const film: Film = {
-    id: filmId,
+  const movie: Movie = {
+    id: movieId,
     title,
     poster_url: posterUrl || undefined,
     genres,
@@ -192,10 +192,10 @@ function parseFilmCard(
   };
 
   // Parser les séances
-  const showtimes = parseShowtimes($, $card, filmId, cinemaId, date);
+  const showtimes = parseShowtimes($, $card, movieId, cinemaId, date);
 
   return {
-    film,
+    movie,
     showtimes,
     is_new_this_week: isNewThisWeek,
   };
@@ -205,7 +205,7 @@ function parseFilmCard(
 function parseShowtimes(
   $: cheerio.CheerioAPI,
   $card: cheerio.Cheerio<any>,
-  filmId: number,
+  movieId: number,
   cinemaId: string,
   defaultDate: string
 ): Showtime[] {
@@ -268,8 +268,8 @@ function parseShowtimes(
       }
 
       showtimes.push({
-        id: `${cinemaId}_${filmId}_${showtimeDate}_${time}_${version}_${format ?? ''}`,
-        film_id: filmId,
+        id: `${cinemaId}_${movieId}_${showtimeDate}_${time}_${version}_${format ?? ''}`,
+        movie_id: movieId,
         cinema_id: cinemaId,
         date: showtimeDate,
         time,

@@ -9,7 +9,7 @@ export interface ScrapeReport {
   total_cinemas?: number;
   successful_cinemas?: number;
   failed_cinemas?: number;
-  total_films_scraped?: number;
+  total_movies_scraped?: number;
   total_showtimes_scraped?: number;
   errors?: unknown[];
   progress_log?: unknown[];
@@ -59,9 +59,9 @@ export async function updateScrapeReport(
     fields.push(`failed_cinemas = $${paramIndex++}`);
     values.push(data.failed_cinemas);
   }
-  if (data.total_films_scraped !== undefined) {
-    fields.push(`total_films_scraped = $${paramIndex++}`);
-    values.push(data.total_films_scraped);
+  if (data.total_movies_scraped !== undefined) {
+    fields.push(`total_movies_scraped = $${paramIndex++}`);
+    values.push(data.total_movies_scraped);
   }
   if (data.total_showtimes_scraped !== undefined) {
     fields.push(`total_showtimes_scraped = $${paramIndex++}`);

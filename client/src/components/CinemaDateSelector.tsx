@@ -1,10 +1,10 @@
 import { memo } from 'react';
-import type { ShowtimeWithFilm } from '../types';
+import type { ShowtimeWithMovie } from '../types';
 
 interface CinemaDateSelectorProps {
   dates: string[];
   selectedDate: string;
-  showtimes: ShowtimeWithFilm[];
+  showtimes: ShowtimeWithMovie[];
   onSelectDate: (date: string) => void;
   formatDateLabel: (dateStr: string) => { weekday: string; day: number; month: string };
   onNow?: (date: string, afterTime: string) => void;

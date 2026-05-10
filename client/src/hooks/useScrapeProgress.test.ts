@@ -159,7 +159,7 @@ describe('useScrapeProgress', () => {
           total_cinemas: 1,
           successful_cinemas: 0,
           failed_cinemas: 1,
-          total_films: 0,
+          total_movies: 0,
           total_showtimes: 0,
           total_dates: 1,
           duration_ms: 100,

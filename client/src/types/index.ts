@@ -13,8 +13,8 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-// Film types
-export interface Film {
+// Movie types
+export interface Movie {
   id: number;
   title: string;
   original_title?: string;
@@ -50,7 +50,7 @@ export interface Cinema {
 // Showtime types
 export interface Showtime {
   id: string;
-  film_id: number;
+  movie_id: number;
   cinema_id: string;
   date: string;
   time: string;
@@ -61,11 +61,11 @@ export interface Showtime {
   week_start: string;
 }
 
-export interface ShowtimeWithFilm extends Showtime {
-  film: Film;
+export interface ShowtimeWithMovie extends Showtime {
+  movie: Movie;
 }
 
-export interface FilmWithCinemas extends Film {
+export interface MovieWithCinemas extends Movie {
   cinemas: Cinema[];
 }
 
@@ -73,7 +73,7 @@ export interface CinemaWithShowtimes extends Cinema {
   showtimes: Showtime[];
 }
 
-export interface FilmWithShowtimes extends Film {
+export interface MovieWithShowtimes extends Movie {
   cinemas: CinemaWithShowtimes[];
 }
 
@@ -87,7 +87,7 @@ export interface ScrapeReport {
   total_cinemas?: number;
   successful_cinemas?: number;
   failed_cinemas?: number;
-  total_films_scraped?: number;
+  total_movies_scraped?: number;
   total_showtimes_scraped?: number;
   errors?: Array<{ 
     cinema_name: string; 
@@ -109,10 +109,10 @@ export type ProgressEvent = {
   | { type: 'date_started'; date: string; cinema_name: string }
   | { type: 'date_stale'; date: string; cinema_name: string; actual_date: string }
   | { type: 'date_failed'; date: string; cinema_name: string; error: string }
-  | { type: 'film_started'; film_title: string; film_id: number }
-  | { type: 'film_completed'; film_title: string; showtimes_count: number }
-  | { type: 'film_failed'; film_title: string; error: string }
-  | { type: 'date_completed'; date: string; films_count: number }
+  | { type: 'movie_started'; movie_title: string; movie_id: number }
+  | { type: 'movie_completed'; movie_title: string; showtimes_count: number }
+  | { type: 'movie_failed'; movie_title: string; error: string }
+  | { type: 'date_completed'; date: string; movies_count: number }
   | { type: 'cinema_completed'; cinema_name: string; total_films: number }
   | { type: 'cinema_failed'; cinema_name: string; error: string }
   | { type: 'completed'; summary: ScrapeSummary }

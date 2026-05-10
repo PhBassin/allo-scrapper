@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { db } from '../db/client.js';
 import * as queries from '../db/showtime-queries.js';
-import * as filmQueries from '../db/film-queries.js';
+import * as movieQueries from '../db/movie-queries.js';
 import * as dateUtils from '../utils/date.js';
-import router from './films.js';
+import router from './movies.js';
 
 // Mock the dependencies
 vi.mock('../db/client.js', () => ({
@@ -14,15 +14,15 @@ vi.mock('../db/client.js', () => ({
 
 vi.mock('../db/showtime-queries.js', () => ({
   getShowtimesByDate: vi.fn(),
-  getShowtimesByFilmAndWeek: vi.fn(),
+  getShowtimesByMovieAndWeek: vi.fn(),
   getWeeklyShowtimes: vi.fn(),
 }));
 
-vi.mock('../db/film-queries.js', () => ({
-  getWeeklyFilms: vi.fn(),
-  getFilmsByDate: vi.fn(),
-  getFilm: vi.fn(),
-  searchFilms: vi.fn(),
+vi.mock('../db/movie-queries.js', () => ({
+  getWeeklyMovies: vi.fn(),
+  getMoviesByDate: vi.fn(),
+  getMovie: vi.fn(),
+  searchMovies: vi.fn(),
 }));
 
 vi.mock('../utils/date.js', () => ({
@@ -65,10 +65,10 @@ describe('Routes - Films', () => {
       mockReq = { query: {}, app: mockApp };
       const mockFilms = [{ id: 1, title: 'Film 1' }];
       const mockShowtimes = [
-        { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
+        { id: 's1', movie_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
       ];
 
-      (filmQueries.getWeeklyFilms as any).mockResolvedValue(mockFilms);
+      (movieQueries.getWeeklyMovies as any).mockResolvedValue(mockFilms);
       (queries.getWeeklyShowtimes as any).mockResolvedValue(mockShowtimes);
 
       // We need to call the handler. Express router makes it hard to call directly.
@@ -80,14 +80,14 @@ describe('Routes - Films', () => {
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
       expect(response.success).toBe(true);
-      expect(response.data.films[0].cinemas).toHaveLength(1);
-      expect(response.data.films[0].cinemas[0].id).toBe('C1');
+      expect(response.data.movies[0].cinemas).toHaveLength(1);
+      expect(response.data.movies[0].cinemas[0].id).toBe('C1');
     });
 
     it('should handle errors', async () => {
       mockReq = { query: {}, app: mockApp };
       const error = new Error('DB Error');
-      (filmQueries.getWeeklyFilms as any).mockRejectedValue(error);
+      (movieQueries.getWeeklyMovies as any).mockRejectedValue(error);
 
       const handler = getRouteHandler('/', 'get');
       await handler(mockReq, mockRes, mockNext);
@@ -105,20 +105,20 @@ describe('Routes - Films', () => {
       mockReq = { query: { date: '2026-02-20' }, app: mockApp };
       const mockFilms = [{ id: 1, title: 'Film 1' }];
       const mockShowtimes = [
-        { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' }, date: '2026-02-20' }
+        { id: 's1', movie_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' }, date: '2026-02-20' }
       ];
 
-      (filmQueries.getFilmsByDate as any).mockResolvedValue(mockFilms);
+      (movieQueries.getMoviesByDate as any).mockResolvedValue(mockFilms);
       (queries.getShowtimesByDate as any).mockResolvedValue(mockShowtimes);
 
       const handler = getRouteHandler('/', 'get');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(filmQueries.getFilmsByDate).toHaveBeenCalledWith(db, '2026-02-20', '2026-02-18');
+      expect(movieQueries.getMoviesByDate).toHaveBeenCalledWith(db, '2026-02-20', '2026-02-18');
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
       expect(response.success).toBe(true);
-      expect(response.data.films[0].cinemas).toHaveLength(1);
+      expect(response.data.movies[0].cinemas).toHaveLength(1);
       expect(response.data.date).toBe('2026-02-20');
     });
 
@@ -140,11 +140,11 @@ describe('Routes - Films', () => {
       mockReq = { params: { id: '1' }, app: mockApp };
       const mockFilm = { id: 1, title: 'Film 1' };
       const mockShowtimes = [
-        { id: 's1', film_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
+        { id: 's1', movie_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
       ];
 
-      (filmQueries.getFilm as any).mockResolvedValue(mockFilm);
-      (queries.getShowtimesByFilmAndWeek as any).mockResolvedValue(mockShowtimes);
+      (movieQueries.getMovie as any).mockResolvedValue(mockFilm);
+      (queries.getShowtimesByMovieAndWeek as any).mockResolvedValue(mockShowtimes);
 
       const handler = getRouteHandler('/:id', 'get');
       await handler(mockReq, mockRes, mockNext);
@@ -165,7 +165,7 @@ describe('Routes - Films', () => {
 
     it('should return 404 for non-existent film', async () => {
       mockReq = { params: { id: '99' }, app: mockApp };
-      (filmQueries.getFilm as any).mockResolvedValue(null);
+      (movieQueries.getMovie as any).mockResolvedValue(null);
 
       const handler = getRouteHandler('/:id', 'get');
       await handler(mockReq, mockRes, mockNext);
@@ -176,7 +176,7 @@ describe('Routes - Films', () => {
     it('should handle errors', async () => {
       mockReq = { params: { id: '1' }, app: mockApp };
       const error = new Error('DB Error');
-      (filmQueries.getFilm as any).mockRejectedValue(error);
+      (movieQueries.getMovie as any).mockRejectedValue(error);
 
       const handler = getRouteHandler('/:id', 'get');
       await handler(mockReq, mockRes, mockNext);
@@ -198,17 +198,17 @@ describe('Routes - Films', () => {
         }
       ];
 
-      (filmQueries.searchFilms as any).mockResolvedValue(mockFilms);
+      (movieQueries.searchMovies as any).mockResolvedValue(mockFilms);
 
       const handler = getRouteHandler('/search', 'get');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(filmQueries.searchFilms).toHaveBeenCalledWith(db, 'Matrix', 10);
+      expect(movieQueries.searchMovies).toHaveBeenCalledWith(db, 'Matrix', 10);
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
       expect(response.success).toBe(true);
-      expect(response.data.films).toHaveLength(1);
-      expect(response.data.films[0].title).toBe('Matrix');
+      expect(response.data.movies).toHaveLength(1);
+      expect(response.data.movies[0].title).toBe('Matrix');
       expect(response.data.query).toBe('Matrix');
     });
 
@@ -250,7 +250,7 @@ describe('Routes - Films', () => {
 
     it('should return empty array when no results found', async () => {
       mockReq = { query: { q: 'xyz123notfound' }, app: mockApp };
-      (filmQueries.searchFilms as any).mockResolvedValue([]);
+      (movieQueries.searchMovies as any).mockResolvedValue([]);
 
       const handler = getRouteHandler('/search', 'get');
       await handler(mockReq, mockRes, mockNext);
@@ -258,13 +258,13 @@ describe('Routes - Films', () => {
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
       expect(response.success).toBe(true);
-      expect(response.data.films).toEqual([]);
+      expect(response.data.movies).toEqual([]);
     });
 
     it('should handle errors', async () => {
       mockReq = { query: { q: 'test' }, app: mockApp };
       const error = new Error('DB Error');
-      (filmQueries.searchFilms as any).mockRejectedValue(error);
+      (movieQueries.searchMovies as any).mockRejectedValue(error);
 
       const handler = getRouteHandler('/search', 'get');
       await handler(mockReq, mockRes, mockNext);
@@ -275,12 +275,12 @@ describe('Routes - Films', () => {
 
     it('should trim whitespace from query', async () => {
       mockReq = { query: { q: '  Matrix  ' }, app: mockApp };
-      (filmQueries.searchFilms as any).mockResolvedValue([]);
+      (movieQueries.searchMovies as any).mockResolvedValue([]);
 
       const handler = getRouteHandler('/search', 'get');
       await handler(mockReq, mockRes, mockNext);
 
-      expect(filmQueries.searchFilms).toHaveBeenCalledWith(db, 'Matrix', 10);
+      expect(movieQueries.searchMovies).toHaveBeenCalledWith(db, 'Matrix', 10);
     });
   });
 });

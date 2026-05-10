@@ -286,7 +286,7 @@ describe('GET /api/org/:slug/cinemas', () => {
       id: 1, username: 'admin', role_name: 'admin',
       is_system_role: true, permissions: ['cinemas:read'], org_slug: 'acme',
     };
-    const showtimes = [{ id: 'S001', film_id: 1, cinema_id: 'C001', date: '2026-04-21', time: '14:00', datetime_iso: '2026-04-21T14:00:00.000Z', version: null, format: null, experiences: '[]', week_start: '2026-04-15', film_title: 'Acme Film', original_title: null, poster_url: null, duration_minutes: 90, release_date: null, rerelease_date: null, genres: '[]', nationality: null, director: null, screenwriters: '[]', actors: '[]', synopsis: null, certificate: null, press_rating: null, audience_rating: null, source_url: 'https://example.test', trailer_url: null }];
+    const showtimes = [{ id: 'S001', movie_id: 1, cinema_id: 'C001', date: '2026-04-21', time: '14:00', datetime_iso: '2026-04-21T14:00:00.000Z', version: null, format: null, experiences: '[]', week_start: '2026-04-15', movie_title: 'Acme Film', original_title: null, poster_url: null, duration_minutes: 90, release_date: null, rerelease_date: null, genres: '[]', nationality: null, director: null, screenwriters: '[]', actors: '[]', synopsis: null, certificate: null, press_rating: null, audience_rating: null, source_url: 'https://example.test', trailer_url: null }];
     const { app, dbClient, db, token } = buildApp('acme', 'active', showtimes, jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
@@ -336,15 +336,15 @@ describe('POST /api/org/:slug/cinemas — quota guard', () => {
   });
 });
 
-// ── Films ─────────────────────────────────────────────────────────────────────
+// ── Movies ─────────────────────────────────────────────────────────────────────
 
-describe('GET /api/org/:slug/films', () => {
-  it('returns 200 without authentication for public tenant film listing', async () => {
+describe('GET /api/org/:slug/movies', () => {
+  it('returns 200 without authentication for public tenant movie listing', async () => {
     const { app, dbClient } = buildApp('acme', 'active', []);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
-    const res = await request(app).get('/api/org/acme/films');
+    const res = await request(app).get('/api/org/acme/movies');
     expect(res.status).toBe(200);
     expect(dbClient.query).toHaveBeenCalled();
   });
@@ -359,7 +359,7 @@ describe('GET /api/org/:slug/films', () => {
     app.use('/api/org/:slug', createOrgRouter());
 
     const res = await request(app)
-      .get('/api/org/acme/films')
+      .get('/api/org/acme/movies')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(dbClient.query).toHaveBeenCalled();

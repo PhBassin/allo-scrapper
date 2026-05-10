@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import type { FilmPageData } from '../types/scraper.js';
+import type { MoviePageData } from '../types/scraper.js';
 import { ParserStructureError } from '../utils/parser-errors.js';
 
 const FILM_META_INFO_SELECTOR = '.meta-body-info';
@@ -111,8 +111,8 @@ function parseVisualCredits($: cheerio.CheerioAPI): {
   return { director, screenwriters };
 }
 
-// Parse the film details page from the source website to extract duration and other supplementary info
-export function parseFilmPage(html: string): FilmPageData {
+// Parse the movie details page from the source website to extract duration and other supplementary info
+export function parseMoviePage(html: string): MoviePageData {
   const $ = cheerio.load(html);
   const metaInfo = $(FILM_META_INFO_SELECTOR).first();
 

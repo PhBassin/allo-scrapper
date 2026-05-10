@@ -1,10 +1,10 @@
 import { type DB } from './client.js';
-import type { Film } from '../types/scraper.js';
+import type { Movie } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 
 // --- Database Row Interfaces ---
 
-export interface FilmRow {
+export interface MovieRow {
   id: number;
   title: string;
   original_title: string | null;
@@ -26,38 +26,38 @@ export interface FilmRow {
 }
 
 // Récupérer un film par son ID
-export async function getFilm(db: DB, filmId: number): Promise<Film | undefined> {
-  const result = await db.query<FilmRow>(
-    'SELECT * FROM films WHERE id = $1',
-    [filmId]
+export async function getMovie(db: DB, movieId: number): Promise<Movie | undefined> {
+  const result = await db.query<MovieRow>(
+    'SELECT * FROM movies WHERE id = $1',
+    [movieId]
   );
 
   const row = result.rows[0];
   if (!row) return undefined;
 
-  return rowToFilm(row);
+  return rowToMovie(row);
 }
 
 /**
  * Récupérer plusieurs films par leurs IDs en une seule requête.
  * Évite le N+1 lorsqu'on traite plusieurs films dans une boucle.
  */
-export async function getFilmsBatch(db: DB, filmIds: number[]): Promise<Map<number, Film>> {
-  if (filmIds.length === 0) return new Map();
+export async function getMoviesBatch(db: DB, movieIds: number[]): Promise<Map<number, Movie>> {
+  if (movieIds.length === 0) return new Map();
 
-  const result = await db.query<FilmRow>(
-    'SELECT * FROM films WHERE id = ANY($1)',
-    [filmIds]
+  const result = await db.query<MovieRow>(
+    'SELECT * FROM movies WHERE id = ANY($1)',
+    [movieIds]
   );
 
-  const map = new Map<number, Film>();
+  const map = new Map<number, Movie>();
   for (const row of result.rows) {
-    map.set(row.id, rowToFilm(row));
+    map.set(row.id, rowToMovie(row));
   }
   return map;
 }
 
-function rowToFilm(row: FilmRow): Film {
+function rowToMovie(row: MovieRow): Movie {
   return {
     id: row.id,
     title: row.title,
@@ -81,14 +81,14 @@ function rowToFilm(row: FilmRow): Film {
 }
 
 /**
- * Sanitize numeric fields in a Film object to prevent NaN/Infinity from being inserted.
+ * Sanitize numeric fields in a Movie object to prevent NaN/Infinity from being inserted.
  * Converts NaN and Infinity to null with warning logs.
  */
-function sanitizeNumericValue(value: number | undefined | null, fieldName: string, filmId: number): number | null {
+function sanitizeNumericValue(value: number | undefined | null, fieldName: string, movieId: number): number | null {
   if (value === undefined || value === null) return null;
   
   if (!Number.isFinite(value)) {
-    logger.warn('Invalid numeric value detected', { field: fieldName, value, filmId });
+    logger.warn('Invalid numeric value detected', { field: fieldName, value, movieId });
     return null;
   }
   
@@ -96,32 +96,32 @@ function sanitizeNumericValue(value: number | undefined | null, fieldName: strin
 }
 
 /**
- * Sanitize a Film object before database insertion to prevent NaN/Infinity errors.
+ * Sanitize a Movie object before database insertion to prevent NaN/Infinity errors.
  * This is a defense-in-depth layer in case the parser doesn't catch all edge cases.
  */
-function sanitizeFilm(film: Film): Film {
+function sanitizeMovie(movie: Movie): Movie {
   return {
-    ...film,
-    duration_minutes: film.duration_minutes !== undefined
-      ? sanitizeNumericValue(film.duration_minutes, 'duration_minutes', film.id) ?? undefined
+    ...movie,
+    duration_minutes: movie.duration_minutes !== undefined
+      ? sanitizeNumericValue(movie.duration_minutes, 'duration_minutes', movie.id) ?? undefined
       : undefined,
-    press_rating: film.press_rating !== undefined
-      ? sanitizeNumericValue(film.press_rating, 'press_rating', film.id) ?? undefined
+    press_rating: movie.press_rating !== undefined
+      ? sanitizeNumericValue(movie.press_rating, 'press_rating', movie.id) ?? undefined
       : undefined,
-    audience_rating: film.audience_rating !== undefined
-      ? sanitizeNumericValue(film.audience_rating, 'audience_rating', film.id) ?? undefined
+    audience_rating: movie.audience_rating !== undefined
+      ? sanitizeNumericValue(movie.audience_rating, 'audience_rating', movie.id) ?? undefined
       : undefined,
   };
 }
 
 // Insertion ou mise à jour d'un film
-export async function upsertFilm(db: DB, film: Film): Promise<void> {
-  // Sanitize film data to prevent NaN/Infinity from reaching the database
-  const sanitized = sanitizeFilm(film);
+export async function upsertMovie(db: DB, movie: Movie): Promise<void> {
+  // Sanitize movie data to prevent NaN/Infinity from reaching the database
+  const sanitized = sanitizeMovie(movie);
   
   await db.query(
     `
-      INSERT INTO films (
+      INSERT INTO movies (
         id, title, original_title, poster_url, duration_minutes,
         release_date, rerelease_date, genres, nationality, director,
         screenwriters, actors, synopsis, certificate, press_rating, audience_rating, source_url, trailer_url
@@ -135,8 +135,8 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
         title = $2,
         original_title = $3,
         poster_url = $4,
-        duration_minutes = COALESCE($5, films.duration_minutes),
-        release_date = COALESCE($6, films.release_date),
+        duration_minutes = COALESCE($5, movies.duration_minutes),
+        release_date = COALESCE($6, movies.release_date),
         rerelease_date = $7,
         genres = $8,
         nationality = $9,
@@ -148,7 +148,7 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
         press_rating = $15,
         audience_rating = $16,
         source_url = $17,
-        trailer_url = COALESCE($18, films.trailer_url)
+        trailer_url = COALESCE($18, movies.trailer_url)
     `,
     [
       sanitized.id,

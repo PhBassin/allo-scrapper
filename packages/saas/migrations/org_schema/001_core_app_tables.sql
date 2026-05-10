@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS cinemas (
   source TEXT DEFAULT 'allocine'
 );
 
-CREATE TABLE IF NOT EXISTS films (
+CREATE TABLE IF NOT EXISTS movies (
   id INTEGER PRIMARY KEY,
   title TEXT NOT NULL,
   original_title TEXT,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS films (
 
 CREATE TABLE IF NOT EXISTS showtimes (
   id TEXT PRIMARY KEY,
-  film_id INTEGER NOT NULL REFERENCES films(id),
+  movie_id INTEGER NOT NULL REFERENCES movies(id),
   cinema_id TEXT NOT NULL REFERENCES cinemas(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
   time TEXT NOT NULL,
@@ -45,21 +45,25 @@ CREATE TABLE IF NOT EXISTS showtimes (
   format TEXT,
   experiences TEXT,
   week_start TEXT NOT NULL,
-  CONSTRAINT uq_showtimes_business_key UNIQUE (cinema_id, film_id, date, time, version, format)
+  CONSTRAINT uq_showtimes_business_key UNIQUE (cinema_id, movie_id, date, time, version, format)
 );
 
 CREATE INDEX IF NOT EXISTS idx_showtimes_cinema_date ON showtimes(cinema_id, date);
-CREATE INDEX IF NOT EXISTS idx_showtimes_film_date ON showtimes(film_id, date);
+CREATE INDEX IF NOT EXISTS idx_showtimes_movie_date ON showtimes(movie_id, date);
 CREATE INDEX IF NOT EXISTS idx_showtimes_week ON showtimes(week_start);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_showtimes_business_key_null_format
+  ON showtimes (cinema_id, movie_id, date, time, version)
+  WHERE format IS NULL;
 
 CREATE TABLE IF NOT EXISTS weekly_programs (
   id SERIAL PRIMARY KEY,
   cinema_id TEXT NOT NULL REFERENCES cinemas(id) ON DELETE CASCADE,
-  film_id INTEGER NOT NULL REFERENCES films(id),
+  movie_id INTEGER NOT NULL REFERENCES movies(id),
   week_start TEXT NOT NULL,
   is_new_this_week INTEGER NOT NULL DEFAULT 0,
   scraped_at TEXT NOT NULL,
-  UNIQUE (cinema_id, film_id, week_start)
+  UNIQUE (cinema_id, movie_id, week_start)
 );
 
 CREATE INDEX IF NOT EXISTS idx_weekly_programs_week ON weekly_programs(week_start);
@@ -145,7 +149,7 @@ CREATE TABLE IF NOT EXISTS scrape_reports (
   total_cinemas INTEGER,
   successful_cinemas INTEGER,
   failed_cinemas INTEGER,
-  total_films_scraped INTEGER,
+  total_movies_scraped INTEGER,
   total_showtimes_scraped INTEGER,
   errors JSONB,
   progress_log JSONB,
@@ -165,7 +169,7 @@ CREATE TABLE IF NOT EXISTS scrape_attempts (
   error_type TEXT,
   error_message TEXT,
   http_status_code INTEGER,
-  films_scraped INTEGER DEFAULT 0,
+  movies_scraped INTEGER DEFAULT 0,
   showtimes_scraped INTEGER DEFAULT 0,
   attempted_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (report_id, cinema_id, date)

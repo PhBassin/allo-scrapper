@@ -1,6 +1,6 @@
 import { parseStrictInt } from '../utils/number.js';
 import express from 'express';
-import { FilmService } from '../services/film-service.js';
+import { MovieService } from '../services/movie-service.js';
 import { getWeekStart } from '../utils/date.js';
 import type { ApiResponse } from '../types/api.js';
 import { publicLimiter } from '../middleware/rate-limit.js';
@@ -9,11 +9,11 @@ import { getDbFromRequest } from '../utils/db-from-request.js';
 
 const router = express.Router();
 
-// GET /api/films - Get weekly films or films by date
+// GET /api/movies - Get weekly movies or movies by date
 router.get('/', publicLimiter, async (req, res, next) => {
   try {
     const db = getDbFromRequest(req);
-    const filmService = new FilmService(db);
+    const movieService = new MovieService(db);
     const weekStart = getWeekStart();
     const dateParam = req.query.date as string | undefined;
 
@@ -25,18 +25,18 @@ router.get('/', publicLimiter, async (req, res, next) => {
       }
     }
 
-    let filmsWithShowtimes;
+    let moviesWithShowtimes;
 
     if (dateParam) {
-      filmsWithShowtimes = await filmService.getFilmsForDate(dateParam, weekStart);
+      moviesWithShowtimes = await movieService.getMoviesForDate(dateParam, weekStart);
     } else {
-      filmsWithShowtimes = await filmService.getFilmsForWeek(weekStart);
+      moviesWithShowtimes = await movieService.getMoviesForWeek(weekStart);
     }
 
     const response: ApiResponse = {
       success: true,
       data: { 
-        films: filmsWithShowtimes, 
+        movies: moviesWithShowtimes, 
         weekStart,
         ...(dateParam && { date: dateParam })
       },
@@ -48,11 +48,11 @@ router.get('/', publicLimiter, async (req, res, next) => {
   }
 });
 
-// GET /api/films/search - Search films with fuzzy matching
+// GET /api/movies/search - Search movies with fuzzy matching
 router.get('/search', publicLimiter, async (req, res, next) => {
   try {
     const db = getDbFromRequest(req);
-    const filmService = new FilmService(db);
+    const movieService = new MovieService(db);
     const query = req.query.q as string | undefined;
     
     // Validate query parameter
@@ -60,12 +60,12 @@ router.get('/search', publicLimiter, async (req, res, next) => {
       return next(new ValidationError('Search query must be between 2 and 100 characters'));
     }
     
-    const films = await filmService.search(query.trim(), 10);
+    const movies = await movieService.search(query.trim(), 10);
     
     const response: ApiResponse = {
       success: true,
       data: { 
-        films,
+        movies,
         query: query.trim()
       },
     };
@@ -76,27 +76,27 @@ router.get('/search', publicLimiter, async (req, res, next) => {
   }
 });
 
-// GET /api/films/:id - Get film by ID
+// GET /api/movies/:id - Get movie by ID
 router.get('/:id', publicLimiter, async (req, res, next) => {
   try {
     const db = getDbFromRequest(req);
-    const filmService = new FilmService(db);
-    const filmId = parseStrictInt(req.params.id);
+    const movieService = new MovieService(db);
+    const movieId = parseStrictInt(req.params.id);
     const weekStart = getWeekStart();
 
-    if (isNaN(filmId)) {
-      return next(new ValidationError('Invalid film ID'));
+    if (isNaN(movieId)) {
+      return next(new ValidationError('Invalid movie ID'));
     }
 
-    const filmWithShowtimes = await filmService.getFilmById(filmId, weekStart);
+    const movieWithShowtimes = await movieService.getMovieById(movieId, weekStart);
 
-    if (!filmWithShowtimes) {
-      return next(new NotFoundError('Film not found'));
+    if (!movieWithShowtimes) {
+      return next(new NotFoundError('Movie not found'));
     }
 
     const response: ApiResponse = {
       success: true,
-      data: filmWithShowtimes,
+      data: movieWithShowtimes,
     };
 
     res.json(response);

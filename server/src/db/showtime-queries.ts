@@ -1,5 +1,5 @@
 import { type DB } from './client.js';
-import type { Cinema, Film, Showtime, WeeklyProgram } from '../types/scraper.js';
+import type { Cinema, Movie, Showtime, WeeklyProgram } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 import { parseJSONMemoized } from '../utils/json-parse-cache.js';
 
@@ -7,7 +7,7 @@ import { parseJSONMemoized } from '../utils/json-parse-cache.js';
 
 export interface ShowtimeRow {
   id: string;
-  film_id: number;
+  movie_id: number;
   cinema_id: string;
   date: string;
   time: string;
@@ -18,8 +18,8 @@ export interface ShowtimeRow {
   week_start: string;
 }
 
-export interface ShowtimeWithFilmRow extends ShowtimeRow {
-  film_title: string;
+export interface ShowtimeWithMovieRow extends ShowtimeRow {
+  movie_title: string;
   original_title: string | null;
   poster_url: string | null;
   duration_minutes: number | null;
@@ -52,7 +52,7 @@ export async function upsertShowtime(db: DB, showtime: Showtime): Promise<void> 
   await db.query(
     `
       INSERT INTO showtimes (
-        id, film_id, cinema_id, date, time, datetime_iso,
+        id, movie_id, cinema_id, date, time, datetime_iso,
         version, format, experiences, week_start
       )
       VALUES (
@@ -70,7 +70,7 @@ export async function upsertShowtime(db: DB, showtime: Showtime): Promise<void> 
     `,
     [
       showtime.id,
-      showtime.film_id,
+      showtime.movie_id,
       showtime.cinema_id,
       showtime.date,
       showtime.time,
@@ -95,7 +95,7 @@ export async function upsertShowtimes(db: DB, showtimes: Showtime[]): Promise<vo
     valueSets.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9})`);
     values.push(
       showtime.id,
-      showtime.film_id,
+      showtime.movie_id,
       showtime.cinema_id,
       showtime.date,
       showtime.time,
@@ -111,7 +111,7 @@ export async function upsertShowtimes(db: DB, showtimes: Showtime[]): Promise<vo
   await db.query(
     `
       INSERT INTO showtimes (
-        id, film_id, cinema_id, date, time, datetime_iso,
+        id, movie_id, cinema_id, date, time, datetime_iso,
         version, format, experiences, week_start
       )
       VALUES ${valueSets.join(', ')}
@@ -132,15 +132,15 @@ export async function upsertShowtimes(db: DB, showtimes: Showtime[]): Promise<vo
 export async function upsertWeeklyProgram(db: DB, program: WeeklyProgram): Promise<void> {
   await db.query(
     `
-      INSERT INTO weekly_programs (cinema_id, film_id, week_start, is_new_this_week, scraped_at)
+      INSERT INTO weekly_programs (cinema_id, movie_id, week_start, is_new_this_week, scraped_at)
       VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT(cinema_id, film_id, week_start) DO UPDATE SET
+      ON CONFLICT(cinema_id, movie_id, week_start) DO UPDATE SET
         is_new_this_week = $4,
         scraped_at = $5
     `,
     [
       program.cinema_id,
-      program.film_id,
+      program.movie_id,
       program.week_start,
       program.is_new_this_week ? 1 : 0,
       program.scraped_at,
@@ -160,7 +160,7 @@ export async function upsertWeeklyPrograms(db: DB, programs: WeeklyProgram[]): P
     valueSets.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4})`);
     values.push(
       program.cinema_id,
-      program.film_id,
+      program.movie_id,
       program.week_start,
       program.is_new_this_week ? 1 : 0,
       program.scraped_at
@@ -170,9 +170,9 @@ export async function upsertWeeklyPrograms(db: DB, programs: WeeklyProgram[]): P
 
   await db.query(
     `
-      INSERT INTO weekly_programs (cinema_id, film_id, week_start, is_new_this_week, scraped_at)
+      INSERT INTO weekly_programs (cinema_id, movie_id, week_start, is_new_this_week, scraped_at)
       VALUES ${valueSets.join(', ')}
-      ON CONFLICT(cinema_id, film_id, week_start) DO UPDATE SET
+      ON CONFLICT(cinema_id, movie_id, week_start) DO UPDATE SET
         is_new_this_week = EXCLUDED.is_new_this_week,
         scraped_at = EXCLUDED.scraped_at
     `,
@@ -185,13 +185,13 @@ export async function getShowtimesByCinema(
   db: DB,
   cinemaId: string,
   date: string
-): Promise<Array<Showtime & { film: Film }>> {
-  const result = await db.query<ShowtimeWithFilmRow>(
+): Promise<Array<Showtime & { movie: Movie }>> {
+  const result = await db.query<ShowtimeWithMovieRow>(
     `
       SELECT 
         s.*,
-        f.id as film_id,
-        f.title as film_title,
+        f.id as movie_id,
+        f.title as movie_title,
         f.original_title,
         f.poster_url,
         f.duration_minutes,
@@ -209,7 +209,7 @@ export async function getShowtimesByCinema(
         f.source_url,
         f.trailer_url
       FROM showtimes s
-      JOIN films f ON s.film_id = f.id
+      JOIN movies f ON s.movie_id = f.id
       WHERE s.cinema_id = $1 AND s.date = $2
       ORDER BY f.title, s.time
     `,
@@ -218,7 +218,7 @@ export async function getShowtimesByCinema(
 
   return result.rows.map((row) => ({
     id: row.id,
-    film_id: row.film_id,
+    movie_id: row.movie_id,
     cinema_id: row.cinema_id,
     date: row.date,
     time: row.time,
@@ -227,9 +227,9 @@ export async function getShowtimesByCinema(
     format: row.format ?? undefined,
     experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
-    film: {
-      id: row.film_id,
-      title: row.film_title,
+    movie: {
+      id: row.movie_id,
+      title: row.movie_title,
       original_title: row.original_title ?? undefined,
       poster_url: row.poster_url ?? undefined,
       duration_minutes: row.duration_minutes ?? undefined,
@@ -255,13 +255,13 @@ export async function getShowtimesByCinemaAndWeek(
   db: DB,
   cinemaId: string,
   weekStart: string
-): Promise<Array<Showtime & { film: Film }>> {
-  const result = await db.query<ShowtimeWithFilmRow>(
+): Promise<Array<Showtime & { movie: Movie }>> {
+  const result = await db.query<ShowtimeWithMovieRow>(
     `
       SELECT 
         s.*,
-        f.id as film_id,
-        f.title as film_title,
+        f.id as movie_id,
+        f.title as movie_title,
         f.original_title,
         f.poster_url,
         f.duration_minutes,
@@ -279,7 +279,7 @@ export async function getShowtimesByCinemaAndWeek(
         f.source_url,
         f.trailer_url
       FROM showtimes s
-      JOIN films f ON s.film_id = f.id
+      JOIN movies f ON s.movie_id = f.id
       WHERE s.cinema_id = $1 AND s.week_start = $2
       ORDER BY s.date, f.title, s.time
     `,
@@ -288,7 +288,7 @@ export async function getShowtimesByCinemaAndWeek(
 
   return result.rows.map((row) => ({
     id: row.id,
-    film_id: row.film_id,
+    movie_id: row.movie_id,
     cinema_id: row.cinema_id,
     date: row.date,
     time: row.time,
@@ -297,9 +297,9 @@ export async function getShowtimesByCinemaAndWeek(
     format: row.format ?? undefined,
     experiences: parseJSONMemoized(row.experiences),
     week_start: row.week_start,
-    film: {
-      id: row.film_id,
-      title: row.film_title,
+    movie: {
+      id: row.movie_id,
+      title: row.movie_title,
       original_title: row.original_title ?? undefined,
       poster_url: row.poster_url ?? undefined,
       duration_minutes: row.duration_minutes ?? undefined,
@@ -347,7 +347,7 @@ export async function getShowtimesByDate(
 
   return result.rows.map((row) => ({
     id: row.id,
-    film_id: row.film_id,
+    movie_id: row.movie_id,
     cinema_id: row.cinema_id,
     date: row.date,
     time: row.time,
@@ -369,9 +369,9 @@ export async function getShowtimesByDate(
 }
 
 // Récupérer les séances d'un film pour une semaine donnée, groupées par cinéma
-export async function getShowtimesByFilmAndWeek(
+export async function getShowtimesByMovieAndWeek(
   db: DB,
-  filmId: number,
+  movieId: number,
   weekStart: string
 ): Promise<Array<Showtime & { cinema: Cinema }>> {
   const result = await db.query<ShowtimeWithCinemaRow>(
@@ -387,15 +387,15 @@ export async function getShowtimesByFilmAndWeek(
         c.image_url as cinema_image_url
       FROM showtimes s
       JOIN cinemas c ON s.cinema_id = c.id
-      WHERE s.film_id = $1 AND s.week_start = $2
+      WHERE s.movie_id = $1 AND s.week_start = $2
       ORDER BY s.date, s.time, c.name
     `,
-    [filmId, weekStart]
+    [movieId, weekStart]
   );
 
   return result.rows.map((row) => ({
     id: row.id,
-    film_id: row.film_id,
+    movie_id: row.movie_id,
     cinema_id: row.cinema_id,
     date: row.date,
     time: row.time,
@@ -442,7 +442,7 @@ export async function getWeeklyShowtimes(
 
   return result.rows.map((row) => ({
     id: row.id,
-    film_id: row.film_id,
+    movie_id: row.movie_id,
     cinema_id: row.cinema_id,
     date: row.date,
     time: row.time,

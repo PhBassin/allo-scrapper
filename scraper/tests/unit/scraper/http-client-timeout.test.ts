@@ -11,13 +11,13 @@ vi.mock('../../../src/utils/logger.js', () => ({
 
 describe('http-client timeouts', () => {
   let fetchShowtimesJson: (cinemaId: string, date: string) => Promise<unknown>;
-  let fetchFilmPage: (filmId: number) => Promise<string>;
+  let fetchMoviePage: (movieId: number) => Promise<string>;
 
   beforeEach(async () => {
     vi.resetModules();
     const mod = await import('../../../src/scraper/http-client.js');
     fetchShowtimesJson = mod.fetchShowtimesJson;
-    fetchFilmPage = mod.fetchFilmPage;
+    fetchMoviePage = mod.fetchMoviePage;
   });
 
   afterEach(() => {
@@ -41,14 +41,14 @@ describe('http-client timeouts', () => {
     );
   });
 
-  it('fetchFilmPage should include a timeout signal in fetch options', async () => {
+  it('fetchMoviePage should include a timeout signal in fetch options', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       text: vi.fn().mockResolvedValue('<html></html>'),
     });
     vi.stubGlobal('fetch', mockFetch);
 
-    await fetchFilmPage(12345);
+    await fetchMoviePage(12345);
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),

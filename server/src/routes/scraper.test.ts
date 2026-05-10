@@ -190,17 +190,17 @@ describe('Routes - Scraper', () => {
       );
     });
 
-    it('should pass cinemaId and filmId to the service', async () => {
+    it('should pass cinemaId and movieId to the service', async () => {
       const app = await setupApp();
       
       const response = await request(app).post('/api/scraper/trigger').send({
         cinemaId: 'C0153',
-        filmId: 12345
+        movieId: 12345
       });
       
       expect(response.status).toBe(200);
       expect(mockTriggerScrape).toHaveBeenCalledWith(
-        { cinemaId: 'C0153', filmId: 12345 },
+        { cinemaId: 'C0153', movieId: 12345 },
         expect.objectContaining({
           endpoint: '/api/scraper/trigger',
           method: 'POST',
@@ -215,7 +215,7 @@ describe('Routes - Scraper', () => {
           endpoint: '/api/scraper/trigger',
           method: 'POST',
           cinema_id: 'C0153',
-          film_id: 12345,
+          movie_id: 12345,
         })
       );
     });

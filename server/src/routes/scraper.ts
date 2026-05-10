@@ -58,8 +58,8 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
   const scraperService = new ScraperService(dbConn);
 
   try {
-    // Extract and validate cinemaId and filmId from request body
-    const { cinemaId, filmId } = (req.body ?? {}) as { cinemaId?: string; filmId?: number };
+    // Extract and validate cinemaId and movieId from request body
+    const { cinemaId, movieId } = (req.body ?? {}) as { cinemaId?: string; movieId?: number };
 
     // Permission check: scraper:trigger for all-cinema scrape, scraper:trigger_single for single-cinema
     // scraper:trigger is a superset (allows both all-cinema and single-cinema)
@@ -88,10 +88,10 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
       endpoint: getSanitizedEndpoint(req),
       method: req.method,
       cinema_id: cinemaId,
-      film_id: filmId,
+      movie_id: movieId,
     });
 
-    const { reportId, queueDepth } = await scraperService.triggerScrape({ cinemaId, filmId }, observabilityContext);
+    const { reportId, queueDepth } = await scraperService.triggerScrape({ cinemaId, movieId }, observabilityContext);
 
     const response: ApiResponse = {
       success: true,

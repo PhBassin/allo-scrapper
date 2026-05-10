@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { logger } from './utils/logger.js';
-import { registry, scrapeJobsTotal, scrapeDurationSeconds, filmsScrapedTotal, showtimesScrapedTotal } from './utils/metrics.js';
+import { registry, scrapeJobsTotal, scrapeDurationSeconds, moviesScrapedTotal, showtimesScrapedTotal } from './utils/metrics.js';
 import { initTracing } from './utils/tracer.js';
 import type { ScrapeJobAddCinema, ScrapeJobScrape } from '@allo-scrapper/logger';
 
@@ -138,7 +138,7 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
 
       durationTimer();
       scrapeJobsTotal.inc({ status, trigger: job.triggerType });
-      filmsScrapedTotal.inc({ cinema: 'all' }, summary.total_films);
+      moviesScrapedTotal.inc({ cinema: 'all' }, summary.total_movies);
       showtimesScrapedTotal.inc({ cinema: 'all' }, summary.total_showtimes);
 
       await updateScrapeReport(jobDb, job.reportId, {
@@ -147,7 +147,7 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
         total_cinemas: summary.total_cinemas,
         successful_cinemas: summary.successful_cinemas,
         failed_cinemas: summary.failed_cinemas,
-        total_films_scraped: summary.total_films,
+        total_movies_scraped: summary.total_movies,
         total_showtimes_scraped: summary.total_showtimes,
         errors: summary.errors,
       });
@@ -382,7 +382,7 @@ async function runCron(): Promise<void> {
         total_cinemas: summary.total_cinemas,
         successful_cinemas: summary.successful_cinemas,
         failed_cinemas: summary.failed_cinemas,
-        total_films_scraped: summary.total_films,
+        total_movies_scraped: summary.total_movies,
         total_showtimes_scraped: summary.total_showtimes,
         errors: summary.errors,
       });
@@ -530,7 +530,7 @@ async function runDirect(): Promise<void> {
         total_cinemas: summary.total_cinemas,
         successful_cinemas: summary.successful_cinemas,
         failed_cinemas: summary.failed_cinemas,
-        total_films_scraped: summary.total_films,
+        total_movies_scraped: summary.total_movies,
         total_showtimes_scraped: summary.total_showtimes,
         errors: summary.errors,
       });
