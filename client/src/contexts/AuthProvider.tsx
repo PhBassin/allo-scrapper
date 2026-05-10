@@ -60,9 +60,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
     }, []);
 
+    const scheduleExpiryTimer = (newToken: string) => {
+        clearExpiryTimer();
+        try {
+            const payload = JSON.parse(atob(newToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+            const exp: number | undefined = payload.exp;
+            if (exp) {
+                const msUntilExpiry = exp * 1000 - Date.now();
+                if (msUntilExpiry > 0) {
+                    expiryTimerRef.current = setTimeout(() => {
+                        setToken(null);
+                        setUser(null);
+                        window.dispatchEvent(new CustomEvent('auth:unauthorized', {
+                            detail: { reason: 'session_expired' },
+                        }));
+                    }, msUntilExpiry);
+                }
+            }
+        } catch {
+            // Non-JWT token (e.g. 'cookie' placeholder) — no timer needed
+        }
+    };
+
     const login = (newToken: string, newUser: User) => {
         setToken(newToken);
         setUser(newUser);
+        scheduleExpiryTimer(newToken);
     };
 
     const logout = async () => {
