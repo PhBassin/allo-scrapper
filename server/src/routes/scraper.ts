@@ -132,14 +132,15 @@ router.post('/resume/:reportId', scraperLimiter, requireAuth, async (req: AuthRe
       }
     }
 
-    // Get the parent report to verify it exists
-    const parentReport = await getScrapeReport(dbConn, reportId);
+    // ⚡ PERFORMANCE: Run independent DB queries concurrently to reduce response time
+    const [parentReport, pendingAttempts] = await Promise.all([
+      getScrapeReport(dbConn, reportId),
+      getPendingScrapeAttempts(dbConn, reportId)
+    ]);
+
     if (!parentReport) {
       return next(new NotFoundError('Report not found'));
     }
-
-    // Get pending attempts (failed, rate_limited, or not_attempted)
-    const pendingAttempts = await getPendingScrapeAttempts(dbConn, reportId);
     
     if (pendingAttempts.length === 0) {
       return next(new ValidationError('No pending attempts to resume'));

@@ -95,14 +95,15 @@ router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('rep
       return next(new ValidationError('Invalid report ID'));
     }
 
-    const report = await getScrapeReport(db, reportId);
+    // ⚡ PERFORMANCE: Run independent DB queries concurrently to reduce response time
+    const [report, attempts] = await Promise.all([
+      getScrapeReport(db, reportId),
+      getScrapeAttemptsByReport(db, reportId)
+    ]);
 
     if (!report) {
       return next(new NotFoundError('Report not found'));
     }
-
-    // Get all attempts for this report
-    const attempts = await getScrapeAttemptsByReport(db, reportId);
 
     // Group attempts by cinema
     const attemptsByCinema: Record<string, any[]> = {};
