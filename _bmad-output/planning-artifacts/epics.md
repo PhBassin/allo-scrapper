@@ -11,16 +11,9 @@ validationChecks:
   dependencyValidation: 'PASS - 0 forward dependencies detected'
   documentCompleteness: 'PASS - 1400 lines, 0 placeholders'
 partyModeConsultation: true
-partyModeAgents: ['Murat (TEA)', 'Winston (Architect)', 'Mary (Analyst)', 'John (PM)']
-epicStructureRevision: 'Adopted Murat recommendation - consolidated from 9 to 7 epics'
-preMortemAnalysis: true
-preMortemDate: '2026-04-15'
-preMortemRevisions: 'Effort estimates revised (48-64h → 86-120h), performance AC added to Epic 1, DLQ UI downgraded to API-only, implementation order documented for Epic 3, test matrices added to Epic 4 & 6'
-fiveWhysAnalysis: true
-fiveWhysDate: '2026-04-15'
-fiveWhysImprovements: 'Added Definition of Done to all epics, Dependency Notes in Epic 1-3, Deployment Impact classification in Epic 3, Rollback Strategy for Epic 4, Out of Scope section for Story 2.6'
-totalEpics: 7
-totalStories: 31
+partyModeAgents: ['Murat (TEA)', 'Winston (Architect)', 'Mary (Analyst)', 'Amelia (Dev)']
+totalEpics: 8
+totalStories: 32
 originalEffortEstimate: '48-64h'
 revisedEffortEstimate: '86-120h'
 inputDocuments:
@@ -65,6 +58,17 @@ FR16: User management CRUD - Create, read, update, delete users with role assign
 FR17: Cinema and schedule management - CRUD operations for cinemas and movie schedules
 FR18: Weekly reports - Track cinema programs and identify new releases
 
+**Extracted from refactor/1015-rename-film-to-movie branch diff:**
+
+FR19: Rename all business entities `Film` → `Movie` in TypeScript types across client, server, scraper, and packages/saas
+FR20: Rename React components `FilmCard`, `FilmSearchBar`, `FilmPage` → `MovieCard`, `MovieSearchBar`, `MoviePage`
+FR21: Rename API routes `/api/films` → `/api/movies` (server) and all corresponding client API calls
+FR22: Rename database columns referencing `film_id` → `movie_id` in schema, migrations, and `docker/init.sql`
+FR23: Rename service files `film-service.ts` → `movie-service.ts` and `film-queries.ts` → `movie-queries.ts` (server + scraper)
+FR24: Rename scraper parser `film-parser.ts` → `movie-parser.ts` and its HTML fixture
+FR25: Update all unit, integration, and E2E tests to use the new `movie` nomenclature
+FR26: Maintain data backward compatibility — existing database records must remain intact through the rename
+
 ### NonFunctional Requirements
 
 **Extracted from TEA Test Design Handoff:**
@@ -91,6 +95,13 @@ NFR13: Docker Ready - Full containerization with multi-stage builds for linux/am
 NFR14: Production Ready - Health checks, error handling, graceful shutdown, and database migrations
 NFR15: CI/CD - Automated GitHub Actions workflow for Docker builds and releases
 NFR16: Rate Limiting - Per-endpoint rate limiting (auth: 5 req/min, health: 10 req/min, protected: 10 req/min default)
+
+**Extracted from refactor/1015-rename-film-to-movie:**
+
+NFR17: All existing tests (unit, integration, E2E) must pass after the rename
+NFR18: The build (server + client) must succeed without TypeScript errors
+NFR19: No functional regression — application behavior is identical after rename
+NFR20: Migrations must remain idempotent (per NFR5)
 
 ### Additional Requirements
 
@@ -150,6 +161,8 @@ FR16: Existing feature - User CRUD already covered (no new epic)
 FR17: Existing feature - Cinema/schedule CRUD already covered (no new epic)
 FR18: Existing feature - Weekly reports already covered (no new epic)
 
+FR19-FR26: Epic 8 - Refactoring: rename film→movie across all layers
+
 ## Epic List
 
 **Note:** This structure consolidates the original 9 epics into 7 (6 full epics + 1 technical blocker) based on architectural dependencies and test synergies identified during party mode discussion with Murat (TEA), Winston (Architect), Mary (Analyst), and John (PM).
@@ -162,6 +175,14 @@ FR18: Existing feature - Weekly reports already covered (no new epic)
 - Epic 4 includes test matrix for migration idempotency (8-12h revised from 4-6h)
 - Epic 5-6 consolidate white-label quality with cross-client validation (4-6h each, revised from 2-4h)
 - **Effort revised:** Original 48-64h → Realistic 86-120h (includes hidden tasks, buffers, and detailed test matrices)
+
+### Epic 8: Refactoring — Rename `film` to `movie` Across All Layers
+Replace the legacy `film` nomenclature with `movie` across the entire codebase (types, components, routes, DB schema, services, parsers, tests) to align with the business domain language. This is a pure rename — no functional changes, no new features.
+
+**FRs covered:** FR19, FR20, FR21, FR22, FR23, FR24, FR25, FR26
+**NFRs covered:** NFR17 (Test pass), NFR18 (Build success), NFR19 (No regression), NFR20 (Migration idempotency)
+**Effort:** 6-10 hours
+**Priority:** 🟡 MEDIUM
 
 ### Epic 0: Test Infrastructure Setup (Technical Blocker)
 QA can execute E2E tests in parallel (Playwright workers > 1) without flakiness. Test infrastructure prerequisites are in place: multi-tenant test fixtures API, Redis Testcontainers in CI, auto-cleanup utilities. This epic must complete before Epic 1 begins.
@@ -1503,21 +1524,96 @@ So that emails are consistent with the application's visual identity.
 | #929 | Documentation audit refresh | docs |
 | #938 | BMAD skills and customization update | chore |
 
-### Epic 7: Technical Debt Consolidation & Preparation
-Address technical debt accrued during earlier epics and resolve open pull requests before beginning the next major feature initiative (Epic 6). 
+### Epic 7: Technical Debt Consolidation & Preparation ✅ DONE
+| Story | Status |
+|-------|--------|
+| 7-1 — Resolve open scraper/tenant PRs | done |
+| 7-2 — Refactor theme variables contract | done |
 
-**FRs covered:** N/A (Technical Debt)
-**NFRs covered:** NFR10 (Maintainability)
-**Effort:** 10-15 hours
-**Priority:** 🟡 MEDIUM
+### Epic 8: Refactoring — Rename film to movie ⏳ IN-PROGRESS
+| Story | Status | PR |
+|-------|--------|-----|
+| 8-1 — Rename film→movie across all layers | review | #1015 |
 
-**Definition of Done:**
-- [ ] Open stability PRs (#918, #923) are reviewed, tested, and merged
-- [ ] Theme client/server contract mismatch from Epic 5 is resolved
-- [ ] E2E test flakiness (missing serial execution tags) is resolved
+### Work Done Outside BMAD Tracking
 
-#### Story 7.1: Resolve Open Scraper & Tenant Stability PRs
-As a maintainer, I want to merge the open PRs for tenant release (#918) and Scraper parsing (#923) so that stability issues are fixed in `develop`.
+## Epic 8: Refactoring — Rename `film` to `movie` Across All Layers
 
-#### Story 7.2: Refactor Theme Variables Contract
-As a frontend developer, I want the client and server to use the exact same setting keys and CSS variables for the white-label theme so that theme rendering is not brittle.
+Replace the legacy `film` nomenclature with `movie` across the entire codebase (types, components, routes, DB schema, services, parsers, tests, migrations) to align with the business domain language. This is a pure rename with zero functional changes.
+
+**Definition of Done (applies to ALL stories in this epic):**
+- [ ] All acceptance criteria met (Given/When/Then validated)
+- [ ] All existing unit tests pass without modification (aside from rename)
+- [ ] All integration tests pass
+- [ ] E2E tests pass
+- [ ] TypeScript build succeeds (server + client + scraper + packages/saas)
+- [ ] No residual `film` references remain in business logic code
+- [ ] Database migrations are idempotent (column renames use `IF EXISTS` guards)
+- [ ] Code review completed and approved
+- [ ] CI pipeline green (tests + build + linting)
+
+### Story 8.1: Rename `film` → `movie` in All Code Layers
+
+As a developer,
+I want the codebase to use `movie` instead of `film` everywhere,
+So that the domain language is consistent and aligned with the product terminology.
+
+**Acceptance Criteria:**
+
+**Given** the TypeScript types are defined in `client/src/types/index.ts`, `server/src/types/scraper.ts`, and `scraper/src/types/scraper.ts`  
+**When** I inspect the type definitions  
+**Then** all interfaces use `Movie` instead of `Film` (e.g., `Movie`, `MovieData`, `ScrapeMovieResult`)  
+**And** all property names use `movie_id` instead of `film_id`
+
+**Given** React components exist in `client/src/components/` and `client/src/pages/`  
+**When** I list the component files  
+**Then** files are named `MovieCard.tsx`, `MovieSearchBar.tsx`, `MoviePage.tsx` (not `Film*`)  
+**And** all internal references, props, and hooks use `movie` terminology
+
+**Given** the server API routes are defined in `server/src/routes/`  
+**When** I inspect the route definitions  
+**Then** routes use `/api/movies` instead of `/api/films`  
+**And** the file is named `movies.ts` (not `films.ts`)  
+**And** the service file is named `movie-service.ts` (not `film-service.ts`)  
+**And** the query file is named `movie-queries.ts` (not `film-queries.ts`)
+
+**Given** the client API client is defined in `client/src/api/client.ts`  
+**When** I inspect the API functions  
+**Then** all functions reference `/api/movies` endpoints  
+**And** functions are named with `movie` (e.g., `getMovies`, `getMovieById`)
+
+**Given** the scraper parser exists in `scraper/src/scraper/`  
+**When** I inspect the parser files  
+**Then** the parser is named `movie-parser.ts` (not `film-parser.ts`)  
+**And** the test file is `movie-parser.test.ts`  
+**And** the HTML fixture is `movie-page.html`
+
+**Given** the database schema is defined in migrations and `docker/init.sql`  
+**When** I inspect the column definitions  
+**Then** columns referencing movies use `movie_id` instead of `film_id`  
+**And** migration files are renamed (e.g., `020_add_movie_screenwriters.sql`)  
+**And** existing migrations that reference `film_*` columns are updated for consistency
+
+**Given** the scraper DB queries exist in `scraper/src/db/`  
+**When** I inspect the query files  
+**Then** the file is named `movie-queries.ts` (not `film-queries.ts`)  
+**And** all SQL queries reference `movie_id` columns
+
+**Given** all tests exist across the monorepo  
+**When** I run the test suites (`npm run test:run` in each workspace)  
+**Then** all tests pass with the new `movie` nomenclature  
+**And** no test references residual `film` identifiers (except in test descriptions documenting the rename)
+
+**Given** the rename is complete  
+**When** I search the codebase for `film` (case-insensitive) in business logic files  
+**Then** no residual occurrences remain (excluding comments, test descriptions, and legacy migration files that must retain original column names for idempotency)  
+**And** the application builds and runs identically to before the rename
+
+**Performance & Non-Regression Criteria:**
+
+**Given** the rename is deployed  
+**When** I compare application behavior before and after  
+**Then** all API endpoints return identical data structures (only key names differ)  
+**And** the UI renders identically  
+**And** scraping produces identical results  
+**And** database queries return identical results

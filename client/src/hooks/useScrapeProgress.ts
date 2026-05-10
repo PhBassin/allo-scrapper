@@ -133,10 +133,10 @@ function deriveJobState(id: string, events: ProgressEvent[]): ScrapeJobState {
   const movieProgress = totalMovies > 0 ? (processedMovies / totalMovies) * 100 : 0;
 
   const status: ScrapeJobState['status'] =
-    latestEvent.type === 'completed' && latestEvent.summary.failed_cinemas > 0 ? 'failed'
+    latestEvent.type === 'completed' && latestEvent.summary && latestEvent.summary.failed_cinemas > 0 ? 'failed'
     : latestEvent.type === 'completed' ? 'completed'
     : latestEvent.type === 'failed' ? 'failed'
-    : latestEvent.type === 'started' || latestEvent.type === 'cinema_started' || latestEvent.type === 'cinema_completed' || latestEvent.type === 'cinema_failed' || latestEvent.type === 'date_started' || latestEvent.type === 'date_failed' || latestEvent.type === 'movie_started' || latestEvent.type === 'movie_completed' || latestEvent.type === 'movie_failed' ? 'running'
+    : latestEvent.type === 'started' || latestEvent.type === 'cinema_started' || latestEvent.type === 'cinema_completed' || latestEvent.type === 'cinema_failed' || latestEvent.type === 'date_started' || latestEvent.type === 'date_stale' || latestEvent.type === 'date_completed' || latestEvent.type === 'date_failed' || latestEvent.type === 'movie_started' || latestEvent.type === 'movie_completed' || latestEvent.type === 'movie_failed' ? 'running'
     : 'pending';
 
   return {

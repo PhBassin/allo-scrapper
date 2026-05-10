@@ -593,7 +593,7 @@ describe('Migration System', () => {
       db.query = mockQuery;
 
       vi.mocked(fs.readFile).mockResolvedValue(
-        'ALTER TABLE showtimes ADD CONSTRAINT uq_showtimes_business_key UNIQUE (cinema_id, film_id);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: constraint uq_showtimes_business_key was not created\'; END $$;'
+        'ALTER TABLE showtimes ADD CONSTRAINT uq_showtimes_business_key UNIQUE (cinema_id, movie_id);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: constraint uq_showtimes_business_key was not created\'; END $$;'
       );
 
       await expect(applyMigration(db, '022_verify_fail.sql')).rejects.toThrow(

@@ -37,7 +37,7 @@ const mockSystemInfo = {
     size: '50 MB',
     tables: 10,
     cinemas: 5,
-    films: 100,
+    movies: 100,
     showtimes: 500,
   },
 };

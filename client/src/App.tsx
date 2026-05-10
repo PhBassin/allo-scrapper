@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate, useParams } from 'react-router-dom';
 import { useEffect, useContext, Suspense, lazy, useState, type ReactNode } from 'react';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
@@ -53,6 +53,11 @@ function LoadingScreen() {
       </div>
     </div>
   );
+}
+
+function RedirectFilm() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/movie/${id}`} replace />;
 }
 
 function AppRoutes() {
@@ -112,6 +117,7 @@ function AppRoutes() {
           }
         />
         <Route path="/cinema/:id" element={<CinemaPage />} />
+        <Route path="/film/:id" element={<RedirectFilm />} />
         <Route path="/movie/:id" element={<MoviePage />} />
         <Route
           path="/admin"
@@ -179,6 +185,7 @@ function TenantAppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/cinema/:id" element={<CinemaPage />} />
+        <Route path="/film/:id" element={<RedirectFilm />} />
         <Route path="/movie/:id" element={<MoviePage />} />
         <Route
           path="/change-password"

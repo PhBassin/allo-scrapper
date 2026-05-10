@@ -27,7 +27,7 @@ export interface DatabaseStats {
   size: string;
   tables: number;
   cinemas: number;
-  films: number;
+  movies: number;
   showtimes: number;
 }
 
