@@ -11,7 +11,7 @@ import { AppError } from '../utils/errors.js';
 
 interface ScrapeTriggerOptions {
   cinemaId?: string;
-  filmId?: number;
+  movieId?: number;
 }
 
 interface ScrapeObservabilityContext {
@@ -139,7 +139,7 @@ export class ScraperService {
    * Validates the cinemaId if provided.
    */
   async triggerScrape(options: ScrapeTriggerOptions = {}, context?: ScrapeObservabilityContext) {
-    const { cinemaId, filmId } = options;
+    const { cinemaId, movieId } = options;
 
     // Validate cinemaId exists in database if provided
     if (cinemaId) {
@@ -163,7 +163,7 @@ export class ScraperService {
         triggerType: 'manual',
         options: {
           ...(cinemaId && { cinemaId }),
-          ...(filmId && { filmId }),
+          ...(movieId && { movieId }),
         },
         ...(traceContext && { traceContext }),
       });

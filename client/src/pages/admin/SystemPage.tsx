@@ -263,7 +263,7 @@ const SystemPage: React.FC = () => {
               </div>
               <div>
                 <dt className="text-sm text-gray-600">Films</dt>
-                <dd className="font-medium">{systemInfo.database.films}</dd>
+                <dd className="font-medium">{systemInfo.database.movies}</dd>
               </div>
               <div>
                 <dt className="text-sm text-gray-600">Showtimes</dt>

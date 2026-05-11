@@ -92,7 +92,7 @@ export async function scrapeTheater(
   date: string,
   movieDelayMs: number,
   progress?: ProgressPublisher
-): Promise<{ filmsCount: number; showtimesCount: number }> {
+): Promise<{ moviesCount: number; showtimesCount: number }> {
   const strategy = getStrategyBySource(cinema.source || 'allocine');
   return strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
 }
@@ -146,7 +146,7 @@ export interface ScrapeOptions {
   mode?: ScrapeMode;
   days?: number;
   cinemaId?: string;
-  filmId?: number;
+  movieId?: number;
   reportId?: number;  // For tracking attempts in database
   resumeMode?: boolean;  // Skip already-successful attempts
   pendingAttempts?: Array<{ cinema_id: string; date: string }>;  // For resume mode
@@ -181,7 +181,7 @@ async function processCinema(
     index: index + 1,
   });
 
-  let cinemaFilmsCount = 0;
+  let cinemaMoviesCount = 0;
   let cinemaShowtimesCount = 0;
   let successfulDates = 0;
 
@@ -272,18 +272,18 @@ async function processCinema(
     }
     
     try {
-      const { filmsCount, showtimesCount } = await strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
-      cinemaFilmsCount += filmsCount;
+      const { moviesCount, showtimesCount } = await strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
+      cinemaMoviesCount += moviesCount;
       cinemaShowtimesCount += showtimesCount;
       successfulDates++;
-      logger.info('Date scraped successfully', { date, films: filmsCount, showtimes: showtimesCount });
+      logger.info('Date scraped successfully', { date, movies: moviesCount, showtimes: showtimesCount });
       
       // Update attempt as successful
       if (attemptId) {
         try {
           await updateScrapeAttempt(db, attemptId, {
             status: 'success',
-            films_scraped: filmsCount,
+            movies_scraped: moviesCount,
             showtimes_scraped: showtimesCount,
           });
         } catch (error) {
@@ -398,18 +398,18 @@ async function processCinema(
     cinema: cinema.name,
     successfulDates,
     totalDates: finalDatesToScrape.length,
-    films: cinemaFilmsCount,
+    movies: cinemaMoviesCount,
     showtimes: cinemaShowtimesCount,
   });
 
   if (!cinemaFailed) {
     summary.successful_cinemas++;
-    summary.total_films += cinemaFilmsCount;
+    summary.total_movies += cinemaMoviesCount;
     summary.total_showtimes += cinemaShowtimesCount;
     await progress?.emit({
       type: 'cinema_completed',
       cinema_name: cinema.name,
-      total_films: cinemaFilmsCount,
+      total_movies: cinemaMoviesCount,
     });
   } else {
     summary.failed_cinemas++;
@@ -435,7 +435,7 @@ export async function runScraper(
     total_cinemas: 0,
     successful_cinemas: 0,
     failed_cinemas: 0,
-    total_films: 0,
+    total_movies: 0,
     total_showtimes: 0,
     total_dates: 0,
     duration_ms: 0,

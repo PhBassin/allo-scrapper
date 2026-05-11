@@ -1,4 +1,4 @@
-// HTTP client for fetching cinema and film pages from source website
+// HTTP client for fetching cinema and movie pages from source website
 
 import puppeteer, { type Browser } from 'puppeteer-core';
 import { existsSync, readdirSync } from 'node:fs';
@@ -156,12 +156,12 @@ function validateDate(date: string): void {
 }
 
 /**
- * Validates film ID format (must be a positive integer)
+ * Validates movie ID format (must be a positive integer)
  * @throws {Error} if format is invalid
  */
-function validateFilmId(filmId: number): void {
-  if (!Number.isInteger(filmId) || filmId <= 0) {
-    throw new Error(`Invalid film ID: ${filmId}`);
+function validateMovieId(movieId: number): void {
+  if (!Number.isInteger(movieId) || movieId <= 0) {
+    throw new Error(`Invalid movie ID: ${movieId}`);
   }
 }
 
@@ -324,18 +324,18 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
   return response.json();
 }
 
-export async function fetchFilmPage(filmId: number): Promise<string> {
+export async function fetchMoviePage(movieId: number): Promise<string> {
   // Validate input before using in URL to prevent SSRF
-  validateFilmId(filmId);
+  validateMovieId(movieId);
 
   // Construct URL via URL object and re-validate hostname (SSRF guard).
-  const constructed = new URL(`/film/fichefilm_gen_cfilm=${filmId}.html`, ALLOCINE_BASE_URL);
+  const constructed = new URL(`/film/fichefilm_gen_cfilm=${movieId}.html`, ALLOCINE_BASE_URL);
   if (constructed.hostname !== 'www.allocine.fr' || constructed.protocol !== 'https:') {
     throw new Error(`SSRF guard: unexpected host in constructed URL ${constructed.href}`);
   }
   const url = constructed.href;
 
-  logger.info('Fetching film page', { url });
+  logger.info('Fetching movie page', { url });
 
   return circuitBreaker.execute(async () => {
     const response = await fetchWithRetry(url, {

@@ -1,16 +1,16 @@
 import { useState, useContext, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import { getWeeklyFilms, getFilmsByDate, getCinemas, addCinema } from '../api/client';
-import FilmCard from '../components/FilmCard';
+import { getWeeklyMovies, getMoviesByDate, getCinemas, addCinema } from '../api/client';
+import MovieCard from '../components/MovieCard';
 import DaySelector from '../components/DaySelector';
-import FilmSearchBar from '../components/FilmSearchBar';
+import MovieSearchBar from '../components/MovieSearchBar';
 import ScrollToTop from '../components/ScrollToTop';
 import { AuthContext } from '../contexts/AuthContext';
 import CinemasQuickLinks from '../components/CinemasQuickLinks';
-import type { FilmWithShowtimes } from '../types';
+import type { MovieWithShowtimes } from '../types';
 
-const EMPTY_ARRAY: FilmWithShowtimes[] = [];
+const EMPTY_ARRAY: MovieWithShowtimes[] = [];
 
 export default function HomePage() {
   const queryClient = useQueryClient();
@@ -25,26 +25,26 @@ export default function HomePage() {
     queryFn: getCinemas,
   });
 
-  const { data: filmsData, isLoading: isLoadingFilms, error: filmsError } = useQuery({
-    queryKey: ['films', selectedDate],
-    queryFn: () => selectedDate ? getFilmsByDate(selectedDate) : getWeeklyFilms(),
+  const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
+    queryKey: ['movies', selectedDate],
+    queryFn: () => selectedDate ? getMoviesByDate(selectedDate) : getWeeklyMovies(),
   });
 
   // ⚡ PERFORMANCE: Memoize to avoid expensive O(N*M) nested filtering on every render.
-  // Depends on filmsData (stable React Query reference) rather than derived allFilms to
-  // prevent the memo from recomputing on every render when filmsData.films is a new array.
-  const films = useMemo((): FilmWithShowtimes[] => {
-    const allFilms = filmsData?.films ?? EMPTY_ARRAY;
+  // Depends on moviesData (stable React Query reference) rather than derived allMovies to
+  // prevent the memo from recomputing on every render when moviesData.movies is a new array.
+  const movies = useMemo((): MovieWithShowtimes[] => {
+    const allMovies = moviesData?.movies ?? EMPTY_ARRAY;
     return afterTime
-      ? allFilms.filter(film =>
-          film.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
+      ? allMovies.filter(movie =>
+          movie.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
         )
-      : allFilms;
-  }, [filmsData, afterTime]);
-  const weekStart = filmsData?.weekStart || '';
+      : allMovies;
+  }, [moviesData, afterTime]);
+  const weekStart = moviesData?.weekStart || '';
 
-  const isLoading = isLoadingCinemas || isLoadingFilms;
-  const error = filmsError instanceof Error ? filmsError.message : null;
+  const isLoading = isLoadingCinemas || isLoadingMovies;
+  const error = moviesError instanceof Error ? moviesError.message : null;
 
   const handleDateSelect = useCallback((date: string | null) => {
     setSelectedDate(date || '');
@@ -80,7 +80,7 @@ export default function HomePage() {
     mutationFn: addCinema,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cinemas', slug ?? null] });
-      queryClient.invalidateQueries({ queryKey: ['films', selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ['movies', selectedDate] });
     },
     onError: (err: Error) => {
       alert(err.message || 'Erreur lors de l\'ajout du cinéma');
@@ -141,7 +141,7 @@ export default function HomePage() {
       >
         {/* Search + Day Selector — single row */}
         <div className="flex items-center gap-3">
-          <FilmSearchBar
+          <MovieSearchBar
             placeholder="Rechercher un film..."
             className="w-40 sm:w-52 flex-shrink-0"
           />
@@ -166,11 +166,11 @@ export default function HomePage() {
         onAddCinema={handleAddCinema}
       />
 
-      {/* Films List */}
+      {/* Movies List */}
       <div className="space-y-6">
-        {films.length > 0 ? (
-          films.map((film) => (
-            <FilmCard key={film.id} film={film} initialAfterTime={afterTime} />
+        {movies.length > 0 ? (
+          movies.map((movie) => (
+            <MovieCard key={movie.id} movie={movie} initialAfterTime={afterTime} />
           ))
         ) : (
           <div className="bg-gray-50 rounded-2xl p-12 text-center border-2 border-dashed border-gray-200">

@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { parseFilmPage } from '../../../src/scraper/film-parser.js';
+import { parseMoviePage } from '../../../src/scraper/movie-parser.js';
 import { ParserStructureError } from '../../../src/utils/parser-errors.js';
 import {
-  validateFilmPageStructure,
+  validateMoviePageStructure,
   validateParserSelectors,
   validateTheaterPageStructure,
 } from '../../../src/scraper/parser-health-check.js';
@@ -13,10 +13,10 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-describe('parseFilmPage structure validation', () => {
+describe('parseMoviePage structure validation', () => {
   it('should throw ParserStructureError when .meta-body-info is missing', () => {
     const html = '<html><body><h1>Film page without metadata</h1></body></html>';
-    expect(() => parseFilmPage(html)).toThrow(ParserStructureError);
+    expect(() => parseMoviePage(html)).toThrow(ParserStructureError);
   });
 });
 
@@ -47,9 +47,9 @@ describe('validateParserSelectors health check', () => {
   });
 
   it('validates film structure against a real fixture', () => {
-    const fixturePath = join(__dirname, '../../fixtures/film-page.html');
+    const fixturePath = join(__dirname, '../../fixtures/movie-page.html');
     const html = readFileSync(fixturePath, 'utf-8');
-    const result = validateFilmPageStructure(html);
+    const result = validateMoviePageStructure(html);
 
     expect(result.valid).toBe(true);
     expect(result.missingSelectors).toEqual([]);

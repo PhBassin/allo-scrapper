@@ -9,8 +9,8 @@ import * as clientApi from '../api/client';
 
 // Mock API
 vi.mock('../api/client', () => ({
-  getWeeklyFilms: vi.fn(),
-  getFilmsByDate: vi.fn(),
+  getWeeklyMovies: vi.fn(),
+  getMoviesByDate: vi.fn(),
   getCinemas: vi.fn(),
   getCinemaSchedule: vi.fn(),
   addCinema: vi.fn(),
@@ -66,7 +66,7 @@ const renderWithProviders = (ui: React.ReactElement) => {
 describe('Sticky Elements Stickiness', () => {
   it('HomePage search/date container should be sticky with offset', async () => {
     (clientApi.getCinemas as any).mockResolvedValue([]);
-    (clientApi.getWeeklyFilms as any).mockResolvedValue({ films: [], weekStart: '2024-01-01' });
+    (clientApi.getWeeklyMovies as any).mockResolvedValue({ movies: [], weekStart: '2024-01-01' });
 
     renderWithProviders(<HomePage />);
 

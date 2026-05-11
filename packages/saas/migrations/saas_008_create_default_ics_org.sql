@@ -143,7 +143,7 @@ BEGIN
   VALUES (1, 'Independent Cinema Showtimes')
   ON CONFLICT (id) DO NOTHING;
 
-  -- Core data tables (cinemas, films, showtimes, etc.)
+  -- Core data tables (cinemas, movies, showtimes, etc.)
 
   -- Cinemas table
   CREATE TABLE IF NOT EXISTS org_ics.cinemas (
@@ -158,8 +158,8 @@ BEGIN
     source TEXT DEFAULT 'allocine'
   );
 
-  -- Films table
-  CREATE TABLE IF NOT EXISTS org_ics.films (
+  -- Movies table
+  CREATE TABLE IF NOT EXISTS org_ics.movies (
     id INTEGER PRIMARY KEY,
     title TEXT NOT NULL,
     original_title TEXT,
@@ -180,13 +180,13 @@ BEGIN
     trailer_url TEXT
   );
 
-  -- Index for films title (trigram similarity for fuzzy search)
-  CREATE INDEX IF NOT EXISTS idx_films_title_trgm ON org_ics.films USING gin(title gin_trgm_ops);
+  -- Index for movies title (trigram similarity for fuzzy search)
+  CREATE INDEX IF NOT EXISTS idx_movies_title_trgm ON org_ics.movies USING gin(title gin_trgm_ops);
 
   -- Showtimes table
   CREATE TABLE IF NOT EXISTS org_ics.showtimes (
     id TEXT PRIMARY KEY,
-    film_id INTEGER NOT NULL,
+    movie_id INTEGER NOT NULL,
     cinema_id TEXT NOT NULL,
     date TEXT NOT NULL,
     time TEXT NOT NULL,
@@ -195,32 +195,32 @@ BEGIN
     format TEXT,
     experiences TEXT,
     week_start TEXT NOT NULL,
-    FOREIGN KEY (film_id) REFERENCES org_ics.films(id),
+    FOREIGN KEY (movie_id) REFERENCES org_ics.movies(id),
     FOREIGN KEY (cinema_id) REFERENCES org_ics.cinemas(id) ON DELETE CASCADE
   );
 
   -- Indexes for showtimes
   CREATE INDEX IF NOT EXISTS idx_showtimes_cinema_date ON org_ics.showtimes(cinema_id, date);
-  CREATE INDEX IF NOT EXISTS idx_showtimes_film_date ON org_ics.showtimes(film_id, date);
+  CREATE INDEX IF NOT EXISTS idx_showtimes_movie_date ON org_ics.showtimes(movie_id, date);
   CREATE INDEX IF NOT EXISTS idx_showtimes_week ON org_ics.showtimes(week_start);
 
   -- Weekly programs table
   CREATE TABLE IF NOT EXISTS org_ics.weekly_programs (
     id SERIAL PRIMARY KEY,
     cinema_id TEXT NOT NULL,
-    film_id INTEGER NOT NULL,
-    film_name TEXT,
+    movie_id INTEGER NOT NULL,
+    movie_name TEXT,
     week_start TEXT NOT NULL,
     is_new_this_week INTEGER NOT NULL DEFAULT 0,
     scraped_at TEXT NOT NULL,
     FOREIGN KEY (cinema_id) REFERENCES org_ics.cinemas(id) ON DELETE CASCADE,
-    FOREIGN KEY (film_id) REFERENCES org_ics.films(id),
-    UNIQUE(cinema_id, film_id, week_start)
+    FOREIGN KEY (movie_id) REFERENCES org_ics.movies(id),
+    UNIQUE(cinema_id, movie_id, week_start)
   );
 
   -- Index for weekly_programs
   CREATE INDEX IF NOT EXISTS idx_weekly_programs_week ON org_ics.weekly_programs(week_start);
-  CREATE INDEX IF NOT EXISTS idx_weekly_programs_film_name ON org_ics.weekly_programs USING gin(film_name gin_trgm_ops);
+  CREATE INDEX IF NOT EXISTS idx_weekly_programs_movie_name ON org_ics.weekly_programs USING gin(movie_name gin_trgm_ops);
 
   -- Scrape reports table
   CREATE TABLE IF NOT EXISTS org_ics.scrape_reports (
@@ -233,7 +233,7 @@ BEGIN
     total_cinemas INTEGER,
     successful_cinemas INTEGER,
     failed_cinemas INTEGER,
-    total_films_scraped INTEGER,
+    total_movies_scraped INTEGER,
     total_showtimes_scraped INTEGER,
     errors JSONB,
     progress_log JSONB
@@ -264,33 +264,33 @@ BEGIN
     RAISE NOTICE 'Table public.cinemas does not exist, skipping migration';
   END IF;
 
-  -- Migrate films
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'films') THEN
-    SELECT COUNT(*) INTO source_count FROM public.films;
+  -- Migrate movies
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'movies') THEN
+    SELECT COUNT(*) INTO source_count FROM public.movies;
     
-    INSERT INTO org_ics.films (id, title, original_title, poster_url, duration_minutes, release_date, 
+    INSERT INTO org_ics.movies (id, title, original_title, poster_url, duration_minutes, release_date, 
                                 rerelease_date, genres, nationality, director, screenwriters, actors, 
                                 synopsis, certificate, press_rating, audience_rating, source_url, trailer_url)
     SELECT id, title, original_title, poster_url, duration_minutes, release_date,
            rerelease_date, genres, nationality, director, screenwriters, actors,
            synopsis, certificate, press_rating, audience_rating, source_url, trailer_url
-    FROM public.films
+    FROM public.movies
     ON CONFLICT (id) DO NOTHING;
     
-    SELECT COUNT(*) INTO target_count FROM org_ics.films;
-    RAISE NOTICE 'Migrated films: % source rows, % rows now in target', source_count, target_count;
+    SELECT COUNT(*) INTO target_count FROM org_ics.movies;
+    RAISE NOTICE 'Migrated movies: % source rows, % rows now in target', source_count, target_count;
   ELSE
-    RAISE NOTICE 'Table public.films does not exist, skipping migration';
+    RAISE NOTICE 'Table public.movies does not exist, skipping migration';
   END IF;
 
   -- Migrate showtimes (P7 fix - filter orphaned FK references)
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'showtimes') THEN
     SELECT COUNT(*) INTO source_count FROM public.showtimes;
     
-    INSERT INTO org_ics.showtimes (id, film_id, cinema_id, date, time, datetime_iso, version, format, experiences, week_start)
-    SELECT s.id, s.film_id, s.cinema_id, s.date, s.time, s.datetime_iso, s.version, s.format, s.experiences, s.week_start
+    INSERT INTO org_ics.showtimes (id, movie_id, cinema_id, date, time, datetime_iso, version, format, experiences, week_start)
+    SELECT s.id, s.movie_id, s.cinema_id, s.date, s.time, s.datetime_iso, s.version, s.format, s.experiences, s.week_start
     FROM public.showtimes s
-    INNER JOIN org_ics.films f ON s.film_id = f.id
+    INNER JOIN org_ics.movies f ON s.movie_id = f.id
     INNER JOIN org_ics.cinemas c ON s.cinema_id = c.id
     ON CONFLICT (id) DO NOTHING;
     
@@ -300,7 +300,7 @@ BEGIN
     -- Log orphaned rows
     SELECT COUNT(*) INTO source_count
     FROM public.showtimes s
-    WHERE NOT EXISTS (SELECT 1 FROM public.films WHERE id = s.film_id)
+    WHERE NOT EXISTS (SELECT 1 FROM public.movies WHERE id = s.movie_id)
        OR NOT EXISTS (SELECT 1 FROM public.cinemas WHERE id = s.cinema_id);
     
     IF source_count > 0 THEN
@@ -310,15 +310,15 @@ BEGIN
     RAISE NOTICE 'Table public.showtimes does not exist, skipping migration';
   END IF;
 
-  -- Migrate weekly_programs (P8 fix - populate film_name)
+  -- Migrate weekly_programs (P8 fix - populate movie_name)
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'weekly_programs') THEN
     SELECT COUNT(*) INTO source_count FROM public.weekly_programs;
     
-    INSERT INTO org_ics.weekly_programs (cinema_id, film_id, film_name, week_start, is_new_this_week, scraped_at)
-    SELECT wp.cinema_id, wp.film_id, f.title, wp.week_start, wp.is_new_this_week, wp.scraped_at
+    INSERT INTO org_ics.weekly_programs (cinema_id, movie_id, movie_name, week_start, is_new_this_week, scraped_at)
+    SELECT wp.cinema_id, wp.movie_id, f.title, wp.week_start, wp.is_new_this_week, wp.scraped_at
     FROM public.weekly_programs wp
-    LEFT JOIN public.films f ON wp.film_id = f.id
-    ON CONFLICT (cinema_id, film_id, week_start) DO NOTHING;
+    LEFT JOIN public.movies f ON wp.movie_id = f.id
+    ON CONFLICT (cinema_id, movie_id, week_start) DO NOTHING;
     
     SELECT COUNT(*) INTO target_count FROM org_ics.weekly_programs;
     RAISE NOTICE 'Migrated weekly_programs: % source rows, % rows now in target', source_count, target_count;
@@ -341,19 +341,19 @@ BEGIN
     IF has_scraper_name THEN
       INSERT INTO org_ics.scrape_reports (id, scraper_name, started_at, completed_at, status, trigger_type, 
                                           total_cinemas, successful_cinemas, failed_cinemas, 
-                                          total_films_scraped, total_showtimes_scraped, errors, progress_log)
+                                          total_movies_scraped, total_showtimes_scraped, errors, progress_log)
       SELECT id, scraper_name, started_at, completed_at, status, trigger_type,
              total_cinemas, successful_cinemas, failed_cinemas,
-             total_films_scraped, total_showtimes_scraped, errors, progress_log
+             total_movies_scraped, total_showtimes_scraped, errors, progress_log
       FROM public.scrape_reports
       ON CONFLICT (id) DO NOTHING;
     ELSE
       INSERT INTO org_ics.scrape_reports (id, started_at, completed_at, status, trigger_type, 
                                           total_cinemas, successful_cinemas, failed_cinemas, 
-                                          total_films_scraped, total_showtimes_scraped, errors, progress_log)
+                                          total_movies_scraped, total_showtimes_scraped, errors, progress_log)
       SELECT id, started_at, completed_at, status, trigger_type,
              total_cinemas, successful_cinemas, failed_cinemas,
-             total_films_scraped, total_showtimes_scraped, errors, progress_log
+             total_movies_scraped, total_showtimes_scraped, errors, progress_log
       FROM public.scrape_reports
       ON CONFLICT (id) DO NOTHING;
     END IF;

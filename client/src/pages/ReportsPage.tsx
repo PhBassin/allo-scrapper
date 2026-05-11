@@ -186,13 +186,13 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {selectedReport.total_films_scraped !== undefined && (
+          {selectedReport.total_movies_scraped !== undefined && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-sm text-gray-600 mb-2">Statistiques</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-xs text-gray-500">Films</p>
-                  <p className="text-xl font-bold text-primary">{selectedReport.total_films_scraped}</p>
+                  <p className="text-xl font-bold text-primary">{selectedReport.total_movies_scraped}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Séances</p>
@@ -285,7 +285,7 @@ export default function ReportsPage() {
                           <p className="font-semibold">{attempt.date}</p>
                           <p className="mt-1">{attempt.status}</p>
                           {attempt.status === 'success' && (
-                            <p className="mt-1">{attempt.films_scraped} films, {attempt.showtimes_scraped} séances</p>
+                            <p className="mt-1">{attempt.movies_scraped} films, {attempt.showtimes_scraped} séances</p>
                           )}
                         </div>
                       );
@@ -377,11 +377,11 @@ export default function ReportsPage() {
                         {report.successful_cinemas}/{report.total_cinemas}
                       </p>
                     </div>
-                    {report.total_films_scraped !== undefined && (
+                    {report.total_movies_scraped !== undefined && (
                       <>
                         <div>
                           <p className="text-gray-500">Films</p>
-                          <p className="font-bold text-primary">{report.total_films_scraped}</p>
+                          <p className="font-bold text-primary">{report.total_movies_scraped}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Séances</p>

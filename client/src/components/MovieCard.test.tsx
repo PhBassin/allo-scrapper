@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect } from 'vitest';
-import FilmCard from './FilmCard';
-import type { FilmWithShowtimes } from '../types';
+import MovieCard from './MovieCard';
+import type { MovieWithShowtimes } from '../types';
 
-const mockFilm: FilmWithShowtimes = {
+const mockMovie: MovieWithShowtimes = {
   id: 1,
   title: 'Test Movie',
   original_title: 'Original Movie',
@@ -22,18 +22,18 @@ const mockFilm: FilmWithShowtimes = {
   source_url: 'http://example.com/movie'
 };
 
-describe('FilmCard', () => {
-  const renderFilmCard = () =>
+describe('MovieCard', () => {
+  const renderMovieCard = () =>
     render(
       <MemoryRouter>
-        <FilmCard film={mockFilm} />
+        <MovieCard movie={mockMovie} />
       </MemoryRouter>
     );
 
-  it('should not have duplicate redundant tab stops for the same film destination', () => {
-    renderFilmCard();
+  it('should not have duplicate redundant tab stops for the same movie destination', () => {
+    renderMovieCard();
     
-    const moviePath = `/film/${mockFilm.id}`;
+    const moviePath = `/movie/${mockMovie.id}`;
     const allLinks = screen.getAllByRole('link');
     
     // Only one link should be reachable/discoverable by default role if we hide the second one
@@ -44,17 +44,17 @@ describe('FilmCard', () => {
     );
     
     expect(interactiveLinks).toHaveLength(1);
-    expect(interactiveLinks[0]).toHaveTextContent(mockFilm.title);
+    expect(interactiveLinks[0]).toHaveTextContent(mockMovie.title);
   });
 
   it('should have a descriptive aria-label for the "Fiche complète" link if it is not hidden', () => {
-    renderFilmCard();
+    renderMovieCard();
     
     // If we keep the link, it must be descriptive
     const detailLink = screen.queryByRole('link', { name: /fiche complète/i });
     
     if (detailLink && detailLink.getAttribute('aria-hidden') !== 'true') {
-        expect(detailLink).toHaveAttribute('aria-label', `Voir la fiche complète de ${mockFilm.title}`);
+        expect(detailLink).toHaveAttribute('aria-label', `Voir la fiche complète de ${mockMovie.title}`);
     }
   });
 });

@@ -9,7 +9,7 @@ export interface ScrapeAttempt {
   error_type?: string | null;
   error_message?: string | null;
   http_status_code?: number | null;
-  films_scraped: number;
+  movies_scraped: number;
   showtimes_scraped: number;
   attempted_at: string;
 }
@@ -26,7 +26,7 @@ export interface UpdateScrapeAttemptInput {
   error_type?: string;
   error_message?: string;
   http_status_code?: number;
-  films_scraped?: number;
+  movies_scraped?: number;
   showtimes_scraped?: number;
 }
 
@@ -72,9 +72,9 @@ export async function updateScrapeAttempt(
     fields.push(`http_status_code = $${paramIndex++}`);
     values.push(data.http_status_code);
   }
-  if (data.films_scraped !== undefined) {
-    fields.push(`films_scraped = $${paramIndex++}`);
-    values.push(data.films_scraped);
+  if (data.movies_scraped !== undefined) {
+    fields.push(`movies_scraped = $${paramIndex++}`);
+    values.push(data.movies_scraped);
   }
   if (data.showtimes_scraped !== undefined) {
     fields.push(`showtimes_scraped = $${paramIndex++}`);

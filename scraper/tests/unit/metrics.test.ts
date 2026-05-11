@@ -31,9 +31,9 @@ describe('metrics', () => {
     expect(() => scrapeDurationSeconds.observe({ cinema: 'test' }, 1.5)).not.toThrow();
   });
 
-  it('filmsScrapedTotal.inc does not throw', async () => {
-    const { filmsScrapedTotal } = await import('../../src/utils/metrics.js');
-    expect(() => filmsScrapedTotal.inc({ cinema: 'test' }, 5)).not.toThrow();
+  it('moviesScrapedTotal.inc does not throw', async () => {
+    const { moviesScrapedTotal } = await import('../../src/utils/metrics.js');
+    expect(() => moviesScrapedTotal.inc({ cinema: 'test' }, 5)).not.toThrow();
   });
 
   it('showtimesScrapedTotal.inc does not throw', async () => {

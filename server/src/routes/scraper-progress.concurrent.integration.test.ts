@@ -433,7 +433,7 @@ describe('Story 3.4 — SSE Concurrent Client Load Test (50+ clients)', () => {
       const sequence: ProgressEvent[] = [
         { type: 'started', total_cinemas: 1, total_dates: 1, report_id: 9002 },
         { type: 'cinema_started', cinema_name: 'Test Cinema', cinema_id: 'c1', index: 0, report_id: 9002 },
-        { type: 'completed', summary: { total_cinemas: 1, successful_cinemas: 1, failed_cinemas: 0, total_films: 0, total_showtimes: 0, total_dates: 1, duration_ms: 100, errors: [] }, report_id: 9002 },
+        { type: 'completed', summary: { total_cinemas: 1, successful_cinemas: 1, failed_cinemas: 0, total_movies: 0, total_showtimes: 0, total_dates: 1, duration_ms: 100, errors: [] }, report_id: 9002 },
       ];
 
       for (const ev of sequence) {

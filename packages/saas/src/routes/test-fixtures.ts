@@ -124,18 +124,18 @@ async function seedTenantData(
       );
     }
 
-    const films = [
+    const movies = [
       { id: buildFixtureFilmId(slug, 1), title: `Fixture Film A (${slug})` },
       { id: buildFixtureFilmId(slug, 2), title: `Fixture Film B (${slug})` },
       { id: buildFixtureFilmId(slug, 3), title: `Fixture Film C (${slug})` },
     ];
 
-    for (const film of films) {
+    for (const movie of movies) {
       await client.query(
-        `INSERT INTO films (id, title, source_url)
+        `INSERT INTO movies (id, title, source_url)
          VALUES ($1, $2, $3)
          ON CONFLICT (id) DO NOTHING`,
-        [film.id, film.title, `https://example.test/film/${slug}/${film.id}`]
+        [movie.id, movie.title, `https://example.test/film/${slug}/${movie.id}`]
       );
     }
 
@@ -147,17 +147,17 @@ async function seedTenantData(
     ];
 
     for (let i = 0; i < showtimeSlots.length; i += 1) {
-      const film = films[i % films.length];
+      const movie = movies[i % movies.length];
       const cinema = cinemas[i % cinemas.length];
       const time = showtimeSlots[i];
       const id = buildFixtureShowtimeId(slug, i + 1);
       const date = weekDates[i % weekDates.length] as string;
 
       await client.query(
-        `INSERT INTO showtimes (id, film_id, cinema_id, date, time, datetime_iso, week_start)
+        `INSERT INTO showtimes (id, movie_id, cinema_id, date, time, datetime_iso, week_start)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (id) DO NOTHING`,
-        [id, film.id, cinema.id, date, time, `${date}T${time}:00.000Z`, weekStart]
+        [id, movie.id, cinema.id, date, time, `${date}T${time}:00.000Z`, weekStart]
       );
     }
 

@@ -47,81 +47,88 @@ function ContextConsumer() {
   );
 }
 
+// Render AuthProvider and wait for the async /api/auth/me fetch to complete
+async function renderProvider(ui: React.ReactNode) {
+  let result: ReturnType<typeof render>;
+  await act(async () => {
+    result = render(<AuthProvider>{ui}</AuthProvider>);
+  });
+  return result!;
+}
+
 describe('AuthContext', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    // AuthProvider fetches /api/auth/me on mount. Default: unauthenticated (ok: false).
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('Initial state', () => {
-    it('should be unauthenticated by default', () => {
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
+    it('should be unauthenticated by default', async () => {
+      await renderProvider(<ContextConsumer />);
 
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
       expect(screen.getByTestId('isAdmin').textContent).toBe('false');
     });
 
-    it('should treat expired token as unauthenticated', () => {
-      const expired = createTokenWithExp(Math.floor(Date.now() / 1000) - 60);
-      localStorage.setItem('token', expired);
-      localStorage.setItem('user', JSON.stringify(adminUser));
+    it('should restore session when /api/auth/me returns a valid user', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true, data: operatorUser }),
+      });
 
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
-
-      expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
-      expect(localStorage.getItem('token')).toBeNull();
-      expect(localStorage.getItem('user')).toBeNull();
-    });
-
-    it('should keep valid token authenticated', () => {
-      const valid = createTokenWithExp(Math.floor(Date.now() / 1000) + 3600);
-      localStorage.setItem('token', valid);
-      localStorage.setItem('user', JSON.stringify(operatorUser));
-
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
+      await renderProvider(<ContextConsumer />);
 
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
       expect(screen.getByTestId('username').textContent).toBe('operator');
     });
 
-    it('should treat malformed token as unauthenticated', () => {
-      localStorage.setItem('token', 'not-a-jwt');
-      localStorage.setItem('user', JSON.stringify(adminUser));
+    it('should treat malformed /api/auth/me response as unauthenticated', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: false }),
+      });
 
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
+      await renderProvider(<ContextConsumer />);
 
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
-      expect(localStorage.getItem('token')).toBeNull();
-      expect(localStorage.getItem('user')).toBeNull();
+    });
+
+    it('should stay unauthenticated when /api/auth/me throws', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('network error'));
+
+      await renderProvider(<ContextConsumer />);
+
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
     });
   });
 
   describe('User interface', () => {
-    it('should expose role_id and role_name on the User type', () => {
-      localStorage.setItem('token', createValidToken());
-      localStorage.setItem('user', JSON.stringify(operatorUser));
+    it('should expose role_id and role_name on the User type', async () => {
+      function LoginButton() {
+        const { login } = useContext(AuthContext);
+        return (
+          <button onClick={() => login(createValidToken(), operatorUser)}>Login</button>
+        );
+      }
 
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <ContextConsumer />
+            <LoginButton />
+          </AuthProvider>
+        );
+      });
+
+      await act(async () => {
+        screen.getByRole('button', { name: 'Login' }).click();
+      });
 
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
       expect(screen.getByTestId('username').textContent).toBe('operator');
@@ -130,33 +137,37 @@ describe('AuthContext', () => {
   });
 
   describe('isAdmin', () => {
-    it('should be true when role_name is admin AND is_system_role is true', () => {
-      localStorage.setItem('token', createValidToken());
-      localStorage.setItem('user', JSON.stringify(adminUser));
+    async function renderWithLogin(user: User) {
+      function LoginButton() {
+        const { login } = useContext(AuthContext);
+        return (
+          <button onClick={() => login(createValidToken(), user)}>Login</button>
+        );
+      }
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <ContextConsumer />
+            <LoginButton />
+          </AuthProvider>
+        );
+      });
+      await act(async () => {
+        screen.getByRole('button', { name: 'Login' }).click();
+      });
+    }
 
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
-
+    it('should be true when role_name is admin AND is_system_role is true', async () => {
+      await renderWithLogin(adminUser);
       expect(screen.getByTestId('isAdmin').textContent).toBe('true');
     });
 
-    it('should be false when role_name is not admin', () => {
-      localStorage.setItem('token', createValidToken());
-      localStorage.setItem('user', JSON.stringify(operatorUser));
-
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
-
+    it('should be false when role_name is not admin', async () => {
+      await renderWithLogin(operatorUser);
       expect(screen.getByTestId('isAdmin').textContent).toBe('false');
     });
 
-    it('should be false when role_name is admin but is_system_role is false', () => {
+    it('should be false when role_name is admin but is_system_role is false', async () => {
       const fakeAdmin: User = {
         id: 99,
         username: 'fakeadmin',
@@ -165,68 +176,50 @@ describe('AuthContext', () => {
         is_system_role: false,
         permissions: ['cinemas:create'],
       };
-      localStorage.setItem('token', createValidToken());
-      localStorage.setItem('user', JSON.stringify(fakeAdmin));
-
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
-
+      await renderWithLogin(fakeAdmin);
       expect(screen.getByTestId('isAdmin').textContent).toBe('false');
     });
   });
 
   describe('hasPermission', () => {
-    it('should return true for admin regardless of permission string', () => {
-      localStorage.setItem('token', createValidToken());
-      localStorage.setItem('user', JSON.stringify(adminUser));
+    async function renderWithLogin(user: User) {
+      function LoginButton() {
+        const { login } = useContext(AuthContext);
+        return (
+          <button onClick={() => login(createValidToken(), user)}>Login</button>
+        );
+      }
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <ContextConsumer />
+            <LoginButton />
+          </AuthProvider>
+        );
+      });
+      await act(async () => {
+        screen.getByRole('button', { name: 'Login' }).click();
+      });
+    }
 
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
-
-      // scraper:trigger is in admin permissions list, but even users:delete is bypassed for admin
+    it('should return true for admin regardless of permission string', async () => {
+      await renderWithLogin(adminUser);
       expect(screen.getByTestId('perm-scraper').textContent).toBe('true');
       expect(screen.getByTestId('perm-users-delete').textContent).toBe('true');
     });
 
-    it('should return true when permission is in user permissions list', () => {
-      localStorage.setItem('token', createValidToken());
-      localStorage.setItem('user', JSON.stringify(operatorUser));
-
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
-
+    it('should return true when permission is in user permissions list', async () => {
+      await renderWithLogin(operatorUser);
       expect(screen.getByTestId('perm-scraper').textContent).toBe('true');
     });
 
-    it('should return false when permission is not in user permissions list', () => {
-      localStorage.setItem('token', createValidToken());
-      localStorage.setItem('user', JSON.stringify(operatorUser));
-
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
-
+    it('should return false when permission is not in user permissions list', async () => {
+      await renderWithLogin(operatorUser);
       expect(screen.getByTestId('perm-users-delete').textContent).toBe('false');
     });
 
-    it('should return false when user is not authenticated', () => {
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
-
+    it('should return false when user is not authenticated', async () => {
+      await renderProvider(<ContextConsumer />);
       expect(screen.getByTestId('perm-scraper').textContent).toBe('false');
     });
   });
@@ -237,18 +230,20 @@ describe('AuthContext', () => {
       return (
         <div>
           <span data-testid="auth">{String(ctx.isAuthenticated)}</span>
-          <button onClick={() => ctx.login('tok', adminUser)}>Login</button>
+          <button onClick={() => ctx.login(createValidToken(), adminUser)}>Login</button>
           <button onClick={() => ctx.logout()}>Logout</button>
         </div>
       );
     }
 
     it('should authenticate after login', async () => {
-      render(
-        <AuthProvider>
-          <LoginLogout />
-        </AuthProvider>
-      );
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <LoginLogout />
+          </AuthProvider>
+        );
+      });
 
       expect(screen.getByTestId('auth').textContent).toBe('false');
 
@@ -260,14 +255,21 @@ describe('AuthContext', () => {
     });
 
     it('should clear auth after logout', async () => {
-      localStorage.setItem('token', createValidToken());
-      localStorage.setItem('user', JSON.stringify(adminUser));
+      // Mock /api/auth/me returning adminUser so we start authenticated
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, data: adminUser }),
+        })
+        .mockResolvedValue({ ok: false }); // logout call
 
-      render(
-        <AuthProvider>
-          <LoginLogout />
-        </AuthProvider>
-      );
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <LoginLogout />
+          </AuthProvider>
+        );
+      });
 
       expect(screen.getByTestId('auth').textContent).toBe('true');
 
@@ -288,135 +290,136 @@ describe('AuthContext', () => {
       vi.useRealTimers();
     });
 
-    it('should auto-logout when token expires without page refresh', () => {
-      // Create a token that expires in 2 seconds
+    it('should auto-logout when token expires without page refresh', async () => {
       const expireInTwoSeconds = Math.floor(Date.now() / 1000) + 2;
       const shortLivedToken = createTokenWithExp(expireInTwoSeconds);
-      
-      localStorage.setItem('token', shortLivedToken);
-      localStorage.setItem('user', JSON.stringify(adminUser));
-      
+
       const mockEventListener = vi.fn();
       window.addEventListener('auth:unauthorized', mockEventListener);
 
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-        </AuthProvider>
-      );
+      function LoginButton() {
+        const { login } = useContext(AuthContext);
+        return (
+          <button onClick={() => login(shortLivedToken, adminUser)}>Login</button>
+        );
+      }
 
-      // Should be authenticated initially
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <ContextConsumer />
+            <LoginButton />
+          </AuthProvider>
+        );
+      });
+
+      await act(async () => {
+        screen.getByRole('button', { name: 'Login' }).click();
+      });
+
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
       expect(screen.getByTestId('username').textContent).toBe('admin');
-      
+
       // Fast forward past expiry time
       act(() => {
         vi.advanceTimersByTime(2100);
       });
 
-      // Should auto-logout and dispatch event
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
       expect(screen.getByTestId('username').textContent).toBe('');
       expect(mockEventListener).toHaveBeenCalledWith(
         expect.objectContaining({
           detail: expect.objectContaining({
-            reason: 'session_expired'
-          })
+            reason: 'session_expired',
+          }),
         })
       );
-      
-      // Token should be removed from localStorage
-      expect(localStorage.getItem('token')).toBeNull();
-      expect(localStorage.getItem('user')).toBeNull();
-      
+
       window.removeEventListener('auth:unauthorized', mockEventListener);
     });
 
-    it('should reschedule timer on login', () => {
-      vi.useFakeTimers();
-      
+    it('should reschedule timer on login', async () => {
       function LoginButton() {
         const { login } = useContext(AuthContext);
         return (
           <button onClick={() => {
             const expireInTwoSeconds = Math.floor(Date.now() / 1000) + 2;
-            const shortLivedToken = createTokenWithExp(expireInTwoSeconds);
-            login(shortLivedToken, adminUser);
+            login(createTokenWithExp(expireInTwoSeconds), adminUser);
           }}>
             Login
           </button>
         );
       }
-      
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-          <LoginButton />
-        </AuthProvider>
-      );
 
-      // Initially not authenticated
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <ContextConsumer />
+            <LoginButton />
+          </AuthProvider>
+        );
+      });
+
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
-      
-      // Login with token expiring in 2 seconds
+
       act(() => {
         screen.getByRole('button', { name: 'Login' }).click();
       });
 
-      // Should be authenticated now
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
-      
-      // Fast forward past expiry time
+
       act(() => {
         vi.advanceTimersByTime(2100);
       });
 
-      // Should auto-logout
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
     });
 
-    it('should clear timer on manual logout', () => {
-      // Create a token that expires in 10 seconds
+    it('should clear timer on manual logout', async () => {
       const expireInTenSeconds = Math.floor(Date.now() / 1000) + 10;
       const token = createTokenWithExp(expireInTenSeconds);
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(adminUser));
-      
+
       const mockEventListener = vi.fn();
       window.addEventListener('auth:unauthorized', mockEventListener);
 
-      function LogoutButton() {
-        const { logout } = useContext(AuthContext);
-        return <button onClick={logout}>Logout</button>;
+      function LoginLogout() {
+        const { login, logout } = useContext(AuthContext);
+        return (
+          <div>
+            <button onClick={() => login(token, adminUser)}>Login</button>
+            <button onClick={logout}>Logout</button>
+          </div>
+        );
       }
 
-      render(
-        <AuthProvider>
-          <ContextConsumer />
-          <LogoutButton />
-        </AuthProvider>
-      );
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <ContextConsumer />
+            <LoginLogout />
+          </AuthProvider>
+        );
+      });
 
-      // Should be authenticated initially
-      expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
-      
-      // Manual logout
       act(() => {
+        screen.getByRole('button', { name: 'Login' }).click();
+      });
+
+      expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
+
+      await act(async () => {
         screen.getByRole('button', { name: 'Logout' }).click();
       });
 
-      // Should be logged out immediately
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
-      
-      // Fast forward past original expiry time
+
       act(() => {
         vi.advanceTimersByTime(10100);
       });
 
       // Event should NOT fire because timer was cleared
       expect(mockEventListener).not.toHaveBeenCalled();
-      
+
       window.removeEventListener('auth:unauthorized', mockEventListener);
     });
   });

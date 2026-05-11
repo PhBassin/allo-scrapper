@@ -237,14 +237,11 @@ describe('Cinema API Client', () => {
       },
     });
 
-    window.localStorage.setItem('token', 'jwt-token');
-
     const unsubscribe = subscribeToProgress(() => {});
 
     expect(lastFetchCall?.input).toBe('/api/org/acme/scraper/progress');
     expect(lastFetchCall?.init?.headers).toEqual({
       Accept: 'text/event-stream',
-      Authorization: 'Bearer jwt-token',
     });
 
     unsubscribe();

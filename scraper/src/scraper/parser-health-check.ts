@@ -5,7 +5,7 @@ const REQUIRED_THEATER_SELECTORS = [
   '.movie-card-theater',
 ] as const;
 
-const REQUIRED_FILM_SELECTORS = [
+const REQUIRED_MOVIE_SELECTORS = [
   '.meta-body-info',
 ] as const;
 
@@ -28,6 +28,6 @@ export function validateTheaterPageStructure(html: string): { valid: boolean; mi
   return validateParserSelectors(html, REQUIRED_THEATER_SELECTORS);
 }
 
-export function validateFilmPageStructure(html: string): { valid: boolean; missingSelectors: string[] } {
-  return validateParserSelectors(html, REQUIRED_FILM_SELECTORS);
+export function validateMoviePageStructure(html: string): { valid: boolean; missingSelectors: string[] } {
+  return validateParserSelectors(html, REQUIRED_MOVIE_SELECTORS);
 }

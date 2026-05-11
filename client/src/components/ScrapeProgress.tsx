@@ -33,33 +33,33 @@ export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeP
   // ⚡ PERFORMANCE: Use a single pass iteration to compute counts instead of multiple
   // .filter().length calls to avoid allocating intermediate arrays and O(M*N) operations
   let processedCinemas = 0;
-  let totalFilms = 0;
-  let processedFilms = 0;
+  let totalMovies = 0;
+  let processedMovies = 0;
 
   for (let i = 0; i < events.length; i++) {
     const type = events[i].type;
     if (type === 'cinema_completed') {
       processedCinemas++;
-    } else if (type === 'film_started') {
-      totalFilms++;
-    } else if (type === 'film_completed') {
-      processedFilms++;
+    } else if (type === 'movie_started') {
+      totalMovies++;
+    } else if (type === 'movie_completed') {
+      processedMovies++;
     }
   }
 
   const totalCinemas = startedEvent?.total_cinemas || 0;
 
-  // Get current cinema/film from latest event
+  // Get current cinema/movie from latest event
   const currentCinema = latestEvent?.type === 'cinema_started' || latestEvent?.type === 'date_started' 
     ? latestEvent.cinema_name 
     : undefined;
-  const currentFilm = latestEvent?.type === 'film_started' 
-    ? latestEvent.film_title 
+  const currentMovie = latestEvent?.type === 'movie_started' 
+    ? latestEvent.movie_title 
     : undefined;
 
   // Calculate progress percentages
   const cinemaProgress = totalCinemas > 0 ? (processedCinemas / totalCinemas) * 100 : 0;
-  const filmProgress = totalFilms > 0 ? (processedFilms / totalFilms) * 100 : 0;
+  const movieProgress = totalMovies > 0 ? (processedMovies / totalMovies) * 100 : 0;
 
   // Check if completed
   const allJobsTerminal = jobs.length > 0 && jobs.every((job) => job.status === 'completed' || job.status === 'failed');
@@ -146,25 +146,25 @@ export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeP
         )}
       </div>
 
-      {/* Film Progress */}
+      {/* Movie Progress */}
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
           <p className="text-sm font-medium text-gray-700">
             Films traités
           </p>
           <p className="text-sm text-gray-600">
-            {processedFilms} / {totalFilms}
+            {processedMovies} / {totalMovies}
           </p>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
             className="bg-green-500 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${filmProgress}%` }}
+            style={{ width: `${movieProgress}%` }}
           ></div>
         </div>
-        {currentFilm && (
+        {currentMovie && (
           <p className="text-xs text-gray-500 mt-1">
-            En cours: {currentFilm}
+            En cours: {currentMovie}
           </p>
         )}
       </div>
@@ -219,15 +219,15 @@ export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeP
                     <div>
                       <div className="flex justify-between items-center mb-1 text-xs text-gray-600">
                         <span>Films</span>
-                        <span>{job.processedFilms} / {job.totalFilms}</span>
+                        <span>{job.processedMovies} / {job.totalMovies}</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-green-500 h-2 rounded-full transition-all duration-300" style={{ width: `${job.filmProgress}%` }}></div>
+                        <div className="bg-green-500 h-2 rounded-full transition-all duration-300" style={{ width: `${job.movieProgress}%` }}></div>
                       </div>
                     </div>
 
-                    {job.currentFilm && !cardCompleted && !cardFailed && !cardPending && (
-                      <p className="text-xs text-gray-500">Film en cours: {job.currentFilm}</p>
+                    {job.currentMovie && !cardCompleted && !cardFailed && !cardPending && (
+                      <p className="text-xs text-gray-500">Film en cours: {job.currentMovie}</p>
                     )}
 
                     {cardPending && (

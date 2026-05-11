@@ -1,21 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { searchFilms } from '../api/client';
+import { searchMovies } from '../api/client';
 import { useDebounce } from '../hooks/useDebounce';
 import { highlightText } from '../utils/highlight';
-import type { Film } from '../types';
+import type { Movie } from '../types';
 
-interface FilmSearchBarProps {
+interface MovieSearchBarProps {
   className?: string;
   placeholder?: string;
 }
 
-export default function FilmSearchBar({ 
+export default function MovieSearchBar({ 
   className = '', 
   placeholder = 'Rechercher un film...' 
-}: FilmSearchBarProps) {
+}: MovieSearchBarProps) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Film[]>([]);
+  const [results, setResults] = useState<Movie[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -33,8 +33,8 @@ export default function FilmSearchBar({
 
       setIsLoading(true);
       try {
-        const films = await searchFilms(debouncedQuery);
-        setResults(films);
+        const movies = await searchMovies(debouncedQuery);
+        setResults(movies);
         setIsOpen(true);
         setSelectedIndex(-1);
       } catch (error) {
@@ -99,7 +99,7 @@ export default function FilmSearchBar({
   };
 
   return (
-    <div ref={wrapperRef} className={`relative ${className}`} data-testid="film-search-bar">
+    <div ref={wrapperRef} className={`relative ${className}`} data-testid="movie-search-bar">
       <div className="relative">
         {/* Search Icon */}
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -174,10 +174,10 @@ export default function FilmSearchBar({
           data-testid="search-results"
         >
           {results.length > 0 ? (
-            results.map((film, index) => (
+            results.map((movie, index) => (
               <Link
-                key={film.id}
-                to={`/film/${film.id}`}
+                key={movie.id}
+                to={`/movie/${movie.id}`}
                 onClick={handleResultClick}
                 className={`block px-4 py-2 hover:bg-gray-100 transition ${
                   index === selectedIndex ? 'bg-gray-100' : ''
@@ -188,10 +188,10 @@ export default function FilmSearchBar({
               >
                 <div className="flex items-start gap-3">
                   {/* Poster Thumbnail */}
-                  {film.poster_url ? (
+                  {movie.poster_url ? (
                     <img
-                      src={film.poster_url}
-                      alt={film.title}
+                      src={movie.poster_url}
+                      alt={movie.title}
                       className="w-12 h-16 object-cover rounded"
                     />
                   ) : (
@@ -212,19 +212,19 @@ export default function FilmSearchBar({
                     </div>
                   )}
 
-                  {/* Film Info */}
+                  {/* Movie Info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
-                      {highlightText(film.title, query)}
+                      {highlightText(movie.title, query)}
                     </p>
-                    {film.original_title && film.original_title !== film.title && (
+                    {movie.original_title && movie.original_title !== movie.title && (
                       <p className="text-xs text-gray-500 truncate">
-                        {highlightText(film.original_title, query)}
+                        {highlightText(movie.original_title, query)}
                       </p>
                     )}
-                    {film.genres && film.genres.length > 0 && (
+                    {movie.genres && movie.genres.length > 0 && (
                       <p className="text-xs text-gray-500 truncate">
-                        {film.genres.join(', ')}
+                        {movie.genres.join(', ')}
                       </p>
                     )}
                   </div>

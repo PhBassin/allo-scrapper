@@ -1,7 +1,7 @@
 // Tests for HTTP client error handling
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchShowtimesJson, fetchFilmPage } from './http-client.js';
+import { fetchShowtimesJson, fetchMoviePage } from './http-client.js';
 import { HttpError, RateLimitError } from '../utils/errors.js';
 
 // Mock global fetch
@@ -135,7 +135,7 @@ describe('HTTP Client - Error Handling', () => {
     });
   });
 
-  describe('fetchFilmPage', () => {
+  describe('fetchMoviePage', () => {
     describe('HTTP 429 Rate Limit', () => {
       it('should throw RateLimitError on 429 response', async () => {
         mockFetch.mockResolvedValueOnce({
@@ -144,7 +144,7 @@ describe('HTTP Client - Error Handling', () => {
           statusText: 'Too Many Requests',
         });
 
-        await expect(fetchFilmPage(12345)).rejects.toThrow(RateLimitError);
+        await expect(fetchMoviePage(12345)).rejects.toThrow(RateLimitError);
       });
 
       it('should preserve status code in RateLimitError', async () => {
@@ -155,7 +155,7 @@ describe('HTTP Client - Error Handling', () => {
         });
 
         try {
-          await fetchFilmPage(12345);
+          await fetchMoviePage(12345);
           expect.fail('Should have thrown RateLimitError');
         } catch (error) {
           expect(error).toBeInstanceOf(RateLimitError);
@@ -175,7 +175,7 @@ describe('HTTP Client - Error Handling', () => {
           .mockResolvedValueOnce(response500);
 
         try {
-          await fetchFilmPage(12345);
+          await fetchMoviePage(12345);
           expect.fail('Should have thrown HttpError');
         } catch (error) {
           expect(error).toBeInstanceOf(HttpError);
@@ -186,14 +186,14 @@ describe('HTTP Client - Error Handling', () => {
 
     describe('Success Cases', () => {
       it('should succeed on 200 OK response', async () => {
-        const mockHtml = '<html><body>Film Page</body></html>';
+        const mockHtml = '<html><body>Movie Page</body></html>';
         mockFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
           text: async () => mockHtml,
         });
 
-        const result = await fetchFilmPage(12345);
+        const result = await fetchMoviePage(12345);
         expect(result).toBe(mockHtml);
       });
     });

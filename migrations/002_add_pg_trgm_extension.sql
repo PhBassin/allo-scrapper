@@ -8,10 +8,10 @@ BEGIN;
 -- Enable pg_trgm extension for similarity calculations
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- Create GIN index on films.title for fast trigram similarity searches
+-- Create GIN index on movies.title for fast trigram similarity searches
 -- This index improves performance of similarity() and ILIKE queries
-CREATE INDEX IF NOT EXISTS idx_films_title_trgm 
-  ON films USING gin(title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_movies_title_trgm 
+  ON movies USING gin(title gin_trgm_ops);
 
 -- Verify the extension was created
 DO $$ 

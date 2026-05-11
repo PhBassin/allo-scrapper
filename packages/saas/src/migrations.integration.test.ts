@@ -135,18 +135,18 @@ describe.skipIf(!shouldRun)('SaaS Migrations Integration', () => {
       
       expect(cinemaCount).toBe(publicCinemaCount);
       
-      // Verify films migrated
-      const filmsResult = await pool.query(
-        "SELECT COUNT(*) FROM org_ics.films"
+      // Verify movies migrated
+      const moviesResult = await pool.query(
+        "SELECT COUNT(*) FROM org_ics.movies"
       );
-      const filmCount = parseInt(filmsResult.rows[0].count, 10);
+      const movieCount = parseInt(moviesResult.rows[0].count, 10);
       
-      const publicFilmsResult = await pool.query(
-        "SELECT COUNT(*) FROM public.films"
+      const publicMoviesResult = await pool.query(
+        "SELECT COUNT(*) FROM public.movies"
       );
-      const publicFilmCount = parseInt(publicFilmsResult.rows[0].count, 10);
+      const publicMovieCount = parseInt(publicMoviesResult.rows[0].count, 10);
       
-      expect(filmCount).toBe(publicFilmCount);
+      expect(movieCount).toBe(publicMovieCount);
     });
   });
   

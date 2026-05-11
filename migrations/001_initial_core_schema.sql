@@ -1,5 +1,9 @@
--- Database schema initialization for Allo-Scrapper
--- This script is automatically executed on first PostgreSQL startup
+-- Migration 001: Initial core schema
+-- Creates cinemas, movies, showtimes, weekly_programs, scrape_reports tables.
+-- This is a greenfield schema using 'movies' terminology throughout.
+-- Idempotent: uses CREATE TABLE IF NOT EXISTS, CREATE INDEX IF NOT EXISTS.
+
+BEGIN;
 
 -- Enable pg_trgm extension for fuzzy text search
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
@@ -26,11 +30,11 @@ CREATE TABLE IF NOT EXISTS movies (
   duration_minutes INTEGER,
   release_date TEXT,
   rerelease_date TEXT,
-  genres TEXT, -- JSON array
+  genres TEXT,         -- JSON array
   nationality TEXT,
   director TEXT,
-  screenwriters TEXT, -- JSON array
-  actors TEXT, -- JSON array
+  screenwriters TEXT,  -- JSON array
+  actors TEXT,         -- JSON array
   synopsis TEXT,
   certificate TEXT,
   press_rating REAL,
@@ -52,7 +56,7 @@ CREATE TABLE IF NOT EXISTS showtimes (
   datetime_iso TEXT NOT NULL,
   version TEXT,
   format TEXT,
-  experiences TEXT, -- JSON array
+  experiences TEXT,    -- JSON array
   week_start TEXT NOT NULL,
   FOREIGN KEY (movie_id) REFERENCES movies(id),
   FOREIGN KEY (cinema_id) REFERENCES cinemas(id) ON DELETE CASCADE,
@@ -65,6 +69,7 @@ CREATE INDEX IF NOT EXISTS idx_showtimes_movie_date ON showtimes(movie_id, date)
 CREATE INDEX IF NOT EXISTS idx_showtimes_week ON showtimes(week_start);
 
 -- Partial unique index for rows where format IS NULL
+-- PostgreSQL treats NULLs as distinct in UNIQUE constraints, so this index fills that gap.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_showtimes_business_key_null_format
   ON showtimes (cinema_id, movie_id, date, time, version)
   WHERE format IS NULL;
@@ -90,21 +95,30 @@ CREATE TABLE IF NOT EXISTS scrape_reports (
   id SERIAL PRIMARY KEY,
   started_at TIMESTAMPTZ NOT NULL,
   completed_at TIMESTAMPTZ,
-  status TEXT NOT NULL, -- 'running', 'success', 'partial_success', 'failed'
-  trigger_type TEXT NOT NULL, -- 'manual', 'cron'
+  status TEXT NOT NULL CHECK (status IN ('running', 'success', 'partial_success', 'failed', 'rate_limited')),
+  trigger_type TEXT NOT NULL,
   total_cinemas INTEGER,
   successful_cinemas INTEGER,
   failed_cinemas INTEGER,
   total_movies_scraped INTEGER,
   total_showtimes_scraped INTEGER,
-  errors JSONB, -- Array of error objects
-  progress_log JSONB -- Array of progress events
+  errors JSONB,
+  progress_log JSONB
 );
 
 -- Indexes for scrape_reports
 CREATE INDEX IF NOT EXISTS idx_scrape_reports_started_at ON scrape_reports(started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_scrape_reports_status ON scrape_reports(status);
 
--- NOTE: users table and default admin seed have been moved to migrations
--- - Migration 001: Creates users table
--- - Migration 002: Seeds default admin user with random password
+-- Verification
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'movies' AND table_schema = current_schema()) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: table movies was not created';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'showtimes' AND column_name = 'movie_id' AND table_schema = current_schema()) THEN
+    RAISE EXCEPTION 'VERIFICATION FAILED: showtimes.movie_id was not created';
+  END IF;
+  RAISE NOTICE 'VERIFICATION PASSED: core schema with movies/movie_id exists';
+END $$;
+
+COMMIT;

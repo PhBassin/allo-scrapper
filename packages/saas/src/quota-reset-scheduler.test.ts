@@ -48,7 +48,11 @@ describe('QuotaResetScheduler', () => {
 
   it('should run monthly reset immediately if today is the 1st', async () => {
     vi.setSystemTime(new Date('2026-04-01T12:00:00Z'));
-    mockDb.query.mockResolvedValue({ rows: [{ id: 1, slug: 'test-org' }] });
+    // First call: advisory lock (returns locked=true), second call: orgs query
+    mockDb.query
+      .mockResolvedValueOnce({ rows: [{ locked: true }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, slug: 'test-org' }] })
+      .mockResolvedValue({ rows: [] }); // advisory unlock
     
     startQuotaResetScheduler(mockDb as unknown as DB);
 

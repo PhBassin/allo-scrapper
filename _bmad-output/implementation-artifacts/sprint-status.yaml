@@ -33,7 +33,7 @@
 #   - done: Retrospective has been completed
 
 generated: 2026-05-03
-last_updated: 2026-05-03T20:50:00Z
+last_updated: 2026-05-10T12:00:00Z
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -121,3 +121,10 @@ development_status:
   7-1-resolve-open-scraper-and-tenant-stability-prs: done
   7-2-refactor-theme-variables-contract: done
   epic-7-retrospective: done
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 8: Refactoring — Rename film to movie
+  # ─────────────────────────────────────────────────────────────
+  epic-8: in-progress
+  8-1-rename-film-to-movie: review
+  epic-8-retrospective: optional
