@@ -392,7 +392,7 @@ Custom roles provide flexibility to create specific permission sets for differen
 - Browse all films and showtimes
 - View cinema information and locations
 - Access search and filtering features
-- View detailed film information
+- View detailed movie information
 
 **Navigation:**
 - Access all public pages

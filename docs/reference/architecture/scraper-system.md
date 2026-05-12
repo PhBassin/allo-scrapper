@@ -1,6 +1,6 @@
 # Scraper System Architecture
 
-Detailed architecture and design of the cinema showtimes scraping system.
+Detailed architecture and design of the theater showtimes scraping system.
 
 **Last updated:** March 6, 2026
 
@@ -27,7 +27,7 @@ Detailed architecture and design of the cinema showtimes scraping system.
 
 ## Overview
 
-The scraper system fetches cinema showtimes from AlloCiné and stores them in PostgreSQL.
+The scraper system fetches theater showtimes from AlloCiné and stores them in PostgreSQL.
 
 Current deployments use a Redis-backed worker model:
 
@@ -73,9 +73,11 @@ Local queue-backed scraping typically uses `RUN_MODE=consumer`.
 **File**: `scraper/src/scraper/index.ts`
 
 **Responsibilities**:
-- Load cinema configurations from database
-- Identify the correct **Scraper Strategy** based on the cinema's source (e.g., "allocine")
-- Iterate through cinemas and dates, delegating to strategies
+- Load theater configurations from database
+
+- Identify the correct **Scraper Strategy** based on the theater's source (e.g., "allocine")
+
+- Iterate through theaters and dates, delegating to strategies
 - Coordinate progress reporting via Redis
 - Handle errors and generate scrape summary
 
@@ -87,12 +89,12 @@ export async function runScraper(
   options: ScrapeOptions
 ): Promise<ScrapeSummary>
 
-// Add a new cinema by URL
-export async function addCinemaAndScrape(
+// Add a new theater by URL
+export async function addTheaterAndScrape(
   db: DB,
   url: string,
   progress?: ProgressPublisher
-): Promise<Cinema>
+): Promise<Theater>
 ```
 
 ---
@@ -108,10 +110,10 @@ To support multiple movie data sources (AlloCiné, UGC, Pathé, etc.), the scrap
 export interface IScraperStrategy {
   readonly sourceName: string;
   canHandleUrl(url: string): boolean;
-  extractCinemaId(url: string): string | null;
-  cleanCinemaUrl(url: string): string;
-  loadTheaterMetadata(db: DB, cinema: CinemaConfig): Promise<{ availableDates: string[]; cinema: Cinema }>;
-  scrapeTheater(db: DB, cinema: CinemaConfig, date: string, movieDelayMs: number, progress?: ProgressPublisher): Promise<{ filmsCount: number; showtimesCount: number }>;
+  extractTheaterId(url: string): string | null;
+  cleanTheaterUrl(url: string): string;
+  loadTheaterMetadata(db: DB, theater: TheaterConfig): Promise<{ availableDates: string[]; theater: Theater }>;
+  scrapeTheater(db: DB, theater: TheaterConfig, date: string, movieDelayMs: number, progress?: ProgressPublisher): Promise<{ moviesCount: number; showtimesCount: number }>;
 }
 ```
 
@@ -119,9 +121,9 @@ export interface IScraperStrategy {
 - `AllocineScraperStrategy`: The default strategy for AlloCiné (encapsulates existing v2.x logic).
 
 **Strategy Selection**:
-- **By URL**: When adding a new cinema, `StrategyFactory.getStrategyByUrl(url)` finds the matching strategy.
-- **By Source**: During a full scrape, `StrategyFactory.getStrategyBySource(cinema.source)` retrieves the strategy stored in the database.
+- **By URL**: When adding a new theater, `StrategyFactory.getStrategyByUrl(url)` finds the matching strategy.
 
+- **By Source**: During a full scrape, `StrategyFactory.getStrategyBySource(theater.source)` retrieves the strategy stored in the database.
 ---
 
 ### 3. HTTP Client
@@ -145,13 +147,15 @@ export async function fetchTheaterPage(
 
 // Fetch showtimes JSON (internal API)
 export async function fetchShowtimesJson(
-  cinemaId: string,
+  theaterId: string,
   date: string
 ): Promise<ShowtimesApiResponse>
 
-// Fetch film details page
-export async function fetchFilmPage(
-  filmId: string
+// Fetch movie details page
+
+export async function fetchMoviePage(
+
+  movieId: string
 ): Promise<string>
 
 // Delay helper
@@ -173,14 +177,14 @@ The scraper uses **three different parsers** depending on the data source:
 
 **File**: `server/src/services/scraper/theater-parser.ts`
 
-**Purpose**: Extract cinema metadata from the main theater page
+**Purpose**: Extract theater metadata from the main theater page
 
 **Input**: HTML from `https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html`
 
 **Output**:
 ```typescript
 {
-  cinema: {
+  theater: {
     id: string;
     name: string;
     city: string;
@@ -203,12 +207,12 @@ The scraper uses **three different parsers** depending on the data source:
 
 **Purpose**: Extract showtimes from AlloCiné's internal API
 
-**Input**: JSON from `https://www.allocine.fr/_/showtimes?d=<date>&t=<cinemaId>`
+**Input**: JSON from `https://www.allocine.fr/_/showtimes?d=<date>&t=<theaterId>`
 
 **Output**:
 ```typescript
 Array<{
-  film: Film;
+  movie: Movie;
   showtimes: Showtime[];
 }>
 ```
@@ -219,26 +223,15 @@ Array<{
 
 ---
 
-#### C. Film Page Parser
+#### C. Movie Page Parser
 
-**File**: `server/src/services/scraper/film-parser.ts`
+**File**: `server/src/services/scraper/movie-parser.ts`
 
-**Purpose**: Extract film metadata (duration, director, synopsis)
+**Purpose**: Extract movie metadata (duration, director, synopsis)
 
-**Input**: HTML from `https://www.allocine.fr/film/fichefilm_gen_cfilm=<id>.html`
+**Input**: HTML from `https://www.allocine.fr/movie/fichemovie_gen_cmovie=<id>.html`
 
-**Output**:
-```typescript
-{
-  duration_minutes: number | null;
-  director: string | null;
-  synopsis: string | null;
-}
-```
-
-**Parsing Method**: Cheerio
-
-**Usage**: Only fetched if film doesn't exist in DB or lacks duration
+**Usage**: Only fetched if movie doesn't exist in DB or lacks duration
 
 ---
 
@@ -248,20 +241,21 @@ Array<{
 
 **Key Operations**:
 ```typescript
-// Upsert cinema (INSERT or UPDATE)
-export async function upsertCinema(db: DB, cinema: Cinema): Promise<void>
+// Upsert theater (INSERT or UPDATE)
 
-// Upsert film
-export async function upsertFilm(db: DB, film: Film): Promise<void>
+export async function upsertTheater(db: DB, theater: Theater): Promise<void>
 
-// Upsert showtimes (batch insert)
-export async function upsertShowtimes(db: DB, showtimes: Showtime[]): Promise<number>
+// Upsert movie
 
-// Get existing film (to check if details already scraped)
-export async function getFilm(db: DB, filmId: string): Promise<Film | null>
+export async function upsertMovie(db: DB, movie: Movie): Promise<void>
 
-// Get cinema configurations (enabled cinemas only)
-export async function getCinemaConfigs(db: DB): Promise<CinemaConfig[]>
+// Get existing movie (to check if details already scraped)
+
+export async function getMovie(db: DB, movieId: string): Promise<Movie | null>
+
+// Get theater configurations (enabled theaters only)
+
+export async function getTheaterConfigs(db: DB): Promise<TheaterConfig[]>
 ```
 
 **Upsert Strategy**:
@@ -292,11 +286,11 @@ export class RedisProgressPublisher implements ProgressTracker {
 **Event Types**:
 ```typescript
 type ProgressEvent =
-  | { type: 'cinema_started'; cinema_name: string; cinema_id: string }
-  | { type: 'date_started'; date: string; cinema_name: string }
-  | { type: 'film_started'; film_title: string; film_id: string }
-  | { type: 'showtimes_saved'; count: number }
-  | { type: 'cinema_completed'; cinema_name: string; success: boolean }
+  | { type: 'theater_started'; theater_name: string; theater_id: string }
+
+  | { type: 'movie_started'; movie_title: string; movie_id: string }
+
+  | { type: 'theater_completed'; theater_name: string; success: boolean }
   | { type: 'scrape_completed'; summary: ScrapeSummary }
   | { type: 'error'; message: string; cinema_name?: string };
 ```
@@ -315,7 +309,7 @@ interface ScrapeJob {
   reportId: string;           // Database scrape_sessions.id
   triggerType: 'manual' | 'cron' | 'api';
   options: {
-    cinemaIds?: string[];     // Optional: specific cinemas
+    theaterIds?: string[];     // Optional: specific theaters
     startDate?: string;       // Optional: custom start date
     days?: number;            // Optional: days to scrape
     mode?: ScrapeMode;        // 'weekly' | 'from_today' | 'from_today_limited'
@@ -402,8 +396,8 @@ POST /api/scraper/trigger
 - **Easier to test**: JSON fixtures are simpler than HTML fixtures
 
 **HTML still used for**:
-- Cinema metadata (name, address, coordinates) - from theater page
-- Film metadata (duration, director, synopsis) - from film page
+- Theater metadata (name, address, coordinates) - from theater page
+- Movie metadata (duration, director, synopsis) - from movie page
 - Available dates list - from theater page
 
 ---
@@ -434,17 +428,17 @@ export async function fetchWithTimeout(url: string) {
 
 ### Error Isolation
 
-**Per-cinema errors don't stop the entire scrape**:
+**Per-theater errors don't stop the entire scrape**:
 
 ```typescript
-for (const cinema of cinemas) {
+for (const theater of theaters) {
   try {
-    await scrapeCinema(cinema);
+    await scrapeTheater(theater);
   } catch (error) {
-    logger.error(`Cinema ${cinema.name} failed:`, error);
-    summary.failed_cinemas++;
-    // Continue to next cinema
+    logger.error(`Theater ${theater.name} failed:`, error);
+    // Continue to next theater
   }
+}
 }
 ```
 
@@ -462,7 +456,7 @@ for (const cinema of cinemas) {
 
 **Behavior when 429 is detected**:
 
-1. **Immediate stop**: Both date loop and cinema loop break immediately
+1. **Immediate stop**: Both date loop and theater loop break immediately
 2. **Status change**: Summary status set to `rate_limited` (not `failed`)
 3. **Error classification**: Errors include `error_type: "http_429"` and `http_status_code: 429`
 4. **Remaining cinemas**: Marked as "not attempted" (not failed)
@@ -474,12 +468,12 @@ for (const cinema of cinemas) {
 // In scraper/src/scraper/index.ts
 let rateLimited = false;
 
-for (const cinema of cinemas) {
+for (const theater of theaters) {
   if (rateLimited) break; // Stop outer loop if rate limited
   
   for (const date of dates) {
     try {
-      await scrapeDate(cinema, date);
+      await scrapeDate(theater, date);
     } catch (error) {
       if (error instanceof RateLimitError) {
         summary.status = 'rate_limited';
@@ -496,7 +490,7 @@ for (const cinema of cinemas) {
 
 ```typescript
 {
-  cinema_name: "Example Cinema",
+  theater_name: "Example Theater",
   cinema_id: "C0123",
   date: "2026-03-24",
   error: "HTTP 429 Too Many Requests",
@@ -511,7 +505,7 @@ for (const cinema of cinemas) {
 - Suggests waiting before retry
 
 **Phase 2 (Planned)**:
-- Resume capability: Track per-cinema attempts in database
+- Resume capability: Track per-theater attempts in database
 - Automatic retry: Exponential backoff for rate-limited scrapes
 - Smart scheduling: Avoid rate limits by adjusting scrape frequency
 
@@ -576,7 +570,7 @@ When a job is popped from the Redis queue and the scraper crashes before complet
 # Delay between cinemas (after all dates scraped)
 SCRAPE_THEATER_DELAY_MS=3000  # 3 seconds (recommended)
 
-# Delay between film detail fetches
+# Delay between movie detail fetches
 SCRAPE_MOVIE_DELAY_MS=500     # 0.5 seconds
 ```
 
@@ -589,27 +583,24 @@ SCRAPE_MOVIE_DELAY_MS=500     # 0.5 seconds
 
 ### Concurrency Model
 
-**Current**: Bounded concurrency via `p-limit` (default 2 cinemas in parallel). Each cinema processes its dates sequentially.
+**Current**: Bounded concurrency via `p-limit` (default 2 theaters in parallel). Each theater processes its dates sequentially.
 
 ```typescript
 const limit = pLimit(SCRAPER_CONCURRENCY);
 
-const tasks = cinemas.map((cinema) => 
-  limit(async () => {
-    for (const date of dates) {
-      await scrapeDate(cinema, date);
-    }
-    await delay(SCRAPE_THEATER_DELAY_MS);
-  })
-);
+const tasks = theaters.map((theater) => 
+    limit(() => {
+      await scrapeTheater(theater);
+    })
+  );
 
 await Promise.allSettled(tasks);
 ```
 
 **Benefits**:
-- **50-70% Faster**: Parallel processing eliminates idle delays between cinemas.
+- **50-70% Faster**: Parallel processing eliminates idle delays between theaters.
 - **Resource Control**: Prevents overloading the database and upstream servers.
-- **Fail-Safe**: If a cinema hits a rate limit (429), all in-flight tasks stop cleanly.
+- **Fail-Safe**: If a theater hits a rate limit (429), all in-flight tasks stop cleanly.
 
 **Future**: Parallel scraping (not yet implemented)
 - Multiple cinemas in parallel
@@ -635,11 +626,11 @@ eventSource.onmessage = (event) => {
 
 **Event sequence**:
 ```
-1. { type: 'cinema_started', cinema_name: 'UGC Montparnasse' }
-2. { type: 'date_started', date: '2026-03-06', cinema_name: 'UGC Montparnasse' }
-3. { type: 'film_started', film_title: 'Dune: Part Two' }
-4. { type: 'showtimes_saved', count: 12 }
-5. { type: 'cinema_completed', cinema_name: 'UGC Montparnasse', success: true }
+1. { type: 'theater_started', theater_name: 'UGC Montparnasse' }
+
+3. { type: 'movie_started', movie_title: 'Dune: Part Two' }
+
+5. { type: 'theater_completed', theater_name: 'UGC Montparnasse', success: true }
 6. { type: 'scrape_completed', summary: {...} }
 ```
 

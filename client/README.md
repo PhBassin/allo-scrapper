@@ -1,6 +1,6 @@
 # Allo-Scrapper Client
 
-React SPA frontend for the Allo-Scrapper cinema showtimes aggregator.
+React SPA frontend for the Allo-Scrapper theater showtimes aggregator.
 
 ## Stack
 
@@ -48,7 +48,7 @@ The Vite dev server proxies `/api` and `/test` requests to the backend (default 
 
 The client is a single-page application with these key areas:
 
-- **Public pages**: Login, register, cinema schedules
+- **Public pages**: Login, register, theater schedules
 - **Admin panel**: `/admin/*` — user management, settings, reports, rate limits
 - **White-label theming**: Dynamic CSS via `/api/theme.css`, `useTheme` hook
 - **Real-time updates**: SSE connection for live scraping progress

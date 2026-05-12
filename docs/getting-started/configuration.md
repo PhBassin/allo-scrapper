@@ -103,7 +103,7 @@ The scraper is a separate workspace (`scraper/`). Production Compose runs two sc
 | `RUN_MODE` | `consumer` (in compose) | `consumer` (poll Redis queue), `cron` (scheduled), `oneshot` (pop one job and exit), `direct` (run once immediately and exit). |
 | `SCRAPE_CRON_SCHEDULE` | `0 8 * * 3` | Cron expression for the `cron` scraper. The compose file maps this to the internal `CRON_SCHEDULE`. |
 | `SCRAPE_THEATER_DELAY_MS` | `3000` | Delay between cinema scrapes. Lower = faster, higher = friendlier to source. |
-| `SCRAPE_MOVIE_DELAY_MS` | `500` | Delay between film-detail fetches. |
+| `SCRAPE_MOVIE_DELAY_MS` | `500` | Delay between movie-detail fetches. |
 | `SCRAPER_CONCURRENCY` | `2` | Cinemas processed in parallel. `1`–`5`; higher values risk HTTP 429. |
 | `METRICS_PORT` | `9091` | Prometheus metrics endpoint of the scraper at `/metrics`. |
 

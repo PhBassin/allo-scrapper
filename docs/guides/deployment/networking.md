@@ -86,7 +86,7 @@ http://192.168.1.100:3000
 ## How It Works
 
 - **Production (Docker)**: The React frontend is served by the same Express server that hosts the API on port 3000
-- **API calls use relative paths** (`/api/films`) instead of absolute URLs like `http://localhost:3000/api/films`
+- **API calls use relative paths** (`/api/movies`) instead of absolute URLs like `http://localhost:3000/api/movies`
 - **Works with any hostname**: `localhost`, LAN IP (`192.168.x.x`), or custom domain name
 - **CORS must include the origin** that browsers use to reach the app (the full URL including protocol)
 
@@ -97,8 +97,8 @@ http://192.168.1.100:3000
 │  Browser on Device A                │
 │  http://192.168.1.100:3000          │
 └──────────────┬──────────────────────┘
-               │ HTTP GET /
-               │ HTTP GET /api/films
+                │ HTTP GET /
+                │ HTTP GET /api/movies
                ▼
 ┌─────────────────────────────────────┐
 │  Server (192.168.1.100:3000)        │
@@ -215,7 +215,7 @@ http://203.0.113.45:3000
 
 ## Custom Domain
 
-If you have a custom domain (e.g., `cinema.example.com`), you can use it instead of IP addresses.
+If you have a custom domain (e.g., `theater.example.com`), you can use it instead of IP addresses.
 
 **Requirements:**
 - Domain DNS points to your server's IP
@@ -224,7 +224,7 @@ If you have a custom domain (e.g., `cinema.example.com`), you can use it instead
 
 ```bash
 # .env
-ALLOWED_ORIGINS=http://localhost:3000,https://cinema.example.com
+ALLOWED_ORIGINS=http://localhost:3000,https://theater.example.com
 
 # Reverse proxy forwards requests to localhost:3000
 ```
@@ -261,8 +261,8 @@ docker compose restart ics-web
 - Open browser DevTools (F12)
 - Go to Network tab
 - Reload the page
-- Check API requests - they should use your server's IP (e.g., `http://192.168.1.100:3000/api/films`)
-- NOT `http://localhost:3000/api/films`
+- Check API requests - they should use your server's IP (e.g., `http://192.168.1.100:3000/api/movies`)
+- NOT `http://localhost:3000/api/movies`
 
 ---
 
@@ -270,7 +270,7 @@ docker compose restart ics-web
 
 **Error message:**
 ```
-Access to fetch at 'http://192.168.1.100:3000/api/films' from origin 
+Access to fetch at 'http://192.168.1.100:3000/api/movies' from origin 
 'http://192.168.1.100:3000' has been blocked by CORS policy
 ```
 
@@ -409,9 +409,9 @@ nc -zv $SERVER_IP $PORT
 echo "3. Health check..."
 curl -s http://$SERVER_IP:$PORT/api/health | jq
 
-# Test 4: Films endpoint
-echo "4. Films endpoint..."
-curl -s http://$SERVER_IP:$PORT/api/films | jq '.success'
+# Test 4: Movies endpoint
+echo "4. Movies endpoint..."
+curl -s http://$SERVER_IP:$PORT/api/movies | jq '.success'
 
 echo "All tests complete!"
 ```
@@ -476,7 +476,7 @@ ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
 ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000,http://203.0.113.45:3000
 
 # Production with custom domain
-ALLOWED_ORIGINS=https://cinema.example.com
+ALLOWED_ORIGINS=https://theater.example.com
 
 # Development mode (Vite + Express)
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
@@ -500,7 +500,7 @@ CORS only controls which origins can make requests from browsers. It does not pr
 
 Always use HTTPS for production deployments:
 ```bash
-ALLOWED_ORIGINS=https://cinema.example.com
+ALLOWED_ORIGINS=https://theater.example.com
 ```
 
 ### 3. Be specific with allowed origins
@@ -511,7 +511,7 @@ Avoid wildcards (`*`) in production:
 ALLOWED_ORIGINS=*
 
 # Good (specific origins)
-ALLOWED_ORIGINS=https://cinema.example.com,https://www.cinema.example.com
+ALLOWED_ORIGINS=https://theater.example.com,https://www.theater.example.com
 ```
 
 ### 4. Limit network exposure

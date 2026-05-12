@@ -388,7 +388,7 @@ View database size and data record counts.
 - **Database Size**: Total PostgreSQL database size (e.g., "8063 kB")
 - **Tables**: Total number of database tables
 - **Cinemas**: Count of cinema records
-- **Films**: Count of film records  
+- **Movies**: Count of movie records  
 - **Showtimes**: Count of showtime records
 
 **Use Cases**:

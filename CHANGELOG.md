@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- feat(client): add Google Calendar integration on showtime buttons (#1017) [@PhBassin](https://github.com/PhBassin)
+  - Click any showtime on `TheaterPage` to open a pre-filled Google Calendar event (movie title + theater name + address)
+  - Click any showtime on the homepage (`TheaterShowtimes`) to open a Google Calendar event (theater name + address; movie title unavailable at that API level)
+  - New utility: `toGoogleCalendarFormat(datetimeIso, durationMinutes?)` in `client/src/utils/date.ts`
+  - 100% frontend — uses `https://calendar.google.com/calendar/render?action=TEMPLATE` URL schema
+
+### Changed
+
+- refactor: rename `cinema` → `theater` across all layers (#1024, #1025) [@PhBassin](https://github.com/PhBassin)
+  - Components: `CinemaPage` → `TheaterPage`, `CinemaShowtimes` → `TheaterShowtimes`
+  - API routes: `/api/cinemas` → `/api/theaters`
+  - DB tables and columns use `theater_*` prefix
+- refactor: rename `film` → `movie` across all layers (#1015, #1016) [@PhBassin](https://github.com/PhBassin)
+  - Components: `FilmPage` → `MoviePage`
+  - API routes: `/api/films` → `/api/movies`
+  - Service/parser files: `film-service.ts` → `movie-service.ts`, `film-parser.ts` → `movie-parser.ts`
+  - DB tables and columns use `movie_*` prefix
+
 ## [4.6.7] - 2026-03-30
 
 ### Added

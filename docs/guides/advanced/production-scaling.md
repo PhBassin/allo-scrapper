@@ -1,6 +1,6 @@
 # Production Scaling: Redis Queue Management & Job Orchestration
 
-Deploy Allo-Scrapper at scale with multi-instance job processing, queue management, and architectural patterns for large cinema networks.
+Deploy Allo-Scrapper at scale with multi-instance job processing, queue management, and architectural patterns for large theater networks.
 
 **Last updated:** March 18, 2026
 
@@ -333,7 +333,7 @@ Each job in the queue is a JSON object:
 
 **Job Fields:**
 - `reportId`: Reference to scrape_reports table (tracks progress)
-- `type`: "scrape" or "add_cinema"
+- `type`: "scrape" or "add_theater"
 - `triggerType`: "manual", "cron", "api"
 - `options`: Scraper configuration (mode, days, etc.)
 
@@ -428,7 +428,7 @@ async function cleanupStaleJobs(): Promise<void> {
   for (const report of scrapeReports.rows) {
     await db.query(
       `UPDATE scrape_reports SET status = 'failed', 
-       errors = '[{"cinema_name":"System","error":"Job timeout after 24 hours"}]'
+       errors = '[{"theater_name":"System","error":"Job timeout after 24 hours"}]'
        WHERE id = $1`,
       [report.id]
     );
@@ -572,7 +572,7 @@ spec:
 
 #### Scrape Jobs
 
-Full cinema scraping with configurable options:
+Full theater scraping with configurable options:
 
 ```typescript
 interface ScrapeJob {
@@ -595,28 +595,28 @@ curl -X POST http://localhost:3000/api/scraper/trigger \
   -d '{"triggerType":"manual"}'
 ```
 
-#### Add Cinema Jobs
+#### Add Theater Jobs
 
-Add new cinema to system and scrape immediately:
+Add new theater to system and scrape immediately:
 
 ```typescript
-interface ScrapeJobAddCinema {
+interface ScrapeJobAddTheater {
   reportId: number;
-  type: 'add_cinema';
+  type: 'add_theater';
   triggerType: 'api';
-  url: string;  // Cinema URL (e.g., allocine.fr cinema page)
+  url: string;  // Theater URL (e.g., allocine.fr theater page)
 }
 ```
 
 **Enqueue from API:**
 
 ```bash
-curl -X POST http://localhost:3000/api/cinemas/add-and-scrape \
+curl -X POST http://localhost:3000/api/theaters/add-and-scrape \
   -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=C1234.html",
-    "name": "My Cinema"
+    "name": "My Theater"
   }'
 ```
 
@@ -649,9 +649,9 @@ curl http://localhost:3000/api/reports/42 \
   "triggerType": "manual",
   "created_at": "2025-03-18T10:30:00Z",
   "completed_at": null,
-  "total_cinemas": 50,
-  "successful_cinemas": 45,
-  "failed_cinemas": 5,
+  "total_theaters": 50,
+  "successful_theaters": 45,
+  "failed_theaters": 5,
   "errors": [...]
 }
 ```
@@ -707,10 +707,10 @@ cron.schedule('*/30 * * * *', retryFailedJobs);
 
 ```
 scraper_jobs_total{status="success|partial_success|failed",trigger="manual|cron|api"}
-scraper_jobs_duration_seconds{cinema="all"}
+scraper_jobs_duration_seconds{theater="all"}
 redis_llen{key="scrape:jobs"}  # Queue depth
-scraper_films_scraped_total{cinema="all"}
-scraper_showtimes_scraped_total{cinema="all"}
+scraper_movies_scraped_total{theater="all"}
+scraper_showtimes_scraped_total{theater="all"}
 ```
 
 ### Prometheus Queries
@@ -768,7 +768,7 @@ groups:
     annotations:
       summary: "Scrape jobs taking >5 minutes (p95)"
       description: "95th percentile duration: {{ $value }}s"
-      action: "Check network/cinema availability or optimize scraper"
+       action: "Check network/theater availability or optimize scraper"
 
   - alert: ScrapeConsumerDown
     expr: up{job="scraper"} == 0
@@ -787,7 +787,7 @@ Create a dashboard to visualize:
 2. **Job Success Rate** (gauge): % of jobs completing successfully
 3. **Average Duration** (time series): Trend of scrape speed
 4. **Jobs Per Minute** (bar chart): Throughput by trigger type
-5. **Error Heatmap** (heatmap): Failure patterns by time/cinema
+5. **Error Heatmap** (heatmap): Failure patterns by time/theater
 6. **Scraper Instance Health** (table): Status of each replica
 
 **Dashboard JSON** (Grafana import):
@@ -941,7 +941,7 @@ docker compose logs -f ics-scraper | grep -i error
 # Prometheus query
 histogram_quantile(0.95, rate(scraper_jobs_duration_seconds_bucket[5m]))
 
-# Result should be < 60s for typical cinema networks
+# Result should be < 60s for typical theater networks
 ```
 
 **Optimize:**

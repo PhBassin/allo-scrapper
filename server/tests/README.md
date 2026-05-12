@@ -53,65 +53,65 @@ server/
 └── tests/
     ├── README.md                           # This file
     └── fixtures/
-        ├── cinema-c0089-page.html          # Max Linder Panorama
-        ├── cinema-w7504-page.html          # Épée de Bois
-        └── cinema-c0072-page.html          # Le Grand Action
+        ├── theater-c0089-page.html          # Max Linder Panorama
+        ├── theater-w7504-page.html          # Épée de Bois
+        └── theater-c0072-page.html          # Le Grand Action
 ```
 
 ### Test Suites
 
-#### 1. Cinema C0089 (Max Linder Panorama) - New Cinema Tests
-- Validates parsing of cinema ID, name, address, postal code, city
+#### 1. Theater C0089 (Max Linder Panorama) - New Theater Tests
+- Validates parsing of theater ID, name, address, postal code, city
 - Tests screen count and image URL extraction
-- Validates date arrays and film data structures
+- Validates date arrays and movie data structures
 - Tests showtime parsing with proper date/time formats
 
-#### 2. Regression Tests - Existing Cinemas
-- **W7504 (Épée de Bois)**: Ensures existing cinema still parses correctly
+#### 2. Regression Tests - Existing Theaters
+- **W7504 (Épée de Bois)**: Ensures existing theater still parses correctly
 - **C0072 (Le Grand Action)**: Verifies no breaking changes
 
 #### 3. Edge Cases
 - Missing theater data
 - Malformed JSON in data attributes
 - Empty HTML pages
-- Cinemas with no films showing
+- Theaters with no movies showing
 - Consistent data structure validation
 
 #### 4. Data Validation
-- Valid film IDs (integers > 0)
+- Valid movie IDs (integers > 0)
 - ISO date format validation (YYYY-MM-DD)
 - Source URL format checks
 - Week start calculation (Wednesdays)
 
 ## Adding Test Fixtures
 
-### For New Cinemas
+### For New Theaters
 
 1. **Fetch full HTML page from the source website**:
    ```bash
-   curl "https://www.example-cinema-site.com/seance/salle_gen_csalle=CXXXX.html" \
-     -o tests/fixtures/cinema-cxxxx-page.html
+   curl "https://www.example-theater-site.com/seance/salle_gen_csalle=CXXXX.html" \
+     -o tests/fixtures/theater-cxxxx-page.html
    ```
 
 2. **Verify fixture size**:
    ```bash
-   ls -lh tests/fixtures/cinema-cxxxx-page.html
+   ls -lh tests/fixtures/theater-cxxxx-page.html
    ```
    Typical size: 400-600KB
 
 3. **Create test suite** in `theater-parser.test.ts`:
    ```typescript
-   describe('parseTheaterPage - Cinema CXXXX', () => {
+   describe('parseTheaterPage - Theater CXXXX', () => {
      let html: string;
      let result: ReturnType<typeof parseTheaterPage>;
 
      beforeAll(() => {
-       html = readFileSync(join(__dirname, '../../../tests/fixtures/cinema-cxxxx-page.html'), 'utf-8');
+       html = readFileSync(join(__dirname, '../../../tests/fixtures/theater-cxxxx-page.html'), 'utf-8');
        result = parseTheaterPage(html, 'CXXXX');
      });
 
-     it('should extract cinema ID correctly', () => {
-       expect(result.cinema.id).toBe('CXXXX');
+     it('should extract theater ID correctly', () => {
+       expect(result.theater.id).toBe('CXXXX');
      });
 
      // Add more tests...
@@ -143,7 +143,7 @@ If the source website modifies their website structure:
 1. Update fixtures with fresh HTML
 2. Review parser logic in `theater-parser.ts`
 3. Adjust test expectations if needed
-4. Verify `data-theater` and `data-showtimes-dates` attributes exist
+4. Verify `data-theater` and `data-showtimes-dates` attributes exist (was `data-cinema` prior to rename)
 
 ### Coverage Threshold Not Met
 If coverage drops below thresholds:
@@ -168,13 +168,13 @@ If tests intermittently fail:
 ## Best Practices
 
 ### 1. Test Naming
-- Use descriptive test names: `should extract cinema address correctly`
+- Use descriptive test names: `should extract theater address correctly`
 - Group related tests in `describe()` blocks
-- Prefix regression tests: `Regression: Cinema W7504`
+- Prefix regression tests: `Regression: Theater W7504`
 
 ### 2. Fixture Management
 - **DO**: Save complete HTML pages for realistic testing
-- **DO**: Include diverse data (multiple films, showtimes, versions)
+- **DO**: Include diverse data (multiple movies, showtimes, versions)
 - **DON'T**: Edit fixtures manually (re-fetch instead)
 - **DON'T**: Commit minified HTML (keep original formatting for debugging)
 
@@ -196,7 +196,7 @@ If tests intermittently fail:
 ## Future Improvements
 
 ### Potential Test Additions
-1. **Film Parser Tests**: Add tests for `film-parser.ts`
+1. **Movie Parser Tests**: Add tests for `movie-parser.ts`
 2. **HTTP Client Tests**: Mock HTTP responses
 3. **Integration Tests**: Test full scraper workflow end-to-end
 4. **Database Tests**: Test queries and data persistence
@@ -227,17 +227,17 @@ If you have questions or need help with testing:
 
 ## Tenant Boundary Assertions (SaaS)
 
-When validating multi-tenant org-boundary behavior for cinemas routes:
+When validating multi-tenant org-boundary behavior for theaters routes:
 
-- Use org-scoped route topology: `/api/org/:slug/cinemas`
+- Use org-scoped route topology: `/api/org/:slug/theaters`
 - Expected cross-tenant denial contract:
-  - Request: `GET /api/org/acme/cinemas?org_id=<other-org-id>`
+  - Request: `GET /api/org/acme/theaters?org_id=<other-org-id>`
   - Response: `403 Forbidden`
   - Error payload: `{"success": false, "error": "Cross-tenant access denied"}`
 - Validate forged body org handling on create path:
-  - Request: `POST /api/org/:slug/cinemas` with body containing foreign `org_id`
+  - Request: `POST /api/org/:slug/theaters` with body containing foreign `org_id`
   - Expected: request succeeds for authenticated tenant flow; forged `org_id` is ignored/sanitized to JWT tenant context
-- Assert middleware chain guarantees remain present on cinemas routes:
+- Assert middleware chain guarantees remain present on theaters routes:
   - Read path includes org-aware auth/permission wrappers + `enforceOrgBoundary`
   - Write path includes `requireAuth`, `requirePermission`, and `enforceOrgBoundary`
 

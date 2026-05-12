@@ -61,6 +61,6 @@ When `SAAS_ENABLED=true`, the server dynamically loads `@allo-scrapper/saas` and
 ## Notes
 
 - `AUTO_MIGRATE` defaults to `true`
-- the server seeds cinemas from `server/src/config/cinemas.json` when the table is empty
+- the server seeds theaters from `server/src/config/theaters.json` when the table is empty
 - the backend exposes `/metrics`
 - the scraper exposes `/metrics` on port `9091`

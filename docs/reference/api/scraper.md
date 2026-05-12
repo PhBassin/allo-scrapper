@@ -32,9 +32,9 @@ POST /api/scraper/trigger
 |---|---|
 | _empty body_ | Full scrape (all cinemas, all dates). |
 | `cinemaId` only | All films/dates for that cinema. |
-| `filmId` only | That film at every cinema showing it. |
-| both | That film at that cinema only. |
+| `movieId` only | That movie at every theater showing it. |
 
+| both | That movie at that theater only. |
 **Response (200):**
 ```json
 {
@@ -72,13 +72,13 @@ curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Content-Type: application/json" \
   -d '{"cinemaId": "C0153"}'
 
-# Single film
+# Single movie
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"filmId": 12345}'
 
-# Specific film at specific cinema
+# Specific movie at specific theater
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -193,28 +193,13 @@ id: 1
 data: {"type":"started","total_cinemas":3,"total_dates":7}
 
 id: 2
-data: {"type":"cinema_started","cinema_name":"Épée de Bois","cinema_id":"W7504","index":1}
+data: {"type":"theater_started","theater_name":"Épée de Bois","theater_id":"W7504","index":1}
 
-id: 3
-data: {"type":"date_started","date":"2026-02-19","cinema_name":"Épée de Bois"}
+data: {"type":"movie_started","movie_title":"Mon Film","movie_id":123456}
 
-id: 4
-data: {"type":"film_started","film_title":"Mon Film","film_id":123456}
+data: {"type":"movie_completed","movie_title":"Mon Film","showtimes_count":5}
 
-id: 5
-data: {"type":"film_completed","film_title":"Mon Film","showtimes_count":5}
-
-id: 6
-data: {"type":"film_failed","film_title":"Mon Film","error":"HTTP 404"}
-
-id: 7
-data: {"type":"date_completed","date":"2026-02-19","films_count":12}
-
-id: 8
-data: {"type":"date_failed","date":"2026-02-19","cinema_name":"Épée de Bois","error":"HTTP 503"}
-
-id: 9
-data: {"type":"cinema_completed","cinema_name":"Épée de Bois","total_films":42}
+data: {"type":"theater_completed","theater_name":"Épée de Bois","total_movies":42}
 
 id: 10
 data: {"type":"completed","summary":{"total_cinemas":3,"successful_cinemas":3,"failed_cinemas":0,"total_films":87,"total_showtimes":412,"total_dates":7,"duration_ms":34210,"errors":[]}}
@@ -227,14 +212,16 @@ data: {"type":"failed","error":"Fatal error message"}
 |---|---|---|
 | `started` | Once at start | `total_cinemas`, `total_dates` |
 | `ping` | Every 30 s while stream remains open | `timestamp` |
-| `cinema_started` | Per cinema | `cinema_name`, `cinema_id`, `index` |
+| `theater_started` | Per theater | `theater_name`, `theater_id`, `index` |
 | `date_started` | Per cinema × date | `date`, `cinema_name` |
-| `film_started` | Per film | `film_title`, `film_id` |
-| `film_completed` | Per film (success) | `film_title`, `showtimes_count` |
-| `film_failed` | Per film (error) | `film_title`, `error` |
+| `movie_started` | Per movie | `movie_title`, `movie_id` |
+
+| `movie_completed` | Per movie (success) | `movie_title`, `showtimes_count` |
+
+| `movie_failed` | Per movie (error) | `movie_title`, `error` |
 | `date_completed` | Per date (success) | `date`, `films_count` |
 | `date_failed` | Per date (error) | `date`, `cinema_name`, `error` |
-| `cinema_completed` | Per cinema (≥1 date ok) | `cinema_name`, `total_films` |
+| `theater_completed` | Per theater (≥1 date ok) | `theater_name`, `total_movies` |
 | `completed` | Once on success | `summary` (ScrapeSummary object) |
 | `failed` | Once on fatal error | `error` |
 

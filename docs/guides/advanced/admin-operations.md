@@ -21,13 +21,13 @@ Master role-based access control, permission design patterns, and operational pl
 
 ## Overview
 
-Allo-Scrapper's Role-Based Access Control (RBAC) system manages user permissions across 7 categories (users, scraper, cinemas, settings, reports, system, roles) with 26 granular permissions. This guide covers operational patterns for enterprise deployments.
+Allo-Scrapper's Role-Based Access Control (RBAC) system manages user permissions across 7 categories (users, scraper, theaters, settings, reports, system, roles) with 26 granular permissions. This guide covers operational patterns for enterprise deployments.
 
 ### Key RBAC Concepts
 
 **System Roles** (Built-in, Protected):
 - `admin` – Full access via bypass mechanism
-- `operator` – Scraping + cinema management (9 specific permissions)
+- `operator` – Scraping + theater management (9 specific permissions)
 
 **Custom Roles** (User-created, Flexible):
 - Any combination of the 26 permissions
@@ -45,7 +45,7 @@ Allo-Scrapper's Role-Based Access Control (RBAC) system manages user permissions
 |----------|-------------|---------------|
 | **users** (5) | create, read, update, delete, list | Admins, Team Leads |
 | **scraper** (2) | trigger, trigger_single | Operators, Content Teams |
-| **cinemas** (4) | create, read, update, delete | Operators, Content Teams |
+| **theaters** (4) | create, read, update, delete | Operators, Content Teams |
 | **settings** (5) | read, update, reset, export, import | Admins, System Engineers |
 | **reports** (2) | list, view | Operators, Analytics Team |
 | **system** (3) | info, health, migrations | System Engineers, DevOps |
@@ -65,7 +65,7 @@ For organizations with separate content, operations, and technical teams:
 -- Team Leads (can manage their team's users but not access settings)
 INSERT INTO roles (name, description) VALUES (
   'content_lead',
-  'Content Team Lead - User management, cinema/scraper operations'
+  'Content Team Lead - User management, theater/scraper operations'
 );
 
 INSERT INTO role_permissions (role_id, permission_id)
@@ -73,7 +73,7 @@ SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'content_lead'
 AND p.name IN (
   'users:read', 'users:create', 'users:update',  -- Manage team members
-  'cinemas:read', 'cinemas:create', 'cinemas:update', 'cinemas:delete',
+  'theaters:read', 'theaters:create', 'theaters:update', 'theaters:delete',
   'scraper:trigger', 'scraper:trigger_single',
   'reports:list', 'reports:view'
 );
@@ -81,14 +81,14 @@ AND p.name IN (
 -- Operations (read-only access, no changes)
 INSERT INTO roles (name, description) VALUES (
   'viewer',
-  'Read-Only Viewer - Monitor cinemas and reports without changes'
+  'Read-Only Viewer - Monitor theaters and reports without changes'
 );
 
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'viewer'
 AND p.name IN (
-  'cinemas:read', 'reports:list', 'reports:view',
+  'theaters:read', 'reports:list', 'reports:view',
   'system:info', 'system:health'
 );
 
@@ -116,9 +116,9 @@ Admin (all permissions)
   ↓
 Manager (users:read, create, update + report perms)
   ↓
-Operator (scraper:trigger, cinemas:*, reports:view)
+Operator (scraper:trigger, theaters:*, reports:view)
   ↓
-Viewer (read-only: cinemas:read, reports:view)
+Viewer (read-only: theaters:read, reports:view)
 ```
 
 **Implementation:**
@@ -149,7 +149,7 @@ WITH role_hierarchy AS (
 SELECT name, perm_count, perms FROM role_hierarchy;
 
 -- Output:
--- viewer      | 3 | {cinemas:read, reports:list, reports:view}
+-- viewer      | 3 | {theaters:read, reports:list, reports:view}
 -- operator    | 9 | {... + scraper:trigger, scraper:trigger_single}
 -- manager     | 13| {... + users:read, users:create, users:update}
 -- admin (sys) | 26| {ALL}
@@ -157,40 +157,40 @@ SELECT name, perm_count, perms FROM role_hierarchy;
 
 ### Pattern 3: Attribute-Based Access (ABAC Simulation)
 
-For cinema-specific permissions, implement in application layer above RBAC:
+For theater-specific permissions, implement in application layer above RBAC:
 
 ```typescript
-// server/src/middleware/cinema-access.ts
-// Simulate ABAC by filtering cinemas based on user attributes
+// server/src/middleware/theater-access.ts
+// Simulate ABAC by filtering theaters based on user attributes
 
 interface UserAttributes {
   userId: number;
   role: string;
-  assignedCinemaIds?: number[];  // Add custom field to users table
+  assignedTheaterIds?: number[];  // Add custom field to users table
   region?: string;               // Regional restriction
 }
 
-async function getCinemasForUser(user: UserAttributes): Promise<Cinema[]> {
-  const allCinemas = await getCinemas();
+async function getTheatersForUser(user: UserAttributes): Promise<Theater[]> {
+  const allTheaters = await getTheaters();
   
-  // Operator can only manage assigned cinemas
-  if (user.role === 'operator' && user.assignedCinemaIds) {
-    return allCinemas.filter(c => user.assignedCinemaIds!.includes(c.id));
+  // Operator can only manage assigned theaters
+  if (user.role === 'operator' && user.assignedTheaterIds) {
+    return allTheaters.filter(c => user.assignedTheaterIds!.includes(c.id));
   }
   
   // Regional manager can only access their region
   if (user.role === 'regional_manager' && user.region) {
-    return allCinemas.filter(c => c.region === user.region);
+    return allTheaters.filter(c => c.region === user.region);
   }
   
-  // Admin/manager get all cinemas
-  return allCinemas;
+  // Admin/manager get all theaters
+  return allTheaters;
 }
 
 // Usage in routes
-router.get('/api/cinemas', async (req, res) => {
-  const cinemas = await getCinemasForUser(req.user);
-  res.json(cinemas);
+router.get('/api/theaters', async (req, res) => {
+  const theaters = await getTheatersForUser(req.user);
+  res.json(theaters);
 });
 ```
 
@@ -198,12 +198,12 @@ router.get('/api/cinemas', async (req, res) => {
 
 ```sql
 -- Extend users table with attributes
-ALTER TABLE users ADD COLUMN assigned_cinema_ids INTEGER[] DEFAULT '{}';
+ALTER TABLE users ADD COLUMN assigned_theater_ids INTEGER[] DEFAULT '{}';
 ALTER TABLE users ADD COLUMN region VARCHAR(100);
 
--- Example: Operator assigned to specific cinemas
+-- Example: Operator assigned to specific theaters
 UPDATE users 
-SET assigned_cinema_ids = ARRAY[1, 5, 12]
+SET assigned_theater_ids = ARRAY[1, 5, 12]
 WHERE username = 'regional_operator';
 ```
 
@@ -213,12 +213,12 @@ WHERE username = 'regional_operator';
 
 ### Template 1: Content Manager Role
 
-**For teams managing cinema listings and schedules:**
+**For teams managing theater listings and schedules:**
 
 ```sql
 INSERT INTO roles (name, description) VALUES (
   'content_manager',
-  'Manage cinemas and schedules, trigger scraping'
+  'Manage theaters and schedules, trigger scraping'
 );
 
 -- 8 permissions total
@@ -229,11 +229,11 @@ AND p.name IN (
   -- Scraping
   'scraper:trigger',
   'scraper:trigger_single',
-  -- Cinema management
-  'cinemas:create',
-  'cinemas:read',
-  'cinemas:update',
-  'cinemas:delete',
+  -- Theater management
+  'theaters:create',
+  'theaters:read',
+  'theaters:update',
+  'theaters:delete',
   -- Reports
   'reports:list',
   'reports:view'
@@ -249,7 +249,7 @@ ORDER BY p.name;
 
 **Typical Users:**
 - Content team leads
-- Cinema data managers
+- Theater data managers
 - Scheduling coordinators
 
 ### Template 2: Analyst Role
@@ -271,7 +271,7 @@ AND p.name IN (
   'reports:view',
   'system:info',
   'system:health',
-  'cinemas:read'
+  'theaters:read'
 );
 ```
 
@@ -320,7 +320,7 @@ AND p.name IN (
 ```sql
 INSERT INTO roles (name, description) VALUES (
   'restricted_operator',
-  'Trigger scraping only, read-only cinema/report access'
+  'Trigger scraping only, read-only theater/report access'
 );
 
 -- 5 minimal permissions
@@ -328,8 +328,8 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'restricted_operator'
 AND p.name IN (
-  'scraper:trigger_single',  -- Single cinema only
-  'cinemas:read',
+  'scraper:trigger_single',  -- Single theater only
+  'theaters:read',
   'reports:list',
   'reports:view',
   'system:health'  -- Monitor health without full system access
@@ -547,7 +547,7 @@ curl -X POST /api/users/123/temporary-role \
   -d '{
     "roleId": 2,
     "durationDays": 30,
-    "reason": "Contract: Q2 cinema audit"
+    "reason": "Contract: Q2 theater audit"
   }'
 
 # Automatically revokes after 30 days
@@ -827,10 +827,10 @@ WHERE r.name = 'operator'
 AND p.name IN (
   'scraper:trigger',
   'scraper:trigger_single',
-  'cinemas:create',
-  'cinemas:update',
-  'cinemas:delete',
-  'cinemas:read',
+  'theaters:create',
+  'theaters:update',
+  'theaters:delete',
+  'theaters:read',
   'users:read',
   'reports:list',
   'reports:view'

@@ -141,7 +141,7 @@ export class UGCScraperStrategy implements IScraperStrategy {
     cinema: CinemaConfig
   ): Promise<{ availableDates: string[]; cinema: Cinema }> {
     // 1. Fetch cinema info page
-    const html = await this.fetchCinemaPage(cinema.url);
+    const html = await this.fetchTheaterPage(theater.url);
 
     // 2. Parse cinema metadata
     const cinemaData = this.parseCinemaMetadata(html);
@@ -196,7 +196,7 @@ export class UGCScraperStrategy implements IScraperStrategy {
   }
 
   // ===== PRIVATE HELPER METHODS =====
-  private async fetchCinemaPage(url: string): Promise<string> {
+  private async fetchTheaterPage(url: string): Promise<string> {
     // Implement HTTP request with retries, timeouts, headers
     // See: scraper/src/scraper/http-client.ts for reference
   }
