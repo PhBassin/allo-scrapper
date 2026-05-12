@@ -95,24 +95,28 @@ router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('rep
       return next(new ValidationError('Invalid report ID'));
     }
 
-    const report = await getScrapeReport(db, reportId);
+    // ⚡ PERFORMANCE: Execute independent queries concurrently to reduce overall latency
+    const [report, attempts] = await Promise.all([
+      getScrapeReport(db, reportId),
+      getScrapeAttemptsByReport(db, reportId)
+    ]);
 
     if (!report) {
       return next(new NotFoundError('Report not found'));
     }
 
-    // Get all attempts for this report
-    const attempts = await getScrapeAttemptsByReport(db, reportId);
-
     // Group attempts by cinema
-    const attemptsByCinema: Record<string, any[]> = {};
+    // ⚡ PERFORMANCE: Use prototype-less object for faster dictionary lookups
+    const attemptsByCinema: Record<string, any[]> = Object.create(null);
     let successful = 0;
     let failed = 0;
     let rate_limited = 0;
     let not_attempted = 0;
     let pending = 0;
 
-    for (const attempt of attempts) {
+    // ⚡ PERFORMANCE: Standard for-loop is faster than for-of for large arrays
+    for (let i = 0; i < attempts.length; i++) {
+      const attempt = attempts[i];
       // Grouping
       if (!attemptsByCinema[attempt.cinema_id]) {
         attemptsByCinema[attempt.cinema_id] = [];
