@@ -10,7 +10,7 @@ vi.mock('../../../src/utils/logger.js', () => ({
 }));
 
 describe('http-client user-agent randomization', () => {
-  let fetchShowtimesJson: (cinemaId: string, date: string) => Promise<unknown>;
+  let fetchShowtimesJson: (theaterId: string, date: string) => Promise<unknown>;
 
   beforeEach(async () => {
     vi.resetModules();

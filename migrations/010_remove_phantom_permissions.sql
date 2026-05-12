@@ -9,7 +9,7 @@ BEGIN;
 -- Canonical permission set (20 permissions as of migration 009):
 --   users:       users:list, users:create, users:update, users:delete
 --   scraper:     scraper:trigger, scraper:trigger_single
---   cinemas:     cinemas:create, cinemas:update, cinemas:delete
+--   theaters:    theaters:create, theaters:update, theaters:delete
 --   settings:    settings:read, settings:update, settings:reset, settings:export, settings:import
 --   reports:     reports:list, reports:view
 --   system:      system:info, system:health, system:migrations
@@ -24,9 +24,9 @@ WHERE name NOT IN (
   'users:delete',
   'scraper:trigger',
   'scraper:trigger_single',
-  'cinemas:create',
-  'cinemas:update',
-  'cinemas:delete',
+  'theaters:create',
+  'theaters:update',
+  'theaters:delete',
   'settings:read',
   'settings:update',
   'settings:reset',

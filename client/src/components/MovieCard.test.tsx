@@ -18,7 +18,7 @@ const mockMovie: MovieWithShowtimes = {
   certificate: 'U',
   press_rating: 4.5,
   audience_rating: 4.2,
-  cinemas: [],
+  theaters: [],
   source_url: 'http://example.com/movie'
 };
 

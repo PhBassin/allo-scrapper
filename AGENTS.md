@@ -68,7 +68,7 @@ Operational guide for contributors and agents in this monorepo. Prefer BMAD work
 ## Runtime Truths That Drift Easily
 
 - Dev compose sets `AUTO_MIGRATE=true` by default unless overridden.
-- After migrations, the server seeds `server/src/config/cinemas.json` when the `cinemas` table is empty.
+- After migrations, the server seeds `server/src/config/theaters.json` when the `theaters` table is empty.
 - Dev compose sets `SAAS_ENABLED=false` and `E2E_ENABLE_ORG_FIXTURE=false` by default unless overridden.
 - Do not use any old `/api/superadmin/login` assumption. Login goes through `/api/auth/login`.
 - JWT gets `scope: 'superadmin'` only for system-role admins with no `org_slug`.
@@ -99,7 +99,7 @@ Operational guide for contributors and agents in this monorepo. Prefer BMAD work
 - Actual pre-push checks: `scripts/hooks/pre-push`
 - Dev proxy for `/api` and `/test`: `client/vite.config.ts`
 - Auth and superadmin scope truth: `server/src/services/auth-service.ts`
-- DB init + one-time cinema bootstrap seed: `server/src/db/schema.ts`
+- DB init + one-time theater bootstrap seed: `server/src/db/schema.ts`
 
 ## Gotcha: `app_settings` Row Requirement
 

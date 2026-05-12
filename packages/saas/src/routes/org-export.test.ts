@@ -70,18 +70,18 @@ describe('Org Export Routes', () => {
         rowCount: 1,
       });
 
-      // Mock cinemas
+      // Mock theaters
       vi.mocked(mockClient.query).mockResolvedValueOnce({
         rows: [
-          { id: 1, name: 'Cinema 1', allocine_id: 'C0001' },
-          { id: 2, name: 'Cinema 2', allocine_id: 'C0002' },
+          { id: 1, name: 'Theater 1', allocine_id: 'C0001' },
+          { id: 2, name: 'Theater 2', allocine_id: 'C0002' },
         ],
       } as any);
 
       // Mock showtimes (last 7 days)
       vi.mocked(mockClient.query).mockResolvedValueOnce({
         rows: [
-          { id: 1, cinema_id: 1, showtime: new Date() },
+          { id: 1, theater_id: 1, showtime: new Date() },
         ],
       } as any);
 
@@ -102,7 +102,7 @@ describe('Org Export Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty('org');
-      expect(response.body.data.cinemas).toHaveLength(2);
+      expect(response.body.data.theaters).toHaveLength(2);
     });
 
     it('should NOT leak sensitive organization fields', async () => {

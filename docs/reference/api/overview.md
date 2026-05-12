@@ -53,8 +53,8 @@ Notes:
 - `GET /api/films`
 - `GET /api/films/search`
 - `GET /api/films/:id`
-- `GET /api/cinemas`
-- `GET /api/cinemas/:id`
+- `GET /api/theaters`
+- `GET /api/theaters/:id`
 - `POST /api/auth/login`
 
 ## Rate limiting

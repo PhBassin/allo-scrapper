@@ -11,11 +11,11 @@ import type { PermissionName } from '../types/role';
  * for all admin resources.
  */
 export const ADMIN_PERMISSIONS: PermissionName[] = [
-  // Cinema permissions
-  'cinemas:create',
-  'cinemas:update',
-  'cinemas:delete',
-  'cinemas:read',
+  // Theater permissions
+  'theaters:create',
+  'theaters:update',
+  'theaters:delete',
+  'theaters:read',
   
   // User permissions
   'users:list',
@@ -47,7 +47,7 @@ export const ADMIN_PERMISSIONS: PermissionName[] = [
   'system:health',
   'system:migrations',
   
-  // Scraper permissions (visible in cinemas tab)
+  // Scraper permissions (visible in theaters tab)
   'scraper:trigger',
   'scraper:trigger_single',
   

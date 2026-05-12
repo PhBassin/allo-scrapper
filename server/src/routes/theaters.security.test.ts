@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as cinemaQueries from '../db/cinema-queries.js';
+import * as theaterQueries from '../db/theater-queries.js';
 import * as showtimeQueries from '../db/showtime-queries.js';
-import router from './cinemas.js';
+import router from './theaters.js';
 import { db } from '../db/client.js';
 
 // Mock the dependencies
@@ -12,14 +12,14 @@ vi.mock('../db/client.js', () => ({
 }));
 
 vi.mock('../db/showtime-queries.js', () => ({
-  getShowtimesByCinemaAndWeek: vi.fn(),
+  getShowtimesByTheaterAndWeek: vi.fn(),
 }));
 
-vi.mock('../db/cinema-queries.js', () => ({
-  getCinemas: vi.fn(),
-  addCinema: vi.fn(),
-  updateCinemaConfig: vi.fn(),
-  deleteCinema: vi.fn(),
+vi.mock('../db/theater-queries.js', () => ({
+  getTheaters: vi.fn(),
+  addTheater: vi.fn(),
+  updateTheaterConfig: vi.fn(),
+  deleteTheater: vi.fn(),
 }));
 
 vi.mock('../utils/date.js', () => ({
@@ -62,7 +62,7 @@ function expectMiddlewareOrder(
   }
 }
 
-describe('Routes - Cinemas - Security', () => {
+describe('Routes - Theaters - Security', () => {
   let mockRes: any;
   let mockReq: any;
   let mockNext: any;
@@ -87,7 +87,7 @@ describe('Routes - Cinemas - Security', () => {
   it('should delegate error handling to next() and NOT expose sensitive details directly', async () => {
     // Simulate a database error with sensitive information
     const sensitiveError = new Error('SQL Error: Table "users" does not exist');
-    (cinemaQueries.getCinemas as any).mockRejectedValue(sensitiveError);
+    (theaterQueries.getTheaters as any).mockRejectedValue(sensitiveError);
 
     // Get the handler for GET /
     const handler = getRouteHandler('/', 'get');
@@ -128,7 +128,7 @@ describe('Routes - Cinemas - Security', () => {
       expect(names).not.toContain('requireAuth');
       expect(names).not.toContain('requirePermission');
       expect(names).toContain('requireAuthForOrgRequests');
-      expect(names).toContain('requireCinemaReadPermissionForOrgRequests');
+      expect(names).toContain('requireTheaterReadPermissionForOrgRequests');
       expect(names).toContain('enforceOrgBoundary');
     });
 
@@ -137,7 +137,7 @@ describe('Routes - Cinemas - Security', () => {
       expect(names).not.toContain('requireAuth');
       expect(names).not.toContain('requirePermission');
       expect(names).toContain('requireAuthForOrgRequests');
-      expect(names).toContain('requireCinemaReadPermissionForOrgRequests');
+      expect(names).toContain('requireTheaterReadPermissionForOrgRequests');
       expect(names).toContain('enforceOrgBoundary');
     });
   });

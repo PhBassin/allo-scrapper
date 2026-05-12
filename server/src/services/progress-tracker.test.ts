@@ -69,7 +69,7 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 1,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 2,
       traceContext: { org_slug: 'acme' },
     });
@@ -93,14 +93,14 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 10,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
       traceContext: { org_slug: 'acme' },
     });
     tracker.emit({
       type: 'started',
       report_id: 11,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
       traceContext: { org_slug: 'other' },
     });
@@ -135,14 +135,14 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 10,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
       traceContext: { org_slug: 'other' },
     });
     tracker.emit({
       type: 'started',
       report_id: 11,
-      total_cinemas: 2,
+      total_theaters: 2,
       total_dates: 3,
       traceContext: { org_slug: 'acme' },
     });
@@ -166,14 +166,14 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 1,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
     });
     tracker.emit({
-      type: 'cinema_started',
+      type: 'theater_started',
       report_id: 1,
-      cinema_name: 'Cinema One',
-      cinema_id: 'C1',
+      theater_name: 'Theater One',
+      theater_id: 'C1',
       index: 0,
     });
 
@@ -181,7 +181,7 @@ describe('ProgressTracker', () => {
 
     expect(frames).toEqual([
       expect.objectContaining({ id: '1', data: expect.objectContaining({ type: 'started' }) }),
-      expect.objectContaining({ id: '2', data: expect.objectContaining({ type: 'cinema_started' }) }),
+      expect.objectContaining({ id: '2', data: expect.objectContaining({ type: 'theater_started' }) }),
     ]);
     expect(Number(frames[1].id)).toBeGreaterThan(Number(frames[0].id));
     expect(new Set(frames.map((frame) => frame.id)).size).toBe(frames.length);
@@ -193,22 +193,22 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 10,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
       traceContext: { org_slug: 'acme' },
     });
     tracker.emit({
       type: 'started',
       report_id: 11,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
       traceContext: { org_slug: 'other' },
     });
     tracker.emit({
-      type: 'cinema_started',
+      type: 'theater_started',
       report_id: 10,
-      cinema_name: 'Cinema Acme',
-      cinema_id: 'C10',
+      theater_name: 'Theater Acme',
+      theater_id: 'C10',
       index: 0,
       traceContext: { org_slug: 'acme' },
     });
@@ -227,7 +227,7 @@ describe('ProgressTracker', () => {
     expect(parseSseFrame(writes[0])).toEqual({
       id: '3',
       data: expect.objectContaining({
-        type: 'cinema_started',
+        type: 'theater_started',
         report_id: 10,
         traceContext: expect.objectContaining({ org_slug: 'acme' }),
       }),
@@ -240,7 +240,7 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 20,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
       traceContext: { org_slug: 'acme' },
     });
@@ -273,7 +273,7 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 21,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
       traceContext: { org_slug: 'acme' },
     });
@@ -301,16 +301,16 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 1,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
     });
     tracker.emit({
       type: 'completed',
       report_id: 1,
       summary: {
-        total_cinemas: 1,
-        successful_cinemas: 1,
-        failed_cinemas: 0,
+        total_theaters: 1,
+        successful_theaters: 1,
+        failed_theaters: 0,
         total_movies: 1,
         total_showtimes: 1,
         total_dates: 1,
@@ -321,7 +321,7 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 2,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
     });
 
@@ -388,7 +388,7 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 30,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
     });
 
@@ -485,7 +485,7 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 1,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
     });
 
@@ -509,7 +509,7 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 1,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
       traceContext: { org_slug: 'other' },
     });
@@ -536,7 +536,7 @@ describe('ProgressTracker', () => {
     tracker.emit({
       type: 'started',
       report_id: 1,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
     });
     vi.advanceTimersByTime(2 * 60 * 1000);

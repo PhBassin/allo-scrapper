@@ -32,14 +32,14 @@ export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeP
 
   // ⚡ PERFORMANCE: Use a single pass iteration to compute counts instead of multiple
   // .filter().length calls to avoid allocating intermediate arrays and O(M*N) operations
-  let processedCinemas = 0;
+  let processedTheaters = 0;
   let totalMovies = 0;
   let processedMovies = 0;
 
   for (let i = 0; i < events.length; i++) {
     const type = events[i].type;
-    if (type === 'cinema_completed') {
-      processedCinemas++;
+    if (type === 'theater_completed') {
+      processedTheaters++;
     } else if (type === 'movie_started') {
       totalMovies++;
     } else if (type === 'movie_completed') {
@@ -47,18 +47,18 @@ export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeP
     }
   }
 
-  const totalCinemas = startedEvent?.total_cinemas || 0;
+  const totalTheaters = startedEvent?.total_theaters || 0;
 
-  // Get current cinema/movie from latest event
-  const currentCinema = latestEvent?.type === 'cinema_started' || latestEvent?.type === 'date_started' 
-    ? latestEvent.cinema_name 
+  // Get current theater/movie from latest event
+  const currentTheater = latestEvent?.type === 'theater_started' || latestEvent?.type === 'date_started' 
+    ? latestEvent.theater_name 
     : undefined;
   const currentMovie = latestEvent?.type === 'movie_started' 
     ? latestEvent.movie_title 
     : undefined;
 
   // Calculate progress percentages
-  const cinemaProgress = totalCinemas > 0 ? (processedCinemas / totalCinemas) * 100 : 0;
+  const theaterProgress = totalTheaters > 0 ? (processedTheaters / totalTheaters) * 100 : 0;
   const movieProgress = totalMovies > 0 ? (processedMovies / totalMovies) * 100 : 0;
 
   // Check if completed
@@ -118,17 +118,17 @@ export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeP
         )}
       </div>
 
-      {/* Cinema Progress */}
+      {/* Theater Progress */}
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
           <p className="text-sm font-medium text-gray-700">
             Cinémas traités
           </p>
           <p className="text-sm text-gray-600">
-            {processedCinemas} / {totalCinemas}
-            {totalCinemas > 0 && processedCinemas < totalCinemas && (
+            {processedTheaters} / {totalTheaters}
+            {totalTheaters > 0 && processedTheaters < totalTheaters && (
               <span className="ml-2 text-xs text-gray-400" data-testid="scrape-progress-eta">
-                ETA: ~{Math.round((totalCinemas - processedCinemas) * 2)} min
+                ETA: ~{Math.round((totalTheaters - processedTheaters) * 2)} min
               </span>
             )}
           </p>
@@ -136,12 +136,12 @@ export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeP
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
             className="bg-primary h-2 rounded-full transition-all duration-300"
-            style={{ width: `${cinemaProgress}%` }}
+            style={{ width: `${theaterProgress}%` }}
           ></div>
         </div>
-        {currentCinema && (
+        {currentTheater && (
           <p className="text-xs text-gray-500 mt-1">
-            En cours: {currentCinema}
+            En cours: {currentTheater}
           </p>
         )}
       </div>
@@ -189,7 +189,7 @@ export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeP
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{job.cinemaName || `Scrape #${job.reportId ?? job.id}`}</p>
+                      <p className="text-sm font-semibold text-gray-900">{job.theaterName || `Scrape #${job.reportId ?? job.id}`}</p>
                       {job.reportId != null && (
                         <p className="text-xs text-gray-500">Report #{job.reportId}</p>
                       )}
@@ -205,14 +205,14 @@ export default function ScrapeProgress({ onComplete, trackedJobs = [] }: ScrapeP
                   <div className="mt-3 space-y-3">
                     <div>
                       <div className="flex justify-between items-center mb-1 text-xs text-gray-600">
-                        <span>Cinemas</span>
+                        <span>Theaters</span>
                         <span>
-                          {job.processedCinemas} / {job.totalCinemas}
-                          <span className="ml-2" data-testid="scrape-progress-percentage">{Math.round(job.cinemaProgress)}%</span>
+                          {job.processedTheaters} / {job.totalTheaters}
+                          <span className="ml-2" data-testid="scrape-progress-percentage">{Math.round(job.theaterProgress)}%</span>
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${job.cinemaProgress}%` }}></div>
+                        <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${job.theaterProgress}%` }}></div>
                       </div>
                     </div>
 

@@ -26,7 +26,7 @@ export interface ServerHealth {
 export interface DatabaseStats {
   size: string;
   tables: number;
-  cinemas: number;
+  theaters: number;
   movies: number;
   showtimes: number;
 }
@@ -57,7 +57,7 @@ export interface MigrationsInfo {
 export interface ScraperStatus {
   activeJobs: number;
   lastScrapeTime: string | null;
-  totalCinemas: number;
+  totalTheaters: number;
 }
 
 export interface SystemHealth {

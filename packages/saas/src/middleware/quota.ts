@@ -2,7 +2,7 @@
  * Express middleware factory that enforces plan quotas.
  *
  * Usage:
- *   router.post('/cinemas', requireAuth, checkQuota('cinemas'), createCinema);
+ *   router.post('/theaters', requireAuth, checkQuota('theaters'), createTheater);
  *
  * Reads req.org and req.dbClient (both set by resolveTenant).
  * Returns 402 QUOTA_EXCEEDED when the org has reached its plan limit.
@@ -17,7 +17,7 @@ import type { Plan } from '../db/types.js';
 
 /** Maps a quota resource to the plan limit column and usage counter key. */
 const RESOURCE_MAP: Record<QuotaResource, { planKey: keyof Plan; usageKey: string }> = {
-  cinemas: { planKey: 'max_cinemas', usageKey: 'cinemas_count' },
+  theaters: { planKey: 'max_theaters', usageKey: 'theaters_count' },
   users:   { planKey: 'max_users',   usageKey: 'users_count'   },
   scrapes: { planKey: 'max_scrapes_per_day', usageKey: 'scrapes_count' },
 };

@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Reports Navigation', () => {
   test.beforeAll(async ({ browser }) => {
-    // Ensure we have at least one report by triggering a scrape of one cinema
+    // Ensure we have at least one report by triggering a scrape of one theater
     const context = await browser.newContext();
     const page = await context.newPage();
     

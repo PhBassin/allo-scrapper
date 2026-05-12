@@ -137,7 +137,7 @@ describe('Routes - Scraper', () => {
     mockRetryDlqJob.mockResolvedValue(null);
     mockGetScrapeReport.mockResolvedValue({ id: 123, status: 'failed' });
     mockGetPendingScrapeAttempts.mockResolvedValue([
-      { cinema_id: 'C0042', date: '2026-03-26' },
+      { theater_id: 'C0042', date: '2026-03-26' },
     ]);
     mockLoggerInfo.mockReset();
     failAuth = false;
@@ -148,7 +148,7 @@ describe('Routes - Scraper', () => {
       const app = await setupApp({ role_name: 'admin', is_system_role: true, permissions: [] });
       
       // This is the bug case - sending request without any body
-      // Previously this caused "Cannot destructure property 'cinemaId' of 'req.body' as it is undefined"
+      // Previously this caused "Cannot destructure property 'theaterId' of 'req.body' as it is undefined"
       const response = await request(app).post('/api/scraper/trigger');
       
       expect(response.status).toBe(200);
@@ -190,17 +190,17 @@ describe('Routes - Scraper', () => {
       );
     });
 
-    it('should pass cinemaId and movieId to the service', async () => {
+    it('should pass theaterId and movieId to the service', async () => {
       const app = await setupApp();
       
       const response = await request(app).post('/api/scraper/trigger').send({
-        cinemaId: 'C0153',
+        theaterId: 'C0153',
         movieId: 12345
       });
       
       expect(response.status).toBe(200);
       expect(mockTriggerScrape).toHaveBeenCalledWith(
-        { cinemaId: 'C0153', movieId: 12345 },
+        { theaterId: 'C0153', movieId: 12345 },
         expect.objectContaining({
           endpoint: '/api/scraper/trigger',
           method: 'POST',
@@ -214,20 +214,20 @@ describe('Routes - Scraper', () => {
           user_id: 1,
           endpoint: '/api/scraper/trigger',
           method: 'POST',
-          cinema_id: 'C0153',
+          theater_id: 'C0153',
           movie_id: 12345,
         })
       );
     });
 
-    it('should handle service errors gracefully (e.g., Cinema not found)', async () => {
-      mockTriggerScrape.mockRejectedValue(new Error('Cinema not found: X'));
+    it('should handle service errors gracefully (e.g., Theater not found)', async () => {
+      mockTriggerScrape.mockRejectedValue(new Error('Theater not found: X'));
       const app = await setupApp();
       
-      const response = await request(app).post('/api/scraper/trigger').send({ cinemaId: 'X' });
+      const response = await request(app).post('/api/scraper/trigger').send({ theaterId: 'X' });
       
       expect(response.status).toBe(404);
-      expect(response.body.error).toContain('Cinema not found');
+      expect(response.body.error).toContain('Theater not found');
     });
 
     it('should handle generic service errors with 500', async () => {
@@ -437,7 +437,7 @@ describe('Routes - Scraper', () => {
         retry_count: 2,
         failure_reason: 'timeout',
         timestamp: '2026-04-21T18:00:00.000Z',
-        cinema_id: 'c1',
+        theater_id: 'c1',
         org_id: '7',
         job: { type: 'scrape', triggerType: 'manual', reportId: 5 },
       });
@@ -707,7 +707,7 @@ describe('Routes - Scraper', () => {
       expect(response.body.data.reportId).toBe(99);
       expect(response.body.data.scheduleId).toBe(1);
       expect(mockTriggerScrape).toHaveBeenCalledWith(
-        { cinemaId: undefined },
+        { theaterId: undefined },
         expect.objectContaining({
           endpoint: '/api/scraper/schedules/1/trigger',
           method: 'POST',

@@ -20,7 +20,7 @@ vi.mock('../utils/logger.js', () => ({
 function createReq(partial: Partial<AuthRequest>): AuthRequest {
   return {
     method: 'GET',
-    path: '/api/org/acme/cinemas',
+    path: '/api/org/acme/theaters',
     query: {},
     body: {},
     ...partial,
@@ -86,7 +86,7 @@ describe('enforceOrgBoundary', () => {
     const req = createReq({
       method: 'POST',
       user: { id: 1, username: 'admin', role_name: 'admin', is_system_role: true, permissions: [], org_id: 4 },
-      body: { name: 'Cinema', org_id: 99 },
+      body: { name: 'Theater', org_id: 99 },
     });
     const res = createRes();
 

@@ -118,7 +118,7 @@ describe('Database Migration Idempotency (Integration)', () => {
        JOIN roles r ON r.id = rp.role_id
        JOIN permissions p ON p.id = rp.permission_id
        WHERE r.name = 'operator'
-         AND p.name IN ('cinemas:read', 'users:read')`
+         AND p.name IN ('theaters:read', 'users:read')`
     );
     expect(operatorReadPermissions.rows[0].count).toBe('2');
 

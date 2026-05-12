@@ -46,8 +46,8 @@ describe('determinePostLoginDestination', () => {
     });
 
     it('redirects to from location when it is within the same org', () => {
-      const destination = determinePostLoginDestination(orgUser, '/org/acme/cinema/123');
-      expect(destination).toBe('/org/acme/cinema/123');
+      const destination = determinePostLoginDestination(orgUser, '/org/acme/theater/123');
+      expect(destination).toBe('/org/acme/theater/123');
     });
 
     it('redirects to /org/{slug} when from location is for a different org', () => {

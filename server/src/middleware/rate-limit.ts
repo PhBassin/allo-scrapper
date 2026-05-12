@@ -231,7 +231,7 @@ export const scraperLimiter = rateLimit({
   },
 });
 
-// Moderate limiter for public read endpoints (cinemas, films)
+// Moderate limiter for public read endpoints (theaters, films)
 export const publicLimiter = rateLimit({
   windowMs: WINDOW_MS,
   max: parseEnvInt('RATE_LIMIT_PUBLIC_MAX', 100),

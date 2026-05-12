@@ -50,8 +50,8 @@ export function createOrgExportRouter(): Router {
       }
 
       // Query org's private schema for data (already set by resolveTenant)
-      const [cinemasResult, showtimesResult, reportsResult, settingsResult] = await Promise.all([
-        client.query('SELECT * FROM cinemas ORDER BY id'),
+      const [theatersResult, showtimesResult, reportsResult, settingsResult] = await Promise.all([
+        client.query('SELECT * FROM theaters ORDER BY id'),
         client.query(`
           SELECT * FROM showtimes
           WHERE showtime >= now() - interval '7 days'
@@ -72,7 +72,7 @@ export function createOrgExportRouter(): Router {
 
       const exportData = {
         org: filteredOrg,
-        cinemas: cinemasResult.rows,
+        theaters: theatersResult.rows,
         showtimes: showtimesResult.rows,
         reports: reportsResult.rows,
         settings: settingsResult.rows[0] || null,

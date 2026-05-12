@@ -40,7 +40,7 @@ describe('getScrapeDates', () => {
       vi.setSystemTime(new Date('2026-02-17T10:00:00')); // Tuesday
       const dates = getScrapeDates('from_today_limited');
       expect(dates).toHaveLength(1);
-      expect(dates[0]).toBe('2026-02-17'); // Tuesday (last day of cinema week)
+      expect(dates[0]).toBe('2026-02-17'); // Tuesday (last day of theater week)
     });
 
     it('should return 7 days when today is Wednesday (wed → next tuesday)', () => {

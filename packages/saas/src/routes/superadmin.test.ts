@@ -128,7 +128,7 @@ describe('Superadmin Routes', () => {
             rowCount: 1,
           }) // SELECT user
           .mockResolvedValueOnce({
-            rows: [{ name: 'admin', permissions: JSON.stringify(['view_cinemas', 'manage_users']) }],
+            rows: [{ name: 'admin', permissions: JSON.stringify(['view_theaters', 'manage_users']) }],
             rowCount: 1,
           }), // SELECT role
         release: vi.fn(),

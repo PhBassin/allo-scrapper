@@ -34,7 +34,7 @@ type SlugState = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
  *
  * Step 1: Org name + slug (auto-generated from name, async availability check)
  * Step 2: Admin email + password (min 8 chars)
- * Step 3: Optional cinema URL (skippable)
+ * Step 3: Optional theater URL (skippable)
  * Step 4: Submit → POST /api/saas/orgs → redirect to /org/:slug/
  */
 const RegisterPage: React.FC = () => {
@@ -58,7 +58,7 @@ const RegisterPage: React.FC = () => {
   const [step2Error, setStep2Error] = useState('');
 
   // ── Step 3 ───────────────────────────────────────────────────────────────
-  const [cinemaUrl, setCinemaUrl] = useState('');
+  const [theaterUrl, setTheaterUrl] = useState('');
 
   // ── Slug auto-generation from org name ──────────────────────────────────
   useEffect(() => {
@@ -142,7 +142,7 @@ const RegisterPage: React.FC = () => {
     setStep(3);
   };
 
-  const handleSubmit = async (skipCinema = false) => {
+  const handleSubmit = async (skipTheater = false) => {
     setIsSubmitting(true);
     setSubmitError('');
 
@@ -156,14 +156,14 @@ const RegisterPage: React.FC = () => {
 
       // Auth token is set via httpOnly cookie by the backend — no localStorage needed
 
-      // Fire-and-forget: add cinema + trigger scrape if URL provided
-      const url = skipCinema ? '' : cinemaUrl.trim();
+      // Fire-and-forget: add theater + trigger scrape if URL provided
+      const url = skipTheater ? '' : theaterUrl.trim();
       if (url) {
         apiClient
-          .post(`/org/${slug}/cinemas`, { url })
+          .post(`/org/${slug}/theaters`, { url })
           .then(() => apiClient.post(`/org/${slug}/scraper/trigger`))
           .catch(() => {
-            // Non-blocking: ignore cinema setup errors here
+            // Non-blocking: ignore theater setup errors here
           });
       }
 
@@ -233,7 +233,7 @@ const RegisterPage: React.FC = () => {
                   setSlugEdited(true);
                   setSlug(e.target.value.toLowerCase());
                 }}
-                placeholder="grand-cinema-lyon"
+                placeholder="grand-theater-lyon"
                 className="w-full border rounded px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
                 data-testid="input-slug"
               />
@@ -328,26 +328,26 @@ const RegisterPage: React.FC = () => {
           </div>
         )}
 
-        {/* ── Step 3: Optional cinema URL ── */}
+        {/* ── Step 3: Optional theater URL ── */}
         {step === 3 && (
           <div data-testid="step-3">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Add your first cinema</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Add your first theater</h2>
             <p className="text-gray-500 text-sm mb-6">
-              Optional — you can add cinemas later from your dashboard.
+              Optional — you can add theaters later from your dashboard.
             </p>
 
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-1" htmlFor="cinemaUrl">
-                AlloCiné cinema URL
+              <label className="block text-sm font-semibold text-gray-700 mb-1" htmlFor="theaterUrl">
+                AlloCiné theater URL
               </label>
               <input
-                id="cinemaUrl"
+                id="theaterUrl"
                 type="url"
-                value={cinemaUrl}
-                onChange={(e) => setCinemaUrl(e.target.value)}
+                value={theaterUrl}
+                onChange={(e) => setTheaterUrl(e.target.value)}
                 placeholder="https://www.allocine.fr/seance/salle_gen_csalle=C0028.html"
                 className="w-full border rounded px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
-                data-testid="input-cinema-url"
+                data-testid="input-theater-url"
               />
             </div>
 
@@ -368,7 +368,7 @@ const RegisterPage: React.FC = () => {
                 onClick={() => handleSubmit(true)}
                 disabled={isSubmitting}
                 className="w-full border border-gray-300 text-gray-600 font-semibold py-2 px-4 rounded hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                data-testid="btn-skip-cinema"
+                data-testid="btn-skip-theater"
               >
                 Skip for now
               </button>

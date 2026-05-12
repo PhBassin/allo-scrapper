@@ -152,7 +152,7 @@ describe('createOrg', () => {
     expect(release).toHaveBeenCalledOnce();
   });
 
-  it('seeds tenant baseline cinemas from config after schema bootstrap', async () => {
+  it('seeds tenant baseline theaters from config after schema bootstrap', async () => {
     const org = {
       id: 4,
       name: 'Delta',
@@ -171,7 +171,7 @@ describe('createOrg', () => {
     await createOrg(db, { name: 'Delta', slug: 'delta' });
 
     const calls = queryMock.mock.calls.map(([sql]) => String(sql));
-    expect(calls.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS cinemas'))).toBe(true);
-    expect(calls.some((sql) => sql.includes('INSERT INTO cinemas (id, name, url)'))).toBe(true);
+    expect(calls.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS theaters'))).toBe(true);
+    expect(calls.some((sql) => sql.includes('INSERT INTO theaters (id, name, url)'))).toBe(true);
   });
 });

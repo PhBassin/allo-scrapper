@@ -23,7 +23,7 @@ export default function Layout({ children, title }: LayoutProps) {
   const APP_NAME = publicSettings?.site_name || import.meta.env.VITE_APP_NAME || 'Allo-Scrapper';
   const logo = publicSettings?.logo_base64;
   const homePath = getTenantScopedPath('/');
-  const adminPath = getTenantScopedPath('/admin?tab=cinemas');
+  const adminPath = getTenantScopedPath('/admin?tab=theaters');
   const changePasswordPath = getTenantScopedPath('/change-password');
   const loginPath = getTenantScopedPath('/login');
   

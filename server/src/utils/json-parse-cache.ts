@@ -7,7 +7,7 @@ import { logger } from './logger.js';
  * The cache size determines how many unique JSON strings can be cached
  * before older entries are evicted using the LRU (Least Recently Used) strategy.
  * 
- * **Default**: 10,000 entries (~1-2 MB memory for typical cinema data)
+ * **Default**: 10,000 entries (~1-2 MB memory for typical theater data)
  * **Override**: Set `JSON_PARSE_CACHE_SIZE` environment variable
  * 
  * **Memory considerations**:

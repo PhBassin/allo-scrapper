@@ -1,5 +1,5 @@
 # ============================================================================
-# Multi-Stage Dockerfile for Cinema Scraper
+# Multi-Stage Dockerfile for Theater Scraper
 # ============================================================================
 # Stage 1: Dependencies (Shared)
 # Stage 2: Build Frontend (React + Vite)
@@ -133,7 +133,7 @@ COPY --from=backend-builder --chown=nodejs:nodejs /app/server/dist ./server/dist
 COPY --from=backend-builder --chown=nodejs:nodejs /app/packages/saas/dist ./packages/saas/dist
 COPY --from=backend-builder --chown=nodejs:nodejs /app/packages/logger/dist ./packages/logger/dist
 # Copy only the JSON config file, not the entire directory (to preserve compiled JS files)
-COPY --from=backend-builder --chown=nodejs:nodejs /app/server/src/config/cinemas.json ./server/dist/config/cinemas.json
+COPY --from=backend-builder --chown=nodejs:nodejs /app/server/src/config/theaters.json ./server/dist/config/theaters.json
 
 # Create @server symlink for SaaS module resolution
 # The SaaS package uses @server/* imports which TypeScript doesn't resolve at build time

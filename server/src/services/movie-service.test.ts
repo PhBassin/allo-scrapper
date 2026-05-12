@@ -7,7 +7,7 @@ import { type DB } from '../db/client.js';
 vi.mock('../db/movie-queries.js');
 vi.mock('../db/showtime-queries.js');
 vi.mock('../utils/showtimes.js', () => ({
-  groupShowtimesByCinema: vi.fn().mockImplementation((s) => s),
+  groupShowtimesByTheater: vi.fn().mockImplementation((s) => s),
 }));
 
 describe('MovieService', () => {
@@ -27,7 +27,7 @@ describe('MovieService', () => {
       const result = await movieService.getMoviesForWeek('2026-03-11');
 
       expect(result).toHaveLength(1);
-      expect(result[0].cinemas).toBeDefined();
+      expect(result[0].theaters).toBeDefined();
     });
   });
 
@@ -56,7 +56,7 @@ describe('MovieService', () => {
       const result = await movieService.getMovieById(1, '2026-03-11');
 
       expect(result?.title).toBe('Film');
-      expect(result?.cinemas).toBeDefined();
+      expect(result?.theaters).toBeDefined();
     });
   });
 

@@ -62,7 +62,7 @@ Different endpoint types have different rate limits to balance security and usab
 | **Registration** | `/api/auth/register` | 1 hour | 3 | `RATE_LIMIT_REGISTER_MAX` |
 | **Protected** | `/api/reports/*` | 15 min | 60 | `RATE_LIMIT_PROTECTED_MAX` |
 | **Scraper** | `/api/scraper/trigger` | 15 min | 10 | `RATE_LIMIT_SCRAPER_MAX` |
-| **Public** | `/api/films/*`, `/api/cinemas/*` | 15 min | 100 | `RATE_LIMIT_PUBLIC_MAX` |
+| **Public** | `/api/films/*`, `/api/theaters/*` | 15 min | 100 | `RATE_LIMIT_PUBLIC_MAX` |
 | **SaaS Slug** | `/api/saas/orgs/:slug/available` | 15 min | 50 | `RATE_LIMIT_SAAS_SLUG_MAX` |
 
 **¹ Note**: Authentication endpoint only counts **failed login attempts**. Successful logins don't count toward the limit (`skipSuccessfulRequests: true`).
@@ -170,7 +170,7 @@ RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # 1 hour in milliseconds
 
 **Applies to**: 
 - `/api/films/*`
-- `/api/cinemas/*`
+- `/api/theaters/*`
 - Other public read endpoints
 
 **Default**: 100 requests per 15 minutes

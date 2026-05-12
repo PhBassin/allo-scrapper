@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: Allo-Scrapper REST API
   description: |
-    Cinema showtime aggregator API for scraping and managing cinema data.
+    Theater showtime aggregator API for scraping and managing theater data.
     
     **Authentication**: All protected endpoints require a JWT token in the `Authorization: Bearer <token>` header.
     
@@ -100,8 +100,8 @@ components:
           type: integer
           example: 2
 
-    # Cinema
-    Cinema:
+    # Theater
+    Theater:
       type: object
       properties:
         id:
@@ -126,7 +126,7 @@ components:
           format: date-time
           example: 2025-03-18T15:45:00Z
 
-    CreateCinemaRequest:
+    CreateTheaterRequest:
       type: object
       required:
         - name
@@ -135,7 +135,7 @@ components:
       properties:
         name:
           type: string
-          example: New Cinema
+          example: New Theater
         url:
           type: string
           example: https://www.allocine.fr/seance/salle_gen_csalle=C99999.html
@@ -177,7 +177,7 @@ components:
         id:
           type: integer
           example: 1
-        cinema_id:
+        theater_id:
           type: string
           example: c12345
         film_id:
@@ -224,13 +224,13 @@ components:
           type: string
           format: date-time
           example: 2025-03-18T10:15:00Z
-        total_cinemas:
+        total_theaters:
           type: integer
           example: 50
-        successful_cinemas:
+        successful_theaters:
           type: integer
           example: 48
-        failed_cinemas:
+        failed_theaters:
           type: integer
           example: 2
         total_films_scraped:
@@ -244,7 +244,7 @@ components:
           items:
             type: object
             properties:
-              cinema_name:
+              theater_name:
                 type: string
               error:
                 type: string
@@ -340,7 +340,7 @@ components:
           example: Not Found
         message:
           type: string
-          example: Cinema with ID c99999 not found
+          example: Theater with ID c99999 not found
         statusCode:
           type: integer
           example: 404
@@ -464,12 +464,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /cinemas:
+  /theaters:
     get:
-      summary: List All Cinemas
-      tags: [Cinemas]
+      summary: List All Theaters
+      tags: [Theaters]
       security: []
-      description: Get list of all cinemas with pagination
+      description: Get list of all theaters with pagination
       parameters:
         - name: page
           in: query
@@ -485,19 +485,19 @@ paths:
           in: query
           schema:
             type: string
-          description: Search cinema name
+          description: Search theater name
       responses:
         '200':
-          description: Cinemas list
+          description: Theaters list
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  cinemas:
+                  theaters:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Cinema'
+                      $ref: '#/components/schemas/Theater'
                   total:
                     type: integer
                     example: 150
@@ -505,22 +505,22 @@ paths:
                     type: integer
                     example: 1
     post:
-      summary: Create Cinema
-      tags: [Cinemas]
-      description: Add a new cinema to the system (requires `cinemas:create` permission)
+      summary: Create Theater
+      tags: [Theaters]
+      description: Add a new theater to the system (requires `theaters:create` permission)
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateCinemaRequest'
+              $ref: '#/components/schemas/CreateTheaterRequest'
       responses:
         '201':
-          description: Cinema created
+          description: Theater created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Cinema'
+                $ref: '#/components/schemas/Theater'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -528,10 +528,10 @@ paths:
         '409':
           $ref: '#/components/responses/ConflictError'
 
-  /cinemas/{id}:
+  /theaters/{id}:
     get:
-      summary: Get Cinema Details
-      tags: [Cinemas]
+      summary: Get Theater Details
+      tags: [Theaters]
       security: []
       parameters:
         - name: id
@@ -542,16 +542,16 @@ paths:
             example: c12345
       responses:
         '200':
-          description: Cinema details
+          description: Theater details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Cinema'
+                $ref: '#/components/schemas/Theater'
         '404':
           $ref: '#/components/responses/NotFoundError'
     put:
-      summary: Update Cinema
-      tags: [Cinemas]
+      summary: Update Theater
+      tags: [Theaters]
       parameters:
         - name: id
           in: path
@@ -571,11 +571,11 @@ paths:
                   type: string
       responses:
         '200':
-          description: Cinema updated
+          description: Theater updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Cinema'
+                $ref: '#/components/schemas/Theater'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -583,8 +583,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundError'
     delete:
-      summary: Delete Cinema
-      tags: [Cinemas]
+      summary: Delete Theater
+      tags: [Theaters]
       parameters:
         - name: id
           in: path
@@ -593,7 +593,7 @@ paths:
             type: string
       responses:
         '204':
-          description: Cinema deleted
+          description: Theater deleted
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -618,11 +618,11 @@ paths:
           schema:
             type: integer
             default: 50
-        - name: cinema_id
+        - name: theater_id
           in: query
           schema:
             type: string
-          description: Filter by cinema ID
+          description: Filter by theater ID
       responses:
         '200':
           description: Films list
@@ -685,7 +685,7 @@ paths:
     post:
       summary: Trigger Scraping
       tags: [Scraper]
-      description: Enqueue a scraping job to process all cinemas (requires `scraper:trigger` permission)
+      description: Enqueue a scraping job to process all theaters (requires `scraper:trigger` permission)
       requestBody:
         content:
           application/json:
@@ -1160,8 +1160,8 @@ paths:
 tags:
   - name: Authentication
     description: User authentication and registration
-  - name: Cinemas
-    description: Cinema management and information
+  - name: Theaters
+    description: Theater management and information
   - name: Films
     description: Film catalog and details
   - name: Scraper

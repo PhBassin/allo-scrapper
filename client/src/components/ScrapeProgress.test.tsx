@@ -60,11 +60,11 @@ describe('ScrapeProgress', () => {
       isConnected: true,
       connectionStatus: 'connected',
       events: [
-        { type: 'started', total_cinemas: 3, total_dates: 7 },
-        { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois', index: 0 },
+        { type: 'started', total_theaters: 3, total_dates: 7 },
+        { type: 'theater_started', theater_id: 'W7504', theater_name: 'Épée de Bois', index: 0 },
       ],
       jobs: [],
-      latestEvent: { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois', index: 0 },
+      latestEvent: { type: 'theater_started', theater_id: 'W7504', theater_name: 'Épée de Bois', index: 0 },
       error: undefined,
     };
     mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
@@ -82,13 +82,13 @@ describe('ScrapeProgress', () => {
       isConnected: true,
       connectionStatus: 'connected',
       events: [
-        { type: 'started', total_cinemas: 2, total_dates: 7 },
-        { type: 'cinema_completed', cinema_name: 'Épée de Bois', total_movies: 10 },
-        { type: 'cinema_completed', cinema_name: 'Grand Action', total_movies: 15 },
+        { type: 'started', total_theaters: 2, total_dates: 7 },
+        { type: 'theater_completed', theater_name: 'Épée de Bois', total_movies: 10 },
+        { type: 'theater_completed', theater_name: 'Grand Action', total_movies: 15 },
         { type: 'completed', summary: { 
-          total_cinemas: 2, 
-          successful_cinemas: 2, 
-          failed_cinemas: 0, 
+          total_theaters: 2, 
+          successful_theaters: 2, 
+          failed_theaters: 0, 
           total_movies: 25, 
           total_showtimes: 125, 
           total_dates: 7,
@@ -102,29 +102,29 @@ describe('ScrapeProgress', () => {
           reportId: 1,
           events: [],
           latestEvent: { type: 'completed', report_id: 1, summary: {
-            total_cinemas: 1,
-            successful_cinemas: 1,
-            failed_cinemas: 0,
+            total_theaters: 1,
+            successful_theaters: 1,
+            failed_theaters: 0,
             total_movies: 10,
             total_showtimes: 50,
             total_dates: 7,
             duration_ms: 1000,
             errors: [],
           } },
-          cinemaName: 'Épée de Bois',
-          totalCinemas: 1,
-          processedCinemas: 1,
+          theaterName: 'Épée de Bois',
+          totalTheaters: 1,
+          processedTheaters: 1,
           totalMovies: 10,
           processedMovies: 10,
-          cinemaProgress: 100,
+          theaterProgress: 100,
           movieProgress: 100,
           status: 'completed',
         },
       ],
       latestEvent: { type: 'completed', summary: { 
-        total_cinemas: 2, 
-        successful_cinemas: 2, 
-        failed_cinemas: 0, 
+        total_theaters: 2, 
+        successful_theaters: 2, 
+        failed_theaters: 0, 
         total_movies: 25, 
         total_showtimes: 125, 
         total_dates: 7,
@@ -145,7 +145,7 @@ describe('ScrapeProgress', () => {
       isConnected: true,
       connectionStatus: 'connected',
       events: [
-        { type: 'started', total_cinemas: 1, total_dates: 7 },
+        { type: 'started', total_theaters: 1, total_dates: 7 },
         { type: 'failed', error: 'Network error' },
       ],
       jobs: [
@@ -154,12 +154,12 @@ describe('ScrapeProgress', () => {
           reportId: 2,
           events: [],
           latestEvent: { type: 'failed', report_id: 2, error: 'Network error' },
-          cinemaName: 'Test Cinema',
-          totalCinemas: 1,
-          processedCinemas: 0,
+          theaterName: 'Test Theater',
+          totalTheaters: 1,
+          processedTheaters: 0,
           totalMovies: 0,
           processedMovies: 0,
-          cinemaProgress: 0,
+          theaterProgress: 0,
           movieProgress: 0,
           status: 'failed',
           error: 'Network error',
@@ -210,16 +210,16 @@ describe('ScrapeProgress', () => {
     expect(mockUseScrapeProgress).toHaveBeenCalledWith(onComplete, []);
   });
 
-  it('should show current cinema being processed', () => {
+  it('should show current theater being processed', () => {
     const mockState: ProgressState = {
       isConnected: true,
       connectionStatus: 'connected',
       events: [
-        { type: 'started', total_cinemas: 3, total_dates: 7 },
-        { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois', index: 0 },
+        { type: 'started', total_theaters: 3, total_dates: 7 },
+        { type: 'theater_started', theater_id: 'W7504', theater_name: 'Épée de Bois', index: 0 },
       ],
       jobs: [],
-      latestEvent: { type: 'cinema_started', cinema_id: 'W7504', cinema_name: 'Épée de Bois', index: 0 },
+      latestEvent: { type: 'theater_started', theater_id: 'W7504', theater_name: 'Épée de Bois', index: 0 },
       error: undefined,
     };
     mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
@@ -234,7 +234,7 @@ describe('ScrapeProgress', () => {
       isConnected: true,
       connectionStatus: 'connected',
       events: [
-        { type: 'started', total_cinemas: 1, total_dates: 7 },
+        { type: 'started', total_theaters: 1, total_dates: 7 },
         { type: 'movie_started', movie_id: 123, movie_title: 'Test Film' },
       ],
       jobs: [],
@@ -254,12 +254,12 @@ describe('ScrapeProgress', () => {
       isConnected: false, // SSE connection closed
       connectionStatus: 'disconnected',
       events: [
-        { type: 'started', total_cinemas: 1, total_dates: 7 },
-        { type: 'cinema_completed', cinema_name: 'Test Cinema', total_movies: 5 },
+        { type: 'started', total_theaters: 1, total_dates: 7 },
+        { type: 'theater_completed', theater_name: 'Test Theater', total_movies: 5 },
         { type: 'completed', summary: { 
-          total_cinemas: 1, 
-          successful_cinemas: 1, 
-          failed_cinemas: 0, 
+          total_theaters: 1, 
+          successful_theaters: 1, 
+          failed_theaters: 0, 
           total_movies: 5, 
           total_showtimes: 25, 
           total_dates: 7,
@@ -273,29 +273,29 @@ describe('ScrapeProgress', () => {
           reportId: 3,
           events: [],
           latestEvent: { type: 'completed', report_id: 3, summary: {
-            total_cinemas: 1,
-            successful_cinemas: 1,
-            failed_cinemas: 0,
+            total_theaters: 1,
+            successful_theaters: 1,
+            failed_theaters: 0,
             total_movies: 5,
             total_showtimes: 25,
             total_dates: 7,
             duration_ms: 10000,
             errors: [],
           } },
-          cinemaName: 'Test Cinema',
-          totalCinemas: 1,
-          processedCinemas: 1,
+          theaterName: 'Test Theater',
+          totalTheaters: 1,
+          processedTheaters: 1,
           totalMovies: 5,
           processedMovies: 5,
-          cinemaProgress: 100,
+          theaterProgress: 100,
           movieProgress: 100,
           status: 'completed',
         },
       ],
       latestEvent: { type: 'completed', summary: { 
-        total_cinemas: 1, 
-        successful_cinemas: 1, 
-        failed_cinemas: 0, 
+        total_theaters: 1, 
+        successful_theaters: 1, 
+        failed_theaters: 0, 
         total_movies: 5, 
         total_showtimes: 25, 
         total_dates: 7,
@@ -324,9 +324,9 @@ describe('ScrapeProgress', () => {
         {
           type: 'completed',
           summary: {
-            total_cinemas: 1,
-            successful_cinemas: 1,
-            failed_cinemas: 0,
+            total_theaters: 1,
+            successful_theaters: 1,
+            failed_theaters: 0,
             total_movies: 5,
             total_showtimes: 10,
             total_dates: 7,
@@ -344,9 +344,9 @@ describe('ScrapeProgress', () => {
             type: 'completed',
             report_id: 4,
             summary: {
-              total_cinemas: 1,
-              successful_cinemas: 1,
-              failed_cinemas: 0,
+              total_theaters: 1,
+              successful_theaters: 1,
+              failed_theaters: 0,
               total_movies: 5,
               total_showtimes: 10,
               total_dates: 7,
@@ -354,12 +354,12 @@ describe('ScrapeProgress', () => {
               errors: [],
             },
           },
-          cinemaName: 'Test Cinema',
-          totalCinemas: 1,
-          processedCinemas: 1,
+          theaterName: 'Test Theater',
+          totalTheaters: 1,
+          processedTheaters: 1,
           totalMovies: 5,
           processedMovies: 5,
-          cinemaProgress: 100,
+          theaterProgress: 100,
           movieProgress: 100,
           status: 'completed',
         },
@@ -367,9 +367,9 @@ describe('ScrapeProgress', () => {
       latestEvent: {
         type: 'completed',
         summary: {
-          total_cinemas: 1,
-          successful_cinemas: 1,
-          failed_cinemas: 0,
+          total_theaters: 1,
+          successful_theaters: 1,
+          failed_theaters: 0,
           total_movies: 5,
           total_showtimes: 10,
           total_dates: 7,
@@ -403,9 +403,9 @@ describe('ScrapeProgress', () => {
         {
           type: 'completed',
           summary: {
-            total_cinemas: 1,
-            successful_cinemas: 1,
-            failed_cinemas: 0,
+            total_theaters: 1,
+            successful_theaters: 1,
+            failed_theaters: 0,
             total_movies: 5,
             total_showtimes: 10,
             total_dates: 7,
@@ -423,9 +423,9 @@ describe('ScrapeProgress', () => {
             type: 'completed',
             report_id: 5,
             summary: {
-              total_cinemas: 1,
-              successful_cinemas: 1,
-              failed_cinemas: 0,
+              total_theaters: 1,
+              successful_theaters: 1,
+              failed_theaters: 0,
               total_movies: 5,
               total_showtimes: 10,
               total_dates: 7,
@@ -433,12 +433,12 @@ describe('ScrapeProgress', () => {
               errors: [],
             },
           },
-          cinemaName: 'Test Cinema',
-          totalCinemas: 1,
-          processedCinemas: 1,
+          theaterName: 'Test Theater',
+          totalTheaters: 1,
+          processedTheaters: 1,
           totalMovies: 5,
           processedMovies: 5,
-          cinemaProgress: 100,
+          theaterProgress: 100,
           movieProgress: 100,
           status: 'completed',
         },
@@ -446,9 +446,9 @@ describe('ScrapeProgress', () => {
       latestEvent: {
         type: 'completed',
         summary: {
-          total_cinemas: 1,
-          successful_cinemas: 1,
-          failed_cinemas: 0,
+          total_theaters: 1,
+          successful_theaters: 1,
+          failed_theaters: 0,
           total_movies: 5,
           total_showtimes: 10,
           total_dates: 7,
@@ -480,21 +480,21 @@ describe('ScrapeProgress', () => {
       isConnected: true,
       connectionStatus: 'connected',
       events: [
-        { type: 'started', total_cinemas: 2, total_dates: 7 },
+        { type: 'started', total_theaters: 2, total_dates: 7 },
       ],
       jobs: [
         {
           id: 'report:10',
           reportId: 10,
           events: [],
-          latestEvent: { type: 'cinema_started', report_id: 10, cinema_id: 'C1', cinema_name: 'Cinema One', index: 1 },
-          cinemaName: 'Cinema One',
+          latestEvent: { type: 'theater_started', report_id: 10, theater_id: 'C1', theater_name: 'Theater One', index: 1 },
+          theaterName: 'Theater One',
           currentMovie: 'Film One',
-          totalCinemas: 1,
-          processedCinemas: 0,
+          totalTheaters: 1,
+          processedTheaters: 0,
           totalMovies: 3,
           processedMovies: 1,
-          cinemaProgress: 0,
+          theaterProgress: 0,
           movieProgress: 33,
           status: 'running',
         },
@@ -503,26 +503,26 @@ describe('ScrapeProgress', () => {
           reportId: 11,
           events: [],
           latestEvent: { type: 'completed', report_id: 11, summary: {
-            total_cinemas: 1,
-            successful_cinemas: 1,
-            failed_cinemas: 0,
+            total_theaters: 1,
+            successful_theaters: 1,
+            failed_theaters: 0,
             total_movies: 2,
             total_showtimes: 8,
             total_dates: 7,
             duration_ms: 1000,
             errors: [],
           } },
-          cinemaName: 'Cinema Two',
-          totalCinemas: 1,
-          processedCinemas: 1,
+          theaterName: 'Theater Two',
+          totalTheaters: 1,
+          processedTheaters: 1,
           totalMovies: 2,
           processedMovies: 2,
-          cinemaProgress: 100,
+          theaterProgress: 100,
           movieProgress: 100,
           status: 'completed',
         },
       ],
-      latestEvent: { type: 'cinema_started', report_id: 10, cinema_id: 'C1', cinema_name: 'Cinema One', index: 1 },
+      latestEvent: { type: 'theater_started', report_id: 10, theater_id: 'C1', theater_name: 'Theater One', index: 1 },
       error: undefined,
     };
 
@@ -531,8 +531,8 @@ describe('ScrapeProgress', () => {
     render(<ScrapeProgress />);
 
     expect(screen.getAllByTestId('scrape-progress-card')).toHaveLength(2);
-    expect(screen.getByText('Cinema One')).toBeInTheDocument();
-    expect(screen.getByText('Cinema Two')).toBeInTheDocument();
+    expect(screen.getByText('Theater One')).toBeInTheDocument();
+    expect(screen.getByText('Theater Two')).toBeInTheDocument();
     expect(screen.getAllByTestId('scrape-status-completed')).toHaveLength(1);
     expect(screen.getAllByTestId('scrape-progress-percentage').length).toBeGreaterThan(0);
   });
@@ -547,12 +547,12 @@ describe('ScrapeProgress', () => {
           id: 'report:30',
           reportId: 30,
           events: [],
-          cinemaName: 'Cinema Pending',
-          totalCinemas: 0,
-          processedCinemas: 0,
+          theaterName: 'Theater Pending',
+          totalTheaters: 0,
+          processedTheaters: 0,
           totalMovies: 0,
           processedMovies: 0,
-          cinemaProgress: 0,
+          theaterProgress: 0,
           movieProgress: 0,
           status: 'pending',
         },
@@ -563,9 +563,9 @@ describe('ScrapeProgress', () => {
 
     mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
 
-    render(<ScrapeProgress trackedJobs={[{ reportId: 30, cinemaName: 'Cinema Pending' }]} />);
+    render(<ScrapeProgress trackedJobs={[{ reportId: 30, theaterName: 'Theater Pending' }]} />);
 
-    expect(screen.getByText('Cinema Pending')).toBeInTheDocument();
+    expect(screen.getByText('Theater Pending')).toBeInTheDocument();
     expect(screen.getByText(/en attente du premier evenement sse/i)).toBeInTheDocument();
     expect(screen.queryByText(/connexion en cours/i)).not.toBeInTheDocument();
   });
@@ -575,9 +575,9 @@ describe('ScrapeProgress', () => {
       const mockState: ProgressState & { connectionStatus: string } = {
         ...({
           isConnected: true,
-          events: [{ type: 'started', total_cinemas: 1, total_dates: 1 }],
+          events: [{ type: 'started', total_theaters: 1, total_dates: 1 }],
           jobs: [],
-          latestEvent: { type: 'started', total_cinemas: 1, total_dates: 1 },
+          latestEvent: { type: 'started', total_theaters: 1, total_dates: 1 },
           error: undefined,
         } as unknown as ProgressState),
         connectionStatus: 'connected',
@@ -594,9 +594,9 @@ describe('ScrapeProgress', () => {
       const mockState: ProgressState & { connectionStatus: string } = {
         ...({
           isConnected: false,
-          events: [{ type: 'started', total_cinemas: 5, total_dates: 30 }],
+          events: [{ type: 'started', total_theaters: 5, total_dates: 30 }],
           jobs: [],
-          latestEvent: { type: 'started', total_cinemas: 5, total_dates: 30 },
+          latestEvent: { type: 'started', total_theaters: 5, total_dates: 30 },
           error: undefined,
         } as unknown as ProgressState),
         connectionStatus: 'reconnecting',
@@ -633,26 +633,26 @@ describe('ScrapeProgress', () => {
         ...({
           isConnected: false,
           events: [
-            { type: 'started', total_cinemas: 3, total_dates: 7 },
-            { type: 'cinema_started', cinema_name: 'Cinema One', cinema_id: 'C1', index: 0 },
-            { type: 'cinema_completed', cinema_name: 'Cinema One', total_movies: 10 },
+            { type: 'started', total_theaters: 3, total_dates: 7 },
+            { type: 'theater_started', theater_name: 'Theater One', theater_id: 'C1', index: 0 },
+            { type: 'theater_completed', theater_name: 'Theater One', total_movies: 10 },
           ],
           jobs: [
             {
               id: 'report:1',
               reportId: 1,
               events: [],
-              cinemaName: 'Cinema One',
-              totalCinemas: 3,
-              processedCinemas: 1,
+              theaterName: 'Theater One',
+              totalTheaters: 3,
+              processedTheaters: 1,
               totalMovies: 0,
               processedMovies: 0,
-              cinemaProgress: 33,
+              theaterProgress: 33,
               movieProgress: 0,
               status: 'running',
             },
           ],
-          latestEvent: { type: 'cinema_completed', cinema_name: 'Cinema One', total_movies: 10 },
+          latestEvent: { type: 'theater_completed', theater_name: 'Theater One', total_movies: 10 },
           error: undefined,
         } as unknown as ProgressState),
         connectionStatus: 'reconnecting',
@@ -667,7 +667,7 @@ describe('ScrapeProgress', () => {
       // Progress card should still be visible
       expect(screen.getByTestId('scrape-progress-card')).toBeInTheDocument();
       expect(screen.getByTestId('scrape-progress-percentage')).toBeInTheDocument();
-      expect(screen.getByText('Cinema One')).toBeInTheDocument();
+      expect(screen.getByText('Theater One')).toBeInTheDocument();
     });
 
     it('displays scrape-progress-eta when a job is running', () => {
@@ -675,25 +675,25 @@ describe('ScrapeProgress', () => {
         ...({
           isConnected: true,
           events: [
-            { type: 'started', total_cinemas: 10, total_dates: 50 },
-            { type: 'cinema_started', cinema_name: 'Cinema One', cinema_id: 'C1', index: 0 },
+            { type: 'started', total_theaters: 10, total_dates: 50 },
+            { type: 'theater_started', theater_name: 'Theater One', theater_id: 'C1', index: 0 },
           ],
           jobs: [
             {
               id: 'report:1',
               reportId: 1,
               events: [],
-              cinemaName: 'Cinema One',
-              totalCinemas: 10,
-              processedCinemas: 0,
+              theaterName: 'Theater One',
+              totalTheaters: 10,
+              processedTheaters: 0,
               totalMovies: 0,
               processedMovies: 0,
-              cinemaProgress: 0,
+              theaterProgress: 0,
               movieProgress: 0,
               status: 'running',
             },
           ],
-          latestEvent: { type: 'cinema_started', cinema_name: 'Cinema One', cinema_id: 'C1', index: 0 },
+          latestEvent: { type: 'theater_started', theater_name: 'Theater One', theater_id: 'C1', index: 0 },
           error: undefined,
         } as unknown as ProgressState),
         connectionStatus: 'connected',

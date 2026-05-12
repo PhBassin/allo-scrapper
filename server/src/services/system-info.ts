@@ -36,7 +36,7 @@ export interface ServerHealth {
 export interface ScraperStatus {
   activeJobs: number;
   lastScrapeTime: Date | null;
-  totalCinemas: number;
+  totalTheaters: number;
 }
 
 /**
@@ -108,7 +108,7 @@ export async function getScraperStatus(db: DB): Promise<ScraperStatus> {
   const [
     activeJobsResult,
     lastScrapeResult,
-    cinemasResult
+    theatersResult
   ] = await Promise.all([
     db.query(
       `SELECT COUNT(*)::text AS count FROM pg_stat_activity
@@ -120,18 +120,18 @@ export async function getScraperStatus(db: DB): Promise<ScraperStatus> {
       []
     ),
     db.query(
-      `SELECT COUNT(*)::text AS count FROM cinemas`,
+      `SELECT COUNT(*)::text AS count FROM theaters`,
       []
     )
   ]);
 
   const activeJobs = parseInt(activeJobsResult.rows[0]?.count || '0', 10);
   const lastScrapeTime = lastScrapeResult.rows[0]?.last_scrape || null;
-  const totalCinemas = parseInt(cinemasResult.rows[0]?.count || '0', 10);
+  const totalTheaters = parseInt(theatersResult.rows[0]?.count || '0', 10);
 
   return {
     activeJobs,
     lastScrapeTime,
-    totalCinemas,
+    totalTheaters,
   };
 }

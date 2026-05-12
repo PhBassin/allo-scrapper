@@ -94,7 +94,7 @@ test.describe('Scrape Progress Visibility', () => {
     const progressWindow = page.getByTestId('scrape-progress');
     await expect(progressWindow).toBeVisible({ timeout: 10000 });
 
-    // Wait for scrape to be in progress (cinema processing started)
+    // Wait for scrape to be in progress (theater processing started)
     await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
 
     // Refresh the page
@@ -135,7 +135,7 @@ test.describe('Scrape Progress Visibility', () => {
     // Progress window should still be visible
     await expect(progressWindow).toBeVisible();
 
-    // Progress should continue (cinemas counter should still be present)
+    // Progress should continue (theaters counter should still be present)
     await expect(page.getByText(/cinémas traités/i)).toBeVisible();
   });
 
@@ -166,18 +166,18 @@ test.describe('Scrape Progress Visibility', () => {
     const progressWindow = page.getByTestId('scrape-progress');
     await expect(progressWindow).toBeVisible({ timeout: 10000 });
 
-    // Wait for cinema progress to show
+    // Wait for theater progress to show
     await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
 
-    // Check for cinema progress elements (format: "0 / 3" or similar)
-    const cinemaProgress = progressWindow.getByText(/\d+ \/ \d+/).first();
-    await expect(cinemaProgress).toBeVisible();
+    // Check for theater progress elements (format: "0 / 3" or similar)
+    const theaterProgress = progressWindow.getByText(/\d+ \/ \d+/).first();
+    await expect(theaterProgress).toBeVisible();
 
     // Check for films progress section
     await expect(page.getByText(/films traités/i)).toBeVisible();
 
     // Verify progress bars are present within the progress window
     const progressBars = progressWindow.locator('.h-2.rounded-full');
-    expect(await progressBars.count()).toBeGreaterThanOrEqual(2); // Cinema and film progress bars
+    expect(await progressBars.count()).toBeGreaterThanOrEqual(2); // Theater and film progress bars
   });
 });

@@ -181,7 +181,7 @@ export default function ReportsPage() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Cinémas traités</p>
               <p className="font-semibold">
-                {selectedReport.successful_cinemas} / {selectedReport.total_cinemas}
+                {selectedReport.successful_theaters} / {selectedReport.total_theaters}
               </p>
             </div>
           </div>
@@ -266,11 +266,11 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Per-cinema breakdown */}
+            {/* Per-theater breakdown */}
             <div className="space-y-4">
-              {Object.entries(reportDetails.attempts).map(([cinemaId, attempts]) => (
-                <div key={cinemaId} className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-semibold mb-3">Cinéma {cinemaId}</h3>
+              {Object.entries(reportDetails.attempts).map(([theaterId, attempts]) => (
+                <div key={theaterId} className="border border-gray-200 rounded-lg p-4">
+                  <h3 className="font-semibold mb-3">Cinéma {theaterId}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                     {attempts.map((attempt) => {
                       const statusColors = {
@@ -310,7 +310,7 @@ export default function ReportsPage() {
             <div className="space-y-3">
               {selectedReport.errors.map((err, index) => (
                 <div key={index} className="bg-red-50 border border-red-200 rounded p-3">
-                  <p className="font-semibold text-red-900">{err.cinema_name}</p>
+                  <p className="font-semibold text-red-900">{err.theater_name}</p>
                   <p className="text-sm text-red-700 mt-1">{err.error}</p>
                 </div>
               ))}
@@ -374,7 +374,7 @@ export default function ReportsPage() {
                     <div>
                       <p className="text-gray-500">Cinémas</p>
                       <p className="font-bold text-primary">
-                        {report.successful_cinemas}/{report.total_cinemas}
+                        {report.successful_theaters}/{report.total_theaters}
                       </p>
                     </div>
                     {report.total_movies_scraped !== undefined && (

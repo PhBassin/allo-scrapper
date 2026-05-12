@@ -27,7 +27,7 @@ describe('Scrape Attempt Queries', () => {
 
       const id = await createScrapeAttempt(mockDb, {
         report_id: 1,
-        cinema_id: 'C0001',
+        theater_id: 'C0001',
         date: '2026-03-25',
       });
 
@@ -45,7 +45,7 @@ describe('Scrape Attempt Queries', () => {
 
       const id = await createScrapeAttempt(mockDb, {
         report_id: 1,
-        cinema_id: 'C0002',
+        theater_id: 'C0002',
         date: '2026-03-26',
         status: 'success',
       });
@@ -64,7 +64,7 @@ describe('Scrape Attempt Queries', () => {
 
       await createScrapeAttempt(mockDb, {
         report_id: 1,
-        cinema_id: 'C0001',
+        theater_id: 'C0001',
         date: '2026-03-25',
         status: 'failed',
       });
@@ -132,7 +132,7 @@ describe('Scrape Attempt Queries', () => {
         {
           id: 1,
           report_id: 1,
-          cinema_id: 'C0001',
+          theater_id: 'C0001',
           date: '2026-03-25',
           status: 'failed',
           error_type: 'network',
@@ -145,7 +145,7 @@ describe('Scrape Attempt Queries', () => {
         {
           id: 2,
           report_id: 1,
-          cinema_id: 'C0002',
+          theater_id: 'C0002',
           date: '2026-03-25',
           status: 'rate_limited',
           error_type: 'http_429',
@@ -158,7 +158,7 @@ describe('Scrape Attempt Queries', () => {
         {
           id: 3,
           report_id: 1,
-          cinema_id: 'C0003',
+          theater_id: 'C0003',
           date: '2026-03-25',
           status: 'not_attempted',
           error_type: null,
@@ -200,7 +200,7 @@ describe('Scrape Attempt Queries', () => {
         {
           id: 1,
           report_id: 1,
-          cinema_id: 'C0001',
+          theater_id: 'C0001',
           date: '2026-03-25',
           status: 'success',
           error_type: null,
@@ -213,7 +213,7 @@ describe('Scrape Attempt Queries', () => {
         {
           id: 2,
           report_id: 1,
-          cinema_id: 'C0001',
+          theater_id: 'C0001',
           date: '2026-03-26',
           status: 'failed',
           error_type: 'network',
@@ -240,11 +240,11 @@ describe('Scrape Attempt Queries', () => {
   });
 
   describe('getScrapeAttempt', () => {
-    it('should return specific attempt by report, cinema, and date', async () => {
+    it('should return specific attempt by report, theater, and date', async () => {
       const mockAttempt: ScrapeAttempt = {
         id: 1,
         report_id: 1,
-        cinema_id: 'C0001',
+        theater_id: 'C0001',
         date: '2026-03-25',
         status: 'success',
         error_type: null,
@@ -263,7 +263,7 @@ describe('Scrape Attempt Queries', () => {
 
       expect(result).toEqual(mockAttempt);
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE report_id = $1 AND cinema_id = $2 AND date = $3'),
+        expect.stringContaining('WHERE report_id = $1 AND theater_id = $2 AND date = $3'),
         [1, 'C0001', '2026-03-25']
       );
     });

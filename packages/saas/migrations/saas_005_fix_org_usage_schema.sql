@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS org_usage (
   id              SERIAL PRIMARY KEY,
   org_id          INTEGER      NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   month           DATE         NOT NULL DEFAULT DATE_TRUNC('month', CURRENT_DATE),
-  cinemas_count   INTEGER      NOT NULL DEFAULT 0,
+  theaters_count  INTEGER      NOT NULL DEFAULT 0,
   users_count     INTEGER      NOT NULL DEFAULT 0,
   scrapes_count   INTEGER      NOT NULL DEFAULT 0,
   api_calls_count INTEGER      NOT NULL DEFAULT 0,

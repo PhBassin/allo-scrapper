@@ -121,7 +121,7 @@ describe('POST /api/org/:slug/settings/import', () => {
       .send({
         version: '1.0',
         settings: {
-          site_name: 'Legacy Cinema',
+          site_name: 'Legacy Theater',
           logo_base64: 'data:image/png;base64,raw-logo',
           favicon_base64: 'data:image/png;base64,raw-favicon',
           color_primary: '#FECC00',
@@ -170,7 +170,7 @@ describe('POST /api/org/:slug/settings/import', () => {
       .send({
         version: '1.0',
         settings: {
-          site_name: 'Legacy Cinema',
+          site_name: 'Legacy Theater',
           logo_base64: 'data:image/png;base64,bad-logo',
           color_primary: '#FECC00',
           color_secondary: '#1F2937',

@@ -415,7 +415,7 @@ describe('Role & Permission Queries', () => {
       };
       const assignedPermissions = [
         { name: 'scraper:trigger' },
-        { name: 'cinemas:create' },
+        { name: 'theaters:create' },
       ];
 
       vi.mocked(mockDb.query)
@@ -424,7 +424,7 @@ describe('Role & Permission Queries', () => {
 
       const result = await getPermissionNamesByRoleId(mockDb, 2);
 
-      expect(result).toEqual(['scraper:trigger', 'cinemas:create']);
+      expect(result).toEqual(['scraper:trigger', 'theaters:create']);
     });
 
     it('should return empty array for role with no permissions', async () => {

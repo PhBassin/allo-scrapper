@@ -3,11 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // --- Mocks (must be declared before any imports of the module under test) ---
 
 const mockRunScraper = vi.fn();
-const mockAddCinemaAndScrape = vi.fn();
+const mockAddTheaterAndScrape = vi.fn();
 const mockUpdateScrapeReport = vi.fn().mockResolvedValue(undefined);
 const mockGetPendingScrapeAttempts = vi.fn();
 const mockGetScrapeAttemptsByReport = vi.fn();
-const mockGetCinemas = vi.fn();
+const mockGetTheaters = vi.fn();
 const mockDbQuery = vi.fn().mockResolvedValue({ rows: [] });
 const mockPublisherEmit = vi.fn().mockResolvedValue(undefined);
 const mockGetRedisPublisher = vi.fn().mockReturnValue({ emit: mockPublisherEmit });
@@ -18,7 +18,7 @@ const mockShowtimesScrapedTotal = { inc: vi.fn() };
 
 vi.mock('../../src/scraper/index.js', () => ({
   runScraper: mockRunScraper,
-  addCinemaAndScrape: mockAddCinemaAndScrape,
+  addTheaterAndScrape: mockAddTheaterAndScrape,
 }));
 
 vi.mock('../../src/db/report-queries.js', () => ({
@@ -31,8 +31,8 @@ vi.mock('../../src/db/scrape-attempt-queries.js', () => ({
   getScrapeAttemptsByReport: (...args: any[]) => mockGetScrapeAttemptsByReport(...args),
 }));
 
-vi.mock('../../src/db/cinema-queries.js', () => ({
-  getCinemas: (...args: any[]) => mockGetCinemas(...args),
+vi.mock('../../src/db/theater-queries.js', () => ({
+  getTheaters: (...args: any[]) => mockGetTheaters(...args),
 }));
 
 vi.mock('../../src/redis/client.js', () => ({
@@ -65,7 +65,7 @@ vi.mock('../../src/utils/tracer.js', () => ({
 // --- Import the function under test (after mocks) ---
 // We test executeJob indirectly by exercising it through the exported
 // function. Since executeJob is not exported, we test it via its
-// integration points: the mocked runScraper and addCinemaAndScrape.
+// integration points: the mocked runScraper and addTheaterAndScrape.
 
 // We import executeJob by re-exporting it for test purposes via a
 // helper that mirrors what the module does. Instead, we extract it via
@@ -82,15 +82,15 @@ describe('executeJob dispatcher', () => {
     mockDbQuery.mockReset().mockResolvedValue({ rows: [] });
     mockGetPendingScrapeAttempts.mockReset();
     mockGetScrapeAttemptsByReport.mockReset().mockResolvedValue([]);
-    mockGetCinemas.mockReset().mockResolvedValue([{ id: 'C0001', name: 'Cinema 1' }]);
+    mockGetTheaters.mockReset().mockResolvedValue([{ id: 'C0001', name: 'Theater 1' }]);
     mockPublisherEmit.mockReset().mockResolvedValue(undefined);
   });
 
   it('should dispatch scrape jobs to runScraper', async () => {
     mockRunScraper.mockResolvedValue({
-      failed_cinemas: 0,
-      successful_cinemas: 1,
-      total_cinemas: 1,
+      failed_theaters: 0,
+      successful_theaters: 1,
+      total_theaters: 1,
       total_films: 5,
       total_showtimes: 20,
       errors: [],
@@ -114,11 +114,11 @@ describe('executeJob dispatcher', () => {
       }),
       expect.anything(),
     );
-    expect(mockAddCinemaAndScrape).not.toHaveBeenCalled();
+    expect(mockAddTheaterAndScrape).not.toHaveBeenCalled();
   });
 
-  it('should dispatch add_cinema jobs to addCinemaAndScrape', async () => {
-    mockAddCinemaAndScrape.mockResolvedValue({
+  it('should dispatch add_theater jobs to addTheaterAndScrape', async () => {
+    mockAddTheaterAndScrape.mockResolvedValue({
       id: 'C0072',
       name: 'Cinéma Test',
       url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html',
@@ -127,21 +127,21 @@ describe('executeJob dispatcher', () => {
     const { executeJob } = await import('../../src/index.js');
 
     await executeJob({
-      type: 'add_cinema',
+      type: 'add_theater',
       triggerType: 'manual',
       reportId: 43,
       url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html',
     });
 
-    expect(mockAddCinemaAndScrape).toHaveBeenCalledOnce();
+    expect(mockAddTheaterAndScrape).toHaveBeenCalledOnce();
     expect(mockRunScraper).not.toHaveBeenCalled();
   });
 
   it('should handle legacy jobs without type field as scrape', async () => {
     mockRunScraper.mockResolvedValue({
-      failed_cinemas: 0,
-      successful_cinemas: 1,
-      total_cinemas: 1,
+      failed_theaters: 0,
+      successful_theaters: 1,
+      total_theaters: 1,
       total_films: 3,
       total_showtimes: 10,
       errors: [],
@@ -156,17 +156,17 @@ describe('executeJob dispatcher', () => {
     } as any);
 
     expect(mockRunScraper).toHaveBeenCalledOnce();
-    expect(mockAddCinemaAndScrape).not.toHaveBeenCalled();
+    expect(mockAddTheaterAndScrape).not.toHaveBeenCalled();
   });
 
-  it('should reject add_cinema jobs and update report to failed on error', async () => {
-    mockAddCinemaAndScrape.mockRejectedValue(new Error('Invalid Allociné URL: bad-url'));
+  it('should reject add_theater jobs and update report to failed on error', async () => {
+    mockAddTheaterAndScrape.mockRejectedValue(new Error('Invalid Allociné URL: bad-url'));
 
     const { executeJob } = await import('../../src/index.js');
 
     // Should not throw — errors are caught and reported
     await expect(executeJob({
-      type: 'add_cinema',
+      type: 'add_theater',
       triggerType: 'manual',
       reportId: 45,
       url: 'bad-url',
@@ -201,8 +201,8 @@ describe('executeJob dispatcher', () => {
 
   it('builds a resume recovery job from pending scrape attempts when checkpoint data exists', async () => {
     mockGetPendingScrapeAttempts.mockResolvedValue([
-      { cinema_id: 'C0001', date: '2026-04-23' },
-      { cinema_id: 'C0001', date: '2026-04-24' },
+      { theater_id: 'C0001', date: '2026-04-23' },
+      { theater_id: 'C0001', date: '2026-04-24' },
     ]);
 
     const { buildRecoveryJob } = await import('../../src/index.js');
@@ -211,7 +211,7 @@ describe('executeJob dispatcher', () => {
       type: 'scrape',
       triggerType: 'manual',
       reportId: 47,
-      options: { cinemaId: 'C0001' },
+      options: { theaterId: 'C0001' },
     });
 
     expect(mockGetPendingScrapeAttempts).toHaveBeenCalledWith(expect.anything(), 47);
@@ -219,11 +219,11 @@ describe('executeJob dispatcher', () => {
       type: 'scrape',
       reportId: 47,
       options: expect.objectContaining({
-        cinemaId: 'C0001',
+        theaterId: 'C0001',
         resumeMode: true,
         pendingAttempts: [
-          { cinema_id: 'C0001', date: '2026-04-23' },
-          { cinema_id: 'C0001', date: '2026-04-24' },
+          { theater_id: 'C0001', date: '2026-04-23' },
+          { theater_id: 'C0001', date: '2026-04-24' },
         ],
       }),
     }));
@@ -235,7 +235,7 @@ describe('executeJob dispatcher', () => {
       {
         id: 1,
         report_id: 48,
-        cinema_id: 'C0001',
+        theater_id: 'C0001',
         date: '2026-04-23',
         status: 'success',
       },
@@ -249,13 +249,13 @@ describe('executeJob dispatcher', () => {
       type: 'scrape',
       triggerType: 'manual',
       reportId: 48,
-      options: { cinemaId: 'C0001', mode: 'from_today', days: 2 },
+      options: { theaterId: 'C0001', mode: 'from_today', days: 2 },
     });
 
     expect(recoveryJob).toEqual(expect.objectContaining({
       options: expect.objectContaining({
         resumeMode: true,
-        pendingAttempts: [{ cinema_id: 'C0001', date: '2026-04-24' }],
+        pendingAttempts: [{ theater_id: 'C0001', date: '2026-04-24' }],
       }),
     }));
   });

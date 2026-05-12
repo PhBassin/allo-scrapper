@@ -10,7 +10,7 @@ import { AuthContext } from '../contexts/AuthContext';
 // Mock the API client
 const mockAuthContext = {
   isAuthenticated: true,
-  user: { id: 1, username: 'testuser', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['cinemas:create', 'scraper:trigger'] as any[] },
+  user: { id: 1, username: 'testuser', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['theaters:create', 'scraper:trigger'] as any[] },
   logout: vi.fn(),
   login: vi.fn(),
   isAdmin: false,
@@ -37,25 +37,25 @@ const renderWithClient = (ui: React.ReactElement) => {
 vi.mock('../api/client', () => ({
   getWeeklyMovies: vi.fn(),
   getMoviesByDate: vi.fn(),
-  getCinemas: vi.fn(),
-  addCinema: vi.fn(),
+  getTheaters: vi.fn(),
+  addTheater: vi.fn(),
 }));
 
 describe('HomePage', () => {
   let mockGetWeeklyMovies: ReturnType<typeof vi.fn>;
-  let mockGetCinemas: ReturnType<typeof vi.fn>;
+  let mockGetTheaters: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     mockGetWeeklyMovies = vi.fn();
-    mockGetCinemas = vi.fn();
+    mockGetTheaters = vi.fn();
 
     // Re-bind mocks
     (clientApi.getWeeklyMovies as any) = mockGetWeeklyMovies;
-    (clientApi.getCinemas as any) = mockGetCinemas;
+    (clientApi.getTheaters as any) = mockGetTheaters;
 
     // Default successful responses
     mockGetWeeklyMovies.mockResolvedValue({ movies: [], weekStart: '2023-01-01' });
-    mockGetCinemas.mockResolvedValue([]);
+    mockGetTheaters.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -71,7 +71,7 @@ describe('HomePage', () => {
 
     await waitFor(() => {
       expect(mockGetWeeklyMovies).toHaveBeenCalled();
-      expect(mockGetCinemas).toHaveBeenCalled();
+      expect(mockGetTheaters).toHaveBeenCalled();
     });
   });
 
@@ -121,10 +121,10 @@ describe('HomePage — bouton Maintenant', () => {
         genres: [],
         actors: [],
         source_url: '',
-        cinemas: [
+        theaters: [
           {
             id: 'C1',
-            name: 'Cinema 1',
+            name: 'Theater 1',
             address: '',
             city: 'Paris',
             showtimes: [{ id: 's1', date: FIXED_TODAY, time: '12:00', experiences: [] }],
@@ -137,10 +137,10 @@ describe('HomePage — bouton Maintenant', () => {
         genres: [],
         actors: [],
         source_url: '',
-        cinemas: [
+        theaters: [
           {
             id: 'C1',
-            name: 'Cinema 1',
+            name: 'Theater 1',
             address: '',
             city: 'Paris',
             showtimes: [{ id: 's2', date: FIXED_TODAY, time: '14:00', experiences: [] }],
@@ -164,7 +164,7 @@ describe('HomePage — bouton Maintenant', () => {
     vi.setSystemTime(FIXED_NOW);
     vi.clearAllMocks();
     (clientApi.getWeeklyMovies as any).mockResolvedValue({ movies: [], weekStart: WEEK_START });
-    (clientApi.getCinemas as any).mockResolvedValue([]);
+    (clientApi.getTheaters as any).mockResolvedValue([]);
     (clientApi.getMoviesByDate as any).mockResolvedValue(makeMoviesResponse());
   });
 

@@ -593,7 +593,7 @@ describe('Migration System', () => {
       db.query = mockQuery;
 
       vi.mocked(fs.readFile).mockResolvedValue(
-        'ALTER TABLE showtimes ADD CONSTRAINT uq_showtimes_business_key UNIQUE (cinema_id, movie_id);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: constraint uq_showtimes_business_key was not created\'; END $$;'
+        'ALTER TABLE showtimes ADD CONSTRAINT uq_showtimes_business_key UNIQUE (theater_id, movie_id);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: constraint uq_showtimes_business_key was not created\'; END $$;'
       );
 
       await expect(applyMigration(db, '022_verify_fail.sql')).rejects.toThrow(
@@ -603,16 +603,16 @@ describe('Migration System', () => {
 
     it('should throw on verification failure when column is missing', async () => {
       const mockQuery = vi.fn().mockRejectedValue(
-        new Error('VERIFICATION FAILED: column cinemas.source was not created')
+        new Error('VERIFICATION FAILED: column theaters.source was not created')
       );
       db.query = mockQuery;
 
       vi.mocked(fs.readFile).mockResolvedValue(
-        'ALTER TABLE cinemas ADD COLUMN IF NOT EXISTS source VARCHAR(50);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: column cinemas.source was not created\'; END $$;'
+        'ALTER TABLE theaters ADD COLUMN IF NOT EXISTS source VARCHAR(50);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: column theaters.source was not created\'; END $$;'
       );
 
       await expect(applyMigration(db, '013_verify_fail.sql')).rejects.toThrow(
-        'VERIFICATION FAILED: column cinemas.source was not created'
+        'VERIFICATION FAILED: column theaters.source was not created'
       );
     });
 

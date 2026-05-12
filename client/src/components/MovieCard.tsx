@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useState, memo } from 'react';
 import type { MovieWithShowtimes } from '../types';
-import CinemaShowtimes from './CinemaShowtimes';
+import TheaterShowtimes from './TheaterShowtimes';
 
 interface MovieCardProps {
   movie: MovieWithShowtimes;
@@ -115,7 +115,7 @@ function MovieCard({ movie, isNew = false, initialAfterTime }: MovieCardProps) {
               }`}
             >
               <span>{showSchedule ? '▼ Cacher les horaires' : '▶ Voir les horaires'}</span>
-              <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">{movie.cinemas.length} cinémas</span>
+              <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">{movie.theaters.length} cinémas</span>
             </button>
             <Link 
               to={`/movie/${movie.id}`} 
@@ -130,7 +130,7 @@ function MovieCard({ movie, isNew = false, initialAfterTime }: MovieCardProps) {
 
           {showSchedule && (
             <div className="mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-              <CinemaShowtimes cinemas={movie.cinemas} initialAfterTime={initialAfterTime} />
+              <TheaterShowtimes theaters={movie.theaters} initialAfterTime={initialAfterTime} />
             </div>
           )}
         </div>

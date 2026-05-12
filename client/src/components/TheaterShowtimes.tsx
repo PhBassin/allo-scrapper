@@ -1,19 +1,19 @@
 import { useState, useMemo, useCallback } from 'react';
-import type { CinemaWithShowtimes } from '../types';
+import type { TheaterWithShowtimes } from '../types';
 import ShowtimeList from './ShowtimeList';
 import { Link } from 'react-router-dom';
 import { getUniqueDates, formatDateLabel } from '../utils/date';
 
-interface CinemaShowtimesProps {
-  cinemas: CinemaWithShowtimes[];
+interface TheaterShowtimesProps {
+  theaters: TheaterWithShowtimes[];
   initialDate?: string;
   initialAfterTime?: string | null;
 }
 
-export default function CinemaShowtimes({ cinemas, initialDate, initialAfterTime }: CinemaShowtimesProps) {
+export default function TheaterShowtimes({ theaters, initialDate, initialAfterTime }: TheaterShowtimesProps) {
   const allShowtimes = useMemo(() => 
-    cinemas.flatMap(c => c.showtimes),
-    [cinemas]
+    theaters.flatMap(c => c.showtimes),
+    [theaters]
   );
 
   const dates = useMemo(() => getUniqueDates(allShowtimes), [allShowtimes]);
@@ -45,20 +45,20 @@ export default function CinemaShowtimes({ cinemas, initialDate, initialAfterTime
   }, [todayInDates, today]);
 
   // ⚡ PERFORMANCE: Use reduce instead of map().filter() to avoid allocating intermediate
-  // objects for cinemas with no showtimes on the selected date, reducing GC pressure and iteration overhead.
-  const displayedCinemas = useMemo(() => {
-    return cinemas.reduce((acc, cinema) => {
-      const filteredShowtimes = cinema.showtimes.filter(
+  // objects for theaters with no showtimes on the selected date, reducing GC pressure and iteration overhead.
+  const displayedTheaters = useMemo(() => {
+    return theaters.reduce((acc, theater) => {
+      const filteredShowtimes = theater.showtimes.filter(
         s => s.date === selectedDate && (!afterTime || s.time >= afterTime)
       );
       if (filteredShowtimes.length > 0) {
-        acc.push({ cinema, showtimes: filteredShowtimes });
+        acc.push({ theater, showtimes: filteredShowtimes });
       }
       return acc;
-    }, [] as Array<{ cinema: CinemaWithShowtimes; showtimes: CinemaWithShowtimes['showtimes'] }>);
-  }, [cinemas, selectedDate, afterTime]);
+    }, [] as Array<{ theater: TheaterWithShowtimes; showtimes: TheaterWithShowtimes['showtimes'] }>);
+  }, [theaters, selectedDate, afterTime]);
 
-  if (cinemas.length === 0) {
+  if (theaters.length === 0) {
     return (
       <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
         <p className="text-gray-500">Aucune séance disponible cette semaine</p>
@@ -124,25 +124,25 @@ export default function CinemaShowtimes({ cinemas, initialDate, initialAfterTime
         </div>
       </div>
 
-      {/* Cinemas List */}
+      {/* Theaters List */}
       <div className="space-y-4">
-        {displayedCinemas.map(({ cinema, showtimes }) => (
-          <div key={cinema.id} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition">
+        {displayedTheaters.map(({ theater, showtimes }) => (
+          <div key={theater.id} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-lg font-bold">
-                  <Link to={`/cinema/${cinema.id}`} className="hover:text-primary transition">
-                    {cinema.name}
+                  <Link to={`/theater/${theater.id}`} className="hover:text-primary transition">
+                    {theater.name}
                   </Link>
                 </h3>
-                {cinema.address && (
+                {theater.address && (
                   <p className="text-sm text-gray-500">
-                    {cinema.address}, {cinema.city}
+                    {theater.address}, {theater.city}
                   </p>
                 )}
               </div>
               <Link
-                to={`/cinema/${cinema.id}`}
+                to={`/theater/${theater.id}`}
                 className="text-xs font-semibold text-primary-dark hover:underline bg-yellow-100 px-2 py-1 rounded"
               >
                 Fiche cinéma
@@ -155,7 +155,7 @@ export default function CinemaShowtimes({ cinemas, initialDate, initialAfterTime
           </div>
         ))}
 
-        {displayedCinemas.length === 0 && (
+        {displayedTheaters.length === 0 && (
           <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
             <p className="text-gray-500 font-medium">Aucune séance ce jour-là</p>
           </div>

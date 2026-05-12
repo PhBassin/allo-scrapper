@@ -21,28 +21,28 @@ export const scrapeJobsTotal = new Counter({
   registers: [registry],
 });
 
-/** Scrape duration per cinema in seconds. */
+/** Scrape duration per theater in seconds. */
 export const scrapeDurationSeconds = new Histogram({
   name: 'scrape_duration_seconds',
-  help: 'Duration of scrape operations per cinema in seconds',
-  labelNames: ['cinema'] as const,
+  help: 'Duration of scrape operations per theater in seconds',
+  labelNames: ['theater'] as const,
   buckets: [1, 5, 10, 30, 60, 120, 300],
   registers: [registry],
 });
 
-/** Total movies scraped, labeled by cinema. */
+/** Total movies scraped, labeled by theater. */
 export const moviesScrapedTotal = new Counter({
   name: 'movies_scraped_total',
   help: 'Total number of movies scraped',
-  labelNames: ['cinema'] as const,
+  labelNames: ['theater'] as const,
   registers: [registry],
 });
 
-/** Total showtimes scraped, labeled by cinema. */
+/** Total showtimes scraped, labeled by theater. */
 export const showtimesScrapedTotal = new Counter({
   name: 'showtimes_scraped_total',
   help: 'Total number of showtimes scraped',
-  labelNames: ['cinema'] as const,
+  labelNames: ['theater'] as const,
   registers: [registry],
 });
 

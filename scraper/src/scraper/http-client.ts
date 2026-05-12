@@ -1,4 +1,4 @@
-// HTTP client for fetching cinema and movie pages from source website
+// HTTP client for fetching theater and movie pages from source website
 
 import puppeteer, { type Browser } from 'puppeteer-core';
 import { existsSync, readdirSync } from 'node:fs';
@@ -130,13 +130,13 @@ function getRandomUserAgent(): string {
 }
 
 /**
- * Validates cinema ID format (e.g., "C0072", "W7517")
+ * Validates theater ID format (e.g., "C0072", "W7517")
  * @throws {Error} if format is invalid
  */
-function validateCinemaId(cinemaId: string): void {
-  // Cinema IDs must match: letter + 4-5 digits
-  if (!/^[A-Z]\d{4,5}$/.test(cinemaId)) {
-    throw new Error(`Invalid cinema ID format: ${cinemaId}`);
+function validateTheaterId(theaterId: string): void {
+  // Theater IDs must match: letter + 4-5 digits
+  if (!/^[A-Z]\d{4,5}$/.test(theaterId)) {
+    throw new Error(`Invalid theater ID format: ${theaterId}`);
   }
 }
 
@@ -259,7 +259,7 @@ export interface TheaterInitialData {
  * No date clicking is performed. Showtimes for each date are fetched
  * separately via the JSON API (fetchShowtimesJson).
  */
-export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterInitialData> {
+export async function fetchTheaterPage(theaterBaseUrl: string): Promise<TheaterInitialData> {
   return circuitBreaker.execute(async () => {
     const browser = await getBrowser();
     const context = await browser.createBrowserContext();
@@ -267,8 +267,8 @@ export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterIn
 
     try {
       await page.setUserAgent(getRandomUserAgent());
-      logger.info('Loading theater page', { url: cinemaBaseUrl });
-      await page.goto(cinemaBaseUrl, { waitUntil: 'networkidle0', timeout: 60000 });
+      logger.info('Loading theater page', { url: theaterBaseUrl });
+      await page.goto(theaterBaseUrl, { waitUntil: 'networkidle0', timeout: 60000 });
 
       const html = await page.content();
 
@@ -293,19 +293,19 @@ export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterIn
  * Fetch the showtimes JSON for a specific date from the Allociné internal API.
  * This is a plain HTTP request — no browser needed.
  *
- * @param cinemaId - e.g. "C0072"
+ * @param theaterId - e.g. "C0072"
  * @param date     - e.g. "2026-02-22"
  */
-export async function fetchShowtimesJson(cinemaId: string, date: string): Promise<unknown> {
+export async function fetchShowtimesJson(theaterId: string, date: string): Promise<unknown> {
   // Validate inputs before using in URL to prevent SSRF
-  validateCinemaId(cinemaId);
+  validateTheaterId(theaterId);
   validateDate(date);
 
   // Construct URL via URL object and re-validate hostname to satisfy SSRF guard.
-  // Even though cinemaId and date are already strictly validated above, building
+  // Even though theaterId and date are already strictly validated above, building
   // the URL with new URL() and asserting the final hostname prevents any future
   // taint from reaching the fetch call.
-  const constructed = new URL(`/_/showtimes/theater-${cinemaId}/d-${date}/`, ALLOCINE_BASE_URL);
+  const constructed = new URL(`/_/showtimes/theater-${theaterId}/d-${date}/`, ALLOCINE_BASE_URL);
   if (constructed.hostname !== 'www.allocine.fr' || constructed.protocol !== 'https:') {
     throw new Error(`SSRF guard: unexpected host in constructed URL ${constructed.href}`);
   }
@@ -317,7 +317,7 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
       'User-Agent': getRandomUserAgent(),
       Accept: 'application/json',
       'Accept-Language': 'fr-FR,fr;q=0.9',
-      Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${cinemaId}.html`,
+      Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${theaterId}.html`,
     },
   });
 

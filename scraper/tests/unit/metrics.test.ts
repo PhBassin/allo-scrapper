@@ -28,17 +28,17 @@ describe('metrics', () => {
 
   it('scrapeDurationSeconds.observe does not throw', async () => {
     const { scrapeDurationSeconds } = await import('../../src/utils/metrics.js');
-    expect(() => scrapeDurationSeconds.observe({ cinema: 'test' }, 1.5)).not.toThrow();
+    expect(() => scrapeDurationSeconds.observe({ theater: 'test' }, 1.5)).not.toThrow();
   });
 
   it('moviesScrapedTotal.inc does not throw', async () => {
     const { moviesScrapedTotal } = await import('../../src/utils/metrics.js');
-    expect(() => moviesScrapedTotal.inc({ cinema: 'test' }, 5)).not.toThrow();
+    expect(() => moviesScrapedTotal.inc({ theater: 'test' }, 5)).not.toThrow();
   });
 
   it('showtimesScrapedTotal.inc does not throw', async () => {
     const { showtimesScrapedTotal } = await import('../../src/utils/metrics.js');
-    expect(() => showtimesScrapedTotal.inc({ cinema: 'test' }, 10)).not.toThrow();
+    expect(() => showtimesScrapedTotal.inc({ theater: 'test' }, 10)).not.toThrow();
   });
 
   it('registry.metrics returns a string with metric names', async () => {

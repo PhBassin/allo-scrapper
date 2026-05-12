@@ -4,8 +4,8 @@
 -- Enable pg_trgm extension for fuzzy text search
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- Table: cinemas
-CREATE TABLE IF NOT EXISTS cinemas (
+-- Table: theaters
+CREATE TABLE IF NOT EXISTS theaters (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   address TEXT,
@@ -46,7 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_movies_title_trgm ON movies USING gin(title gin_t
 CREATE TABLE IF NOT EXISTS showtimes (
   id TEXT PRIMARY KEY,
   movie_id INTEGER NOT NULL,
-  cinema_id TEXT NOT NULL,
+  theater_id TEXT NOT NULL,
   date TEXT NOT NULL,
   time TEXT NOT NULL,
   datetime_iso TEXT NOT NULL,
@@ -55,31 +55,31 @@ CREATE TABLE IF NOT EXISTS showtimes (
   experiences TEXT, -- JSON array
   week_start TEXT NOT NULL,
   FOREIGN KEY (movie_id) REFERENCES movies(id),
-  FOREIGN KEY (cinema_id) REFERENCES cinemas(id) ON DELETE CASCADE,
-  CONSTRAINT uq_showtimes_business_key UNIQUE (cinema_id, movie_id, date, time, version, format)
+  FOREIGN KEY (theater_id) REFERENCES theaters(id) ON DELETE CASCADE,
+  CONSTRAINT uq_showtimes_business_key UNIQUE (theater_id, movie_id, date, time, version, format)
 );
 
 -- Indexes for showtimes
-CREATE INDEX IF NOT EXISTS idx_showtimes_cinema_date ON showtimes(cinema_id, date);
+CREATE INDEX IF NOT EXISTS idx_showtimes_theater_date ON showtimes(theater_id, date);
 CREATE INDEX IF NOT EXISTS idx_showtimes_movie_date ON showtimes(movie_id, date);
 CREATE INDEX IF NOT EXISTS idx_showtimes_week ON showtimes(week_start);
 
 -- Partial unique index for rows where format IS NULL
 CREATE UNIQUE INDEX IF NOT EXISTS uq_showtimes_business_key_null_format
-  ON showtimes (cinema_id, movie_id, date, time, version)
+  ON showtimes (theater_id, movie_id, date, time, version)
   WHERE format IS NULL;
 
 -- Table: weekly_programs
 CREATE TABLE IF NOT EXISTS weekly_programs (
   id SERIAL PRIMARY KEY,
-  cinema_id TEXT NOT NULL,
+  theater_id TEXT NOT NULL,
   movie_id INTEGER NOT NULL,
   week_start TEXT NOT NULL,
   is_new_this_week INTEGER NOT NULL DEFAULT 0,
   scraped_at TEXT NOT NULL,
-  FOREIGN KEY (cinema_id) REFERENCES cinemas(id) ON DELETE CASCADE,
+  FOREIGN KEY (theater_id) REFERENCES theaters(id) ON DELETE CASCADE,
   FOREIGN KEY (movie_id) REFERENCES movies(id),
-  UNIQUE(cinema_id, movie_id, week_start)
+  UNIQUE(theater_id, movie_id, week_start)
 );
 
 -- Index for weekly_programs
@@ -90,11 +90,11 @@ CREATE TABLE IF NOT EXISTS scrape_reports (
   id SERIAL PRIMARY KEY,
   started_at TIMESTAMPTZ NOT NULL,
   completed_at TIMESTAMPTZ,
-  status TEXT NOT NULL, -- 'running', 'success', 'partial_success', 'failed'
+  status TEXT NOT NULL CHECK (status IN ('running', 'success', 'partial_success', 'failed', 'rate_limited')),
   trigger_type TEXT NOT NULL, -- 'manual', 'cron'
-  total_cinemas INTEGER,
-  successful_cinemas INTEGER,
-  failed_cinemas INTEGER,
+  total_theaters INTEGER,
+  successful_theaters INTEGER,
+  failed_theaters INTEGER,
   total_movies_scraped INTEGER,
   total_showtimes_scraped INTEGER,
   errors JSONB, -- Array of error objects

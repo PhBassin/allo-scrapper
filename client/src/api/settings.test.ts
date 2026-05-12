@@ -30,7 +30,7 @@ vi.mock('./client', async () => {
 });
 
 const serverSettingsResponse = {
-  site_name: 'Test Cinema',
+  site_name: 'Test Theater',
   logo_base64: null,
   favicon_base64: null,
   color_primary: '#FECC00',
@@ -51,7 +51,7 @@ const serverSettingsResponse = {
 const fullServerSettingsResponse = {
   id: 1,
   ...serverSettingsResponse,
-  email_from_name: 'Test Cinema',
+  email_from_name: 'Test Theater',
   email_from_address: 'noreply@test.local',
   email_logo_base64: null,
   scrape_mode: 'weekly' as const,
@@ -168,7 +168,7 @@ describe('settings API contract', () => {
       color_surface: '#F3F4F6',
       font_primary: 'Poppins',
       font_secondary: 'Inter',
-      site_name: 'Updated Cinema',
+      site_name: 'Updated Theater',
     });
 
     expect(apiClient.put).toHaveBeenCalledWith('/settings', {
@@ -176,7 +176,7 @@ describe('settings API contract', () => {
       color_surface: '#F3F4F6',
       font_primary: 'Poppins',
       font_secondary: 'Inter',
-      site_name: 'Updated Cinema',
+      site_name: 'Updated Theater',
     });
   });
 
@@ -197,10 +197,10 @@ describe('settings API contract', () => {
       },
     });
 
-    await updateSettings({ site_name: 'Tenant Updated Cinema' });
+    await updateSettings({ site_name: 'Tenant Updated Theater' });
 
     expect(apiClient.put).toHaveBeenCalledWith('/org/acme/settings/admin', {
-      site_name: 'Tenant Updated Cinema',
+      site_name: 'Tenant Updated Theater',
     });
 
     Object.defineProperty(window, 'location', {

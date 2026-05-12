@@ -8,13 +8,13 @@ export interface ScrapeJobState {
   reportId?: number;
   events: ProgressEvent[];
   latestEvent?: ProgressEvent;
-  cinemaName?: string;
+  theaterName?: string;
   currentMovie?: string;
-  totalCinemas: number;
-  processedCinemas: number;
+  totalTheaters: number;
+  processedTheaters: number;
   totalMovies: number;
   processedMovies: number;
-  cinemaProgress: number;
+  theaterProgress: number;
   movieProgress: number;
   status: 'pending' | 'running' | 'completed' | 'failed';
   error?: string;
@@ -22,7 +22,7 @@ export interface ScrapeJobState {
 
 export interface TrackedScrapeJob {
   reportId: number;
-  cinemaName?: string;
+  theaterName?: string;
 }
 
 const EMPTY_TRACKED_JOBS: TrackedScrapeJob[] = [];
@@ -48,13 +48,13 @@ function areJobsEqual(left: ScrapeJobState[], right: ScrapeJobState[]): boolean 
     if (
       leftJob.id !== rightJob.id
       || leftJob.reportId !== rightJob.reportId
-      || leftJob.cinemaName !== rightJob.cinemaName
+      || leftJob.theaterName !== rightJob.theaterName
       || leftJob.currentMovie !== rightJob.currentMovie
-      || leftJob.totalCinemas !== rightJob.totalCinemas
-      || leftJob.processedCinemas !== rightJob.processedCinemas
+      || leftJob.totalTheaters !== rightJob.totalTheaters
+      || leftJob.processedTheaters !== rightJob.processedTheaters
       || leftJob.totalMovies !== rightJob.totalMovies
       || leftJob.processedMovies !== rightJob.processedMovies
-      || leftJob.cinemaProgress !== rightJob.cinemaProgress
+      || leftJob.theaterProgress !== rightJob.theaterProgress
       || leftJob.movieProgress !== rightJob.movieProgress
       || leftJob.status !== rightJob.status
       || leftJob.error !== rightJob.error
@@ -74,24 +74,24 @@ function getJobKey(event: ProgressEvent): string {
 function deriveJobState(id: string, events: ProgressEvent[]): ScrapeJobState {
   const latestEvent = events[events.length - 1];
 
-  let totalCinemas = 0;
-  let processedCinemas = 0;
+  let totalTheaters = 0;
+  let processedTheaters = 0;
   let totalMovies = 0;
   let processedMovies = 0;
-  let cinemaName: string | undefined;
+  let theaterName: string | undefined;
   let currentMovie: string | undefined;
   let error: string | undefined;
 
   for (const event of events) {
     switch (event.type) {
       case 'started':
-        totalCinemas = event.total_cinemas;
+        totalTheaters = event.total_theaters;
         break;
-      case 'cinema_started':
-        cinemaName = event.cinema_name;
+      case 'theater_started':
+        theaterName = event.theater_name;
         break;
       case 'date_started':
-        cinemaName = event.cinema_name;
+        theaterName = event.theater_name;
         break;
       case 'movie_started':
         currentMovie = event.movie_title;
@@ -103,24 +103,24 @@ function deriveJobState(id: string, events: ProgressEvent[]): ScrapeJobState {
       case 'movie_failed':
         error = event.error;
         break;
-      case 'cinema_completed':
-        cinemaName = event.cinema_name;
-        processedCinemas++;
+      case 'theater_completed':
+        theaterName = event.theater_name;
+        processedTheaters++;
         break;
-      case 'cinema_failed':
-        cinemaName = event.cinema_name;
+      case 'theater_failed':
+        theaterName = event.theater_name;
         error = event.error;
         break;
       case 'date_failed':
-        cinemaName = event.cinema_name;
+        theaterName = event.theater_name;
         error = event.error;
         break;
       case 'failed':
         error = event.error;
         break;
       case 'completed':
-        if (!cinemaName && event.summary.errors.length === 1) {
-          cinemaName = event.summary.errors[0]?.cinema_name;
+        if (!theaterName && event.summary.errors.length === 1) {
+          theaterName = event.summary.errors[0]?.theater_name;
         }
         if (!error && event.summary.errors.length > 0) {
           error = event.summary.errors[0]?.error;
@@ -129,14 +129,14 @@ function deriveJobState(id: string, events: ProgressEvent[]): ScrapeJobState {
     }
   }
 
-  const cinemaProgress = totalCinemas > 0 ? (processedCinemas / totalCinemas) * 100 : 0;
+  const theaterProgress = totalTheaters > 0 ? (processedTheaters / totalTheaters) * 100 : 0;
   const movieProgress = totalMovies > 0 ? (processedMovies / totalMovies) * 100 : 0;
 
   const status: ScrapeJobState['status'] =
-    latestEvent.type === 'completed' && latestEvent.summary && latestEvent.summary.failed_cinemas > 0 ? 'failed'
+    latestEvent.type === 'completed' && latestEvent.summary && latestEvent.summary.failed_theaters > 0 ? 'failed'
     : latestEvent.type === 'completed' ? 'completed'
     : latestEvent.type === 'failed' ? 'failed'
-    : latestEvent.type === 'started' || latestEvent.type === 'cinema_started' || latestEvent.type === 'cinema_completed' || latestEvent.type === 'cinema_failed' || latestEvent.type === 'date_started' || latestEvent.type === 'date_stale' || latestEvent.type === 'date_completed' || latestEvent.type === 'date_failed' || latestEvent.type === 'movie_started' || latestEvent.type === 'movie_completed' || latestEvent.type === 'movie_failed' ? 'running'
+    : latestEvent.type === 'started' || latestEvent.type === 'theater_started' || latestEvent.type === 'theater_completed' || latestEvent.type === 'theater_failed' || latestEvent.type === 'date_started' || latestEvent.type === 'date_stale' || latestEvent.type === 'date_completed' || latestEvent.type === 'date_failed' || latestEvent.type === 'movie_started' || latestEvent.type === 'movie_completed' || latestEvent.type === 'movie_failed' ? 'running'
     : 'pending';
 
   return {
@@ -144,13 +144,13 @@ function deriveJobState(id: string, events: ProgressEvent[]): ScrapeJobState {
     reportId: latestEvent.report_id,
     events,
     latestEvent,
-    cinemaName,
+    theaterName,
     currentMovie,
-    totalCinemas,
-    processedCinemas,
+    totalTheaters,
+    processedTheaters,
     totalMovies,
     processedMovies,
-    cinemaProgress,
+    theaterProgress,
     movieProgress,
     status,
     error,
@@ -177,8 +177,8 @@ function mergeTrackedJobs(events: ProgressEvent[], trackedJobs: TrackedScrapeJob
     const id = `report:${trackedJob.reportId}`;
     const existing = byId.get(id);
     if (existing) {
-      if (!existing.cinemaName && trackedJob.cinemaName) {
-        existing.cinemaName = trackedJob.cinemaName;
+      if (!existing.theaterName && trackedJob.theaterName) {
+        existing.theaterName = trackedJob.theaterName;
       }
       continue;
     }
@@ -187,12 +187,12 @@ function mergeTrackedJobs(events: ProgressEvent[], trackedJobs: TrackedScrapeJob
       id,
       reportId: trackedJob.reportId,
       events: [],
-      cinemaName: trackedJob.cinemaName,
-      totalCinemas: 0,
-      processedCinemas: 0,
+      theaterName: trackedJob.theaterName,
+      totalTheaters: 0,
+      processedTheaters: 0,
       totalMovies: 0,
       processedMovies: 0,
-      cinemaProgress: 0,
+      theaterProgress: 0,
       movieProgress: 0,
       status: 'pending',
     });
@@ -217,7 +217,7 @@ function mergeTrackedJobs(events: ProgressEvent[], trackedJobs: TrackedScrapeJob
 
 export function useScrapeProgress(onComplete?: (success: boolean) => void, trackedJobs: TrackedScrapeJob[] = EMPTY_TRACKED_JOBS) {
   const trackedJobsKey = trackedJobs
-    .map((job) => `${job.reportId}:${job.cinemaName ?? ''}`)
+    .map((job) => `${job.reportId}:${job.theaterName ?? ''}`)
     .join('|');
   const trackedJobsSnapshotRef = useRef({ key: trackedJobsKey, jobs: trackedJobs });
   if (trackedJobsSnapshotRef.current.key !== trackedJobsKey) {

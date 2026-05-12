@@ -1,16 +1,16 @@
-# Cinemas API
+# Theaters API
 
-## `GET /api/cinemas`
-
-Public endpoint.
-
-Returns the current cinema list from the database.
-
-## `GET /api/cinemas/:id`
+## `GET /api/theaters`
 
 Public endpoint.
 
-Returns cinema showtimes for the current `weekStart`.
+Returns the current theater list from the database.
+
+## `GET /api/theaters/:id`
+
+Public endpoint.
+
+Returns theater showtimes for the current `weekStart`.
 
 Response shape:
 
@@ -24,11 +24,11 @@ Response shape:
 }
 ```
 
-## `POST /api/cinemas`
+## `POST /api/theaters`
 
 Protected.
 
-Requires `cinemas:create`.
+Requires `theaters:create`.
 
 Supported request modes:
 
@@ -40,23 +40,23 @@ Supported request modes:
 }
 ```
 
-This inserts the cinema, creates a scrape report, and enqueues an `add_cinema` job in Redis.
+This inserts the theater, creates a scrape report, and enqueues an `add_theater` job in Redis.
 
 ### Manual add
 
 ```json
 {
   "id": "C0099",
-  "name": "New Cinema",
+  "name": "New Theater",
   "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0099.html"
 }
 ```
 
-## `PUT /api/cinemas/:id`
+## `PUT /api/theaters/:id`
 
 Protected.
 
-Requires `cinemas:update`.
+Requires `theaters:update`.
 
 Updatable fields include:
 
@@ -67,14 +67,14 @@ Updatable fields include:
 - `city`
 - `screen_count`
 
-## `DELETE /api/cinemas/:id`
+## `DELETE /api/theaters/:id`
 
 Protected.
 
-Requires `cinemas:delete`.
+Requires `theaters:delete`.
 
 Returns `204 No Content` on success.
 
 ## Current route note
 
-There is no `POST /api/cinemas/sync` route in the current server.
+There is no `POST /api/theaters/sync` route in the current server.

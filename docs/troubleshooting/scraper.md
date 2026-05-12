@@ -82,7 +82,7 @@ docker compose restart ics-web
 docker compose logs -f ics-web | grep "Failed to fetch"
 ```
 
-**⚠️ Graceful Shutdown on 429/403** - If rate limiting is detected, the scraper will immediately abort all in-flight and pending cinema tasks to avoid an IP ban.
+**⚠️ Graceful Shutdown on 429/403** - If rate limiting is detected, the scraper will immediately abort all in-flight and pending theater tasks to avoid an IP ban.
 
 ---
 
@@ -95,22 +95,22 @@ Failed to fetch showtimes JSON for C0072 on 2026-03-05: 404 Not Found
 ```
 
 **Causes:**
-1. Cinema ID invalid or removed from AlloCiné
+1. Theater ID invalid or removed from AlloCiné
 2. Date out of range (AlloCiné only shows ~2 weeks ahead)
 3. URL structure changed
 
 **Solution:**
 
 ```bash
-# Verify cinema exists on AlloCiné
+# Verify theater exists on AlloCiné
 curl https://www.allocine.fr/seance/salle_gen_csalle=C0072.html
 
-# Check cinema in database
+# Check theater in database
 docker compose exec ics-db psql -U postgres -d ics -c \
-  "SELECT cinema_id, name, url FROM cinemas WHERE cinema_id='C0072';"
+  "SELECT theater_id, name, url FROM theaters WHERE theater_id='C0072';"
 
-# Remove invalid cinema
-curl -X DELETE http://localhost:3000/api/cinemas/C0072 \
+# Remove invalid theater
+curl -X DELETE http://localhost:3000/api/theaters/C0072 \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -122,11 +122,11 @@ curl -X DELETE http://localhost:3000/api/cinemas/C0072 \
 - Scraper **detects HTTP 429** automatically
 - Scrape **stops immediately** to avoid further rate limiting
 - Report status set to `rate_limited` (not `failed`)
-- Remaining cinemas marked as "not attempted"
+- Remaining theaters marked as "not attempted"
 
 **What happens when 429 is detected:**
 
-1. **Immediate shutdown**: Scraper stops the current and all remaining cinemas
+1. **Immediate shutdown**: Scraper stops the current and all remaining theaters
 2. **Report marked**: Status changed from `running` → `rate_limited`
 3. **Error details**: Error includes `error_type: "http_429"` and `http_status_code: 429`
 4. **UI feedback**: Orange badge in admin panel with explanation
@@ -152,9 +152,9 @@ curl -X POST http://localhost:3000/api/scraper/trigger \
 ```
 
 **Phase 2 (Planned - Not Yet Implemented):**
-- Resume capability: Will scrape only cinemas that were not attempted
+- Resume capability: Will scrape only theaters that were not attempted
 - Exponential backoff: Automatic retry with increasing delays
-- Per-cinema tracking: Database records which cinemas were attempted
+- Per-theater tracking: Database records which theaters were attempted
 
 **See also:** [Rate Limiting Guide](../guides/advanced/scraper-rate-limiting.md)
 
@@ -177,13 +177,13 @@ Could not parse showtimes dates
 
 ```bash
 # Download current HTML to check structure
-curl "https://www.allocine.fr/seance/salle_gen_csalle=C0072.html" > cinema-page.html
+curl "https://www.allocine.fr/seance/salle_gen_csalle=C0072.html" > theater-page.html
 
 # Check for data-theater attribute
-grep 'data-theater' cinema-page.html
+grep 'data-theater' theater-page.html
 
 # Check for data-showtimes-dates attribute  
-grep 'data-showtimes-dates' cinema-page.html
+grep 'data-showtimes-dates' theater-page.html
 ```
 
 **Solution:** Parser update required in `server/src/services/scraper/theater-parser.ts`.
@@ -210,7 +210,7 @@ Could not extract film ID from: /film/fichefilm-XXXXX.html
 
 ```bash
 # Check film links in downloaded HTML
-grep -o 'href="/film/[^"]*"' cinema-page.html | head -10
+grep -o 'href="/film/[^"]*"' theater-page.html | head -10
 ```
 
 **Impact:**
@@ -231,7 +231,7 @@ Showtimes API returned error for C0072 on 2026-03-05
 **Cause:** AlloCiné internal API returned `{"error": true}`.
 
 **Possible reasons:**
-1. Cinema closed on that date
+1. Theater closed on that date
 2. No showtimes available
 3. Invalid date
 4. API temporarily unavailable
@@ -276,12 +276,12 @@ docker compose exec ics-db psql -U postgres -d ics -c \
 
 ## Input Validation Errors
 
-### Invalid Cinema ID Format
+### Invalid Theater ID Format
 
 **Error:**
 
 ```
-Invalid cinema ID format: C12345
+Invalid theater ID format: C12345
 ```
 
 **Valid formats:**
@@ -294,13 +294,13 @@ Invalid cinema ID format: C12345
 **Solution:**
 
 ```bash
-# Extract cinema ID from AlloCiné URL manually
+# Extract theater ID from AlloCiné URL manually
 # https://www.allocine.fr/seance/salle_gen_csalle=C0072.html
 #                                              ^^^^^^
-# Cinema ID is C0072
+# Theater ID is C0072
 
-# Or use API to add cinema by URL (auto-extracts ID)
-curl -X POST http://localhost:3000/api/cinemas \
+# Or use API to add theater by URL (auto-extracts ID)
+curl -X POST http://localhost:3000/api/theaters \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"url":"https://www.allocine.fr/seance/salle_gen_csalle=C0072.html"}'
@@ -368,7 +368,7 @@ Error processing film "Dune: Part Two": ...
 ```
 - **Logged** + **emitted** as `film_failed` event
 - **CONTINUES** to next film
-- Cinema scrape NOT aborted
+- Theater scrape NOT aborted
 
 **Date-level error:**
 ```
@@ -378,13 +378,13 @@ Error scraping UGC Les Halles for 2026-03-05: ...
 - **Emitted** as `date_failed` event
 - **CONTINUES** to next date
 
-**Cinema metadata error:**
+**Theater metadata error:**
 ```
 Failed to load theater metadata for UGC Les Halles: ...
 ```
 - **Logged** + **recorded** in summary
-- **SKIPS entire cinema**
-- Continues to next cinema
+- **SKIPS entire theater**
+- Continues to next theater
 
 **System error:**
 ```
@@ -398,16 +398,16 @@ Fatal error: ...
 
 ### Partial Failure Behavior
 
-**Scenario:** Scraping 3 cinemas, 7 days each.
+**Scenario:** Scraping 3 theaters, 7 days each.
 
 **Example failure:**
-- Cinema 1: 5 successful dates, 2 failed dates → **SUCCESS** (partial)
-- Cinema 2: Metadata load failed → **SKIPPED** (entire cinema)
-- Cinema 3: 7 successful dates → **SUCCESS**
+- Theater 1: 5 successful dates, 2 failed dates → **SUCCESS** (partial)
+- Theater 2: Metadata load failed → **SKIPPED** (entire theater)
+- Theater 3: 7 successful dates → **SUCCESS**
 
 **Result:**
-- 2 cinemas processed
-- 1 cinema skipped
+- 2 theaters processed
+- 1 theater skipped
 - 12 successful dates
 - 2 failed dates
 
@@ -430,19 +430,19 @@ data: {"type":"ping","timestamp":"2026-04-28T15:18:00.000Z"}
 
 # Expected events during scrape
 id: 1
-data: {"type":"started","total_cinemas":3,"total_dates":7}
+data: {"type":"started","total_theaters":3,"total_dates":7}
 
 id: 2
-data: {"type":"cinema_started","cinema_name":"UGC Ciné Cité Les Halles"}
+data: {"type":"theater_started","theater_name":"UGC Ciné Cité Les Halles"}
 
 id: 3
-data: {"type":"date_started","cinema_name":"UGC Ciné Cité Les Halles","date":"2026-03-05"}
+data: {"type":"date_started","theater_name":"UGC Ciné Cité Les Halles","date":"2026-03-05"}
 
 id: 4
 data: {"type":"film_failed","film_title":"Unknown","error":"Parser error"}
 
 id: 5
-data: {"type":"date_completed","cinema_name":"UGC Ciné Cité Les Halles","date":"2026-03-05"}
+data: {"type":"date_completed","theater_name":"UGC Ciné Cité Les Halles","date":"2026-03-05"}
 ```
 
 To test resume behavior after reconnect, reuse the last business event ID:
@@ -712,9 +712,9 @@ curl http://localhost:3000/api/scraper/status
 # {
 #   "active": true,
 #   "progress": {
-#     "current_cinema": "UGC Ciné Cité Les Halles",
-#     "completed_cinemas": 2,
-#     "total_cinemas": 5,
+#     "current_theater": "UGC Ciné Cité Les Halles",
+#     "completed_theaters": 2,
+#     "total_theaters": 5,
 #     "current_date": "2026-03-05"
 #   }
 # }
@@ -750,16 +750,16 @@ docker compose logs ics-web | grep -E "(Error|Failed|Warning)"
 
 ---
 
-### Test Single Cinema Scrape
+### Test Single Theater Scrape
 
 ```bash
-# Scrape specific cinema
+# Scrape specific theater
 curl -X POST http://localhost:3000/api/scraper/scrape \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{"cinemaId":"C0072"}'
+  -d '{"theaterId":"C0072"}'
 
-# Scrape all cinemas
+# Scrape all theaters
 curl -X POST http://localhost:3000/api/scraper/scrape \
   -H "Authorization: Bearer <token>"
 ```
@@ -775,7 +775,7 @@ curl http://localhost:3000/api/reports \
 
 # Database query for scrape history
 docker compose exec ics-db psql -U postgres -d ics -c \
-  "SELECT id, cinema_id, scraped_at, status, films_count, showtimes_count 
+  "SELECT id, theater_id, scraped_at, status, films_count, showtimes_count 
    FROM scrape_reports 
    ORDER BY scraped_at DESC 
    LIMIT 10;"
@@ -786,9 +786,9 @@ docker compose exec ics-db psql -U postgres -d ics -c \
 ### Verify Scraped Data
 
 ```bash
-# Check cinemas
+# Check theaters
 docker compose exec ics-db psql -U postgres -d ics -c \
-  "SELECT cinema_id, name, address FROM cinemas;"
+  "SELECT theater_id, name, address FROM theaters;"
 
 # Check films
 docker compose exec ics-db psql -U postgres -d ics -c \
@@ -798,7 +798,7 @@ docker compose exec ics-db psql -U postgres -d ics -c \
 docker compose exec ics-db psql -U postgres -d ics -c \
   "SELECT s.id, c.name, f.title, s.showtime_datetime 
    FROM showtimes s 
-   JOIN cinemas c ON s.cinema_id = c.cinema_id 
+   JOIN theaters t ON s.theater_id = t.theater_id 
    JOIN films f ON s.film_id = f.id 
    ORDER BY s.showtime_datetime DESC 
    LIMIT 10;"
@@ -811,12 +811,12 @@ docker compose exec ics-db psql -U postgres -d ics -c \
 ### Validation Errors
 
 ```
-Invalid cinema ID format: C12345
+Invalid theater ID format: C12345
 Invalid date format: 2026-3-5
 Invalid date: 2026-02-30
 Invalid film ID: -123
 Invalid Allocine URL. Must be https://www.allocine.fr/...
-Could not extract cinema ID from URL. URL format should be like https://www.allocine.fr/seance/...
+Could not extract theater ID from URL. URL format should be like https://www.allocine.fr/seance/...
 SSRF guard: unexpected host in constructed URL https://example.com/...
 ```
 
@@ -850,9 +850,9 @@ Rating out of range (0-5): 6.7
 ### System Errors
 
 ```
-Cinema with ID C0072 not found in configuration
-Cinema not found in database: C0072
-Cinema not configured for scraping: C0072
+Theater with ID C0072 not found in configuration
+Theater not found in database: C0072
+Theater not configured for scraping: C0072
 A scrape is already in progress
 Error parsing film card: SyntaxError: Unexpected token
 Error scraping UGC Les Halles for 2026-03-05: TimeoutError
@@ -882,7 +882,7 @@ Fatal error: Database connection lost
 # Scrape planning is configured in app settings
 # via the admin UI or settings API
 
-# Delay between cinemas (milliseconds)
+# Delay between theaters (milliseconds)
 SCRAPE_THEATER_DELAY_MS=3000
 
 # Delay between film detail fetches (milliseconds)
@@ -922,14 +922,14 @@ docker compose restart ics-scraper ics-scraper-cron
 # Total scrape jobs
 scrape_jobs_total{status="success|failure",trigger="manual|cron"}
 
-# Scrape duration per cinema
-scrape_duration_seconds{cinema="C0072"}
+# Scrape duration per theater
+scrape_duration_seconds{theater="C0072"}
 
-# Films scraped per cinema
-films_scraped_total{cinema="C0072"}
+# Films scraped per theater
+films_scraped_total{theater="C0072"}
 
-# Showtimes scraped per cinema
-showtimes_scraped_total{cinema="C0072"}
+# Showtimes scraped per theater
+showtimes_scraped_total{theater="C0072"}
 ```
 
 **Query metrics:**

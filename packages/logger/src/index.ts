@@ -18,20 +18,20 @@ export interface ScrapeJobScrape extends BaseScrapeJob {
   options?: {
     mode?: 'weekly' | 'from_today' | 'from_today_limited';
     days?: number;
-    cinemaId?: string;
+    theaterId?: string;
     filmId?: number;
     resumeMode?: boolean;
-    pendingAttempts?: Array<{ cinema_id: string; date: string }>;
+    pendingAttempts?: Array<{ theater_id: string; date: string }>;
   };
 }
 
-export interface ScrapeJobAddCinema extends BaseScrapeJob {
-  type: 'add_cinema';
+export interface ScrapeJobAddTheater extends BaseScrapeJob {
+  type: 'add_theater';
   triggerType: 'manual';
   url: string;
 }
 
-export type ScrapeJob = ScrapeJobScrape | ScrapeJobAddCinema;
+export type ScrapeJob = ScrapeJobScrape | ScrapeJobAddTheater;
 
 export interface ScheduleChangeEvent {
   action: 'created' | 'updated' | 'deleted';
@@ -41,7 +41,7 @@ export interface ScheduleChangeEvent {
     name: string;
     cron_expression: string;
     enabled: boolean;
-    target_cinemas?: string[] | null;
+    target_theaters?: string[] | null;
   };
 }
 
@@ -50,7 +50,7 @@ export interface DlqJobEntry {
   failure_reason: string;
   retry_count: number;
   timestamp: string;
-  cinema_id?: string;
+  theater_id?: string;
   org_id?: string;
   org_slug?: string;
   user_id?: string;
@@ -73,9 +73,9 @@ export function getDlqJobId(job: ScrapeJob): string {
   return `report-${job.reportId}`;
 }
 
-export function getJobCinemaId(job: ScrapeJob): string | undefined {
+export function getJobTheaterId(job: ScrapeJob): string | undefined {
   if (job.type !== 'scrape') return undefined;
-  return job.options?.cinemaId;
+  return job.options?.theaterId;
 }
 
 export function createDlqJobEntry({
@@ -94,7 +94,7 @@ export function createDlqJobEntry({
     failure_reason: failureReason,
     retry_count: retryCount,
     timestamp,
-    cinema_id: getJobCinemaId(job),
+    theater_id: getJobTheaterId(job),
     org_id: job.traceContext?.org_id,
     org_slug: job.traceContext?.org_slug,
     user_id: job.traceContext?.user_id,

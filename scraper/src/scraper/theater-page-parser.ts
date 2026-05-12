@@ -1,20 +1,20 @@
 import * as cheerio from 'cheerio';
-import type { TheaterPageData, Cinema, MovieShowtimeData, Movie, Showtime } from '../types/scraper.js';
+import type { TheaterPageData, Theater, MovieShowtimeData, Movie, Showtime } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 
 const THEATER_PAGE_ROOT_SELECTOR = '#theaterpage-showtimes-index-ui';
 const THEATER_MOVIE_CARD_SELECTOR = '.movie-card-theater';
 
-// Parse the cinema page from the source website
-export function parseTheaterPage(html: string, cinemaId: string): TheaterPageData {
+// Parse the theater page from the source website
+export function parseTheaterPage(html: string, theaterId: string): TheaterPageData {
   const $ = cheerio.load(html);
 
   // Extraire les données du cinéma depuis l'attribut data-theater
   const theaterSection = $(THEATER_PAGE_ROOT_SELECTOR);
   const theaterDataStr = theaterSection.attr('data-theater');
 
-  let cinema: Cinema = {
-    id: cinemaId,
+  let theater: Theater = {
+    id: theaterId,
     name: '',
     address: '',
     postal_code: '',
@@ -25,8 +25,8 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
   if (theaterDataStr) {
     try {
       const theaterData = JSON.parse(theaterDataStr);
-      cinema = {
-        id: cinemaId,
+      theater = {
+        id: theaterId,
         name: theaterData.name || '',
         address: theaterData.location?.address || '',
         postal_code: theaterData.location?.postalCode || '',
@@ -59,7 +59,7 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
 
   movieCards.each((_, element) => {
     try {
-      const movieData = parseMovieCard($, element, cinemaId, selectedDate);
+      const movieData = parseMovieCard($, element, theaterId, selectedDate);
       if (movieData) {
         movies.push(movieData);
       }
@@ -69,7 +69,7 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
   });
 
   return {
-    cinema,
+    theater,
     movies,
     dates,
     selected_date: selectedDate,
@@ -80,7 +80,7 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
 function parseMovieCard(
   $: cheerio.CheerioAPI,
   element: any,
-  cinemaId: string,
+  theaterId: string,
   date: string
 ): MovieShowtimeData | null {
   const $card = $(element);
@@ -192,7 +192,7 @@ function parseMovieCard(
   };
 
   // Parser les séances
-  const showtimes = parseShowtimes($, $card, movieId, cinemaId, date);
+  const showtimes = parseShowtimes($, $card, movieId, theaterId, date);
 
   return {
     movie,
@@ -206,7 +206,7 @@ function parseShowtimes(
   $: cheerio.CheerioAPI,
   $card: cheerio.Cheerio<any>,
   movieId: number,
-  cinemaId: string,
+  theaterId: string,
   defaultDate: string
 ): Showtime[] {
   const showtimes: Showtime[] = [];
@@ -268,9 +268,9 @@ function parseShowtimes(
       }
 
       showtimes.push({
-        id: `${cinemaId}_${movieId}_${showtimeDate}_${time}_${version}_${format ?? ''}`,
+        id: `${theaterId}_${movieId}_${showtimeDate}_${time}_${version}_${format ?? ''}`,
         movie_id: movieId,
-        cinema_id: cinemaId,
+        theater_id: theaterId,
         date: showtimeDate,
         time,
         datetime_iso: datetimeIso,

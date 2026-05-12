@@ -24,7 +24,7 @@ INSERT INTO permission_category_labels (category_key, label_en, label_fr) VALUES
   ('roles', 'Roles', 'Rôles'),
   ('scraper', 'Scraping', 'Scraping'),
   ('schedules', 'Schedules', 'Planification'),
-  ('cinemas', 'Cinemas', 'Cinémas'),
+  ('theaters', 'Cinemas', 'Cinémas'),
   ('settings', 'Settings', 'Paramètres'),
   ('reports', 'Reports', 'Rapports'),
   ('system', 'System', 'Système'),

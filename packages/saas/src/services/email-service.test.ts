@@ -23,7 +23,7 @@ function makeDb(): DB {
 function makeOrg(slug = 'acme'): Organization {
   return {
     id: 1,
-    name: 'Acme Cinema',
+    name: 'Acme Theater',
     slug,
     plan_id: 1,
     schema_name: `org_${slug}`,

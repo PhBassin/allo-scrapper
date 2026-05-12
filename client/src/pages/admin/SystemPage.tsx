@@ -188,8 +188,8 @@ const SystemPage: React.FC = () => {
                 <p className="text-lg font-medium">{health.scrapers.activeJobs}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Total Cinemas</p>
-                <p className="text-lg font-medium">{health.scrapers.totalCinemas}</p>
+                <p className="text-sm text-gray-600">Total Theaters</p>
+                <p className="text-lg font-medium">{health.scrapers.totalTheaters}</p>
               </div>
             </div>
           </div>
@@ -258,8 +258,8 @@ const SystemPage: React.FC = () => {
                 <dd className="font-medium">{systemInfo.database.tables}</dd>
               </div>
               <div>
-                <dt className="text-sm text-gray-600">Cinemas</dt>
-                <dd className="font-medium">{systemInfo.database.cinemas}</dd>
+                <dt className="text-sm text-gray-600">Theaters</dt>
+                <dd className="font-medium">{systemInfo.database.theaters}</dd>
               </div>
               <div>
                 <dt className="text-sm text-gray-600">Films</dt>

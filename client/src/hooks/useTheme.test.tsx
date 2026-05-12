@@ -76,7 +76,7 @@ describe('useTheme', () => {
 
   it('should refresh the dynamic theme href when public settings change', async () => {
     const initialSettings: AppSettingsPublic = {
-      site_name: 'Cinema One',
+      site_name: 'Theater One',
       favicon_base64: null,
       logo_base64: null,
       color_primary: '#FECC00',
@@ -96,7 +96,7 @@ describe('useTheme', () => {
 
     const updatedSettings: AppSettingsPublic = {
       ...initialSettings,
-      site_name: 'Cinema Two',
+      site_name: 'Theater Two',
       color_primary: '#FF5733',
       font_primary: 'Poppins',
     };
@@ -137,7 +137,7 @@ describe('useTheme', () => {
       const refreshedHref = (document.querySelector('#dynamic-theme') as HTMLLinkElement).href;
       expect(refreshedHref).not.toBe(initialHref);
       expect(refreshedHref).toContain('/api/theme.css?v=');
-      expect(decodeURIComponent(refreshedHref)).toContain('Cinema Two');
+      expect(decodeURIComponent(refreshedHref)).toContain('Theater Two');
       expect(decodeURIComponent(refreshedHref)).toContain('#FF5733');
       expect(decodeURIComponent(refreshedHref)).toContain('Poppins');
     });
@@ -145,7 +145,7 @@ describe('useTheme', () => {
 
   it('should update favicon when publicSettings includes favicon_base64', async () => {
     const mockSettings: AppSettingsPublic = {
-      site_name: 'My Cinema',
+      site_name: 'My Theater',
       favicon_base64: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
       logo_base64: null,
       color_primary: '#FECC00',
@@ -174,7 +174,7 @@ describe('useTheme', () => {
 
   it('should update document title when publicSettings includes site_name', async () => {
     const mockSettings: AppSettingsPublic = {
-      site_name: 'My Custom Cinema Site',
+      site_name: 'My Custom Theater Site',
       favicon_base64: null,
       logo_base64: null,
       color_primary: '#FECC00',
@@ -195,7 +195,7 @@ describe('useTheme', () => {
     renderHook(() => useTheme(), { wrapper: createWrapper(mockSettings) });
 
     await waitFor(() => {
-      expect(document.title).toBe('My Custom Cinema Site');
+      expect(document.title).toBe('My Custom Theater Site');
     });
   });
 

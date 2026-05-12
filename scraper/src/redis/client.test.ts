@@ -200,7 +200,7 @@ describe('scraper redis client trace context', () => {
       triggerType: 'manual',
       reportId: 93,
       retryCount: 2,
-      options: { cinemaId: 'C0042' },
+      options: { theaterId: 'C0042' },
       traceContext: {
         org_id: '42',
         org_slug: 'acme',
@@ -517,7 +517,7 @@ describe('scraper redis client trace context', () => {
       ...job,
       options: {
         resumeMode: true,
-        pendingAttempts: [{ cinema_id: 'C0001', date: '2026-04-23' }],
+        pendingAttempts: [{ theater_id: 'C0001', date: '2026-04-23' }],
       },
     }));
 
@@ -539,7 +539,7 @@ describe('scraper redis client trace context', () => {
       );
       expect(rpushMock).toHaveBeenCalledWith(
         'scrape:jobs',
-        expect.stringContaining('"pendingAttempts":[{"cinema_id":"C0001","date":"2026-04-23"}]')
+        expect.stringContaining('"pendingAttempts":[{"theater_id":"C0001","date":"2026-04-23"}]')
       );
     });
   });

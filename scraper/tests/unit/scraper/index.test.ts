@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // --- Mocks ---
 
-const mockUpsertCinema = vi.fn().mockResolvedValue(undefined);
+const mockUpsertTheater = vi.fn().mockResolvedValue(undefined);
 const mockFetchTheaterPage = vi.fn();
 const mockFetchShowtimesJson = vi.fn();
 const mockParseTheaterPage = vi.fn();
@@ -18,10 +18,10 @@ vi.mock('../../../src/db/showtime-queries.js', () => ({
   upsertWeeklyPrograms: vi.fn(),
 }));
 
-vi.mock('../../../src/db/cinema-queries.js', () => ({
-  upsertCinema: (...args: any[]) => mockUpsertCinema(...args),
-  getCinemas: vi.fn(),
-  getCinemaConfigs: vi.fn(),
+vi.mock('../../../src/db/theater-queries.js', () => ({
+  upsertTheater: (...args: any[]) => mockUpsertTheater(...args),
+  getTheaters: vi.fn(),
+  getTheaterConfigs: vi.fn(),
 }));
 
 vi.mock('../../../src/scraper/http-client.js', () => ({
@@ -35,11 +35,11 @@ vi.mock('../../../src/scraper/http-client.js', () => ({
   },
 }));
 
-vi.mock('../../../src/scraper/theater-parser.js', () => ({
+vi.mock('../../../src/scraper/theater-page-parser.js', () => ({
   parseTheaterPage: mockParseTheaterPage,
 }));
 
-vi.mock('../../../src/scraper/theater-json-parser.js', () => ({
+vi.mock('../../../src/scraper/theater-page-json-parser.js', () => ({
   parseShowtimesJson: mockParseShowtimesJson,
 }));
 
@@ -62,21 +62,21 @@ vi.mock('../../../src/utils/date.js', () => ({
 
 // --- Tests ---
 
-describe('loadTheaterMetadata', () => {
+describe('loadTheaterPageMetadata', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('preserves the cinema URL from the config when upserting', async () => {
-    const cinemaConfig = {
+  it('preserves the theater URL from the config when upserting', async () => {
+    const theaterConfig = {
       id: 'C0072',
-      name: 'Test Cinema',
+      name: 'Test Theater',
       url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html',
     };
 
-    const parsedCinema = {
+    const parsedTheater = {
       id: 'C0072',
-      name: 'Test Cinema From HTML',
+      name: 'Test Theater From HTML',
       address: '1 rue de la Paix',
       city: 'Paris',
       // url is NOT present — parser does not extract it
@@ -88,31 +88,31 @@ describe('loadTheaterMetadata', () => {
     });
 
     mockParseTheaterPage.mockReturnValue({
-      cinema: parsedCinema,
+      theater: parsedTheater,
       films: [],
     });
 
     // Dynamically import to pick up mocks
-    const { loadTheaterMetadata } = await import('../../../src/scraper/index.js');
+    const { loadTheaterPageMetadata } = await import('../../../src/scraper/index.js');
 
-    await loadTheaterMetadata({} as any, cinemaConfig);
+    await loadTheaterPageMetadata({} as any, theaterConfig);
 
-    // upsertCinema must be called with the URL merged in from the config
-    expect(mockUpsertCinema).toHaveBeenCalledOnce();
-    const upsertedCinema = mockUpsertCinema.mock.calls[0][1];
-    expect(upsertedCinema.url).toBe(cinemaConfig.url);
+    // upsertTheater must be called with the URL merged in from the config
+    expect(mockUpsertTheater).toHaveBeenCalledOnce();
+    const upsertedTheater = mockUpsertTheater.mock.calls[0][1];
+    expect(upsertedTheater.url).toBe(theaterConfig.url);
   });
 
-  it('returns the merged cinema object (with url) not just the parsed cinema', async () => {
-    const cinemaConfig = {
+  it('returns the merged theater object (with url) not just the parsed theater', async () => {
+    const theaterConfig = {
       id: 'C0072',
-      name: 'Test Cinema',
+      name: 'Test Theater',
       url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html',
     };
 
-    const parsedCinema = {
+    const parsedTheater = {
       id: 'C0072',
-      name: 'Test Cinema From HTML',
+      name: 'Test Theater From HTML',
     };
 
     mockFetchTheaterPage.mockResolvedValue({
@@ -121,23 +121,23 @@ describe('loadTheaterMetadata', () => {
     });
 
     mockParseTheaterPage.mockReturnValue({
-      cinema: parsedCinema,
+      theater: parsedTheater,
       films: [],
     });
 
-    const { loadTheaterMetadata } = await import('../../../src/scraper/index.js');
+    const { loadTheaterPageMetadata } = await import('../../../src/scraper/index.js');
 
-    const result = await loadTheaterMetadata({} as any, cinemaConfig);
+    const result = await loadTheaterPageMetadata({} as any, theaterConfig);
 
-    expect(result.cinema.url).toBe(cinemaConfig.url);
+    expect(result.theater.url).toBe(theaterConfig.url);
     expect(result.availableDates).toEqual(['2026-03-10', '2026-03-11']);
   });
 });
 
-describe('addCinemaAndScrape', () => {
+describe('addTheaterAndScrape', () => {
   const VALID_URL = 'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html';
 
-  const parsedCinema = {
+  const parsedTheater = {
     id: 'C0072',
     name: 'Cinéma Test',
     address: '1 rue de la Paix',
@@ -150,44 +150,44 @@ describe('addCinemaAndScrape', () => {
       html: '<section id="theaterpage-showtimes-index-ui"><article class="movie-card-theater"></article></section>',
       availableDates: [],
     });
-    mockParseTheaterPage.mockReturnValue({ cinema: parsedCinema, films: [] });
+    mockParseTheaterPage.mockReturnValue({ theater: parsedTheater, films: [] });
     mockFetchShowtimesJson.mockResolvedValue({});
     mockParseShowtimesJson.mockReturnValue([]);
   });
 
   it('should reject invalid Allociné URLs', async () => {
-    const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
+    const { addTheaterAndScrape } = await import('../../../src/scraper/index.js');
 
-    await expect(addCinemaAndScrape({} as any, 'not-a-url')).rejects.toThrow(
+    await expect(addTheaterAndScrape({} as any, 'not-a-url')).rejects.toThrow(
       /no scraper strategy found for url/i
     );
-    await expect(addCinemaAndScrape({} as any, 'https://www.google.com/path')).rejects.toThrow(
+    await expect(addTheaterAndScrape({} as any, 'https://www.google.com/path')).rejects.toThrow(
       /no scraper strategy found for url/i
     );
   });
 
   it('should reject URLs from non-allocine domains', async () => {
-    const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
+    const { addTheaterAndScrape } = await import('../../../src/scraper/index.js');
 
     await expect(
-      addCinemaAndScrape({} as any, 'https://evil.com/seance/salle_gen_csalle=C0072.html')
+      addTheaterAndScrape({} as any, 'https://evil.com/seance/salle_gen_csalle=C0072.html')
     ).rejects.toThrow(/no scraper strategy found for url/i);
   });
 
-  it('should reject valid-looking URLs without a cinema ID', async () => {
-    const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
+  it('should reject valid-looking URLs without a theater id', async () => {
+    const { addTheaterAndScrape } = await import('../../../src/scraper/index.js');
 
     await expect(
-      addCinemaAndScrape({} as any, 'https://www.allocine.fr/seance/salle_gen_csalle=.html')
-    ).rejects.toThrow(/cinema id/i);
+      addTheaterAndScrape({} as any, 'https://www.allocine.fr/seance/salle_gen_csalle=.html')
+    ).rejects.toThrow(/theater id/i);
   });
 
-  it('should call loadTheaterMetadata with cleaned URL and extracted cinema ID', async () => {
-    const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
+  it('should call loadTheaterPageMetadata with cleaned URL and extracted theater id', async () => {
+    const { addTheaterAndScrape } = await import('../../../src/scraper/index.js');
 
     const dirtyUrl = 'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html?utm_source=test';
 
-    await addCinemaAndScrape({} as any, dirtyUrl);
+    await addTheaterAndScrape({} as any, dirtyUrl);
 
     expect(mockFetchTheaterPage).toHaveBeenCalledOnce();
     const calledUrl: string = mockFetchTheaterPage.mock.calls[0][0];
@@ -197,30 +197,30 @@ describe('addCinemaAndScrape', () => {
   });
 
   it('should scrape all available dates', async () => {
-    const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
+    const { addTheaterAndScrape } = await import('../../../src/scraper/index.js');
 
     mockFetchTheaterPage.mockResolvedValue({
       html: '<section id="theaterpage-showtimes-index-ui"><article class="movie-card-theater"></article></section>',
       availableDates: ['2026-03-10', '2026-03-11', '2026-03-12'],
     });
 
-    await addCinemaAndScrape({} as any, VALID_URL);
+    await addTheaterAndScrape({} as any, VALID_URL);
 
     // fetchShowtimesJson called once per date
     expect(mockFetchShowtimesJson).toHaveBeenCalledTimes(3);
   });
 
-  it('should return the upserted cinema data with URL', async () => {
-    const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
+  it('should return the upserted theater data with URL', async () => {
+    const { addTheaterAndScrape } = await import('../../../src/scraper/index.js');
 
-    const result = await addCinemaAndScrape({} as any, VALID_URL);
+    const result = await addTheaterAndScrape({} as any, VALID_URL);
 
     expect(result).toMatchObject({ id: 'C0072', name: 'Cinéma Test' });
     expect(result.url).toBe(VALID_URL);
   });
 
   it('should emit progress events when publisher provided', async () => {
-    const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
+    const { addTheaterAndScrape } = await import('../../../src/scraper/index.js');
 
     mockFetchTheaterPage.mockResolvedValue({
       html: '<section id="theaterpage-showtimes-index-ui"><article class="movie-card-theater"></article></section>',
@@ -229,13 +229,13 @@ describe('addCinemaAndScrape', () => {
 
     const mockPublisher = { emit: vi.fn().mockResolvedValue(undefined) };
 
-    await addCinemaAndScrape({} as any, VALID_URL, mockPublisher);
+    await addTheaterAndScrape({} as any, VALID_URL, mockPublisher);
 
     expect(mockPublisher.emit).toHaveBeenCalled();
   });
 
   it('should continue scraping remaining dates even if one date fails', async () => {
-    const { addCinemaAndScrape } = await import('../../../src/scraper/index.js');
+    const { addTheaterAndScrape } = await import('../../../src/scraper/index.js');
 
     mockFetchTheaterPage.mockResolvedValue({
       html: '<section id="theaterpage-showtimes-index-ui"><article class="movie-card-theater"></article></section>',
@@ -248,7 +248,7 @@ describe('addCinemaAndScrape', () => {
       .mockResolvedValueOnce({});
 
     // Should not throw — errors on individual dates are swallowed
-    await expect(addCinemaAndScrape({} as any, VALID_URL)).resolves.toBeDefined();
+    await expect(addTheaterAndScrape({} as any, VALID_URL)).resolves.toBeDefined();
     expect(mockFetchShowtimesJson).toHaveBeenCalledTimes(2);
   });
 });

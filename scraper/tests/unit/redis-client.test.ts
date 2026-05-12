@@ -37,7 +37,7 @@ describe('RedisProgressPublisher', () => {
   });
 
   it('publishes progress events to scrape:progress channel', async () => {
-    const event = { type: 'started' as const, total_cinemas: 3, total_dates: 7 };
+    const event = { type: 'started' as const, total_theaters: 3, total_dates: 7 };
     await publisher.emit(event);
 
     expect(mockPublish).toHaveBeenCalledWith('scrape:progress', JSON.stringify(event));
@@ -47,9 +47,9 @@ describe('RedisProgressPublisher', () => {
     const event = {
       type: 'completed' as const,
       summary: {
-        total_cinemas: 2,
-        successful_cinemas: 2,
-        failed_cinemas: 0,
+        total_theaters: 2,
+        successful_theaters: 2,
+        failed_theaters: 0,
         total_films: 10,
         total_showtimes: 50,
         total_dates: 7,

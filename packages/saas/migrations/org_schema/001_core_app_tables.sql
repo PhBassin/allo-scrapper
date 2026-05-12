@@ -1,7 +1,7 @@
 -- Bootstrap core app tables inside each tenant schema.
 -- Runs with search_path already set to the target org schema.
 
-CREATE TABLE IF NOT EXISTS cinemas (
+CREATE TABLE IF NOT EXISTS theaters (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   address TEXT,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS movies (
 CREATE TABLE IF NOT EXISTS showtimes (
   id TEXT PRIMARY KEY,
   movie_id INTEGER NOT NULL REFERENCES movies(id),
-  cinema_id TEXT NOT NULL REFERENCES cinemas(id) ON DELETE CASCADE,
+  theater_id TEXT NOT NULL REFERENCES theaters(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
   time TEXT NOT NULL,
   datetime_iso TEXT NOT NULL,
@@ -45,25 +45,25 @@ CREATE TABLE IF NOT EXISTS showtimes (
   format TEXT,
   experiences TEXT,
   week_start TEXT NOT NULL,
-  CONSTRAINT uq_showtimes_business_key UNIQUE (cinema_id, movie_id, date, time, version, format)
+  CONSTRAINT uq_showtimes_business_key UNIQUE (theater_id, movie_id, date, time, version, format)
 );
 
-CREATE INDEX IF NOT EXISTS idx_showtimes_cinema_date ON showtimes(cinema_id, date);
+CREATE INDEX IF NOT EXISTS idx_showtimes_theater_date ON showtimes(theater_id, date);
 CREATE INDEX IF NOT EXISTS idx_showtimes_movie_date ON showtimes(movie_id, date);
 CREATE INDEX IF NOT EXISTS idx_showtimes_week ON showtimes(week_start);
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_showtimes_business_key_null_format
-  ON showtimes (cinema_id, movie_id, date, time, version)
+  ON showtimes (theater_id, movie_id, date, time, version)
   WHERE format IS NULL;
 
 CREATE TABLE IF NOT EXISTS weekly_programs (
   id SERIAL PRIMARY KEY,
-  cinema_id TEXT NOT NULL REFERENCES cinemas(id) ON DELETE CASCADE,
+  theater_id TEXT NOT NULL REFERENCES theaters(id) ON DELETE CASCADE,
   movie_id INTEGER NOT NULL REFERENCES movies(id),
   week_start TEXT NOT NULL,
   is_new_this_week INTEGER NOT NULL DEFAULT 0,
   scraped_at TEXT NOT NULL,
-  UNIQUE (cinema_id, movie_id, week_start)
+  UNIQUE (theater_id, movie_id, week_start)
 );
 
 CREATE INDEX IF NOT EXISTS idx_weekly_programs_week ON weekly_programs(week_start);
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS scrape_schedules (
   description TEXT,
   cron_expression VARCHAR(100) NOT NULL,
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
-  target_cinemas JSONB,
+  target_theaters JSONB,
   created_by INTEGER REFERENCES users(id),
   updated_by INTEGER REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -146,9 +146,9 @@ CREATE TABLE IF NOT EXISTS scrape_reports (
   completed_at TIMESTAMPTZ,
   status TEXT NOT NULL CHECK (status = ANY (ARRAY['running'::text, 'success'::text, 'partial_success'::text, 'failed'::text, 'rate_limited'::text])),
   trigger_type TEXT NOT NULL,
-  total_cinemas INTEGER,
-  successful_cinemas INTEGER,
-  failed_cinemas INTEGER,
+  total_theaters INTEGER,
+  successful_theaters INTEGER,
+  failed_theaters INTEGER,
   total_movies_scraped INTEGER,
   total_showtimes_scraped INTEGER,
   errors JSONB,
@@ -163,7 +163,7 @@ CREATE INDEX IF NOT EXISTS idx_scrape_reports_status ON scrape_reports(status);
 CREATE TABLE IF NOT EXISTS scrape_attempts (
   id SERIAL PRIMARY KEY,
   report_id INTEGER NOT NULL REFERENCES scrape_reports(id) ON DELETE CASCADE,
-  cinema_id TEXT NOT NULL REFERENCES cinemas(id),
+  theater_id TEXT NOT NULL REFERENCES theaters(id),
   date TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status = ANY (ARRAY['pending'::text, 'success'::text, 'failed'::text, 'rate_limited'::text, 'not_attempted'::text])),
   error_type TEXT,
@@ -172,9 +172,9 @@ CREATE TABLE IF NOT EXISTS scrape_attempts (
   movies_scraped INTEGER DEFAULT 0,
   showtimes_scraped INTEGER DEFAULT 0,
   attempted_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (report_id, cinema_id, date)
+  UNIQUE (report_id, theater_id, date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_scrape_attempts_report_id ON scrape_attempts(report_id);
 CREATE INDEX IF NOT EXISTS idx_scrape_attempts_report_status ON scrape_attempts(report_id, status);
-CREATE INDEX IF NOT EXISTS idx_scrape_attempts_cinema_date ON scrape_attempts(cinema_id, date);
+CREATE INDEX IF NOT EXISTS idx_scrape_attempts_theater_date ON scrape_attempts(theater_id, date);

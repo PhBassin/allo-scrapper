@@ -12,7 +12,7 @@ import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { insertOrg, isSlugAvailable, slugToSchemaName } from '../db/org-queries.js';
 import type { DB, Organization, InsertOrgInput, Pool } from '../db/types.js';
-import type { CinemaConfig } from 'allo-scrapper-server/dist/types/scraper.js';
+import type { TheaterConfig } from 'allo-scrapper-server/dist/types/scraper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,18 +69,18 @@ async function bootstrapOrgSchema(db: DB, schemaName: string): Promise<void> {
   await db.query('SET search_path TO public');
 }
 
-async function seedTenantCinemasFromConfig(db: DB, schemaName: string): Promise<void> {
+async function seedTenantTheatersFromConfig(db: DB, schemaName: string): Promise<void> {
   const configCandidates = process.env['NODE_ENV'] === 'production'
     ? [
-        path.join(process.cwd(), 'server', 'dist', 'config', 'cinemas.json'),
-        path.join('/app', 'server', 'dist', 'config', 'cinemas.json'),
+        path.join(process.cwd(), 'server', 'dist', 'config', 'theaters.json'),
+        path.join('/app', 'server', 'dist', 'config', 'theaters.json'),
       ]
     : [
-        path.join(process.cwd(), 'server', 'src', 'config', 'cinemas.json'),
-        path.join(process.cwd(), 'server', 'dist', 'config', 'cinemas.json'),
-        path.join(__dirname, '../../../../server/src/config/cinemas.json'),
-        path.join(__dirname, '../../../../../server/src/config/cinemas.json'),
-        path.join(__dirname, '../../../../../../../server/src/config/cinemas.json'),
+        path.join(process.cwd(), 'server', 'src', 'config', 'theaters.json'),
+        path.join(process.cwd(), 'server', 'dist', 'config', 'theaters.json'),
+        path.join(__dirname, '../../../../server/src/config/theaters.json'),
+        path.join(__dirname, '../../../../../server/src/config/theaters.json'),
+        path.join(__dirname, '../../../../../../../server/src/config/theaters.json'),
       ];
 
   let configPath: string | null = null;
@@ -99,15 +99,15 @@ async function seedTenantCinemasFromConfig(db: DB, schemaName: string): Promise<
   }
 
   const content = await fs.readFile(configPath, 'utf8');
-  const cinemas = JSON.parse(content) as CinemaConfig[];
+  const theaters = JSON.parse(content) as TheaterConfig[];
 
   await db.query(`SET search_path TO "${schemaName}", public`);
-  for (const cinema of cinemas) {
+  for (const theater of theaters) {
     await db.query(
-      `INSERT INTO cinemas (id, name, url)
+      `INSERT INTO theaters (id, name, url)
        VALUES ($1, $2, $3)
        ON CONFLICT (id) DO NOTHING`,
-      [cinema.id, cinema.name, cinema.url]
+      [theater.id, theater.name, theater.url]
     );
   }
   await db.query('SET search_path TO public');
@@ -141,7 +141,7 @@ export async function createOrg(
 
     // Bootstrap all org-level tables
     await bootstrapOrgSchema(executor, schemaName);
-    await seedTenantCinemasFromConfig(executor, schemaName);
+    await seedTenantTheatersFromConfig(executor, schemaName);
 
     await executor.query('COMMIT');
     return { org, schemaCreated: true };

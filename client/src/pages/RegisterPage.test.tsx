@@ -43,7 +43,7 @@ describe('nameToSlug helper', () => {
   });
 
   it('collapses multiple spaces and hyphens', () => {
-    expect(nameToSlug('My  Cinema  Place')).toBe('my-cinema-place');
+    expect(nameToSlug('My  Theater  Place')).toBe('my-theater-place');
   });
 
   it('strips leading/trailing hyphens', () => {
@@ -70,10 +70,10 @@ describe('RegisterPage — step 1', () => {
   it('auto-generates slug from org name', async () => {
     renderPage();
     const nameInput = screen.getByTestId('input-org-name');
-    fireEvent.change(nameInput, { target: { value: 'My Cinema' } });
+    fireEvent.change(nameInput, { target: { value: 'My Theater' } });
     await waitFor(() => {
       const slugInput = screen.getByTestId('input-slug') as HTMLInputElement;
-      expect(slugInput.value).toBe('my-cinema');
+      expect(slugInput.value).toBe('my-theater');
     });
   });
 
@@ -289,11 +289,11 @@ describe('RegisterPage — step 3 submit', () => {
     });
   });
 
-  it('skips cinema and redirects when "Skip for now" clicked', async () => {
+  it('skips theater and redirects when "Skip for now" clicked', async () => {
     await goToStep3();
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-skip-cinema'));
+      fireEvent.click(screen.getByTestId('btn-skip-theater'));
     });
 
     await waitFor(() => {
@@ -301,10 +301,10 @@ describe('RegisterPage — step 3 submit', () => {
     });
   });
 
-  it('submits with cinema URL and redirects', async () => {
+  it('submits with theater URL and redirects', async () => {
     await goToStep3();
 
-    fireEvent.change(screen.getByTestId('input-cinema-url'), {
+    fireEvent.change(screen.getByTestId('input-theater-url'), {
       target: { value: 'https://www.allocine.fr/seance/salle_gen_csalle=C0028.html' },
     });
 
@@ -321,7 +321,7 @@ describe('RegisterPage — step 3 submit', () => {
     await goToStep3();
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-skip-cinema'));
+      fireEvent.click(screen.getByTestId('btn-skip-theater'));
     });
 
     await waitFor(() => {
@@ -340,7 +340,7 @@ describe('RegisterPage — step 3 submit', () => {
     await goToStep3();
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-skip-cinema'));
+      fireEvent.click(screen.getByTestId('btn-skip-theater'));
     });
 
     await waitFor(() => {

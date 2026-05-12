@@ -1,7 +1,7 @@
 import type { DB } from './client.js';
-import type { Cinema } from '../types/scraper.js';
+import type { Theater } from '../types/scraper.js';
 
-interface CinemaRow {
+interface TheaterRow {
   id: string;
   name: string;
   address: string | null;
@@ -12,9 +12,9 @@ interface CinemaRow {
   url: string | null;
 }
 
-// Récupérer tous les cinémas
-export async function getCinemas(db: DB): Promise<Cinema[]> {
-  const result = await db.query<CinemaRow>('SELECT * FROM cinemas ORDER BY name');
+// Récupérer tous les theaters
+export async function getTheaters(db: DB): Promise<Theater[]> {
+  const result = await db.query<TheaterRow>('SELECT * FROM theaters ORDER BY name');
   
   return result.rows.map(row => ({
     id: row.id,
@@ -28,11 +28,11 @@ export async function getCinemas(db: DB): Promise<Cinema[]> {
   }));
 }
 
-// Insertion ou mise à jour d'un cinéma
-export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
+// Insertion ou mise à jour d'un theater
+export async function upsertTheater(db: DB, theater: Theater): Promise<void> {
   await db.query(
     `
-      INSERT INTO cinemas (id, name, address, postal_code, city, screen_count, image_url, url)
+      INSERT INTO theaters (id, name, address, postal_code, city, screen_count, image_url, url)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT(id) DO UPDATE SET
         name = $2,
@@ -41,43 +41,43 @@ export async function upsertCinema(db: DB, cinema: Cinema): Promise<void> {
         city = $5,
         screen_count = $6,
         image_url = $7,
-        url = COALESCE($8, cinemas.url)
+        url = COALESCE($8, theaters.url)
     `,
     [
-      cinema.id,
-      cinema.name,
-      cinema.address ?? null,
-      cinema.postal_code ?? null,
-      cinema.city ?? null,
-      cinema.screen_count ?? null,
-      cinema.image_url ?? null,
-      cinema.url ?? null,
+      theater.id,
+      theater.name,
+      theater.address ?? null,
+      theater.postal_code ?? null,
+      theater.city ?? null,
+      theater.screen_count ?? null,
+      theater.image_url ?? null,
+      theater.url ?? null,
     ]
   );
 }
 
-// Récupérer les cinémas configurés pour le scraping (ceux avec une URL)
-export async function getCinemaConfigs(db: DB): Promise<Array<{ id: string; name: string; url: string }>> {
+// Récupérer les theaters configurés pour le scraping (ceux avec une URL)
+export async function getTheaterConfigs(db: DB): Promise<Array<{ id: string; name: string; url: string }>> {
   const result = await db.query<{ id: string; name: string; url: string }>(
-    'SELECT id, name, url FROM cinemas WHERE url IS NOT NULL ORDER BY name'
+    'SELECT id, name, url FROM theaters WHERE url IS NOT NULL ORDER BY name'
   );
   return result.rows;
 }
 
-// Ajouter un nouveau cinéma
-export async function addCinema(
+// Ajouter un nouveau theater
+export async function addTheater(
   db: DB,
-  cinema: { id: string; name: string; url: string }
+  theater: { id: string; name: string; url: string }
 ): Promise<{ id: string; name: string; url: string }> {
   const result = await db.query<{ id: string; name: string; url: string }>(
-    `INSERT INTO cinemas (id, name, url) VALUES ($1, $2, $3) RETURNING id, name, url`,
-    [cinema.id, cinema.name, cinema.url]
+    `INSERT INTO theaters (id, name, url) VALUES ($1, $2, $3) RETURNING id, name, url`,
+    [theater.id, theater.name, theater.url]
   );
   return result.rows[0];
 }
 
-// Mettre à jour la configuration d'un cinéma
-export async function updateCinemaConfig(
+// Mettre à jour la configuration d'un theater
+export async function updateTheaterConfig(
   db: DB,
   id: string,
   updates: {
@@ -88,7 +88,7 @@ export async function updateCinemaConfig(
     city?: string;
     screen_count?: number;
   }
-): Promise<Cinema | undefined> {
+): Promise<Theater | undefined> {
   const fields: string[] = [];
   const values: unknown[] = [];
   let paramIndex = 1;
@@ -119,8 +119,8 @@ export async function updateCinemaConfig(
   }
 
   values.push(id);
-  const result = await db.query<CinemaRow>(
-    `UPDATE cinemas SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+  const result = await db.query<TheaterRow>(
+    `UPDATE theaters SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
     values
   );
 
@@ -139,8 +139,8 @@ export async function updateCinemaConfig(
   };
 }
 
-// Supprimer un cinéma (et ses séances via CASCADE)
-export async function deleteCinema(db: DB, id: string): Promise<boolean> {
-  const result = await db.query('DELETE FROM cinemas WHERE id = $1', [id]);
+// Supprimer un theater (et ses séances via CASCADE)
+export async function deleteTheater(db: DB, id: string): Promise<boolean> {
+  const result = await db.query('DELETE FROM theaters WHERE id = $1', [id]);
   return (result.rowCount ?? 0) > 0;
 }

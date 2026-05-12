@@ -2,7 +2,7 @@ import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { db } from './client.js';
-import type { CinemaConfig } from '../types/scraper.js';
+import type { TheaterConfig } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 import { runMigrations } from './migrations.js';
 
@@ -41,8 +41,8 @@ export async function initializeDatabase(extraMigrationDirs: string[] = []) {
     logger.warn('⚠️  Run: docker compose exec -T ics-db psql -U postgres -d ics < migrations/XXX_*.sql');
   }
 
-  // Seed cinemas from cinemas.json if DB is empty
-  await seedCinemasIfEmpty();
+  // Seed theaters from theaters.json if DB is empty
+  await seedTheatersIfEmpty();
 
   // Seed app_settings row if missing (defense-in-depth against silent migration failures)
   await seedSettingsIfEmpty();
@@ -79,34 +79,34 @@ export async function seedSettingsIfEmpty(): Promise<void> {
   }
 }
 
-async function seedCinemasIfEmpty(): Promise<void> {
+async function seedTheatersIfEmpty(): Promise<void> {
   try {
-    const countResult = await db.query('SELECT COUNT(*) as count FROM cinemas WHERE url IS NOT NULL');
+    const countResult = await db.query('SELECT COUNT(*) as count FROM theaters WHERE url IS NOT NULL');
     const count = parseInt(countResult.rows[0].count, 10);
 
     if (count > 0) {
-      logger.info(`ℹ️  Cinemas already seeded (${count} with URL). Skipping seed.`);
+      logger.info(`ℹ️  Theaters already seeded (${count} with URL). Skipping seed.`);
       return;
     }
 
-    const configPath = join(__dirname, '../config/cinemas.json');
+    const configPath = join(__dirname, '../config/theaters.json');
     const content = await readFile(configPath, 'utf-8');
-    const cinemas: CinemaConfig[] = JSON.parse(content);
+    const theaters: TheaterConfig[] = JSON.parse(content);
 
-    for (const cinema of cinemas) {
+    for (const theater of theaters) {
       await db.query(
-        `INSERT INTO cinemas (id, name, url)
+        `INSERT INTO theaters (id, name, url)
          VALUES ($1, $2, $3)
          ON CONFLICT (id) DO NOTHING`,
-        [cinema.id, cinema.name, cinema.url]
+        [theater.id, theater.name, theater.url]
       );
     }
 
-    logger.info(`🌱 Seeded ${cinemas.length} cinema(s) from cinemas.json`);
+    logger.info(`🌱 Seeded ${theaters.length} theater(s) from theaters.json`);
   } catch (error) {
     // Log only the error message to prevent sensitive data exposure
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('⚠️  Warning: Could not seed cinemas:', errorMessage);
+    logger.error('⚠️  Warning: Could not seed theaters:', errorMessage);
     // Non-fatal: continue without seeding
   }
 }

@@ -10,7 +10,7 @@ import {
   SCRAPE_JOBS_KEY,
   type DlqJobEntry,
   type ScrapeJob,
-  type ScrapeJobAddCinema,
+  type ScrapeJobAddTheater,
   type ScrapeTraceContext,
 } from '@allo-scrapper/logger';
 import type { ProgressEvent } from './progress-tracker.js';
@@ -35,7 +35,7 @@ export interface ScheduleChangeEvent {
     name: string;
     cron_expression: string;
     enabled: boolean;
-    target_cinemas?: string[] | null;
+    target_theaters?: string[] | null;
   };
 }
 
@@ -112,9 +112,9 @@ export class RedisClient {
     return this.publishWithRetry(job);
   }
 
-  /** Push an add_cinema job onto the queue. Returns the new queue length. */
-  async publishAddCinemaJob(reportId: number, url: string, traceContext?: ScrapeTraceContext): Promise<number> {
-    const job: ScrapeJobAddCinema = { type: 'add_cinema', triggerType: 'manual', reportId, url, ...(traceContext && { traceContext }) };
+  /** Push an add_theater job onto the queue. Returns the new queue length. */
+  async publishAddTheaterJob(reportId: number, url: string, traceContext?: ScrapeTraceContext): Promise<number> {
+    const job: ScrapeJobAddTheater = { type: 'add_theater', triggerType: 'manual', reportId, url, ...(traceContext && { traceContext }) };
     return this.publishWithRetry(job);
   }
 

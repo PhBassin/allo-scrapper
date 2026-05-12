@@ -4,7 +4,7 @@ import type { Showtime, WeeklyProgram } from '../types/scraper.js';
 export interface ShowtimeRow {
   id: string;
   movie_id: number;
-  cinema_id: string;
+  theater_id: string;
   date: string;
   time: string;
   datetime_iso: string;
@@ -18,7 +18,7 @@ export async function upsertShowtime(db: DB, showtime: Showtime): Promise<void> 
   await db.query(
     `
       INSERT INTO showtimes (
-        id, movie_id, cinema_id, date, time, datetime_iso,
+        id, movie_id, theater_id, date, time, datetime_iso,
         version, format, experiences, week_start
       )
       VALUES (
@@ -37,7 +37,7 @@ export async function upsertShowtime(db: DB, showtime: Showtime): Promise<void> 
     [
       showtime.id,
       showtime.movie_id,
-      showtime.cinema_id,
+      showtime.theater_id,
       showtime.date,
       showtime.time,
       showtime.datetime_iso,
@@ -63,7 +63,7 @@ export async function upsertShowtimes(db: DB, showtimes: Showtime[]): Promise<vo
     values.push(
       showtime.id,
       showtime.movie_id,
-      showtime.cinema_id,
+      showtime.theater_id,
       showtime.date,
       showtime.time,
       showtime.datetime_iso,
@@ -78,7 +78,7 @@ export async function upsertShowtimes(db: DB, showtimes: Showtime[]): Promise<vo
   await db.query(
     `
       INSERT INTO showtimes (
-        id, movie_id, cinema_id, date, time, datetime_iso,
+        id, movie_id, theater_id, date, time, datetime_iso,
         version, format, experiences, week_start
       )
       VALUES ${valueSets.join(', ')}
@@ -105,7 +105,7 @@ export async function upsertWeeklyPrograms(db: DB, programs: WeeklyProgram[]): P
   for (const program of programs) {
     valueSets.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4})`);
     values.push(
-      program.cinema_id,
+      program.theater_id,
       program.movie_id,
       program.week_start,
       program.is_new_this_week ? 1 : 0,
@@ -116,9 +116,9 @@ export async function upsertWeeklyPrograms(db: DB, programs: WeeklyProgram[]): P
 
   await db.query(
     `
-      INSERT INTO weekly_programs (cinema_id, movie_id, week_start, is_new_this_week, scraped_at)
+      INSERT INTO weekly_programs (theater_id, movie_id, week_start, is_new_this_week, scraped_at)
       VALUES ${valueSets.join(', ')}
-      ON CONFLICT(cinema_id, movie_id, week_start) DO UPDATE SET
+      ON CONFLICT(theater_id, movie_id, week_start) DO UPDATE SET
         is_new_this_week = EXCLUDED.is_new_this_week,
         scraped_at = EXCLUDED.scraped_at
     `,

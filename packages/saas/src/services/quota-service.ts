@@ -6,13 +6,13 @@
  */
 import type { DB } from '../db/types.js';
 
-export type QuotaResource = 'cinemas' | 'users' | 'scrapes';
+export type QuotaResource = 'theaters' | 'users' | 'scrapes';
 
 export interface OrgUsage {
   id: number;
   org_id: number;
   month: string;
-  cinemas_count: number;
+  theaters_count: number;
   users_count: number;
   scrapes_count: number;
   api_calls_count: number;
@@ -25,7 +25,7 @@ function currentMonthDate(): string {
 }
 
 const COLUMN_MAP: Record<QuotaResource, string> = {
-  cinemas: 'cinemas_count',
+  theaters: 'theaters_count',
   users: 'users_count',
   scrapes: 'scrapes_count',
 };

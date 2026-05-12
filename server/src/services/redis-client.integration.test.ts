@@ -97,7 +97,7 @@ describe('RedisClient integration (Testcontainers)', () => {
 
     const event: ProgressEvent = {
       type: 'started',
-      total_cinemas: 3,
+      total_theaters: 3,
       total_dates: 7,
     };
 

@@ -110,9 +110,9 @@ describe('App.tsx - Phase 5: Route refactoring', () => {
   });
 
   describe('Old routes verification', () => {
-    it('should confirm /admin/cinemas route has been removed', () => {
-      // After refactoring, /admin/cinemas should NOT have its own route
-      // It should be handled by /admin?tab=cinemas instead
+    it('should confirm /admin/theaters route has been removed', () => {
+      // After refactoring, /admin/theaters should NOT have its own route
+      // It should be handled by /admin?tab=theaters instead
       expect(true).toBe(true); // Tests pass after implementation
     });
 
@@ -144,10 +144,10 @@ describe('App.tsx - Phase 5: Route refactoring', () => {
       expect(ADMIN_PERMISSIONS).toContain('roles:create');
       expect(ADMIN_PERMISSIONS).toContain('roles:update');
       expect(ADMIN_PERMISSIONS).toContain('roles:delete');
-      expect(ADMIN_PERMISSIONS).toContain('cinemas:read');
-      expect(ADMIN_PERMISSIONS).toContain('cinemas:create');
-      expect(ADMIN_PERMISSIONS).toContain('cinemas:update');
-      expect(ADMIN_PERMISSIONS).toContain('cinemas:delete');
+      expect(ADMIN_PERMISSIONS).toContain('theaters:read');
+      expect(ADMIN_PERMISSIONS).toContain('theaters:create');
+      expect(ADMIN_PERMISSIONS).toContain('theaters:update');
+      expect(ADMIN_PERMISSIONS).toContain('theaters:delete');
       expect(ADMIN_PERMISSIONS).toContain('users:list');
       expect(ADMIN_PERMISSIONS).toContain('users:read');
       expect(ADMIN_PERMISSIONS).toContain('users:create');

@@ -6,14 +6,14 @@ BEGIN;
 CREATE TABLE IF NOT EXISTS plans (
   id            SERIAL PRIMARY KEY,
   name          VARCHAR(50) NOT NULL UNIQUE,
-  max_cinemas   INTEGER NOT NULL DEFAULT 3,
+  max_theaters  INTEGER NOT NULL DEFAULT 3,
   max_users     INTEGER NOT NULL DEFAULT 5,
   max_scrapes_per_day INTEGER NOT NULL DEFAULT 10,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Seed default plans (idempotent)
-INSERT INTO plans (name, max_cinemas, max_users, max_scrapes_per_day)
+INSERT INTO plans (name, max_theaters, max_users, max_scrapes_per_day)
 VALUES
   ('free',       3,    5,   10),
   ('starter',   10,   10,   50),
