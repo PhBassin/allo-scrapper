@@ -92,7 +92,7 @@ The API is organized into **8 main resource groups**:
 ### 3. **Films** (`/films`)
 - `GET /films` – List films
 - `GET /films/search?q=...` – Search films
-- `GET /films/{id}` – Get film details
+- `GET /movies/{id}` – Get movie details
 
 ### 4. **Scraper** (`/scraper`)
 - `POST /scraper/trigger` – Trigger scraping job

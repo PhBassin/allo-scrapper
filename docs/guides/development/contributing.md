@@ -177,7 +177,7 @@ For detailed testing documentation, see [Testing Guide](./testing.md).
 | Type | Description | Example |
 |------|-------------|---------|
 | `feat` | New feature | `feat(scraper): add support for UGC theaters` |
-| `fix` | Bug fix | `fix(api): handle missing film poster gracefully` |
+| `fix` | Bug fix | `fix(api): handle missing movie poster gracefully` |
 | `docs` | Documentation only | `docs(readme): update API examples` |
 | `test` | Adding/updating tests | `test(parser): add edge cases for empty HTML` |
 | `chore` | Maintenance tasks | `chore(deps): update vitest to v1.2.0` |
@@ -211,9 +211,9 @@ fix(api): return 404 for unknown theater IDs
 Closes #42
 
 # Breaking change (use ! or BREAKING CHANGE footer)
-feat(api)!: change film endpoint response format
+feat(api)!: change movie endpoint response format
 
-BREAKING CHANGE: The /api/films/:id endpoint now returns
+BREAKING CHANGE: The /api/movies/:id endpoint now returns
 nested showtime objects instead of flat arrays.
 
 # Multiple-line body
@@ -241,10 +241,9 @@ refactor(parser): extract date parsing into utility
 
 ```bash
 # Commit 1: Add test
-test(parser): add test for theater with no films
+test(parser): add test for theater with no movies
 
-# Commit 2: Implement feature
-feat(parser): handle theaters with no films showing
+feat(parser): handle theaters with no movies showing
 
 # Commit 3: Update docs
 docs(readme): document empty theater behavior

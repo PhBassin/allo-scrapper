@@ -101,6 +101,31 @@ Operational guide for contributors and agents in this monorepo. Prefer BMAD work
 - Auth and superadmin scope truth: `server/src/services/auth-service.ts`
 - DB init + one-time theater bootstrap seed: `server/src/db/schema.ts`
 
+## Google Calendar Integration (Frontend-Only)
+
+The `ShowtimeList` component (`client/src/components/ShowtimeList.tsx`) supports optional Google Calendar integration when theater context is available.
+
+### How It Works
+- When `theaterName` prop is provided, showtime buttons become clickable
+- Click opens `https://calendar.google.com/calendar/render?action=TEMPLATE` with pre-filled event details
+- Formatting utility: `toGoogleCalendarFormat(datetimeIso, durationMinutes?)` in `client/src/utils/date.ts`
+- Zero backend — 100% frontend URL construction
+
+### Single-Theater Page (`TheaterPage`)
+- Props: `movieTitle`, `theaterName`, `theaterAddress`
+- Google Calendar event includes: **movie title + theater name + theater address**
+- Movie title is available from the theater detail API response
+
+### Multi-Theater Homepage (`TheaterShowtimes`)
+- Props: `theaterName`, `theaterAddress` (no `movieTitle`)
+- Google Calendar event includes: **theater name + theater address only**
+- Movie title is not available at the homepage showtimes API level (theater-grouped response)
+
+### Implementation Details
+- PR: #1017
+- See `client/src/utils/date.ts` — `toGoogleCalendarFormat()` function
+- See `client/src/components/ShowtimeList.tsx` — conditional button behavior based on `theaterName` presence
+
 ## Gotcha: `app_settings` Row Requirement
 
 ### Problem

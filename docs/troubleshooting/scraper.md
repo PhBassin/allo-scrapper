@@ -216,7 +216,7 @@ grep -o 'href="/film/[^"]*"' theater-page.html | head -10
 **Impact:**
 - Film skipped (not inserted into database)
 - Logged as warning
-- Scraper continues to next film
+- Scraper continues to next movie
 
 ---
 
@@ -260,12 +260,10 @@ Rating out of range (0-5): 6.7
 - Logs warning
 - Film still inserted without that field
 
-**Check affected films:**
+**Check affected movies:**
 
-```bash
-docker compose exec ics-db psql -U postgres -d ics -c \
-  "SELECT title, duration_minutes, press_rating, audience_rating 
-   FROM films 
+```sql
+   FROM movies
    WHERE duration_minutes IS NULL 
       OR press_rating IS NULL 
       OR audience_rating IS NULL 
@@ -335,8 +333,8 @@ Invalid date: 2026-02-30
 **Error:**
 
 ```
-Invalid film ID: -123
-Invalid film ID: abc
+Invalid movie ID: -123
+Invalid movie ID: abc
 ```
 
 **Valid:** Positive integer (e.g., `12345`, `294421`)
@@ -364,10 +362,10 @@ Invalid Allocine URL. Must be https://www.allocine.fr/...
 
 **Film-level error:**
 ```
-Error processing film "Dune: Part Two": ...
-```
-- **Logged** + **emitted** as `film_failed` event
-- **CONTINUES** to next film
+Error processing movie "Dune: Part Two": ...
+
+- **Logged** + **emitted** as `movie_failed` event
+- **CONTINUES** to next movie
 - Theater scrape NOT aborted
 
 **Date-level error:**
@@ -439,7 +437,7 @@ id: 3
 data: {"type":"date_started","theater_name":"UGC Ciné Cité Les Halles","date":"2026-03-05"}
 
 id: 4
-data: {"type":"film_failed","film_title":"Unknown","error":"Parser error"}
+data: {"type":"movie_failed","movie_title":"Unknown","error":"Parser error"}
 
 id: 5
 data: {"type":"date_completed","theater_name":"UGC Ciné Cité Les Halles","date":"2026-03-05"}
@@ -814,7 +812,7 @@ docker compose exec ics-db psql -U postgres -d ics -c \
 Invalid theater ID format: C12345
 Invalid date format: 2026-3-5
 Invalid date: 2026-02-30
-Invalid film ID: -123
+Invalid movie ID: -123
 Invalid Allocine URL. Must be https://www.allocine.fr/...
 Could not extract theater ID from URL. URL format should be like https://www.allocine.fr/seance/...
 SSRF guard: unexpected host in constructed URL https://example.com/...
@@ -827,7 +825,7 @@ SSRF guard: unexpected host in constructed URL https://example.com/...
 ```
 Failed to fetch showtimes JSON for C0072 on 2026-03-05: 403 Forbidden
 Failed to fetch showtimes JSON for C0072 on 2026-03-05: 404 Not Found
-Failed to fetch film page 12345: 500 Internal Server Error
+Failed to fetch movie page 12345: 500 Internal Server Error
 TimeoutError: page.goto: Timeout 60000ms exceeded
 ```
 
@@ -854,9 +852,9 @@ Theater with ID C0072 not found in configuration
 Theater not found in database: C0072
 Theater not configured for scraping: C0072
 A scrape is already in progress
-Error parsing film card: SyntaxError: Unexpected token
-Error scraping UGC Les Halles for 2026-03-05: TimeoutError
-Error processing film "Dune: Part Two": TypeError: Cannot read property
+Error parsing movie card: SyntaxError: Unexpected token
+
+Error processing movie "Dune: Part Two": TypeError: Cannot read property
 Failed to load theater metadata for UGC Les Halles: 404 Not Found
 Fatal error: Database connection lost
 ```
@@ -885,7 +883,7 @@ Fatal error: Database connection lost
 # Delay between theaters (milliseconds)
 SCRAPE_THEATER_DELAY_MS=3000
 
-# Delay between film detail fetches (milliseconds)
+# Delay between movie detail fetches (milliseconds)
 SCRAPE_MOVIE_DELAY_MS=500
 
 # Redis connection for queue-backed scraping
@@ -926,7 +924,7 @@ scrape_jobs_total{status="success|failure",trigger="manual|cron"}
 scrape_duration_seconds{theater="C0072"}
 
 # Films scraped per theater
-films_scraped_total{theater="C0072"}
+movies_scraped_total{theater="C0072"}
 
 # Showtimes scraped per theater
 showtimes_scraped_total{theater="C0072"}

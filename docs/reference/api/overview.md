@@ -50,9 +50,9 @@ Notes:
 - `GET /api/theme.css`
 - `GET /api/config`
 - `GET /api/settings`
-- `GET /api/films`
-- `GET /api/films/search`
-- `GET /api/films/:id`
+- `GET /api/movies`
+- `GET /api/movies/search`
+- `GET /api/movies/:id`
 - `GET /api/theaters`
 - `GET /api/theaters/:id`
 - `POST /api/auth/login`

@@ -101,23 +101,23 @@ There are **two main delay settings**:
 
 **Example timeline** (with 3 cinemas, 7 dates each):
 ```
-Cinema 1:
-  └─ Dates 1-7: 7 requests × 500ms film delays = 3500ms
+Theater 1:
+  └─ Dates 1-7: 7 requests × 500ms movie delays = 3500ms
   └─ Wait: 3000ms (SCRAPE_THEATER_DELAY_MS)
 
-Cinema 2:
-  └─ Dates 1-7: 7 requests × 500ms film delays = 3500ms
+Theater 2:
+  └─ Dates 1-7: 7 requests × 500ms movie delays = 3500ms
   └─ Wait: 3000ms
 
-Cinema 3:
-  └─ Dates 1-7: 7 requests × 500ms film delays = 3500ms
+Theater 3:
+  └─ Dates 1-7: 7 requests × 500ms movie delays = 3500ms
 
 Total time: ~22 seconds for 21 showtimes requests
 ```
 
 #### `SCRAPE_MOVIE_DELAY_MS` - Delay Between Film Detail Fetches
 
-**Purpose:** Delay when fetching individual film metadata (duration, director, synopsis)
+**Purpose:** Delay when fetching individual movie metadata (duration, director, synopsis)
 
 **Default:** 500ms
 
@@ -130,7 +130,7 @@ Total time: ~22 seconds for 21 showtimes requests
 ```javascript
 // Film detail fetch is triggered only if:
 if (!existingFilm || existingFilm.duration_minutes === null) {
-  await fetchFilmPage(filmId);  // Add SCRAPE_MOVIE_DELAY_MS delay
+  await fetchMoviePage(movieId);  // Add SCRAPE_MOVIE_DELAY_MS delay
 }
 ```
 
@@ -442,9 +442,9 @@ Monitor for errors
 
 #### Strategy 3: Optimize Film Detail Fetching
 
-**Default behavior:** Fetches duration for every new film
+**Default behavior:** Fetches duration for every new movie
 
-**Optimization:** Cache film metadata more aggressively
+**Optimization:** Cache movie metadata more aggressively
 
 ```sql
 -- Find films with missing duration
@@ -494,9 +494,9 @@ curl -N http://localhost:3000/api/scraper/progress \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Output example:
-data: {"type":"cinema_started","cinema_name":"UGC Montparnasse","cinema_id":"C0042"}
-data: {"type":"date_started","date":"2026-03-18","cinema_name":"UGC Montparnasse"}
-data: {"type":"film_started","film_title":"Dune: Part Two"}
+data: {"type":"theater_started","theater_name":"UGC Montparnasse","theater_id":"C0042"}
+
+data: {"type":"movie_started","movie_title":"Dune: Part Two"}
 data: {"type":"date_completed","success":true}
 ```
 

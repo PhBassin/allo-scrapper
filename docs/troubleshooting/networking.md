@@ -304,8 +304,8 @@ curl -N http://localhost:3000/api/scraper/progress
 # Expected output:
 # : heartbeat
 #
-# event: cinema_started
-# data: {"type":"cinema_started","cinema_name":"UGC Ciné Cité Les Halles"}
+# event: theater_started
+# data: {"type":"theater_started","theater_name":"UGC Ciné Cité Les Halles"}
 ```
 
 **Common issues:**

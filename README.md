@@ -76,8 +76,8 @@
                             ▼
               ┌─────────────────────────┐
               │   PostgreSQL  Port 5432 │
-              │  theaters / films /      │
-              │  showtimes / reports    │
+│  theaters / movies /     │
+│  showtimes / reports    │
               └─────────────────────────┘
 
               ┌─────────────────────────┐
@@ -96,7 +96,7 @@
 3. API publishes scrape jobs to Redis (`scrape:jobs` queue) — the scraper microservice picks them up
 4. Scraper fetches data from the source website and writes results directly to PostgreSQL
 5. Progress events flow back to the API via Redis pub/sub → SSE → client
-6. PostgreSQL stores structured theater, film, and showtime data
+6. PostgreSQL stores structured theater, movie, and showtime data
 7. Client receives JSON responses and renders UI
 
 ---
@@ -456,7 +456,7 @@ The application includes comprehensive rate limiting to protect against abuse an
 | Registration | 3 attempts | 1 hour | New user registration |
 | Protected Endpoints | 60 requests | 15 min | Authenticated user endpoints |
 | Scraper Endpoints | 10 requests | 15 min | Expensive scraping operations |
-| Public Endpoints | 100 requests | 15 min | Public read endpoints (theaters, films) |
+| Public Endpoints | 100 requests | 15 min | Public read endpoints (theaters, movies) |
 | Health Check | 10 requests | 1 min | `/api/health` endpoint (localhost exempt) |
 
 ### Dynamic Configuration

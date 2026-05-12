@@ -408,7 +408,7 @@ Response: 200 OK
 
 **Roles**:
 - `admin` - Full access with bypass privileges (can edit settings, manage users, view all data)
-- `operator` - Operational access (scraping, cinema management, reports)
+- `operator` - Operational access (scraping, theater management, reports)
 - Custom roles - Configurable permission sets for specific job functions
 
 **Permission Enforcement**:

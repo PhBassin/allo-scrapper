@@ -269,7 +269,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **APP_NAME Environment Variable** — Configurable application name for server logs, health check API, and service identifiers (default: `Allo-Scrapper`)
 - **VITE_APP_NAME Environment Variable** — Configurable application name for React UI: browser title, header, footer (default: `Allo-Scrapper`)
-- **Sticky Header** — Persistent navigation header on HomePage and CinemaPage with backdrop blur effect
+- **Sticky Header** — Persistent navigation header on HomePage and TheaterPage with backdrop blur effect
 - **Scroll-to-Top Button** — Floating button to quickly return to the top of the page
 
 ### Changed
@@ -286,7 +286,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Performance
 
 - **Film Search Index** — Added index on `original_title` column and tuned search query for significantly faster film lookups
-- **CinemaPage Memoization** — Applied `useMemo` to expensive computations in CinemaPage to prevent unnecessary re-renders
+- **TheaterPage Memoization** — Applied `useMemo` to expensive computations in TheaterPage to prevent unnecessary re-renders
 
 ### Documentation
 

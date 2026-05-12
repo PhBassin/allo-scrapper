@@ -129,7 +129,7 @@ PostgreSQL
 │   ├── organizations          ← liste des orgs, plan, statut
 │   ├── plans                  ← Free / Starter / Pro / Enterprise
 │   ├── subscriptions          ← billing Stripe par org
-│   ├── films                  ← métadonnées films partagées ✅
+│   ├── movies                  ← métadonnées films partagées ✅
 │   └── org_migrations         ← suivi migrations par org
 │
 └── org_{slug}  (isolé par tenant)
@@ -252,13 +252,13 @@ Ajouter `org_id` et `org_slug` dans le payload du token JWT :
 Toutes les routes passent de :
 ```
 /api/theaters
-/api/films
+/api/movies
 /api/reports
 ```
 À :
 ```
 /api/org/:slug/theaters
-/api/org/:slug/films
+/api/org/:slug/movies
 /api/org/:slug/reports
 ```
 

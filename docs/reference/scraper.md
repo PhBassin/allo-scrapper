@@ -40,11 +40,11 @@ Scrape planning settings are no longer env vars:
 
 Those are stored in `app_settings` and managed through the settings API/admin UI.
 
-## Cinema seed source
+## Theater seed source
 
-`server/src/config/cinemas.json` is used only as a seed source when the `cinemas` table is empty.
+`server/src/config/theaters.json` is used only as a seed source when the `theaters` table is empty.
 
-Current server code does not maintain an automatic write-back sync from cinema CRUD operations to that file.
+Current server code does not maintain an automatic write-back sync from theater CRUD operations to that file.
 
 ## Related
 

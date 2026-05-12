@@ -8,9 +8,9 @@ Current API surface registered by `server/src/app.ts`.
 - `GET /api/theme.css`
 - `GET /api/config`
 - `GET /api/settings`
-- `GET /api/films`
-- `GET /api/films/search`
-- `GET /api/films/:id`
+- `GET /api/movies`
+- `GET /api/movies/search`
+- `GET /api/movies/:id`
 - `GET /api/theaters`
 - `GET /api/theaters/:id`
 - `POST /api/auth/login`
@@ -95,7 +95,7 @@ Alias path for DLQ operations:
 - [Overview](./overview.md)
 - [Auth](./auth.md)
 - [Theaters](./theaters.md)
-- [Films](./films.md)
+- [Movies](./movies.md)
 - [Scraper](./scraper.md)
 - [Reports](./reports.md)
 - [Settings](./settings.md)
