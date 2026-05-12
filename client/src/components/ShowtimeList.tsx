@@ -1,19 +1,43 @@
-import { useMemo, memo } from 'react';
+import { useMemo, memo, useCallback } from 'react';
 import type { Showtime } from '../types';
+import { toGoogleCalendarFormat } from '../utils/date';
 
 interface ShowtimeListProps {
   showtimes: Showtime[];
+  movieTitle?: string;
+  theaterName?: string;
+  theaterAddress?: string;
 }
 
-function ShowtimeList({ showtimes }: ShowtimeListProps) {
-  // Group showtimes by version (VF/VO)
-  // ⚡ PERFORMANCE: Memoize grouping logic to avoid re-calculation on every render
+function ShowtimeList({ showtimes, movieTitle, theaterName, theaterAddress }: ShowtimeListProps) {
   const showtimesByVersion = useMemo(() => showtimes.reduce((acc, showtime) => {
     const version = showtime.version || 'VF';
     if (!acc[version]) acc[version] = [];
     acc[version].push(showtime);
     return acc;
   }, {} as Record<string, Showtime[]>), [showtimes]);
+
+  const isActive = !!theaterName;
+
+  const handleClick = useCallback((showtime: Showtime) => {
+    if (!theaterName) return;
+
+    const title = movieTitle || `Séance au ${theaterName}`;
+    const dates = toGoogleCalendarFormat(showtime.datetime_iso);
+    const location = theaterAddress || theaterName;
+    const details = movieTitle
+      ? `Séance de ${movieTitle} au ${theaterName} - ${showtime.version || 'VF'}`
+      : `Séance au ${theaterName} - ${showtime.version || 'VF'}`;
+
+    const url = new URL('https://calendar.google.com/calendar/render');
+    url.searchParams.set('action', 'TEMPLATE');
+    url.searchParams.set('text', title);
+    url.searchParams.set('dates', dates);
+    url.searchParams.set('location', location);
+    url.searchParams.set('details', details);
+
+    window.open(url.toString(), '_blank', 'noopener,noreferrer');
+  }, [theaterName, movieTitle, theaterAddress]);
 
   const versionEntries = Object.entries(showtimesByVersion);
 
@@ -33,9 +57,14 @@ function ShowtimeList({ showtimes }: ShowtimeListProps) {
               <button
                 key={`${showtime.time}-${index}`}
                 type="button"
-                disabled
-                className="px-3 py-1 bg-gray-100 text-gray-500 rounded cursor-not-allowed text-sm font-medium opacity-70"
-                title="Fonctionnalité à venir"
+                disabled={!isActive}
+                onClick={() => handleClick(showtime)}
+                className={
+                  isActive
+                    ? 'px-3 py-1 bg-primary text-white rounded hover:bg-primary-dark transition text-sm font-medium cursor-pointer active:scale-95'
+                    : 'px-3 py-1 bg-gray-100 text-gray-500 rounded cursor-not-allowed text-sm font-medium opacity-70'
+                }
+                title={isActive ? `Ajouter au calendrier — ${showtime.time}` : 'Fonctionnalité à venir'}
               >
                 {showtime.time}
               </button>
@@ -47,6 +76,4 @@ function ShowtimeList({ showtimes }: ShowtimeListProps) {
   );
 }
 
-// ⚡ PERFORMANCE: Memoize component to prevent re-renders when parent re-renders
-// but showtimes data hasn't changed.
 export default memo(ShowtimeList);

@@ -150,7 +150,11 @@ export default function TheaterShowtimes({ theaters, initialDate, initialAfterTi
             </div>
 
             <div className="pt-3 border-t border-gray-50">
-              <ShowtimeList showtimes={showtimes} />
+              <ShowtimeList
+                showtimes={showtimes}
+                theaterName={theater.name}
+                theaterAddress={theater.address && theater.city ? `${theater.address}, ${theater.city}` : theater.address || theater.city || theater.name}
+              />
             </div>
           </div>
         ))}

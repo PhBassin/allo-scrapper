@@ -250,7 +250,12 @@ export default function TheaterPage() {
                     </div>
 
                     <div className="pt-2 border-t border-gray-100">
-                      <ShowtimeList showtimes={showtimes} />
+                      <ShowtimeList
+                        showtimes={showtimes}
+                        movieTitle={movie.title}
+                        theaterName={theater.name}
+                        theaterAddress={theater.address && theater.city ? `${theater.address}, ${theater.postal_code || ''} ${theater.city}`.trim() : theater.address || theater.city || theater.name}
+                      />
                     </div>
                   </div>
                 </div>
