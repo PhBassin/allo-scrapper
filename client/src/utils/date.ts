@@ -21,3 +21,15 @@ export const formatDateLabel = (dateStr: string) => {
     full: formatterFull.format(date),
   };
 };
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+export const toGoogleCalendarFormat = (datetimeIso: string, durationMinutes = 120): string => {
+  const start = new Date(datetimeIso);
+  const end = new Date(start.getTime() + durationMinutes * 60_000);
+
+  const fmt = (d: Date) =>
+    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+
+  return `${fmt(start)}/${fmt(end)}`;
+};
