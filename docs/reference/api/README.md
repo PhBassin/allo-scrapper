@@ -11,8 +11,8 @@ Current API surface registered by `server/src/app.ts`.
 - `GET /api/films`
 - `GET /api/films/search`
 - `GET /api/films/:id`
-- `GET /api/cinemas`
-- `GET /api/cinemas/:id`
+- `GET /api/theaters`
+- `GET /api/theaters/:id`
 - `POST /api/auth/login`
 
 ## Protected endpoints
@@ -50,11 +50,11 @@ Alias path for DLQ operations:
 - `GET /api/reports/:id`
 - `GET /api/reports/:id/details`
 
-### Cinemas
+### Theaters
 
-- `POST /api/cinemas`
-- `PUT /api/cinemas/:id`
-- `DELETE /api/cinemas/:id`
+- `POST /api/theaters`
+- `PUT /api/theaters/:id`
+- `DELETE /api/theaters/:id`
 
 ### Settings
 
@@ -94,7 +94,7 @@ Alias path for DLQ operations:
 
 - [Overview](./overview.md)
 - [Auth](./auth.md)
-- [Cinemas](./cinemas.md)
+- [Theaters](./theaters.md)
 - [Films](./films.md)
 - [Scraper](./scraper.md)
 - [Reports](./reports.md)

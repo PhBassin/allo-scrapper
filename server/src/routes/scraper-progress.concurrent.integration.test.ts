@@ -369,7 +369,7 @@ describe('Story 3.4 — SSE Concurrent Client Load Test (50+ clients)', () => {
     const emitTime = Date.now();
     const event: ProgressEvent = {
       type: 'started',
-      total_cinemas: 5,
+      total_theaters: 5,
       total_dates: 10,
       report_id: 9001,
     };
@@ -419,7 +419,7 @@ describe('Story 3.4 — SSE Concurrent Client Load Test (50+ clients)', () => {
     port2 = typeof addr2 === 'object' && addr2 ? addr2.port : 0;
 
     try {
-      // Each client expects 3 business events: started, cinema_started, completed
+      // Each client expects 3 business events: started, theater_started, completed
       const TARGET = 3;
       const clientPromises = Array.from({ length: CONCURRENT_CLIENTS }, () =>
         openSseClient(port2, TOKEN, TARGET, 12_000),
@@ -431,9 +431,9 @@ describe('Story 3.4 — SSE Concurrent Client Load Test (50+ clients)', () => {
 
       // Emit the sequence
       const sequence: ProgressEvent[] = [
-        { type: 'started', total_cinemas: 1, total_dates: 1, report_id: 9002 },
-        { type: 'cinema_started', cinema_name: 'Test Cinema', cinema_id: 'c1', index: 0, report_id: 9002 },
-        { type: 'completed', summary: { total_cinemas: 1, successful_cinemas: 1, failed_cinemas: 0, total_movies: 0, total_showtimes: 0, total_dates: 1, duration_ms: 100, errors: [] }, report_id: 9002 },
+        { type: 'started', total_theaters: 1, total_dates: 1, report_id: 9002 },
+        { type: 'theater_started', theater_name: 'Test Theater', theater_id: 'c1', index: 0, report_id: 9002 },
+        { type: 'completed', summary: { total_theaters: 1, successful_theaters: 1, failed_theaters: 0, total_movies: 0, total_showtimes: 0, total_dates: 1, duration_ms: 100, errors: [] }, report_id: 9002 },
       ];
 
       for (const ev of sequence) {
@@ -531,7 +531,7 @@ describe('Story 3.4 — SSE Concurrent Client Load Test (50+ clients)', () => {
 
     await waitForListenerCountOrDrain(tracker, CONCURRENT_CLIENTS, clientPromises);
 
-    tracker.emit({ type: 'started', total_cinemas: 2, total_dates: 2, report_id: 9003 });
+    tracker.emit({ type: 'started', total_theaters: 2, total_dates: 2, report_id: 9003 });
 
     await Promise.all(clientPromises);
 

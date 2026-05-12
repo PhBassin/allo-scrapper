@@ -21,7 +21,7 @@ interface LoginResponse {
   };
 }
 
-interface CinemaResponse {
+interface TheaterResponse {
   success: boolean;
   data: Array<{ id: string; name: string; url?: string }>;
 }
@@ -88,14 +88,14 @@ test.describe('SSE long-running connection validation', () => {
     const loginBody = await loginResponse.json() as LoginResponse;
     const token = loginBody.data.token;
 
-    const cinemasResponse = await request.get(`/api/org/${org.orgSlug}/cinemas`, {
+    const theatersResponse = await request.get(`/api/org/${org.orgSlug}/theaters`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    expect(cinemasResponse.ok()).toBe(true);
+    expect(theatersResponse.ok()).toBe(true);
 
-    const cinemasBody = await cinemasResponse.json() as CinemaResponse;
-    const allocineCinemas = cinemasBody.data.filter((cinema) => cinema.url?.includes('allocine.fr'));
-    expect(allocineCinemas.length).toBeGreaterThanOrEqual(21);
+    const theatersBody = await theatersResponse.json() as TheaterResponse;
+    const allocineTheaters = theatersBody.data.filter((theater) => theater.url?.includes('allocine.fr'));
+    expect(allocineTheaters.length).toBeGreaterThanOrEqual(21);
 
     await page.goto('/');
     await page.evaluate(([savedToken, user]) => {
@@ -109,7 +109,7 @@ test.describe('SSE long-running connection validation', () => {
       },
     ]);
 
-    await page.goto(`/org/${org.orgSlug}/admin?tab=cinemas`);
+    await page.goto(`/org/${org.orgSlug}/admin?tab=theaters`);
     await expect(page.getByTestId('scrape-all-button')).toBeVisible({ timeout: 10000 });
 
     await page.evaluate(([savedToken, orgSlug]) => {
@@ -354,7 +354,7 @@ test.describe('SSE long-running connection validation', () => {
     expect(snapshot?.duplicateEventIds).toEqual([]);
     expect(snapshot?.monotonicViolations).toEqual([]);
     expect(snapshot?.businessEventTypes).toContain('started');
-    expect(snapshot?.businessEventTypes).toContain('cinema_started');
+    expect(snapshot?.businessEventTypes).toContain('theater_started');
     expect(snapshot?.businessEventTypes).not.toContain('completed');
     expect(snapshot?.businessEventTypes).not.toContain('failed');
     expect(snapshot?.pingReceivedAt.length).toBeGreaterThanOrEqual(19);

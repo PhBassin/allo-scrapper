@@ -122,7 +122,7 @@ describe('HTTP Client - Error Handling', () => {
 
     describe('Success Cases', () => {
       it('should succeed on 200 OK response', async () => {
-        const mockData = { results: [], theater: { name: 'Test Cinema' } };
+        const mockData = { results: [], theater: { name: 'Test Theater' } };
         mockFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,

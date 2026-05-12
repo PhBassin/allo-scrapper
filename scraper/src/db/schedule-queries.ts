@@ -6,7 +6,7 @@ export interface ScrapeSchedule {
   description: string | null;
   cron_expression: string;
   enabled: boolean;
-  target_cinemas: string[] | null;
+  target_theaters: string[] | null;
   created_by: number | null;
   updated_by: number | null;
   created_at: string;
@@ -18,9 +18,9 @@ export interface ScrapeSchedule {
 function rowToSchedule(row: any): ScrapeSchedule {
   return {
     ...row,
-    target_cinemas: typeof row.target_cinemas === 'string' 
-      ? JSON.parse(row.target_cinemas) 
-      : row.target_cinemas,
+    target_theaters: typeof row.target_theaters === 'string' 
+      ? JSON.parse(row.target_theaters) 
+      : row.target_theaters,
   };
 }
 

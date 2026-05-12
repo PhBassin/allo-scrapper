@@ -134,10 +134,10 @@ PostgreSQL
 │
 └── org_{slug}  (isolé par tenant)
     ├── users                  ← membres de l'org
-    ├── cinemas                ← cinémas configurés
+    ├── theaters                ← theaters configurés
     ├── showtimes              ← séances scrappées
     ├── reports                ← rapports hebdomadaires
-    ├── scrape_schedules       ← planification cron par cinéma
+    ├── scrape_schedules       ← planification cron par salle
     ├── scrape_attempts        ← historique des scrapes
     ├── org_settings           ← white-label (remplace app_settings)
     └── rate_limit_configs     ← limites API par org
@@ -156,7 +156,7 @@ PostgreSQL
 CREATE TABLE plans (
   id          SERIAL PRIMARY KEY,
   name        TEXT NOT NULL,                  -- Free, Starter, Pro, Enterprise
-  max_cinemas INT,                            -- NULL = illimité
+  max_theaters INT,                            -- NULL = illimité
   max_users   INT,
   max_scrapes_per_month INT,
   scrape_frequency_min  INT,                  -- intervalle minimum entre scrapes
@@ -185,7 +185,7 @@ CREATE TABLE org_usage (
   id              SERIAL PRIMARY KEY,
   org_id          UUID REFERENCES organizations(id) ON DELETE CASCADE,
   month           DATE NOT NULL,              -- 1er du mois
-  cinemas_count   INT DEFAULT 0,
+  theaters_count   INT DEFAULT 0,
   scrapes_count   INT DEFAULT 0,
   api_calls_count BIGINT DEFAULT 0,
   UNIQUE (org_id, month)
@@ -208,9 +208,9 @@ CREATE TABLE org_migrations (
 - Les nouvelles migrations globales sont appliquées à toutes les orgs au démarrage
 
 ```ts
-// Exemple : migration 001_create_cinemas.sql appliquée dans org_moncinema
-SET search_path TO org_moncinema;
-CREATE TABLE cinemas (id, name, url, ...);
+// Exemple : migration 001_create_theaters.sql appliquée dans org_mytheater
+SET search_path TO org_mytheater;
+CREATE TABLE theaters (id, name, url, ...);
 ```
 
 ### 1.3 Middleware de résolution du tenant
@@ -241,7 +241,7 @@ Ajouter `org_id` et `org_slug` dans le payload du token JWT :
 {
   "sub": "user_id",
   "org_id": "uuid",
-  "org_slug": "mon-cinema",
+  "org_slug": "mon-theater",
   "role": "admin",
   "permissions": [...]
 }
@@ -251,13 +251,13 @@ Ajouter `org_id` et `org_slug` dans le payload du token JWT :
 
 Toutes les routes passent de :
 ```
-/api/cinemas
+/api/theaters
 /api/films
 /api/reports
 ```
 À :
 ```
-/api/org/:slug/cinemas
+/api/org/:slug/theaters
 /api/org/:slug/films
 /api/org/:slug/reports
 ```
@@ -298,7 +298,7 @@ Nouvelle route `/register` avec stepper 4 étapes :
 
 - **Étape 1** — Votre organisation (nom, slug → preview URL `/org/{slug}`)
 - **Étape 2** — Votre compte admin (email, mot de passe)
-- **Étape 3** — Ajouter votre premier cinéma (URL Allociné)
+- **Étape 3** — Ajouter votre première salle (URL Allociné)
 - **Étape 4** — Lancer le premier scrape → animation progression
 
 ### 2.4 Invitations membres
@@ -334,7 +334,7 @@ Limite d'invitations actives selon le plan (`max_users`).
 
 ```ts
 // server/src/middleware/quota.ts
-export const checkQuota = (resource: 'cinemas' | 'users' | 'scrapes') =>
+export const checkQuota = (resource: .theaters. | 'users' | 'scrapes') =>
   async (req, res, next) => {
     const plan = await getPlan(req.org.plan_id);
     const usage = await getUsage(req.org.id);
@@ -345,12 +345,12 @@ export const checkQuota = (resource: 'cinemas' | 'users' | 'scrapes') =>
   };
 
 // Usage dans les routes :
-router.post('/cinemas', requireAuth, checkQuota('cinemas'), createCinema);
+router.post('/theaters', requireAuth, checkQuota(.theaters.), createTheater);
 ```
 
 ### Tracking d'usage
 
-- Incrémenter `org_usage.cinemas_count` à chaque ajout de cinéma
+- Incrémenter `org_usage.theaters_count` à chaque ajout de salle
 - Incrémenter `org_usage.scrapes_count` après chaque scrape réussi
 - Reset mensuel automatique via cron (`0 0 1 * *`)
 
@@ -441,7 +441,7 @@ Route dédiée : `/superadmin` (JWT scope `superadmin` séparé, non inter-opér
 |------|---------|
 | **Dashboard** | MRR, ARR, churn mensuel, nouvelles orgs cette semaine, orgs actives |
 | **Organisations** | Liste avec statut / plan / usage / dernière activité. Filtres + recherche |
-| **Détail org** | Membres, cinémas, historique scrapes, settings, logs d'erreur |
+| **Détail org** | Membres, salles, historique scrapes, settings, logs d'erreur |
 | **Actions** | Suspendre / réactiver, changer plan (override), reset trial |
 | **Impersonation** | Se connecter en tant qu'une org (audit loggé) |
 | **Billing** | Vue des subscriptions Stripe, factures, disputes |
@@ -472,12 +472,12 @@ POST /api/superadmin/impersonate
 ### Option : domaine custom (plan Enterprise)
 
 ```
-moncinema.fr  →  [Nginx/Traefik]  →  app.domaine.fr/org/moncinema
+mytheater.fr  →  [Nginx/Traefik]  →  app.domaine.fr/org/mytheater
 ```
 
 - Stocker `custom_domain` dans `organizations`
 - Certificat SSL auto via Let's Encrypt (certbot + DNS challenge)
-- Nginx : `server_name moncinema.fr` → `proxy_pass` avec header `X-Org-Slug`
+- Nginx : `server_name mytheater.fr` → `proxy_pass` avec header `X-Org-Slug`
 
 **Effort estimé : 3 jours** (sans domaine custom) / **+1 semaine** (avec domaine custom)
 
@@ -496,7 +496,7 @@ moncinema.fr  →  [Nginx/Traefik]  →  app.domaine.fr/org/moncinema
     <TenantProvider>  {/* charge l'org, injecte dans le contexte */}
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/cinema/:id" element={<CinemaPage />} />
+        <Route path="/theater/:id" element={<TheaterPage />} />
         <Route path="/admin/*" element={<AdminRoutes />} />
       </Routes>
     </TenantProvider>
@@ -509,7 +509,7 @@ moncinema.fr  →  [Nginx/Traefik]  →  app.domaine.fr/org/moncinema
 
 ```
 Redis
-├── scrape:jobs:org_moncinema   ← queue dédiée par org
+├── scrape:jobs:org_mytheater   ← queue dédiée par org
 ├── scrape:jobs:org_autreorg
 └── scrape:progress:{jobId}     ← SSE progress (inchangé)
 ```
@@ -532,7 +532,7 @@ Redis
 
 ```bash
 # Export d'une org complète
-pg_dump --schema=org_moncinema $DATABASE_URL > backup_moncinema_$(date +%Y%m%d).sql
+pg_dump --schema=org_mytheater $DATABASE_URL > backup_mytheater_$(date +%Y%m%d).sql
 
 # API pour les admins org
 GET /api/org/:slug/export   → télécharge un JSON complet (cinémas, séances, settings)

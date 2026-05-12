@@ -1,5 +1,5 @@
 import { type DB } from './client.js';
-import type { Cinema, Movie } from '../types/scraper.js';
+import type { Theater, Movie } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 import { parseJSONMemoized } from '../utils/json-parse-cache.js';
 
@@ -27,13 +27,13 @@ export interface MovieRow {
 }
 
 export interface WeeklyMovieRow extends MovieRow {
-  cinema_id: string;
-  cinema_name: string;
-  cinema_address: string | null;
+  theater_id: string;
+  theater_name: string;
+  theater_address: string | null;
   postal_code: string | null;
   city: string | null;
   screen_count: number | null;
-  cinema_image_url: string | null;
+  theater_image_url: string | null;
 }
 
 /**
@@ -170,29 +170,29 @@ export async function getMoviesByDate(
   db: DB,
   date: string,
   weekStart: string
-): Promise<Array<Movie & { cinemas: Cinema[] }>> {
+): Promise<Array<Movie & { theaters: Theater[] }>> {
   const result = await db.query<WeeklyMovieRow>(
     `
       SELECT DISTINCT
         f.*,
-        c.id as cinema_id,
-        c.name as cinema_name,
-        c.address as cinema_address,
+        c.id as theater_id,
+        c.name as theater_name,
+        c.address as theater_address,
         c.postal_code,
         c.city,
         c.screen_count,
-        c.image_url as cinema_image_url
+        c.image_url as theater_image_url
       FROM showtimes s
       JOIN movies f ON s.movie_id = f.id
-      JOIN cinemas c ON s.cinema_id = c.id
+      JOIN theaters c ON s.theater_id = c.id
       WHERE s.date = $1 AND s.week_start = $2
       ORDER BY f.title
     `,
     [date, weekStart]
   );
 
-  const resultList: Array<Movie & { cinemas: Cinema[] }> = [];
-  const moviesMap: Record<number, Movie & { cinemas: Cinema[] }> = Object.create(null);
+  const resultList: Array<Movie & { theaters: Theater[] }> = [];
+  const moviesMap: Record<number, Movie & { theaters: Theater[] }> = Object.create(null);
 
   for (let i = 0; i < result.rows.length; i++) {
     const row = result.rows[i];
@@ -218,20 +218,20 @@ export async function getMoviesByDate(
         audience_rating: row.audience_rating ?? undefined,
         source_url: row.source_url,
         trailer_url: row.trailer_url ?? undefined,
-        cinemas: [],
+        theaters: [],
       };
       moviesMap[row.id] = movie;
       resultList.push(movie);
     }
 
-    movie.cinemas.push({
-      id: row.cinema_id,
-      name: row.cinema_name,
-      address: row.cinema_address ?? undefined,
+    movie.theaters.push({
+      id: row.theater_id,
+      name: row.theater_name,
+      address: row.theater_address ?? undefined,
       postal_code: row.postal_code ?? undefined,
       city: row.city ?? undefined,
       screen_count: row.screen_count ?? undefined,
-      image_url: row.cinema_image_url ?? undefined,
+      image_url: row.theater_image_url ?? undefined,
     });
   }
 
@@ -248,29 +248,29 @@ export async function getMoviesByDate(
 export async function getWeeklyMovies(
   db: DB,
   weekStart: string
-): Promise<Array<Movie & { cinemas: Cinema[] }>> {
+): Promise<Array<Movie & { theaters: Theater[] }>> {
   const result = await db.query<WeeklyMovieRow>(
     `
       SELECT DISTINCT
         f.*,
-        c.id as cinema_id,
-        c.name as cinema_name,
-        c.address as cinema_address,
+        c.id as theater_id,
+        c.name as theater_name,
+        c.address as theater_address,
         c.postal_code,
         c.city,
         c.screen_count,
-        c.image_url as cinema_image_url
+        c.image_url as theater_image_url
       FROM weekly_programs wp
       JOIN movies f ON wp.movie_id = f.id
-      JOIN cinemas c ON wp.cinema_id = c.id
+      JOIN theaters c ON wp.theater_id = c.id
       WHERE wp.week_start = $1
       ORDER BY f.title
     `,
     [weekStart]
   );
 
-  const resultList: Array<Movie & { cinemas: Cinema[] }> = [];
-  const moviesMap: Record<number, Movie & { cinemas: Cinema[] }> = Object.create(null);
+  const resultList: Array<Movie & { theaters: Theater[] }> = [];
+  const moviesMap: Record<number, Movie & { theaters: Theater[] }> = Object.create(null);
 
   for (let i = 0; i < result.rows.length; i++) {
     const row = result.rows[i];
@@ -296,20 +296,20 @@ export async function getWeeklyMovies(
         audience_rating: row.audience_rating ?? undefined,
         source_url: row.source_url,
         trailer_url: row.trailer_url ?? undefined,
-        cinemas: [],
+        theaters: [],
       };
       moviesMap[row.id] = movie;
       resultList.push(movie);
     }
 
-    movie.cinemas.push({
-      id: row.cinema_id,
-      name: row.cinema_name,
-      address: row.cinema_address ?? undefined,
+    movie.theaters.push({
+      id: row.theater_id,
+      name: row.theater_name,
+      address: row.theater_address ?? undefined,
       postal_code: row.postal_code ?? undefined,
       city: row.city ?? undefined,
       screen_count: row.screen_count ?? undefined,
-      image_url: row.cinema_image_url ?? undefined,
+      image_url: row.theater_image_url ?? undefined,
     });
   }
 

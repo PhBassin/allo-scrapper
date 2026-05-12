@@ -6,8 +6,8 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 
 ## Project Overview
 
-**Allo-Scrapper** is a cinema showtimes aggregator that:
-- Scrapes movie screening schedules from external cinema websites
+**Allo-Scrapper** is a theater showtimes aggregator that:
+- Scrapes movie screening schedules from external theater websites
 - Stores data in PostgreSQL
 - Exposes a REST API (Express.js + TypeScript)
 - Provides a React frontend
@@ -90,7 +90,7 @@ git checkout -b <type>/<issue-number>-<short-description>
 ```
 
 **Examples:**
-- `feat/259-add-cinema-modal`
+- `feat/259-add-theater-modal`
 - `fix/42-fix-parser-bug`
 - `docs/266-optimize-agents-md`
 
@@ -154,7 +154,7 @@ For scraper tests, use real HTML fixtures:
 
 ```bash
 curl "https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html" \
-  -o server/tests/fixtures/cinema-cxxxx-page.html
+  -o server/tests/fixtures/theater-cxxxx-page.html
 ```
 
 ---
@@ -279,7 +279,7 @@ git pull origin develop
 allo-scrapper/
 ├── server/                     # Express.js backend
 │   ├── src/
-│   │   ├── config/             # Configuration (cinemas.json)
+│   │   ├── config/             # Configuration (theaters.json)
 │   │   ├── db/                 # Database queries and schema
 │   │   ├── routes/             # API route handlers
 │   │   ├── services/
@@ -396,25 +396,25 @@ gh pr checks
 
 ## Common Patterns
 
-### Adding a New Cinema
+### Adding a New Theater
 
-Use the admin UI at `/admin/cinemas`. It handles scraping and DB persistence automatically.
+Use the admin UI at `/admin/theaters`. It handles scraping and DB persistence automatically.
 
 If scripting via API:
 ```bash
-curl -X POST http://localhost:3000/api/cinemas \
+curl -X POST http://localhost:3000/api/theaters \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <token>" \
   -d '{"url":"https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html"}'
 ```
 
-No file commit is needed — Postgres is the source of truth. `cinemas.json` is only a one-time bootstrap seed and is never written to by the application.
+No file commit is needed — Postgres is the source of truth. `theaters.json` is only a one-time bootstrap seed and is never written to by the application.
 
 For parser changes, write tests first (see Step 3).
 
 ### Fixing a Parser Bug
 
-1. Fetch HTML fixture: `curl "..." -o server/tests/fixtures/cinema-cxxxx-page.html`
+1. Fetch HTML fixture: `curl "..." -o server/tests/fixtures/theater-cxxxx-page.html`
 2. Write failing test reproducing the bug
 3. Fix the parser
 4. Verify test passes
@@ -469,23 +469,23 @@ CodeQL flags HTTP requests built with string concatenation as SSRF-vulnerable.
 
 ### `DELETE` Routes Return 204 — No Body
 
-`DELETE /api/cinemas/:id` returns `204 No Content`. Do NOT access `.data` on the response.
+`DELETE /api/theaters/:id` returns `204 No Content`. Do NOT access `.data` on the response.
 
 ```typescript
 // WRONG — throws on 204
-const result = await apiClient.delete(`/cinemas/${id}`);
+const result = await apiClient.delete(`/theaters/${id}`);
 console.log(result.data); // undefined / error
 
 // CORRECT
-await apiClient.delete(`/cinemas/${id}`);
+await apiClient.delete(`/theaters/${id}`);
 ```
 
 ### Modal Stale State — Use `key` to Force Remount
 
-When reusing a modal component for different items (e.g. editing different cinemas), stale state persists across renders. Fix by setting `key` to the item's ID on the parent to force a full remount:
+When reusing a modal component for different items (e.g. editing different theaters), stale state persists across renders. Fix by setting `key` to the item's ID on the parent to force a full remount:
 
 ```tsx
-<EditCinemaModal key={selectedCinema.id} cinema={selectedCinema} />
+<EditTheaterModal key={selectedTheater.id} theater={selectedTheater} />
 ```
 
 ### Zero Values — Use `!= null` Not `||`
@@ -494,10 +494,10 @@ Avoid `||` for optional numeric fields — it treats `0` as falsy and substitute
 
 ```typescript
 // WRONG — shows dash for 0 screens
-const count = cinema.screen_count || '—';
+const count = theater.screen_count || '—';
 
 // CORRECT
-const count = cinema.screen_count != null ? cinema.screen_count : '—';
+const count = theater.screen_count != null ? theater.screen_count : '—';
 ```
 
 ### Name Validation — Always `.trim()`
@@ -508,9 +508,9 @@ Reject whitespace-only strings explicitly:
 if (!name.trim()) throw new Error('Name is required');
 ```
 
-### Frontend `Cinema` Type — Include `url`
+### Frontend `Theater` Type — Include `url`
 
-The `Cinema` interface in `client/src/types/index.ts` must include `url?: string`. It's easy to miss when the backend adds fields — keep the frontend type in sync.
+The `Theater` interface in `client/src/types/index.ts` must include `url?: string`. It's easy to miss when the backend adds fields — keep the frontend type in sync.
 
 ### Pre-Push Hook
 
@@ -582,7 +582,7 @@ This project includes specialized OpenCode agents to assist with specific tasks.
 
 Direct invocation:
 ```
-@docs-writer Update the API documentation for /api/cinemas endpoint
+@docs-writer Update the API documentation for /api/theaters endpoint
 ```
 
 Automatic delegation (when asking about documentation):

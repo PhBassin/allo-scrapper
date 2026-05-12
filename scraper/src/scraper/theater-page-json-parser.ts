@@ -173,7 +173,7 @@ function getWeekStart(dateStr: string): string {
 function mapShowtimes(
   group: AllocineShowtimesGroup,
   movieId: number,
-  cinemaId: string,
+  theaterId: string,
   date: string
 ): Showtime[] {
   const allEntries: { showtime: AllocineShowtime; version: string }[] = [];
@@ -208,9 +208,9 @@ function mapShowtimes(
     const experiences: string[] = showtime.tags ?? [];
 
     showtimes.push({
-      id: `${cinemaId}_${movieId}_${actualDate}_${time}_${ver2}_${format ?? ''}`,
+      id: `${theaterId}_${movieId}_${actualDate}_${time}_${ver2}_${format ?? ''}`,
       movie_id: movieId,
-      cinema_id: cinemaId,
+      theater_id: theaterId,
       date: actualDate,
       time,
       datetime_iso: showtime.startsAt,
@@ -231,13 +231,13 @@ function mapShowtimes(
  */
 export function parseShowtimesJson(
   json: unknown,
-  cinemaId: string,
+  theaterId: string,
   date: string
 ): MovieShowtimeData[] {
   const response = json as AllocineApiResponse;
 
   if (response.error) {
-    logger.warn('Showtimes API returned error', { cinemaId, date });
+    logger.warn('Showtimes API returned error', { theaterId, date });
     return [];
   }
 
@@ -314,7 +314,7 @@ export function parseShowtimesJson(
       source_url: `https://www.allocine.fr/film/fichefilm_gen_cfilm=${movieId}.html`,
     };
 
-    const showtimes = mapShowtimes(result.showtimes ?? {}, movieId, cinemaId, date);
+    const showtimes = mapShowtimes(result.showtimes ?? {}, movieId, theaterId, date);
     const isNewThisWeek = movie.flags?.isNewRelease ?? false;
 
     if (showtimes.length > 0) {

@@ -10,7 +10,7 @@ vi.mock('../../../src/utils/logger.js', () => ({
 }));
 
 describe('http-client timeouts', () => {
-  let fetchShowtimesJson: (cinemaId: string, date: string) => Promise<unknown>;
+  let fetchShowtimesJson: (theaterId: string, date: string) => Promise<unknown>;
   let fetchMoviePage: (movieId: number) => Promise<string>;
 
   beforeEach(async () => {

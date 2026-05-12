@@ -1,10 +1,10 @@
 import pLimit from 'p-limit';
 import { db, type DB } from '../db/client.js';
 import { logger } from '../utils/logger.js';
-import { getCinemaConfigs, getCinemas } from '../db/cinema-queries.js';
+import { getTheaterConfigs, getTheaters } from '../db/theater-queries.js';
 import { closeBrowser, delay, circuitBreaker } from './http-client.js';
 import { getScrapeDates, type ScrapeMode } from '../utils/date.js';
-import type { CinemaConfig, Cinema, ProgressEvent, ScrapeSummary } from '../types/scraper.js';
+import type { TheaterConfig, Theater, ProgressEvent, ScrapeSummary } from '../types/scraper.js';
 import { getStrategyByUrl, getStrategyBySource } from './strategy-factory.js';
 import { RateLimitError } from '../utils/errors.js';
 import { classifyError } from '../utils/error-classifier.js';
@@ -72,97 +72,97 @@ function withJobMetadata(event: ProgressEvent, options?: ScrapeOptions): Progres
 }
 
 /**
- * Backward compatibility wrapper for loadTheaterMetadata.
- * Delegates to the appropriate strategy based on the cinema URL.
+ * Backward compatibility wrapper for loadTheaterPageMetadata.
+ * Delegates to the appropriate strategy based on the theater URL.
  */
-export async function loadTheaterMetadata(
+export async function loadTheaterPageMetadata(
   db: DB,
-  cinema: CinemaConfig
-): Promise<{ availableDates: string[]; cinema: Cinema }> {
-  const strategy = getStrategyBySource(cinema.source || 'allocine');
-  return strategy.loadTheaterMetadata(db, cinema);
+  theater: TheaterConfig
+): Promise<{ availableDates: string[]; theater: Theater }> {
+  const strategy = getStrategyBySource(theater.source || 'allocine');
+  return strategy.loadTheaterPageMetadata(db, theater);
 }
 
 /**
  * Scraper un cinéma pour une date donnée (backward compatibility wrapper).
  */
-export async function scrapeTheater(
+export async function scrapeTheaterPage(
   db: DB,
-  cinema: CinemaConfig,
+  theater: TheaterConfig,
   date: string,
   movieDelayMs: number,
   progress?: ProgressPublisher
 ): Promise<{ moviesCount: number; showtimesCount: number }> {
-  const strategy = getStrategyBySource(cinema.source || 'allocine');
-  return strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
+  const strategy = getStrategyBySource(theater.source || 'allocine');
+  return strategy.scrapeTheaterPage(db, theater, date, movieDelayMs, progress);
 }
 
 /**
- * Add a new cinema by URL and scrape all available showtimes for it.
+ * Add a new theater by URL and scrape all available showtimes for it.
  * Resolves the appropriate strategy from the URL, extracts metadata,
  * then scrapes every available date.
  */
-export async function addCinemaAndScrape(
+export async function addTheaterAndScrape(
   db: DB,
   url: string,
   progress?: ProgressPublisher
-): Promise<Cinema> {
+): Promise<Theater> {
   const strategy = getStrategyByUrl(url);
   
-  const cinemaId = strategy.extractCinemaId(url);
-  if (!cinemaId) {
-    throw new Error(`Could not extract cinema ID from URL: ${url}`);
+  const theaterId = strategy.extractTheaterId(url);
+  if (!theaterId) {
+    throw new Error(`Could not extract theater ID from URL: ${url}`);
   }
 
-  const cleanedUrl = strategy.cleanCinemaUrl(url);
-  const tempConfig: CinemaConfig = { 
-    id: cinemaId, 
-    name: cinemaId, 
+  const cleanedUrl = strategy.cleanTheaterUrl(url);
+  const tempConfig: TheaterConfig = { 
+    id: theaterId, 
+    name: theaterId, 
     url: cleanedUrl,
     source: strategy.sourceName 
   };
 
-  logger.info(`Adding new cinema from ${url} using ${strategy.sourceName} strategy...`);
-  const { availableDates, cinema } = await strategy.loadTheaterMetadata(db, tempConfig);
+  logger.info(`Adding new theater from ${url} using ${strategy.sourceName} strategy...`);
+  const { availableDates, theater } = await strategy.loadTheaterPageMetadata(db, tempConfig);
 
   const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
-  logger.info(`Scraping ${availableDates.length} available date(s)...`, { cinema: cinema.name });
+  logger.info(`Scraping ${availableDates.length} available date(s)...`, { theater: theater.name });
 
   for (const date of availableDates) {
     try {
-      await strategy.scrapeTheater(db, tempConfig, date, movieDelayMs, progress);
+      await strategy.scrapeTheaterPage(db, tempConfig, date, movieDelayMs, progress);
     } catch (error) {
-      logger.error('Failed to scrape date', { date, cinema: cinema.name, error });
+      logger.error('Failed to scrape date', { date, theater: theater.name, error });
     }
   }
 
   await closeBrowser();
-  logger.info('Cinema added successfully', { cinema: cinema.name, id: cinema.id });
+  logger.info('Theater added successfully', { theater: theater.name, id: theater.id });
 
-  return cinema;
+  return theater;
 }
 
 export interface ScrapeOptions {
   mode?: ScrapeMode;
   days?: number;
-  cinemaId?: string;
+  theaterId?: string;
   movieId?: number;
   reportId?: number;  // For tracking attempts in database
   resumeMode?: boolean;  // Skip already-successful attempts
-  pendingAttempts?: Array<{ cinema_id: string; date: string }>;  // For resume mode
+  pendingAttempts?: Array<{ theater_id: string; date: string }>;  // For resume mode
   traceContext?: Record<string, string>;
 }
 
 /**
- * Process a single cinema and all its dates.
+ * Process a single theater and all its dates.
  * Extracted from runScraper for concurrency support.
  */
-async function processCinema(
+async function processTheater(
   db: DB,
-  cinema: CinemaConfig,
+  theater: TheaterConfig,
   dates: string[],
   options: ScrapeOptions | undefined,
-  theaterDelayMs: number,
+  theaterPageDelayMs: number,
   movieDelayMs: number,
   progress: ProgressPublisher | undefined,
   summary: ScrapeSummary,
@@ -172,57 +172,57 @@ async function processCinema(
 ): Promise<void> {
   if (isAborted()) return;
 
-  const strategy = getStrategyBySource(cinema.source || 'allocine');
+  const strategy = getStrategyBySource(theater.source || 'allocine');
 
   await progress?.emit({
-    type: 'cinema_started',
-    cinema_name: cinema.name,
-    cinema_id: cinema.id,
+    type: 'theater_started',
+    theater_name: theater.name,
+    theater_id: theater.id,
     index: index + 1,
   });
 
-  let cinemaMoviesCount = 0;
-  let cinemaShowtimesCount = 0;
+  let theaterMoviesCount = 0;
+  let theaterShowtimesCount = 0;
   let successfulDates = 0;
 
-  logger.info(`Processing cinema using ${strategy.sourceName} strategy`, { cinema: cinema.name, id: cinema.id });
+  logger.info(`Processing theater using ${strategy.sourceName} strategy`, { theater: theater.name, id: theater.id });
 
   let availableDates: string[] = [];
   try {
-    const meta = await strategy.loadTheaterMetadata(db, cinema);
+    const meta = await strategy.loadTheaterPageMetadata(db, theater);
     availableDates = meta.availableDates;
   } catch (error) {
     if (error instanceof RateLimitError || error instanceof CircuitOpenError) {
       const isRateLimit = error instanceof RateLimitError;
       logger.error(isRateLimit ? 'Rate limit detected - stopping all scraping' : 'Circuit open detected - stopping all scraping', { 
-        cinema: cinema.name, 
+        theater: theater.name, 
         error: error.message 
       });
       summary.status = isRateLimit ? 'rate_limited' : 'circuit_open';
       
       const errorType = classifyError(error);
       summary.errors.push({
-        cinema_name: cinema.name,
-        cinema_id: cinema.id,
+        theater_name: theater.name,
+        theater_id: theater.id,
         error: error.message,
         error_type: errorType,
         http_status_code: (error as any).statusCode,
       });
-      summary.failed_cinemas++;
+      summary.failed_theaters++;
       return;
     }
 
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorType = classifyError(error);
-    logger.error('Failed to load theater metadata', { cinema: cinema.name, error: errorMessage });
+    logger.error('Failed to load theater metadata', { theater: theater.name, error: errorMessage });
     summary.errors.push({ 
-      cinema_name: cinema.name, 
-      cinema_id: cinema.id,
+      theater_name: theater.name, 
+      theater_id: theater.id,
       error: errorMessage,
       error_type: errorType,
       http_status_code: (error as any).statusCode,
     });
-    summary.failed_cinemas++;
+    summary.failed_theaters++;
     return;
   }
 
@@ -236,25 +236,25 @@ async function processCinema(
   // In resume mode, only scrape dates from pendingAttempts
   let finalDatesToScrape = datesToScrape;
   if (options?.resumeMode && options?.pendingAttempts) {
-    const pendingDatesForCinema = options.pendingAttempts
-      .filter(a => a.cinema_id === cinema.id)
+    const pendingDatesForTheater = options.pendingAttempts
+      .filter(a => a.theater_id === theater.id)
       .map(a => a.date);
     
-    finalDatesToScrape = datesToScrape.filter(d => pendingDatesForCinema.includes(d));
+    finalDatesToScrape = datesToScrape.filter(d => pendingDatesForTheater.includes(d));
     
     logger.info('Resume mode: filtered to pending attempts', { 
-      cinema: cinema.name, 
+      theater: theater.name, 
       allDates: datesToScrape.length,
       pendingDates: finalDatesToScrape.length,
     });
   }
   
-  logger.info('Dates to scrape', { cinema: cinema.name, count: finalDatesToScrape.length });
+  logger.info('Dates to scrape', { theater: theater.name, count: finalDatesToScrape.length });
 
   for (const date of finalDatesToScrape) {
     if (isAborted()) break;
 
-    logger.info('Attempting date', { cinema: cinema.name, date });
+    logger.info('Attempting date', { theater: theater.name, date });
     
     // Track attempt in database if reportId provided
     let attemptId: number | undefined;
@@ -262,7 +262,7 @@ async function processCinema(
         try {
           attemptId = await createScrapeAttempt(db, {
           report_id: options.reportId,
-          cinema_id: cinema.id,
+          theater_id: theater.id,
           date: date,
           status: 'pending',
         });
@@ -272,9 +272,9 @@ async function processCinema(
     }
     
     try {
-      const { moviesCount, showtimesCount } = await strategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
-      cinemaMoviesCount += moviesCount;
-      cinemaShowtimesCount += showtimesCount;
+      const { moviesCount, showtimesCount } = await strategy.scrapeTheaterPage(db, theater, date, movieDelayMs, progress);
+      theaterMoviesCount += moviesCount;
+      theaterShowtimesCount += showtimesCount;
       successfulDates++;
       logger.info('Date scraped successfully', { date, movies: moviesCount, showtimes: showtimesCount });
       
@@ -295,15 +295,15 @@ async function processCinema(
       if (error instanceof RateLimitError || error instanceof CircuitOpenError) {
         const isRateLimit = error instanceof RateLimitError;
         logger.error(isRateLimit ? 'Rate limit detected - stopping all scraping' : 'Circuit open detected - stopping all scraping', { 
-          cinema: cinema.name, 
+          theater: theater.name, 
           date, 
           statusCode: (error as any).statusCode 
         });
         
         const errorType = classifyError(error);
         summary.errors.push({
-          cinema_name: cinema.name,
-          cinema_id: cinema.id,
+          theater_name: theater.name,
+          theater_id: theater.id,
           date: date,
           error: error.message,
           error_type: errorType,
@@ -331,7 +331,7 @@ async function processCinema(
             try {
               await createScrapeAttempt(db, {
                 report_id: options.reportId,
-                cinema_id: cinema.id,
+                theater_id: theater.id,
                 date: remainingDate,
                 status: 'not_attempted',
               });
@@ -343,7 +343,7 @@ async function processCinema(
 
         await progress?.emit({
           type: 'date_failed',
-          cinema_name: cinema.name,
+          theater_name: theater.name,
           date: date,
           error: error.message
         });
@@ -356,11 +356,11 @@ async function processCinema(
       // Handle other errors normally
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorType = classifyError(error);
-      logger.error('Date scrape failed', { cinema: cinema.name, date, error: errorMessage });
+      logger.error('Date scrape failed', { theater: theater.name, date, error: errorMessage });
       
       summary.errors.push({
-        cinema_name: cinema.name,
-        cinema_id: cinema.id,
+        theater_name: theater.name,
+        theater_id: theater.id,
         date: date,
         error: errorMessage,
         error_type: errorType,
@@ -383,7 +383,7 @@ async function processCinema(
 
       await progress?.emit({
         type: 'date_failed',
-        cinema_name: cinema.name,
+        theater_name: theater.name,
         date: date,
         error: errorMessage
       });
@@ -392,34 +392,34 @@ async function processCinema(
     }
   }
 
-  const cinemaFailed = successfulDates === 0 && finalDatesToScrape.length > 0;
+  const theaterFailed = successfulDates === 0 && finalDatesToScrape.length > 0;
 
-  logger.info('Cinema summary', {
-    cinema: cinema.name,
+  logger.info('Theater summary', {
+    theater: theater.name,
     successfulDates,
     totalDates: finalDatesToScrape.length,
-    movies: cinemaMoviesCount,
-    showtimes: cinemaShowtimesCount,
+    movies: theaterMoviesCount,
+    showtimes: theaterShowtimesCount,
   });
 
-  if (!cinemaFailed) {
-    summary.successful_cinemas++;
-    summary.total_movies += cinemaMoviesCount;
-    summary.total_showtimes += cinemaShowtimesCount;
+  if (!theaterFailed) {
+    summary.successful_theaters++;
+    summary.total_movies += theaterMoviesCount;
+    summary.total_showtimes += theaterShowtimesCount;
     await progress?.emit({
-      type: 'cinema_completed',
-      cinema_name: cinema.name,
-      total_movies: cinemaMoviesCount,
+      type: 'theater_completed',
+      theater_name: theater.name,
+      total_movies: theaterMoviesCount,
     });
   } else {
-    summary.failed_cinemas++;
-    logger.error('Cinema failed completely', { cinema: cinema.name, dates: finalDatesToScrape.length });
+    summary.failed_theaters++;
+    logger.error('Theater failed completely', { theater: theater.name, dates: finalDatesToScrape.length });
   }
 
-  // Apply delay between cinemas (except after the last one)
+  // Apply delay between theaters (except after the last one)
   if (index < total - 1 && !isAborted()) {
-    logger.info('Waiting before next cinema', { delayMs: theaterDelayMs });
-    await delay(theaterDelayMs);
+    logger.info('Waiting before next theater', { delayMs: theaterPageDelayMs });
+    await delay(theaterPageDelayMs);
   }
 }
 
@@ -432,9 +432,9 @@ export async function runScraper(
   logger.info('Starting scraper');
 
   const summary: ScrapeSummary = {
-    total_cinemas: 0,
-    successful_cinemas: 0,
-    failed_cinemas: 0,
+    total_theaters: 0,
+    successful_theaters: 0,
+    failed_theaters: 0,
     total_movies: 0,
     total_showtimes: 0,
     total_dates: 0,
@@ -445,7 +445,7 @@ export async function runScraper(
   const startTime = Date.now();
 
   // Read delay configuration from environment
-  const theaterDelayMs = parseInt(process.env.SCRAPE_THEATER_DELAY_MS || '3000', 10);
+  const theaterPageDelayMs = parseInt(process.env.SCRAPE_THEATER_DELAY_MS || '3000', 10);
   const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
   const concurrency = parseInt(process.env.SCRAPER_CONCURRENCY || '2', 10);
   const scopedProgress: ProgressPublisher | undefined = progress
@@ -457,29 +457,29 @@ export async function runScraper(
     : undefined;
 
   try {
-    let cinemas = await getCinemaConfigs(dbHandle);
+    let theaters = await getTheaterConfigs(dbHandle);
     
-    // Filter to specific cinema if provided
-    if (options?.cinemaId) {
-      // First verify cinema exists in database (source of truth)
-      const allCinemasFromDb = await getCinemas(dbHandle);
-      const cinemaExistsInDb = allCinemasFromDb.some((c: Cinema) => c.id === options.cinemaId);
+    // Filter to specific theater if provided
+    if (options?.theaterId) {
+      // First verify theater exists in database (source of truth)
+      const allTheatersFromDb = await getTheaters(dbHandle);
+      const theaterExistsInDb = allTheatersFromDb.some((c: Theater) => c.id === options.theaterId);
       
-      if (!cinemaExistsInDb) {
-        throw new Error(`Cinema not found in database: ${options.cinemaId}`);
+      if (!theaterExistsInDb) {
+        throw new Error(`Theater not found in database: ${options.theaterId}`);
       }
       
-      // Then check if cinema is configured for scraping
-      const foundCinema = cinemas.find(c => c.id === options.cinemaId);
-      if (!foundCinema) {
-        throw new Error(`Cinema not configured for scraping: ${options.cinemaId}`);
+      // Then check if theater is configured for scraping
+      const foundTheater = theaters.find(c => c.id === options.theaterId);
+      if (!foundTheater) {
+        throw new Error(`Theater not configured for scraping: ${options.theaterId}`);
       }
       
-      cinemas = [foundCinema];
-      logger.info(`Scraping only cinema: ${foundCinema.name} (${foundCinema.id})`);
+      theaters = [foundTheater];
+      logger.info(`Scraping only theater: ${foundTheater.name} (${foundTheater.id})`);
     }
     
-    logger.info('Cinemas loaded', { count: cinemas.length });
+    logger.info('Theaters loaded', { count: theaters.length });
 
     // Read scrape config from database settings (fallback to safe defaults)
     let scrapeMode: ScrapeMode = 'from_today_limited';
@@ -502,32 +502,32 @@ export async function runScraper(
 
     const dates = getScrapeDates(scrapeMode, scrapeDays);
     logger.info('Scrape config', { mode: scrapeMode, dates: dates.length, scrapeDays });
-    logger.info('Delay config', { theaterDelayMs, movieDelayMs, concurrency });
+    logger.info('Delay config', { theaterPageDelayMs, movieDelayMs, concurrency });
 
-    summary.total_cinemas = cinemas.length;
+    summary.total_theaters = theaters.length;
     summary.total_dates = dates.length;
 
     await scopedProgress?.emit({
       type: 'started',
-      total_cinemas: cinemas.length,
+      total_theaters: theaters.length,
       total_dates: dates.length,
     });
 
     const limit = pLimit(concurrency);
     const isAborted = () => summary.status === 'rate_limited' || summary.status === 'circuit_open';
 
-    const tasks = cinemas.map((cinema, i) => 
-      limit(() => processCinema(
+    const tasks = theaters.map((theater, i) => 
+      limit(() => processTheater(
         dbHandle,
-        cinema,
+        theater,
         dates,
         options,
-        theaterDelayMs,
+        theaterPageDelayMs,
         movieDelayMs,
         scopedProgress,
         summary,
         i,
-        cinemas.length,
+        theaters.length,
         isAborted
       ))
     );
@@ -537,9 +537,9 @@ export async function runScraper(
     summary.duration_ms = Date.now() - startTime;
     summary.circuit_state = circuitBreaker.getState();
     if (!summary.status) {
-      summary.status = summary.failed_cinemas === 0
+      summary.status = summary.failed_theaters === 0
         ? 'success'
-        : summary.successful_cinemas > 0
+        : summary.successful_theaters > 0
           ? 'partial_success'
           : 'failed';
     }
@@ -555,8 +555,8 @@ export async function runScraper(
     logger.error('Fatal error in scraper', { error });
     await closeBrowser();
     summary.errors.push({ 
-      cinema_name: 'System', 
-      cinema_id: 'system',
+      theater_name: 'System', 
+      theater_id: 'system',
       error: errorMessage,
       error_type: errorType,
       http_status_code: (error as any).statusCode,

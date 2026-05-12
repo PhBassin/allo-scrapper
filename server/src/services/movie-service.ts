@@ -1,8 +1,8 @@
 import type { DB } from '../db/client.js';
 import { getShowtimesByDate, getShowtimesByMovieAndWeek, getWeeklyShowtimes } from '../db/showtime-queries.js';
 import { getWeeklyMovies, getMoviesByDate, getMovie, searchMovies } from '../db/movie-queries.js';
-import { groupShowtimesByCinema } from '../utils/showtimes.js';
-import type { MovieWithShowtimes, Showtime, Cinema } from '../types/scraper.js';
+import { groupShowtimesByTheater } from '../utils/showtimes.js';
+import type { MovieWithShowtimes, Showtime, Theater } from '../types/scraper.js';
 
 export class MovieService {
   constructor(private db: DB) {}
@@ -37,7 +37,7 @@ export class MovieService {
 
     return {
       ...movie,
-      cinemas: groupShowtimesByCinema(showtimes)
+      theaters: groupShowtimesByTheater(showtimes)
     };
   }
 
@@ -46,7 +46,7 @@ export class MovieService {
   }
 
   private mergeMoviesAndShowtimes(movies: any[], allShowtimes: any[]): MovieWithShowtimes[] {
-    const showtimesByMovie = new Map<number, Array<Showtime & { cinema: Cinema }>>();
+    const showtimesByMovie = new Map<number, Array<Showtime & { theater: Theater }>>();
     
     for (const s of allShowtimes) {
       if (!showtimesByMovie.has(s.movie_id)) {
@@ -57,7 +57,7 @@ export class MovieService {
 
     return movies.map(f => ({
       ...f,
-      cinemas: groupShowtimesByCinema(showtimesByMovie.get(f.id) || [])
+      theaters: groupShowtimesByTheater(showtimesByMovie.get(f.id) || [])
     }));
   }
 }

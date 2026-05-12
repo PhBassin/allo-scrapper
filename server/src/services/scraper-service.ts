@@ -1,7 +1,7 @@
 import { getRedisClient } from './redis-client.js';
 import { progressTracker } from './progress-tracker.js';
 import { createScrapeReport, getLatestScrapeReport, updateScrapeReport } from '../db/report-queries.js';
-import { getCinemas } from '../db/cinema-queries.js';
+import { getTheaters } from '../db/theater-queries.js';
 import type { DB } from '../db/client.js';
 import { logger } from '../utils/logger.js';
 import type { ScrapeAttempt } from '../db/scrape-attempt-queries.js';
@@ -10,7 +10,7 @@ import type { ProgressTraceContext } from './progress-tracker.js';
 import { AppError } from '../utils/errors.js';
 
 interface ScrapeTriggerOptions {
-  cinemaId?: string;
+  theaterId?: string;
   movieId?: number;
 }
 
@@ -136,18 +136,18 @@ export class ScraperService {
 
   /**
    * Triggers a new scrape job by publishing it to the Redis queue.
-   * Validates the cinemaId if provided.
+   * Validates the theaterId if provided.
    */
   async triggerScrape(options: ScrapeTriggerOptions = {}, context?: ScrapeObservabilityContext) {
-    const { cinemaId, movieId } = options;
+    const { theaterId, movieId } = options;
 
-    // Validate cinemaId exists in database if provided
-    if (cinemaId) {
-      const cinemas = await getCinemas(this.db);
-      const cinemaExists = cinemas.some(c => c.id === cinemaId);
+    // Validate theaterId exists in database if provided
+    if (theaterId) {
+      const theaters = await getTheaters(this.db);
+      const theaterExists = theaters.some(c => c.id === theaterId);
 
-      if (!cinemaExists) {
-        throw new Error(`Cinema not found: ${cinemaId}`);
+      if (!theaterExists) {
+        throw new Error(`Theater not found: ${theaterId}`);
       }
     }
 
@@ -162,7 +162,7 @@ export class ScraperService {
         reportId,
         triggerType: 'manual',
         options: {
-          ...(cinemaId && { cinemaId }),
+          ...(theaterId && { theaterId }),
           ...(movieId && { movieId }),
         },
         ...(traceContext && { traceContext }),
@@ -173,7 +173,7 @@ export class ScraperService {
         await updateScrapeReport(this.db, reportId, {
           status: 'failed',
           completed_at: new Date().toISOString(),
-          errors: [{ cinema_name: 'System', error: errorMessage }],
+          errors: [{ theater_name: 'System', error: errorMessage }],
         });
       } catch {
         // Ignore report update failure and surface the original enqueue error.
@@ -192,9 +192,9 @@ export class ScraperService {
     // Create new report with parent link
     const reportId = await createScrapeReport(this.db, 'manual', parentReportId);
 
-    // Build list of cinema/date pairs to retry
+    // Build list of theater/date pairs to retry
     const pendingList = pendingAttempts.map(a => ({
-      cinema_id: a.cinema_id,
+      theater_id: a.theater_id,
       date: a.date,
     }));
 
@@ -218,7 +218,7 @@ export class ScraperService {
         await updateScrapeReport(this.db, reportId, {
           status: 'failed',
           completed_at: new Date().toISOString(),
-          errors: [{ cinema_name: 'System', error: errorMessage }],
+          errors: [{ theater_name: 'System', error: errorMessage }],
         });
       } catch {
         // Ignore report update failure and surface the original enqueue error.

@@ -50,8 +50,8 @@ describe('RedisClient', () => {
     expect(mockRedisInstance.rpush).toHaveBeenCalledWith('scrape:jobs', expect.any(String));
   });
 
-  it('should publish add_cinema job', async () => {
-    await client.publishAddCinemaJob(42, 'http://test');
+  it('should publish add_theater job', async () => {
+    await client.publishAddTheaterJob(42, 'http://test');
     expect(mockRedisInstance.rpush).toHaveBeenCalledWith('scrape:jobs', expect.any(String));
   });
 
@@ -99,7 +99,7 @@ describe('RedisClient', () => {
       type: 'scrape',
       reportId: 12,
       triggerType: 'manual',
-      options: { cinemaId: 'C1234' },
+      options: { theaterId: 'C1234' },
       traceContext: { org_id: '7', org_slug: 'acme' },
     });
     const rejectionExpectation = expect(publishPromise).rejects.toThrow('redis hard failure');
@@ -128,14 +128,14 @@ describe('RedisClient', () => {
     );
   });
 
-  it('should retry publishAddCinemaJob with the same backoff contract', async () => {
+  it('should retry publishAddTheaterJob with the same backoff contract', async () => {
     vi.useFakeTimers();
     mockRedisInstance.rpush
       .mockRejectedValueOnce(new Error('redis timeout 1'))
       .mockRejectedValueOnce(new Error('redis timeout 2'))
       .mockResolvedValueOnce(1);
 
-    const publishPromise = client.publishAddCinemaJob(42, 'http://test', { org_id: '5' }).catch((error) => {
+    const publishPromise = client.publishAddTheaterJob(42, 'http://test', { org_id: '5' }).catch((error) => {
       throw error;
     });
 
@@ -166,7 +166,7 @@ describe('RedisClient', () => {
         type: 'scrape',
         triggerType: 'manual',
         reportId: 1,
-        options: { cinemaId: 'C1234' },
+        options: { theaterId: 'C1234' },
         traceContext: { org_id: '77', org_slug: 'acme' },
       },
       failureReason: 'boom',
@@ -187,7 +187,7 @@ describe('RedisClient', () => {
     expect(mockRedisInstance.zadd).toHaveBeenCalledWith(
       'scrape:jobs:dlq',
       expect.any(Number),
-      expect.stringContaining('"cinema_id":"C1234"')
+      expect.stringContaining('"theater_id":"C1234"')
     );
     expect(mockRedisInstance.zadd).toHaveBeenCalledWith(
       'scrape:jobs:dlq',
@@ -280,7 +280,7 @@ describe('RedisClient', () => {
         job: { type: 'scrape', triggerType: 'manual', reportId: 10 },
         failure_reason: 'timeout',
         timestamp: '2026-04-21T18:00:00.000Z',
-        cinema_id: 'c1',
+        theater_id: 'c1',
       };
       mockRedisInstance.zrevrange.mockResolvedValueOnce([JSON.stringify(dlqEntry)]);
 
@@ -297,7 +297,7 @@ describe('RedisClient', () => {
         job: { type: 'scrape', triggerType: 'manual', reportId: 20 },
         failure_reason: 'error',
         timestamp: '2026-04-21T19:00:00.000Z',
-        cinema_id: 'c2',
+        theater_id: 'c2',
       };
       mockRedisInstance.zrevrange.mockResolvedValueOnce([JSON.stringify(dlqEntry)]);
 

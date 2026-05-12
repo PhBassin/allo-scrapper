@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS rate_limit_configs (
   -- Scraper limiter (expensive operations)
   scraper_max INTEGER NOT NULL DEFAULT 10 CHECK (scraper_max >= 5 AND scraper_max <= 100),
   
-  -- Public endpoints limiter (cinemas, films)
+  -- Public endpoints limiter (theaters, movies)
   public_max INTEGER NOT NULL DEFAULT 100 CHECK (public_max >= 20 AND public_max <= 1000),
   
   -- Health check limiter

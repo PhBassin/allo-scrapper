@@ -65,7 +65,7 @@ describe('Routes - Films', () => {
       mockReq = { query: {}, app: mockApp };
       const mockFilms = [{ id: 1, title: 'Film 1' }];
       const mockShowtimes = [
-        { id: 's1', movie_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
+        { id: 's1', movie_id: 1, theater_id: 'C1', theater: { id: 'C1', name: 'Theater 1' } }
       ];
 
       (movieQueries.getWeeklyMovies as any).mockResolvedValue(mockFilms);
@@ -80,8 +80,8 @@ describe('Routes - Films', () => {
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
       expect(response.success).toBe(true);
-      expect(response.data.movies[0].cinemas).toHaveLength(1);
-      expect(response.data.movies[0].cinemas[0].id).toBe('C1');
+      expect(response.data.movies[0].theaters).toHaveLength(1);
+      expect(response.data.movies[0].theaters[0].id).toBe('C1');
     });
 
     it('should handle errors', async () => {
@@ -105,7 +105,7 @@ describe('Routes - Films', () => {
       mockReq = { query: { date: '2026-02-20' }, app: mockApp };
       const mockFilms = [{ id: 1, title: 'Film 1' }];
       const mockShowtimes = [
-        { id: 's1', movie_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' }, date: '2026-02-20' }
+        { id: 's1', movie_id: 1, theater_id: 'C1', theater: { id: 'C1', name: 'Theater 1' }, date: '2026-02-20' }
       ];
 
       (movieQueries.getMoviesByDate as any).mockResolvedValue(mockFilms);
@@ -118,7 +118,7 @@ describe('Routes - Films', () => {
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
       expect(response.success).toBe(true);
-      expect(response.data.movies[0].cinemas).toHaveLength(1);
+      expect(response.data.movies[0].theaters).toHaveLength(1);
       expect(response.data.date).toBe('2026-02-20');
     });
 
@@ -140,7 +140,7 @@ describe('Routes - Films', () => {
       mockReq = { params: { id: '1' }, app: mockApp };
       const mockFilm = { id: 1, title: 'Film 1' };
       const mockShowtimes = [
-        { id: 's1', movie_id: 1, cinema_id: 'C1', cinema: { id: 'C1', name: 'Cinema 1' } }
+        { id: 's1', movie_id: 1, theater_id: 'C1', theater: { id: 'C1', name: 'Theater 1' } }
       ];
 
       (movieQueries.getMovie as any).mockResolvedValue(mockFilm);
@@ -152,7 +152,7 @@ describe('Routes - Films', () => {
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
       expect(response.success).toBe(true);
-      expect(response.data.cinemas).toHaveLength(1);
+      expect(response.data.theaters).toHaveLength(1);
     });
 
     it('should return 400 for invalid ID', async () => {

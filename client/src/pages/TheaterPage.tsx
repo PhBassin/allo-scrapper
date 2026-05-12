@@ -1,10 +1,10 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCinemas, getCinemaSchedule } from '../api/client';
+import { getTheaters, getTheaterSchedule } from '../api/client';
 import type { ShowtimeWithMovie } from '../types';
 import ShowtimeList from '../components/ShowtimeList';
-import CinemaDateSelector from '../components/CinemaDateSelector';
+import TheaterDateSelector from '../components/TheaterDateSelector';
 
 interface MovieGroup {
   movie: {
@@ -20,31 +20,31 @@ interface MovieGroup {
   showtimes: ShowtimeWithMovie[];
 }
 
-export default function CinemaPage() {
+export default function TheaterPage() {
   const { id, slug } = useParams<{ id: string; slug?: string }>();
 
-  const { data: cinemasData, isLoading: cinemasLoading, error: cinemasError } = useQuery({
-    queryKey: ['cinemas', slug ?? null],
-    queryFn: getCinemas
+  const { data: theatersData, isLoading: theatersLoading, error: theatersError } = useQuery({
+    queryKey: ['theaters', slug ?? null],
+    queryFn: getTheaters
   });
 
   const { data: scheduleData, isLoading: scheduleLoading, error: scheduleError } = useQuery({
-    queryKey: ['cinema-schedule', slug ?? null, id],
-    queryFn: () => getCinemaSchedule(id!),
+    queryKey: ['theater-schedule', slug ?? null, id],
+    queryFn: () => getTheaterSchedule(id!),
     enabled: !!id
   });
 
-  const isLoading = cinemasLoading || scheduleLoading;
-  const queryError = cinemasError || scheduleError;
-  const error = queryError instanceof Error ? queryError.message : (queryError ? 'Failed to load cinema data' : null);
+  const isLoading = theatersLoading || scheduleLoading;
+  const queryError = theatersError || scheduleError;
+  const error = queryError instanceof Error ? queryError.message : (queryError ? 'Failed to load theater data' : null);
 
-  // Validate if cinema was not found in cinemasData
-  if (!isLoading && cinemasData && !cinemasData.some(c => c.id === id)) {
-    // Setting an error message similar to before if cinema is not found
-    // however returning 'Cinema not found' directly in JSX handles it below
+  // Validate if theater was not found in theatersData
+  if (!isLoading && theatersData && !theatersData.some(c => c.id === id)) {
+    // Setting an error message similar to before if theater is not found
+    // however returning 'Theater not found' directly in JSX handles it below
   }
 
-  const cinema = cinemasData?.find(c => c.id === id) || null;
+  const theater = theatersData?.find(c => c.id === id) || null;
   const showtimes = useMemo(() => scheduleData?.showtimes || [], [scheduleData?.showtimes]);
 
   const getInitialSelectedDate = (showtimes: ShowtimeWithMovie[]): string => {
@@ -128,9 +128,9 @@ export default function CinemaPage() {
     );
   }
 
-  if (error || !cinema) {
+  if (error || !theater) {
     const isForbidden = typeof error === 'string' && error.toLowerCase().includes('cross-tenant access denied');
-    const errorMessage = error || 'Cinema not found';
+    const errorMessage = error || 'Theater not found';
 
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6">
@@ -150,22 +150,22 @@ export default function CinemaPage() {
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <Link to="/" className="hover:text-primary hover:underline">← Accueil</Link>
         <span>/</span>
-        <span>{cinema.name}</span>
+        <span>{theater.name}</span>
       </div>
 
-      {/* Cinema Header */}
+      {/* Theater Header */}
       <div className="mb-6">
-        <h1 className="text-3xl md:text-4xl font-heading font-bold mb-2">{cinema.name}</h1>
+        <h1 className="text-3xl md:text-4xl font-heading font-bold mb-2">{theater.name}</h1>
         
-        {cinema.address && (
+        {theater.address && (
           <p className="text-gray-600 mb-1">
-            📍 {cinema.address}, {cinema.postal_code} {cinema.city}
+            📍 {theater.address}, {theater.postal_code} {theater.city}
           </p>
         )}
         
-        {cinema.screen_count != null && cinema.screen_count > 0 && (
+        {theater.screen_count != null && theater.screen_count > 0 && (
           <p className="text-gray-600">
-            🎬 {cinema.screen_count} salle{cinema.screen_count > 1 ? 's' : ''}
+            🎬 {theater.screen_count} salle{theater.screen_count > 1 ? 's' : ''}
           </p>
         )}
       </div>
@@ -176,7 +176,7 @@ export default function CinemaPage() {
         style={{ top: 'var(--layout-header-offset, 64px)' }}
         data-testid="sticky-date-selector-container"
       >
-        <CinemaDateSelector
+        <TheaterDateSelector
           dates={dates}
           selectedDate={effectiveSelectedDate}
           showtimes={showtimes}

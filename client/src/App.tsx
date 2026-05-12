@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, useNavigate, Navigate, useParams } from '
 import { useEffect, useContext, Suspense, lazy, useState, type ReactNode } from 'react';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
-import CinemaPage from './pages/CinemaPage';
+import TheaterPage from './pages/TheaterPage';
 import MoviePage from './pages/MoviePage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
@@ -116,7 +116,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route path="/cinema/:id" element={<CinemaPage />} />
+        <Route path="/theater/:id" element={<TheaterPage />} />
         <Route path="/film/:id" element={<RedirectFilm />} />
         <Route path="/movie/:id" element={<MoviePage />} />
         <Route
@@ -184,7 +184,7 @@ function TenantAppRoutes() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/cinema/:id" element={<CinemaPage />} />
+        <Route path="/theater/:id" element={<TheaterPage />} />
         <Route path="/film/:id" element={<RedirectFilm />} />
         <Route path="/movie/:id" element={<MoviePage />} />
         <Route

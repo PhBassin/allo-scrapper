@@ -12,15 +12,15 @@ interface LoginResponse {
   };
 }
 
-interface CinemasResponse {
+interface TheatersResponse {
   success: boolean;
   data: Array<{ id: string; name: string }>;
 }
 
-test.describe('Multi-tenant cinema isolation', () => {
+test.describe('Multi-tenant theater isolation', () => {
   test.skip(!useOrgFixture, 'Requires fixture-backed SaaS runtime (E2E_ENABLE_ORG_FIXTURE=true)');
 
-  test('org A only sees org A cinemas and cannot access org B cinema details', async ({ page, request, seedTestOrg }) => {
+  test('org A only sees org A theaters and cannot access org B theater details', async ({ page, request, seedTestOrg }) => {
     const startedAt = Date.now();
     const orgA = await seedTestOrg();
     const orgB = await seedTestOrg();
@@ -47,35 +47,35 @@ test.describe('Multi-tenant cinema isolation', () => {
     const orgBToken = orgBLoginBody.data.token;
     expect(orgBLoginBody.data.user.org_slug).toBe(orgB.orgSlug);
 
-    const orgBCinemasForId = await request.get(`/api/org/${orgB.orgSlug}/cinemas`, {
+    const orgBTheatersForId = await request.get(`/api/org/${orgB.orgSlug}/theaters`, {
       headers: { Authorization: `Bearer ${orgBToken}` },
     });
-    expect(orgBCinemasForId.ok()).toBe(true);
-    const orgBCinemasForIdBody = await orgBCinemasForId.json() as CinemasResponse;
-    const orgBFirstCinemaId = orgBCinemasForIdBody.data[0]?.id;
-    expect(orgBFirstCinemaId).toBeTruthy();
+    expect(orgBTheatersForId.ok()).toBe(true);
+    const orgBTheatersForIdBody = await orgBTheatersForId.json() as TheatersResponse;
+    const orgBFirstTheaterId = orgBTheatersForIdBody.data[0]?.id;
+    expect(orgBFirstTheaterId).toBeTruthy();
 
-    const orgASeededCinemas = await request.get(`/api/org/${orgA.orgSlug}/cinemas`, {
+    const orgASeededTheaters = await request.get(`/api/org/${orgA.orgSlug}/theaters`, {
       headers: { Authorization: `Bearer ${orgAToken}` },
     });
-    expect(orgASeededCinemas.ok()).toBe(true);
-    const orgASeededCinemasBody = await orgASeededCinemas.json() as CinemasResponse;
-    const orgACinemaIds = orgASeededCinemasBody.data.map((item) => item.id);
-    const orgAExtraCinemaIds = orgACinemaIds.slice(2);
+    expect(orgASeededTheaters.ok()).toBe(true);
+    const orgASeededTheatersBody = await orgASeededTheaters.json() as TheatersResponse;
+    const orgATheaterIds = orgASeededTheatersBody.data.map((item) => item.id);
+    const orgAExtraTheaterIds = orgATheaterIds.slice(2);
 
-    for (const cinemaId of orgAExtraCinemaIds) {
-      const deleteResponse = await request.delete(`/api/org/${orgA.orgSlug}/cinemas/${cinemaId}`, {
+    for (const theaterId of orgAExtraTheaterIds) {
+      const deleteResponse = await request.delete(`/api/org/${orgA.orgSlug}/theaters/${theaterId}`, {
         headers: { Authorization: `Bearer ${orgAToken}` },
       });
       expect(deleteResponse.status()).toBe(204);
     }
 
-    const orgAUiCinemasResponse = await request.get(`/api/org/${orgA.orgSlug}/cinemas`, {
+    const orgAUiTheatersResponse = await request.get(`/api/org/${orgA.orgSlug}/theaters`, {
       headers: { Authorization: `Bearer ${orgAToken}` },
     });
-    expect(orgAUiCinemasResponse.ok()).toBe(true);
-    const orgAUiCinemasBody = await orgAUiCinemasResponse.json() as CinemasResponse;
-    const orgAUiCinemaIds = orgAUiCinemasBody.data.map((item) => item.id);
+    expect(orgAUiTheatersResponse.ok()).toBe(true);
+    const orgAUiTheatersBody = await orgAUiTheatersResponse.json() as TheatersResponse;
+    const orgAUiTheaterIds = orgAUiTheatersBody.data.map((item) => item.id);
 
     await page.goto('/');
     await page.evaluate(([token, slug]) => {
@@ -88,62 +88,62 @@ test.describe('Multi-tenant cinema isolation', () => {
           role_id: 1,
           role_name: 'admin',
           is_system_role: false,
-          permissions: ['cinemas:read', 'cinemas:create'],
+          permissions: ['theaters:read', 'theaters:create'],
           org_slug: slug,
         })
       );
     }, [orgAToken, orgA.orgSlug]);
 
     const responsePromise = page.waitForResponse((response) => {
-      return response.url().includes(`/api/org/${orgA.orgSlug}/cinemas`) && response.request().method() === 'GET';
+      return response.url().includes(`/api/org/${orgA.orgSlug}/theaters`) && response.request().method() === 'GET';
     });
 
     await page.goto(`/org/${orgA.orgSlug}/`);
 
-    const cinemaList = page.getByTestId('cinema-list');
-    await expect(cinemaList).toBeVisible();
+    const theaterList = page.getByTestId('theater-list');
+    await expect(theaterList).toBeVisible();
 
-    const cinemaItems = page.getByTestId('cinema-list-item');
-    await expect(cinemaItems).toHaveCount(2);
+    const theaterItems = page.getByTestId('theater-list-item');
+    await expect(theaterItems).toHaveCount(2);
 
-    const orgAFirstCinemaText = await cinemaItems.first().textContent();
-    expect(orgAFirstCinemaText).toContain(orgA.orgSlug);
+    const orgAFirstTheaterText = await theaterItems.first().textContent();
+    expect(orgAFirstTheaterText).toContain(orgA.orgSlug);
 
-    const orgBLeak = page.locator(`[data-testid="cinema-list-item"]:has-text("${orgB.orgSlug}")`);
+    const orgBLeak = page.locator(`[data-testid="theater-list-item"]:has-text("${orgB.orgSlug}")`);
     await expect(orgBLeak).toHaveCount(0);
 
-    const cinemasResponse = await responsePromise;
-    expect(cinemasResponse.ok()).toBe(true);
+    const theatersResponse = await responsePromise;
+    expect(theatersResponse.ok()).toBe(true);
 
-    const cinemasPayload = await cinemasResponse.json() as {
+    const theatersPayload = await theatersResponse.json() as {
       success: boolean;
       data: Array<{ id: string; name: string }>;
     };
-    expect(cinemasPayload.success).toBe(true);
-    const names = cinemasPayload.data.map((item) => item.name);
+    expect(theatersPayload.success).toBe(true);
+    const names = theatersPayload.data.map((item) => item.name);
     expect(names.length).toBe(2);
     expect(names.every((name) => name.includes(orgA.orgSlug))).toBe(true);
     expect(names.some((name) => name.includes(orgB.orgSlug))).toBe(false);
-    const ids = cinemasPayload.data.map((item) => item.id);
-    expect([...ids].sort()).toEqual([...orgAUiCinemaIds].sort());
-    expect(ids).not.toContain(orgBFirstCinemaId);
+    const ids = theatersPayload.data.map((item) => item.id);
+    expect([...ids].sort()).toEqual([...orgAUiTheaterIds].sort());
+    expect(ids).not.toContain(orgBFirstTheaterId);
 
-    const orgBCinemasResponse = await request.get(`/api/org/${orgB.orgSlug}/cinemas`, {
+    const orgBTheatersResponse = await request.get(`/api/org/${orgB.orgSlug}/theaters`, {
       headers: { Authorization: `Bearer ${orgAToken}` },
     });
 
-    expect(orgBCinemasResponse.status()).toBe(403);
-    const orgBCinemasPayload = await orgBCinemasResponse.json() as { error?: string };
-    expect(orgBCinemasPayload.error).toBe('Cross-tenant access denied');
+    expect(orgBTheatersResponse.status()).toBe(403);
+    const orgBTheatersPayload = await orgBTheatersResponse.json() as { error?: string };
+    expect(orgBTheatersPayload.error).toBe('Cross-tenant access denied');
 
-    const orgBDetailResponse = await request.get(`/api/org/${orgB.orgSlug}/cinemas/${orgBFirstCinemaId}`, {
+    const orgBDetailResponse = await request.get(`/api/org/${orgB.orgSlug}/theaters/${orgBFirstTheaterId}`, {
       headers: { Authorization: `Bearer ${orgAToken}` },
     });
     expect(orgBDetailResponse.status()).toBe(403);
     const orgBDetailPayload = await orgBDetailResponse.json() as { error?: string };
     expect(orgBDetailPayload.error).toBe('Cross-tenant access denied');
 
-    await page.goto(`/org/${orgB.orgSlug}/cinema/${orgBFirstCinemaId}`);
+    await page.goto(`/org/${orgB.orgSlug}/theater/${orgBFirstTheaterId}`);
     await expect(page.getByTestId('403-error-message')).toBeVisible();
     await expect(page.getByTestId('403-error-message')).toContainText(/cross-tenant access denied/i);
 

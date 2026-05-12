@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS roles (
 INSERT INTO roles (name, description, is_system)
 VALUES
   ('admin',  'Full access to all org resources',         TRUE),
-  ('editor', 'Can manage cinemas and trigger scrapes',   TRUE),
+  ('editor', 'Can manage theaters and trigger scrapes',   TRUE),
   ('viewer', 'Read-only access',                         TRUE)
 ON CONFLICT (name) DO NOTHING;
 

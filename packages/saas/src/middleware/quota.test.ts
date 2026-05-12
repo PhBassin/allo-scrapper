@@ -49,14 +49,14 @@ describe('checkQuota middleware', () => {
       const unlimitedPlan: Plan = {
         id: 3,
         name: 'Enterprise',
-        max_cinemas: null as unknown as number,
+        max_theaters: null as unknown as number,
         max_users: null as unknown as number,
         max_scrapes_per_day: null as unknown as number,
       };
 
       vi.mocked(orgQueries.getPlanById).mockResolvedValueOnce(unlimitedPlan);
 
-      const middleware = checkQuota('cinemas');
+      const middleware = checkQuota('theaters');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(orgQueries.getPlanById).toHaveBeenCalledWith(mockDb, 1);
@@ -66,11 +66,11 @@ describe('checkQuota middleware', () => {
   });
 
   describe('when usage is under limit', () => {
-    it('calls next() for cinemas resource', async () => {
+    it('calls next() for theaters resource', async () => {
       const freePlan: Plan = {
         id: 1,
         name: 'Free',
-        max_cinemas: 1,
+        max_theaters: 1,
         max_users: 3,
         max_scrapes_per_day: 10,
       };
@@ -81,7 +81,7 @@ describe('checkQuota middleware', () => {
         id: 1,
         org_id: 42,
         month: '2026-04-01',
-        cinemas_count: 0,  // under limit (1)
+        theaters_count: 0,  // under limit (1)
         users_count: 1,
         scrapes_count: 5,
         api_calls_count: 100,
@@ -91,7 +91,7 @@ describe('checkQuota middleware', () => {
         return { getOrCreateUsage: mockGetOrCreateUsage } as any;
       });
 
-      const middleware = checkQuota('cinemas');
+      const middleware = checkQuota('theaters');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(orgQueries.getPlanById).toHaveBeenCalledWith(mockDb, 1);
@@ -101,11 +101,11 @@ describe('checkQuota middleware', () => {
   });
 
   describe('when quota is exceeded', () => {
-    it('returns 402 QUOTA_EXCEEDED for cinemas', async () => {
+    it('returns 402 QUOTA_EXCEEDED for theaters', async () => {
       const freePlan: Plan = {
         id: 1,
         name: 'Free',
-        max_cinemas: 1,
+        max_theaters: 1,
         max_users: 3,
         max_scrapes_per_day: 10,
       };
@@ -116,7 +116,7 @@ describe('checkQuota middleware', () => {
         id: 1,
         org_id: 42,
         month: '2026-04-01',
-        cinemas_count: 1,  // at limit
+        theaters_count: 1,  // at limit
         users_count: 1,
         scrapes_count: 5,
         api_calls_count: 100,
@@ -126,13 +126,13 @@ describe('checkQuota middleware', () => {
         return { getOrCreateUsage: mockGetOrCreateUsage } as any;
       });
 
-      const middleware = checkQuota('cinemas');
+      const middleware = checkQuota('theaters');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(402);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'QUOTA_EXCEEDED',
-        resource: 'cinemas',
+        resource: 'theaters',
         limit: 1,
         current: 1,
         upgrade_url: '/api/org/test-org/billing/checkout',
@@ -144,7 +144,7 @@ describe('checkQuota middleware', () => {
       const freePlan: Plan = {
         id: 1,
         name: 'Free',
-        max_cinemas: 1,
+        max_theaters: 1,
         max_users: 3,
         max_scrapes_per_day: 10,
       };
@@ -155,7 +155,7 @@ describe('checkQuota middleware', () => {
         id: 1,
         org_id: 42,
         month: '2026-04-01',
-        cinemas_count: 0,
+        theaters_count: 0,
         users_count: 3,  // at limit
         scrapes_count: 5,
         api_calls_count: 100,
@@ -183,7 +183,7 @@ describe('checkQuota middleware', () => {
       const freePlan: Plan = {
         id: 1,
         name: 'Free',
-        max_cinemas: 1,
+        max_theaters: 1,
         max_users: 3,
         max_scrapes_per_day: 10,
       };
@@ -194,7 +194,7 @@ describe('checkQuota middleware', () => {
         id: 1,
         org_id: 42,
         month: '2026-04-01',
-        cinemas_count: 0,
+        theaters_count: 0,
         users_count: 1,
         scrapes_count: 10,  // at limit
         api_calls_count: 100,
@@ -223,7 +223,7 @@ describe('checkQuota middleware', () => {
     it('returns 500 when tenant is not resolved (no req.org)', async () => {
       mockReq.org = undefined;
 
-      const middleware = checkQuota('cinemas');
+      const middleware = checkQuota('theaters');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
@@ -234,7 +234,7 @@ describe('checkQuota middleware', () => {
     it('returns 500 when plan is not found in DB', async () => {
       vi.mocked(orgQueries.getPlanById).mockResolvedValueOnce(null);
 
-      const middleware = checkQuota('cinemas');
+      const middleware = checkQuota('theaters');
       await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);

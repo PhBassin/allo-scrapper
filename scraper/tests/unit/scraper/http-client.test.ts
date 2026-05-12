@@ -39,9 +39,9 @@ vi.mock('puppeteer-core', () => ({
 }));
 
 describe('http-client', () => {
-  let fetchShowtimesJson: (cinemaId: string, date: string) => Promise<unknown>;
+  let fetchShowtimesJson: (theaterId: string, date: string) => Promise<unknown>;
   let fetchMoviePage: (movieId: number) => Promise<string>;
-  let fetchTheaterPage: (cinemaBaseUrl: string) => Promise<{ html: string; availableDates: string[] }>;
+  let fetchTheaterPage: (theaterBaseUrl: string) => Promise<{ html: string; availableDates: string[] }>;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -65,10 +65,10 @@ describe('http-client', () => {
   });
 
   // -------------------------------------------------------------------------
-  // validateCinemaId
+  // validateTheaterId
   // -------------------------------------------------------------------------
-  describe('validateCinemaId (via fetchShowtimesJson)', () => {
-    it('should accept valid cinema IDs like C0072', async () => {
+  describe('validateTheaterId (via fetchShowtimesJson)', () => {
+    it('should accept valid theater IDs like C0072', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({}),
@@ -78,7 +78,7 @@ describe('http-client', () => {
       await expect(fetchShowtimesJson('C0072', '2024-01-15')).resolves.toBeDefined();
     });
 
-    it('should accept valid cinema IDs like W7517', async () => {
+    it('should accept valid theater IDs like W7517', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({}),
@@ -90,31 +90,31 @@ describe('http-client', () => {
 
     it('should reject IDs with path traversal characters (../)', async () => {
       await expect(fetchShowtimesJson('../etc/passwd', '2024-01-15')).rejects.toThrow(
-        /Invalid cinema ID format/
+        /Invalid theater ID format/
       );
     });
 
     it('should reject IDs with slashes', async () => {
       await expect(fetchShowtimesJson('C0072/evil', '2024-01-15')).rejects.toThrow(
-        /Invalid cinema ID format/
+        /Invalid theater ID format/
       );
     });
 
-    it('should reject empty cinema ID', async () => {
+    it('should reject empty theater ID', async () => {
       await expect(fetchShowtimesJson('', '2024-01-15')).rejects.toThrow(
-        /Invalid cinema ID format/
+        /Invalid theater ID format/
       );
     });
 
-    it('should reject cinema ID with lowercase letters', async () => {
+    it('should reject theater ID with lowercase letters', async () => {
       await expect(fetchShowtimesJson('c0072', '2024-01-15')).rejects.toThrow(
-        /Invalid cinema ID format/
+        /Invalid theater ID format/
       );
     });
 
-    it('should reject cinema ID with injection characters', async () => {
+    it('should reject theater ID with injection characters', async () => {
       await expect(fetchShowtimesJson('C0072;evil', '2024-01-15')).rejects.toThrow(
-        /Invalid cinema ID format/
+        /Invalid theater ID format/
       );
     });
   });

@@ -38,7 +38,7 @@ describe('validateParserSelectors health check', () => {
   });
 
   it('validates theater structure against a real fixture', () => {
-    const fixturePath = join(__dirname, '../../fixtures/cinema-c0089-page.html');
+    const fixturePath = join(__dirname, '../../fixtures/theater-c0089-page.html');
     const html = readFileSync(fixturePath, 'utf-8');
     const result = validateTheaterPageStructure(html);
 

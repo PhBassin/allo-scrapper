@@ -26,7 +26,7 @@ Core files currently present:
 - `010_remove_phantom_permissions.sql`
 - `011_add_roles_crud_permissions.sql`
 - `012_add_read_permissions.sql`
-- `013_add_cinema_source.sql`
+- `013_add_theater_source.sql`
 - `014_add_scrape_schedules.sql`
 - `015_add_schedule_permissions.sql`
 - `016_add_admin_permissions.sql`

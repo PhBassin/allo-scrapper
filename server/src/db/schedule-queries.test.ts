@@ -22,7 +22,7 @@ const mockScheduleRow = {
   description: 'Scrape every Wednesday',
   cron_expression: '0 8 * * 3',
   enabled: true,
-  target_cinemas: '["C001", "C002"]',
+  target_theaters: '["C001", "C002"]',
   created_by: 1,
   updated_by: 1,
   created_at: '2026-03-01T06:00:00Z',
@@ -53,7 +53,7 @@ describe('Schedule Queries', () => {
       );
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Weekly Scrape');
-      expect(result[0].target_cinemas).toEqual(['C001', 'C002']);
+      expect(result[0].target_theaters).toEqual(['C001', 'C002']);
     });
 
     it('should return empty array when no schedules exist', async () => {
@@ -114,20 +114,20 @@ describe('Schedule Queries', () => {
         cron_expression: '0 6 * * *',
         description: 'Test description',
         enabled: true,
-        target_cinemas: ['C001'],
+        target_theaters: ['C001'],
       }, 1);
 
       expect(result.name).toBe('New Schedule');
       expect(db.query).toHaveBeenCalled();
     });
 
-    it('should handle null target_cinemas', async () => {
+    it('should handle null target_theaters', async () => {
       vi.mocked(db.query).mockResolvedValue({ rows: [mockScheduleRow], rowCount: 1 } as any);
 
       await createSchedule(db, {
         name: 'Test',
         cron_expression: '0 6 * * *',
-        target_cinemas: null,
+        target_theaters: null,
       }, 1);
 
       const call = vi.mocked(db.query).mock.calls[0];

@@ -152,25 +152,25 @@ export function createSuperadminRouter(): Router {
 
       const org = orgResult.rows[0];
 
-      // Get member and cinema counts from org schema
+      // Get member and theater counts from org schema
       const client = await pool.connect();
       try {
         await client.query(`SET search_path TO ${org.schema_name}, public`);
 
-        const [membersResult, cinemasResult] = await Promise.all([
+        const [membersResult, theatersResult] = await Promise.all([
           client.query<{ count: string }>('SELECT COUNT(*) as count FROM users'),
-          client.query<{ count: string }>('SELECT COUNT(*) as count FROM cinemas'),
+          client.query<{ count: string }>('SELECT COUNT(*) as count FROM theaters'),
         ]);
 
         const membersCount = parseInt(membersResult.rows[0].count);
-        const cinemasCount = parseInt(cinemasResult.rows[0].count);
+        const theatersCount = parseInt(theatersResult.rows[0].count);
 
         res.json({
           success: true,
           data: {
             org,
             membersCount,
-            cinemasCount,
+            theatersCount,
           },
         });
       } finally {

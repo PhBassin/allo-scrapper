@@ -104,8 +104,8 @@ router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('rep
     // Get all attempts for this report
     const attempts = await getScrapeAttemptsByReport(db, reportId);
 
-    // Group attempts by cinema
-    const attemptsByCinema: Record<string, any[]> = {};
+    // Group attempts by theater
+    const attemptsByTheater: Record<string, any[]> = {};
     let successful = 0;
     let failed = 0;
     let rate_limited = 0;
@@ -114,10 +114,10 @@ router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('rep
 
     for (const attempt of attempts) {
       // Grouping
-      if (!attemptsByCinema[attempt.cinema_id]) {
-        attemptsByCinema[attempt.cinema_id] = [];
+      if (!attemptsByTheater[attempt.theater_id]) {
+        attemptsByTheater[attempt.theater_id] = [];
       }
-      attemptsByCinema[attempt.cinema_id].push(attempt);
+      attemptsByTheater[attempt.theater_id].push(attempt);
 
       // Counting
       if (attempt.status === 'success') successful++;
@@ -143,7 +143,7 @@ router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('rep
       success: true,
       data: {
         report,
-        attempts: attemptsByCinema,
+        attempts: attemptsByTheater,
         summary,
       },
     };

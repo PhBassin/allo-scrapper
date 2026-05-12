@@ -39,7 +39,7 @@ export interface Organization {
 export interface Plan {
   id: number;
   name: string;
-  max_cinemas: number;
+  max_theaters: number;
   max_users: number;
   max_scrapes_per_day: number;
 }

@@ -43,7 +43,7 @@ describe('JSON Parse Cache Benchmark', () => {
     ];
     
     // Simulate 50,000 database rows (typical weekly data)
-    // Each "film" appears in multiple showtimes across cinemas
+    // Each "film" appears in multiple showtimes across theaters
     const iterations = 50000;
     const startTime = performance.now();
     

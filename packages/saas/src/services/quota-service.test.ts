@@ -19,7 +19,7 @@ describe('QuotaService', () => {
         id: 1,
         org_id: 42,
         month: '2026-04-01',
-        cinemas_count: 2,
+        theaters_count: 2,
         users_count: 5,
         scrapes_count: 10,
         api_calls_count: 100,
@@ -40,7 +40,7 @@ describe('QuotaService', () => {
         id: 2,
         org_id: 42,
         month: '2026-04-01',
-        cinemas_count: 0,
+        theaters_count: 0,
         users_count: 0,
         scrapes_count: 0,
         api_calls_count: 0,
@@ -68,16 +68,16 @@ describe('QuotaService', () => {
   });
 
   describe('incrementUsage', () => {
-    it('atomically increments cinemas_count using UPSERT', async () => {
+    it('atomically increments theaters_count using UPSERT', async () => {
       vi.mocked(mockDb.query).mockResolvedValueOnce({
         rows: [],
         rowCount: 1,
       });
 
-      await service.incrementUsage(42, 'cinemas');
+      await service.incrementUsage(42, 'theaters');
 
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO org_usage (org_id, month, cinemas_count)'),
+        expect.stringContaining('INSERT INTO org_usage (org_id, month, theaters_count)'),
         expect.arrayContaining([42, expect.stringMatching(/^\d{4}-\d{2}-01$/)])
       );
       expect(mockDb.query).toHaveBeenCalledWith(
@@ -94,7 +94,7 @@ describe('QuotaService', () => {
         rowCount: 1,
       });
 
-      await service.decrementUsage(42, 'cinemas');
+      await service.decrementUsage(42, 'theaters');
 
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE org_usage'),

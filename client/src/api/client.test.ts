@@ -23,18 +23,18 @@ vi.mock('axios', () => ({
 }));
 
 import {
-  getCinemaSchedule,
-  getCinemas,
+  getTheaterSchedule,
+  getTheaters,
   getReportDetails,
   getScrapeReportById,
   getScrapeReports,
   getScrapeStatus,
   subscribeToProgress,
-  triggerCinemaScrape,
+  triggerTheaterScrape,
   triggerScrape,
 } from './client';
 
-describe('Cinema API Client', () => {
+describe('Theater API Client', () => {
   const originalLocation = window.location;
   const originalFetch = globalThis.fetch;
   let mockAbort: ReturnType<typeof vi.fn<() => void>>;
@@ -72,22 +72,22 @@ describe('Cinema API Client', () => {
     window.localStorage.clear();
   });
 
-  it('uses the shared cinemas endpoint outside tenant routes', async () => {
+  it('uses the shared theaters endpoint outside tenant routes', async () => {
     mockGet.mockResolvedValueOnce({
       data: { success: true, data: [] },
     });
 
-    await getCinemas();
+    await getTheaters();
 
-    expect(mockGet).toHaveBeenCalledWith('/cinemas');
+    expect(mockGet).toHaveBeenCalledWith('/theaters');
   });
 
-  it('uses the tenant-scoped cinemas endpoint on org routes', async () => {
+  it('uses the tenant-scoped theaters endpoint on org routes', async () => {
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: {
         ...originalLocation,
-        pathname: '/org/acme/cinema/C1234',
+        pathname: '/org/acme/theater/C1234',
       },
     });
 
@@ -95,17 +95,17 @@ describe('Cinema API Client', () => {
       data: { success: true, data: [] },
     });
 
-    await getCinemas();
+    await getTheaters();
 
-    expect(mockGet).toHaveBeenCalledWith('/org/acme/cinemas');
+    expect(mockGet).toHaveBeenCalledWith('/org/acme/theaters');
   });
 
-  it('uses the tenant-scoped cinema detail endpoint on org routes', async () => {
+  it('uses the tenant-scoped theater detail endpoint on org routes', async () => {
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: {
         ...originalLocation,
-        pathname: '/org/acme/cinema/C1234',
+        pathname: '/org/acme/theater/C1234',
       },
     });
 
@@ -113,9 +113,9 @@ describe('Cinema API Client', () => {
       data: { success: true, data: { showtimes: [], weekStart: '2026-04-15' } },
     });
 
-    await getCinemaSchedule('C1234');
+    await getTheaterSchedule('C1234');
 
-    expect(mockGet).toHaveBeenCalledWith('/org/acme/cinemas/C1234');
+    expect(mockGet).toHaveBeenCalledWith('/org/acme/theaters/C1234');
   });
 
   it('uses the tenant-scoped scraper trigger endpoint on org routes', async () => {
@@ -136,7 +136,7 @@ describe('Cinema API Client', () => {
     expect(mockPost).toHaveBeenCalledWith('/org/acme/scraper/trigger');
   });
 
-  it('uses the tenant-scoped cinema scrape trigger endpoint on org routes', async () => {
+  it('uses the tenant-scoped theater scrape trigger endpoint on org routes', async () => {
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: {
@@ -149,9 +149,9 @@ describe('Cinema API Client', () => {
       data: { success: true, data: { reportId: 10, message: 'queued' } },
     });
 
-    await triggerCinemaScrape('C1234');
+    await triggerTheaterScrape('C1234');
 
-    expect(mockPost).toHaveBeenCalledWith('/org/acme/scraper/trigger', { cinemaId: 'C1234' });
+    expect(mockPost).toHaveBeenCalledWith('/org/acme/scraper/trigger', { theaterId: 'C1234' });
   });
 
   it('uses the tenant-scoped scraper status endpoint on org routes', async () => {
@@ -396,7 +396,7 @@ describe('Cinema API Client', () => {
     vi.useFakeTimers();
     const onEvent = vi.fn();
     const onError = vi.fn();
-    const bytes = new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T16:10:00.000Z","label":"Cinema Étoile"}');
+    const bytes = new TextEncoder().encode('data: {"type":"ping","timestamp":"2026-04-28T16:10:00.000Z","label":"Theater Étoile"}');
     const splitAt = bytes.length - 2;
     let fetchCallCount = 0;
 
@@ -443,7 +443,7 @@ describe('Cinema API Client', () => {
     expect(onEvent).toHaveBeenCalledWith({
       type: 'ping',
       timestamp: '2026-04-28T16:10:00.000Z',
-      label: 'Cinema Étoile',
+      label: 'Theater Étoile',
     });
     expect(onError).not.toHaveBeenCalled();
 
@@ -464,7 +464,7 @@ describe('Cinema API Client', () => {
             read: vi.fn()
               .mockResolvedValueOnce({
                 done: false,
-                value: new TextEncoder().encode('id: 42\ndata: {"type":"started",\ndata: "report_id":42,"total_cinemas":1,"total_dates":1}\n\n'),
+                value: new TextEncoder().encode('id: 42\ndata: {"type":"started",\ndata: "report_id":42,"total_theaters":1,"total_dates":1}\n\n'),
               })
               .mockImplementation(() => new Promise(() => {
                 // Keep the stream open after the parsed event.
@@ -481,7 +481,7 @@ describe('Cinema API Client', () => {
     expect(onEvent).toHaveBeenCalledWith({
       type: 'started',
       report_id: 42,
-      total_cinemas: 1,
+      total_theaters: 1,
       total_dates: 1,
     });
   });
@@ -490,7 +490,7 @@ describe('Cinema API Client', () => {
     vi.useFakeTimers();
     const onEvent = vi.fn();
     const onError = vi.fn();
-    const bytes = new TextEncoder().encode('id: 7\ndata: {"type":"ping","timestamp":"2026-04-28T16:10:00.000Z","label":"Cinema Étoile"}');
+    const bytes = new TextEncoder().encode('id: 7\ndata: {"type":"ping","timestamp":"2026-04-28T16:10:00.000Z","label":"Theater Étoile"}');
     const splitAt = bytes.length - 2;
     let fetchCallCount = 0;
 
@@ -536,7 +536,7 @@ describe('Cinema API Client', () => {
     expect(onEvent).toHaveBeenCalledWith({
       type: 'ping',
       timestamp: '2026-04-28T16:10:00.000Z',
-      label: 'Cinema Étoile',
+      label: 'Theater Étoile',
     });
     expect(onError).not.toHaveBeenCalled();
 
@@ -970,7 +970,7 @@ await Promise.resolve();
                 read: vi.fn()
                   .mockResolvedValueOnce({
                     done: false,
-                    value: new TextEncoder().encode('id: 19\ndata: {"type":"started","report_id":19,"total_cinemas":1,"total_dates":1}\n\n'),
+                    value: new TextEncoder().encode('id: 19\ndata: {"type":"started","report_id":19,"total_theaters":1,"total_dates":1}\n\n'),
                   })
                   .mockResolvedValueOnce({ done: true, value: undefined }),
               }),
@@ -1004,7 +1004,7 @@ await Promise.resolve();
       expect(onEvent).toHaveBeenCalledWith({
         type: 'started',
         report_id: 19,
-        total_cinemas: 1,
+        total_theaters: 1,
         total_dates: 1,
       });
       expect(lastFetchCall?.init?.headers).toEqual(expect.objectContaining({

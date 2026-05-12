@@ -99,7 +99,7 @@ describe('RedisClient', () => {
 
   describe('publishProgress', () => {
     test('should publish event to scrape:progress channel', async () => {
-      const event = { type: 'started' as const, total_cinemas: 3, total_dates: 7 };
+      const event = { type: 'started' as const, total_theaters: 3, total_dates: 7 };
 
       await client.publishProgress(event);
 
@@ -130,7 +130,7 @@ describe('RedisClient', () => {
       expect(onCall).toBeDefined();
 
       const messageCallback = onCall![1] as (channel: string, msg: string) => void;
-      const event = { type: 'cinema_started', cinema_name: 'Test', cinema_id: 'C001', index: 0 };
+      const event = { type: 'theater_started', theater_name: 'Test', theater_id: 'C001', index: 0 };
       messageCallback('scrape:progress', JSON.stringify(event));
 
       expect(handler).toHaveBeenCalledWith(event);

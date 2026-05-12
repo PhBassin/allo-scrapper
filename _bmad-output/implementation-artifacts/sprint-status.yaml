@@ -125,6 +125,13 @@ development_status:
   # ─────────────────────────────────────────────────────────────
   # EPIC 8: Refactoring — Rename film to movie
   # ─────────────────────────────────────────────────────────────
-  epic-8: in-progress
-  8-1-rename-film-to-movie: review
+  epic-8: done
+  8-1-rename-film-to-movie: done
   epic-8-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 9: Refactoring — Rename cinema to theater
+  # ─────────────────────────────────────────────────────────────
+  epic-9: done
+  9-1-rename-cinema-to-theater: done
+  epic-9-retrospective: optional

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS scrape_schedules (
   description TEXT,
   cron_expression VARCHAR(100) NOT NULL,
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
-  target_cinemas JSONB, -- Array of cinema IDs to scrape (null = all)
+  target_theaters JSONB, -- Array of theater IDs to scrape (null = all)
   created_by INTEGER REFERENCES users(id),
   updated_by INTEGER REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

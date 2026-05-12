@@ -54,7 +54,7 @@ describe('TenantProvider', () => {
 
   it('renders children with org data when ping succeeds', async () => {
     vi.mocked(pingOrg).mockResolvedValue({
-      org: { id: 1, slug: 'acme', name: 'Acme Cinemas', status: 'active' },
+      org: { id: 1, slug: 'acme', name: 'Acme Theaters', status: 'active' },
     });
 
     renderWithSlug('acme', <ContextInspector />);
@@ -64,7 +64,7 @@ describe('TenantProvider', () => {
     });
 
     expect(screen.getByTestId('not-found').textContent).toBe('false');
-    expect(screen.getByTestId('org-name').textContent).toBe('Acme Cinemas');
+    expect(screen.getByTestId('org-name').textContent).toBe('Acme Theaters');
   });
 
   it('renders 404 screen when ping fails', async () => {

@@ -20,7 +20,7 @@ const scrapeProjectDependencies = hasExplicitTestSelection ? [] : ['chromium-scr
 
 const scrapeSpecs = [
   '**/scrape-progress.spec.ts',
-  '**/cinema-scrape.spec.ts',
+  '**/theater-scrape.spec.ts',
   '**/tenant-concurrent-scrape-progress.spec.ts',
   '**/sse-long-running-connection.spec.ts',
   '**/reports-navigation.spec.ts',

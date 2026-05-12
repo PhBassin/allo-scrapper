@@ -33,7 +33,7 @@ function createMockPoolClient() {
     if (sql.includes('SELECT COUNT(*)::text AS count FROM users')) {
       return Promise.resolve({ rows: [{ count: '2' }], rowCount: 1 });
     }
-    if (sql.includes('SELECT COUNT(*)::text AS count FROM cinemas')) {
+    if (sql.includes('SELECT COUNT(*)::text AS count FROM theaters')) {
       return Promise.resolve({ rows: [{ count: '3' }], rowCount: 1 });
     }
     if (sql.includes('SELECT COUNT(*)::text AS count FROM showtimes')) {
@@ -113,13 +113,13 @@ describe('test fixture routes', () => {
     expect(res.body.data.admin.password).toBeTypeOf('string');
     expect(res.body.data.seeded).toMatchObject({
       users: 2,
-      cinemas: 3,
+      theaters: 3,
       schedules: 10,
     });
     expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
     expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining('SET LOCAL search_path TO'));
     expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
-    expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO cinemas'), expect.any(Array));
+    expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO theaters'), expect.any(Array));
     expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO showtimes'), expect.any(Array));
   });
 
@@ -168,10 +168,10 @@ describe('test fixture routes', () => {
     expect(slugs.size).toBe(4);
     expect(adminUsernames.size).toBe(4);
 
-    const cinemaInsertCalls = mockClient.query.mock.calls
-      .filter((call) => typeof call[0] === 'string' && (call[0] as string).includes('INSERT INTO cinemas'));
-    const cinemaNames = new Set(cinemaInsertCalls.map((call) => call[1]?.[1] as string));
-    expect(cinemaNames.size).toBeGreaterThanOrEqual(12);
+    const theaterInsertCalls = mockClient.query.mock.calls
+      .filter((call) => typeof call[0] === 'string' && (call[0] as string).includes('INSERT INTO theaters'));
+    const theaterNames = new Set(theaterInsertCalls.map((call) => call[1]?.[1] as string));
+    expect(theaterNames.size).toBeGreaterThanOrEqual(12);
   });
 
   it('POST /test/seed-org accepts an explicit plan id', async () => {

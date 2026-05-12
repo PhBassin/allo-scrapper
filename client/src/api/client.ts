@@ -3,7 +3,7 @@ import type {
   ApiResponse,
   MovieWithShowtimes,
   Movie,
-  Cinema,
+  Theater,
   ShowtimeWithMovie,
   ScrapeReport,
   PaginatedResponse,
@@ -31,8 +31,8 @@ const apiClient = axios.create({
   },
 });
 
-function getCinemasBasePath(): string {
-  return getTenantScopedPath('/cinemas');
+function getTheatersBasePath(): string {
+  return getTenantScopedPath('/theaters');
 }
 
 function getScraperBasePath(): string {
@@ -150,33 +150,33 @@ export async function searchMovies(query: string): Promise<Movie[]> {
 }
 
 // ============================================================================
-// CINEMAS API
+// THEATERS API
 // ============================================================================
 
-export async function getCinemas(): Promise<Cinema[]> {
-  const response = await apiClient.get<ApiResponse<Cinema[]>>(getCinemasBasePath());
+export async function getTheaters(): Promise<Theater[]> {
+  const response = await apiClient.get<ApiResponse<Theater[]>>(getTheatersBasePath());
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch cinemas');
+    throw new Error(response.data.error || 'Failed to fetch theaters');
   }
   return response.data.data;
 }
 
-export async function getCinemaSchedule(
-  cinemaId: string
+export async function getTheaterSchedule(
+  theaterId: string
 ): Promise<{ showtimes: ShowtimeWithMovie[]; weekStart: string }> {
   const response = await apiClient.get<ApiResponse<{ showtimes: ShowtimeWithMovie[]; weekStart: string }>>(
-    `${getCinemasBasePath()}/${cinemaId}`
+    `${getTheatersBasePath()}/${theaterId}`
   );
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch cinema schedule');
+    throw new Error(response.data.error || 'Failed to fetch theater schedule');
   }
   return response.data.data;
 }
 
-export async function addCinema(url: string): Promise<Cinema> {
-  const response = await apiClient.post<ApiResponse<Cinema>>('/cinemas', { url });
+export async function addTheater(url: string): Promise<Theater> {
+  const response = await apiClient.post<ApiResponse<Theater>>('/theaters', { url });
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to add cinema');
+    throw new Error(response.data.error || 'Failed to add theater');
   }
   return response.data.data;
 }
@@ -193,12 +193,12 @@ export async function triggerScrape(): Promise<{ reportId: number; message: stri
   return response.data.data;
 }
 
-export async function triggerCinemaScrape(cinemaId: string): Promise<{ reportId: number; message: string }> {
+export async function triggerTheaterScrape(theaterId: string): Promise<{ reportId: number; message: string }> {
   const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>(`${getScraperBasePath()}/trigger`, {
-    cinemaId,
+    theaterId,
   });
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to trigger cinema scrape');
+    throw new Error(response.data.error || 'Failed to trigger theater scrape');
   }
   return response.data.data;
 }
@@ -455,7 +455,7 @@ export interface CreateSchedulePayload {
   description?: string | null;
   cron_expression: string;
   enabled?: boolean;
-  target_cinemas?: string[] | null;
+  target_theaters?: string[] | null;
 }
 
 export async function createSchedule(payload: CreateSchedulePayload): Promise<ScrapeSchedule> {
@@ -471,7 +471,7 @@ export interface UpdateSchedulePayload {
   description?: string | null;
   cron_expression?: string;
   enabled?: boolean;
-  target_cinemas?: string[] | null;
+  target_theaters?: string[] | null;
 }
 
 export async function updateSchedule(id: number, payload: UpdateSchedulePayload): Promise<ScrapeSchedule> {
@@ -514,7 +514,7 @@ export async function getScrapeReportById(id: number): Promise<ScrapeReport> {
 export interface ScrapeAttempt {
   id: number;
   report_id: number;
-  cinema_id: string;
+  theater_id: string;
   date: string;
   status: 'pending' | 'success' | 'failed' | 'rate_limited' | 'not_attempted';
   error_type?: string | null;

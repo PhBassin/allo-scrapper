@@ -43,7 +43,7 @@ describe('useScrapeProgress', () => {
 
     const { result } = renderHook(() => useScrapeProgress());
 
-    const testEvent = { type: 'started', total_cinemas: 1, total_dates: 1 };
+    const testEvent = { type: 'started', total_theaters: 1, total_dates: 1 };
     
     act(() => {
       eventCallback(testEvent);
@@ -58,24 +58,24 @@ describe('useScrapeProgress', () => {
 
   it('surfaces tracked jobs before first SSE event', () => {
     const { result } = renderHook(() => useScrapeProgress(undefined, [
-      { reportId: 21, cinemaName: 'Cinema Pending' },
+      { reportId: 21, theaterName: 'Theater Pending' },
     ]));
 
     expect(result.current.jobs).toHaveLength(1);
     expect(result.current.jobs[0]).toMatchObject({
       reportId: 21,
-      cinemaName: 'Cinema Pending',
+      theaterName: 'Theater Pending',
       status: 'pending',
     });
   });
 
   it('does not resubscribe when tracked jobs change', () => {
     const { rerender } = renderHook(
-      ({ trackedJobs }: { trackedJobs: Array<{ reportId: number; cinemaName?: string }> }) =>
+      ({ trackedJobs }: { trackedJobs: Array<{ reportId: number; theaterName?: string }> }) =>
         useScrapeProgress(undefined, trackedJobs),
       {
         initialProps: {
-          trackedJobs: [{ reportId: 21, cinemaName: 'Cinema Pending' }],
+          trackedJobs: [{ reportId: 21, theaterName: 'Theater Pending' }],
         },
       }
     );
@@ -84,8 +84,8 @@ describe('useScrapeProgress', () => {
 
     rerender({
       trackedJobs: [
-        { reportId: 21, cinemaName: 'Cinema Pending' },
-        { reportId: 22, cinemaName: 'Cinema Next' },
+        { reportId: 21, theaterName: 'Theater Pending' },
+        { reportId: 22, theaterName: 'Theater Next' },
       ],
     });
 
@@ -105,8 +105,8 @@ describe('useScrapeProgress', () => {
     renderHook(() => useScrapeProgress(onComplete));
 
     act(() => {
-      eventCallback({ type: 'started', report_id: 10, total_cinemas: 1, total_dates: 1 });
-      eventCallback({ type: 'started', report_id: 11, total_cinemas: 1, total_dates: 1 });
+      eventCallback({ type: 'started', report_id: 10, total_theaters: 1, total_dates: 1 });
+      eventCallback({ type: 'started', report_id: 11, total_theaters: 1, total_dates: 1 });
       eventCallback({ type: 'completed', report_id: 10, summary: { errors: [] } });
     });
 
@@ -131,8 +131,8 @@ describe('useScrapeProgress', () => {
     renderHook(() => useScrapeProgress(onComplete));
 
     act(() => {
-      eventCallback({ type: 'started', report_id: 12, total_cinemas: 1, total_dates: 1 });
-      eventCallback({ type: 'started', report_id: 13, total_cinemas: 1, total_dates: 1 });
+      eventCallback({ type: 'started', report_id: 12, total_theaters: 1, total_dates: 1 });
+      eventCallback({ type: 'started', report_id: 13, total_theaters: 1, total_dates: 1 });
       eventCallback({ type: 'completed', report_id: 12, summary: { errors: [] } });
       eventCallback({ type: 'failed', report_id: 13, error: 'test error' });
     });
@@ -140,7 +140,7 @@ describe('useScrapeProgress', () => {
     expect(onComplete).toHaveBeenCalledWith(false);
   });
 
-  it('treats completed events with failed cinemas as failed jobs', () => {
+  it('treats completed events with failed theaters as failed jobs', () => {
     let eventCallback: (event: any) => void = () => {};
 
     mockSubscribe.mockImplementation((cb) => {
@@ -151,22 +151,22 @@ describe('useScrapeProgress', () => {
     const { result } = renderHook(() => useScrapeProgress());
 
     act(() => {
-      eventCallback({ type: 'started', report_id: 99, total_cinemas: 1, total_dates: 1 });
+      eventCallback({ type: 'started', report_id: 99, total_theaters: 1, total_dates: 1 });
       eventCallback({
         type: 'completed',
         report_id: 99,
         summary: {
-          total_cinemas: 1,
-          successful_cinemas: 0,
-          failed_cinemas: 1,
+          total_theaters: 1,
+          successful_theaters: 0,
+          failed_theaters: 1,
           total_movies: 0,
           total_showtimes: 0,
           total_dates: 1,
           duration_ms: 100,
           errors: [{
-            cinema_name: 'Cinema Failure',
-            cinema_id: 'FAIL1',
-            error: 'No scraper strategy found for https://example.test/cinema',
+            theater_name: 'Theater Failure',
+            theater_id: 'FAIL1',
+            error: 'No scraper strategy found for https://example.test/theater',
           }],
           status: 'failed',
         },
@@ -176,9 +176,9 @@ describe('useScrapeProgress', () => {
     expect(result.current.jobs).toHaveLength(1);
     expect(result.current.jobs[0]).toMatchObject({
       reportId: 99,
-      cinemaName: 'Cinema Failure',
+      theaterName: 'Theater Failure',
       status: 'failed',
-      error: 'No scraper strategy found for https://example.test/cinema',
+      error: 'No scraper strategy found for https://example.test/theater',
     });
   });
 
@@ -193,14 +193,14 @@ describe('useScrapeProgress', () => {
     const { result } = renderHook(() => useScrapeProgress());
 
     act(() => {
-      eventCallback({ type: 'started', report_id: 10, total_cinemas: 1, total_dates: 1 });
-      eventCallback({ type: 'cinema_started', report_id: 10, cinema_id: 'C1', cinema_name: 'Cinema One', index: 1 });
-      eventCallback({ type: 'started', report_id: 11, total_cinemas: 1, total_dates: 1 });
-      eventCallback({ type: 'cinema_started', report_id: 11, cinema_id: 'C2', cinema_name: 'Cinema Two', index: 1 });
+      eventCallback({ type: 'started', report_id: 10, total_theaters: 1, total_dates: 1 });
+      eventCallback({ type: 'theater_started', report_id: 10, theater_id: 'C1', theater_name: 'Theater One', index: 1 });
+      eventCallback({ type: 'started', report_id: 11, total_theaters: 1, total_dates: 1 });
+      eventCallback({ type: 'theater_started', report_id: 11, theater_id: 'C2', theater_name: 'Theater Two', index: 1 });
     });
 
     expect(result.current.jobs).toHaveLength(2);
-    expect(result.current.jobs.map((job) => job.cinemaName)).toEqual(['Cinema Two', 'Cinema One']);
+    expect(result.current.jobs.map((job) => job.theaterName)).toEqual(['Theater Two', 'Theater One']);
   });
 
   it('keeps the connection alive without polluting progress state on ping events', () => {
@@ -282,11 +282,11 @@ describe('useScrapeProgress', () => {
 
       // First event arrives
       act(() => {
-        eventCallback({ type: 'started', report_id: 10, total_cinemas: 5, total_dates: 30 });
+        eventCallback({ type: 'started', report_id: 10, total_theaters: 5, total_dates: 30 });
       });
 
       expect(result.current.events).toHaveLength(1);
-      expect(result.current.jobs[0]?.totalCinemas).toBe(5);
+      expect(result.current.jobs[0]?.totalTheaters).toBe(5);
 
       // Connection drops
       act(() => {
@@ -304,15 +304,15 @@ describe('useScrapeProgress', () => {
 
       // Events should still be preserved
       expect(result.current.events).toHaveLength(1);
-      expect(result.current.jobs[0]?.totalCinemas).toBe(5);
+      expect(result.current.jobs[0]?.totalTheaters).toBe(5);
 
       // Second event arrives after reconnect
       act(() => {
-        eventCallback({ type: 'cinema_started', report_id: 10, cinema_name: 'Cinema One', cinema_id: 'C1', index: 0 });
+        eventCallback({ type: 'theater_started', report_id: 10, theater_name: 'Theater One', theater_id: 'C1', index: 0 });
       });
 
       expect(result.current.events).toHaveLength(2);
-      expect(result.current.jobs[0]?.cinemaName).toBe('Cinema One');
+      expect(result.current.jobs[0]?.theaterName).toBe('Theater One');
     });
 
     it('clears error on successful reconnect', () => {

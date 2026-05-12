@@ -1,23 +1,23 @@
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import CinemasPage from './CinemasPage';
-import * as cinemasApi from '../../api/cinemas';
+import TheatersPage from './TheatersPage';
+import * as theatersApi from '../../api/theaters';
 import * as clientApi from '../../api/client';
 import { AuthContext } from '../../contexts/AuthContext';
 import type { PermissionName } from '../../types/role';
 
 // Mock API modules
-vi.mock('../../api/cinemas', () => ({
-  getCinemas: vi.fn(),
-  createCinema: vi.fn(),
-  updateCinema: vi.fn(),
-  deleteCinema: vi.fn(),
+vi.mock('../../api/theaters', () => ({
+  getTheaters: vi.fn(),
+  createTheater: vi.fn(),
+  updateTheater: vi.fn(),
+  deleteTheater: vi.fn(),
 }));
 
 vi.mock('../../api/client', () => ({
   triggerScrape: vi.fn(),
-  triggerCinemaScrape: vi.fn(),
+  triggerTheaterScrape: vi.fn(),
   getScrapeStatus: vi.fn(),
   subscribeToProgress: vi.fn(),
 }));
@@ -48,26 +48,26 @@ vi.mock('../../components/ScrapeButton', () => ({
 }));
 
 // Mock child modal components to keep tests focused
-vi.mock('../../components/admin/AddCinemaModal', () => ({
+vi.mock('../../components/admin/AddTheaterModal', () => ({
   default: ({ isOpen }: { isOpen: boolean }) =>
-    isOpen ? <div data-testid="add-cinema-modal">Add Modal</div> : null,
+    isOpen ? <div data-testid="add-theater-modal">Add Modal</div> : null,
 }));
 
-vi.mock('../../components/admin/EditCinemaModal', () => ({
-  default: () => <div data-testid="edit-cinema-modal">Edit Modal</div>,
+vi.mock('../../components/admin/EditTheaterModal', () => ({
+  default: () => <div data-testid="edit-theater-modal">Edit Modal</div>,
 }));
 
-vi.mock('../../components/admin/DeleteCinemaDialog', () => ({
-  default: () => <div data-testid="delete-cinema-dialog">Delete Dialog</div>,
+vi.mock('../../components/admin/DeleteTheaterDialog', () => ({
+  default: () => <div data-testid="delete-theater-dialog">Delete Dialog</div>,
 }));
 
 // Mock ScrapeProgress to avoid SSE complexity in tests
 vi.mock('../../components/ScrapeProgress', () => ({
-  default: ({ onComplete, trackedJobs = [] }: { onComplete?: (success: boolean) => void; trackedJobs?: Array<{ reportId: number; cinemaName?: string }> }) => (
+  default: ({ onComplete, trackedJobs = [] }: { onComplete?: (success: boolean) => void; trackedJobs?: Array<{ reportId: number; theaterName?: string }> }) => (
     <div data-testid="scrape-progress">
       <span>Scraping en cours...</span>
       {trackedJobs.map((job) => (
-        <div key={job.reportId} data-testid="tracked-job">{job.cinemaName ?? `Report ${job.reportId}`}</div>
+        <div key={job.reportId} data-testid="tracked-job">{job.theaterName ?? `Report ${job.reportId}`}</div>
       ))}
       <button onClick={() => onComplete?.(true)}>Simulate Complete</button>
     </div>
@@ -77,7 +77,7 @@ vi.mock('../../components/ScrapeProgress', () => ({
 const mockAuthContext = {
   isAuthenticated: true,
   token: 'mock-token',
-  user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['cinemas:read', 'cinemas:create', 'scraper:trigger'] as PermissionName[] },
+  user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['theaters:read', 'theaters:create', 'scraper:trigger'] as PermissionName[] },
   login: vi.fn(),
   logout: vi.fn(),
   isAdmin: true,
@@ -103,14 +103,14 @@ const renderWithAuth = (ui: React.ReactElement, authOverrides?: Partial<typeof m
   );
 };
 
-const mockCinemas = [
+const mockTheaters = [
   { id: 'C0153', name: 'UGC Ciné Cité Paris', city: 'Paris', screen_count: 12 },
   { id: 'C0002', name: 'Pathé Wepler', city: 'Paris', screen_count: 8 },
 ];
 
-describe('CinemasPage - Scrape All button', () => {
+describe('TheatersPage - Scrape All button', () => {
   beforeEach(() => {
-    vi.mocked(cinemasApi.getCinemas).mockResolvedValue(mockCinemas);
+    vi.mocked(theatersApi.getTheaters).mockResolvedValue(mockTheaters);
     vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ isRunning: false });
     vi.mocked(clientApi.triggerScrape).mockResolvedValue({ reportId: 1, message: 'ok' });
   });
@@ -120,7 +120,7 @@ describe('CinemasPage - Scrape All button', () => {
   });
 
   it('renders a "Scrape All" button in the header', async () => {
-    renderWithAuth(<CinemasPage />);
+    renderWithAuth(<TheatersPage />);
 
     await screen.findByText('UGC Ciné Cité Paris');
 
@@ -128,7 +128,7 @@ describe('CinemasPage - Scrape All button', () => {
   });
 
   it('triggers scrapeAll when "Scrape All" button is clicked', async () => {
-    renderWithAuth(<CinemasPage />);
+    renderWithAuth(<TheatersPage />);
 
     await screen.findByText('UGC Ciné Cité Paris');
 
@@ -140,7 +140,7 @@ describe('CinemasPage - Scrape All button', () => {
   });
 
   it('shows ScrapeProgress after triggering scrape all', async () => {
-    renderWithAuth(<CinemasPage />);
+    renderWithAuth(<TheatersPage />);
 
     await screen.findByText('UGC Ciné Cité Paris');
 
@@ -156,24 +156,24 @@ describe('CinemasPage - Scrape All button', () => {
   it('shows ScrapeProgress on mount if scrape is already running', async () => {
     vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ isRunning: true });
 
-    renderWithAuth(<CinemasPage />);
+    renderWithAuth(<TheatersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('scrape-progress')).toBeInTheDocument();
     });
   });
 
-  it('hides ScrapeProgress and refreshes cinemas after scrape completes', async () => {
+  it('hides ScrapeProgress and refreshes theaters after scrape completes', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const updatedCinemas = [
-      ...mockCinemas,
-      { id: 'C0999', name: 'New Cinema', city: 'Lyon', screen_count: 5 },
+    const updatedTheaters = [
+      ...mockTheaters,
+      { id: 'C0999', name: 'New Theater', city: 'Lyon', screen_count: 5 },
     ];
-    vi.mocked(cinemasApi.getCinemas)
-      .mockResolvedValueOnce(mockCinemas)
-      .mockResolvedValueOnce(updatedCinemas);
+    vi.mocked(theatersApi.getTheaters)
+      .mockResolvedValueOnce(mockTheaters)
+      .mockResolvedValueOnce(updatedTheaters);
 
-    renderWithAuth(<CinemasPage />);
+    renderWithAuth(<TheatersPage />);
 
     await screen.findByText('UGC Ciné Cité Paris');
 
@@ -192,86 +192,86 @@ describe('CinemasPage - Scrape All button', () => {
       vi.advanceTimersByTime(2500);
     });
 
-    // Progress should disappear and cinemas should reload
+    // Progress should disappear and theaters should reload
     await waitFor(() => {
       expect(screen.queryByTestId('scrape-progress')).not.toBeInTheDocument();
     });
 
     await waitFor(() => {
-      expect(cinemasApi.getCinemas).toHaveBeenCalledTimes(2);
+      expect(theatersApi.getTheaters).toHaveBeenCalledTimes(2);
     });
 
     vi.useRealTimers();
   });
 });
 
-describe('CinemasPage - Per-cinema scrape button', () => {
+describe('TheatersPage - Per-theater scrape button', () => {
   beforeEach(() => {
-    vi.mocked(cinemasApi.getCinemas).mockResolvedValue(mockCinemas);
+    vi.mocked(theatersApi.getTheaters).mockResolvedValue(mockTheaters);
     vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ isRunning: false });
-    vi.mocked(clientApi.triggerCinemaScrape).mockResolvedValue({ reportId: 2, message: 'ok' });
+    vi.mocked(clientApi.triggerTheaterScrape).mockResolvedValue({ reportId: 2, message: 'ok' });
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders a scrape button for each cinema row', async () => {
-    renderWithAuth(<CinemasPage />);
+  it('renders a scrape button for each theater row', async () => {
+    renderWithAuth(<TheatersPage />);
 
     await screen.findByText('UGC Ciné Cité Paris');
 
-    expect(screen.getByTestId('scrape-cinema-C0153')).toBeInTheDocument();
-    expect(screen.getByTestId('scrape-cinema-C0002')).toBeInTheDocument();
+    expect(screen.getByTestId('scrape-theater-C0153')).toBeInTheDocument();
+    expect(screen.getByTestId('scrape-theater-C0002')).toBeInTheDocument();
   });
 
-  it('triggers triggerCinemaScrape with correct ID when per-cinema button is clicked', async () => {
-    renderWithAuth(<CinemasPage />);
+  it('triggers triggerTheaterScrape with correct ID when per-theater button is clicked', async () => {
+    renderWithAuth(<TheatersPage />);
 
     await screen.findByText('UGC Ciné Cité Paris');
 
-    fireEvent.click(screen.getByTestId('scrape-cinema-C0153'));
+    fireEvent.click(screen.getByTestId('scrape-theater-C0153'));
 
     await waitFor(() => {
-      expect(clientApi.triggerCinemaScrape).toHaveBeenCalledWith('C0153');
+      expect(clientApi.triggerTheaterScrape).toHaveBeenCalledWith('C0153');
     });
   });
 
-  it('shows ScrapeProgress after triggering per-cinema scrape', async () => {
-    renderWithAuth(<CinemasPage />);
+  it('shows ScrapeProgress after triggering per-theater scrape', async () => {
+    renderWithAuth(<TheatersPage />);
 
     await screen.findByText('UGC Ciné Cité Paris');
 
     expect(screen.queryByTestId('scrape-progress')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('scrape-cinema-C0002'));
+    fireEvent.click(screen.getByTestId('scrape-theater-C0002'));
 
     await waitFor(() => {
       expect(screen.getByTestId('scrape-progress')).toBeInTheDocument();
     });
   });
 
-  it('tracks triggered per-cinema jobs for progress cards', async () => {
-    renderWithAuth(<CinemasPage />);
+  it('tracks triggered per-theater jobs for progress cards', async () => {
+    renderWithAuth(<TheatersPage />);
 
     await screen.findByText('UGC Ciné Cité Paris');
 
-    fireEvent.click(screen.getByTestId('scrape-cinema-C0153'));
+    fireEvent.click(screen.getByTestId('scrape-theater-C0153'));
 
     const progress = await screen.findByTestId('scrape-progress');
     expect(within(progress).getByText('UGC Ciné Cité Paris')).toBeInTheDocument();
   });
 });
 
-describe('CinemasPage - Scraping buttons not on public pages', () => {
+describe('TheatersPage - Scraping buttons not on public pages', () => {
   it('HomePage does not import triggerScrape (scrape moved to admin)', async () => {
     // This test documents the expected behaviour: scraping is admin-only.
     // The actual enforcement is structural (no ScrapeButton in HomePage).
-    // We verify by checking that CinemasPage renders the scrape all button.
-    vi.mocked(cinemasApi.getCinemas).mockResolvedValue(mockCinemas);
+    // We verify by checking that TheatersPage renders the scrape all button.
+    vi.mocked(theatersApi.getTheaters).mockResolvedValue(mockTheaters);
     vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ isRunning: false });
 
-    renderWithAuth(<CinemasPage />);
+    renderWithAuth(<TheatersPage />);
 
     await screen.findByText('UGC Ciné Cité Paris');
 
@@ -280,9 +280,9 @@ describe('CinemasPage - Scraping buttons not on public pages', () => {
   });
 });
 
-describe('CinemasPage - permission-based button visibility', () => {
+describe('TheatersPage - permission-based button visibility', () => {
   beforeEach(() => {
-    vi.mocked(cinemasApi.getCinemas).mockResolvedValue(mockCinemas);
+    vi.mocked(theatersApi.getTheaters).mockResolvedValue(mockTheaters);
     vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ isRunning: false });
   });
 
@@ -290,89 +290,89 @@ describe('CinemasPage - permission-based button visibility', () => {
     vi.clearAllMocks();
   });
 
-  it('hides "Add Cinema" button when user lacks cinemas:create permission', async () => {
-    renderWithAuth(<CinemasPage />, {
-      hasPermission: vi.fn((p: PermissionName) => p !== 'cinemas:create'),
+  it('hides "Add Theater" button when user lacks theaters:create permission', async () => {
+    renderWithAuth(<TheatersPage />, {
+      hasPermission: vi.fn((p: PermissionName) => p !== 'theaters:create'),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');
 
-    expect(screen.queryByTestId('add-cinema-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('add-theater-button')).not.toBeInTheDocument();
   });
 
-  it('shows "Add Cinema" button when user has cinemas:create permission', async () => {
-    renderWithAuth(<CinemasPage />, {
+  it('shows "Add Theater" button when user has theaters:create permission', async () => {
+    renderWithAuth(<TheatersPage />, {
       hasPermission: vi.fn(() => true),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');
 
-    expect(screen.getByTestId('add-cinema-button')).toBeInTheDocument();
+    expect(screen.getByTestId('add-theater-button')).toBeInTheDocument();
   });
 
-  it('hides per-row "Edit" button when user lacks cinemas:update permission', async () => {
-    renderWithAuth(<CinemasPage />, {
-      hasPermission: vi.fn((p: PermissionName) => p !== 'cinemas:update'),
+  it('hides per-row "Edit" button when user lacks theaters:update permission', async () => {
+    renderWithAuth(<TheatersPage />, {
+      hasPermission: vi.fn((p: PermissionName) => p !== 'theaters:update'),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');
 
-    expect(screen.queryByTestId('edit-cinema-C0153')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('edit-cinema-C0002')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('edit-theater-C0153')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('edit-theater-C0002')).not.toBeInTheDocument();
   });
 
-  it('shows per-row "Edit" button when user has cinemas:update permission', async () => {
-    renderWithAuth(<CinemasPage />, {
+  it('shows per-row "Edit" button when user has theaters:update permission', async () => {
+    renderWithAuth(<TheatersPage />, {
       hasPermission: vi.fn(() => true),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');
 
-    expect(screen.getByTestId('edit-cinema-C0153')).toBeInTheDocument();
-    expect(screen.getByTestId('edit-cinema-C0002')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-theater-C0153')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-theater-C0002')).toBeInTheDocument();
   });
 
-  it('hides per-row "Delete" button when user lacks cinemas:delete permission', async () => {
-    renderWithAuth(<CinemasPage />, {
-      hasPermission: vi.fn((p: PermissionName) => p !== 'cinemas:delete'),
+  it('hides per-row "Delete" button when user lacks theaters:delete permission', async () => {
+    renderWithAuth(<TheatersPage />, {
+      hasPermission: vi.fn((p: PermissionName) => p !== 'theaters:delete'),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');
 
-    expect(screen.queryByTestId('delete-cinema-C0153')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('delete-cinema-C0002')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('delete-theater-C0153')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('delete-theater-C0002')).not.toBeInTheDocument();
   });
 
-  it('shows per-row "Delete" button when user has cinemas:delete permission', async () => {
-    renderWithAuth(<CinemasPage />, {
+  it('shows per-row "Delete" button when user has theaters:delete permission', async () => {
+    renderWithAuth(<TheatersPage />, {
       hasPermission: vi.fn(() => true),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');
 
-    expect(screen.getByTestId('delete-cinema-C0153')).toBeInTheDocument();
-    expect(screen.getByTestId('delete-cinema-C0002')).toBeInTheDocument();
+    expect(screen.getByTestId('delete-theater-C0153')).toBeInTheDocument();
+    expect(screen.getByTestId('delete-theater-C0002')).toBeInTheDocument();
   });
 
   it('hides per-row "Scraper" button when user lacks scraper:trigger_single permission', async () => {
-    renderWithAuth(<CinemasPage />, {
+    renderWithAuth(<TheatersPage />, {
       hasPermission: vi.fn((p: PermissionName) => p !== 'scraper:trigger_single'),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');
 
-    expect(screen.queryByTestId('scrape-cinema-C0153')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('scrape-cinema-C0002')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('scrape-theater-C0153')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('scrape-theater-C0002')).not.toBeInTheDocument();
   });
 
   it('shows per-row "Scraper" button when user has scraper:trigger_single permission', async () => {
-    renderWithAuth(<CinemasPage />, {
+    renderWithAuth(<TheatersPage />, {
       hasPermission: vi.fn(() => true),
     });
 
     await screen.findByText('UGC Ciné Cité Paris');
 
-    expect(screen.getByTestId('scrape-cinema-C0153')).toBeInTheDocument();
-    expect(screen.getByTestId('scrape-cinema-C0002')).toBeInTheDocument();
+    expect(screen.getByTestId('scrape-theater-C0153')).toBeInTheDocument();
+    expect(screen.getByTestId('scrape-theater-C0002')).toBeInTheDocument();
   });
 });

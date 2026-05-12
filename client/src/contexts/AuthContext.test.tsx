@@ -29,7 +29,7 @@ const operatorUser: User = {
   role_id: 2,
   role_name: 'operator',
   is_system_role: true,
-  permissions: ['scraper:trigger', 'cinemas:create'],
+  permissions: ['scraper:trigger', 'theaters:create'],
 };
 
 // Helper component to expose context values
@@ -174,7 +174,7 @@ describe('AuthContext', () => {
         role_id: 99,
         role_name: 'admin',
         is_system_role: false,
-        permissions: ['cinemas:create'],
+        permissions: ['theaters:create'],
       };
       await renderWithLogin(fakeAdmin);
       expect(screen.getByTestId('isAdmin').textContent).toBe('false');

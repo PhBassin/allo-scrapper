@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { groupShowtimesByCinema } from './showtimes.js';
-import type { Showtime, Cinema } from '../types/scraper.js';
+import { groupShowtimesByTheater } from './showtimes.js';
+import type { Showtime, Theater } from '../types/scraper.js';
 
-describe('Utils - groupShowtimesByCinema', () => {
-  it('should group showtimes by cinema correctly', () => {
-    const cinema1: Cinema = { id: 'C1', name: 'Cinema 1' } as any;
-    const cinema2: Cinema = { id: 'C2', name: 'Cinema 2' } as any;
+describe('Utils - groupShowtimesByTheater', () => {
+  it('should group showtimes by theater correctly', () => {
+    const theater1: Theater = { id: 'C1', name: 'Theater 1' } as any;
+    const theater2: Theater = { id: 'C2', name: 'Theater 2' } as any;
 
-    const showtimes: Array<Showtime & { cinema: Cinema }> = [
-      { id: 's1', cinema_id: 'C1', cinema: cinema1, time: '14:00' } as any,
-      { id: 's2', cinema_id: 'C1', cinema: cinema1, time: '16:00' } as any,
-      { id: 's3', cinema_id: 'C2', cinema: cinema2, time: '20:00' } as any,
+    const showtimes: Array<Showtime & { theater: Theater }> = [
+      { id: 's1', theater_id: 'C1', theater: theater1, time: '14:00' } as any,
+      { id: 's2', theater_id: 'C1', theater: theater1, time: '16:00' } as any,
+      { id: 's3', theater_id: 'C2', theater: theater2, time: '20:00' } as any,
     ];
 
-    const result = groupShowtimesByCinema(showtimes);
+    const result = groupShowtimesByTheater(showtimes);
 
     expect(result).toHaveLength(2);
     
@@ -29,6 +29,6 @@ describe('Utils - groupShowtimesByCinema', () => {
   });
 
   it('should return empty array for empty input', () => {
-    expect(groupShowtimesByCinema([])).toEqual([]);
+    expect(groupShowtimesByTheater([])).toEqual([]);
   });
 });

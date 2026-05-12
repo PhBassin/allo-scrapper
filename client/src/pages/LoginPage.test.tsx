@@ -218,7 +218,7 @@ describe('LoginPage', () => {
 
       render(
         <AuthContext.Provider value={authValueWithMock}>
-          <MemoryRouter initialEntries={[{ pathname: '/login', state: { from: { pathname: '/org/acme/cinema/123' } } }]}>
+          <MemoryRouter initialEntries={[{ pathname: '/login', state: { from: { pathname: '/org/acme/theater/123' } } }]}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
             </Routes>
@@ -233,7 +233,7 @@ describe('LoginPage', () => {
 
       await waitFor(() => {
         expect(mockLogin).toHaveBeenCalledWith('test-token', orgUser);
-        expect(mockNavigate).toHaveBeenCalledWith('/org/acme/cinema/123', { replace: true });
+        expect(mockNavigate).toHaveBeenCalledWith('/org/acme/theater/123', { replace: true });
       });
     });
 

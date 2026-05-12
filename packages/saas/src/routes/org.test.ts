@@ -3,7 +3,7 @@
  *
  * Covers:
  * - ping (existing, regression)
- * - cinemas routes: GET list, GET single, POST (quota guard), PUT, DELETE
+ * - theaters routes: GET list, GET single, POST (quota guard), PUT, DELETE
  * - films routes: GET list, GET single
  * - reports routes: GET list, GET single
  * - scraper routes: POST trigger (quota guard), GET schedules
@@ -44,7 +44,7 @@ function makeOrg(slug = 'acme', status = 'active') {
   return {
     id: 1,
     slug,
-    name: `${slug} Cinema`,
+    name: `${slug} Theater`,
     schema_name: `org_${slug.replace(/-/g, '_')}`,
     status,
     plan_id: 1,
@@ -184,7 +184,7 @@ describe('requireOrgAuth', () => {
     app.use('/api/org/:slug', createOrgRouter());
 
     const res = await request(app)
-      .get('/api/org/acme/cinemas')
+      .get('/api/org/acme/theaters')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(403);
     const errorText = [res.body?.error, res.body?.message, res.text].filter((value): value is string => typeof value === 'string').join(' ');
@@ -197,16 +197,16 @@ describe('requireOrgAuth', () => {
       username: 'admin',
       role_name: 'admin',
       is_system_role: true,
-      permissions: ['cinemas:read'],
+      permissions: ['theaters:read'],
       org_slug: 'acme',
     };
-    const cinemas = [{ id: 'C001', name: 'Acme Cinéma' }];
-    const { app, token } = buildApp('acme', 'active', cinemas, jwtUser);
+    const theaters = [{ id: 'C001', name: 'Acme Theater' }];
+    const { app, token } = buildApp('acme', 'active', theaters, jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
     const res = await request(app)
-      .get('/api/org/acme/cinemas')
+      .get('/api/org/acme/theaters')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
   });
@@ -218,34 +218,34 @@ describe('requireOrgAuth', () => {
       username: 'admin',
       role_name: 'admin',
       is_system_role: true,
-      permissions: ['cinemas:read'],
+      permissions: ['theaters:read'],
     };
     const { app, token } = buildApp('acme', 'active', [], jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
     const res = await request(app)
-      .get('/api/org/acme/cinemas')
+      .get('/api/org/acme/theaters')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
   });
 });
 
-// ── Cinemas ───────────────────────────────────────────────────────────────────
+// ── Theaters ───────────────────────────────────────────────────────────────────
 
-describe('GET /api/org/:slug/cinemas', () => {
+describe('GET /api/org/:slug/theaters', () => {
   it('returns 200 and uses the scoped dbClient', async () => {
     const jwtUser = {
       id: 1, username: 'admin', role_name: 'admin',
-      is_system_role: true, permissions: ['cinemas:read'], org_slug: 'acme',
+      is_system_role: true, permissions: ['theaters:read'], org_slug: 'acme',
     };
-    const cinemas = [{ id: 'C001', name: 'Acme Cinéma', city: 'Paris' }];
-    const { app, dbClient, db, token } = buildApp('acme', 'active', cinemas, jwtUser);
+    const theaters = [{ id: 'C001', name: 'Acme Theater', city: 'Paris' }];
+    const { app, dbClient, db, token } = buildApp('acme', 'active', theaters, jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
     const res = await request(app)
-      .get('/api/org/acme/cinemas')
+      .get('/api/org/acme/theaters')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     // The scoped client must have been queried (not the global db)
@@ -253,17 +253,17 @@ describe('GET /api/org/:slug/cinemas', () => {
     expect(db.query).not.toHaveBeenCalled();
   });
 
-  it('returns 403 when org A token requests org B cinema schedule details', async () => {
+  it('returns 403 when org A token requests org B theater schedule details', async () => {
     const jwtUser = {
       id: 1, username: 'admin-a', role_name: 'admin',
-      is_system_role: true, permissions: ['cinemas:read'], org_slug: 'org-a',
+      is_system_role: true, permissions: ['theaters:read'], org_slug: 'org-a',
     };
     const { app, dbClient, db, token } = buildApp('org-b', 'active', [], jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
     const res = await request(app)
-      .get('/api/org/org-b/cinemas/CB01')
+      .get('/api/org/org-b/theaters/CB01')
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(403);
@@ -281,18 +281,18 @@ describe('GET /api/org/:slug/cinemas', () => {
     )).toBe(true);
   });
 
-  it('uses the scoped dbClient for cinema schedule details and keeps the global db untouched', async () => {
+  it('uses the scoped dbClient for theater schedule details and keeps the global db untouched', async () => {
     const jwtUser = {
       id: 1, username: 'admin', role_name: 'admin',
-      is_system_role: true, permissions: ['cinemas:read'], org_slug: 'acme',
+      is_system_role: true, permissions: ['theaters:read'], org_slug: 'acme',
     };
-    const showtimes = [{ id: 'S001', movie_id: 1, cinema_id: 'C001', date: '2026-04-21', time: '14:00', datetime_iso: '2026-04-21T14:00:00.000Z', version: null, format: null, experiences: '[]', week_start: '2026-04-15', movie_title: 'Acme Film', original_title: null, poster_url: null, duration_minutes: 90, release_date: null, rerelease_date: null, genres: '[]', nationality: null, director: null, screenwriters: '[]', actors: '[]', synopsis: null, certificate: null, press_rating: null, audience_rating: null, source_url: 'https://example.test', trailer_url: null }];
+    const showtimes = [{ id: 'S001', movie_id: 1, theater_id: 'C001', date: '2026-04-21', time: '14:00', datetime_iso: '2026-04-21T14:00:00.000Z', version: null, format: null, experiences: '[]', week_start: '2026-04-15', movie_title: 'Acme Film', original_title: null, poster_url: null, duration_minutes: 90, release_date: null, rerelease_date: null, genres: '[]', nationality: null, director: null, screenwriters: '[]', actors: '[]', synopsis: null, certificate: null, press_rating: null, audience_rating: null, source_url: 'https://example.test', trailer_url: null }];
     const { app, dbClient, db, token } = buildApp('acme', 'active', showtimes, jwtUser);
     const { createOrgRouter } = await import('./org.js');
     app.use('/api/org/:slug', createOrgRouter());
 
     const res = await request(app)
-      .get('/api/org/acme/cinemas/C001')
+      .get('/api/org/acme/theaters/C001')
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
@@ -302,23 +302,23 @@ describe('GET /api/org/:slug/cinemas', () => {
   });
 });
 
-describe('POST /api/org/:slug/cinemas — quota guard', () => {
+describe('POST /api/org/:slug/theaters — quota guard', () => {
   it('returns 402 when quota is exceeded', async () => {
     const jwtUser = {
       id: 1, username: 'admin', role_name: 'admin',
-      is_system_role: true, permissions: ['cinemas:create'], org_slug: 'acme',
+      is_system_role: true, permissions: ['theaters:create'], org_slug: 'acme',
     };
     const { app, dbClient, token } = buildApp('acme', 'active', [], jwtUser);
 
-    // Mock quota check: plan with max_cinemas=3, usage=3 → exceeded
+    // Mock quota check: plan with max_theaters=3, usage=3 → exceeded
     // (resolveTenant's org lookup + SET search_path are already handled by buildApp)
     dbClient.query
       .mockResolvedValueOnce({                                           // getPlanById
-        rows: [{ id: 1, name: 'free', max_cinemas: 3, max_users: 5, max_scrapes_per_day: 10 }],
+        rows: [{ id: 1, name: 'free', max_theaters: 3, max_users: 5, max_scrapes_per_day: 10 }],
         rowCount: 1,
       })
       .mockResolvedValueOnce({                                           // getOrCreateUsage
-        rows: [{ id: 1, org_id: 1, month: '2026-04-01', cinemas_count: 3, users_count: 0, scrapes_count: 0, api_calls_count: 0 }],
+        rows: [{ id: 1, org_id: 1, month: '2026-04-01', theaters_count: 3, users_count: 0, scrapes_count: 0, api_calls_count: 0 }],
         rowCount: 1,
       });
 
@@ -326,13 +326,13 @@ describe('POST /api/org/:slug/cinemas — quota guard', () => {
     app.use('/api/org/:slug', createOrgRouter());
 
     const res = await request(app)
-      .post('/api/org/acme/cinemas')
+      .post('/api/org/acme/theaters')
       .set('Authorization', `Bearer ${token}`)
-      .send({ id: 'C999', name: 'New Cinema', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0001.html' });
+      .send({ id: 'C999', name: 'New Theater', url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0001.html' });
 
     expect(res.status).toBe(402);
     expect(res.body.error).toBe('QUOTA_EXCEEDED');
-    expect(res.body.resource).toBe('cinemas');
+    expect(res.body.resource).toBe('theaters');
   });
 });
 
@@ -417,11 +417,11 @@ describe('POST /api/org/:slug/scraper/trigger — quota guard', () => {
     // (resolveTenant's org lookup + SET search_path are already handled by buildApp)
     dbClient.query
       .mockResolvedValueOnce({                                           // getPlanById
-        rows: [{ id: 1, name: 'free', max_cinemas: 3, max_users: 5, max_scrapes_per_day: 10 }],
+        rows: [{ id: 1, name: 'free', max_theaters: 3, max_users: 5, max_scrapes_per_day: 10 }],
         rowCount: 1,
       })
       .mockResolvedValueOnce({                                           // getOrCreateUsage
-        rows: [{ id: 1, org_id: 1, month: '2026-04-01', cinemas_count: 0, users_count: 0, scrapes_count: 10, api_calls_count: 0 }],
+        rows: [{ id: 1, org_id: 1, month: '2026-04-01', theaters_count: 0, users_count: 0, scrapes_count: 10, api_calls_count: 0 }],
         rowCount: 1,
       });
 
@@ -482,11 +482,11 @@ describe('POST /api/org/:slug/users — quota guard', () => {
     // (resolveTenant's org lookup + SET search_path are already handled by buildApp)
     dbClient.query
       .mockResolvedValueOnce({
-        rows: [{ id: 1, name: 'free', max_cinemas: 3, max_users: 5, max_scrapes_per_day: 10 }],
+        rows: [{ id: 1, name: 'free', max_theaters: 3, max_users: 5, max_scrapes_per_day: 10 }],
         rowCount: 1,
       })
       .mockResolvedValueOnce({
-        rows: [{ id: 1, org_id: 1, month: '2026-04-01', cinemas_count: 0, users_count: 5, scrapes_count: 0, api_calls_count: 0 }],
+        rows: [{ id: 1, org_id: 1, month: '2026-04-01', theaters_count: 0, users_count: 5, scrapes_count: 0, api_calls_count: 0 }],
         rowCount: 1,
       });
 
@@ -511,8 +511,8 @@ describe('POST /api/org/:slug/users — quota guard', () => {
     const { app, db, dbClient, token } = buildApp('acme', 'active', [], jwtUser);
 
     dbClient.query
-      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'free', max_cinemas: 3, max_users: 5, max_scrapes_per_day: 10 }], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [{ id: 1, org_id: 1, month: '2026-04-01', cinemas_count: 0, users_count: 0, scrapes_count: 0, api_calls_count: 0 }], rowCount: 1 });
+      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'free', max_theaters: 3, max_users: 5, max_scrapes_per_day: 10 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 1, org_id: 1, month: '2026-04-01', theaters_count: 0, users_count: 0, scrapes_count: 0, api_calls_count: 0 }], rowCount: 1 });
 
     db.query = vi.fn().mockResolvedValue({
       rows: [{ id: 77, username: 'shareduser' }],
@@ -578,28 +578,28 @@ describe('tenant isolation', () => {
   it('org A and org B use separate dbClients — queries do not cross', async () => {
     const jwtUserA = {
       id: 1, username: 'admin-a', role_name: 'admin',
-      is_system_role: true, permissions: ['cinemas:read'], org_slug: 'org-a',
+      is_system_role: true, permissions: ['theaters:read'], org_slug: 'org-a',
     };
     const jwtUserB = {
       id: 2, username: 'admin-b', role_name: 'admin',
-      is_system_role: true, permissions: ['cinemas:read'], org_slug: 'org-b',
+      is_system_role: true, permissions: ['theaters:read'], org_slug: 'org-b',
     };
 
-    const cinemasA = [{ id: 'CA01', name: 'Cinema A' }];
-    const cinemasB = [{ id: 'CB01', name: 'Cinema B' }];
+    const theatersA = [{ id: 'CA01', name: 'Theater A' }];
+    const theatersB = [{ id: 'CB01', name: 'Theater B' }];
 
-    const { app: appA, dbClient: clientA, token: tokenA } = buildApp('org-a', 'active', cinemasA, jwtUserA);
-    const { app: appB, dbClient: clientB, token: tokenB } = buildApp('org-b', 'active', cinemasB, jwtUserB);
+    const { app: appA, dbClient: clientA, token: tokenA } = buildApp('org-a', 'active', theatersA, jwtUserA);
+    const { app: appB, dbClient: clientB, token: tokenB } = buildApp('org-b', 'active', theatersB, jwtUserB);
 
     const { createOrgRouter } = await import('./org.js');
     appA.use('/api/org/:slug', createOrgRouter());
     appB.use('/api/org/:slug', createOrgRouter());
 
     const resA = await request(appA)
-      .get('/api/org/org-a/cinemas')
+      .get('/api/org/org-a/theaters')
       .set('Authorization', `Bearer ${tokenA}`);
     const resB = await request(appB)
-      .get('/api/org/org-b/cinemas')
+      .get('/api/org/org-b/theaters')
       .set('Authorization', `Bearer ${tokenB}`);
 
     expect(resA.status).toBe(200);

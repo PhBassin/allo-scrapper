@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 
-const SLUG_VALID = 'my-cinema';
+const SLUG_VALID = 'my-theater';
 const JWT_SECRET = 'local-dev-jwt-fixture-key-1234567890abcd';
 
 const { createOrgMock } = vi.hoisted(() => ({

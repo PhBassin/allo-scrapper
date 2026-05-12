@@ -17,7 +17,7 @@ const mockDb = {
 // Generate test data
 const generatePrograms = (count: number): WeeklyProgram[] => {
   return Array.from({ length: count }, (_, i) => ({
-    cinema_id: 'C0001',
+    theater_id: 'C0001',
     movie_id: i + 1,
     week_start: '2023-10-25',
     is_new_this_week: i % 2 === 0,

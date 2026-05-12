@@ -37,17 +37,17 @@ describe('Layout tenant navigation scoping', () => {
       role_id: 1,
       role_name: 'admin',
       is_system_role: false,
-      permissions: ['settings:update', 'cinemas:read'] as PermissionName[],
+      permissions: ['settings:update', 'theaters:read'] as PermissionName[],
     },
     login: vi.fn(),
     logout: vi.fn(),
     isAdmin: true,
-    hasPermission: vi.fn((permission: PermissionName) => permission === 'cinemas:read'),
+    hasPermission: vi.fn((permission: PermissionName) => permission === 'theaters:read'),
   };
 
   const settingsValue = {
     publicSettings: {
-      site_name: 'Acme Cinema',
+      site_name: 'Acme Theater',
       logo_base64: null,
       favicon_base64: null,
       color_primary: '#FECC00',
@@ -90,9 +90,9 @@ describe('Layout tenant navigation scoping', () => {
   it('scopes header navigation links to the tenant', () => {
     renderLayout();
 
-    expect(screen.getByRole('link', { name: /acme cinema/i })).toHaveAttribute('href', '/org/acme/');
+    expect(screen.getByRole('link', { name: /acme theater/i })).toHaveAttribute('href', '/org/acme/');
     expect(screen.getByRole('link', { name: 'Accueil' })).toHaveAttribute('href', '/org/acme/');
-    expect(screen.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/org/acme/admin?tab=cinemas');
+    expect(screen.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/org/acme/admin?tab=theaters');
   });
 
   it('scopes account links and logout redirect to the tenant', () => {

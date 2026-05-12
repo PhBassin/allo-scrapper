@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import CinemaDateSelector from './CinemaDateSelector';
+import TheaterDateSelector from './TheaterDateSelector';
 import type { ShowtimeWithMovie } from '../types';
 
 const FIXED_TODAY = '2026-03-30';
@@ -17,7 +17,7 @@ const mockFormatDateLabel = (dateStr: string) => {
 const makeShowtime = (date: string, time = '14:00'): ShowtimeWithMovie => ({
   id: `${date}-${time}`,
   movie_id: 1,
-  cinema_id: 'C1',
+  theater_id: 'C1',
   date,
   time,
   datetime_iso: `${date}T${time}:00.000Z`,
@@ -26,7 +26,7 @@ const makeShowtime = (date: string, time = '14:00'): ShowtimeWithMovie => ({
   movie: { id: 1, title: 'Film Test', source_url: '' } as any,
 });
 
-describe('CinemaDateSelector — bouton Maintenant', () => {
+describe('TheaterDateSelector — bouton Maintenant', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(FIXED_NOW);
@@ -41,7 +41,7 @@ describe('CinemaDateSelector — bouton Maintenant', () => {
     const showtimes = [makeShowtime(FIXED_TODAY), makeShowtime('2026-03-31')];
 
     render(
-      <CinemaDateSelector
+      <TheaterDateSelector
         dates={dates}
         selectedDate={FIXED_TODAY}
         showtimes={showtimes}
@@ -59,7 +59,7 @@ describe('CinemaDateSelector — bouton Maintenant', () => {
     const showtimes = [makeShowtime(FIXED_TODAY)];
 
     render(
-      <CinemaDateSelector
+      <TheaterDateSelector
         dates={dates}
         selectedDate={FIXED_TODAY}
         showtimes={showtimes}
@@ -77,7 +77,7 @@ describe('CinemaDateSelector — bouton Maintenant', () => {
     const showtimes = [makeShowtime('2026-03-31'), makeShowtime('2026-04-01')];
 
     render(
-      <CinemaDateSelector
+      <TheaterDateSelector
         dates={dates}
         selectedDate='2026-03-31'
         showtimes={showtimes}
@@ -96,7 +96,7 @@ describe('CinemaDateSelector — bouton Maintenant', () => {
     const showtimes = [makeShowtime(FIXED_TODAY)];
 
     render(
-      <CinemaDateSelector
+      <TheaterDateSelector
         dates={dates}
         selectedDate={FIXED_TODAY}
         showtimes={showtimes}
@@ -117,7 +117,7 @@ describe('CinemaDateSelector — bouton Maintenant', () => {
     const showtimes = [makeShowtime(FIXED_TODAY)];
 
     render(
-      <CinemaDateSelector
+      <TheaterDateSelector
         dates={dates}
         selectedDate={FIXED_TODAY}
         showtimes={showtimes}
@@ -136,7 +136,7 @@ describe('CinemaDateSelector — bouton Maintenant', () => {
     const showtimes = [makeShowtime(FIXED_TODAY)];
 
     render(
-      <CinemaDateSelector
+      <TheaterDateSelector
         dates={dates}
         selectedDate={FIXED_TODAY}
         showtimes={showtimes}

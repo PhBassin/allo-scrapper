@@ -4,15 +4,15 @@ dotenv.config();
 import { logger } from './utils/logger.js';
 import { registry, scrapeJobsTotal, scrapeDurationSeconds, moviesScrapedTotal, showtimesScrapedTotal } from './utils/metrics.js';
 import { initTracing } from './utils/tracer.js';
-import type { ScrapeJobAddCinema, ScrapeJobScrape } from '@allo-scrapper/logger';
+import type { ScrapeJobAddTheater, ScrapeJobScrape } from '@allo-scrapper/logger';
 
-import { runScraper, addCinemaAndScrape } from './scraper/index.js';
+import { runScraper, addTheaterAndScrape } from './scraper/index.js';
 import { getRedisPublisher, getRedisConsumer, getRedisSubscriber, disconnectRedis, type ScrapeJob, type ScheduleChangeEvent } from './redis/client.js';
 import { db, withTenantDb } from './db/client.js';
 import { createScrapeReport, updateScrapeReport } from './db/report-queries.js';
 import { getPendingScrapeAttempts, getScrapeAttemptsByReport } from './db/scrape-attempt-queries.js';
 import { getEnabledSchedules, updateScheduleRunStatus } from './db/schedule-queries.js';
-import { getCinemas } from './db/cinema-queries.js';
+import { getTheaters } from './db/theater-queries.js';
 import { getScrapeDates, type ScrapeMode } from './utils/date.js';
 
 // ---------------------------------------------------------------------------
@@ -87,19 +87,19 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
       logger.warn(`[scraper] Could not update report ${job.reportId}:`, err);
     }
 
-    // --- add_cinema branch ---
-    if (jobType === 'add_cinema') {
-      const addCinemaJob = job as ScrapeJobAddCinema;
+    // --- add_theater branch ---
+    if (jobType === 'add_theater') {
+      const addTheaterJob = job as ScrapeJobAddTheater;
       try {
-        await addCinemaAndScrape(jobDb, addCinemaJob.url, publisher);
+        await addTheaterAndScrape(jobDb, addTheaterJob.url, publisher);
         await updateScrapeReport(jobDb, job.reportId, {
           status: 'success',
           completed_at: new Date().toISOString(),
         });
-        logger.info(`[scraper] add_cinema job ${job.reportId} completed successfully`, traceLogContext);
+        logger.info(`[scraper] add_theater job ${job.reportId} completed successfully`, traceLogContext);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        logger.error(`[scraper] add_cinema job ${job.reportId} failed`, {
+        logger.error(`[scraper] add_theater job ${job.reportId} failed`, {
           ...traceLogContext,
           error: errorMessage,
           stack: err instanceof Error ? err.stack : undefined,
@@ -108,7 +108,7 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
           await updateScrapeReport(jobDb, job.reportId, {
             status: 'failed',
             completed_at: new Date().toISOString(),
-            errors: [{ cinema_name: 'System', error: errorMessage }],
+            errors: [{ theater_name: 'System', error: errorMessage }],
           }).catch(() => {});
         }
 
@@ -120,7 +120,7 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
     }
 
     // --- scrape branch ---
-    const durationTimer = scrapeDurationSeconds.startTimer({ cinema: 'all' });
+    const durationTimer = scrapeDurationSeconds.startTimer({ theater: 'all' });
 
     try {
       const scrapeJob = job as ScrapeJobScrape;
@@ -130,23 +130,23 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
         traceContext: job.traceContext,
       }, jobDb);
 
-      const status = summary.failed_cinemas === 0
+      const status = summary.failed_theaters === 0
         ? 'success'
-        : summary.successful_cinemas > 0
+        : summary.successful_theaters > 0
           ? 'partial_success'
           : 'failed';
 
       durationTimer();
       scrapeJobsTotal.inc({ status, trigger: job.triggerType });
-      moviesScrapedTotal.inc({ cinema: 'all' }, summary.total_movies);
-      showtimesScrapedTotal.inc({ cinema: 'all' }, summary.total_showtimes);
+      moviesScrapedTotal.inc({ theater: 'all' }, summary.total_movies);
+      showtimesScrapedTotal.inc({ theater: 'all' }, summary.total_showtimes);
 
       await updateScrapeReport(jobDb, job.reportId, {
         status,
         completed_at: new Date().toISOString(),
-        total_cinemas: summary.total_cinemas,
-        successful_cinemas: summary.successful_cinemas,
-        failed_cinemas: summary.failed_cinemas,
+        total_theaters: summary.total_theaters,
+        successful_theaters: summary.successful_theaters,
+        failed_theaters: summary.failed_theaters,
         total_movies_scraped: summary.total_movies,
         total_showtimes_scraped: summary.total_showtimes,
         errors: summary.errors,
@@ -166,7 +166,7 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
         await updateScrapeReport(jobDb, job.reportId, {
           status: 'failed',
           completed_at: new Date().toISOString(),
-          errors: [{ cinema_name: 'System', error: errorMessage }],
+          errors: [{ theater_name: 'System', error: errorMessage }],
         }).catch(() => {});
       }
 
@@ -177,11 +177,11 @@ export async function executeJob(job: ScrapeJob, options: ExecuteJobOptions = {}
   });
 }
 
-async function getRecoveryPendingAttempts(jobDb: typeof db, job: ScrapeJobScrape): Promise<Array<{ cinema_id: string; date: string }>> {
+async function getRecoveryPendingAttempts(jobDb: typeof db, job: ScrapeJobScrape): Promise<Array<{ theater_id: string; date: string }>> {
   const pendingAttempts = await getPendingScrapeAttempts(jobDb, job.reportId);
   if (pendingAttempts.length > 0) {
     return pendingAttempts.map((attempt) => ({
-      cinema_id: attempt.cinema_id,
+      theater_id: attempt.theater_id,
       date: attempt.date,
     }));
   }
@@ -194,12 +194,12 @@ async function getRecoveryPendingAttempts(jobDb: typeof db, job: ScrapeJobScrape
   const successfulAttemptKeys = new Set(
     existingAttempts
       .filter((attempt) => attempt.status === 'success')
-      .map((attempt) => `${attempt.cinema_id}:${attempt.date}`)
+      .map((attempt) => `${attempt.theater_id}:${attempt.date}`)
   );
 
-  let cinemas = await getCinemas(jobDb);
-  if (job.options?.cinemaId) {
-    cinemas = cinemas.filter((cinema) => cinema.id === job.options?.cinemaId);
+  let theaters = await getTheaters(jobDb);
+  if (job.options?.theaterId) {
+    theaters = theaters.filter((theater) => theater.id === job.options?.theaterId);
   }
 
   let scrapeMode: ScrapeMode = 'from_today_limited';
@@ -224,10 +224,10 @@ async function getRecoveryPendingAttempts(jobDb: typeof db, job: ScrapeJobScrape
 
   const dates = getScrapeDates(scrapeMode, scrapeDays);
 
-  return cinemas.flatMap((cinema) => dates
-    .filter((date) => !successfulAttemptKeys.has(`${cinema.id}:${date}`))
+  return theaters.flatMap((theater) => dates
+    .filter((date) => !successfulAttemptKeys.has(`${theater.id}:${date}`))
     .map((date) => ({
-      cinema_id: cinema.id,
+      theater_id: theater.id,
       date,
     }))
   );
@@ -251,7 +251,7 @@ export async function buildRecoveryJob(job: ScrapeJob): Promise<ScrapeJob> {
       ...job.options,
       resumeMode: true,
       pendingAttempts: pendingAttempts.map((attempt) => ({
-        cinema_id: attempt.cinema_id,
+        theater_id: attempt.theater_id,
         date: attempt.date,
       })),
     },
@@ -263,7 +263,7 @@ export async function recordTerminalJobFailure(job: ScrapeJob, failureReason: st
     await updateScrapeReport(jobDb, job.reportId, {
       status: 'failed',
       completed_at: new Date().toISOString(),
-      errors: [{ cinema_name: 'System', error: failureReason }],
+      errors: [{ theater_name: 'System', error: failureReason }],
     });
   });
 }
@@ -370,18 +370,18 @@ async function runCron(): Promise<void> {
     try {
       const summary = await runScraper(publisher);
 
-      const status = summary.failed_cinemas === 0
+      const status = summary.failed_theaters === 0
         ? 'success'
-        : summary.successful_cinemas > 0
+        : summary.successful_theaters > 0
           ? 'partial_success'
           : 'failed';
 
       await updateScrapeReport(db, reportId, {
         status,
         completed_at: new Date().toISOString(),
-        total_cinemas: summary.total_cinemas,
-        successful_cinemas: summary.successful_cinemas,
-        failed_cinemas: summary.failed_cinemas,
+        total_theaters: summary.total_theaters,
+        successful_theaters: summary.successful_theaters,
+        failed_theaters: summary.failed_theaters,
         total_movies_scraped: summary.total_movies,
         total_showtimes_scraped: summary.total_showtimes,
         errors: summary.errors,
@@ -398,7 +398,7 @@ async function runCron(): Promise<void> {
       await updateScrapeReport(db, reportId, {
         status: 'failed',
         completed_at: new Date().toISOString(),
-        errors: [{ cinema_name: 'System', error: errorMessage }],
+        errors: [{ theater_name: 'System', error: errorMessage }],
       }).catch(() => {});
 
       if (schedule.id) {
@@ -518,18 +518,18 @@ async function runDirect(): Promise<void> {
     const summary = await runScraper(publisher);
 
     if (reportId !== -1) {
-      const status = summary.failed_cinemas === 0
+      const status = summary.failed_theaters === 0
         ? 'success'
-        : summary.successful_cinemas > 0
+        : summary.successful_theaters > 0
           ? 'partial_success'
           : 'failed';
 
       await updateScrapeReport(db, reportId, {
         status,
         completed_at: new Date().toISOString(),
-        total_cinemas: summary.total_cinemas,
-        successful_cinemas: summary.successful_cinemas,
-        failed_cinemas: summary.failed_cinemas,
+        total_theaters: summary.total_theaters,
+        successful_theaters: summary.successful_theaters,
+        failed_theaters: summary.failed_theaters,
         total_movies_scraped: summary.total_movies,
         total_showtimes_scraped: summary.total_showtimes,
         errors: summary.errors,

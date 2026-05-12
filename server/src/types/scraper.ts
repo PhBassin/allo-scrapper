@@ -1,7 +1,7 @@
 // Types TypeScript partagés pour le scraper et la base de données
 
-export interface Cinema {
-  id: string; // Unique cinema identifier (e.g., "W7504", "C0072")
+export interface Theater {
+  id: string; // Unique theater identifier (e.g., "W7504", "C0072")
   name: string;
   address?: string;
   postal_code?: string;
@@ -35,7 +35,7 @@ export interface Movie {
 export interface Showtime {
   id: string; // Unique showtime identifier
   movie_id: number;
-  cinema_id: string;
+  theater_id: string;
   date: string; // Format YYYY-MM-DD
   time: string; // Format HH:MM
   datetime_iso: string; // Full ISO 8601
@@ -47,7 +47,7 @@ export interface Showtime {
 
 export interface WeeklyProgram {
   id?: number;
-  cinema_id: string;
+  theater_id: string;
   movie_id: number;
   week_start: string; // Date du mercredi (YYYY-MM-DD)
   is_new_this_week: boolean;
@@ -55,33 +55,33 @@ export interface WeeklyProgram {
 }
 
 // Configuration d'un cinéma
-export interface CinemaConfig {
+export interface TheaterConfig {
   id: string;
   name: string;
   url: string;
 }
 
-// Data parsed from cinema page
+// Data parsed from theater page
 export interface TheaterPageData {
-  cinema: Cinema;
+  theater: Theater;
   movies: MovieShowtimeData[];
   dates: string[]; // Available dates
   selected_date: string;
 }
 
-// Movie data with its showtimes on cinema page
+// Movie data with its showtimes on theater page
 export interface MovieShowtimeData {
   movie: Movie;
   showtimes: Showtime[];
   is_new_this_week: boolean;
 }
 
-export interface CinemaWithShowtimes extends Cinema {
+export interface TheaterWithShowtimes extends Theater {
   showtimes: Showtime[];
 }
 
 export interface MovieWithShowtimes extends Movie {
-  cinemas: CinemaWithShowtimes[];
+  theaters: TheaterWithShowtimes[];
 }
 
 // Data parsed from movie details page

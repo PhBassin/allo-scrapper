@@ -1,13 +1,13 @@
 import { useState, useContext, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import { getWeeklyMovies, getMoviesByDate, getCinemas, addCinema } from '../api/client';
+import { getWeeklyMovies, getMoviesByDate, getTheaters, addTheater } from '../api/client';
 import MovieCard from '../components/MovieCard';
 import DaySelector from '../components/DaySelector';
 import MovieSearchBar from '../components/MovieSearchBar';
 import ScrollToTop from '../components/ScrollToTop';
 import { AuthContext } from '../contexts/AuthContext';
-import CinemasQuickLinks from '../components/CinemasQuickLinks';
+import TheatersQuickLinks from '../components/TheatersQuickLinks';
 import type { MovieWithShowtimes } from '../types';
 
 const EMPTY_ARRAY: MovieWithShowtimes[] = [];
@@ -20,9 +20,9 @@ export default function HomePage() {
   const [afterTime, setAfterTime] = useState<string | null>(null);
   const { isAuthenticated, hasPermission } = useContext(AuthContext);
 
-  const { data: cinemas = [], isLoading: isLoadingCinemas } = useQuery({
-    queryKey: ['cinemas', slug ?? null],
-    queryFn: getCinemas,
+  const { data: theaters = [], isLoading: isLoadingTheaters } = useQuery({
+    queryKey: ['theaters', slug ?? null],
+    queryFn: getTheaters,
   });
 
   const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
@@ -37,13 +37,13 @@ export default function HomePage() {
     const allMovies = moviesData?.movies ?? EMPTY_ARRAY;
     return afterTime
       ? allMovies.filter(movie =>
-          movie.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
+          movie.theaters.some(c => c.showtimes.some(s => s.time >= afterTime))
         )
       : allMovies;
   }, [moviesData, afterTime]);
   const weekStart = moviesData?.weekStart || '';
 
-  const isLoading = isLoadingCinemas || isLoadingMovies;
+  const isLoading = isLoadingTheaters || isLoadingMovies;
   const error = moviesError instanceof Error ? moviesError.message : null;
 
   const handleDateSelect = useCallback((date: string | null) => {
@@ -76,10 +76,10 @@ export default function HomePage() {
     return formatDate(end.toISOString());
   };
 
-  const addCinemaMutation = useMutation({
-    mutationFn: addCinema,
+  const addTheaterMutation = useMutation({
+    mutationFn: addTheater,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cinemas', slug ?? null] });
+      queryClient.invalidateQueries({ queryKey: ['theaters', slug ?? null] });
       queryClient.invalidateQueries({ queryKey: ['movies', selectedDate] });
     },
     onError: (err: Error) => {
@@ -87,12 +87,12 @@ export default function HomePage() {
     }
   });
 
-  const handleAddCinema = useCallback(async () => {
+  const handleAddTheater = useCallback(async () => {
     const url = window.prompt("Entrez l'URL Allociné du cinéma à ajouter (ex: https://www.allocine.fr/seance/salle_affich-salle=C0013.html):");
     if (!url) return;
 
-    addCinemaMutation.mutate(url);
-  }, [addCinemaMutation]);
+    addTheaterMutation.mutate(url);
+  }, [addTheaterMutation]);
 
   if (isLoading) {
     return (
@@ -159,11 +159,11 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Quick Cinema Links - Below sticky header */}
-      <CinemasQuickLinks
-        cinemas={cinemas}
-        canAddCinema={isAuthenticated && hasPermission('cinemas:create')}
-        onAddCinema={handleAddCinema}
+      {/* Quick Theater Links - Below sticky header */}
+      <TheatersQuickLinks
+        theaters={theaters}
+        canAddTheater={isAuthenticated && hasPermission('theaters:create')}
+        onAddTheater={handleAddTheater}
       />
 
       {/* Movies List */}

@@ -71,7 +71,7 @@ describe.skipIf(!shouldRun)('SaaS Migrations Integration', () => {
         "SELECT * FROM organizations WHERE slug = 'ics'"
       );
       expect(orgResult.rows).toHaveLength(1);
-      expect(orgResult.rows[0].name).toBe('Internal Cinema System');
+      expect(orgResult.rows[0].name).toBe('Internal Theater System');
       expect(orgResult.rows[0].slug).toBe('ics');
       
       // Verify schema exists
@@ -121,19 +121,19 @@ describe.skipIf(!shouldRun)('SaaS Migrations Integration', () => {
     });
     
     it('should migrate data from public schema to org_ics schema', async () => {
-      // Verify cinemas migrated
-      const cinemasResult = await pool.query(
-        "SELECT COUNT(*) FROM org_ics.cinemas"
+      // Verify theaters migrated
+      const theatersResult = await pool.query(
+        "SELECT COUNT(*) FROM org_ics.theaters"
       );
-      const cinemaCount = parseInt(cinemasResult.rows[0].count, 10);
+      const theaterCount = parseInt(theatersResult.rows[0].count, 10);
       
       // Should match public schema (if any data existed)
-      const publicCinemasResult = await pool.query(
-        "SELECT COUNT(*) FROM public.cinemas"
+      const publicTheatersResult = await pool.query(
+        "SELECT COUNT(*) FROM public.theaters"
       );
-      const publicCinemaCount = parseInt(publicCinemasResult.rows[0].count, 10);
+      const publicTheaterCount = parseInt(publicTheatersResult.rows[0].count, 10);
       
-      expect(cinemaCount).toBe(publicCinemaCount);
+      expect(theaterCount).toBe(publicTheaterCount);
       
       // Verify movies migrated
       const moviesResult = await pool.query(

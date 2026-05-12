@@ -39,9 +39,9 @@ INSERT INTO permissions (name, description, category) VALUES
   ('users:delete',          'Supprimer un utilisateur',                   'users'),
   ('scraper:trigger',       'Lancer un scrape global',                    'scraper'),
   ('scraper:trigger_single','Lancer un scrape pour un cinéma',            'scraper'),
-  ('cinemas:create',        'Ajouter un cinéma',                          'cinemas'),
-  ('cinemas:update',        'Modifier un cinéma',                         'cinemas'),
-  ('cinemas:delete',        'Supprimer un cinéma',                        'cinemas'),
+  ('theaters:create',        'Ajouter un cinéma', 'theaters'),
+  ('theaters:update',        'Modifier un cinéma', 'theaters'),
+  ('theaters:delete',        'Supprimer un cinéma', 'theaters'),
   ('settings:read',         'Lire les settings admin',                    'settings'),
   ('settings:update',       'Modifier les settings',                      'settings'),
   ('settings:reset',        'Réinitialiser les settings',                 'settings'),
@@ -62,7 +62,7 @@ FROM roles r, permissions p
 WHERE r.name = 'operator'
   AND p.name IN (
     'scraper:trigger', 'scraper:trigger_single',
-    'cinemas:create', 'cinemas:update', 'cinemas:delete',
+    'theaters:create', 'theaters:update', 'theaters:delete',
     'reports:list', 'reports:view'
   )
 ON CONFLICT DO NOTHING;

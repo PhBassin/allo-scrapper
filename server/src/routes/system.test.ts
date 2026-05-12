@@ -98,7 +98,7 @@ describe('Routes - System', () => {
       const mockDatabaseStats = {
         size: '15 MB',
         tables: 10,
-        cinemas: 5,
+        theaters: 5,
         films: 100,
         showtimes: 500,
       };
@@ -232,7 +232,7 @@ describe('Routes - System', () => {
       const mockScraperStatus = {
         activeJobs: 2,
         lastScrapeTime: new Date('2026-03-01T12:00:00Z'),
-        totalCinemas: 10,
+        totalTheaters: 10,
       };
 
       const mockServerHealth = {
@@ -267,7 +267,7 @@ describe('Routes - System', () => {
       vi.mocked(systemInfo.getScraperStatus).mockResolvedValue({
         activeJobs: 0,
         lastScrapeTime: new Date(),
-        totalCinemas: 5,
+        totalTheaters: 5,
       });
       vi.mocked(systemInfo.getServerHealth).mockReturnValue({
         uptime: 3600,
@@ -291,7 +291,7 @@ describe('Routes - System', () => {
       vi.mocked(systemInfo.getScraperStatus).mockResolvedValue({
         activeJobs: 0,
         lastScrapeTime: new Date(),
-        totalCinemas: 5,
+        totalTheaters: 5,
       });
       vi.mocked(systemInfo.getServerHealth).mockReturnValue({
         uptime: 3600,

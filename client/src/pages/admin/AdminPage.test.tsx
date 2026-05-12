@@ -7,8 +7,8 @@ import type { User } from '../../contexts/AuthContext';
 import type { PermissionName } from '../../types/role';
 
 // Mock child pages
-vi.mock('./CinemasPage', () => ({
-  default: () => <div data-testid="cinemas-content">Cinemas Page</div>,
+vi.mock('./TheatersPage', () => ({
+  default: () => <div data-testid="theaters-content">Theaters Page</div>,
 }));
 
 vi.mock('./SettingsPage', () => ({
@@ -49,9 +49,9 @@ const operatorUser: User = {
   permissions: [
     'scraper:trigger',
     'scraper:trigger_single',
-    'cinemas:create',
-    'cinemas:update',
-    'cinemas:delete',
+    'theaters:create',
+    'theaters:update',
+    'theaters:delete',
     'reports:list',
     'reports:view',
   ] as PermissionName[],
@@ -64,7 +64,7 @@ const fakeAdminUser: User = {
   role_id: 99,
   role_name: 'admin',
   is_system_role: false,
-  permissions: ['cinemas:create', 'reports:list'] as PermissionName[],
+  permissions: ['theaters:create', 'reports:list'] as PermissionName[],
 };
 
 const makeAuthContext = (user: User) => ({
@@ -97,15 +97,15 @@ describe('AdminPage', () => {
   });
 
   describe('Default tab display', () => {
-    it('should display Cinemas tab by default when no tab param is provided', () => {
+    it('should display Theaters tab by default when no tab param is provided', () => {
       renderWithRouter('/admin');
 
-      // Cinemas tab should be active
-      const cinemasTab = screen.getByRole('tab', { name: 'Cinemas' });
-      expect(cinemasTab).toHaveClass('border-primary');
+      // Theaters tab should be active
+      const theatersTab = screen.getByRole('tab', { name: 'Theaters' });
+      expect(theatersTab).toHaveClass('border-primary');
 
-      // Cinemas content should be visible
-      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      // Theaters content should be visible
+      expect(screen.getByTestId('theaters-content')).toBeInTheDocument();
     });
   });
 
@@ -150,12 +150,12 @@ describe('AdminPage', () => {
       expect(screen.getByTestId('system-content')).toBeInTheDocument();
     });
 
-    it('should fallback to Cinemas tab when invalid tab param is provided', () => {
+    it('should fallback to Theaters tab when invalid tab param is provided', () => {
       renderWithRouter('/admin?tab=invalid');
 
-      const cinemasTab = screen.getByRole('tab', { name: 'Cinemas' });
-      expect(cinemasTab).toHaveClass('border-primary');
-      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      const theatersTab = screen.getByRole('tab', { name: 'Theaters' });
+      expect(theatersTab).toHaveClass('border-primary');
+      expect(screen.getByTestId('theaters-content')).toBeInTheDocument();
     });
   });
 
@@ -184,8 +184,8 @@ describe('AdminPage', () => {
     it('should display correct content after clicking tab', () => {
       renderWithRouter('/admin');
 
-      // Initially shows Cinemas
-      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      // Initially shows Theaters
+      expect(screen.getByTestId('theaters-content')).toBeInTheDocument();
 
       // Click on Settings tab
       const settingsTab = screen.getByRole('tab', { name: 'Settings' });
@@ -193,7 +193,7 @@ describe('AdminPage', () => {
 
       // Should now show Settings
       expect(screen.getByTestId('settings-content')).toBeInTheDocument();
-      expect(screen.queryByTestId('cinemas-content')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('theaters-content')).not.toBeInTheDocument();
     });
   });
 
@@ -201,7 +201,7 @@ describe('AdminPage', () => {
     it('should display icons for each tab', () => {
       renderWithRouter('/admin');
 
-      const cinemasTab = screen.getByRole('tab', { name: 'Cinemas' });
+      const theatersTab = screen.getByRole('tab', { name: 'Theaters' });
       const rapportsTab = screen.getByRole('tab', { name: 'Rapports' });
       const usersTab = screen.getByRole('tab', { name: 'Users' });
       const rolesTab = screen.getByRole('tab', { name: 'Roles' });
@@ -209,7 +209,7 @@ describe('AdminPage', () => {
       const systemTab = screen.getByRole('tab', { name: 'System' });
 
       // Each tab should have an SVG icon
-      expect(cinemasTab.querySelector('svg')).toBeInTheDocument();
+      expect(theatersTab.querySelector('svg')).toBeInTheDocument();
       expect(rapportsTab.querySelector('svg')).toBeInTheDocument();
       expect(usersTab.querySelector('svg')).toBeInTheDocument();
       expect(rolesTab.querySelector('svg')).toBeInTheDocument();
@@ -223,24 +223,24 @@ describe('AdminPage', () => {
       renderWithRouter('/admin?tab=settings');
 
       const settingsTab = screen.getByRole('tab', { name: 'Settings' });
-      const cinemasTab = screen.getByRole('tab', { name: 'Cinemas' });
+      const theatersTab = screen.getByRole('tab', { name: 'Theaters' });
 
       // Settings tab should have active classes
       expect(settingsTab).toHaveClass('border-primary', 'text-primary');
 
       // Other tabs should have inactive classes
-      expect(cinemasTab).toHaveClass('text-gray-500');
-      expect(cinemasTab).not.toHaveClass('border-primary');
+      expect(theatersTab).toHaveClass('text-gray-500');
+      expect(theatersTab).not.toHaveClass('border-primary');
     });
   });
 
   describe('Tab order (admin)', () => {
-    it('should display all 8 tabs in correct order for admin: Cinemas, Schedules, Rapports, Users, Roles, Settings, Rate Limits, System', () => {
+    it('should display all 8 tabs in correct order for admin: Theaters, Schedules, Rapports, Users, Roles, Settings, Rate Limits, System', () => {
       renderWithRouter('/admin');
 
       const tabs = screen.getAllByRole('tab');
 
-      expect(tabs[0]).toHaveTextContent('Cinemas');
+      expect(tabs[0]).toHaveTextContent('Theaters');
       expect(tabs[1]).toHaveTextContent('Schedules');
       expect(tabs[2]).toHaveTextContent('Rapports');
       expect(tabs[3]).toHaveTextContent('Users');
@@ -252,12 +252,12 @@ describe('AdminPage', () => {
   });
 
   describe('Operator role - tab visibility', () => {
-    it('should only show Cinemas and Rapports tabs for operator', () => {
+    it('should only show Theaters and Rapports tabs for operator', () => {
       renderWithRouter('/admin', operatorUser);
 
       const tabs = screen.getAllByRole('tab');
       expect(tabs).toHaveLength(2);
-      expect(tabs[0]).toHaveTextContent('Cinemas');
+      expect(tabs[0]).toHaveTextContent('Theaters');
       expect(tabs[1]).toHaveTextContent('Rapports');
     });
 
@@ -285,38 +285,38 @@ describe('AdminPage', () => {
       expect(screen.queryByRole('tab', { name: 'System' })).not.toBeInTheDocument();
     });
 
-    it('should show Cinemas content by default for operator', () => {
+    it('should show Theaters content by default for operator', () => {
       renderWithRouter('/admin', operatorUser);
 
-      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      expect(screen.getByTestId('theaters-content')).toBeInTheDocument();
     });
 
-    it('should redirect operator from a forbidden tab (users) to cinemas', () => {
+    it('should redirect operator from a forbidden tab (users) to theaters', () => {
       renderWithRouter('/admin?tab=users', operatorUser);
 
-      // Should fall back to cinemas content since users tab is not allowed
-      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      // Should fall back to theaters content since users tab is not allowed
+      expect(screen.getByTestId('theaters-content')).toBeInTheDocument();
       expect(screen.queryByTestId('users-content')).not.toBeInTheDocument();
     });
 
-    it('should redirect operator from a forbidden tab (roles) to cinemas', () => {
+    it('should redirect operator from a forbidden tab (roles) to theaters', () => {
       renderWithRouter('/admin?tab=roles', operatorUser);
 
-      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      expect(screen.getByTestId('theaters-content')).toBeInTheDocument();
       expect(screen.queryByTestId('roles-content')).not.toBeInTheDocument();
     });
 
-    it('should redirect operator from a forbidden tab (settings) to cinemas', () => {
+    it('should redirect operator from a forbidden tab (settings) to theaters', () => {
       renderWithRouter('/admin?tab=settings', operatorUser);
 
-      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      expect(screen.getByTestId('theaters-content')).toBeInTheDocument();
       expect(screen.queryByTestId('settings-content')).not.toBeInTheDocument();
     });
 
-    it('should redirect operator from a forbidden tab (system) to cinemas', () => {
+    it('should redirect operator from a forbidden tab (system) to theaters', () => {
       renderWithRouter('/admin?tab=system', operatorUser);
 
-      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      expect(screen.getByTestId('theaters-content')).toBeInTheDocument();
       expect(screen.queryByTestId('system-content')).not.toBeInTheDocument();
     });
 
@@ -473,10 +473,10 @@ describe('AdminPage', () => {
       renderWithRouter('/admin', fakeAdminUser);
 
       // Only tabs matching fakeAdminUser.permissions should be visible
-      // fakeAdminUser has cinemas:create and reports:list
+      // fakeAdminUser has theaters:create and reports:list
       const tabs = screen.getAllByRole('tab');
       const tabLabels = tabs.map((t) => t.textContent);
-      expect(tabLabels).toContain('Cinemas');
+      expect(tabLabels).toContain('Theaters');
       expect(tabLabels).toContain('Rapports');
       // Should NOT have all-access tabs like Users, Roles, Settings, System
       expect(tabLabels).not.toContain('Users');
@@ -489,14 +489,14 @@ describe('AdminPage', () => {
       renderWithRouter('/admin?tab=users', fakeAdminUser);
 
       expect(screen.queryByTestId('users-content')).not.toBeInTheDocument();
-      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      expect(screen.getByTestId('theaters-content')).toBeInTheDocument();
     });
 
     it('should redirect a non-system "admin" role away from roles tab', () => {
       renderWithRouter('/admin?tab=roles', fakeAdminUser);
 
       expect(screen.queryByTestId('roles-content')).not.toBeInTheDocument();
-      expect(screen.getByTestId('cinemas-content')).toBeInTheDocument();
+      expect(screen.getByTestId('theaters-content')).toBeInTheDocument();
     });
   });
 });

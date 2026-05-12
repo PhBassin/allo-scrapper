@@ -103,15 +103,15 @@ test.describe('Database Schema', () => {
     expect(protectedResponse.status()).not.toBe(401);
   });
 
-  test('core cinema tables exist and are accessible', async ({ request }) => {
+  test('core theater tables exist and are accessible', async ({ request }) => {
     // Verify other core tables exist by checking API endpoints
     
-    // Cinemas table
-    const cinemasResponse = await request.get('/api/cinemas');
-    expect(cinemasResponse.ok()).toBeTruthy();
-    const cinemasData = await cinemasResponse.json();
-    expect(cinemasData.success).toBe(true);
-    expect(Array.isArray(cinemasData.data)).toBe(true);
+    // Theaters table
+    const theatersResponse = await request.get('/api/theaters');
+    expect(theatersResponse.ok()).toBeTruthy();
+    const theatersData = await theatersResponse.json();
+    expect(theatersData.success).toBe(true);
+    expect(Array.isArray(theatersData.data)).toBe(true);
 
     // Films table (may be empty but should return object with films array)
     const filmsResponse = await request.get('/api/films');

@@ -5,14 +5,14 @@ import type { Showtime } from '../types/scraper.js';
 
 describe('Showtime Queries', () => {
   describe('getShowtimesByMovieAndWeek', () => {
-    it('should return showtimes grouped by cinema', async () => {
+    it('should return showtimes grouped by theater', async () => {
       const mockDb = {
         query: vi.fn().mockResolvedValue({
           rows: [
             {
               id: 's1',
               movie_id: 123,
-              cinema_id: 'C0001',
+              theater_id: 'C0001',
               date: '2026-02-18',
               time: '14:00',
               datetime_iso: '2026-02-18T14:00:00Z',
@@ -20,8 +20,8 @@ describe('Showtime Queries', () => {
               format: 'Digital',
               experiences: '["3D"]',
               week_start: '2026-02-18',
-              cinema_name: 'Cinema 1',
-              cinema_address: 'Address 1',
+              theater_name: 'Theater 1',
+              theater_address: 'Address 1',
               postal_code: '75001',
               city: 'Paris',
               screen_count: 5,
@@ -34,8 +34,8 @@ describe('Showtime Queries', () => {
       const result = await getShowtimesByMovieAndWeek(mockDb, 123, '2026-02-18');
 
       expect(result).toHaveLength(1);
-      expect(result[0].cinema).toBeDefined();
-      expect(result[0].cinema.name).toBe('Cinema 1');
+      expect(result[0].theater).toBeDefined();
+      expect(result[0].theater.name).toBe('Theater 1');
       expect(result[0].experiences).toEqual(['3D']);
     });
 
@@ -55,7 +55,7 @@ describe('Showtime Queries', () => {
             {
               id: 's1',
               experiences: null, // should default to empty array
-              cinema_id: 'C0001',
+              theater_id: 'C0001',
               experiences_json: null
             }
           ]
@@ -77,7 +77,7 @@ describe('Showtime Queries', () => {
         {
           id: 'S1',
           movie_id: 101,
-          cinema_id: 'C1',
+          theater_id: 'C1',
           date: '2023-01-01',
           time: '12:00',
           datetime_iso: '2023-01-01T12:00:00Z',
@@ -89,7 +89,7 @@ describe('Showtime Queries', () => {
         {
           id: 'S2',
           movie_id: 101,
-          cinema_id: 'C1',
+          theater_id: 'C1',
           date: '2023-01-01',
           time: '15:00',
           datetime_iso: '2023-01-01T15:00:00Z',

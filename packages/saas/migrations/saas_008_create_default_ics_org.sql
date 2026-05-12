@@ -85,7 +85,7 @@ BEGIN
   INSERT INTO org_ics.roles (name, description, is_system)
   VALUES
     ('admin',  'Full access to all org resources',         TRUE),
-    ('editor', 'Can manage cinemas and trigger scrapes',   TRUE),
+    ('editor', 'Can manage theaters and trigger scrapes',   TRUE),
     ('viewer', 'Read-only access',                         TRUE)
   ON CONFLICT (name) DO NOTHING;
 
@@ -143,10 +143,10 @@ BEGIN
   VALUES (1, 'Independent Cinema Showtimes')
   ON CONFLICT (id) DO NOTHING;
 
-  -- Core data tables (cinemas, movies, showtimes, etc.)
+  -- Core data tables (theaters, movies, showtimes, etc.)
 
-  -- Cinemas table
-  CREATE TABLE IF NOT EXISTS org_ics.cinemas (
+  -- Theaters table
+  CREATE TABLE IF NOT EXISTS org_ics.theaters (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     address TEXT,
@@ -187,7 +187,7 @@ BEGIN
   CREATE TABLE IF NOT EXISTS org_ics.showtimes (
     id TEXT PRIMARY KEY,
     movie_id INTEGER NOT NULL,
-    cinema_id TEXT NOT NULL,
+    theater_id TEXT NOT NULL,
     date TEXT NOT NULL,
     time TEXT NOT NULL,
     datetime_iso TEXT NOT NULL,
@@ -196,26 +196,26 @@ BEGIN
     experiences TEXT,
     week_start TEXT NOT NULL,
     FOREIGN KEY (movie_id) REFERENCES org_ics.movies(id),
-    FOREIGN KEY (cinema_id) REFERENCES org_ics.cinemas(id) ON DELETE CASCADE
+    FOREIGN KEY (theater_id) REFERENCES org_ics.theaters(id) ON DELETE CASCADE
   );
 
   -- Indexes for showtimes
-  CREATE INDEX IF NOT EXISTS idx_showtimes_cinema_date ON org_ics.showtimes(cinema_id, date);
+  CREATE INDEX IF NOT EXISTS idx_showtimes_theater_date ON org_ics.showtimes(theater_id, date);
   CREATE INDEX IF NOT EXISTS idx_showtimes_movie_date ON org_ics.showtimes(movie_id, date);
   CREATE INDEX IF NOT EXISTS idx_showtimes_week ON org_ics.showtimes(week_start);
 
   -- Weekly programs table
   CREATE TABLE IF NOT EXISTS org_ics.weekly_programs (
     id SERIAL PRIMARY KEY,
-    cinema_id TEXT NOT NULL,
+    theater_id TEXT NOT NULL,
     movie_id INTEGER NOT NULL,
     movie_name TEXT,
     week_start TEXT NOT NULL,
     is_new_this_week INTEGER NOT NULL DEFAULT 0,
     scraped_at TEXT NOT NULL,
-    FOREIGN KEY (cinema_id) REFERENCES org_ics.cinemas(id) ON DELETE CASCADE,
+    FOREIGN KEY (theater_id) REFERENCES org_ics.theaters(id) ON DELETE CASCADE,
     FOREIGN KEY (movie_id) REFERENCES org_ics.movies(id),
-    UNIQUE(cinema_id, movie_id, week_start)
+    UNIQUE(theater_id, movie_id, week_start)
   );
 
   -- Index for weekly_programs
@@ -230,9 +230,9 @@ BEGIN
     completed_at TIMESTAMPTZ,
     status TEXT NOT NULL,
     trigger_type TEXT NOT NULL,
-    total_cinemas INTEGER,
-    successful_cinemas INTEGER,
-    failed_cinemas INTEGER,
+    total_theaters INTEGER,
+    successful_theaters INTEGER,
+    failed_theaters INTEGER,
     total_movies_scraped INTEGER,
     total_showtimes_scraped INTEGER,
     errors JSONB,
@@ -249,19 +249,19 @@ BEGIN
   -- Step 5: Migrate data from public schema to org_ics schema
   -- Only migrate if tables exist in public schema
 
-  -- Migrate cinemas
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'cinemas') THEN
-    SELECT COUNT(*) INTO source_count FROM public.cinemas;
+  -- Migrate theaters
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'theaters') THEN
+    SELECT COUNT(*) INTO source_count FROM public.theaters;
     
-    INSERT INTO org_ics.cinemas (id, name, address, postal_code, city, screen_count, image_url, url, source)
+    INSERT INTO org_ics.theaters (id, name, address, postal_code, city, screen_count, image_url, url, source)
     SELECT id, name, address, postal_code, city, screen_count, image_url, url, source
-    FROM public.cinemas
+    FROM public.theaters
     ON CONFLICT (id) DO NOTHING;
     
-    SELECT COUNT(*) INTO target_count FROM org_ics.cinemas;
-    RAISE NOTICE 'Migrated cinemas: % source rows, % rows now in target', source_count, target_count;
+    SELECT COUNT(*) INTO target_count FROM org_ics.theaters;
+    RAISE NOTICE 'Migrated theaters: % source rows, % rows now in target', source_count, target_count;
   ELSE
-    RAISE NOTICE 'Table public.cinemas does not exist, skipping migration';
+    RAISE NOTICE 'Table public.theaters does not exist, skipping migration';
   END IF;
 
   -- Migrate movies
@@ -287,11 +287,11 @@ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'showtimes') THEN
     SELECT COUNT(*) INTO source_count FROM public.showtimes;
     
-    INSERT INTO org_ics.showtimes (id, movie_id, cinema_id, date, time, datetime_iso, version, format, experiences, week_start)
-    SELECT s.id, s.movie_id, s.cinema_id, s.date, s.time, s.datetime_iso, s.version, s.format, s.experiences, s.week_start
+    INSERT INTO org_ics.showtimes (id, movie_id, theater_id, date, time, datetime_iso, version, format, experiences, week_start)
+    SELECT s.id, s.movie_id, s.theater_id, s.date, s.time, s.datetime_iso, s.version, s.format, s.experiences, s.week_start
     FROM public.showtimes s
-    INNER JOIN org_ics.movies f ON s.movie_id = f.id
-    INNER JOIN org_ics.cinemas c ON s.cinema_id = c.id
+    INNER JOIN org_ics.movies m ON s.movie_id = m.id
+    INNER JOIN org_ics.theaters t ON s.theater_id = t.id
     ON CONFLICT (id) DO NOTHING;
     
     SELECT COUNT(*) INTO target_count FROM org_ics.showtimes;
@@ -301,7 +301,7 @@ BEGIN
     SELECT COUNT(*) INTO source_count
     FROM public.showtimes s
     WHERE NOT EXISTS (SELECT 1 FROM public.movies WHERE id = s.movie_id)
-       OR NOT EXISTS (SELECT 1 FROM public.cinemas WHERE id = s.cinema_id);
+       OR NOT EXISTS (SELECT 1 FROM public.theaters WHERE id = s.theater_id);
     
     IF source_count > 0 THEN
       RAISE WARNING 'Skipped % orphaned showtime rows with invalid FK references', source_count;
@@ -314,11 +314,11 @@ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'weekly_programs') THEN
     SELECT COUNT(*) INTO source_count FROM public.weekly_programs;
     
-    INSERT INTO org_ics.weekly_programs (cinema_id, movie_id, movie_name, week_start, is_new_this_week, scraped_at)
-    SELECT wp.cinema_id, wp.movie_id, f.title, wp.week_start, wp.is_new_this_week, wp.scraped_at
+    INSERT INTO org_ics.weekly_programs (theater_id, movie_id, movie_name, week_start, is_new_this_week, scraped_at)
+    SELECT wp.theater_id, wp.movie_id, m.title, wp.week_start, wp.is_new_this_week, wp.scraped_at
     FROM public.weekly_programs wp
-    LEFT JOIN public.movies f ON wp.movie_id = f.id
-    ON CONFLICT (cinema_id, movie_id, week_start) DO NOTHING;
+    LEFT JOIN public.movies m ON wp.movie_id = m.id
+    ON CONFLICT (theater_id, movie_id, week_start) DO NOTHING;
     
     SELECT COUNT(*) INTO target_count FROM org_ics.weekly_programs;
     RAISE NOTICE 'Migrated weekly_programs: % source rows, % rows now in target', source_count, target_count;
@@ -340,19 +340,19 @@ BEGIN
     
     IF has_scraper_name THEN
       INSERT INTO org_ics.scrape_reports (id, scraper_name, started_at, completed_at, status, trigger_type, 
-                                          total_cinemas, successful_cinemas, failed_cinemas, 
+                                          total_theaters, successful_theaters, failed_theaters, 
                                           total_movies_scraped, total_showtimes_scraped, errors, progress_log)
       SELECT id, scraper_name, started_at, completed_at, status, trigger_type,
-             total_cinemas, successful_cinemas, failed_cinemas,
+             total_theaters, successful_theaters, failed_theaters,
              total_movies_scraped, total_showtimes_scraped, errors, progress_log
       FROM public.scrape_reports
       ON CONFLICT (id) DO NOTHING;
     ELSE
       INSERT INTO org_ics.scrape_reports (id, started_at, completed_at, status, trigger_type, 
-                                          total_cinemas, successful_cinemas, failed_cinemas, 
+                                          total_theaters, successful_theaters, failed_theaters, 
                                           total_movies_scraped, total_showtimes_scraped, errors, progress_log)
       SELECT id, started_at, completed_at, status, trigger_type,
-             total_cinemas, successful_cinemas, failed_cinemas,
+             total_theaters, successful_theaters, failed_theaters,
              total_movies_scraped, total_showtimes_scraped, errors, progress_log
       FROM public.scrape_reports
       ON CONFLICT (id) DO NOTHING;
@@ -413,7 +413,7 @@ BEGIN
   END IF;
 
   -- Step 7: Initialize quota tracking in public.org_usage
-  INSERT INTO public.org_usage (org_id, month, cinemas_count, users_count, scrapes_count, api_calls_count)
+  INSERT INTO public.org_usage (org_id, month, theaters_count, users_count, scrapes_count, api_calls_count)
   SELECT 
     o.id,
     DATE_TRUNC('month', CURRENT_DATE),
@@ -440,7 +440,7 @@ BEGIN
     SELECT EXISTS(SELECT 1 FROM org_ics.users LIMIT 1) INTO admin_exists;
     
     -- P10 fix: Verify quota exists AND has correct initial values
-    SELECT cinemas_count, users_count, scrapes_count, api_calls_count
+    SELECT theaters_count, users_count, scrapes_count, api_calls_count
     INTO quota_counts
     FROM public.org_usage
     WHERE org_id = (SELECT id FROM public.organizations WHERE slug = 'ics')
@@ -461,10 +461,10 @@ BEGIN
     END IF;
     
     -- P10 fix: Warn if quota counts are non-zero (indicates re-run of migration)
-    IF quota_counts.cinemas_count != 0 OR quota_counts.users_count != 0 OR 
+    IF quota_counts.theaters_count != 0 OR quota_counts.users_count != 0 OR 
        quota_counts.scrapes_count != 0 OR quota_counts.api_calls_count != 0 THEN
-      RAISE WARNING 'Quota tracking exists but counts are non-zero (migration may have been re-run): cinemas=%, users=%, scrapes=%, api_calls=%',
-        quota_counts.cinemas_count, quota_counts.users_count, quota_counts.scrapes_count, quota_counts.api_calls_count;
+      RAISE WARNING 'Quota tracking exists but counts are non-zero (migration may have been re-run): theaters=%, users=%, scrapes=%, api_calls=%',
+        quota_counts.theaters_count, quota_counts.users_count, quota_counts.scrapes_count, quota_counts.api_calls_count;
     END IF;
     
     IF NOT admin_exists THEN

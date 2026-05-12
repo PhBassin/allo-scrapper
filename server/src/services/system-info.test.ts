@@ -100,7 +100,7 @@ describe('System Info Service', () => {
         query: vi.fn()
           .mockResolvedValueOnce({ rows: [{ count: '0' }] }) // Active jobs
           .mockResolvedValueOnce({ rows: [{ last_scrape: new Date('2026-03-01T12:00:00Z') }] }) // Last scrape
-          .mockResolvedValueOnce({ rows: [{ count: '10' }] }), // Total cinemas
+          .mockResolvedValueOnce({ rows: [{ count: '10' }] }), // Total theaters
       } as unknown as DB;
 
       const status = await getScraperStatus(mockDb);
@@ -108,7 +108,7 @@ describe('System Info Service', () => {
       expect(status).toEqual({
         activeJobs: 0,
         lastScrapeTime: new Date('2026-03-01T12:00:00Z'),
-        totalCinemas: 10,
+        totalTheaters: 10,
       });
     });
 
@@ -138,7 +138,7 @@ describe('System Info Service', () => {
       expect(status.lastScrapeTime).toBeNull();
     });
 
-    it('should handle empty database (no cinemas)', async () => {
+    it('should handle empty database (no theaters)', async () => {
       const mockDb: DB = {
         query: vi.fn()
           .mockResolvedValueOnce({ rows: [{ count: '0' }] })
@@ -150,7 +150,7 @@ describe('System Info Service', () => {
 
       expect(status.activeJobs).toBe(0);
       expect(status.lastScrapeTime).toBeNull();
-      expect(status.totalCinemas).toBe(0);
+      expect(status.totalTheaters).toBe(0);
     });
 
     it('should handle database query errors', async () => {

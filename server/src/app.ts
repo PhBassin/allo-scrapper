@@ -68,7 +68,7 @@ export async function applyPlugins(
 
 // Import routes
 import moviesRouter from './routes/movies.js';
-import cinemasRouter from './routes/cinemas.js';
+import theatersRouter from './routes/theaters.js';
 import scraperRouter from './routes/scraper.js';
 import reportsRouter from './routes/reports.js';
 import authRouter from './routes/auth.js';
@@ -265,7 +265,7 @@ export function createApp() {
   // API routes
   app.use('/api/auth', authRouter);
   app.use('/api/movies', moviesRouter);
-  app.use('/api/cinemas', cinemasRouter);
+  app.use('/api/theaters', theatersRouter);
   app.use('/api/scraper', scraperRouter);
   // Alias mount per Sprint Change Proposal 2026-04-26; canonical path remains /api/scraper/dlq
   app.use('/api/admin/scraper', adminScraperAliasRouter);

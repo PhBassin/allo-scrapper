@@ -83,22 +83,22 @@ test.describe('Showtime Buttons Behavior', () => {
     expect(['not-allowed', 'default']).toContain(cursor);
   });
 
-  // Skipping this test as cinema page may not always have showtimes available
+  // Skipping this test as theater page may not always have showtimes available
   // The core functionality is tested on home page and film page
-  test.skip('showtime buttons are present on cinema detail page', async ({ page }) => {
-    // Navigate to a specific cinema page
-    const cinemaLink = page.locator('a[href^="/cinema/"]').first();
-    await expect(cinemaLink).toBeVisible({ timeout: 10000 });
-    await cinemaLink.click();
+  test.skip('showtime buttons are present on theater detail page', async ({ page }) => {
+    // Navigate to a specific theater page
+    const theaterLink = page.locator('a[href^="/theater/"]').first();
+    await expect(theaterLink).toBeVisible({ timeout: 10000 });
+    await theaterLink.click();
 
-    // Wait for cinema page to load
+    // Wait for theater page to load
     await page.waitForLoadState('networkidle');
 
     // Wait a bit more for content to render
     await page.waitForTimeout(1000);
 
-    // Find showtime buttons on the cinema page
-    // Note: On cinema page, showtimes should be directly visible (no toggle needed)
+    // Find showtime buttons on the theater page
+    // Note: On theater page, showtimes should be directly visible (no toggle needed)
     const showtimeButtons = page.locator('button').filter({ hasText: /^\d{2}:\d{2}$/ });
     
     // Verify at least one showtime button exists

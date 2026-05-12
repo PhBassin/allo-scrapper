@@ -9,16 +9,16 @@ import {
   getMoviesBatch,
 } from '../../db/movie-queries.js';
 import {
-  upsertCinema,
-} from '../../db/cinema-queries.js';
+  upsertTheater,
+} from '../../db/theater-queries.js';
 import { fetchTheaterPage, fetchShowtimesJson, fetchMoviePage, delay } from '../http-client.js';
-import { parseTheaterPage } from '../theater-parser.js';
-import { parseShowtimesJson } from '../theater-json-parser.js';
+import { parseTheaterPage } from '../theater-page-parser.js';
+import { parseShowtimesJson } from '../theater-page-json-parser.js';
 import { parseMoviePage } from '../movie-parser.js';
 import { getWeekStartForDate } from '../../utils/date.js';
-import { isValidAllocineUrl, extractCinemaIdFromUrl, cleanCinemaUrl } from '../utils.js';
+import { isValidAllocineUrl, extractTheaterIdFromUrl, cleanTheaterUrl } from '../utils.js';
 import { logger } from '../../utils/logger.js';
-import type { CinemaConfig, WeeklyProgram, Cinema } from '../../types/scraper.js';
+import type { TheaterConfig, WeeklyProgram, Theater } from '../../types/scraper.js';
 import { type ProgressPublisher } from '../index.js';
 import { type IScraperStrategy } from './IScraperStrategy.js';
 import { RateLimitError } from '../../utils/errors.js';
@@ -50,58 +50,58 @@ export class AllocineScraperStrategy implements IScraperStrategy {
     return isValidAllocineUrl(url);
   }
 
-  extractCinemaId(url: string): string | null {
-    return extractCinemaIdFromUrl(url);
+  extractTheaterId(url: string): string | null {
+    return extractTheaterIdFromUrl(url);
   }
 
-  cleanCinemaUrl(url: string): string {
-    return cleanCinemaUrl(url);
+  cleanTheaterUrl(url: string): string {
+    return cleanTheaterUrl(url);
   }
 
-  async loadTheaterMetadata(
+  async loadTheaterPageMetadata(
     db: DB,
-    cinema: CinemaConfig
-  ): Promise<{ availableDates: string[]; cinema: Cinema }> {
-    const { html, availableDates } = await fetchTheaterPage(cinema.url);
+    theater: TheaterConfig
+  ): Promise<{ availableDates: string[]; theater: Theater }> {
+    const { html, availableDates } = await fetchTheaterPage(theater.url);
     const theaterValidation = validateTheaterPageStructure(html);
 
     if (!theaterValidation.valid) {
       throw new ParserStructureError(
         `Missing required theater selector(s): ${theaterValidation.missingSelectors.join(', ')}`,
         theaterValidation.missingSelectors[0] ?? '#theaterpage-showtimes-index-ui',
-        cinema.url
+        theater.url
       );
     }
 
-    const pageData = parseTheaterPage(html, cinema.id);
-    const mergedCinema: Cinema = { 
-      ...pageData.cinema, 
-      url: cinema.url,
+    const pageData = parseTheaterPage(html, theater.id);
+    const mergedTheater: Theater = { 
+      ...pageData.theater, 
+      url: theater.url,
       source: this.sourceName
     };
-    await upsertCinema(db, mergedCinema);
-    logger.info('Cinema metadata upserted', { cinema: mergedCinema.name });
+    await upsertTheater(db, mergedTheater);
+    logger.info('Theater metadata upserted', { theater: mergedTheater.name });
 
-    return { availableDates, cinema: mergedCinema };
+    return { availableDates, theater: mergedTheater };
   }
 
-  async scrapeTheater(
+  async scrapeTheaterPage(
     db: DB,
-    cinema: CinemaConfig,
+    theater: TheaterConfig,
     date: string,
     movieDelayMs: number,
     progress?: ProgressPublisher
   ): Promise<{ moviesCount: number; showtimesCount: number }> {
-    logger.info('Scraping cinema for date', { cinema: cinema.name, id: cinema.id, date });
+    logger.info('Scraping theater for date', { theater: theater.name, id: theater.id, date });
 
-    await progress?.emit({ type: 'date_started', date, cinema_name: cinema.name });
+    await progress?.emit({ type: 'date_started', date, theater_name: theater.name });
 
     let moviesCount = 0;
     let showtimesCount = 0;
 
     try {
-      const json = await fetchShowtimesJson(cinema.id, date);
-      const movieShowtimesData = parseShowtimesJson(json, cinema.id, date);
+      const json = await fetchShowtimesJson(theater.id, date);
+      const movieShowtimesData = parseShowtimesJson(json, theater.id, date);
 
       logger.info('Movies found for date', { count: movieShowtimesData.length, date });
 
@@ -186,7 +186,7 @@ export class AllocineScraperStrategy implements IScraperStrategy {
           logger.info('Showtimes upserted', { count: movieData.showtimes.length });
 
           weeklyPrograms.push({
-            cinema_id: cinema.id,
+            theater_id: theater.id,
             movie_id: movie.id,
             week_start: movieData.showtimes[0]?.week_start ?? getWeekStartForDate(date),
             is_new_this_week: movieData.is_new_this_week,
@@ -217,19 +217,19 @@ export class AllocineScraperStrategy implements IScraperStrategy {
         logger.info('Weekly programs updated', { count: weeklyPrograms.length });
       }
 
-      logger.info('Cinema date scraped', { cinema: cinema.name, date, movies: movieShowtimesData.length });
+      logger.info('Theater date scraped', { theater: theater.name, date, movies: movieShowtimesData.length });
       await progress?.emit({ type: 'date_completed', date, movies_count: moviesCount });
 
       return { moviesCount, showtimesCount };
     } catch (error) {
       // Re-throw RateLimitError immediately for scraper to handle
       if (error instanceof RateLimitError || error instanceof ParserStructureError) {
-        logger.error('Rate limit detected - stopping scrape', { cinema: cinema.name, date, error });
+        logger.error('Rate limit detected - stopping scrape', { theater: theater.name, date, error });
         throw error;
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('Error scraping cinema for date', { cinema: cinema.name, date, error });
+      logger.error('Error scraping theater for date', { theater: theater.name, date, error });
       throw new Error(errorMessage);
     }
   }

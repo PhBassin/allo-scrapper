@@ -12,10 +12,10 @@ const LandingPage: React.FC = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
       <div className="max-w-2xl w-full text-center">
         <h1 className="text-5xl font-bold text-gray-900 mb-4">
-          Cinema Showtimes, Made Easy
+          Theater Showtimes, Made Easy
         </h1>
         <p className="text-xl text-gray-600 mb-10">
-          Aggregate and manage movie screening schedules for your cinema network.
+          Aggregate and manage movie screening schedules for your theater network.
           Get started in minutes.
         </p>
 

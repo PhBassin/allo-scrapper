@@ -58,7 +58,7 @@ function buildFixtureSlugHash(slug: string, length: number): string {
   return createHash('sha1').update(slug).digest('hex').slice(0, length);
 }
 
-function buildFixtureCinemaId(slug: string, index: number): string {
+function buildFixtureTheaterId(slug: string, index: number): string {
   return `C${buildFixtureSlugHash(slug, 7)}${index}`;
 }
 
@@ -75,7 +75,7 @@ async function seedTenantData(
   pool: Pool,
   schemaName: string,
   slug: string,
-): Promise<{ users: number; cinemas: number; schedules: number }> {
+): Promise<  { users: number; theaters: number; schedules: number }> {
   const client = await pool.connect();
 
   try {
@@ -109,18 +109,18 @@ async function seedTenantData(
       [`viewer-${slug}@test.local`, viewerPassword, fixtureRoleId]
     );
 
-    const cinemas = [1, 2, 3].map((index) => ({
-      id: buildFixtureCinemaId(slug, index),
-      name: `Fixture Cinema ${index} (${slug})`,
-      url: `https://example.test/cinema/${slug}/${index}`,
+    const theaters = [1, 2, 3].map((index) => ({
+      id: buildFixtureTheaterId(slug, index),
+      name: `Fixture Theater ${index} (${slug})`,
+      url: `https://example.test/theater/${slug}/${index}`,
     }));
 
-    for (const cinema of cinemas) {
+    for (const theater of theaters) {
       await client.query(
-        `INSERT INTO cinemas (id, name, url)
+        `INSERT INTO theaters (id, name, url)
          VALUES ($1, $2, $3)
          ON CONFLICT (id) DO NOTHING`,
-        [cinema.id, cinema.name, cinema.url]
+        [theater.id, theater.name, theater.url]
       );
     }
 
@@ -148,28 +148,28 @@ async function seedTenantData(
 
     for (let i = 0; i < showtimeSlots.length; i += 1) {
       const movie = movies[i % movies.length];
-      const cinema = cinemas[i % cinemas.length];
+      const theater = theaters[i % theaters.length];
       const time = showtimeSlots[i];
       const id = buildFixtureShowtimeId(slug, i + 1);
       const date = weekDates[i % weekDates.length] as string;
 
       await client.query(
-        `INSERT INTO showtimes (id, movie_id, cinema_id, date, time, datetime_iso, week_start)
+        `INSERT INTO showtimes (id, movie_id, theater_id, date, time, datetime_iso, week_start)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (id) DO NOTHING`,
-        [id, movie.id, cinema.id, date, time, `${date}T${time}:00.000Z`, weekStart]
+        [id, movie.id, theater.id, date, time, `${date}T${time}:00.000Z`, weekStart]
       );
     }
 
     const usersCountResult = await client.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM users');
-    const cinemasCountResult = await client.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM cinemas');
+    const theatersCountResult = await client.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM theaters');
     const schedulesCountResult = await client.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM showtimes');
 
     await client.query('COMMIT');
 
     return {
       users: Number.parseInt(usersCountResult.rows[0]?.count ?? '0', 10),
-      cinemas: Number.parseInt(cinemasCountResult.rows[0]?.count ?? '0', 10),
+      theaters: Number.parseInt(theatersCountResult.rows[0]?.count ?? '0', 10),
       schedules: Number.parseInt(schedulesCountResult.rows[0]?.count ?? '0', 10),
     };
   } catch (error) {

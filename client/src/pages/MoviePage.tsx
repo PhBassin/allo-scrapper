@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getMovieById } from '../api/client';
-import CinemaShowtimes from '../components/CinemaShowtimes';
+import TheaterShowtimes from '../components/TheaterShowtimes';
 
 export default function MoviePage() {
   const { id } = useParams<{ id: string }>();
@@ -128,7 +128,7 @@ export default function MoviePage() {
             <h2 className="text-2xl font-heading font-bold mb-4 flex items-center gap-2">
               <span>📅 Horaires et Cinémas</span>
             </h2>
-            <CinemaShowtimes cinemas={movie.cinemas} />
+            <TheaterShowtimes theaters={movie.theaters} />
           </section>
 
           {/* Synopsis Section */}
