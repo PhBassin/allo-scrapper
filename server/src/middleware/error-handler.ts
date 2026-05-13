@@ -36,7 +36,7 @@ export const errorHandler = (
       error: error.statusCode >= 500 && process.env.NODE_ENV === 'production'
         ? 'Internal server error'
         : error.message,
-      ...(error.details && { details: error.details })
+      ...(error.details && (error.statusCode < 500 || process.env.NODE_ENV !== 'production') && { details: error.details })
     });
   }
 
