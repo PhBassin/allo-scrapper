@@ -6,6 +6,7 @@ import path from 'path';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { fileURLToPath } from 'url';
+import type { PoolClient } from 'pg';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -130,28 +131,39 @@ export async function getPendingMigrations(db: DB): Promise<string[]> {
 export async function applyMigration(db: DB, filename: string): Promise<void> {
   logger.info(`Applying migration ${filename}...`);
 
-  // Read and execute migration SQL
   const sql = await readMigrationFile(filename);
-  await db.query(sql);
-
-  // Calculate and store checksum
   const checksum = calculateChecksum(sql);
-  await db.query(
-    'INSERT INTO schema_migrations (version, checksum) VALUES ($1, $2)',
-    [filename, checksum]
-  );
 
-  // Special handling for admin seed migration
-  if (filename === '007_seed_default_admin.sql') {
-    await handleAdminSeed(db);
+  // Wrap migration SQL, checksum recording, and any post-migration seed
+  // in a single transaction. If any step fails, the migration is fully
+  // rolled back and will be retried on the next startup.
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    await client.query(sql);
+
+    await client.query(
+      'INSERT INTO schema_migrations (version, checksum) VALUES ($1, $2)',
+      [filename, checksum]
+    );
+
+    if (filename === '007_seed_default_admin.sql') {
+      await handleAdminSeed(client);
+    }
+
+    if (filename === '008_permission_based_roles.sql') {
+      await handleAdminRoleIdSeed(client);
+    }
+
+    await client.query('COMMIT');
+    logger.info(`Migration ${filename} completed successfully`);
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
   }
-
-  // Special handling for permission-based roles migration
-  if (filename === '008_permission_based_roles.sql') {
-    await handleAdminRoleIdSeed(db);
-  }
-
-  logger.info(`Migration ${filename} completed successfully`);
 }
 
 /**
@@ -280,15 +292,26 @@ async function applyMigrationFromDir(db: DB, dir: string, filename: string): Pro
 
   const filePath = path.join(dir, filename);
   const sql = await fs.readFile(filePath, 'utf8');
-  await db.query(sql);
-
   const checksum = calculateChecksum(sql);
-  await db.query(
-    'INSERT INTO schema_migrations (version, checksum) VALUES ($1, $2)',
-    [filename, checksum]
-  );
 
-  logger.info(`Migration ${filename} completed successfully`);
+  // Wrap in a transaction so migration SQL + checksum recording are atomic.
+  // If the SQL fails, the migration is fully rolled back and retried on next startup.
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(sql);
+    await client.query(
+      'INSERT INTO schema_migrations (version, checksum) VALUES ($1, $2)',
+      [filename, checksum]
+    );
+    await client.query('COMMIT');
+    logger.info(`Migration ${filename} completed successfully`);
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -307,9 +330,9 @@ async function applyMigrationFromDir(db: DB, dir: string, filename: string): Pro
  * 
  * @param db - Database client
  */
-async function handleAdminSeed(db: DB): Promise<void> {
+async function handleAdminSeed(client: PoolClient): Promise<void> {
   // Check if any admin exists
-  const adminCountResult = await db.query<{ count: string }>(
+  const adminCountResult = await client.query<{ count: string }>(
     `SELECT COUNT(*) as count FROM users WHERE role = 'admin'`
   );
   const adminCount = parseInt(adminCountResult.rows[0].count);
@@ -320,7 +343,7 @@ async function handleAdminSeed(db: DB): Promise<void> {
   }
 
   // Check if 'admin' username exists with wrong role (broken migration scenario)
-  const existingAdminResult = await db.query<{ id: number; role: string }>(
+  const existingAdminResult = await client.query<{ id: number; role: string }>(
     `SELECT id, role FROM users WHERE username = 'admin'`
   );
 
@@ -329,7 +352,7 @@ async function handleAdminSeed(db: DB): Promise<void> {
     logger.warn(`User 'admin' exists with role '${role}' instead of 'admin'`);
 
     // Fix role
-    await db.query(`UPDATE users SET role = 'admin' WHERE id = $1`, [id]);
+    await client.query(`UPDATE users SET role = 'admin' WHERE id = $1`, [id]);
     logger.warn(`Fixed admin user role (id: ${id})`);
     logger.warn('⚠️  SECURITY: Admin password unchanged - reset via UI or API');
     return;
@@ -339,7 +362,7 @@ async function handleAdminSeed(db: DB): Promise<void> {
   const password = generateRandomPassword();
   const passwordHash = await bcrypt.hash(password, 10);
 
-  await db.query(
+  await client.query(
     `INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)`,
     ['admin', passwordHash, 'admin']
   );
@@ -373,9 +396,9 @@ async function handleAdminSeed(db: DB): Promise<void> {
  *
  * @param db - Database client
  */
-async function handleAdminRoleIdSeed(db: DB): Promise<void> {
+async function handleAdminRoleIdSeed(client: PoolClient): Promise<void> {
   // Get admin role ID
-  const adminRoleResult = await db.query<{ id: number }>(
+  const adminRoleResult = await client.query<{ id: number }>(
     `SELECT id FROM roles WHERE name = 'admin'`
   );
 
@@ -387,7 +410,7 @@ async function handleAdminRoleIdSeed(db: DB): Promise<void> {
   const adminRoleId = adminRoleResult.rows[0].id;
 
   // Check if any admin user exists
-  const adminCountResult = await db.query<{ count: string }>(
+  const adminCountResult = await client.query<{ count: string }>(
     `SELECT COUNT(*) as count FROM users WHERE role_id = $1`,
     [adminRoleId]
   );
@@ -403,7 +426,7 @@ async function handleAdminRoleIdSeed(db: DB): Promise<void> {
   const password = generateRandomPassword();
   const passwordHash = await bcrypt.hash(password, 10);
 
-  await db.query(
+  await client.query(
     `INSERT INTO users (username, password_hash, role_id) VALUES ($1, $2, $3)`,
     ['admin', passwordHash, adminRoleId]
   );

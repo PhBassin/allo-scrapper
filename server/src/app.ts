@@ -17,6 +17,7 @@ import { requireAuth, type AuthRequest } from './middleware/auth.js';
 import { requirePermission } from './middleware/permission.js';
 import { generateThemeCSS } from './services/theme-generator.js';
 import { validateInputSize } from "./middleware/input-validation.js";
+import { CSRF_EXEMPT } from './middleware/csrf.js';
 import { errorHandler } from './middleware/error-handler.js';
 import type { DB } from './db/client.js';
 
@@ -179,9 +180,12 @@ export function createApp() {
 
   // CSRF protection for cookie-based auth: double-submit cookie pattern.
   // State-changing requests must include X-CSRF-Token header matching csrf_token cookie.
+  // Exemptions (CSRF_EXEMPT): /api/auth/login and /api/auth/logout are the routes
+  // that create/destroy the CSRF cookie — they cannot require it before it exists.
   app.use((req, res, next) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
     if (!req.path.startsWith('/api/')) return next(); // only protect API routes
+    if (CSRF_EXEMPT.includes(req.path)) return next(); // bootstrap routes are exempt
     const cookieToken = req.cookies?.csrf_token;
     const headerToken = req.headers['x-csrf-token'];
     if (!cookieToken || !headerToken || cookieToken !== headerToken) {

@@ -15,7 +15,16 @@ import path from 'path';
 function createMockDb(): DB {
   return {
     query: vi.fn(),
+    connect: vi.fn(),
   } as unknown as DB;
+}
+
+/** Create a mock PoolClient that delegates query to the given mock function. */
+function mockClient(queryMock = vi.fn().mockResolvedValue(undefined)) {
+  return {
+    query: queryMock,
+    release: vi.fn(),
+  };
 }
 
 // Mock logger
@@ -226,7 +235,7 @@ describe('Migration System', () => {
   describe('applyMigration', () => {
     it('should execute migration SQL and insert tracking record', async () => {
       const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
-      db.query = mockQuery;
+      vi.mocked(db.connect).mockResolvedValue(mockClient(mockQuery) as any);
 
       const migrationSql = 'CREATE TABLE test (id SERIAL PRIMARY KEY);';
       vi.mocked(fs.readFile).mockResolvedValue(migrationSql);
@@ -248,7 +257,7 @@ describe('Migration System', () => {
 
     it('should calculate and store checksum', async () => {
       const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
-      db.query = mockQuery;
+      vi.mocked(db.connect).mockResolvedValue(mockClient(mockQuery) as any);
 
       const migrationSql = 'CREATE TABLE test (id INT);';
       vi.mocked(fs.readFile).mockResolvedValue(migrationSql);
@@ -273,7 +282,7 @@ describe('Migration System', () => {
 
     it('should throw error if SQL execution fails', async () => {
       const mockQuery = vi.fn().mockRejectedValue(new Error('SQL syntax error'));
-      db.query = mockQuery;
+      vi.mocked(db.connect).mockResolvedValue(mockClient(mockQuery) as any);
 
       vi.mocked(fs.readFile).mockResolvedValue('INVALID SQL;');
 
@@ -300,6 +309,7 @@ describe('Migration System', () => {
     it('should apply all pending migrations in order', async () => {
       const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
       db.query = mockQuery;
+      vi.mocked(db.connect).mockResolvedValue(mockClient(mockQuery) as any);
 
       vi.mocked(fs.readdir).mockResolvedValue([
         '001_initial.sql',
@@ -328,7 +338,8 @@ describe('Migration System', () => {
     });
 
     it('should skip already-applied migrations', async () => {
-      // Mock applied migrations
+      // Mock applied migrations — only returns applied rows for the query calls
+      // that check what's already been run
       const mockQuery = vi.fn()
         .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE schema_migrations
         .mockResolvedValueOnce({ rows: [] }) // CREATE INDEX
@@ -336,8 +347,11 @@ describe('Migration System', () => {
         .mockResolvedValueOnce({ 
           rows: [{ version: '001_initial.sql' }] 
         }); // SELECT from schema_migrations for getPendingMigrations
-
       db.query = mockQuery;
+
+      // applyMigration uses db.connect() — mock it for the single pending migration
+      const clientQuery = vi.fn().mockResolvedValue({ rows: [] });
+      vi.mocked(db.connect).mockResolvedValue(mockClient(clientQuery) as any);
 
       vi.mocked(fs.readdir).mockResolvedValue([
         '001_initial.sql',
@@ -349,13 +363,13 @@ describe('Migration System', () => {
       await runMigrations(db);
 
       // Should only apply migration 002
-      expect(mockQuery).toHaveBeenCalledWith('-- Migration 002');
+      expect(clientQuery).toHaveBeenCalledWith('-- Migration 002');
     });
 
     it('should log progress for each migration', async () => {
       const { logger } = await import('../utils/logger.js');
-      const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
-      db.query = mockQuery;
+      db.query = vi.fn().mockResolvedValue({ rows: [] });
+      vi.mocked(db.connect).mockResolvedValue(mockClient(vi.fn().mockResolvedValue({ rows: [] })) as any);
 
       vi.mocked(fs.readdir).mockResolvedValue(['001_initial.sql'] as any);
       vi.mocked(fs.readFile).mockResolvedValue('-- Migration');
@@ -419,12 +433,16 @@ describe('Migration System', () => {
     });
 
     it('should stop on migration failure', async () => {
-      const mockQuery = vi.fn()
-        .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE
-        .mockResolvedValueOnce({ rows: [] }) // SELECT applied migrations
-        .mockRejectedValueOnce(new Error('SQL error')); // First migration fails
+      db.query = vi.fn().mockResolvedValue({ rows: [] });
 
-      db.query = mockQuery;
+      // First migration: BEGIN succeeds, SQL fails → ROLLBACK handles gracefully
+      let callCount = 0;
+      const clientQuery = vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve(); // BEGIN
+        return Promise.reject(new Error('SQL error'));
+      });
+      vi.mocked(db.connect).mockResolvedValue(mockClient(clientQuery) as any);
 
       vi.mocked(fs.readdir).mockResolvedValue([
         '001_failing.sql',
@@ -435,18 +453,15 @@ describe('Migration System', () => {
 
       await expect(runMigrations(db)).rejects.toThrow('SQL error');
 
-      // Should not apply second migration
-      expect(mockQuery).not.toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO schema_migrations'),
-        expect.arrayContaining(['002_should_not_run.sql', expect.any(String)])
-      );
+      // Second migration should NOT be applied (connect called only once)
+      expect(db.connect).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('runMigrations with extraDirs', () => {
     it('should apply only core migrations when extraDirs is omitted', async () => {
-      const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
-      db.query = mockQuery;
+      db.query = vi.fn().mockResolvedValue({ rows: [] });
+      vi.mocked(db.connect).mockResolvedValue(mockClient() as any);
 
       vi.mocked(fs.readdir).mockResolvedValue(['001_initial.sql'] as any);
       vi.mocked(fs.readFile).mockResolvedValue('SELECT 1;');
@@ -458,8 +473,8 @@ describe('Migration System', () => {
     });
 
     it('should apply only core migrations when extraDirs is empty array', async () => {
-      const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
-      db.query = mockQuery;
+      db.query = vi.fn().mockResolvedValue({ rows: [] });
+      vi.mocked(db.connect).mockResolvedValue(mockClient() as any);
 
       vi.mocked(fs.readdir).mockResolvedValue(['001_initial.sql'] as any);
       vi.mocked(fs.readFile).mockResolvedValue('SELECT 1;');
@@ -471,8 +486,8 @@ describe('Migration System', () => {
     });
 
     it('should read files from extra directories when provided', async () => {
-      const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
-      db.query = mockQuery;
+      db.query = vi.fn().mockResolvedValue({ rows: [] });
+      vi.mocked(db.connect).mockResolvedValue(mockClient() as any);
 
       // Core dir returns one file; extra dir returns one file
       vi.mocked(fs.readdir)
@@ -493,13 +508,17 @@ describe('Migration System', () => {
     it('should apply core migrations before extra dir migrations', async () => {
       const appliedVersions: string[] = [];
 
-      const mockQuery = vi.fn().mockImplementation((sql: string, params?: unknown[]) => {
+      // Pre-apply queries use db.query
+      db.query = vi.fn().mockResolvedValue({ rows: [] });
+
+      // applyMigration uses db.connect() — track applied versions via client
+      const clientQuery = vi.fn().mockImplementation((sql: string, params?: unknown[]) => {
         if (sql.includes('INSERT INTO schema_migrations') && params) {
           appliedVersions.push(params[0] as string);
         }
-        return Promise.resolve({ rows: [] });
+        return Promise.resolve(sql === 'BEGIN' || sql === 'COMMIT' ? undefined : { rows: [] });
       });
-      db.query = mockQuery;
+      vi.mocked(db.connect).mockResolvedValue(mockClient(clientQuery) as any);
 
       vi.mocked(fs.readdir)
         .mockResolvedValueOnce(['001_initial.sql'] as any)       // core dir
@@ -572,10 +591,13 @@ describe('Migration System', () => {
 
   describe('Migration Verification', () => {
     it('should propagate RAISE EXCEPTION from verification block as query error', async () => {
-      const mockQuery = vi.fn().mockRejectedValue(
-        new Error('VERIFICATION FAILED: table users was not created')
-      );
-      db.query = mockQuery;
+      let callCount = 0;
+      const clientQuery = vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve(); // BEGIN
+        return Promise.reject(new Error('VERIFICATION FAILED: table users was not created'));
+      });
+      vi.mocked(db.connect).mockResolvedValue(mockClient(clientQuery) as any);
 
       vi.mocked(fs.readFile).mockResolvedValue(
         'CREATE TABLE IF NOT EXISTS users (id INT);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: table users was not created\'; END $$;'
@@ -587,10 +609,13 @@ describe('Migration System', () => {
     });
 
     it('should throw on verification failure when constraint is missing', async () => {
-      const mockQuery = vi.fn().mockRejectedValue(
-        new Error('VERIFICATION FAILED: constraint uq_showtimes_business_key was not created')
-      );
-      db.query = mockQuery;
+      let callCount = 0;
+      const clientQuery = vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve(); // BEGIN
+        return Promise.reject(new Error('VERIFICATION FAILED: constraint uq_showtimes_business_key was not created'));
+      });
+      vi.mocked(db.connect).mockResolvedValue(mockClient(clientQuery) as any);
 
       vi.mocked(fs.readFile).mockResolvedValue(
         'ALTER TABLE showtimes ADD CONSTRAINT uq_showtimes_business_key UNIQUE (theater_id, movie_id);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: constraint uq_showtimes_business_key was not created\'; END $$;'
@@ -602,10 +627,13 @@ describe('Migration System', () => {
     });
 
     it('should throw on verification failure when column is missing', async () => {
-      const mockQuery = vi.fn().mockRejectedValue(
-        new Error('VERIFICATION FAILED: column theaters.source was not created')
-      );
-      db.query = mockQuery;
+      let callCount = 0;
+      const clientQuery = vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve(); // BEGIN
+        return Promise.reject(new Error('VERIFICATION FAILED: column theaters.source was not created'));
+      });
+      vi.mocked(db.connect).mockResolvedValue(mockClient(clientQuery) as any);
 
       vi.mocked(fs.readFile).mockResolvedValue(
         'ALTER TABLE theaters ADD COLUMN IF NOT EXISTS source VARCHAR(50);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: column theaters.source was not created\'; END $$;'
@@ -617,10 +645,13 @@ describe('Migration System', () => {
     });
 
     it('should handle verification error for index not found', async () => {
-      const mockQuery = vi.fn().mockRejectedValue(
-        new Error('VERIFICATION FAILED: index idx_users_role was not created')
-      );
-      db.query = mockQuery;
+      let callCount = 0;
+      const clientQuery = vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve(); // BEGIN
+        return Promise.reject(new Error('VERIFICATION FAILED: index idx_users_role was not created'));
+      });
+      vi.mocked(db.connect).mockResolvedValue(mockClient(clientQuery) as any);
 
       vi.mocked(fs.readFile).mockResolvedValue(
         'CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);\nDO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: index idx_users_role was not created\'; END $$;'
@@ -632,12 +663,15 @@ describe('Migration System', () => {
     });
 
     it('should stop migration chain on verification failure in runMigrations', async () => {
-      const mockQuery = vi.fn()
-        .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE schema_migrations
-        .mockResolvedValueOnce({ rows: [] }) // SELECT applied migrations
-        .mockRejectedValueOnce(new Error('VERIFICATION FAILED')); // First migration fails on verify
+      db.query = vi.fn().mockResolvedValue({ rows: [] });
 
-      db.query = mockQuery;
+      let callCount = 0;
+      const clientQuery = vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve(); // BEGIN
+        return Promise.reject(new Error('VERIFICATION FAILED'));
+      });
+      vi.mocked(db.connect).mockResolvedValue(mockClient(clientQuery) as any);
 
       vi.mocked(fs.readdir).mockResolvedValue([
         '001_verify_fail.sql',
@@ -650,19 +684,19 @@ describe('Migration System', () => {
 
       await expect(runMigrations(db)).rejects.toThrow('VERIFICATION FAILED');
 
-      // Second migration should NOT be applied
-      expect(mockQuery).not.toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO schema_migrations'),
-        expect.arrayContaining(['002_should_not_run.sql', expect.any(String)])
-      );
+      // Second migration should NOT be applied (connect called only once)
+      expect(db.connect).toHaveBeenCalledTimes(1);
     });
 
     it('should log error context when verification fails', async () => {
       const { logger } = await import('../utils/logger.js');
-      const mockQuery = vi.fn().mockRejectedValue(
-        new Error('VERIFICATION FAILED: table users was not created')
-      );
-      db.query = mockQuery;
+      let callCount = 0;
+      const clientQuery = vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve(); // BEGIN
+        return Promise.reject(new Error('VERIFICATION FAILED: table users was not created'));
+      });
+      vi.mocked(db.connect).mockResolvedValue(mockClient(clientQuery) as any);
 
       vi.mocked(fs.readFile).mockResolvedValue(
         'DO $$ BEGIN RAISE EXCEPTION \'VERIFICATION FAILED: table users was not created\'; END $$;'

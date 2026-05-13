@@ -4,6 +4,13 @@ import crypto from 'crypto';
 const CSRF_COOKIE = 'csrf_token';
 const CSRF_HEADER = 'x-csrf-token';
 
+/**
+ * Routes exempt from CSRF validation because they create or destroy
+ * the CSRF cookie (chicken-and-egg: can't require the cookie on the
+ * routes responsible for setting/clearing it).
+ */
+export const CSRF_EXEMPT = ['/api/auth/login', '/api/auth/logout'];
+
 /** Generate a random CSRF token. */
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
@@ -35,6 +42,11 @@ export function clearCsrfCookie(res: Response): void {
 export function csrfProtection(req: Request, res: Response, next: NextFunction): void {
   // Only validate state-changing methods
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
+
+  // Bootstrap routes that create/destroy the CSRF cookie are exempt
+  if (CSRF_EXEMPT.includes(req.path)) {
     return next();
   }
 
