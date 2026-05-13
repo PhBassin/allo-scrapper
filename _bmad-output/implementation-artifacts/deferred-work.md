@@ -53,3 +53,11 @@ Ajouter test validant comportement quand `#theaterpage-showtimes-index-ui` / `.m
 
 - `scraper/*` — Story 7.1 AC requires ensuring no regressions in scraper consumer jobs, but the current stabilization diff is test-focused in `client/`, `packages/saas/`, and `server/` only; deferred as out-of-scope for this patchset and already merged story baseline.
 - `packages/saas/src/routes/register.test.ts:12` — Route test now mocks `createOrg` for determinism; acceptable for immediate stabilization, but broader decision on integration-depth policy deferred to a dedicated test strategy story.
+
+## Deferred from: code review — CSRF login exemption (2026-05-13)
+
+- `server/src/app.ts:187-188` — CSRF-forced logout possible via exemption on `/api/auth/logout`; mitigated by `SameSite=strict` on auth cookie.
+- `server/src/app.ts:188` — Trailing slash `/api/auth/login/` not matched by `CSRF_EXEMPT.includes()` exact match; Express default routing handles this.
+- `server/src/middleware/csrf-login-exempt.test.ts:148-156` — Fragile regex parsing of source code to check CSRF_EXEMPT list; works for current format but would break on multiline refactor.
+- `server/src/middleware/csrf-login-exempt.test.ts:17-26` — Test duplicates CSRF middleware logic instead of importing from production module; intentional for test isolation but creates maintenance overhead.
+- `server/src/app.ts:178-195` — CSRF middleware depends on `cookieParser()` being registered before it; no startup assertion validates middleware ordering.
