@@ -22,6 +22,7 @@ const testRateLimiter = rateLimit({ windowMs: 60_000, max: 1000 });
 function buildApp() {
   const app = express();
   app.use(cookieParser());
+  app.use(csrfProtection);
   app.use(testRateLimiter);
 
   // Route that issues a CSRF cookie (simulates login)
@@ -31,18 +32,18 @@ function buildApp() {
   });
 
   // Route that clears the CSRF cookie (simulates logout)
-  app.post('/clear-csrf', csrfProtection, (req, res) => {
+  app.post('/clear-csrf', (req, res) => {
     clearCsrfCookie(res);
     res.json({ ok: true });
   });
 
   // Protected state-changing endpoint
-  app.post('/protected', csrfProtection, (req, res) => {
+  app.post('/protected', (req, res) => {
     res.json({ ok: true });
   });
 
   // Safe read-only endpoint
-  app.get('/read-only', csrfProtection, (req, res) => {
+  app.get('/read-only', (req, res) => {
     res.json({ ok: true });
   });
 
