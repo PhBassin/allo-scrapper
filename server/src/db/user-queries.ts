@@ -191,8 +191,8 @@ export async function hasTenantUserWithUsername(db: DB, username: string): Promi
  */
 export async function createUser(db: DB, username: string, passwordHash: string): Promise<UserRow> {
   const result = await db.query<UserRow>(
-    `INSERT INTO users (username, password_hash)
-     VALUES ($1, $2)
+    `INSERT INTO users (username, password_hash, role_id)
+     VALUES ($1, $2, (SELECT id FROM roles WHERE name = 'user'))
      RETURNING id, username, password_hash,
        role_id,
        (SELECT name FROM roles WHERE id = role_id) AS role_name,
