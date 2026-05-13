@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import LoginPage from './LoginPage';
 import { AuthContext, type User } from '../contexts/AuthContext';
 import apiClient from '../api/client';
+import { setSaasEnabled } from '../api/saas';
 
 vi.mock('../api/client', () => ({
   default: {
@@ -56,6 +57,7 @@ function renderLoginWithState(state?: { reason?: 'session_expired'; from?: { pat
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setSaasEnabled(true);
   });
 
   it('shows a session expired message when redirected with session_expired reason', () => {
@@ -150,6 +152,49 @@ describe('LoginPage', () => {
       await waitFor(() => {
         expect(mockLogin).toHaveBeenCalledWith('test-token', systemAdmin);
         expect(mockNavigate).toHaveBeenCalledWith('/superadmin', { replace: true });
+      });
+    });
+
+    it('redirects system admin to /admin when SaaS is disabled', async () => {
+      setSaasEnabled(false);
+
+      const systemAdmin: User = {
+        id: 1,
+        username: 'admin',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+        permissions: [],
+      };
+
+      const mockLogin = vi.fn();
+      const authValueWithMock = { ...authValue, login: mockLogin };
+
+      vi.mocked(apiClient.post).mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: { token: 'test-token', user: systemAdmin },
+        },
+      });
+
+      render(
+        <AuthContext.Provider value={authValueWithMock}>
+          <MemoryRouter initialEntries={['/login']}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+            </Routes>
+          </MemoryRouter>
+        </AuthContext.Provider>
+      );
+
+      const user = userEvent.setup();
+      await user.type(screen.getByLabelText(/username/i), 'admin');
+      await user.type(screen.getByLabelText(/password/i), 'password');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(mockLogin).toHaveBeenCalledWith('test-token', systemAdmin);
+        expect(mockNavigate).toHaveBeenCalledWith('/admin', { replace: true });
       });
     });
 

@@ -13,19 +13,38 @@ describe('determinePostLoginDestination', () => {
       permissions: [],
     };
 
-    it('redirects to /superadmin when no from location is provided', () => {
-      const destination = determinePostLoginDestination(systemAdmin);
-      expect(destination).toBe('/superadmin');
+    describe('SaaS enabled (default)', () => {
+      it('redirects to /superadmin when no from location is provided', () => {
+        const destination = determinePostLoginDestination(systemAdmin);
+        expect(destination).toBe('/superadmin');
+      });
+
+      it('redirects to /superadmin even when from location is provided (ignores from)', () => {
+        const destination = determinePostLoginDestination(systemAdmin, '/org/acme/admin');
+        expect(destination).toBe('/superadmin');
+      });
+
+      it('redirects to /superadmin when from is root', () => {
+        const destination = determinePostLoginDestination(systemAdmin, '/');
+        expect(destination).toBe('/superadmin');
+      });
     });
 
-    it('redirects to /superadmin even when from location is provided (ignores from)', () => {
-      const destination = determinePostLoginDestination(systemAdmin, '/org/acme/admin');
-      expect(destination).toBe('/superadmin');
-    });
+    describe('SaaS disabled (standalone mode)', () => {
+      it('redirects to /admin when no from location is provided', () => {
+        const destination = determinePostLoginDestination(systemAdmin, undefined, false);
+        expect(destination).toBe('/admin');
+      });
 
-    it('redirects to /superadmin when from is root', () => {
-      const destination = determinePostLoginDestination(systemAdmin, '/');
-      expect(destination).toBe('/superadmin');
+      it('redirects to /admin even when from location is provided (ignores from)', () => {
+        const destination = determinePostLoginDestination(systemAdmin, '/org/acme/admin', false);
+        expect(destination).toBe('/admin');
+      });
+
+      it('redirects to /admin when from is root', () => {
+        const destination = determinePostLoginDestination(systemAdmin, '/', false);
+        expect(destination).toBe('/admin');
+      });
     });
   });
 

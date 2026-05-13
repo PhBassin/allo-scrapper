@@ -4,19 +4,20 @@ import type { User } from '../contexts/AuthContext';
  * Determines the appropriate post-login redirect destination based on user type.
  * 
  * Redirect precedence:
- * 1. System admin without org → /superadmin (always, ignores `from`)
+ * 1. System admin without org → /superadmin (SaaS) or /admin (standalone)
  * 2. User with org_slug → /org/{slug} or requested path within same org
  * 3. Regular user → requested path or landing page (/)
  * 
  * @param user - The authenticated user
  * @param from - Optional requested path before login
+ * @param saasEnabled - Whether SaaS multi-tenant mode is enabled (default true)
  * @returns The destination path to redirect to
  */
-export function determinePostLoginDestination(user: User, from?: string): string {
-  // System admin without org → always superadmin portal
+export function determinePostLoginDestination(user: User, from?: string, saasEnabled = true): string {
+  // System admin without org → superadmin portal (SaaS) or admin page (standalone)
   // Must check all three conditions: is_system_role, role_name === 'admin', and no org_slug
   if (user.is_system_role && user.role_name === 'admin' && !user.org_slug) {
-    return '/superadmin';
+    return saasEnabled ? '/superadmin' : '/admin';
   }
   
   // User with org → org home or requested path within org

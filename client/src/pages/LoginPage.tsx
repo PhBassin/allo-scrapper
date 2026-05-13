@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import apiClient from '../api/client';
 import { determinePostLoginDestination } from '../utils/navigation';
+import { isSaasEnabled } from '../api/saas';
 
 interface LoginLocationState {
     from?: {
@@ -37,7 +38,7 @@ const LoginPage: React.FC = () => {
                 // API returns { success: true, data: { token, user } }
                 const { token, user } = response.data.data;
                 login(token, user);
-                const destination = determinePostLoginDestination(user, from);
+                const destination = determinePostLoginDestination(user, from, isSaasEnabled());
                 navigate(destination, { replace: true });
             } else {
                 setError(response.data.error || 'Login failed');

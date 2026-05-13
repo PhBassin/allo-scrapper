@@ -10,6 +10,20 @@ export interface AppConfig {
   appName: string;
 }
 
+// ============================================================================
+// SAAS CONFIG CACHE
+// ============================================================================
+
+let _saasEnabled: boolean | null = null;
+
+export function setSaasEnabled(enabled: boolean): void {
+  _saasEnabled = enabled;
+}
+
+export function isSaasEnabled(): boolean {
+  return _saasEnabled ?? true;
+}
+
 export interface RegisterOrgPayload {
   orgName: string;
   slug: string;
@@ -57,6 +71,7 @@ export async function getConfig(): Promise<AppConfig> {
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || 'Failed to fetch config');
   }
+  setSaasEnabled(response.data.data.saasEnabled);
   return response.data.data;
 }
 
