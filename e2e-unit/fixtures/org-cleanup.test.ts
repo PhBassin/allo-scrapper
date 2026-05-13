@@ -13,7 +13,7 @@ describe('org-cleanup utilities', () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'org-cleanup-test-'));
     process.env['ALLO_E2E_ORG_REGISTRY_DIR'] = dir;
 
-    const mod = await import('./org-cleanup');
+    const mod = await import('../../e2e/fixtures/org-cleanup');
 
     await mod.registerTestOrg({ orgId: 101, orgSlug: 'e2e-test-a', testId: 't-1', workerId: '1', createdAt: Date.now() });
     await mod.registerTestOrg({ orgId: 101, orgSlug: 'e2e-test-a', testId: 't-1', workerId: '1', createdAt: Date.now() });
@@ -37,7 +37,7 @@ describe('org-cleanup utilities', () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'org-cleanup-test-'));
     process.env['ALLO_E2E_ORG_REGISTRY_DIR'] = dir;
 
-    const mod = await import('./org-cleanup');
+    const mod = await import('../../e2e/fixtures/org-cleanup');
     const now = Date.now();
 
     await mod.registerTestOrg({ orgId: 201, orgSlug: 'e2e-test-good', testId: 't-2', workerId: '2', createdAt: now - 1000 });
@@ -65,7 +65,7 @@ describe('org-cleanup utilities', () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'org-cleanup-test-'));
     process.env['ALLO_E2E_ORG_REGISTRY_DIR'] = dir;
 
-    const mod = await import('./org-cleanup');
+    const mod = await import('../../e2e/fixtures/org-cleanup');
 
     await mod.registerTestOrg({ orgId: 301, orgSlug: 'e2e-test-1', testId: 't-3', workerId: '3', createdAt: Date.now() });
     await mod.registerTestOrg({ orgId: 302, orgSlug: 'e2e-test-2', testId: 't-3', workerId: '3', createdAt: Date.now() });
@@ -91,7 +91,7 @@ describe('org-cleanup utilities', () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'org-cleanup-test-'));
     process.env['ALLO_E2E_ORG_REGISTRY_DIR'] = dir;
 
-    const mod = await import('./org-cleanup');
+    const mod = await import('../../e2e/fixtures/org-cleanup');
     const now = Date.now();
 
     await mod.registerTestOrg({ orgId: 401, orgSlug: 'e2e-test-orphan-a', testId: 't-4a', workerId: '4', createdAt: now - 500 });
@@ -119,7 +119,7 @@ describe('org-cleanup utilities', () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'org-cleanup-test-'));
     process.env['ALLO_E2E_ORG_REGISTRY_DIR'] = dir;
 
-    const mod = await import('./org-cleanup');
+    const mod = await import('../../e2e/fixtures/org-cleanup');
     const now = Date.now();
 
     await mod.registerTestOrg({ orgId: 501, orgSlug: 'e2e-test-global-a', testId: 't-5a', workerId: '5', createdAt: now - 500 });
@@ -152,7 +152,7 @@ describe('org-cleanup utilities', () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'org-cleanup-test-'));
     process.env['ALLO_E2E_ORG_REGISTRY_DIR'] = dir;
 
-    const mod = await import('./org-cleanup');
+    const mod = await import('../../e2e/fixtures/org-cleanup');
     const now = Date.now();
 
     await mod.registerTestOrg({ orgId: 601, orgSlug: 'e2e-test-dupe-a', testId: 't-6a', workerId: '6', createdAt: now - 500 });

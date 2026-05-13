@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { assertFixtureCleanupSummary, assertFixtureRuntimeWithinLimit } from './org-fixture';
+import { assertFixtureCleanupSummary, assertFixtureRuntimeWithinLimit } from '../../e2e/fixtures/org-fixture';
 
 describe('org fixture assertions', () => {
   it('accepts runtime within the story threshold', () => {
