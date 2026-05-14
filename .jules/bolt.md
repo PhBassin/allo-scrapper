@@ -29,3 +29,7 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+
+## 2026-05-14 - [Concurrent Report Queries in reports.ts]
+**Learning:** Sequential database queries for fetching a scrape report and its associated attempts (e.g., `getScrapeReport` then `getScrapeAttemptsByReport`) create a performance bottleneck in the `/api/reports/:id/details` endpoint. This is an architecture-specific issue that adds noticeable latency to the API route since both queries are independent.
+**Action:** Replaced sequential awaits in `GET /api/reports/:id/details` with a `Promise.all()` to fetch `report` and `attempts` concurrently, improving the endpoint's response time.
