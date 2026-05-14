@@ -1,6 +1,7 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import type { Request } from 'express';
+import { validateJWTSecret } from '../utils/jwt-secret-validator.js';
 
 // Helper to parse env var as number with fallback
 const parseEnvInt = (key: string, defaultValue: number): number => {
@@ -24,6 +25,14 @@ const parseEnvInt = (key: string, defaultValue: number): number => {
  * - migrations/017_add_rate_limit_configs.sql (database schema)
  */
 
+let jwtSecret: string | null = null;
+const getJwtSecret = (): string => {
+  if (!jwtSecret) {
+    jwtSecret = validateJWTSecret();
+  }
+  return jwtSecret;
+};
+
 // Skip rate limiting in test environment when req.ip is undefined
 const skipTest = (req: any) => !req.ip;
 
@@ -33,15 +42,15 @@ const WINDOW_MS = parseEnvInt('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000); // 15 min
 /**
  * Key generator that buckets authenticated requests by user id.
  * Falls back to req.ip for unauthenticated requests.
- * Uses jwt.decode (not jwt.verify) — we only need the payload for bucketing;
- * security verification is already handled by the requireAuth middleware.
+ * Uses jwt.verify to ensure the token is legitimate before using the ID for bucketing.
+ * This prevents targeted DoS attacks where an attacker crafts a fake token with someone else's ID.
  */
 export const authenticatedKeyGenerator = (req: Request): string => {
   try {
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.decode(token) as { id?: number } | null;
+      const decoded = jwt.verify(token, getJwtSecret()) as { id?: number } | null;
       if (decoded?.id) return `user:${decoded.id}`;
     }
   } catch {

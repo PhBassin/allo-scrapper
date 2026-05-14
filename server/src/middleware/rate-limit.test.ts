@@ -1,3 +1,7 @@
+// Ensure strong JWT_SECRET is set before anything is imported
+const TEST_JWT_SECRET = 'a'.repeat(32);
+process.env.JWT_SECRET = TEST_JWT_SECRET;
+
 import { describe, it, expect, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -12,9 +16,9 @@ import {
   healthCheckLimiter,
 } from './rate-limit.js';
 
-// Helper: sign a minimal JWT for rate-limit key tests (secret doesn't matter — we use jwt.decode)
+// Helper: sign a minimal JWT for rate-limit key tests
 const makeToken = (userId: number): string =>
-  jwt.sign({ id: userId, username: `user${userId}` }, 'test-secret');
+  jwt.sign({ id: userId, username: `user${userId}` }, TEST_JWT_SECRET);
 
 describe('Rate Limiting Middleware', () => {
   let app: express.Application;
