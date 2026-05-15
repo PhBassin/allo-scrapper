@@ -29,3 +29,6 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+## 2026-05-15 - [Parallelize Independent DB Queries in Express Routes]
+**Learning:** Sequential await statements for independent database queries (e.g., fetching a parent record and its child records) inside Express route handlers introduce unnecessary latency equal to the sum of the queries' execution times. This is a common pattern in REST APIs that can be easily optimized.
+**Action:** When a route handler requires multiple database queries that do not depend on each other's results, wrap them in a `Promise.all` to execute them concurrently, reducing total latency to the maximum of the individual queries' execution times.
