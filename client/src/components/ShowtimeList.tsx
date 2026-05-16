@@ -1,4 +1,4 @@
-import { useMemo, memo, useState, useCallback } from 'react';
+import { useMemo, memo, useState, useCallback, useRef } from 'react';
 import type { Showtime, Film, Cinema } from '../types';
 import CalendarPopover from './CalendarPopover';
 
@@ -9,11 +9,9 @@ interface ShowtimeListProps {
 }
 
 function ShowtimeList({ showtimes, film, cinema }: ShowtimeListProps) {
-  // Track which showtime button has its popover open (by unique key)
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
-  // Group showtimes by version (VF/VO)
-  // ⚡ PERFORMANCE: Memoize grouping logic to avoid re-calculation on every render
   const showtimesByVersion = useMemo(() => showtimes.reduce((acc, showtime) => {
     const version = showtime.version || 'VF';
     if (!acc[version]) acc[version] = [];
@@ -46,14 +44,16 @@ function ShowtimeList({ showtimes, film, cinema }: ShowtimeListProps) {
             {versionShowtimes.map((showtime, index) => {
               const key = `${version}-${showtime.time}-${index}`;
               const isOpen = openKey === key;
+              const anchorRef = { current: buttonRefs.current.get(key) ?? null };
 
               return (
-                <div
-                  key={key}
-                  className="relative"
-                >
+                <div key={key} className="relative">
                   <button
                     type="button"
+                    ref={(el) => {
+                      if (el) buttonRefs.current.set(key, el);
+                      else buttonRefs.current.delete(key);
+                    }}
                     onClick={() => handleToggle(key)}
                     aria-haspopup="menu"
                     aria-expanded={isOpen}
@@ -71,6 +71,7 @@ function ShowtimeList({ showtimes, film, cinema }: ShowtimeListProps) {
                       showtime={showtime}
                       film={film}
                       cinema={cinema}
+                      anchorRef={anchorRef}
                       onClose={handleClose}
                     />
                   )}
@@ -84,6 +85,4 @@ function ShowtimeList({ showtimes, film, cinema }: ShowtimeListProps) {
   );
 }
 
-// ⚡ PERFORMANCE: Memoize component to prevent re-renders when parent re-renders
-// but showtimes data hasn't changed.
 export default memo(ShowtimeList);
