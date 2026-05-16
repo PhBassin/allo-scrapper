@@ -40,7 +40,8 @@ describe('buildGoogleCalendarUrl', () => {
 
   it('encodes the film title in the URL', () => {
     const url = buildGoogleCalendarUrl(baseShowtime, baseFilm, baseCinema);
-    expect(url).toContain(encodeURIComponent('Mon Film Test'));
+    const decoded = decodeURIComponent(url.replace(/\+/g, ' '));
+    expect(decoded).toContain('Mon Film Test');
   });
 
   it('uses correct start date from datetime_iso', () => {
@@ -64,15 +65,18 @@ describe('buildGoogleCalendarUrl', () => {
 
   it('includes cinema name and address as location', () => {
     const url = buildGoogleCalendarUrl(baseShowtime, baseFilm, baseCinema);
-    expect(url).toContain(encodeURIComponent('Cinéma Test'));
-    expect(url).toContain(encodeURIComponent('10 rue du Cinéma'));
+    // URLSearchParams uses + for spaces; decode the URL to check values
+    const decoded = decodeURIComponent(url.replace(/\+/g, ' '));
+    expect(decoded).toContain('Cinéma Test');
+    expect(decoded).toContain('10 rue du Cinéma');
   });
 
   it('uses cinema name only when address is missing', () => {
     const cinema = { ...baseCinema, address: undefined };
     const url = buildGoogleCalendarUrl(baseShowtime, baseFilm, cinema);
-    expect(url).toContain(encodeURIComponent('Cinéma Test'));
-    expect(url).not.toContain(encodeURIComponent('10 rue du Cinéma'));
+    const decoded = decodeURIComponent(url.replace(/\+/g, ' '));
+    expect(decoded).toContain('Cinéma Test');
+    expect(decoded).not.toContain('10 rue du Cinéma');
   });
 });
 

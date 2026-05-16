@@ -1,16 +1,17 @@
 import { useState, useMemo, useCallback } from 'react';
-import type { CinemaWithShowtimes } from '../types';
+import type { CinemaWithShowtimes, Film } from '../types';
 import ShowtimeList from './ShowtimeList';
 import { Link } from 'react-router-dom';
 import { getUniqueDates, formatDateLabel } from '../utils/date';
 
 interface CinemaShowtimesProps {
   cinemas: CinemaWithShowtimes[];
+  film: Film;
   initialDate?: string;
   initialAfterTime?: string | null;
 }
 
-export default function CinemaShowtimes({ cinemas, initialDate, initialAfterTime }: CinemaShowtimesProps) {
+export default function CinemaShowtimes({ cinemas, film, initialDate, initialAfterTime }: CinemaShowtimesProps) {
   const allShowtimes = useMemo(() => 
     cinemas.flatMap(c => c.showtimes),
     [cinemas]
@@ -150,7 +151,7 @@ export default function CinemaShowtimes({ cinemas, initialDate, initialAfterTime
             </div>
 
             <div className="pt-3 border-t border-gray-50">
-              <ShowtimeList showtimes={showtimes} />
+              <ShowtimeList showtimes={showtimes} film={film} cinema={cinema} />
             </div>
           </div>
         ))}

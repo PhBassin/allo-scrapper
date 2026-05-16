@@ -1,11 +1,19 @@
-import { useMemo, memo } from 'react';
-import type { Showtime } from '../types';
+import { useMemo, memo, useState, useCallback, useRef } from 'react';
+import type { Showtime, Film, Cinema } from '../types';
+import CalendarPopover from './CalendarPopover';
 
 interface ShowtimeListProps {
   showtimes: Showtime[];
+  film: Film;
+  cinema: Cinema;
 }
 
-function ShowtimeList({ showtimes }: ShowtimeListProps) {
+function ShowtimeList({ showtimes, film, cinema }: ShowtimeListProps) {
+  // Track which showtime button has its popover open (by index key)
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  // Keep a ref to the wrapper of the open button for positioning
+  const buttonWrapperRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
   // Group showtimes by version (VF/VO)
   // ⚡ PERFORMANCE: Memoize grouping logic to avoid re-calculation on every render
   const showtimesByVersion = useMemo(() => showtimes.reduce((acc, showtime) => {
@@ -16,6 +24,14 @@ function ShowtimeList({ showtimes }: ShowtimeListProps) {
   }, {} as Record<string, Showtime[]>), [showtimes]);
 
   const versionEntries = Object.entries(showtimesByVersion);
+
+  const handleToggle = useCallback((key: string) => {
+    setOpenKey(prev => (prev === key ? null : key));
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setOpenKey(null);
+  }, []);
 
   if (versionEntries.length === 0) {
     return (
@@ -29,17 +45,44 @@ function ShowtimeList({ showtimes }: ShowtimeListProps) {
         <div key={version} className="border-l-4 border-primary pl-3">
           <p className="text-sm font-semibold text-gray-700 mb-2">{version}</p>
           <div className="flex flex-wrap gap-2">
-            {versionShowtimes.map((showtime, index) => (
-              <button
-                key={`${showtime.time}-${index}`}
-                type="button"
-                disabled
-                className="px-3 py-1 bg-gray-100 text-gray-500 rounded cursor-not-allowed text-sm font-medium opacity-70"
-                title="Fonctionnalité à venir"
-              >
-                {showtime.time}
-              </button>
-            ))}
+            {versionShowtimes.map((showtime, index) => {
+              const key = `${showtime.time}-${index}`;
+              const isOpen = openKey === key;
+
+              return (
+                <div
+                  key={key}
+                  className="relative"
+                  ref={(el) => {
+                    if (el) buttonWrapperRefs.current.set(key, el);
+                    else buttonWrapperRefs.current.delete(key);
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleToggle(key)}
+                    aria-haspopup="menu"
+                    aria-expanded={isOpen}
+                    className={`px-3 py-1 rounded text-sm font-medium transition active:scale-95 cursor-pointer ${
+                      isOpen
+                        ? 'bg-primary text-black shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-yellow-100 hover:text-black'
+                    }`}
+                  >
+                    {showtime.time}
+                  </button>
+
+                  {isOpen && (
+                    <CalendarPopover
+                      showtime={showtime}
+                      film={film}
+                      cinema={cinema}
+                      onClose={handleClose}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}
