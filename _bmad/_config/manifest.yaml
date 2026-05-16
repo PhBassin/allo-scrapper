@@ -1,0 +1,66 @@
+installation:
+  version: 6.6.0
+  installDate: 2026-05-16T08:27:47.958Z
+  lastUpdated: 2026-05-16T08:27:47.958Z
+modules:
+  - name: core
+    version: 6.6.0
+    installDate: 2026-05-16T08:27:47.295Z
+    lastUpdated: 2026-05-16T08:27:47.909Z
+    source: built-in
+    npmPackage: null
+    repoUrl: null
+  - name: bmm
+    version: 6.6.0
+    installDate: 2026-05-16T08:27:47.271Z
+    lastUpdated: 2026-05-16T08:27:47.910Z
+    source: built-in
+    npmPackage: null
+    repoUrl: null
+  - name: bmb
+    version: v1.8.0
+    installDate: 2026-05-16T08:27:47.356Z
+    lastUpdated: 2026-05-16T08:27:47.919Z
+    source: external
+    npmPackage: bmad-builder
+    repoUrl: https://github.com/bmad-code-org/bmad-builder
+    channel: stable
+    sha: d64469f61fadc6cfbf2dea6a0a257fe6eb2790a2
+  - name: cis
+    version: v0.2.0
+    installDate: 2026-05-16T08:27:47.384Z
+    lastUpdated: 2026-05-16T08:27:47.929Z
+    source: external
+    npmPackage: bmad-creative-intelligence-suite
+    repoUrl: https://github.com/bmad-code-org/bmad-module-creative-intelligence-suite
+    channel: stable
+    sha: 14a63b893c07173b7a6cfe0fb6a9a72ba51d3cf1
+  - name: tea
+    version: v1.17.1
+    installDate: 2026-05-16T08:27:47.593Z
+    lastUpdated: 2026-05-16T08:27:47.937Z
+    source: external
+    npmPackage: bmad-method-test-architecture-enterprise
+    repoUrl: https://github.com/bmad-code-org/bmad-method-test-architecture-enterprise
+    channel: stable
+    sha: fcee9e3dc9517fd44a6d0620f3a09d2ad25966c9
+  - name: baut
+    version: main
+    installDate: 2026-05-16T08:27:47.641Z
+    lastUpdated: 2026-05-16T08:27:47.949Z
+    source: external
+    npmPackage: bmad-story-automator
+    repoUrl: https://github.com/bmad-code-org/bmad-automator
+    channel: next
+    sha: 593f338532ea730b5c1a2dd86681e87b5b4f04dd
+  - name: gds
+    version: v0.5.0
+    installDate: 2026-05-16T08:27:47.745Z
+    lastUpdated: 2026-05-16T08:27:47.958Z
+    source: external
+    npmPackage: bmad-game-dev-studio
+    repoUrl: https://github.com/bmad-code-org/bmad-module-game-dev-studio
+    channel: stable
+    sha: 9dcd12538accc0f80a895841c2a19da5d362a6d6
+ides:
+  - opencode
