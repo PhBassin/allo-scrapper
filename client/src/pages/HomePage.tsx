@@ -24,7 +24,7 @@ export default function HomePage() {
     queryFn: () => selectedDate ? getMoviesByDate(selectedDate) : getWeeklyMovies(),
   });
 
-  const allFilms = filmsData?.films || [];
+  const allFilms = filmsData?.movies || [];
   // When "Maintenant" is active, hide films whose showtimes are all in the past
   const films = afterTime
     ? allFilms.filter(film =>

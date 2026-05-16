@@ -285,7 +285,7 @@ export default function ReportsPage() {
                           <p className="font-semibold">{attempt.date}</p>
                           <p className="mt-1">{attempt.status}</p>
                           {attempt.status === 'success' && (
-                            <p className="mt-1">{attempt.films_scraped} films, {attempt.showtimes_scraped} séances</p>
+                            <p className="mt-1">{attempt.movies_scraped} films, {attempt.showtimes_scraped} séances</p>
                           )}
                         </div>
                       );
