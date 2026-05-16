@@ -17,7 +17,7 @@ const mockScheduleRow = {
   description: 'Scrape every Wednesday',
   cron_expression: '0 8 * * 3',
   enabled: true,
-  target_cinemas: '["C001", "C002"]',
+  target_theaters: '["C001", "C002"]',
   created_by: 1,
   updated_by: 1,
   created_at: '2026-03-01T06:00:00Z',
@@ -44,7 +44,7 @@ describe('Schedule Queries', () => {
       );
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Weekly Scrape');
-      expect(result[0].target_cinemas).toEqual(['C001', 'C002']);
+      expect(result[0].target_theaters).toEqual(['C001', 'C002']);
     });
 
     it('should return empty array when no schedules', async () => {

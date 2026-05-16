@@ -112,8 +112,8 @@ test.describe('Admin System Information Page', () => {
       const dbCard = page.locator('text=Database Statistics').locator('..');
       
       // Should show counts
-      await expect(dbCard).toContainText(/Cinemas/i);
-      await expect(dbCard).toContainText(/Films/i);
+      await expect(dbCard).toContainText(/Theaters/i);
+      await expect(dbCard).toContainText(/Movies/i);
       await expect(dbCard).toContainText(/Showtimes/i);
       
       // Should show numbers

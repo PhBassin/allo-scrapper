@@ -3,13 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   upsertShowtimes: vi.fn(),
   upsertWeeklyPrograms: vi.fn(),
-  upsertFilm: vi.fn(),
-  getFilm: vi.fn(),
+  upsertMovie: vi.fn(),
+  getMovie: vi.fn(),
   fetchShowtimesJson: vi.fn(),
-  fetchFilmPage: vi.fn(),
+  fetchMoviePage: vi.fn(),
   delay: vi.fn(),
   parseShowtimesJson: vi.fn(),
-  parseFilmPage: vi.fn(),
+  parseMoviePage: vi.fn(),
 }));
 
 vi.mock('../../db/showtime-queries.js', () => ({
@@ -17,14 +17,14 @@ vi.mock('../../db/showtime-queries.js', () => ({
   upsertWeeklyPrograms: mocks.upsertWeeklyPrograms,
 }));
 
-vi.mock('../../db/film-queries.js', () => ({
-  upsertFilm: mocks.upsertFilm,
-  getFilm: mocks.getFilm,
+vi.mock('../../db/movie-queries.js', () => ({
+  upsertMovie: mocks.upsertMovie,
+  getMovie: mocks.getMovie,
 }));
 
 vi.mock('../http-client.js', () => ({
   fetchShowtimesJson: mocks.fetchShowtimesJson,
-  fetchFilmPage: mocks.fetchFilmPage,
+  fetchMoviePage: mocks.fetchMoviePage,
   delay: mocks.delay,
 }));
 
@@ -32,23 +32,23 @@ vi.mock('../theater-json-parser.js', () => ({
   parseShowtimesJson: mocks.parseShowtimesJson,
 }));
 
-vi.mock('../film-parser.js', () => ({
-  parseFilmPage: mocks.parseFilmPage,
+vi.mock('../movie-parser.js', () => ({
+  parseMoviePage: mocks.parseMoviePage,
 }));
 
 import {
   AllocineScraperStrategy,
-  shouldRefreshFilmDetails,
+  shouldRefreshMovieDetails,
 } from './AllocineScraperStrategy.js';
 
-describe('shouldRefreshFilmDetails', () => {
-  it('returns true when existing film is missing', () => {
-    expect(shouldRefreshFilmDetails(null)).toBe(true);
+describe('shouldRefreshMovieDetails', () => {
+  it('returns true when existing movie is missing', () => {
+    expect(shouldRefreshMovieDetails(null)).toBe(true);
   });
 
   it('returns true when trailer_url is missing', () => {
     expect(
-      shouldRefreshFilmDetails({
+      shouldRefreshMovieDetails({
         duration_minutes: 120,
         director: 'Director',
         screenwriters: ['Writer'],
@@ -58,7 +58,7 @@ describe('shouldRefreshFilmDetails', () => {
 
   it('returns false when all required details exist', () => {
     expect(
-      shouldRefreshFilmDetails({
+      shouldRefreshMovieDetails({
         duration_minutes: 120,
         director: 'Director',
         screenwriters: ['Writer'],
@@ -75,9 +75,9 @@ describe('AllocineScraperStrategy scrapeTheater detail refresh fallback', () => 
     mocks.fetchShowtimesJson.mockResolvedValue({});
     mocks.parseShowtimesJson.mockReturnValue([
       {
-        film: {
+        movie: {
           id: 123,
-          title: 'Test Film',
+          title: 'Test Movie',
           genres: [],
           actors: [],
           source_url: 'https://www.allocine.fr/film/fichefilm_gen_cfilm=123.html',
@@ -87,30 +87,30 @@ describe('AllocineScraperStrategy scrapeTheater detail refresh fallback', () => 
       },
     ]);
 
-    mocks.getFilm.mockResolvedValue({
+    mocks.getMovie.mockResolvedValue({
       duration_minutes: 120,
       director: undefined,
       screenwriters: ['Existing Writer'],
       trailer_url: 'https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=123.html',
     });
 
-    mocks.fetchFilmPage.mockRejectedValue(new Error('Rate limit exceeded for film 123'));
-    mocks.parseFilmPage.mockReturnValue({});
+    mocks.fetchMoviePage.mockRejectedValue(new Error('Rate limit exceeded for movie 123'));
+    mocks.parseMoviePage.mockReturnValue({});
 
     mocks.upsertShowtimes.mockResolvedValue(undefined);
-    mocks.upsertFilm.mockResolvedValue(undefined);
+    mocks.upsertMovie.mockResolvedValue(undefined);
     mocks.upsertWeeklyPrograms.mockResolvedValue(undefined);
     mocks.delay.mockResolvedValue(undefined);
   });
 
-  it('preserves existing trailer_url when film detail fetch fails', async () => {
+  it('preserves existing trailer_url when movie detail fetch fails', async () => {
     const strategy = new AllocineScraperStrategy();
 
     await strategy.scrapeTheater(
       {} as any,
       {
         id: 'C0001',
-        name: 'Cinema Test',
+        name: 'Theater Test',
         url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0001.html',
         source: 'allocine',
       },
@@ -118,21 +118,21 @@ describe('AllocineScraperStrategy scrapeTheater detail refresh fallback', () => 
       500
     );
 
-    expect(mocks.upsertFilm).toHaveBeenCalledTimes(1);
-    const upsertedFilm = mocks.upsertFilm.mock.calls[0][1];
-    expect(upsertedFilm.trailer_url).toBe(
+    expect(mocks.upsertMovie).toHaveBeenCalledTimes(1);
+    const upsertedMovie = mocks.upsertMovie.mock.calls[0][1];
+    expect(upsertedMovie.trailer_url).toBe(
       'https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=123.html'
     );
   });
 
-  it('applies movie delay even when film detail fetch fails', async () => {
+  it('applies movie delay even when movie detail fetch fails', async () => {
     const strategy = new AllocineScraperStrategy();
 
     await strategy.scrapeTheater(
       {} as any,
       {
         id: 'C0001',
-        name: 'Cinema Test',
+        name: 'Theater Test',
         url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0001.html',
         source: 'allocine',
       },

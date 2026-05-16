@@ -322,16 +322,16 @@ TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
 # For now, use the admin panel UI
 ```
 
-### 2. Configure Cinemas
+### 2. Configure Theaters
 
-Add cinemas you want to scrape:
+Add theaters you want to scrape:
 
-**Option A: Edit config file** (server/src/config/cinemas.json):
+**Option A: Edit config file** (server/src/config/theaters.json):
 ```json
 [
   {
     "id": "C0001",
-    "name": "My Local Cinema",
+    "name": "My Local Theater",
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0001.html"
   }
 ]
@@ -339,13 +339,13 @@ Add cinemas you want to scrape:
 
 **Option B: Use the API**:
 ```bash
-curl -X POST http://localhost:3000/api/cinemas \
+curl -X POST http://localhost:3000/api/theaters \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"url":"https://www.allocine.fr/seance/salle_gen_csalle=C0001.html"}'
 ```
 
-See [Scraper Reference](../reference/scraper.md) for cinema configuration details.
+See [Scraper Reference](../reference/scraper.md) for theater configuration details.
 
 ### 3. Run First Scrape
 

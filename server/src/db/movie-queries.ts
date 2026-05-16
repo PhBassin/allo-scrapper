@@ -1,11 +1,11 @@
 import { type DB } from './client.js';
-import type { Cinema, Film } from '../types/scraper.js';
+import type { Theater, Movie } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 import { parseJSONMemoized } from '../utils/json-parse-cache.js';
 
 // --- Database Row Interfaces ---
 
-export interface FilmRow {
+export interface MovieRow {
   id: number;
   title: string;
   original_title: string | null;
@@ -26,25 +26,25 @@ export interface FilmRow {
   trailer_url: string | null;
 }
 
-export interface WeeklyFilmRow extends FilmRow {
-  cinema_id: string;
-  cinema_name: string;
-  cinema_address: string | null;
+export interface WeeklyMovieRow extends MovieRow {
+  theater_id: string;
+  theater_name: string;
+  theater_address: string | null;
   postal_code: string | null;
   city: string | null;
   screen_count: number | null;
-  cinema_image_url: string | null;
+  theater_image_url: string | null;
 }
 
 /**
- * Sanitize numeric fields in a Film object to prevent NaN/Infinity from being inserted.
+ * Sanitize numeric fields in a Movie object to prevent NaN/Infinity from being inserted.
  * Converts NaN and Infinity to null with warning logs.
  */
-export function sanitizeNumericValue(value: number | undefined | null, fieldName: string, filmId: number): number | null {
+export function sanitizeNumericValue(value: number | undefined | null, fieldName: string, movieId: number): number | null {
   if (value === undefined || value === null) return null;
   
   if (!Number.isFinite(value)) {
-    logger.warn(`⚠️  Invalid ${fieldName} value (${value}) for film ID ${filmId}, converting to null`);
+    logger.warn(`⚠️  Invalid ${fieldName} value (${value}) for movie ID ${movieId}, converting to null`);
     return null;
   }
   
@@ -52,32 +52,32 @@ export function sanitizeNumericValue(value: number | undefined | null, fieldName
 }
 
 /**
- * Sanitize a Film object before database insertion to prevent NaN/Infinity errors.
+ * Sanitize a Movie object before database insertion to prevent NaN/Infinity errors.
  * This is a defense-in-depth layer in case the parser doesn't catch all edge cases.
  */
-function sanitizeFilm(film: Film): Film {
+function sanitizeMovie(movie: Movie): Movie {
   return {
-    ...film,
-    duration_minutes: film.duration_minutes !== undefined
-      ? sanitizeNumericValue(film.duration_minutes, 'duration_minutes', film.id) ?? undefined
+    ...movie,
+    duration_minutes: movie.duration_minutes !== undefined
+      ? sanitizeNumericValue(movie.duration_minutes, 'duration_minutes', movie.id) ?? undefined
       : undefined,
-    press_rating: film.press_rating !== undefined
-      ? sanitizeNumericValue(film.press_rating, 'press_rating', film.id) ?? undefined
+    press_rating: movie.press_rating !== undefined
+      ? sanitizeNumericValue(movie.press_rating, 'press_rating', movie.id) ?? undefined
       : undefined,
-    audience_rating: film.audience_rating !== undefined
-      ? sanitizeNumericValue(film.audience_rating, 'audience_rating', film.id) ?? undefined
+    audience_rating: movie.audience_rating !== undefined
+      ? sanitizeNumericValue(movie.audience_rating, 'audience_rating', movie.id) ?? undefined
       : undefined,
   };
 }
 
-// Insertion ou mise à jour d'un film
-export async function upsertFilm(db: DB, film: Film): Promise<void> {
-  // Sanitize film data to prevent NaN/Infinity from reaching the database
-  const sanitized = sanitizeFilm(film);
+// Insertion ou mise à jour d'un movie
+export async function upsertMovie(db: DB, movie: Movie): Promise<void> {
+  // Sanitize movie data to prevent NaN/Infinity from reaching the database
+  const sanitized = sanitizeMovie(movie);
   
   await db.query(
     `
-      INSERT INTO films (
+      INSERT INTO movies (
         id, title, original_title, poster_url, duration_minutes,
         release_date, rerelease_date, genres, nationality, director,
         screenwriters, actors, synopsis, certificate, press_rating, audience_rating, source_url, trailer_url
@@ -91,8 +91,8 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
         title = $2,
         original_title = $3,
         poster_url = $4,
-        duration_minutes = COALESCE($5, films.duration_minutes),
-        release_date = COALESCE($6, films.release_date),
+        duration_minutes = COALESCE($5, movies.duration_minutes),
+        release_date = COALESCE($6, movies.release_date),
         rerelease_date = $7,
         genres = $8,
         nationality = $9,
@@ -104,7 +104,7 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
         press_rating = $15,
         audience_rating = $16,
         source_url = $17,
-        trailer_url = COALESCE($18, films.trailer_url)
+        trailer_url = COALESCE($18, movies.trailer_url)
     `,
     [
       sanitized.id,
@@ -129,11 +129,11 @@ export async function upsertFilm(db: DB, film: Film): Promise<void> {
   );
 }
 
-// Récupérer un film par son ID
-export async function getFilm(db: DB, filmId: number): Promise<Film | undefined> {
-  const result = await db.query<FilmRow>(
-    'SELECT * FROM films WHERE id = $1',
-    [filmId]
+// Récupérer un movie par son ID
+export async function getMovie(db: DB, movieId: number): Promise<Movie | undefined> {
+  const result = await db.query<MovieRow>(
+    'SELECT * FROM movies WHERE id = $1',
+    [movieId]
   );
 
   const row = result.rows[0];
@@ -161,38 +161,38 @@ export async function getFilm(db: DB, filmId: number): Promise<Film | undefined>
   };
 }
 
-// Récupérer les films programmés pour une date spécifique
-export async function getFilmsByDate(
+// Récupérer les movies programmés pour une date spécifique
+export async function getMoviesByDate(
   db: DB,
   date: string,
   weekStart: string
-): Promise<Array<Film & { cinemas: Cinema[] }>> {
-  const result = await db.query<WeeklyFilmRow>(
+): Promise<Array<Movie & { theaters: Theater[] }>> {
+  const result = await db.query<WeeklyMovieRow>(
     `
       SELECT DISTINCT
         f.*,
-        c.id as cinema_id,
-        c.name as cinema_name,
-        c.address as cinema_address,
+        c.id as theater_id,
+        c.name as theater_name,
+        c.address as theater_address,
         c.postal_code,
         c.city,
         c.screen_count,
-        c.image_url as cinema_image_url
+        c.image_url as theater_image_url
       FROM showtimes s
-      JOIN films f ON s.film_id = f.id
-      JOIN cinemas c ON s.cinema_id = c.id
+      JOIN movies f ON s.movie_id = f.id
+      JOIN theaters c ON s.theater_id = c.id
       WHERE s.date = $1 AND s.week_start = $2
       ORDER BY f.title
     `,
     [date, weekStart]
   );
 
-  // Regrouper par film
-  const filmsMap = new Map<number, Film & { cinemas: Cinema[] }>();
+  // Regrouper par movie
+  const moviesMap = new Map<number, Movie & { theaters: Theater[] }>();
 
   for (const row of result.rows) {
-    if (!filmsMap.has(row.id)) {
-      filmsMap.set(row.id, {
+    if (!moviesMap.has(row.id)) {
+      moviesMap.set(row.id, {
         id: row.id,
         title: row.title,
         original_title: row.original_title ?? undefined,
@@ -211,56 +211,56 @@ export async function getFilmsByDate(
         audience_rating: row.audience_rating ?? undefined,
         source_url: row.source_url,
         trailer_url: row.trailer_url ?? undefined,
-        cinemas: [],
+        theaters: [],
       });
     }
 
-    const film = filmsMap.get(row.id)!;
-    film.cinemas.push({
-      id: row.cinema_id,
-      name: row.cinema_name,
-      address: row.cinema_address ?? undefined,
+    const movie = moviesMap.get(row.id)!;
+    movie.theaters.push({
+      id: row.theater_id,
+      name: row.theater_name,
+      address: row.theater_address ?? undefined,
       postal_code: row.postal_code ?? undefined,
       city: row.city ?? undefined,
       screen_count: row.screen_count ?? undefined,
-      image_url: row.cinema_image_url ?? undefined,
+      image_url: row.theater_image_url ?? undefined,
     });
   }
 
-  return Array.from(filmsMap.values());
+  return Array.from(moviesMap.values());
 }
 
-// Récupérer les films programmés dans la semaine en cours
-export async function getWeeklyFilms(
+// Récupérer les movies programmés dans la semaine en cours
+export async function getWeeklyMovies(
   db: DB,
   weekStart: string
-): Promise<Array<Film & { cinemas: Cinema[] }>> {
-  const result = await db.query<WeeklyFilmRow>(
+): Promise<Array<Movie & { theaters: Theater[] }>> {
+  const result = await db.query<WeeklyMovieRow>(
     `
       SELECT DISTINCT
         f.*,
-        c.id as cinema_id,
-        c.name as cinema_name,
-        c.address as cinema_address,
+        c.id as theater_id,
+        c.name as theater_name,
+        c.address as theater_address,
         c.postal_code,
         c.city,
         c.screen_count,
-        c.image_url as cinema_image_url
+        c.image_url as theater_image_url
       FROM weekly_programs wp
-      JOIN films f ON wp.film_id = f.id
-      JOIN cinemas c ON wp.cinema_id = c.id
+      JOIN movies f ON wp.movie_id = f.id
+      JOIN theaters c ON wp.theater_id = c.id
       WHERE wp.week_start = $1
       ORDER BY f.title
     `,
     [weekStart]
   );
 
-  // Regrouper par film
-  const filmsMap = new Map<number, Film & { cinemas: Cinema[] }>();
+  // Regrouper par movie
+  const moviesMap = new Map<number, Movie & { theaters: Theater[] }>();
 
   for (const row of result.rows) {
-    if (!filmsMap.has(row.id)) {
-      filmsMap.set(row.id, {
+    if (!moviesMap.has(row.id)) {
+      moviesMap.set(row.id, {
         id: row.id,
         title: row.title,
         original_title: row.original_title ?? undefined,
@@ -279,29 +279,29 @@ export async function getWeeklyFilms(
         audience_rating: row.audience_rating ?? undefined,
         source_url: row.source_url,
         trailer_url: row.trailer_url ?? undefined,
-        cinemas: [],
+        theaters: [],
       });
     }
 
-    const film = filmsMap.get(row.id)!;
-    film.cinemas.push({
-      id: row.cinema_id,
-      name: row.cinema_name,
-      address: row.cinema_address ?? undefined,
+    const movie = moviesMap.get(row.id)!;
+    movie.theaters.push({
+      id: row.theater_id,
+      name: row.theater_name,
+      address: row.theater_address ?? undefined,
       postal_code: row.postal_code ?? undefined,
       city: row.city ?? undefined,
       screen_count: row.screen_count ?? undefined,
-      image_url: row.cinema_image_url ?? undefined,
+      image_url: row.theater_image_url ?? undefined,
     });
   }
 
-  return Array.from(filmsMap.values());
+  return Array.from(moviesMap.values());
 }
 
-// --- Film Search ---
+// --- Movie Search ---
 
 /**
- * Search films using fuzzy matching (trigram similarity + partial match)
+ * Search movies using fuzzy matching (trigram similarity + partial match)
  * with multi-strategy scoring for permissive results.
  * 
  * Search strategies (ordered by priority):
@@ -314,14 +314,14 @@ export async function getWeeklyFilms(
  * @param db Database connection
  * @param query Search query string
  * @param limit Maximum number of results (default: 10)
- * @returns Array of films matching the search query, ordered by relevance
+ * @returns Array of movies matching the search query, ordered by relevance
  */
-export async function searchFilms(
+export async function searchMovies(
   db: DB,
   query: string,
   limit: number = 10
-): Promise<Film[]> {
-  const result = await db.query<FilmRow>(
+): Promise<Movie[]> {
+  const result = await db.query<MovieRow>(
     `SELECT 
       id, title, original_title, poster_url, duration_minutes,
       release_date, rerelease_date, genres, nationality, director,
@@ -351,7 +351,7 @@ export async function searchFilms(
         
         ELSE 0.1
       END AS score
-    FROM films
+    FROM movies
     WHERE 
       similarity(title, $1) > 0.1
       OR (original_title IS NOT NULL AND similarity(original_title, $1) > 0.1)

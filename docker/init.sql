@@ -4,8 +4,8 @@
 -- Enable pg_trgm extension for fuzzy text search
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- Table: cinemas
-CREATE TABLE IF NOT EXISTS cinemas (
+-- Table: theaters
+CREATE TABLE IF NOT EXISTS theaters (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   address TEXT,
@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS cinemas (
   source TEXT DEFAULT 'allocine'
 );
 
--- Table: films
-CREATE TABLE IF NOT EXISTS films (
+-- Table: movies
+CREATE TABLE IF NOT EXISTS movies (
   id INTEGER PRIMARY KEY,
   title TEXT NOT NULL,
   original_title TEXT,
@@ -39,14 +39,14 @@ CREATE TABLE IF NOT EXISTS films (
   trailer_url TEXT
 );
 
--- Index for films title (trigram similarity for fuzzy search)
-CREATE INDEX IF NOT EXISTS idx_films_title_trgm ON films USING gin(title gin_trgm_ops);
+-- Index for movies title (trigram similarity for fuzzy search)
+CREATE INDEX IF NOT EXISTS idx_movies_title_trgm ON movies USING gin(title gin_trgm_ops);
 
 -- Table: showtimes
 CREATE TABLE IF NOT EXISTS showtimes (
   id TEXT PRIMARY KEY,
-  film_id INTEGER NOT NULL,
-  cinema_id TEXT NOT NULL,
+  movie_id INTEGER NOT NULL,
+  theater_id TEXT NOT NULL,
   date TEXT NOT NULL,
   time TEXT NOT NULL,
   datetime_iso TEXT NOT NULL,
@@ -54,26 +54,26 @@ CREATE TABLE IF NOT EXISTS showtimes (
   format TEXT,
   experiences TEXT, -- JSON array
   week_start TEXT NOT NULL,
-  FOREIGN KEY (film_id) REFERENCES films(id),
-  FOREIGN KEY (cinema_id) REFERENCES cinemas(id) ON DELETE CASCADE
+  FOREIGN KEY (movie_id) REFERENCES movies(id),
+  FOREIGN KEY (theater_id) REFERENCES theaters(id) ON DELETE CASCADE
 );
 
 -- Indexes for showtimes
-CREATE INDEX IF NOT EXISTS idx_showtimes_cinema_date ON showtimes(cinema_id, date);
-CREATE INDEX IF NOT EXISTS idx_showtimes_film_date ON showtimes(film_id, date);
+CREATE INDEX IF NOT EXISTS idx_showtimes_theater_date ON showtimes(theater_id, date);
+CREATE INDEX IF NOT EXISTS idx_showtimes_movie_date ON showtimes(movie_id, date);
 CREATE INDEX IF NOT EXISTS idx_showtimes_week ON showtimes(week_start);
 
 -- Table: weekly_programs
 CREATE TABLE IF NOT EXISTS weekly_programs (
   id SERIAL PRIMARY KEY,
-  cinema_id TEXT NOT NULL,
-  film_id INTEGER NOT NULL,
+  theater_id TEXT NOT NULL,
+  movie_id INTEGER NOT NULL,
   week_start TEXT NOT NULL,
   is_new_this_week INTEGER NOT NULL DEFAULT 0,
   scraped_at TEXT NOT NULL,
-  FOREIGN KEY (cinema_id) REFERENCES cinemas(id) ON DELETE CASCADE,
-  FOREIGN KEY (film_id) REFERENCES films(id),
-  UNIQUE(cinema_id, film_id, week_start)
+  FOREIGN KEY (theater_id) REFERENCES theaters(id) ON DELETE CASCADE,
+  FOREIGN KEY (movie_id) REFERENCES movies(id),
+  UNIQUE(theater_id, movie_id, week_start)
 );
 
 -- Index for weekly_programs
@@ -86,10 +86,10 @@ CREATE TABLE IF NOT EXISTS scrape_reports (
   completed_at TIMESTAMPTZ,
   status TEXT NOT NULL, -- 'running', 'success', 'partial_success', 'failed'
   trigger_type TEXT NOT NULL, -- 'manual', 'cron'
-  total_cinemas INTEGER,
-  successful_cinemas INTEGER,
-  failed_cinemas INTEGER,
-  total_films_scraped INTEGER,
+  total_theaters INTEGER,
+  successful_theaters INTEGER,
+  failed_theaters INTEGER,
+  total_movies_scraped INTEGER,
   total_showtimes_scraped INTEGER,
   errors JSONB, -- Array of error objects
   progress_log JSONB -- Array of progress events

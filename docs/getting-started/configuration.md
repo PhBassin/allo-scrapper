@@ -58,14 +58,14 @@ These variables are **required** for the application to function properly.
 - **Example**: `5432`, `5433`
 
 ### `POSTGRES_DB`
-- **Description**: Database name (ics = Independent Cinema Showtimes)
+- **Description**: Database name (ics = Independent Theater Showtimes)
 - **Default**: `ics`
-- **Example**: `ics`, `cinema_db`
+- **Example**: `ics`, `theater_db`
 
 ### `POSTGRES_USER`
 - **Description**: Database username
 - **Default**: `postgres`
-- **Example**: `postgres`, `cinemauser`
+- **Example**: `postgres`, `theateruser`
 
 ### `POSTGRES_PASSWORD`
 - **Description**: Database password
@@ -83,7 +83,7 @@ These variables are **required** for the application to function properly.
 ### `ALLOWED_ORIGINS`
 - **Description**: Comma-separated list of allowed CORS origins
 - **Default**: `http://localhost:3000,http://localhost:5173`
-- **Example**: `http://localhost:3000,http://192.168.1.100:3000,https://cinema.example.com`
+- **Example**: `http://localhost:3000,http://192.168.1.100:3000,https://theater.example.com`
 - **Notes**: Must include every origin the browser uses to access the app, including LAN IPs for local network access
 
 ---
@@ -133,7 +133,7 @@ These variables are **required** for the application to function properly.
 #### `APP_NAME`
 - **Description**: Application name used in server logs, health check API, and service identifiers
 - **Default**: `Allo-Scrapper`
-- **Example**: `My Cinema Portal`
+- **Example**: `My Theater Portal`
 - **Notes**: Server-side only; does not affect frontend UI
 
 #### `JWT_EXPIRES_IN`
@@ -179,7 +179,7 @@ These variables are **required** for the application to function properly.
   - Internal variable `CRON_SCHEDULE` is automatically set from this value in docker-compose.yml
 
 #### `SCRAPE_THEATER_DELAY_MS`
-- **Description**: Delay between cinema scrapes (milliseconds)
+- **Description**: Delay between theater scrapes (milliseconds)
 - **Default**: `3000` (3 seconds)
 - **Range**: `1000` - `10000`
 - **Notes**: 
@@ -187,7 +187,7 @@ These variables are **required** for the application to function properly.
   - ⚠️ **Docker Compose**: `SCRAPE_DELAY_MS` in docker-compose.yml is obsolete and ignored (use `SCRAPE_THEATER_DELAY_MS` in `.env` instead)
 
 #### `SCRAPE_MOVIE_DELAY_MS`
-- **Description**: Delay between film detail fetches (milliseconds)
+- **Description**: Delay between movie detail fetches (milliseconds)
 - **Default**: `500` (0.5 seconds)
 - **Range**: `100` - `2000`
 
@@ -303,7 +303,7 @@ See [Rate Limiting Reference](../reference/api/rate-limiting.md) for full docume
 - **Default**: `10`
 
 #### `RATE_LIMIT_PUBLIC_MAX`
-- **Description**: Max requests per window for public read endpoints (films, cinemas)
+- **Description**: Max requests per window for public read endpoints (movies, theaters)
 - **Default**: `100`
 
 #### `RATE_LIMIT_HEALTH_MAX`
@@ -322,8 +322,8 @@ See [Rate Limiting Reference](../reference/api/rate-limiting.md) for full docume
   - 50,000 entries ≈ 5-10 MB
   - 100,000 entries ≈ 10-20 MB
 - **Use case**: 
-  - **Default (10,000)**: Suitable for most deployments (hundreds of films, dozens of cinemas)
-  - **Large (50,000+)**: High-traffic deployments with thousands of films or very frequent API calls
+  - **Default (10,000)**: Suitable for most deployments (hundreds of movies, dozens of theaters)
+  - **Large (50,000+)**: High-traffic deployments with thousands of movies or very frequent API calls
   - **Small (5,000)**: Memory-constrained environments (e.g., Raspberry Pi, low-tier VPS)
 - **Notes**: 
   - Caches parsed JSON values from database queries (genres, actors, experiences)
@@ -332,11 +332,11 @@ See [Rate Limiting Reference](../reference/api/rate-limiting.md) for full docume
   - Typical hit rate: 95-99% for production workloads
 - **When to increase**:
   - Low cache hit rate (<90%) in logs
-  - High volume of unique films/cinemas
+  - High volume of unique movies/theaters
   - Frequent API calls with many concurrent users
 - **When to decrease**:
   - Memory constraints
-  - Small deployments (few cinemas, limited films)
+  - Small deployments (few theaters, limited movies)
 
 ---
 
@@ -345,7 +345,7 @@ See [Rate Limiting Reference](../reference/api/rate-limiting.md) for full docume
 #### `VITE_APP_NAME`
 - **Description**: Application name for React UI (browser title, header, footer)
 - **Default**: `Allo-Scrapper`
-- **Example**: `My Cinema Portal`, `Cinema Showtimes`
+- **Example**: `My Theater Portal`, `Theater Showtimes`
 - **Notes**: 
   - Requires `VITE_` prefix for Vite to expose to frontend
   - Requires rebuild to take effect: `docker compose restart ics-client`
@@ -414,10 +414,10 @@ NODE_ENV=production
 POSTGRES_HOST=ics-db
 POSTGRES_PORT=5432
 POSTGRES_DB=ics
-POSTGRES_USER=cinema_user
+POSTGRES_USER=theater_user
 POSTGRES_PASSWORD=<STRONG_PASSWORD_HERE>
 PORT=3000
-ALLOWED_ORIGINS=https://cinema.example.com,https://www.cinema.example.com
+ALLOWED_ORIGINS=https://theater.example.com,https://www.theater.example.com
 JWT_SECRET=<GENERATE_WITH_openssl_rand_-base64_32>
 JWT_EXPIRES_IN=24h
 LOG_LEVEL=warn
@@ -425,8 +425,8 @@ TZ=Europe/Paris
 SCRAPE_CRON_SCHEDULE=0 3 * * *
 SCRAPE_THEATER_DELAY_MS=5000
 SCRAPE_DAYS=14
-APP_NAME=My Cinema Portal
-VITE_APP_NAME=My Cinema Portal
+APP_NAME=My Theater Portal
+VITE_APP_NAME=My Theater Portal
 
 # Optional: Monitoring
 OTEL_ENABLED=true
@@ -485,7 +485,7 @@ echo ".env" >> .gitignore
 
 ```bash
 # Only allow specific origins
-ALLOWED_ORIGINS=https://cinema.example.com,https://www.cinema.example.com
+ALLOWED_ORIGINS=https://theater.example.com,https://www.theater.example.com
 
 # Avoid wildcards in production
 # BAD: ALLOWED_ORIGINS=*
@@ -495,8 +495,8 @@ ALLOWED_ORIGINS=https://cinema.example.com,https://www.cinema.example.com
 
 ```bash
 # Always use HTTPS URLs in production
-ALLOWED_ORIGINS=https://cinema.example.com  # Good
-# ALLOWED_ORIGINS=http://cinema.example.com  # Bad
+ALLOWED_ORIGINS=https://theater.example.com  # Good
+# ALLOWED_ORIGINS=http://theater.example.com  # Bad
 ```
 
 See [Security Guide](../project/security.md) for complete security recommendations.

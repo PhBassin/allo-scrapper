@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import type { FilmPageData } from '../types/scraper.js';
+import type { MoviePageData } from '../types/scraper.js';
 
 function uniqueNonEmpty(values: Array<string | undefined | null>): string[] {
   const seen = new Set<string>();
@@ -108,8 +108,8 @@ function parseVisualCredits($: cheerio.CheerioAPI): {
   return { director, screenwriters };
 }
 
-// Parse the film details page from the source website to extract duration and other supplementary info
-export function parseFilmPage(html: string): FilmPageData {
+// Parse the movie details page from the source website to extract duration and other supplementary info
+export function parseMoviePage(html: string): MoviePageData {
   const $ = cheerio.load(html);
 
   let durationMinutes: number | undefined;

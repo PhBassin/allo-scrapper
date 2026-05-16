@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
  * E2E Tests for Day Filter Feature
  * 
  * These tests verify the day selector functionality on the home page,
- * ensuring users can filter films by specific dates.
+ * ensuring users can filter movies by specific dates.
  */
 
 test.describe('Day Filter', () => {
@@ -45,7 +45,7 @@ test.describe('Day Filter', () => {
     await expect(page.getByText(/au programme cette semaine/i)).toBeVisible();
   });
 
-  test('clicking a specific day filters films and updates title', async ({ page }) => {
+  test('clicking a specific day filters movies and updates title', async ({ page }) => {
     // Wait for day selector
     await expect(page.getByText(/filtrer par jour/i)).toBeVisible({ timeout: 5000 });
     
@@ -59,8 +59,8 @@ test.describe('Day Filter', () => {
     // Wait for page to reload with filtered data
     await page.waitForLoadState('networkidle');
     
-    // Title should change to "Films du jour"
-    await expect(page.getByText(/films du jour/i)).toBeVisible({ timeout: 5000 });
+    // Title should change to "Movies du jour"
+    await expect(page.getByText(/movies du jour/i)).toBeVisible({ timeout: 5000 });
     
     // The clicked button should now be selected (has bg-primary class)
     await expect(firstDayButton).toHaveClass(/bg-primary/);
@@ -70,7 +70,7 @@ test.describe('Day Filter', () => {
     await expect(allDaysButton).not.toHaveClass(/bg-primary/);
   });
 
-  test('clicking "Tous les jours" resets filter to show all films', async ({ page }) => {
+  test('clicking "Tous les jours" resets filter to show all movies', async ({ page }) => {
     // Wait for day selector
     await expect(page.getByText(/filtrer par jour/i)).toBeVisible({ timeout: 5000 });
     
@@ -80,7 +80,7 @@ test.describe('Day Filter', () => {
     await page.waitForLoadState('networkidle');
     
     // Verify we're in filtered state
-    await expect(page.getByText(/films du jour/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/movies du jour/i)).toBeVisible({ timeout: 5000 });
     
     // Click "Tous les jours" to reset
     const allDaysButton = page.getByTestId('day-selector-all');
@@ -140,8 +140,8 @@ test.describe('Day Filter', () => {
     // First day should no longer be selected
     await expect(firstDay).not.toHaveClass(/bg-primary/);
     
-    // Title should still show "Films du jour"
-    await expect(page.getByText(/films du jour/i)).toBeVisible();
+    // Title should still show "Movies du jour"
+    await expect(page.getByText(/movies du jour/i)).toBeVisible();
   });
 
   test('day selector shows 7 day buttons plus "Tous les jours"', async ({ page }) => {
@@ -160,15 +160,15 @@ test.describe('Day Filter', () => {
     // Wait for page to load
     await page.waitForLoadState('networkidle');
     
-    // If there are no films, we should see the empty state
+    // If there are no movies, we should see the empty state
     // This test checks that the empty message changes based on filter state
     
-    // Check if films are present first
-    const filmsPresent = await page.locator('[data-testid="film-card"]').count() > 0;
+    // Check if movies are present first
+    const moviesPresent = await page.locator('[data-testid="movie-card"]').count() > 0;
     
-    if (!filmsPresent) {
+    if (!moviesPresent) {
       // In "all days" mode, should show generic empty message
-      await expect(page.getByText(/aucun film programmé pour le moment/i)).toBeVisible();
+      await expect(page.getByText(/aucun movie programmé pour le moment/i)).toBeVisible();
       
       // Click a specific day
       const firstDayButton = page.locator('[data-testid^="day-selector-2"]').first();
@@ -176,7 +176,7 @@ test.describe('Day Filter', () => {
       await page.waitForLoadState('networkidle');
       
       // In filtered mode, should show date-specific empty message
-      await expect(page.getByText(/aucun film programmé pour cette date/i)).toBeVisible();
+      await expect(page.getByText(/aucun movie programmé pour cette date/i)).toBeVisible();
     }
   });
 
@@ -213,7 +213,7 @@ test.describe('Day Filter', () => {
     await page.waitForLoadState('networkidle');
     
     // Verify filter is active
-    await expect(page.getByText(/films du jour/i)).toBeVisible();
+    await expect(page.getByText(/movies du jour/i)).toBeVisible();
     
     // Start a scrape
     const scrapeButton = page.locator('button').filter({ hasText: /lancer le scraping manuel/i }).first();
@@ -235,7 +235,7 @@ test.describe('Day Filter', () => {
       await expect(firstDayButton).toHaveClass(/bg-primary/);
       
       // Verify the title still shows the filtered view
-      await expect(page.getByText(/films du jour/i)).toBeVisible();
+      await expect(page.getByText(/movies du jour/i)).toBeVisible();
     }
   });
 });

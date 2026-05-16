@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getFilm, searchFilms, upsertFilm } from './film-queries.js';
+import { getMovie, searchMovies, upsertMovie } from './movie-queries.js';
 import { type DB } from './client.js';
 
-describe('Film Queries - Film Search', () => {
-  describe('searchFilms', () => {
-    it('should return films with exact match', async () => {
+describe('Movie Queries - Movie Search', () => {
+  describe('searchMovies', () => {
+    it('should return movies with exact match', async () => {
       const mockDb = {
         query: vi.fn().mockResolvedValue({
           rows: [
@@ -31,7 +31,7 @@ describe('Film Queries - Film Search', () => {
         })
       } as unknown as DB;
 
-      const result = await searchFilms(mockDb, 'Matrix', 10);
+      const result = await searchMovies(mockDb, 'Matrix', 10);
 
       expect(result).toHaveLength(1);
       expect(result[0].title).toBe('Matrix');
@@ -43,7 +43,7 @@ describe('Film Queries - Film Search', () => {
       );
     });
 
-    it('should return films with typos using fuzzy matching', async () => {
+    it('should return movies with typos using fuzzy matching', async () => {
       const mockDb = {
         query: vi.fn().mockResolvedValue({
           rows: [
@@ -58,13 +58,13 @@ describe('Film Queries - Film Search', () => {
         })
       } as unknown as DB;
 
-      const result = await searchFilms(mockDb, 'Matix', 10); // Typo: missing 'r'
+      const result = await searchMovies(mockDb, 'Matix', 10); // Typo: missing 'r'
 
       expect(result).toHaveLength(1);
       expect(result[0].title).toBe('Matrix');
     });
 
-    it('should return films with partial match', async () => {
+    it('should return movies with partial match', async () => {
       const mockDb = {
         query: vi.fn().mockResolvedValue({
           rows: [
@@ -86,7 +86,7 @@ describe('Film Queries - Film Search', () => {
         })
       } as unknown as DB;
 
-      const result = await searchFilms(mockDb, 'super', 10);
+      const result = await searchMovies(mockDb, 'super', 10);
 
       expect(result).toHaveLength(2);
       expect(result.map(f => f.title)).toContain('Superman');
@@ -98,7 +98,7 @@ describe('Film Queries - Film Search', () => {
         query: vi.fn().mockResolvedValue({
           rows: Array.from({ length: 5 }, (_, i) => ({
             id: i,
-            title: `Film ${i}`,
+            title: `Movie ${i}`,
             screenwriters: '[]',
             genres: '[]',
             actors: '[]'
@@ -106,12 +106,12 @@ describe('Film Queries - Film Search', () => {
         })
       } as unknown as DB;
 
-      const result = await searchFilms(mockDb, 'Film', 5);
+      const result = await searchMovies(mockDb, 'Movie', 5);
 
       expect(result).toHaveLength(5);
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.any(String),
-        ['Film', 5]
+        ['Movie', 5]
       );
     });
 
@@ -120,7 +120,7 @@ describe('Film Queries - Film Search', () => {
         query: vi.fn().mockResolvedValue({ rows: [] })
       } as unknown as DB;
 
-      const result = await searchFilms(mockDb, 'xyz123notfound', 10);
+      const result = await searchMovies(mockDb, 'xyz123notfound', 10);
 
       expect(result).toEqual([]);
     });
@@ -140,13 +140,13 @@ describe('Film Queries - Film Search', () => {
         })
       } as unknown as DB;
 
-      const result = await searchFilms(mockDb, "L'Été", 10);
+      const result = await searchMovies(mockDb, "L'Été", 10);
 
       expect(result).toHaveLength(1);
       expect(result[0].title).toBe('L\'Été');
     });
 
-    it('should return films with very permissive fuzzy matching (low similarity threshold)', async () => {
+    it('should return movies with very permissive fuzzy matching (low similarity threshold)', async () => {
       const mockDb = {
         query: vi.fn().mockResolvedValue({
           rows: [
@@ -170,7 +170,7 @@ describe('Film Queries - Film Search', () => {
         })
       } as unknown as DB;
 
-      const result = await searchFilms(mockDb, 'mer', 10);
+      const result = await searchMovies(mockDb, 'mer', 10);
 
       expect(result.length).toBeGreaterThan(0);
       expect(mockDb.query).toHaveBeenCalledWith(
@@ -200,7 +200,7 @@ describe('Film Queries - Film Search', () => {
         })
       } as unknown as DB;
 
-      const result = await searchFilms(mockDb, 'The Matrix', 10);
+      const result = await searchMovies(mockDb, 'The Matrix', 10);
 
       expect(result).toHaveLength(1);
       expect(result[0].title).toBe('Matrix');
@@ -216,7 +216,7 @@ describe('Film Queries - Film Search', () => {
         query: vi.fn().mockResolvedValue({ rows: [] })
       } as unknown as DB;
 
-      await searchFilms(mockDb, 'test');
+      await searchMovies(mockDb, 'test');
 
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.any(String),
@@ -226,17 +226,17 @@ describe('Film Queries - Film Search', () => {
   });
 });
 
-describe('Film Queries - Film Sanitization', () => {
-  describe('upsertFilm with invalid numeric values', () => {
+describe('Movie Queries - Movie Sanitization', () => {
+  describe('upsertMovie with invalid numeric values', () => {
     it('should handle NaN duration_minutes by converting to null', async () => {
       const queryMock = vi.fn().mockResolvedValue({ rows: [] });
       const mockDb = {
         query: queryMock
       } as unknown as DB;
 
-      const filmWithNaN = {
+      const movieWithNaN = {
         id: 12345,
-        title: 'Test Film',
+        title: 'Test Movie',
         duration_minutes: NaN,
         press_rating: 4.0,
         audience_rating: 3.5,
@@ -245,7 +245,7 @@ describe('Film Queries - Film Sanitization', () => {
         source_url: 'https://example.com',
       };
 
-      await upsertFilm(mockDb, filmWithNaN);
+      await upsertMovie(mockDb, movieWithNaN);
       
       // Verify the query was called with null for duration_minutes
       expect(mockDb.query).toHaveBeenCalledOnce();
@@ -260,9 +260,9 @@ describe('Film Queries - Film Sanitization', () => {
         query: queryMock
       } as unknown as DB;
 
-      const filmWithInfinity = {
+      const movieWithInfinity = {
         id: 12345,
-        title: 'Test Film',
+        title: 'Test Movie',
         duration_minutes: Infinity,
         press_rating: 4.0,
         audience_rating: 3.5,
@@ -271,7 +271,7 @@ describe('Film Queries - Film Sanitization', () => {
         source_url: 'https://example.com',
       };
 
-      await upsertFilm(mockDb, filmWithInfinity);
+      await upsertMovie(mockDb, movieWithInfinity);
       
       // Verify the query was called with null for duration_minutes
       expect(mockDb.query).toHaveBeenCalledOnce();
@@ -285,9 +285,9 @@ describe('Film Queries - Film Sanitization', () => {
         query: queryMock
       } as unknown as DB;
 
-      const filmWithNaNRating = {
+      const movieWithNaNRating = {
         id: 12345,
-        title: 'Test Film',
+        title: 'Test Movie',
         duration_minutes: 120,
         press_rating: NaN,
         audience_rating: 3.5,
@@ -296,7 +296,7 @@ describe('Film Queries - Film Sanitization', () => {
         source_url: 'https://example.com',
       };
 
-      await upsertFilm(mockDb, filmWithNaNRating);
+      await upsertMovie(mockDb, movieWithNaNRating);
       
       // Verify the query was called with null for press_rating
       expect(mockDb.query).toHaveBeenCalledOnce();
@@ -311,9 +311,9 @@ describe('Film Queries - Film Sanitization', () => {
         query: queryMock
       } as unknown as DB;
 
-      const filmWithNaNAudience = {
+      const movieWithNaNAudience = {
         id: 12345,
-        title: 'Test Film',
+        title: 'Test Movie',
         duration_minutes: 120,
         press_rating: 4.0,
         audience_rating: NaN,
@@ -322,7 +322,7 @@ describe('Film Queries - Film Sanitization', () => {
         source_url: 'https://example.com',
       };
 
-      await upsertFilm(mockDb, filmWithNaNAudience);
+      await upsertMovie(mockDb, movieWithNaNAudience);
       
       // Verify the query was called with null for audience_rating
       expect(mockDb.query).toHaveBeenCalledOnce();
@@ -337,9 +337,9 @@ describe('Film Queries - Film Sanitization', () => {
         query: queryMock
       } as unknown as DB;
 
-      const validFilm = {
+      const validMovie = {
         id: 12345,
-        title: 'Test Film',
+        title: 'Test Movie',
         duration_minutes: 120,
         press_rating: 4.0,
         audience_rating: 3.5,
@@ -348,7 +348,7 @@ describe('Film Queries - Film Sanitization', () => {
         source_url: 'https://example.com',
       };
 
-      await upsertFilm(mockDb, validFilm);
+      await upsertMovie(mockDb, validMovie);
       
       // Verify valid values are preserved
       expect(mockDb.query).toHaveBeenCalledOnce();
@@ -360,19 +360,19 @@ describe('Film Queries - Film Sanitization', () => {
   });
 });
 
-describe('Film Queries - Trailer URL', () => {
-  it('should persist trailer_url when upserting a film', async () => {
+describe('Movie Queries - Trailer URL', () => {
+  it('should persist trailer_url when upserting a movie', async () => {
     const queryMock = vi.fn().mockResolvedValue({ rows: [] });
     const mockDb = {
       query: queryMock,
     } as unknown as DB;
 
-    await upsertFilm(mockDb, {
+    await upsertMovie(mockDb, {
       id: 987,
-      title: 'Trailer Film',
+      title: 'Trailer Movie',
       genres: [],
       actors: [],
-      source_url: 'https://example.com/film/987',
+      source_url: 'https://example.com/movie/987',
       trailer_url: 'https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=987.html',
     } as any);
 
@@ -380,13 +380,13 @@ describe('Film Queries - Trailer URL', () => {
     expect(params[17]).toBe('https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=987.html');
   });
 
-  it('should return trailer_url when fetching a film', async () => {
+  it('should return trailer_url when fetching a movie', async () => {
     const mockDb = {
       query: vi.fn().mockResolvedValue({
         rows: [
           {
             id: 987,
-            title: 'Trailer Film',
+            title: 'Trailer Movie',
             original_title: null,
             poster_url: null,
             duration_minutes: null,
@@ -401,15 +401,15 @@ describe('Film Queries - Trailer URL', () => {
             certificate: null,
             press_rating: null,
             audience_rating: null,
-            source_url: 'https://example.com/film/987',
+            source_url: 'https://example.com/movie/987',
             trailer_url: 'https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=987.html',
           },
         ],
       }),
     } as unknown as DB;
 
-    const film = await getFilm(mockDb, 987);
-    expect((film as any)?.trailer_url).toBe(
+    const movie = await getMovie(mockDb, 987);
+    expect((movie as any)?.trailer_url).toBe(
       'https://www.allocine.fr/video/player_gen_cmedia=99&cfilm=987.html'
     );
   });
@@ -420,15 +420,15 @@ describe('Film Queries - Trailer URL', () => {
       query: queryMock,
     } as unknown as DB;
 
-    await upsertFilm(mockDb, {
+    await upsertMovie(mockDb, {
       id: 987,
-      title: 'Trailer Film',
+      title: 'Trailer Movie',
       genres: [],
       actors: [],
-      source_url: 'https://example.com/film/987',
+      source_url: 'https://example.com/movie/987',
     } as any);
 
     const sql = queryMock.mock.calls[0][0] as string;
-    expect(sql).toContain('trailer_url = COALESCE($18, films.trailer_url)');
+    expect(sql).toContain('trailer_url = COALESCE($18, movies.trailer_url)');
   });
 });

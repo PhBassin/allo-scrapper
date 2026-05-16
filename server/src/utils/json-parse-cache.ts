@@ -7,7 +7,7 @@ import { logger } from './logger.js';
  * The cache size determines how many unique JSON strings can be cached
  * before older entries are evicted using the LRU (Least Recently Used) strategy.
  * 
- * **Default**: 10,000 entries (~1-2 MB memory for typical cinema data)
+ * **Default**: 10,000 entries (~1-2 MB memory for typical theater data)
  * **Override**: Set `JSON_PARSE_CACHE_SIZE` environment variable
  * 
  * **Memory considerations**:
@@ -69,10 +69,10 @@ let cacheMisses = 0;
 /**
  * Memoized JSON.parse for frequently repeated JSON strings in database rows.
  * 
- * **Problem**: Database queries like `getWeeklyFilms()` return hundreds of rows
+ * **Problem**: Database queries like `getWeeklyMovies()` return hundreds of rows
  * where JSON-encoded fields (`genres`, `actors`, `experiences`) are often duplicated.
  * For example, `'[]'` appears in both `testExperiences` and `testActors` columns,
- * and popular genres like `'["Action","Thriller"]'` repeat across many films.
+ * and popular genres like `'["Action","Thriller"]'` repeat across many movies.
  * 
  * **Solution**: Cache parsed results keyed by the original JSON string.
  * When the same JSON string appears again, return the cached parsed value

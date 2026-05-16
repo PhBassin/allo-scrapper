@@ -1,20 +1,20 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Film Search', () => {
+test.describe('Movie Search', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the homepage
     await page.goto('/');
     // Wait for page to load
-    await page.waitForSelector('[data-testid="film-search-bar"]', { timeout: 10000 });
+    await page.waitForSelector('[data-testid="movie-search-bar"]', { timeout: 10000 });
   });
 
   test('should display the search bar on HomePage', async ({ page }) => {
-    const searchBar = page.locator('[data-testid="film-search-bar"]');
+    const searchBar = page.locator('[data-testid="movie-search-bar"]');
     await expect(searchBar).toBeVisible();
 
     const searchInput = page.locator('[data-testid="search-input"]');
     await expect(searchInput).toBeVisible();
-    await expect(searchInput).toHaveAttribute('placeholder', 'Rechercher un film...');
+    await expect(searchInput).toHaveAttribute('placeholder', 'Rechercher un movie...');
   });
 
   test('should show search results when typing', async ({ page }) => {
@@ -36,7 +36,7 @@ test.describe('Film Search', () => {
     expect(count).toBeGreaterThan(0);
   });
 
-  test('should navigate to film detail page when clicking a result', async ({ page }) => {
+  test('should navigate to movie detail page when clicking a result', async ({ page }) => {
     const searchInput = page.locator('[data-testid="search-input"]');
     
     // Type a search query
@@ -50,11 +50,11 @@ test.describe('Film Search', () => {
     const firstResult = page.locator('[data-testid="search-result-item"]').first();
     await firstResult.click();
     
-    // Wait for navigation to film detail page
-    await page.waitForURL(/\/film\/\d+/, { timeout: 5000 });
+    // Wait for navigation to movie detail page
+    await page.waitForURL(/\/movie\/\d+/, { timeout: 5000 });
     
-    // Verify we're on a film detail page
-    expect(page.url()).toMatch(/\/film\/\d+/);
+    // Verify we're on a movie detail page
+    expect(page.url()).toMatch(/\/movie\/\d+/);
     
     // Verify the search bar is closed (input should be cleared)
     await page.goto('/');
@@ -65,7 +65,7 @@ test.describe('Film Search', () => {
   test('should show "no results" message for invalid query', async ({ page }) => {
     const searchInput = page.locator('[data-testid="search-input"]');
     
-    // Type a query that won't match any films
+    // Type a query that won't match any movies
     await searchInput.fill('xyz123notfound9999');
     
     // Wait for debounce and API response
@@ -135,9 +135,9 @@ test.describe('Film Search', () => {
     // Press Enter to navigate
     await searchInput.press('Enter');
     
-    // Should navigate to film detail page
-    await page.waitForURL(/\/film\/\d+/, { timeout: 5000 });
-    expect(page.url()).toMatch(/\/film\/\d+/);
+    // Should navigate to movie detail page
+    await page.waitForURL(/\/movie\/\d+/, { timeout: 5000 });
+    expect(page.url()).toMatch(/\/movie\/\d+/);
   });
 
   test('should close dropdown on Escape key', async ({ page }) => {
@@ -172,7 +172,7 @@ test.describe('Film Search', () => {
     await expect(resultsDropdown).toBeHidden({ timeout: 1000 });
   });
 
-  test('should show film posters in search results', async ({ page }) => {
+  test('should show movie posters in search results', async ({ page }) => {
     const searchInput = page.locator('[data-testid="search-input"]');
     
     // Perform a search
@@ -180,7 +180,7 @@ test.describe('Film Search', () => {
     await page.waitForTimeout(500);
     await page.waitForSelector('[data-testid="search-result-item"]', { timeout: 5000 });
     
-    // Check if film posters are displayed
+    // Check if movie posters are displayed
     const firstResult = page.locator('[data-testid="search-result-item"]').first();
     const poster = firstResult.locator('img');
     

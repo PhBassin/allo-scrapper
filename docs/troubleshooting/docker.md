@@ -198,7 +198,7 @@ docker compose up -d
 
 ### Config Volume Not Syncing
 
-**Issue:** Changes to `server/src/config/cinemas.json` not reflected in running container.
+**Issue:** Changes to `server/src/config/theaters.json` not reflected in running container.
 
 **Cause:** Volume mount caches old files or container needs restart.
 

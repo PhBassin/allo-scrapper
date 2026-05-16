@@ -1,13 +1,13 @@
-# Films API
+# Movies API
 
 **Last updated:** March 27, 2026 | Status: Current ✅
 
-## Films
+## Movies
 
-### List All Films
+### List All Movies
 
 ```http
-GET /api/films
+GET /api/movies
 ```
 
 **Response:**
@@ -15,10 +15,10 @@ GET /api/films
 {
   "success": true,
   "data": {
-    "films": [
+    "movies": [
       {
         "id": 123456,
-        "title": "Film Title",
+        "title": "Movie Title",
         "original_title": "Original Title",
         "poster_url": "https://...",
         "duration_minutes": 120,
@@ -36,19 +36,19 @@ GET /api/films
 
 **Example:**
 ```bash
-curl http://localhost:3000/api/films
+curl http://localhost:3000/api/movies
 ```
 
 ---
 
-### Get Film Details
+### Get Movie Details
 
 ```http
-GET /api/films/:id
+GET /api/movies/:id
 ```
 
 **Parameters:**
-- `id` (integer): Film ID from the source website
+- `id` (integer): Movie ID from the source website
 
 **Response:**
 ```json
@@ -56,7 +56,7 @@ GET /api/films/:id
   "success": true,
   "data": {
     "id": 123456,
-    "title": "Film Title",
+    "title": "Movie Title",
     "original_title": "Original Title",
     "poster_url": "https://...",
     "duration_minutes": 120,
@@ -66,14 +66,14 @@ GET /api/films/:id
     "nationality": "France",
     "director": "Director Name",
     "screenwriters": ["Writer 1", "Writer 2"],
-    "trailer_url": "https://www.example-cinema-site.com/video/player_gen_cmedia=12345&cfilm=123456.html",
+    "trailer_url": "https://www.example-theater-site.com/video/player_gen_cmedia=12345&cmovie=123456.html",
     "actors": ["Actor 1", "Actor 2"],
     "synopsis": "Full synopsis text...",
     "certificate": "TP",
     "press_rating": 4.2,
     "audience_rating": 3.8,
-    "source_url": "https://www.example-cinema-site.com/film/fichefilm_gen_cfilm=123456.html",
-    "cinemas": [
+    "source_url": "https://www.example-theater-site.com/movie/fichemovie_gen_cmovie=123456.html",
+    "theaters": [
       {
         "id": "W7504",
         "name": "Épée de Bois",
@@ -101,18 +101,18 @@ GET /api/films/:id
 
 **Example:**
 ```bash
-curl http://localhost:3000/api/films/123456
+curl http://localhost:3000/api/movies/123456
 ```
 
 ---
 
-### Search Films
+### Search Movies
 
 ```http
-GET /api/films/search?q={query}
+GET /api/movies/search?q={query}
 ```
 
-Search for films using fuzzy matching with PostgreSQL trigram similarity. Returns up to 10 results matching the query string.
+Search for movies using fuzzy matching with PostgreSQL trigram similarity. Returns up to 10 results matching the query string.
 
 **Query Parameters:**
 - `q` (string, required): Search query (minimum 2 characters)
@@ -160,24 +160,24 @@ Search for films using fuzzy matching with PostgreSQL trigram similarity. Return
 **Examples:**
 ```bash
 # Exact match
-curl "http://localhost:3000/api/films/search?q=Matrix"
+curl "http://localhost:3000/api/movies/search?q=Matrix"
 
 # Fuzzy match (typo)
-curl "http://localhost:3000/api/films/search?q=Matirx"
+curl "http://localhost:3000/api/movies/search?q=Matirx"
 
 # Partial match
-curl "http://localhost:3000/api/films/search?q=Matr"
+curl "http://localhost:3000/api/movies/search?q=Matr"
 
 # Very permissive search (accepts variations)
-curl "http://localhost:3000/api/films/search?q=mer"
+curl "http://localhost:3000/api/movies/search?q=mer"
 # → Finds "Marty", "La Mer", "Merlin", etc.
 
 # Original title search
-curl "http://localhost:3000/api/films/search?q=The%20Matrix"
-# → Finds films with original_title="The Matrix"
+curl "http://localhost:3000/api/movies/search?q=The%20Matrix"
+# → Finds movies with original_title="The Matrix"
 
 # URL-encoded query (with spaces)
-curl "http://localhost:3000/api/films/search?q=The%20Dark%20Knight"
+curl "http://localhost:3000/api/movies/search?q=The%20Dark%20Knight"
 ```
 
 ---

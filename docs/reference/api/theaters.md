@@ -1,13 +1,13 @@
-# Cinemas API
+# Theaters API
 
 **Related:** [Authentication API](./auth.md) for authentication details
 
-## Cinemas
+## Theaters
 
-### List All Cinemas
+### List All Theaters
 
 ```http
-GET /api/cinemas
+GET /api/theaters
 ```
 
 No authentication required.
@@ -33,21 +33,21 @@ No authentication required.
 
 **Example:**
 ```bash
-curl http://localhost:3000/api/cinemas
+curl http://localhost:3000/api/theaters
 ```
 
 ---
 
-### Get Cinema Details
+### Get Theater Details
 
 ```http
-GET /api/cinemas/:id
+GET /api/theaters/:id
 ```
 
 No authentication required.
 
 **Parameters:**
-- `id` (string): Cinema ID (e.g., `W7504`)
+- `id` (string): Theater ID (e.g., `W7504`)
 
 **Response:**
 ```json
@@ -63,9 +63,9 @@ No authentication required.
         "version": "VF",
         "format": "2D",
         "experiences": ["Dolby Atmos"],
-        "film": {
+        "movie": {
           "id": 123456,
-          "title": "Film Title",
+          "title": "Movie Title",
           "original_title": "Original Title"
         }
       }
@@ -77,15 +77,15 @@ No authentication required.
 
 **Example:**
 ```bash
-curl "http://localhost:3000/api/cinemas/W7504"
+curl "http://localhost:3000/api/theaters/W7504"
 ```
 
 ---
 
-### Add Cinema
+### Add Theater
 
 ```http
-POST /api/cinemas
+POST /api/theaters
 ```
 
 🔒 **Requires authentication (admin role)**
@@ -93,7 +93,7 @@ POST /api/cinemas
 This endpoint supports two modes:
 
 #### Smart Add (Recommended)
-Provide only a URL and the server will automatically scrape cinema details from AlloCiné:
+Provide only a URL and the server will automatically scrape theater details from AlloCiné:
 
 **Body (JSON):**
 ```json
@@ -119,13 +119,13 @@ Provide only a URL and the server will automatically scrape cinema details from 
 ```
 
 #### Manual Add
-Provide all cinema details manually:
+Provide all theater details manually:
 
 **Body (JSON):**
 ```json
 {
   "id": "C0099",
-  "name": "New Cinema",
+  "name": "New Theater",
   "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0099.html"
 }
 ```
@@ -136,7 +136,7 @@ Provide all cinema details manually:
   "success": true,
   "data": {
     "id": "C0099",
-    "name": "New Cinema",
+    "name": "New Theater",
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0099.html"
   }
 }
@@ -145,11 +145,11 @@ Provide all cinema details manually:
 **Error Responses:**
 - `400` — Invalid AlloCiné URL (must be `https://www.allocine.fr/...`)
 - `400` — Missing required fields for manual add (`id`, `name`, `url`)
-- `409` — Cinema with this ID already exists
+- `409` — Theater with this ID already exists
 
 **Example (Smart Add):**
 ```bash
-curl -X POST http://localhost:3000/api/cinemas \
+curl -X POST http://localhost:3000/api/theaters \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{"url":"https://www.allocine.fr/seance/salle_gen_csalle=C0072.html"}'
@@ -157,24 +157,24 @@ curl -X POST http://localhost:3000/api/cinemas \
 
 **Example (Manual Add):**
 ```bash
-curl -X POST http://localhost:3000/api/cinemas \
+curl -X POST http://localhost:3000/api/theaters \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{"id":"C0099","name":"New Cinema","url":"https://www.allocine.fr/seance/salle_gen_csalle=C0099.html"}'
+  -d '{"id":"C0099","name":"New Theater","url":"https://www.allocine.fr/seance/salle_gen_csalle=C0099.html"}'
 ```
 
 ---
 
-### Update Cinema
+### Update Theater
 
 ```http
-PUT /api/cinemas/:id
+PUT /api/theaters/:id
 ```
 
 🔒 **Requires authentication (admin role)**
 
 **Parameters:**
-- `id` (string): Cinema ID (e.g., `W7504`)
+- `id` (string): Theater ID (e.g., `W7504`)
 
 **Body (JSON):** At least one field required.
 ```json
@@ -207,11 +207,11 @@ PUT /api/cinemas/:id
 **Error Responses:**
 - `400` — No fields provided
 - `400` — Invalid AlloCiné URL (must be `https://www.allocine.fr/...`)
-- `404` — Cinema not found
+- `404` — Theater not found
 
 **Example:**
 ```bash
-curl -X PUT http://localhost:3000/api/cinemas/W7504 \
+curl -X PUT http://localhost:3000/api/theaters/W7504 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{"name":"Épée de Bois (updated)"}'
@@ -219,18 +219,18 @@ curl -X PUT http://localhost:3000/api/cinemas/W7504 \
 
 ---
 
-### Delete Cinema
+### Delete Theater
 
 ```http
-DELETE /api/cinemas/:id
+DELETE /api/theaters/:id
 ```
 
 🔒 **Requires authentication (admin role)**
 
-Deletes the cinema and cascades to all its showtimes and weekly programs.
+Deletes the theater and cascades to all its showtimes and weekly programs.
 
 **Parameters:**
-- `id` (string): Cinema ID (e.g., `W7504`)
+- `id` (string): Theater ID (e.g., `W7504`)
 
 **Response (204 No Content):**
 (empty - no response body)
@@ -238,11 +238,11 @@ Deletes the cinema and cascades to all its showtimes and weekly programs.
 **Note:** A 204 status indicates successful deletion with no response body.
 
 **Error Responses:**
-- `404` — Cinema not found
+- `404` — Theater not found
 
 **Example:**
 ```bash
-curl -X DELETE http://localhost:3000/api/cinemas/C0099 \
+curl -X DELETE http://localhost:3000/api/theaters/C0099 \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 

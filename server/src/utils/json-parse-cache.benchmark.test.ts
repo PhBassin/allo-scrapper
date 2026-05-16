@@ -8,7 +8,7 @@ import { parseJSONMemoized, resetJSONParseCache, getJSONParseCacheStats } from '
  * - Same JSON strings appear repeatedly across many rows (high repetition)
  * - We're parsing genres, actors, and experiences fields
  * 
- * Typical scenario: 1000 films with 50 showtimes each = 50,000 rows
+ * Typical scenario: 1000 movies with 50 showtimes each = 50,000 rows
  * but only ~500 unique combinations of genres/actors/experiences
  */
 describe('JSON Parse Cache Benchmark', () => {
@@ -43,12 +43,12 @@ describe('JSON Parse Cache Benchmark', () => {
     ];
     
     // Simulate 50,000 database rows (typical weekly data)
-    // Each "film" appears in multiple showtimes across cinemas
+    // Each "movie" appears in multiple showtimes across theaters
     const iterations = 50000;
     const startTime = performance.now();
     
     for (let i = 0; i < iterations; i++) {
-      // Simulate parsing a showtime row with film data
+      // Simulate parsing a showtime row with movie data
       const genreIndex = i % testGenres.length;
       const expIndex = i % testExperiences.length;
       const actorIndex = i % testActors.length;
@@ -92,7 +92,7 @@ describe('JSON Parse Cache Benchmark', () => {
     console.log(`  📉 Estimated time saved: ~${estimatedSavingsMs.toFixed(1)}ms\n`);
     
     console.log('Real-World Context:');
-    console.log(`  This simulates a typical GET /api/films or GET /api/showtimes response`);
+    console.log(`  This simulates a typical GET /api/movies or GET /api/showtimes response`);
     console.log(`  where the same genres/actors/experiences appear across many rows.`);
     console.log(`  The cache reduces redundant CPU work during database result mapping.\n`);
     console.log('='.repeat(70) + '\n');

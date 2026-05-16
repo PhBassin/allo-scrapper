@@ -41,7 +41,7 @@ export default defineConfig({
         'src/services/cron.ts',
         'src/services/progress-tracker.ts',
         'src/services/scrape-manager.ts',
-        'src/services/scraper/film-parser.ts',
+        'src/services/scraper/movie-parser.ts',
         'src/services/scraper/http-client.ts',
         'src/services/scraper/index.ts',
         'src/utils/**',

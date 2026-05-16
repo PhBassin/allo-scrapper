@@ -62,15 +62,15 @@ The Docker image has been aggressively optimized for production deployment:
 
 ### Configuration Volume Mount
 
-The `./server/src/config:/app/dist/config` bind mount allows cinema configuration changes made via the API (admin panel) to be immediately visible on the host filesystem. This enables version control of cinema configuration:
+The `./server/src/config:/app/dist/config` bind mount allows theater configuration changes made via the API (admin panel) to be immediately visible on the host filesystem. This enables version control of theater configuration:
 
 ```bash
-git add server/src/config/cinemas.json
-git commit -m "chore: update cinema configuration"
+git add server/src/config/theaters.json
+git commit -m "chore: update theater configuration"
 git push
 ```
 
-**Important:** This bind mount ensures that when cinemas are added/modified through the admin UI, the changes persist on the host and can be committed to version control.
+**Important:** This bind mount ensures that when theaters are added/modified through the admin UI, the changes persist on the host and can be committed to version control.
 
 **Key Innovation:** The largest optimization comes from installing Playwright browsers AS the nodejs user instead of as root and then using `chown -R`. The chown command would create a 271 MB duplicate layer containing copies of all the browser files.
 
@@ -357,7 +357,7 @@ docker compose down -v
 **Volumes:**
 - `postgres-data` - PostgreSQL database persistence
 - `loki-data`, `prometheus-data`, `tempo-data`, `grafana-data` - Monitoring stack data
-- `./server/src/config:/app/dist/config` - Bind mount for cinema configuration (enables git commits of API changes)
+- `./server/src/config:/app/dist/config` - Bind mount for theater configuration (enables git commits of API changes)
 
 ### Backup Volumes
 

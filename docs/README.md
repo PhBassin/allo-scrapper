@@ -1,6 +1,6 @@
 # Allo-Scrapper Documentation
 
-Welcome to the Allo-Scrapper documentation. This guide will help you get started, deploy, develop, and maintain your cinema showtimes aggregator.
+Welcome to the Allo-Scrapper documentation. This guide will help you get started, deploy, develop, and maintain your theater showtimes aggregator.
 
 ## 📚 Documentation Structure
 

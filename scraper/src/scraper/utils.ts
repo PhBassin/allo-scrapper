@@ -23,10 +23,10 @@ export function isStaleResponse(
 }
 
 /**
- * Extracts the Allocine cinema ID (e.g., C0013) from a URL.
+ * Extracts the Allocine theater ID (e.g., C0013) from a URL.
  * Strictly validates that the URL originates from www.allocine.fr to prevent SSRF.
  */
-export function extractCinemaIdFromUrl(url: string): string | null {
+export function extractTheaterIdFromUrl(url: string): string | null {
   try {
     const parsedUrl = new URL(url);
     // Strict domain validation
@@ -43,10 +43,10 @@ export function extractCinemaIdFromUrl(url: string): string | null {
 }
 
 /**
- * Cleans an Allocine cinema URL by stripping fragments (#) and query parameters (?).
+ * Cleans an Allocine theater URL by stripping fragments (#) and query parameters (?).
  * Returns a clean URL like https://www.allocine.fr/seance/salle_gen_csalle=W7517.html
  */
-export function cleanCinemaUrl(url: string): string {
+export function cleanTheaterUrl(url: string): string {
   // Remove everything from the first ? or # onwards
   return url.split(/[?#]/)[0];
 }

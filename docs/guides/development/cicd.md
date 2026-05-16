@@ -258,7 +258,7 @@ npx playwright test
 
 ```bash
 # Contributor creates PR
-gh pr create --title "feat: add cinema search"
+gh pr create --title "feat: add theater search"
 
 # CI builds image with tag :pr-142
 

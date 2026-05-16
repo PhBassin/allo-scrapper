@@ -39,11 +39,11 @@ Allo-Scrapper implements several performance optimizations to handle high-volume
 
 ### Problem Statement
 
-Database queries like `getWeeklyFilms()` return hundreds of rows where JSON-encoded fields are frequently duplicated:
+Database queries like `getWeeklyMovies()` return hundreds of rows where JSON-encoded fields are frequently duplicated:
 
-- **Genres**: `'["Action","Thriller"]'` repeated across many action films
+- **Genres**: `'["Action","Thriller"]'` repeated across many action movies
 - **Actors**: `'[]'` (empty array) appears in multiple columns (`testExperiences`, `testActors`)
-- **Experiences**: `'["IMAX","3D"]'` repeated for all IMAX films
+- **Experiences**: `'["IMAX","3D"]'` repeated for all IMAX movies
 
 Without caching, every row triggers a separate `JSON.parse()` call, even for identical strings.
 
@@ -52,7 +52,7 @@ Without caching, every row triggers a separate `JSON.parse()` call, even for ide
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Database Query                           │
-│  getWeeklyFilms() → 500 rows × 4 JSON fields = 2000 parses │
+│  getWeeklyMovies() → 500 rows × 4 JSON fields = 2000 parses │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          ↓
@@ -85,7 +85,7 @@ Without caching, every row triggers a separate `JSON.parse()` call, even for ide
 import { parseJSONMemoized } from './utils/json-parse-cache.js';
 
 // In database queries
-const films = rows.map(row => ({
+const movies = rows.map(row => ({
   id: row.id,
   title: row.title,
   genres: parseJSONMemoized(row.genres),        // Cached
@@ -98,7 +98,7 @@ const films = rows.map(row => ({
 
 **Test Configuration**:
 - 150,000 JSON.parse operations
-- 16 unique JSON strings (realistic cinema data)
+- 16 unique JSON strings (realistic theater data)
 - Node.js 20.x on Apple M1
 
 **Results**:
@@ -132,10 +132,10 @@ JSON_PARSE_CACHE_SIZE=10000  # Default
 
 | Deployment Size | Recommended Size | Memory Impact |
 |-----------------|------------------|---------------|
-| Small (1-10 cinemas, <100 films) | 5,000 | ~0.5-1 MB |
-| Medium (10-50 cinemas, 100-500 films) | 10,000 (default) | ~1-2 MB |
-| Large (50+ cinemas, 500+ films) | 50,000 | ~5-10 MB |
-| Very Large (100+ cinemas, 1000+ films) | 100,000 | ~10-20 MB |
+| Small (1-10 theaters, <100 movies) | 5,000 | ~0.5-1 MB |
+| Medium (10-50 theaters, 100-500 movies) | 10,000 (default) | ~1-2 MB |
+| Large (50+ theaters, 500+ movies) | 50,000 | ~5-10 MB |
+| Very Large (100+ theaters, 1000+ movies) | 100,000 | ~10-20 MB |
 
 **Memory Calculation**:
 ```
@@ -204,17 +204,17 @@ const pool = new Pool({
 **Efficient Patterns**:
 ```sql
 -- Good: Fetch only needed columns
-SELECT id, title, genres, actors FROM films WHERE active = true;
+SELECT id, title, genres, actors FROM movies WHERE active = true;
 
 -- Good: Use indexes
-SELECT * FROM showtimes WHERE cinema_id = $1 AND date = $2;
--- Requires index on (cinema_id, date)
+SELECT * FROM showtimes WHERE theater_id = $1 AND date = $2;
+-- Requires index on (theater_id, date)
 ```
 
 **Inefficient Patterns**:
 ```sql
 -- Bad: SELECT * with large JSON columns
-SELECT * FROM films;  -- Fetches unnecessary data
+SELECT * FROM movies;  -- Fetches unnecessary data
 
 -- Bad: Missing WHERE clause on large tables
 SELECT * FROM showtimes;  -- Full table scan
@@ -224,18 +224,18 @@ SELECT * FROM showtimes;  -- Full table scan
 
 **Key Indexes** (see `migrations/001_initial_schema.sql`):
 ```sql
--- Cinemas
-CREATE INDEX idx_cinemas_active ON cinemas(active);
+-- Theaters
+CREATE INDEX idx_theaters_active ON theaters(active);
 
--- Films
-CREATE INDEX idx_films_allocine_id ON films(allocine_id);
-CREATE INDEX idx_films_active ON films(active);
+-- Movies
+CREATE INDEX idx_movies_allocine_id ON movies(allocine_id);
+CREATE INDEX idx_movies_active ON movies(active);
 
 -- Showtimes
-CREATE INDEX idx_showtimes_cinema_id ON showtimes(cinema_id);
-CREATE INDEX idx_showtimes_film_id ON showtimes(film_id);
+CREATE INDEX idx_showtimes_theater_id ON showtimes(theater_id);
+CREATE INDEX idx_showtimes_movie_id ON showtimes(movie_id);
 CREATE INDEX idx_showtimes_date ON showtimes(date);
-CREATE INDEX idx_showtimes_date_cinema ON showtimes(date, cinema_id);
+CREATE INDEX idx_showtimes_date_theater ON showtimes(date, theater_id);
 ```
 
 ---
@@ -245,8 +245,8 @@ CREATE INDEX idx_showtimes_date_cinema ON showtimes(date, cinema_id);
 ### Application Metrics
 
 **Prometheus Metrics** (scraper microservice only):
-- `scraper_cinema_scrape_duration_seconds` - Scrape duration per cinema
-- `scraper_films_scraped_total` - Total films scraped
+- `scraper_theater_scrape_duration_seconds` - Scrape duration per theater
+- `scraper_movies_scraped_total` - Total movies scraped
 - `scraper_errors_total` - Total scrape errors
 
 **Access**: `http://localhost:9091/metrics` (scraper container)
@@ -315,13 +315,13 @@ console.log(`Hit rate: ${(stats.hitRate * 100).toFixed(1)}%`);
 **Example**:
 ```typescript
 // Before: N+1 query problem
-for (const cinema of cinemas) {
-  const showtimes = await getShowtimesByCinema(cinema.id);
+for (const theater of theaters) {
+  const showtimes = await getShowtimesByTheater(theater.id);
 }
 
 // After: Single batch query
-const cinemaIds = cinemas.map(c => c.id);
-const showtimes = await getShowtimesByIds(cinemaIds);
+const theaterIds = theaters.map(c => c.id);
+const showtimes = await getShowtimesByIds(theaterIds);
 ```
 
 ### 3. Adjust Connection Pool Size
@@ -356,7 +356,7 @@ app.use(compression());
 
 **Verification**:
 ```bash
-curl -H "Accept-Encoding: gzip" http://localhost:3000/api/films -I
+curl -H "Accept-Encoding: gzip" http://localhost:3000/api/movies -I
 # Look for: Content-Encoding: gzip
 ```
 
@@ -484,10 +484,10 @@ setInterval(() => {
 
 ```typescript
 // Good: Paginated query
-async function getFilmsPaginated(page = 1, limit = 50) {
+async function getMoviesPaginated(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const { rows } = await pool.query(
-    'SELECT * FROM films LIMIT $1 OFFSET $2',
+    'SELECT * FROM movies LIMIT $1 OFFSET $2',
     [limit, offset]
   );
   return rows;
@@ -499,15 +499,15 @@ async function getFilmsPaginated(page = 1, limit = 50) {
 ```typescript
 import { performance } from 'perf_hooks';
 
-app.get('/api/films', async (req, res) => {
+app.get('/api/movies', async (req, res) => {
   const start = performance.now();
   
-  const films = await getFilms();
+  const movies = await getMovies();
   
   const duration = performance.now() - start;
-  logger.info('GET /api/films', { duration: `${duration.toFixed(2)}ms`, count: films.length });
+  logger.info('GET /api/movies', { duration: `${duration.toFixed(2)}ms`, count: movies.length });
   
-  res.json(films);
+  res.json(movies);
 });
 ```
 

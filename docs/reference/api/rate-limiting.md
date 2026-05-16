@@ -62,7 +62,7 @@ Different endpoint types have different rate limits to balance security and usab
 | **Registration** | `/api/auth/register` | 1 hour | 3 | `RATE_LIMIT_REGISTER_MAX` |
 | **Protected** | `/api/reports/*` | 15 min | 60 | `RATE_LIMIT_PROTECTED_MAX` |
 | **Scraper** | `/api/scraper/trigger` | 15 min | 10 | `RATE_LIMIT_SCRAPER_MAX` |
-| **Public** | `/api/films/*`, `/api/cinemas/*` | 15 min | 100 | `RATE_LIMIT_PUBLIC_MAX` |
+| **Public** | `/api/movies/*`, `/api/theaters/*` | 15 min | 100 | `RATE_LIMIT_PUBLIC_MAX` |
 
 **¹ Note**: Authentication endpoint only counts **failed login attempts**. Successful logins don't count toward the limit (`skipSuccessfulRequests: true`).
 
@@ -168,8 +168,8 @@ RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # 1 hour in milliseconds
 ### Public Endpoints Limiter
 
 **Applies to**: 
-- `/api/films/*`
-- `/api/cinemas/*`
+- `/api/movies/*`
+- `/api/theaters/*`
 - Other public read endpoints
 
 **Default**: 100 requests per 15 minutes
@@ -203,7 +203,7 @@ Every response includes these headers:
 **Successful request** (within limits):
 
 ```http
-GET /api/films HTTP/1.1
+GET /api/movies HTTP/1.1
 Host: localhost:3000
 
 HTTP/1.1 200 OK
@@ -385,7 +385,7 @@ Rate limiting is **automatically disabled** in test environments when `req.ip` i
 ```bash
 # Make 101 requests rapidly
 for i in {1..101}; do
-  curl -i http://localhost:3000/api/films
+  curl -i http://localhost:3000/api/movies
 done
 
 # The 101st request should return 429
@@ -422,7 +422,7 @@ npm run test -- rate-limit.test.ts
 
 **Before hitting the limit**:
 ```bash
-curl -I http://localhost:3000/api/films | grep RateLimit
+curl -I http://localhost:3000/api/movies | grep RateLimit
 
 # Output:
 # RateLimit-Limit: 100
@@ -508,7 +508,7 @@ export const generalLimiter = rateLimit({
 **Solution**: Check that route uses the appropriate limiter:
 
 ```typescript
-router.get('/films', publicLimiter, getFilms);
+router.get('/movies', publicLimiter, getMovies);
 ```
 
 ---

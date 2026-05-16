@@ -1,7 +1,7 @@
 {
   "name": "allo-scrapper",
   "version": "4.6.7",
-  "description": "Cinema showtimes aggregator - Full-stack Express.js + React application with PostgreSQL backend",
+  "description": "Theater showtimes aggregator - Full-stack Express.js + React application with PostgreSQL backend",
   "type": "module",
   "private": true,
   "workspaces": [
@@ -43,7 +43,7 @@
     "integration-test": "./scripts/integration-test.sh"
   },
   "keywords": [
-    "cinema",
+    "theater",
     "showtimes",
     "scraper",
     "aggregator",

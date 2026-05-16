@@ -1,17 +1,17 @@
 [
   {
     "id": "C0153",
-    "name": "Cinéma Chaplin Denfert",
+    "name": "Theater Chaplin Denfert",
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0153.html"
   },
   {
     "id": "W7515",
-    "name": "Cinéma Chaplin Saint Lambert",
+    "name": "Theater Chaplin Saint Lambert",
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=W7515.html"
   },
   {
     "id": "C0076",
-    "name": "Cinéma du Panthéon",
+    "name": "Theater du Panthéon",
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0076.html"
   },
   {
@@ -61,7 +61,7 @@
   },
   {
     "id": "C0004",
-    "name": "Le Cinéma des Cinéastes",
+    "name": "Le Theater des Cinéastes",
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0004.html"
   },
   {
@@ -101,7 +101,7 @@
   },
   {
     "id": "C6336",
-    "name": "Publicis Cinémas",
+    "name": "Publicis Theaters",
     "url": "https://www.allocine.fr/seance/salle_gen_csalle=C6336.html"
   },
   {

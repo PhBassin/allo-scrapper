@@ -93,7 +93,7 @@ allo-scrapper/
 **Examples:**
 
 - ✅ `001_neutralize_references.sql`
-- ✅ `008_add_cinema_geolocation.sql`
+- ✅ `008_add_theater_geolocation.sql`
 - ❌ `1_fix.sql` (wrong number format)
 - ❌ `010-add-feature.sql` (wrong separator)
 
@@ -256,17 +256,17 @@ If a migration file is **modified after being applied**, you'll see:
 
 **Description:**
 
-Renames `films.allocine_url` → `films.source_url` to use brand-neutral terminology.
+Renames `movies.allocine_url` → `movies.source_url` to use brand-neutral terminology.
 
 **Changes:**
 
-- `ALTER TABLE films RENAME COLUMN allocine_url TO source_url`
+- `ALTER TABLE movies RENAME COLUMN allocine_url TO source_url`
 
 **Rollback:**
 
 ```sql
 BEGIN;
-ALTER TABLE films RENAME COLUMN source_url TO allocine_url;
+ALTER TABLE movies RENAME COLUMN source_url TO allocine_url;
 COMMIT;
 ```
 
@@ -280,19 +280,19 @@ COMMIT;
 
 **Description:**
 
-Enables PostgreSQL trigram extension for fuzzy text search on film titles.
+Enables PostgreSQL trigram extension for fuzzy text search on movie titles.
 
 **Changes:**
 
 - `CREATE EXTENSION IF NOT EXISTS pg_trgm;`
-- `CREATE INDEX idx_films_title_trgm ON films USING gin(title gin_trgm_ops);`
+- `CREATE INDEX idx_movies_title_trgm ON movies USING gin(title gin_trgm_ops);`
 
 **Usage:**
 
 ```sql
 -- Fuzzy search
 SELECT title, similarity(title, 'Godfather') AS sim
-FROM films
+FROM movies
 WHERE title % 'Godfather'
 ORDER BY sim DESC;
 ```
@@ -301,7 +301,7 @@ ORDER BY sim DESC;
 
 ```sql
 BEGIN;
-DROP INDEX IF EXISTS idx_films_title_trgm;
+DROP INDEX IF EXISTS idx_movies_title_trgm;
 DROP EXTENSION IF EXISTS pg_trgm;
 COMMIT;
 ```
@@ -550,18 +550,18 @@ CREATE TABLE role_permissions (
 - Creates `idx_users_role_id` index
 
 **Seed Data:**
-- **24 permissions** across 6 categories (users, scraper, cinemas, settings, reports, system)
-  - Note: This count was increased to 26 in migration 012 (added users:read, cinemas:read)
+- **24 permissions** across 6 categories (users, scraper, theaters, settings, reports, system)
+  - Note: This count was increased to 26 in migration 012 (added users:read, theaters:read)
 - **Admin role**: System role with bypass privileges
 - **Operator role**: System role with 7 specific permissions
-  - Note: Increased to 9 permissions in migration 012 (added cinemas:read, users:read)
+  - Note: Increased to 9 permissions in migration 012 (added theaters:read, users:read)
 
 **Permission Categories:**
 - `users` (4): list, create, update, delete
   - Note: Increased to 5 in migration 012 (added users:read)
 - `scraper` (2): trigger, trigger_single  
-- `cinemas` (3): create, update, delete
-  - Note: Increased to 4 in migration 012 (added cinemas:read)
+- `theaters` (3): create, update, delete
+  - Note: Increased to 4 in migration 012 (added theaters:read)
 - `settings` (5): read, update, reset, export, import
 - `reports` (2): list, view
 - `system` (3): info, health, migrations
@@ -648,7 +648,7 @@ Cleanup migration that removes any non-canonical permissions that may exist in t
 **Canonical Permissions (20 total):**
 - users: list, create, update, delete (4)
 - scraper: trigger, trigger_single (2)  
-- cinemas: create, update, delete (3)
+- theaters: create, update, delete (3)
 - settings: read, update, reset, export, import (5)
 - reports: list, view (2)
 - system: info, health, migrations (3)
@@ -715,11 +715,11 @@ COMMIT;
 
 **Description:**
 
-Fixes phantom permissions issue (#442) by adding `cinemas:read` and `users:read` permissions that were referenced in client code but missing from the database. Also assigns these permissions to the operator role for consistency.
+Fixes phantom permissions issue (#442) by adding `theaters:read` and `users:read` permissions that were referenced in client code but missing from the database. Also assigns these permissions to the operator role for consistency.
 
 **Changes:**
 
-- Inserts `cinemas:read` permission in `cinemas` category
+- Inserts `theaters:read` permission in `theaters` category
 - Inserts `users:read` permission in `users` category
 - Assigns both permissions to operator role via `role_permissions` table
 - Brings total canonical permissions from 24 to 26
@@ -728,13 +728,13 @@ Fixes phantom permissions issue (#442) by adding `cinemas:read` and `users:read`
 **Permissions Added:**
 ```sql
 INSERT INTO permissions (name, description, category) VALUES
-  ('cinemas:read', 'Voir la liste des cinémas', 'cinemas'),
+  ('theaters:read', 'Voir la liste des theaters', 'theaters'),
   ('users:read',   'Voir les détails utilisateur', 'users');
 ```
 
 **Rationale:**
 
-These permissions were being checked in client code (`CinemasPage.tsx`, permission tests) but didn't exist in the database canonical permission list, creating inconsistency. Rather than removing these checks, we added the permissions to support fine-grained read access separate from write permissions.
+These permissions were being checked in client code (`TheatersPage.tsx`, permission tests) but didn't exist in the database canonical permission list, creating inconsistency. Rather than removing these checks, we added the permissions to support fine-grained read access separate from write permissions.
 
 **Rollback:**
 
@@ -743,11 +743,11 @@ BEGIN;
 DELETE FROM role_permissions 
 WHERE permission_id IN (
   SELECT id FROM permissions 
-  WHERE name IN ('cinemas:read', 'users:read')
+  WHERE name IN ('theaters:read', 'users:read')
 );
 
 DELETE FROM permissions 
-WHERE name IN ('cinemas:read', 'users:read');
+WHERE name IN ('theaters:read', 'users:read');
 COMMIT;
 ```
 
@@ -771,7 +771,7 @@ ls migrations/*.sql | sort | tail -1
 Create file `migrations/008_your_feature.sql`:
 
 ```sql
--- Migration: Add geolocation to cinemas
+-- Migration: Add geolocation to theaters
 -- Version: 3.2.0
 -- Date: 2026-03-15
 -- Description: Adds latitude/longitude columns for map features
@@ -782,12 +782,12 @@ Create file `migrations/008_your_feature.sql`:
 BEGIN;
 
 -- Add new columns
-ALTER TABLE cinemas ADD COLUMN IF NOT EXISTS latitude REAL;
-ALTER TABLE cinemas ADD COLUMN IF NOT EXISTS longitude REAL;
+ALTER TABLE theaters ADD COLUMN IF NOT EXISTS latitude REAL;
+ALTER TABLE theaters ADD COLUMN IF NOT EXISTS longitude REAL;
 
 -- Create spatial index (if using PostGIS)
--- CREATE INDEX IF NOT EXISTS idx_cinemas_location 
---   ON cinemas USING GIST (ll_to_earth(latitude, longitude));
+-- CREATE INDEX IF NOT EXISTS idx_theaters_location 
+--   ON theaters USING GIST (ll_to_earth(latitude, longitude));
 
 -- Verify the change
 DO $$ 
@@ -795,7 +795,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 
         FROM information_schema.columns 
-        WHERE table_name='cinemas' AND column_name='latitude'
+        WHERE table_name='theaters' AND column_name='latitude'
     ) THEN
         RAISE NOTICE 'Migration successful: latitude column exists';
     ELSE
@@ -807,8 +807,8 @@ COMMIT;
 
 -- Rollback:
 -- BEGIN;
--- ALTER TABLE cinemas DROP COLUMN IF EXISTS latitude;
--- ALTER TABLE cinemas DROP COLUMN IF EXISTS longitude;
+-- ALTER TABLE theaters DROP COLUMN IF EXISTS latitude;
+-- ALTER TABLE theaters DROP COLUMN IF EXISTS longitude;
 -- COMMIT;
 ```
 
@@ -828,23 +828,23 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name='films' AND column_name='imdb_id'
+        WHERE table_name='movies' AND column_name='imdb_id'
     ) THEN
-        ALTER TABLE films ADD COLUMN imdb_id TEXT;
+        ALTER TABLE movies ADD COLUMN imdb_id TEXT;
     END IF;
 END $$;
 
 -- Safe index creation
-CREATE INDEX IF NOT EXISTS idx_films_imdb ON films(imdb_id);
+CREATE INDEX IF NOT EXISTS idx_movies_imdb ON movies(imdb_id);
 
 -- Safe constraint addition
 DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.table_constraints 
-        WHERE constraint_name='films_imdb_unique'
+        WHERE constraint_name='movies_imdb_unique'
     ) THEN
-        ALTER TABLE films ADD CONSTRAINT films_imdb_unique UNIQUE (imdb_id);
+        ALTER TABLE movies ADD CONSTRAINT movies_imdb_unique UNIQUE (imdb_id);
     END IF;
 END $$;
 ```
@@ -865,7 +865,7 @@ docker compose exec -T ics-db psql -U postgres -d ics < migrations/008_your_feat
 
 ```bash
 # Check schema
-docker compose exec ics-db psql -U postgres -d ics -c "\d cinemas"
+docker compose exec ics-db psql -U postgres -d ics -c "\d theaters"
 
 # Check migration tracking
 docker compose exec ics-db psql -U postgres -d ics -c "SELECT * FROM schema_migrations ORDER BY applied_at;"
@@ -891,7 +891,7 @@ Update `migrations/README.md` with:
 
 ```bash
 git add migrations/008_your_feature.sql
-git commit -m "feat(db): add geolocation columns to cinemas table
+git commit -m "feat(db): add geolocation columns to theaters table
 
 refs #<issue-number>"
 ```
@@ -965,8 +965,8 @@ grep -A 10 "Rollback:" migrations/008_your_feature.sql
 # Apply rollback
 docker compose exec -T ics-db psql -U postgres -d ics <<EOF
 BEGIN;
-ALTER TABLE cinemas DROP COLUMN IF EXISTS latitude;
-ALTER TABLE cinemas DROP COLUMN IF EXISTS longitude;
+ALTER TABLE theaters DROP COLUMN IF EXISTS latitude;
+ALTER TABLE theaters DROP COLUMN IF EXISTS longitude;
 COMMIT;
 EOF
 
@@ -992,8 +992,8 @@ docker compose restart ics-web  # Re-runs migration system
 ```sql
 -- migrations/009_remove_geolocation.sql
 BEGIN;
-ALTER TABLE cinemas DROP COLUMN IF EXISTS latitude;
-ALTER TABLE cinemas DROP COLUMN IF EXISTS longitude;
+ALTER TABLE theaters DROP COLUMN IF EXISTS latitude;
+ALTER TABLE theaters DROP COLUMN IF EXISTS longitude;
 COMMIT;
 ```
 
@@ -1086,16 +1086,16 @@ COMMIT;
 
 ```sql
 -- Before (fails on re-run)
-ALTER TABLE films ADD COLUMN imdb_id TEXT;
+ALTER TABLE movies ADD COLUMN imdb_id TEXT;
 
 -- After (idempotent)
 DO $$ 
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name='films' AND column_name='imdb_id'
+        WHERE table_name='movies' AND column_name='imdb_id'
     ) THEN
-        ALTER TABLE films ADD COLUMN imdb_id TEXT;
+        ALTER TABLE movies ADD COLUMN imdb_id TEXT;
     END IF;
 END $$;
 ```

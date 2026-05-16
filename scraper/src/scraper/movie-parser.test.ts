@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parseFilmPage } from './film-parser.js';
+import { parseMoviePage } from './movie-parser.js';
 
-describe('parseFilmPage', () => {
+describe('parseMoviePage', () => {
   it('extracts director and screenwriters from JSON-LD', () => {
     const html = `
       <div class="meta-body-info">2h 30min</div>
@@ -22,7 +22,7 @@ describe('parseFilmPage', () => {
       </script>
     `;
 
-    const result = parseFilmPage(html);
+    const result = parseMoviePage(html);
 
     expect(result.duration_minutes).toBe(150);
     expect(result.trailer_url).toBe(
@@ -46,7 +46,7 @@ describe('parseFilmPage', () => {
       </div>
     `;
 
-    const result = parseFilmPage(html);
+    const result = parseMoviePage(html);
 
     expect(result.duration_minutes).toBe(105);
     expect(result.director).toBe('Luca Guadagnino');
@@ -59,7 +59,7 @@ describe('parseFilmPage', () => {
       <a class="trailer roller-item" href="/video/player_gen_cmedia=19600934&amp;cfilm=296168.html"></a>
     `;
 
-    const result = parseFilmPage(html);
+    const result = parseMoviePage(html);
 
     expect(result.trailer_url).toBe(
       'https://www.allocine.fr/video/player_gen_cmedia=19600934&cfilm=296168.html'

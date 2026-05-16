@@ -21,7 +21,7 @@ function createMockDb(): DB {
 // Default mock settings row
 const mockSettingsRow: AppSettingsRow = {
   id: 1,
-  site_name: 'Test Cinema',
+  site_name: 'Test Theater',
   logo_base64: 'data:image/png;base64,test-logo',
   favicon_base64: 'data:image/png;base64,test-favicon',
   color_primary: '#FECC00',
@@ -37,7 +37,7 @@ const mockSettingsRow: AppSettingsRow = {
   font_secondary: 'Roboto',
   footer_text: 'Test footer',
   footer_links: JSON.stringify([{ label: 'Home', url: '/' }]),
-  email_from_name: 'Test Cinema',
+  email_from_name: 'Test Theater',
   email_from_address: 'no-reply@test.com',
   updated_at: '2026-03-01T06:00:00Z',
   updated_by: 1,
@@ -65,7 +65,7 @@ describe('Settings Queries', () => {
 
       expect(result).toBeDefined();
       expect(result?.id).toBe(1);
-      expect(result?.site_name).toBe('Test Cinema');
+      expect(result?.site_name).toBe('Test Theater');
       expect(result?.email_from_address).toBe('no-reply@test.com');
       expect(result?.footer_links).toEqual([{ label: 'Home', url: '/' }]);
       expect(db.query).toHaveBeenCalledWith('SELECT * FROM app_settings WHERE id = 1');
@@ -131,7 +131,7 @@ describe('Settings Queries', () => {
       const result = await getPublicSettings(db);
 
       expect(result).toBeDefined();
-      expect(result?.site_name).toBe('Test Cinema');
+      expect(result?.site_name).toBe('Test Theater');
       expect(result?.color_primary).toBe('#FECC00');
       expect(result).not.toHaveProperty('email_from_address');
       expect(result).not.toHaveProperty('email_from_name');
@@ -155,7 +155,7 @@ describe('Settings Queries', () => {
   describe('updateSettings', () => {
     it('should update only provided fields', async () => {
       const updates: AppSettingsUpdate = {
-        site_name: 'Updated Cinema',
+        site_name: 'Updated Theater',
         color_primary: '#FF0000',
       };
 
@@ -167,7 +167,7 @@ describe('Settings Queries', () => {
       const result = await updateSettings(db, updates, 1);
 
       expect(result).toBeDefined();
-      expect(result?.site_name).toBe('Updated Cinema');
+      expect(result?.site_name).toBe('Updated Theater');
       expect(result?.color_primary).toBe('#FF0000');
       expect(db.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE app_settings'),
@@ -307,7 +307,7 @@ describe('Settings Queries', () => {
       expect(result).toBeDefined();
       expect(result?.version).toBe('1.0');
       expect(result?.exported_at).toMatch(/^\d{4}-\d{2}-\d{2}T/); // ISO format
-      expect(result?.settings.site_name).toBe('Test Cinema');
+      expect(result?.settings.site_name).toBe('Test Theater');
       expect(result?.settings).not.toHaveProperty('id');
       expect(result?.settings).not.toHaveProperty('updated_at');
       expect(result?.settings).not.toHaveProperty('updated_by');
@@ -331,7 +331,7 @@ describe('Settings Queries', () => {
         version: '1.0',
         exported_at: '2026-03-01T05:00:00Z',
         settings: {
-          site_name: 'Imported Cinema',
+          site_name: 'Imported Theater',
           logo_base64: 'data:image/png;base64,imported',
           favicon_base64: null,
           color_primary: '#000000',

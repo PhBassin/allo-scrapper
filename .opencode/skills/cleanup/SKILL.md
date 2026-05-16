@@ -274,7 +274,7 @@ fi
 **Output example:**
 ```
 📋 Found 10 other merged branches:
-  feature/258-cinema-api-client
+  feature/258-theater-api-client
   feature/266-optimize-agents-md
   feature/302-create-docs-writer-agent
   feature/304-docs-phase-2

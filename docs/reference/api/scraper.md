@@ -15,16 +15,16 @@ POST /api/scraper/trigger
 **Request Body (optional):**
 ```json
 {
-  "cinemaId": "C0153",  // Optional: scrape only this cinema (must exist in database)
-  "filmId": 12345       // Optional: scrape only this film
+  "theaterId": "C0153",  // Optional: scrape only this theater (must exist in database)
+  "movieId": 12345       // Optional: scrape only this movie
 }
 ```
 
 **Behavior:**
-- No parameters → Full scrape (all cinemas, all films, all dates)
-- `cinemaId` only → Scrape this cinema (all films, all dates for this cinema)
-- `filmId` only → Scrape this film (all cinemas showing this film)
-- Both `cinemaId` and `filmId` → Scrape this film at this specific cinema only
+- No parameters → Full scrape (all theaters, all movies, all dates)
+- `theaterId` only → Scrape this theater (all movies, all dates for this theater)
+- `movieId` only → Scrape this movie (all theaters showing this movie)
+- Both `theaterId` and `movieId` → Scrape this movie at this specific theater only
 
 **Response (200 — started):**
 
@@ -56,11 +56,11 @@ POST /api/scraper/trigger
 - `message` - Human-readable status message
 - `queueDepth` - (Redis mode only) Number of jobs in the Redis queue after this job was added
 
-**Response (404 — cinema not found):**
+**Response (404 — theater not found):**
 ```json
 {
   "success": false,
-  "error": "Cinema not found: CXXXX"
+  "error": "Theater not found: CXXXX"
 }
 ```
 
@@ -85,33 +85,33 @@ TOKEN=$(curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
 
-# Full scrape (all cinemas, all films)
+# Full scrape (all theaters, all movies)
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer $TOKEN"
 
-# Cinema-specific scrape (C-prefix)
+# Theater-specific scrape (C-prefix)
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"cinemaId": "C0153"}'
+  -d '{"theaterId": "C0153"}'
 
-# Cinema-specific scrape (W-prefix)
+# Theater-specific scrape (W-prefix)
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"cinemaId": "W7515"}'
+  -d '{"theaterId": "W7515"}'
 
-# Film-specific scrape
+# Movie-specific scrape
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"filmId": 12345}'
+  -d '{"movieId": 12345}'
 
-# Combined: scrape specific film at specific cinema
+# Combined: scrape specific movie at specific theater
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"cinemaId": "C0153", "filmId": 12345}'
+  -d '{"theaterId": "C0153", "movieId": 12345}'
 ```
 
 ---
@@ -195,25 +195,25 @@ Opens a persistent Server-Sent Events connection. All previously accumulated eve
 All events are sent as plain `data:` lines (no named `event:` field). Each line is a JSON object with a `type` discriminator:
 
 ```
-data: {"type":"started","total_cinemas":3,"total_dates":7}
+data: {"type":"started","total_theaters":3,"total_dates":7}
 
-data: {"type":"cinema_started","cinema_name":"Épée de Bois","cinema_id":"W7504","index":1}
+data: {"type":"theater_started","theater_name":"Épée de Bois","theater_id":"W7504","index":1}
 
-data: {"type":"date_started","date":"2026-02-19","cinema_name":"Épée de Bois"}
+data: {"type":"date_started","date":"2026-02-19","theater_name":"Épée de Bois"}
 
-data: {"type":"film_started","film_title":"Mon Film","film_id":123456}
+data: {"type":"movie_started","movie_title":"Mon Movie","movie_id":123456}
 
-data: {"type":"film_completed","film_title":"Mon Film","showtimes_count":5}
+data: {"type":"movie_completed","movie_title":"Mon Movie","showtimes_count":5}
 
-data: {"type":"film_failed","film_title":"Mon Film","error":"HTTP 404"}
+data: {"type":"movie_failed","movie_title":"Mon Movie","error":"HTTP 404"}
 
-data: {"type":"date_completed","date":"2026-02-19","films_count":12}
+data: {"type":"date_completed","date":"2026-02-19","movies_count":12}
 
-data: {"type":"date_failed","date":"2026-02-19","cinema_name":"Épée de Bois","error":"HTTP 503"}
+data: {"type":"date_failed","date":"2026-02-19","theater_name":"Épée de Bois","error":"HTTP 503"}
 
-data: {"type":"cinema_completed","cinema_name":"Épée de Bois","total_films":42}
+data: {"type":"theater_completed","theater_name":"Épée de Bois","total_movies":42}
 
-data: {"type":"completed","summary":{"total_cinemas":3,"successful_cinemas":3,"failed_cinemas":0,"total_films":87,"total_showtimes":412,"total_dates":7,"duration_ms":34210,"errors":[]}}
+data: {"type":"completed","summary":{"total_theaters":3,"successful_theaters":3,"failed_theaters":0,"total_movies":87,"total_showtimes":412,"total_dates":7,"duration_ms":34210,"errors":[]}}
 
 data: {"type":"failed","error":"Fatal error message"}
 ```
@@ -222,15 +222,15 @@ data: {"type":"failed","error":"Fatal error message"}
 
 | Type | Emitted | Payload fields |
 |------|---------|----------------|
-| `started` | Once at start | `total_cinemas`, `total_dates` |
-| `cinema_started` | Per cinema | `cinema_name`, `cinema_id`, `index` |
-| `date_started` | Per cinema × date | `date`, `cinema_name` |
-| `film_started` | Per film | `film_title`, `film_id` |
-| `film_completed` | Per film (success) | `film_title`, `showtimes_count` |
-| `film_failed` | Per film (error) | `film_title`, `error` |
-| `date_completed` | Per date (success) | `date`, `films_count` |
-| `date_failed` | Per date (error) | `date`, `cinema_name`, `error` |
-| `cinema_completed` | Per cinema (≥1 date ok) | `cinema_name`, `total_films` |
+| `started` | Once at start | `total_theaters`, `total_dates` |
+| `theater_started` | Per theater | `theater_name`, `theater_id`, `index` |
+| `date_started` | Per theater × date | `date`, `theater_name` |
+| `movie_started` | Per movie | `movie_title`, `movie_id` |
+| `movie_completed` | Per movie (success) | `movie_title`, `showtimes_count` |
+| `movie_failed` | Per movie (error) | `movie_title`, `error` |
+| `date_completed` | Per date (success) | `date`, `movies_count` |
+| `date_failed` | Per date (error) | `date`, `theater_name`, `error` |
+| `theater_completed` | Per theater (≥1 date ok) | `theater_name`, `total_movies` |
 | `completed` | Once on success | `summary` (ScrapeSummary object) |
 | `failed` | Once on fatal error | `error` |
 
@@ -239,7 +239,7 @@ data: {"type":"failed","error":"Fatal error message"}
 When the scraper detects an HTTP 429 (Too Many Requests) response from the source server:
 1. The scrape stops immediately to avoid further rate limiting
 2. Status is set to `rate_limited` instead of `failed`
-3. A `cinema_failed` event is emitted with error_type `http_429`
+3. A `theater_failed` event is emitted with error_type `http_429`
 4. The final `completed` event includes `"status": "rate_limited"` in the summary
 
 **Example Rate Limited Summary:**
@@ -247,17 +247,17 @@ When the scraper detects an HTTP 429 (Too Many Requests) response from the sourc
 {
   "type": "completed",
   "summary": {
-    "total_cinemas": 10,
-    "successful_cinemas": 3,
-    "failed_cinemas": 7,
-    "total_films": 45,
+    "total_theaters": 10,
+    "successful_theaters": 3,
+    "failed_theaters": 7,
+    "total_movies": 45,
     "total_showtimes": 212,
     "total_dates": 7,
     "duration_ms": 12340,
     "status": "rate_limited",
     "errors": [{
-      "cinema_name": "Example Cinema",
-      "cinema_id": "C0123",
+      "theater_name": "Example Theater",
+      "theater_id": "C0123",
       "date": "2026-03-24",
       "error": "HTTP 429 Too Many Requests",
       "error_type": "http_429",
@@ -310,7 +310,7 @@ POST /api/scraper/resume/:reportId
 **Parameters:**
 - `reportId` (integer): ID of the parent report to resume (must have status `rate_limited`, `failed`, or `partial_success`)
 
-**Description:** Creates a new scrape report that retries only the cinema/date combinations that weren't successfully scraped in the parent report. The new report links to the parent via `parent_report_id`.
+**Description:** Creates a new scrape report that retries only the theater/date combinations that weren't successfully scraped in the parent report. The new report links to the parent via `parent_report_id`.
 
 **Response (200 — started):**
 
@@ -323,8 +323,8 @@ POST /api/scraper/resume/:reportId
     "parentReportId": 123,
     "message": "Resume scrape started successfully",
     "pendingAttempts": [
-      { "cinema_id": "C0042", "date": "2026-03-26" },
-      { "cinema_id": "C0089", "date": "2026-03-25" }
+      { "theater_id": "C0042", "date": "2026-03-26" },
+      { "theater_id": "C0089", "date": "2026-03-25" }
     ]
   }
 }
@@ -340,8 +340,8 @@ POST /api/scraper/resume/:reportId
     "message": "Resume scrape job queued for microservice",
     "queueDepth": 1,
     "pendingAttempts": [
-      { "cinema_id": "C0042", "date": "2026-03-26" },
-      { "cinema_id": "C0089", "date": "2026-03-25" }
+      { "theater_id": "C0042", "date": "2026-03-26" },
+      { "theater_id": "C0089", "date": "2026-03-25" }
     ]
   }
 }
@@ -351,7 +351,7 @@ POST /api/scraper/resume/:reportId
 - `reportId` - New scrape report ID for the resume operation
 - `parentReportId` - Original report ID that is being resumed
 - `message` - Human-readable status message
-- `pendingAttempts` - List of cinema/date combinations that will be retried
+- `pendingAttempts` - List of theater/date combinations that will be retried
 - `queueDepth` - (Redis mode only) Number of jobs in queue after this job was added
 
 **Response (404 — report not found):**
@@ -417,10 +417,10 @@ GET /api/scraper/schedules
     {
       "id": 1,
       "name": "Daily Morning Scrape",
-      "description": "Scrape all cinemas every morning at 6 AM",
+      "description": "Scrape all theaters every morning at 6 AM",
       "cron_expression": "0 6 * * *",
       "enabled": true,
-      "target_cinemas": ["W7504", "C0072"],
+      "target_theaters": ["W7504", "C0072"],
       "created_by": 1,
       "created_at": "2026-03-15T10:30:00Z",
       "updated_at": "2026-03-15T10:30:00Z"
@@ -447,10 +447,10 @@ GET /api/scraper/schedules/:id
   "data": {
     "id": 1,
     "name": "Daily Morning Scrape",
-    "description": "Scrape all cinemas every morning at 6 AM",
+    "description": "Scrape all theaters every morning at 6 AM",
     "cron_expression": "0 6 * * *",
     "enabled": true,
-    "target_cinemas": ["W7504", "C0072"],
+    "target_theaters": ["W7504", "C0072"],
     "created_by": 1,
     "created_at": "2026-03-15T10:30:00Z",
     "updated_at": "2026-03-15T10:30:00Z"
@@ -481,10 +481,10 @@ POST /api/scraper/schedules
 ```json
 {
   "name": "Daily Morning Scrape",
-  "description": "Scrape all cinemas every morning at 6 AM",
+  "description": "Scrape all theaters every morning at 6 AM",
   "cron_expression": "0 6 * * *",
   "enabled": true,
-  "target_cinemas": ["W7504", "C0072"]
+  "target_theaters": ["W7504", "C0072"]
 }
 ```
 
@@ -493,7 +493,7 @@ POST /api/scraper/schedules
 - `description` (string, optional) - Human-readable description
 - `cron_expression` (string, required) - Cron expression (e.g., `0 6 * * *` for 6 AM daily)
 - `enabled` (boolean, optional, default: true) - Whether schedule is active
-- `target_cinemas` (array, optional) - List of cinema IDs to scrape (empty = all cinemas)
+- `target_theaters` (array, optional) - List of theater IDs to scrape (empty = all theaters)
 
 **Response (201 — created):**
 ```json
@@ -502,10 +502,10 @@ POST /api/scraper/schedules
   "data": {
     "id": 1,
     "name": "Daily Morning Scrape",
-    "description": "Scrape all cinemas every morning at 6 AM",
+    "description": "Scrape all theaters every morning at 6 AM",
     "cron_expression": "0 6 * * *",
     "enabled": true,
-    "target_cinemas": ["W7504", "C0072"],
+    "target_theaters": ["W7504", "C0072"],
     "created_by": 1,
     "created_at": "2026-03-15T10:30:00Z",
     "updated_at": "2026-03-15T10:30:00Z"
@@ -539,7 +539,7 @@ PUT /api/scraper/schedules/:id
   "description": "Updated description",
   "cron_expression": "0 12 * * *",
   "enabled": false,
-  "target_cinemas": ["W7504"]
+  "target_theaters": ["W7504"]
 }
 ```
 
@@ -553,7 +553,7 @@ PUT /api/scraper/schedules/:id
     "description": "Updated description",
     "cron_expression": "0 12 * * *",
     "enabled": false,
-    "target_cinemas": ["W7504"],
+    "target_theaters": ["W7504"],
     "created_by": 1,
     "created_at": "2026-03-15T10:30:00Z",
     "updated_at": "2026-03-18T15:45:00Z"

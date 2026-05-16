@@ -1,4 +1,4 @@
--- Migration: Add scrape_attempts table for granular per-cinema/per-date tracking
+-- Migration: Add scrape_attempts table for granular per-theater/per-date tracking
 -- This migration is idempotent - safe to run multiple times
 
 BEGIN;
@@ -19,11 +19,11 @@ BEGIN
     END IF;
 END $$;
 
--- Create scrape_attempts table for per-cinema/per-date tracking
+-- Create scrape_attempts table for per-theater/per-date tracking
 CREATE TABLE IF NOT EXISTS scrape_attempts (
     id SERIAL PRIMARY KEY,
     report_id INTEGER NOT NULL REFERENCES scrape_reports(id) ON DELETE CASCADE,
-    cinema_id TEXT NOT NULL REFERENCES cinemas(id),
+    theater_id TEXT NOT NULL REFERENCES theaters(id),
     date TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (
         status IN ('pending', 'success', 'failed', 'rate_limited', 'not_attempted')
@@ -31,10 +31,10 @@ CREATE TABLE IF NOT EXISTS scrape_attempts (
     error_type TEXT,
     error_message TEXT,
     http_status_code INTEGER,
-    films_scraped INTEGER DEFAULT 0,
+    movies_scraped INTEGER DEFAULT 0,
     showtimes_scraped INTEGER DEFAULT 0,
     attempted_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(report_id, cinema_id, date)
+    UNIQUE(report_id, theater_id, date)
 );
 
 -- Add indexes for performance (check if they exist first)
@@ -68,12 +68,12 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_indexes 
-        WHERE tablename = 'scrape_attempts' AND indexname = 'idx_scrape_attempts_cinema_date'
+        WHERE tablename = 'scrape_attempts' AND indexname = 'idx_scrape_attempts_theater_date'
     ) THEN
-        CREATE INDEX idx_scrape_attempts_cinema_date ON scrape_attempts(cinema_id, date);
-        RAISE NOTICE 'Index idx_scrape_attempts_cinema_date created successfully';
+        CREATE INDEX idx_scrape_attempts_theater_date ON scrape_attempts(theater_id, date);
+        RAISE NOTICE 'Index idx_scrape_attempts_theater_date created successfully';
     ELSE
-        RAISE NOTICE 'Index idx_scrape_attempts_cinema_date already exists, skipping';
+        RAISE NOTICE 'Index idx_scrape_attempts_theater_date already exists, skipping';
     END IF;
 END $$;
 

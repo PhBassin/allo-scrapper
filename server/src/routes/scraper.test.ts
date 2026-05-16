@@ -93,7 +93,7 @@ describe('Routes - Scraper', () => {
       const app = await setupApp({ role_name: 'admin', is_system_role: true, permissions: [] });
       
       // This is the bug case - sending request without any body
-      // Previously this caused "Cannot destructure property 'cinemaId' of 'req.body' as it is undefined"
+      // Previously this caused "Cannot destructure property 'theaterId' of 'req.body' as it is undefined"
       const response = await request(app).post('/api/scraper/trigger');
       
       expect(response.status).toBe(200);
@@ -121,26 +121,26 @@ describe('Routes - Scraper', () => {
       expect(mockTriggerScrape).toHaveBeenCalledWith({});
     });
 
-    it('should pass cinemaId and filmId to the service', async () => {
+    it('should pass theaterId and movieId to the service', async () => {
       const app = await setupApp();
       
       const response = await request(app).post('/api/scraper/trigger').send({
-        cinemaId: 'C0153',
-        filmId: 12345
+        theaterId: 'C0153',
+        movieId: 12345
       });
       
       expect(response.status).toBe(200);
-      expect(mockTriggerScrape).toHaveBeenCalledWith({ cinemaId: 'C0153', filmId: 12345 });
+      expect(mockTriggerScrape).toHaveBeenCalledWith({ theaterId: 'C0153', movieId: 12345 });
     });
 
-    it('should handle service errors gracefully (e.g., Cinema not found)', async () => {
-      mockTriggerScrape.mockRejectedValue(new Error('Cinema not found: X'));
+    it('should handle service errors gracefully (e.g., Theater not found)', async () => {
+      mockTriggerScrape.mockRejectedValue(new Error('Theater not found: X'));
       const app = await setupApp();
       
-      const response = await request(app).post('/api/scraper/trigger').send({ cinemaId: 'X' });
+      const response = await request(app).post('/api/scraper/trigger').send({ theaterId: 'X' });
       
       expect(response.status).toBe(404);
-      expect(response.body.error).toContain('Cinema not found');
+      expect(response.body.error).toContain('Theater not found');
     });
 
     it('should handle generic service errors with 500', async () => {

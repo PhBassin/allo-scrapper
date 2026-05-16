@@ -3,17 +3,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // --- Mocks (must be declared before any imports of the module under test) ---
 
 const mockRunScraper = vi.fn();
-const mockAddCinemaAndScrape = vi.fn();
+const mockAddTheaterAndScrape = vi.fn();
 const mockUpdateScrapeReport = vi.fn().mockResolvedValue(undefined);
 const mockGetRedisPublisher = vi.fn().mockReturnValue({ emit: vi.fn() });
 const mockScrapeJobsTotal = { inc: vi.fn() };
 const mockScrapeDurationSeconds = { startTimer: vi.fn().mockReturnValue(vi.fn()) };
-const mockFilmsScrapedTotal = { inc: vi.fn() };
+const mockMoviesScrapedTotal = { inc: vi.fn() };
 const mockShowtimesScrapedTotal = { inc: vi.fn() };
 
 vi.mock('../../src/scraper/index.js', () => ({
   runScraper: mockRunScraper,
-  addCinemaAndScrape: mockAddCinemaAndScrape,
+  addTheaterAndScrape: mockAddTheaterAndScrape,
 }));
 
 vi.mock('../../src/db/report-queries.js', () => ({
@@ -39,7 +39,7 @@ vi.mock('../../src/utils/metrics.js', () => ({
   registry: {},
   scrapeJobsTotal: mockScrapeJobsTotal,
   scrapeDurationSeconds: mockScrapeDurationSeconds,
-  filmsScrapedTotal: mockFilmsScrapedTotal,
+  moviesScrapedTotal: mockMoviesScrapedTotal,
   showtimesScrapedTotal: mockShowtimesScrapedTotal,
 }));
 
@@ -50,7 +50,7 @@ vi.mock('../../src/utils/tracer.js', () => ({
 // --- Import the function under test (after mocks) ---
 // We test executeJob indirectly by exercising it through the exported
 // function. Since executeJob is not exported, we test it via its
-// integration points: the mocked runScraper and addCinemaAndScrape.
+// integration points: the mocked runScraper and addTheaterAndScrape.
 
 // We import executeJob by re-exporting it for test purposes via a
 // helper that mirrors what the module does. Instead, we extract it via
@@ -68,10 +68,10 @@ describe('executeJob dispatcher', () => {
 
   it('should dispatch scrape jobs to runScraper', async () => {
     mockRunScraper.mockResolvedValue({
-      failed_cinemas: 0,
-      successful_cinemas: 1,
-      total_cinemas: 1,
-      total_films: 5,
+      failed_theaters: 0,
+      successful_theaters: 1,
+      total_theaters: 1,
+      total_movies: 5,
       total_showtimes: 20,
       errors: [],
     });
@@ -87,35 +87,35 @@ describe('executeJob dispatcher', () => {
     });
 
     expect(mockRunScraper).toHaveBeenCalledOnce();
-    expect(mockAddCinemaAndScrape).not.toHaveBeenCalled();
+    expect(mockAddTheaterAndScrape).not.toHaveBeenCalled();
   });
 
-  it('should dispatch add_cinema jobs to addCinemaAndScrape', async () => {
-    mockAddCinemaAndScrape.mockResolvedValue({
+  it('should dispatch add_theater jobs to addTheaterAndScrape', async () => {
+    mockAddTheaterAndScrape.mockResolvedValue({
       id: 'C0072',
-      name: 'Cinéma Test',
+      name: 'Theater Test',
       url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html',
     });
 
     const { executeJob } = await import('../../src/index.js');
 
     await executeJob({
-      type: 'add_cinema',
+      type: 'add_theater',
       triggerType: 'manual',
       reportId: 43,
       url: 'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html',
     });
 
-    expect(mockAddCinemaAndScrape).toHaveBeenCalledOnce();
+    expect(mockAddTheaterAndScrape).toHaveBeenCalledOnce();
     expect(mockRunScraper).not.toHaveBeenCalled();
   });
 
   it('should handle legacy jobs without type field as scrape', async () => {
     mockRunScraper.mockResolvedValue({
-      failed_cinemas: 0,
-      successful_cinemas: 1,
-      total_cinemas: 1,
-      total_films: 3,
+      failed_theaters: 0,
+      successful_theaters: 1,
+      total_theaters: 1,
+      total_movies: 3,
       total_showtimes: 10,
       errors: [],
     });
@@ -129,17 +129,17 @@ describe('executeJob dispatcher', () => {
     } as any);
 
     expect(mockRunScraper).toHaveBeenCalledOnce();
-    expect(mockAddCinemaAndScrape).not.toHaveBeenCalled();
+    expect(mockAddTheaterAndScrape).not.toHaveBeenCalled();
   });
 
-  it('should reject add_cinema jobs and update report to failed on error', async () => {
-    mockAddCinemaAndScrape.mockRejectedValue(new Error('Invalid Allociné URL: bad-url'));
+  it('should reject add_theater jobs and update report to failed on error', async () => {
+    mockAddTheaterAndScrape.mockRejectedValue(new Error('Invalid Allociné URL: bad-url'));
 
     const { executeJob } = await import('../../src/index.js');
 
     // Should not throw — errors are caught and reported
     await expect(executeJob({
-      type: 'add_cinema',
+      type: 'add_theater',
       triggerType: 'manual',
       reportId: 45,
       url: 'bad-url',

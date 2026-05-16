@@ -6,8 +6,8 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
 
 ## Project Overview
 
-**Allo-Scrapper** is a cinema showtimes aggregator that:
-- Scrapes movie screening schedules from external cinema websites
+**Allo-Scrapper** is a theater showtimes aggregator that:
+- Scrapes movie screening schedules from external theater websites
 - Stores data in PostgreSQL
 - Exposes a REST API (Express.js + TypeScript)
 - Provides a React frontend
@@ -83,7 +83,7 @@ git checkout -b <type>/<issue-number>-<short-description>
 | `perf/` | Performance improvements | patch |
 
 **Examples:**
-- `feat/259-add-cinema-modal` — new feature (minor bump)
+- `feat/259-add-theater-modal` — new feature (minor bump)
 - `fix/42-fix-parser-bug` — bug fix (patch bump)
 - `docs/266-update-agents-md` — documentation (patch bump)
 - `chore/100-update-deps` — dependency updates (patch bump)
@@ -162,7 +162,7 @@ For scraper parser tests, use real HTML fixtures in the scraper package:
 
 ```bash
 curl "https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html" \
-  -o scraper/tests/fixtures/cinema-cxxxx-page.html
+  -o scraper/tests/fixtures/theater-cxxxx-page.html
 ```
 
 ---
@@ -576,7 +576,7 @@ If both sources create the same column/table/index, migrations will fail on fres
 #### Example: Adding a Column (Idempotent)
 
 ```sql
--- Migration: Add source column to cinemas table
+-- Migration: Add source column to theaters table
 -- This migration is idempotent - safe to run multiple times
 
 BEGIN;
@@ -587,12 +587,12 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 
         FROM information_schema.columns 
-        WHERE table_name='cinemas' AND column_name='source'
+        WHERE table_name='theaters' AND column_name='source'
     ) THEN
-        ALTER TABLE cinemas ADD COLUMN source VARCHAR(50) DEFAULT 'allocine';
-        RAISE NOTICE 'Column cinemas.source added successfully';
+        ALTER TABLE theaters ADD COLUMN source VARCHAR(50) DEFAULT 'allocine';
+        RAISE NOTICE 'Column theaters.source added successfully';
     ELSE
-        RAISE NOTICE 'Column cinemas.source already exists, skipping';
+        RAISE NOTICE 'Column theaters.source already exists, skipping';
     END IF;
 END $$;
 
@@ -602,11 +602,11 @@ BEGIN
     IF EXISTS (
         SELECT 1 
         FROM information_schema.columns 
-        WHERE table_name='cinemas' AND column_name='source'
+        WHERE table_name='theaters' AND column_name='source'
     ) THEN
-        RAISE NOTICE 'Migration successful: cinemas.source exists';
+        RAISE NOTICE 'Migration successful: theaters.source exists';
     ELSE
-        RAISE EXCEPTION 'Migration failed: cinemas.source does not exist';
+        RAISE EXCEPTION 'Migration failed: theaters.source does not exist';
     END IF;
 END $$;
 
@@ -880,7 +880,7 @@ Current available categories (with labels):
 | `roles` | Roles | Rôles |
 | `scraper` | Scraper | Scraper |
 | `schedules` | Schedules | Horaires |
-| `cinemas` | Cinemas | Cinémas |
+| `theaters` | Theaters | Theaters |
 | `settings` | Settings | Paramètres |
 | `reports` | Reports | Rapports |
 | `system` | System | Système |

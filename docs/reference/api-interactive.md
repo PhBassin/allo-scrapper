@@ -82,17 +82,17 @@ The API is organized into **8 main resource groups**:
 - `POST /auth/register` – Create new user
 - `POST /auth/change-password` – Change password
 
-### 2. **Cinemas** (`/cinemas`)
-- `GET /cinemas` – List cinemas
-- `POST /cinemas` – Create cinema
-- `GET /cinemas/{id}` – Get cinema details
-- `PUT /cinemas/{id}` – Update cinema
-- `DELETE /cinemas/{id}` – Delete cinema
+### 2. **Theaters** (`/theaters`)
+- `GET /theaters` – List theaters
+- `POST /theaters` – Create theater
+- `GET /theaters/{id}` – Get theater details
+- `PUT /theaters/{id}` – Update theater
+- `DELETE /theaters/{id}` – Delete theater
 
-### 3. **Films** (`/films`)
-- `GET /films` – List films
-- `GET /films/search?q=...` – Search films
-- `GET /films/{id}` – Get film details
+### 3. **Movies** (`/movies`)
+- `GET /movies` – List movies
+- `GET /movies/search?q=...` – Search movies
+- `GET /movies/{id}` – Get movie details
 
 ### 4. **Scraper** (`/scraper`)
 - `POST /scraper/trigger` – Trigger scraping job
@@ -158,8 +158,8 @@ curl -X POST http://localhost:3000/api/auth/login \
 ### 2. Use Token in Requests
 
 ```bash
-# List cinemas with authentication
-curl http://localhost:3000/api/cinemas \
+# List theaters with authentication
+curl http://localhost:3000/api/theaters \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
@@ -193,13 +193,13 @@ const loginRes = await fetch(`${API_URL}/auth/login`, {
 
 const { token } = await loginRes.json();
 
-// 2. List cinemas
-const cinemasRes = await fetch(`${API_URL}/cinemas`, {
+// 2. List theaters
+const theatersRes = await fetch(`${API_URL}/theaters`, {
   headers: { 'Authorization': `Bearer ${token}` }
 });
 
-const { cinemas } = await cinemasRes.json();
-console.log(cinemas);
+const { theaters } = await theatersRes.json();
+console.log(theaters);
 
 // 3. Trigger scraping
 const scrapeRes = await fetch(`${API_URL}/scraper/trigger`, {
@@ -228,10 +228,10 @@ response = requests.post(f'{API_URL}/auth/login', json={
 })
 token = response.json()['token']
 
-# List cinemas
+# List theaters
 headers = {'Authorization': f'Bearer {token}'}
-response = requests.get(f'{API_URL}/cinemas', headers=headers)
-cinemas = response.json()['cinemas']
+response = requests.get(f'{API_URL}/theaters', headers=headers)
+theaters = response.json()['theaters']
 
 # Trigger scraping
 response = requests.post(
@@ -252,7 +252,7 @@ TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
   | jq -r '.token')
 
 # Use token in requests
-curl http://localhost:3000/api/cinemas \
+curl http://localhost:3000/api/theaters \
   -H "Authorization: Bearer $TOKEN"
 
 # Trigger scraping
@@ -269,8 +269,8 @@ curl -X POST http://localhost:3000/api/scraper/trigger \
 All protected endpoints enforce role-based access control (RBAC). See the required permission in each endpoint's documentation.
 
 **Common Permissions:**
-- `cinemas:read` – View cinemas
-- `cinemas:create` – Add cinemas
+- `theaters:read` – View theaters
+- `theaters:create` – Add theaters
 - `scraper:trigger` – Trigger scraping jobs
 - `settings:read` – View settings
 - `settings:update` – Modify settings
@@ -353,12 +353,12 @@ Endpoints that return lists support pagination:
 
 ```bash
 # Get page 2 with 25 items per page
-curl http://localhost:3000/api/cinemas?page=2&limit=25 \
+curl http://localhost:3000/api/theaters?page=2&limit=25 \
   -H "Authorization: Bearer $TOKEN"
 
 # Response includes pagination info:
 {
-  "cinemas": [...],
+  "theaters": [...],
   "total": 150,
   "page": 2,
   "limit": 25
@@ -377,16 +377,16 @@ curl http://localhost:3000/api/cinemas?page=2&limit=25 \
 Some endpoints support filtering:
 
 ```bash
-# Filter films by cinema
-curl http://localhost:3000/api/films?cinema_id=c12345 \
+# Filter movies by theater
+curl http://localhost:3000/api/movies?theater_id=c12345 \
   -H "Authorization: Bearer $TOKEN"
 
-# Search films
-curl "http://localhost:3000/api/films/search?q=dune" \
+# Search movies
+curl "http://localhost:3000/api/movies/search?q=dune" \
   -H "Authorization: Bearer $TOKEN"
 
-# Search cinemas
-curl "http://localhost:3000/api/cinemas?search=paris" \
+# Search theaters
+curl "http://localhost:3000/api/theaters?search=paris" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -467,7 +467,7 @@ All endpoints will be pre-configured in Postman.
 
 ## Integration Examples
 
-### Example 1: Scrape Cinema Showtimes
+### Example 1: Scrape Theater Showtimes
 
 ```bash
 #!/bin/bash
@@ -475,11 +475,11 @@ TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"operator","password":"pass123"}' | jq -r '.token')
 
-# Add cinema
-CINEMA_ID=$(curl -s -X POST http://localhost:3000/api/cinemas \
+# Add theater
+THEATER_ID=$(curl -s -X POST http://localhost:3000/api/theaters \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name":"My Cinema","url":"https://...","source":"allocine"}' | jq -r '.id')
+  -d '{"name":"My Theater","url":"https://...","source":"allocine"}' | jq -r '.id')
 
 # Trigger scraping
 REPORT_ID=$(curl -s -X POST http://localhost:3000/api/scraper/trigger \

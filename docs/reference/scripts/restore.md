@@ -97,7 +97,7 @@ Are you sure you want to continue? (yes/no): yes
 ✅ Database restored successfully!
 
 🔍 Verify with:
-   docker compose exec ics-db psql -U postgres ics -c 'SELECT COUNT(*) FROM films;'
+   docker compose exec ics-db psql -U postgres ics -c 'SELECT COUNT(*) FROM movies;'
 ```
 
 ---
@@ -236,7 +236,7 @@ Are you ABSOLUTELY SURE you want to continue? Type 'yes' to proceed: yes
 ✅ Production database restored successfully!
 
 🔍 Verify with:
-   ssh user@ics.opalkad.com 'cd ~/allo-scrapper && docker compose exec ics-db psql -U postgres ics -c "SELECT COUNT(*) FROM films;"'
+   ssh user@ics.opalkad.com 'cd ~/allo-scrapper && docker compose exec ics-db psql -U postgres ics -c "SELECT COUNT(*) FROM movies;"'
 ```
 
 ---
@@ -436,7 +436,7 @@ docker compose logs ics-web
 ./scripts/restore-db.sh ./backups/before_restore_20260306_144523.sql.gz
 
 # Verify restore
-docker compose exec ics-db psql -U postgres ics -c 'SELECT COUNT(*) FROM films;'
+docker compose exec ics-db psql -U postgres ics -c 'SELECT COUNT(*) FROM movies;'
 
 # Test database connectivity
 docker compose exec ics-db psql -U postgres ics -c 'SELECT version();'

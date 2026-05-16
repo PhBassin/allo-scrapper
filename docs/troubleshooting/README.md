@@ -95,7 +95,7 @@ Scraping failures and debugging.
 - Microservice mode problems
 
 **Common Issues:**
-- Cinema pages not found (404)
+- Theater pages not found (404)
 - Timeout errors
 - Parsing failures (HTML changes)
 - No showtimes found

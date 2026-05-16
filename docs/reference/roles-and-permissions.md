@@ -130,19 +130,19 @@ The system defines **34 canonical permissions** across **8 categories**:
 | Permission | Description |
 |------------|-------------|
 | `scraper:trigger` | Trigger global scraping job |
-| `scraper:trigger_single` | Trigger scraping for a single cinema |
+| `scraper:trigger_single` | Trigger scraping for a single theater |
 | `scraper:schedules:list` | View list of scrape schedules |
 | `scraper:schedules:create` | Create new scrape schedules |
 | `scraper:schedules:update` | Modify existing scrape schedules |
 | `scraper:schedules:delete` | Delete scrape schedules |
 
-#### Cinemas (4 permissions)
+#### Theaters (4 permissions)
 | Permission | Description |
 |------------|-------------|
-| `cinemas:create` | Add new cinemas |
-| `cinemas:update` | Modify cinema information |
-| `cinemas:delete` | Remove cinemas |
-| `cinemas:read` | View cinemas list and details |
+| `theaters:create` | Add new theaters |
+| `theaters:update` | Modify theater information |
+| `theaters:delete` | Remove theaters |
+| `theaters:read` | View theaters list and details |
 
 #### Settings (5 permissions)
 | Permission | Description |
@@ -189,7 +189,7 @@ Permissions are organized into logical categories for easier management:
 
 - **users** - User account management
 - **scraper** - Scraping operations and schedule management
-- **cinemas** - Cinema data management
+- **theaters** - Theater data management
 - **settings** - Application configuration
 - **reports** - Scraping reports and analytics
 - **system** - System monitoring and diagnostics
@@ -213,7 +213,7 @@ The system comes with two predefined system roles:
 
 #### Operator Role
 - **Name**: `operator`
-- **Description**: "Opérateur — scraping et gestion des cinémas"
+- **Description**: "Opérateur — scraping et gestion des theaters"
 - **Type**: System role (`is_system = true`)
 - **Permissions**: 13 explicit permissions:
   - `scraper:trigger`
@@ -222,10 +222,10 @@ The system comes with two predefined system roles:
   - `scraper:schedules:create`
   - `scraper:schedules:update`
   - `scraper:schedules:delete`
-  - `cinemas:create`
-  - `cinemas:update`
-  - `cinemas:delete`
-  - `cinemas:read`
+  - `theaters:create`
+  - `theaters:update`
+  - `theaters:delete`
+  - `theaters:read`
   - `users:read`
   - `reports:list`
   - `reports:view`
@@ -304,7 +304,7 @@ interface JWTPayload {
   "permissions": [
     "users:list", "users:create", "users:update", "users:delete", "users:read",
     "scraper:trigger", "scraper:trigger_single",
-    "cinemas:create", "cinemas:update", "cinemas:delete", "cinemas:read",
+    "theaters:create", "theaters:update", "theaters:delete", "theaters:read",
     "settings:read", "settings:update", "settings:reset", "settings:export", "settings:import",
     "reports:list", "reports:view",
     "system:info", "system:health", "system:migrations",
@@ -323,10 +323,10 @@ interface JWTPayload {
   "permissions": [
     "scraper:trigger",
     "scraper:trigger_single",
-    "cinemas:create",
-    "cinemas:update",
-    "cinemas:delete",
-    "cinemas:read",
+    "theaters:create",
+    "theaters:update",
+    "theaters:delete",
+    "theaters:read",
     "users:read",
     "reports:list",
     "reports:view"
@@ -464,9 +464,9 @@ GET /api/roles
     {
       "id": 2,
       "name": "operator",
-      "description": "Opérateur — scraping et gestion des cinémas",
+      "description": "Opérateur — scraping et gestion des theaters",
       "is_system": true,
-      "permissions": ["scraper:trigger", "cinemas:create", "..."]
+      "permissions": ["scraper:trigger", "theaters:create", "..."]
     }
   ]
 }
@@ -486,7 +486,7 @@ GET /api/roles/:id
   "data": {
     "id": 2,
     "name": "operator",
-    "description": "Opérateur — scraping et gestion des cinémas",
+    "description": "Opérateur — scraping et gestion des theaters",
     "is_system": true,
     "permissions": [
       { "id": 5, "name": "scraper:trigger", "category": "scraper" },
@@ -506,8 +506,8 @@ POST /api/roles
 **Request Body**:
 ```json
 {
-  "name": "cinema_manager",
-  "description": "Manages cinema data only"
+  "name": "theater_manager",
+  "description": "Manages theater data only"
 }
 ```
 
@@ -517,8 +517,8 @@ POST /api/roles
   "success": true,
   "data": {
     "id": 3,
-    "name": "cinema_manager",
-    "description": "Manages cinema data only",
+    "name": "theater_manager",
+    "description": "Manages theater data only",
     "is_system": false,
     "permissions": []
   }
@@ -535,8 +535,8 @@ PUT /api/roles/:id
 **Request Body**:
 ```json
 {
-  "name": "cinema_admin",
-  "description": "Cinema administrator with full cinema access"
+  "name": "theater_admin",
+  "description": "Theater administrator with full theater access"
 }
 ```
 
@@ -574,9 +574,9 @@ PUT /api/roles/:id/permissions
     "role_id": 3,
     "permissions_updated": 5,
     "permissions": [
-      "cinemas:create",
-      "cinemas:update", 
-      "cinemas:delete",
+      "theaters:create",
+      "theaters:update", 
+      "theaters:delete",
       "reports:list",
       "reports:view"
     ]
@@ -792,8 +792,8 @@ export const ADMIN_PERMISSIONS: PermissionName[] = [
   // Scraper (2)
   'scraper:trigger', 'scraper:trigger_single',
   
-  // Cinemas (4)
-  'cinemas:create', 'cinemas:update', 'cinemas:delete', 'cinemas:read',
+  // Theaters (4)
+  'theaters:create', 'theaters:update', 'theaters:delete', 'theaters:read',
   
   // Settings (5)
   'settings:read', 'settings:update', 'settings:reset', 'settings:export', 'settings:import',
@@ -835,7 +835,7 @@ The admin panel route uses this constant to determine access:
 #### Why This Matters
 
 This ensures that **any** administrative permission grants access to the admin panel UI, while specific pages within the panel still require their respective permissions. For example:
-- User with `cinemas:update` can access `/admin` (can see the panel)
+- User with `theaters:update` can access `/admin` (can see the panel)
 - But they cannot access `/admin/users` (requires user management permissions)
 - Individual admin pages use their own `<RequirePermission>` checks
 
@@ -854,12 +854,12 @@ This ensures that **any** administrative permission grants access to the admin p
 #### Operator User Flow
 1. **Login**: Operator logs in with credentials
 2. **JWT issued**: Contains 9 specific permissions
-3. **Limited access**: Can trigger scraping and manage cinemas
+3. **Limited access**: Can trigger scraping and manage theaters
 4. **Blocked features**: Cannot access user management or settings
 
 #### Custom Role User Flow
-1. **Role created**: Admin creates "Cinema Manager" role
-2. **Permissions assigned**: Admin assigns cinema and reports permissions
+1. **Role created**: Admin creates "Theater Manager" role
+2. **Permissions assigned**: Admin assigns theater and reports permissions
 3. **User assigned**: Admin assigns user to the new role
 4. **User login**: User gets JWT with custom permission set
 5. **Scoped access**: User can only access assigned features
@@ -914,22 +914,22 @@ JWT_EXPIRES_IN=30m  # Alternative: 30 minutes
 **Behavior**: Split permission check for granular scraping control  
 **Implementation**: Server-side permission enforcement in `/api/scraper/trigger`  
 **Permission Logic**:
-- `scraper:trigger_single` required for single-cinema scraping (when `cinemaId` is present)
-- `scraper:trigger` required for all-cinema scraping (when no `cinemaId`)
+- `scraper:trigger_single` required for single-theater scraping (when `theaterId` is present)
+- `scraper:trigger` required for all-theater scraping (when no `theaterId`)
 - `scraper:trigger` is a superset that allows both operations
 
 **Details**:
 - UI shows "Trigger Single" button based on `scraper:trigger_single` permission
 - UI shows "Trigger All" button based on `scraper:trigger` permission
 - API endpoint `/api/scraper/trigger` enforces permissions inline before processing
-- Users with only `scraper:trigger_single` cannot trigger all-cinema scrapes (403 error)
+- Users with only `scraper:trigger_single` cannot trigger all-theater scrapes (403 error)
 
 ### Historical Issues (Now Fixed)
 
 #### Phantom Permissions (Fixed in #442)
 **Reference**: GitHub Issue #442  
 **Status**: ✅ **FIXED** (Migration 012)  
-**Issue**: `cinemas:read` and `users:read` were used in client code but didn't exist in database  
+**Issue**: `theaters:read` and `users:read` were used in client code but didn't exist in database  
 **Solution**: 
 - Migration 012 added both permissions to the database
 - Added to operator role for workflow consistency
