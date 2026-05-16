@@ -35,8 +35,8 @@ describe('RedisClient', () => {
     expect(mockRedisInstance.rpush).toHaveBeenCalledWith('scrape:jobs', expect.any(String));
   });
 
-  it('should publish add_cinema job', async () => {
-    await client.publishAddCinemaJob(42, 'http://test');
+  it('should publish add_theater job', async () => {
+    await client.publishAddTheaterJob(42, 'http://test');
     expect(mockRedisInstance.rpush).toHaveBeenCalledWith('scrape:jobs', expect.any(String));
   });
 

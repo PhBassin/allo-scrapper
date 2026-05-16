@@ -42,8 +42,8 @@ Get comprehensive system information including app version, server health, and d
     "database": {
       "size": "8063 kB",
       "tables": 8,
-      "cinemas": 24,
-      "films": 0,
+      "theaters": 24,
+      "movies": 0,
       "showtimes": 0
     }
   }
@@ -66,8 +66,8 @@ Get comprehensive system information including app version, server health, and d
 | `server.arch` | string | CPU architecture (`arm64`, `x64`) |
 | `database.size` | string | Total database size |
 | `database.tables` | number | Number of database tables |
-| `database.cinemas` | number | Count of cinema records |
-| `database.films` | number | Count of film records |
+| `database.theaters` | number | Count of theater records |
+| `database.movies` | number | Count of movie records |
 | `database.showtimes` | number | Count of showtime records |
 
 **Example:**
@@ -168,7 +168,7 @@ Get health check status with component-level checks.
     "scrapers": {
       "activeJobs": 0,
       "lastScrapeTime": null,
-      "totalCinemas": 24
+      "totalTheaters": 24
     },
     "uptime": 11.916256922
   }
@@ -188,7 +188,7 @@ Get health check status with component-level checks.
     "scrapers": {
       "activeJobs": 0,
       "lastScrapeTime": null,
-      "totalCinemas": 24
+      "totalTheaters": 24
     },
     "uptime": 45.123456789
   }
@@ -212,7 +212,7 @@ Get health check status with component-level checks.
 | `checks.migrations` | boolean | All migrations applied (no pending) |
 | `scrapers.activeJobs` | number | Count of active scraping jobs |
 | `scrapers.lastScrapeTime` | string \| null | ISO timestamp of last completed scrape |
-| `scrapers.totalCinemas` | number | Total configured cinemas |
+| `scrapers.totalTheaters` | number | Total configured theaters |
 | `uptime` | number | Server uptime in seconds |
 
 **Health Status Logic:**

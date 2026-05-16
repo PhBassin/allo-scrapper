@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
-  extractCinemaIdFromUrl,
+  extractTheaterIdFromUrl,
   isStaleResponse,
   isValidAllocineUrl,
-  cleanCinemaUrl,
+  cleanTheaterUrl,
   ALLOCINE_BASE_URL,
 } from '../../../src/scraper/utils.js';
 
@@ -13,42 +13,42 @@ describe('ALLOCINE_BASE_URL', () => {
   });
 });
 
-describe('extractCinemaIdFromUrl', () => {
+describe('extractTheaterIdFromUrl', () => {
   it('extracts ID from salle_gen_csalle= format', () => {
-    expect(extractCinemaIdFromUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html')).toBe('C0072');
+    expect(extractTheaterIdFromUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html')).toBe('C0072');
   });
 
   it('extracts ID from salle-salle= format', () => {
-    expect(extractCinemaIdFromUrl('https://www.allocine.fr/seance/salle-salle=W7504.html')).toBe('W7504');
+    expect(extractTheaterIdFromUrl('https://www.allocine.fr/seance/salle-salle=W7504.html')).toBe('W7504');
   });
 
   it('returns null for unknown URL format', () => {
-    expect(extractCinemaIdFromUrl('https://www.allocine.fr/unknown')).toBeNull();
+    expect(extractTheaterIdFromUrl('https://www.allocine.fr/unknown')).toBeNull();
   });
 
   it('handles alphanumeric IDs', () => {
-    expect(extractCinemaIdFromUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0089.html')).toBe('C0089');
+    expect(extractTheaterIdFromUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0089.html')).toBe('C0089');
   });
 
   it('should reject URLs from non-allocine domains', () => {
-    expect(extractCinemaIdFromUrl('https://evil.com/seance/salle_gen_csalle=C0072.html')).toBeNull();
+    expect(extractTheaterIdFromUrl('https://evil.com/seance/salle_gen_csalle=C0072.html')).toBeNull();
   });
 
   it('should reject URLs from allocine subdomains', () => {
-    expect(extractCinemaIdFromUrl('https://evil.allocine.fr/seance/salle_gen_csalle=C0072.html')).toBeNull();
+    expect(extractTheaterIdFromUrl('https://evil.allocine.fr/seance/salle_gen_csalle=C0072.html')).toBeNull();
   });
 
   it('should reject invalid URLs', () => {
-    expect(extractCinemaIdFromUrl('not-a-url')).toBeNull();
+    expect(extractTheaterIdFromUrl('not-a-url')).toBeNull();
   });
 
-  it('should reject plain strings with cinema ID pattern but no valid domain', () => {
-    expect(extractCinemaIdFromUrl('salle_gen_csalle=C0072')).toBeNull();
+  it('should reject plain strings with theater ID pattern but no valid domain', () => {
+    expect(extractTheaterIdFromUrl('salle_gen_csalle=C0072')).toBeNull();
   });
 });
 
 describe('isValidAllocineUrl', () => {
-  it('should accept valid allocine cinema URLs', () => {
+  it('should accept valid allocine theater URLs', () => {
     expect(isValidAllocineUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html')).toBe(true);
   });
 
@@ -77,28 +77,28 @@ describe('isValidAllocineUrl', () => {
   });
 });
 
-describe('cleanCinemaUrl', () => {
+describe('cleanTheaterUrl', () => {
   it('should strip query parameters', () => {
-    expect(cleanCinemaUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html?ref=foo')).toBe(
+    expect(cleanTheaterUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html?ref=foo')).toBe(
       'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html'
     );
   });
 
   it('should strip fragments', () => {
-    expect(cleanCinemaUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html#section')).toBe(
+    expect(cleanTheaterUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html#section')).toBe(
       'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html'
     );
   });
 
   it('should strip both query parameters and fragments', () => {
-    expect(cleanCinemaUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html?ref=foo#section')).toBe(
+    expect(cleanTheaterUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html?ref=foo#section')).toBe(
       'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html'
     );
   });
 
   it('should return clean URLs unchanged', () => {
     const clean = 'https://www.allocine.fr/seance/salle_gen_csalle=C0072.html';
-    expect(cleanCinemaUrl(clean)).toBe(clean);
+    expect(cleanTheaterUrl(clean)).toBe(clean);
   });
 });
 

@@ -109,7 +109,7 @@ npm run test:ui
 The server package contains comprehensive test coverage across multiple areas:
 
 **Key Test Categories:**
-- **API Routes**: Authentication, cinemas, films, users, settings, reports
+- **API Routes**: Authentication, theaters, movies, users, settings, reports
 - **Database**: Queries, migrations, benchmarks, user management, settings
 - **Scraping**: HTML parsing, JSON parsing, HTTP client, utilities
 - **Services**: Theme generation, system info, Redis client
@@ -126,7 +126,7 @@ cd server && npm run test:run
 **Major Test Files Include:**
 - `theater-json-parser.test.ts` - JSON-based showtime parsing (51 tests)
 - `users.test.ts` - User management API (54 tests)
-- `theater-parser.test.ts` - HTML parsing for cinemas (30 tests)
+- `theater-parser.test.ts` - HTML parsing for theaters (30 tests)
 - `user-queries.test.ts` - Database user operations (30 tests)
 - `queries.test.ts` - Core database queries (28 tests)
 - `date.test.ts` - Date utility functions (24 tests)
@@ -138,21 +138,21 @@ cd server && npm run test:run
 
 - **Location**: `server/tests/fixtures/`
 - **Content**: 4 fixture files totaling ~1.6MB
-  - `cinema-c0072-page.html` - Cinéma Épée de Bois
-  - `cinema-c0089-page.html` - Cinéma Example
-  - `cinema-w7504-page.html` - Club de l'Étoile
-  - `film-page.html` - Film detail page
-- **Purpose**: Realistic testing with actual cinema data from Allociné
+  - `theater-c0072-page.html` - Theater Épée de Bois
+  - `theater-c0089-page.html` - Theater Example
+  - `theater-w7504-page.html` - Club de l'Étoile
+  - `movie-page.html` - Movie detail page
+- **Purpose**: Realistic testing with actual theater data from Allociné
 
 **Adding fixtures:**
 ```bash
-# Fetch HTML for a cinema (replace CXXXX with actual cinema ID)
+# Fetch HTML for a theater (replace CXXXX with actual theater ID)
 curl "https://www.allocine.fr/seance/salle_gen_csalle=CXXXX.html" \
-  -o server/tests/fixtures/cinema-cxxxx-page.html
+  -o server/tests/fixtures/theater-cxxxx-page.html
 
-# Example: Fetch Club de l'Étoile cinema page
+# Example: Fetch Club de l'Étoile theater page
 curl "https://www.allocine.fr/seance/salle_gen_csalle=W7504.html" \
-  -o server/tests/fixtures/cinema-w7504-page.html
+  -o server/tests/fixtures/theater-w7504-page.html
 ```
 
 ### Example Unit Test
@@ -240,10 +240,10 @@ e2e/                              # Playwright E2E tests (12 comprehensive specs
 ├── admin-system.spec.ts          # Admin system information dashboard
 ├── auth-flow.spec.ts             # Authentication workflows
 ├── change-password.spec.ts       # Password change functionality
-├── cinema-scrape.spec.ts         # Cinema scraping operations
+├── theater-scrape.spec.ts         # Theater scraping operations
 ├── database-schema.spec.ts       # Database schema validation
 ├── day-filter.spec.ts            # Day filtering functionality
-├── film-search.spec.ts           # Film search features
+├── movie-search.spec.ts           # Movie search features
 ├── reports-navigation.spec.ts    # Reports page navigation
 ├── scrape-progress.spec.ts       # Scrape progress monitoring
 ├── showtime-buttons.spec.ts      # Showtime button interactions
@@ -259,15 +259,15 @@ scripts/integration-test.sh       # Automated full-stack test script
 ```typescript
 import { test, expect } from '@playwright/test';
 
-test('should display cinemas list', async ({ page }) => {
+test('should display theaters list', async ({ page }) => {
   await page.goto('http://localhost:3000');
   
-  // Wait for cinemas to load
-  await expect(page.getByTestId('cinema-list')).toBeVisible();
+  // Wait for theaters to load
+  await expect(page.getByTestId('theater-list')).toBeVisible();
   
-  // Verify at least one cinema is displayed
-  const cinemas = page.getByTestId('cinema-card');
-  await expect(cinemas).toHaveCount({ min: 1 });
+  // Verify at least one theater is displayed
+  const theaters = page.getByTestId('theater-card');
+  await expect(theaters).toHaveCount({ min: 1 });
 });
 ```
 
@@ -368,8 +368,8 @@ export default defineConfig({
 # server/src/services/scraper/theater-parser.test.ts
 
 describe('parseTheaterPage', () => {
-  it('should extract cinema name from HTML', () => {
-    const html = '<h1 class="cinema-name">Épée de Bois</h1>';
+  it('should extract theater name from HTML', () => {
+    const html = '<h1 class="theater-name">Épée de Bois</h1>';
     const result = parseTheaterPage(html);
     expect(result.name).toBe('Épée de Bois');
   });
@@ -383,7 +383,7 @@ npm test
 
 export function parseTheaterPage(html: string) {
   const $ = cheerio.load(html);
-  const name = $('.cinema-name').text();
+  const name = $('.theater-name').text();
   return { name };
 }
 
@@ -416,10 +416,10 @@ server/
     ├── services/
     │   └── redis-client.test.ts           # Integration tests
     └── fixtures/                          # Test HTML files
-        ├── cinema-c0072-page.html
-        ├── cinema-c0089-page.html
-        ├── cinema-w7504-page.html
-        └── film-page.html
+        ├── theater-c0072-page.html
+        ├── theater-c0089-page.html
+        ├── theater-w7504-page.html
+        └── movie-page.html
 
 scraper/
 └── tests/unit/                            # Scraper microservice tests
@@ -470,17 +470,17 @@ it('should do everything', () => {
 
 ```typescript
 // ✅ Good - Uses data-testid selectors
-await page.getByTestId('cinema-list').click();
+await page.getByTestId('theater-list').click();
 
 // ❌ Bad - Fragile text-based selectors
-await page.getByText('Cinemas').click(); // Breaks if text changes
+await page.getByText('Theaters').click(); // Breaks if text changes
 ```
 
 #### Test Names
 
 ```typescript
 // ✅ Good - Descriptive, behavior-focused
-it('should return 404 when cinema does not exist', () => {});
+it('should return 404 when theater does not exist', () => {});
 
 // ❌ Bad - Implementation-focused
 it('should call database query', () => {});
@@ -493,19 +493,19 @@ import { vi } from 'vitest';
 import * as db from '../db/queries';
 
 // Mock database queries
-vi.spyOn(db, 'getCinemaById').mockResolvedValue({
+vi.spyOn(db, 'getTheaterById').mockResolvedValue({
   id: 'W7504',
   name: 'Épée de Bois',
 });
 
-// Test code that uses getCinemaById
+// Test code that uses getTheaterById
 ```
 
 ### Testing Async Code
 
 ```typescript
-it('should fetch cinema data', async () => {
-  const result = await fetchCinema('W7504');
+it('should fetch theater data', async () => {
+  const result = await fetchTheater('W7504');
   expect(result).toEqual({
     id: 'W7504',
     name: 'Épée de Bois',

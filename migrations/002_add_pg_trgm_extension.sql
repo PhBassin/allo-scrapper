@@ -1,17 +1,17 @@
 -- Migration: Enable pg_trgm extension for fuzzy text search
 -- Version: 2.1.0
 -- Date: 2026-02-21
--- Description: Adds PostgreSQL trigram extension for fuzzy film title search
+-- Description: Adds PostgreSQL trigram extension for fuzzy movie title search
 
 BEGIN;
 
 -- Enable pg_trgm extension for similarity calculations
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- Create GIN index on films.title for fast trigram similarity searches
+-- Create GIN index on movies.title for fast trigram similarity searches
 -- This index improves performance of similarity() and ILIKE queries
-CREATE INDEX IF NOT EXISTS idx_films_title_trgm 
-  ON films USING gin(title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_movies_title_trgm 
+  ON movies USING gin(title gin_trgm_ops);
 
 -- Verify the extension was created
 DO $$ 

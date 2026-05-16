@@ -2,11 +2,11 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { logger } from './utils/logger.js';
-import { registry, scrapeJobsTotal, scrapeDurationSeconds, filmsScrapedTotal, showtimesScrapedTotal } from './utils/metrics.js';
+import { registry, scrapeJobsTotal, scrapeDurationSeconds, moviesScrapedTotal, showtimesScrapedTotal } from './utils/metrics.js';
 import { initTracing } from './utils/tracer.js';
 
-import { runScraper, addCinemaAndScrape } from './scraper/index.js';
-import { getRedisPublisher, getRedisConsumer, getRedisSubscriber, disconnectRedis, type ScrapeJob, type ScrapeJobScrape, type ScrapeJobAddCinema, type ScheduleChangeEvent } from './redis/client.js';
+import { runScraper, addTheaterAndScrape } from './scraper/index.js';
+import { getRedisPublisher, getRedisConsumer, getRedisSubscriber, disconnectRedis, type ScrapeJob, type ScrapeJobScrape, type ScrapeJobAddTheater, type ScheduleChangeEvent } from './redis/client.js';
 import { db } from './db/client.js';
 import { createScrapeReport, updateScrapeReport } from './db/report-queries.js';
 import { getEnabledSchedules, updateScheduleRunStatus } from './db/schedule-queries.js';
@@ -67,53 +67,53 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
     logger.warn(`[scraper] Could not update report ${job.reportId}:`, err);
   }
 
-  // --- add_cinema branch ---
-  if (jobType === 'add_cinema') {
-    const addCinemaJob = job as ScrapeJobAddCinema;
+  // --- add_theater branch ---
+  if (jobType === 'add_theater') {
+    const addTheaterJob = job as ScrapeJobAddTheater;
     try {
-      await addCinemaAndScrape(db, addCinemaJob.url, publisher);
+      await addTheaterAndScrape(db, addTheaterJob.url, publisher);
       await updateScrapeReport(db, job.reportId, {
         status: 'success',
         completed_at: new Date().toISOString(),
       });
-      logger.info(`[scraper] add_cinema job ${job.reportId} completed successfully`);
+      logger.info(`[scraper] add_theater job ${job.reportId} completed successfully`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error(`[scraper] add_cinema job ${job.reportId} failed:`, err);
+      logger.error(`[scraper] add_theater job ${job.reportId} failed:`, err);
       await updateScrapeReport(db, job.reportId, {
         status: 'failed',
         completed_at: new Date().toISOString(),
-        errors: [{ cinema_name: 'System', error: errorMessage }],
+        errors: [{ theater_name: 'System', error: errorMessage }],
       }).catch(() => {});
     }
     return;
   }
 
   // --- scrape branch ---
-  const durationTimer = scrapeDurationSeconds.startTimer({ cinema: 'all' });
+  const durationTimer = scrapeDurationSeconds.startTimer({ theater: 'all' });
 
   try {
     const scrapeJob = job as ScrapeJobScrape;
     const summary = await runScraper(publisher, scrapeJob.options);
 
-    const status = summary.failed_cinemas === 0
+    const status = summary.failed_theaters === 0
       ? 'success'
-      : summary.successful_cinemas > 0
+      : summary.successful_theaters > 0
         ? 'partial_success'
         : 'failed';
 
     durationTimer();
     scrapeJobsTotal.inc({ status, trigger: job.triggerType });
-    filmsScrapedTotal.inc({ cinema: 'all' }, summary.total_films);
-    showtimesScrapedTotal.inc({ cinema: 'all' }, summary.total_showtimes);
+    moviesScrapedTotal.inc({ theater: 'all' }, summary.total_movies);
+    showtimesScrapedTotal.inc({ theater: 'all' }, summary.total_showtimes);
 
     await updateScrapeReport(db, job.reportId, {
       status,
       completed_at: new Date().toISOString(),
-      total_cinemas: summary.total_cinemas,
-      successful_cinemas: summary.successful_cinemas,
-      failed_cinemas: summary.failed_cinemas,
-      total_films_scraped: summary.total_films,
+      total_theaters: summary.total_theaters,
+      successful_theaters: summary.successful_theaters,
+      failed_theaters: summary.failed_theaters,
+      total_movies_scraped: summary.total_movies,
       total_showtimes_scraped: summary.total_showtimes,
       errors: summary.errors,
     });
@@ -127,7 +127,7 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
     await updateScrapeReport(db, job.reportId, {
       status: 'failed',
       completed_at: new Date().toISOString(),
-      errors: [{ cinema_name: 'System', error: errorMessage }],
+      errors: [{ theater_name: 'System', error: errorMessage }],
     }).catch(() => {});
   }
 }
@@ -224,19 +224,19 @@ async function runCron(): Promise<void> {
     try {
       const summary = await runScraper(publisher);
 
-      const status = summary.failed_cinemas === 0
+      const status = summary.failed_theaters === 0
         ? 'success'
-        : summary.successful_cinemas > 0
+        : summary.successful_theaters > 0
           ? 'partial_success'
           : 'failed';
 
       await updateScrapeReport(db, reportId, {
         status,
         completed_at: new Date().toISOString(),
-        total_cinemas: summary.total_cinemas,
-        successful_cinemas: summary.successful_cinemas,
-        failed_cinemas: summary.failed_cinemas,
-        total_films_scraped: summary.total_films,
+        total_theaters: summary.total_theaters,
+        successful_theaters: summary.successful_theaters,
+        failed_theaters: summary.failed_theaters,
+        total_movies_scraped: summary.total_movies,
         total_showtimes_scraped: summary.total_showtimes,
         errors: summary.errors,
       });
@@ -252,7 +252,7 @@ async function runCron(): Promise<void> {
       await updateScrapeReport(db, reportId, {
         status: 'failed',
         completed_at: new Date().toISOString(),
-        errors: [{ cinema_name: 'System', error: errorMessage }],
+        errors: [{ theater_name: 'System', error: errorMessage }],
       }).catch(() => {});
 
       if (schedule.id) {
@@ -372,19 +372,19 @@ async function runDirect(): Promise<void> {
     const summary = await runScraper(publisher);
 
     if (reportId !== -1) {
-      const status = summary.failed_cinemas === 0
+      const status = summary.failed_theaters === 0
         ? 'success'
-        : summary.successful_cinemas > 0
+        : summary.successful_theaters > 0
           ? 'partial_success'
           : 'failed';
 
       await updateScrapeReport(db, reportId, {
         status,
         completed_at: new Date().toISOString(),
-        total_cinemas: summary.total_cinemas,
-        successful_cinemas: summary.successful_cinemas,
-        failed_cinemas: summary.failed_cinemas,
-        total_films_scraped: summary.total_films,
+        total_theaters: summary.total_theaters,
+        successful_theaters: summary.successful_theaters,
+        failed_theaters: summary.failed_theaters,
+        total_movies_scraped: summary.total_movies,
         total_showtimes_scraped: summary.total_showtimes,
         errors: summary.errors,
       });

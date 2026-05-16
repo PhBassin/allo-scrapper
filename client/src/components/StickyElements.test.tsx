@@ -9,11 +9,11 @@ import * as clientApi from '../api/client';
 
 // Mock API
 vi.mock('../api/client', () => ({
-  getWeeklyFilms: vi.fn(),
-  getFilmsByDate: vi.fn(),
-  getCinemas: vi.fn(),
-  getCinemaSchedule: vi.fn(),
-  addCinema: vi.fn(),
+  getWeeklyMovies: vi.fn(),
+  getMoviesByDate: vi.fn(),
+  getTheaters: vi.fn(),
+  getTheaterSchedule: vi.fn(),
+  addTheater: vi.fn(),
 }));
 
 const mockAuthContext = {
@@ -65,8 +65,8 @@ const renderWithProviders = (ui: React.ReactElement) => {
 
 describe('Sticky Elements Stickiness', () => {
   it('HomePage search/date container should be sticky with offset', async () => {
-    (clientApi.getCinemas as any).mockResolvedValue([]);
-    (clientApi.getWeeklyFilms as any).mockResolvedValue({ films: [], weekStart: '2024-01-01' });
+    (clientApi.getTheaters as any).mockResolvedValue([]);
+    (clientApi.getWeeklyMovies as any).mockResolvedValue({ movies: [], weekStart: '2024-01-01' });
 
     renderWithProviders(<HomePage />);
 
@@ -78,8 +78,8 @@ describe('Sticky Elements Stickiness', () => {
   });
 
   it('CinemaPage date selector should be sticky with offset', async () => {
-    (clientApi.getCinemas as any).mockResolvedValue([{ id: '1', name: 'Test Cinema' }]);
-    (clientApi.getCinemaSchedule as any).mockResolvedValue({ showtimes: [] });
+    (clientApi.getTheaters as any).mockResolvedValue([{ id: '1', name: 'Test Cinema' }]);
+    (clientApi.getTheaterSchedule as any).mockResolvedValue({ showtimes: [] });
     
     (useParams as any).mockReturnValue({ id: '1' });
 

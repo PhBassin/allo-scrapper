@@ -29,7 +29,7 @@ vi.mock('../db/role-queries.js', () => ({
 
 const mockPermissions = [
   { id: 1, name: 'scraper:trigger', description: 'Trigger scraper', category: 'scraper', created_at: '2024-01-01' },
-  { id: 2, name: 'cinemas:create', description: 'Create cinema', category: 'cinemas', created_at: '2024-01-01' },
+  { id: 2, name: 'theaters:create', description: 'Create theater', category: 'theaters', created_at: '2024-01-01' },
 ];
 
 const mockAdminRole = {

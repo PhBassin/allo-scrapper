@@ -92,7 +92,7 @@ describe('System Queries', () => {
             { version: '010_remove_phantom_permissions.sql' },
             { version: '011_add_roles_crud_permissions.sql' },
             { version: '012_add_read_permissions.sql' },
-            { version: '013_add_cinema_source.sql' },
+            { version: '013_add_theater_source.sql' },
             { version: '014_add_scrape_schedules.sql' },
             { version: '015_add_schedule_permissions.sql' },
             { version: '016_add_admin_permissions.sql' },
@@ -101,9 +101,10 @@ describe('System Queries', () => {
             { version: '017_add_rate_limit_configs.sql' },
             { version: '018_add_rate_limit_permissions.sql' },
             { version: '019_add_permission_category_labels.sql' },
-            { version: '020_add_film_screenwriters.sql' },
-            { version: '021_add_film_trailer_url.sql' },
+            { version: '020_add_movie_screenwriters.sql' },
+            { version: '021_add_movie_trailer_url.sql' },
             { version: '022_fix_showtime_deduplication.sql' },
+            { version: '023_rename_cinema_to_theater_and_film_to_movie.sql' },
           ],
         }),
       } as unknown as DB;
@@ -167,8 +168,8 @@ describe('System Queries', () => {
         query: vi.fn()
           .mockResolvedValueOnce({ rows: [{ size: '15 MB' }] }) // Database size
           .mockResolvedValueOnce({ rows: [{ count: '10' }] }) // Table count
-          .mockResolvedValueOnce({ rows: [{ count: '5' }] }) // Cinemas
-          .mockResolvedValueOnce({ rows: [{ count: '100' }] }) // Films
+          .mockResolvedValueOnce({ rows: [{ count: '5' }] }) // Theaters
+          .mockResolvedValueOnce({ rows: [{ count: '100' }] }) // Movies
           .mockResolvedValueOnce({ rows: [{ count: '500' }] }), // Seances
       } as unknown as DB;
 
@@ -177,8 +178,8 @@ describe('System Queries', () => {
       expect(result).toEqual({
         size: '15 MB',
         tables: 10,
-        cinemas: 5,
-        films: 100,
+        theaters: 5,
+        movies: 100,
         showtimes: 500,
       });
     });
@@ -198,8 +199,8 @@ describe('System Queries', () => {
       expect(result).toEqual({
         size: '8192 bytes',
         tables: 0,
-        cinemas: 0,
-        films: 0,
+        theaters: 0,
+        movies: 0,
         showtimes: 0,
       });
     });
@@ -217,8 +218,8 @@ describe('System Queries', () => {
       const result = await getDatabaseStats(mockDb);
 
       expect(result.tables).toBe(25);
-      expect(result.cinemas).toBe(150);
-      expect(result.films).toBe(5000);
+      expect(result.theaters).toBe(150);
+      expect(result.movies).toBe(5000);
       expect(result.showtimes).toBe(50000);
     });
 

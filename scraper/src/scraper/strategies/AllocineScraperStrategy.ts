@@ -4,38 +4,38 @@ import {
   upsertWeeklyPrograms,
 } from '../../db/showtime-queries.js';
 import {
-  upsertFilm,
-  getFilm,
-} from '../../db/film-queries.js';
+  upsertMovie,
+  getMovie,
+} from '../../db/movie-queries.js';
 import {
-  upsertCinema,
-} from '../../db/cinema-queries.js';
-import { fetchTheaterPage, fetchShowtimesJson, fetchFilmPage, delay } from '../http-client.js';
+  upsertTheater,
+} from '../../db/theater-queries.js';
+import { fetchTheaterPage, fetchShowtimesJson, fetchMoviePage, delay } from '../http-client.js';
 import { parseTheaterPage } from '../theater-parser.js';
 import { parseShowtimesJson } from '../theater-json-parser.js';
-import { parseFilmPage } from '../film-parser.js';
+import { parseMoviePage } from '../movie-parser.js';
 import { getWeekStartForDate } from '../../utils/date.js';
-import { isValidAllocineUrl, extractCinemaIdFromUrl, cleanCinemaUrl } from '../utils.js';
+import { isValidAllocineUrl, extractTheaterIdFromUrl, cleanTheaterUrl } from '../utils.js';
 import { logger } from '../../utils/logger.js';
-import type { CinemaConfig, WeeklyProgram, Cinema } from '../../types/scraper.js';
+import type { TheaterConfig, WeeklyProgram, Theater } from '../../types/scraper.js';
 import { type ProgressPublisher } from '../index.js';
 import { type IScraperStrategy } from './IScraperStrategy.js';
 import { RateLimitError } from '../../utils/errors.js';
 
-export function shouldRefreshFilmDetails(existingFilm?: {
+export function shouldRefreshMovieDetails(existingMovie?: {
   duration_minutes?: number;
   director?: string;
   screenwriters?: string[];
   trailer_url?: string;
 } | null): boolean {
-  if (!existingFilm) {
+  if (!existingMovie) {
     return true;
   }
 
-  const needsDuration = !existingFilm.duration_minutes;
-  const needsDirector = !existingFilm.director;
-  const needsScreenwriters = !existingFilm.screenwriters || existingFilm.screenwriters.length === 0;
-  const needsTrailerUrl = !existingFilm.trailer_url;
+  const needsDuration = !existingMovie.duration_minutes;
+  const needsDirector = !existingMovie.director;
+  const needsScreenwriters = !existingMovie.screenwriters || existingMovie.screenwriters.length === 0;
+  const needsTrailerUrl = !existingMovie.trailer_url;
 
   return needsDuration || needsDirector || needsScreenwriters || needsTrailerUrl;
 }
@@ -47,134 +47,134 @@ export class AllocineScraperStrategy implements IScraperStrategy {
     return isValidAllocineUrl(url);
   }
 
-  extractCinemaId(url: string): string | null {
-    return extractCinemaIdFromUrl(url);
+  extractTheaterId(url: string): string | null {
+    return extractTheaterIdFromUrl(url);
   }
 
-  cleanCinemaUrl(url: string): string {
-    return cleanCinemaUrl(url);
+  cleanTheaterUrl(url: string): string {
+    return cleanTheaterUrl(url);
   }
 
   async loadTheaterMetadata(
     db: DB,
-    cinema: CinemaConfig
-  ): Promise<{ availableDates: string[]; cinema: Cinema }> {
-    const { html, availableDates } = await fetchTheaterPage(cinema.url);
+    theater: TheaterConfig
+  ): Promise<{ availableDates: string[]; theater: Theater }> {
+    const { html, availableDates } = await fetchTheaterPage(theater.url);
 
-    const pageData = parseTheaterPage(html, cinema.id);
-    const mergedCinema: Cinema = { 
-      ...pageData.cinema, 
-      url: cinema.url,
+    const pageData = parseTheaterPage(html, theater.id);
+    const mergedTheater: Theater = { 
+      ...pageData.theater, 
+      url: theater.url,
       source: this.sourceName
     };
-    await upsertCinema(db, mergedCinema);
-    logger.info('Cinema metadata upserted', { cinema: mergedCinema.name });
+    await upsertTheater(db, mergedTheater);
+    logger.info('Theater metadata upserted', { theater: mergedTheater.name });
 
-    return { availableDates, cinema: mergedCinema };
+    return { availableDates, theater: mergedTheater };
   }
 
   async scrapeTheater(
     db: DB,
-    cinema: CinemaConfig,
+    theater: TheaterConfig,
     date: string,
     movieDelayMs: number,
     progress?: ProgressPublisher
-  ): Promise<{ filmsCount: number; showtimesCount: number }> {
-    logger.info('Scraping cinema for date', { cinema: cinema.name, id: cinema.id, date });
+  ): Promise<{ moviesCount: number; showtimesCount: number }> {
+    logger.info('Scraping theater for date', { theater: theater.name, id: theater.id, date });
 
-    await progress?.emit({ type: 'date_started', date, cinema_name: cinema.name });
+    await progress?.emit({ type: 'date_started', date, theater_name: theater.name });
 
-    let filmsCount = 0;
+    let moviesCount = 0;
     let showtimesCount = 0;
 
     try {
-      const json = await fetchShowtimesJson(cinema.id, date);
-      const filmShowtimesData = parseShowtimesJson(json, cinema.id, date);
+      const json = await fetchShowtimesJson(theater.id, date);
+      const movieShowtimesData = parseShowtimesJson(json, theater.id, date);
 
-      logger.info('Films found for date', { count: filmShowtimesData.length, date });
+      logger.info('Movies found for date', { count: movieShowtimesData.length, date });
 
       const weeklyPrograms: WeeklyProgram[] = [];
 
-      for (const filmData of filmShowtimesData) {
-        const film = filmData.film;
+      for (const movieData of movieShowtimesData) {
+        const movie = movieData.movie;
 
-        await progress?.emit({ type: 'film_started', film_title: film.title, film_id: film.id });
+        await progress?.emit({ type: 'movie_started', movie_title: movie.title, movie_id: movie.id });
 
         try {
-          const existingFilm = await getFilm(db, film.id);
+          const existingMovie = await getMovie(db, movie.id);
 
-          if (shouldRefreshFilmDetails(existingFilm)) {
-            logger.info('Fetching film details', { title: film.title, id: film.id });
+          if (shouldRefreshMovieDetails(existingMovie)) {
+            logger.info('Fetching movie details', { title: movie.title, id: movie.id });
 
             try {
-              const filmHtml = await fetchFilmPage(film.id);
-              const filmPageData = parseFilmPage(filmHtml);
+              const movieHtml = await fetchMoviePage(movie.id);
+              const moviePageData = parseMoviePage(movieHtml);
 
-              if (filmPageData.duration_minutes) {
-                film.duration_minutes = filmPageData.duration_minutes;
+              if (moviePageData.duration_minutes) {
+                movie.duration_minutes = moviePageData.duration_minutes;
               }
 
-              if (filmPageData.director) {
-                film.director = filmPageData.director;
+              if (moviePageData.director) {
+                movie.director = moviePageData.director;
               }
 
-              if (filmPageData.screenwriters && filmPageData.screenwriters.length > 0) {
-                film.screenwriters = filmPageData.screenwriters;
+              if (moviePageData.screenwriters && moviePageData.screenwriters.length > 0) {
+                movie.screenwriters = moviePageData.screenwriters;
               }
 
-              if (filmPageData.trailer_url) {
-                film.trailer_url = filmPageData.trailer_url;
+              if (moviePageData.trailer_url) {
+                movie.trailer_url = moviePageData.trailer_url;
               }
             } catch (error) {
-              logger.warn('Error fetching film page', { filmId: film.id, error });
+              logger.warn('Error fetching movie page', { movieId: movie.id, error });
             } finally {
               await delay(movieDelayMs);
             }
 
-            if (existingFilm) {
-              film.duration_minutes = film.duration_minutes ?? existingFilm.duration_minutes;
-              film.director = film.director ?? existingFilm.director;
-              film.trailer_url = film.trailer_url ?? existingFilm.trailer_url;
+            if (existingMovie) {
+              movie.duration_minutes = movie.duration_minutes ?? existingMovie.duration_minutes;
+              movie.director = movie.director ?? existingMovie.director;
+              movie.trailer_url = movie.trailer_url ?? existingMovie.trailer_url;
 
-              if ((!film.screenwriters || film.screenwriters.length === 0) &&
-                existingFilm.screenwriters &&
-                existingFilm.screenwriters.length > 0) {
-                film.screenwriters = existingFilm.screenwriters;
+              if ((!movie.screenwriters || movie.screenwriters.length === 0) &&
+                existingMovie.screenwriters &&
+                existingMovie.screenwriters.length > 0) {
+                movie.screenwriters = existingMovie.screenwriters;
               }
             }
-          } else if (existingFilm) {
-            film.duration_minutes = existingFilm.duration_minutes;
-            film.director = existingFilm.director;
-            film.screenwriters = existingFilm.screenwriters;
-            film.trailer_url = existingFilm.trailer_url;
+          } else if (existingMovie) {
+            movie.duration_minutes = existingMovie.duration_minutes;
+            movie.director = existingMovie.director;
+            movie.screenwriters = existingMovie.screenwriters;
+            movie.trailer_url = existingMovie.trailer_url;
           }
 
-          await upsertFilm(db, film);
-          logger.info('Film upserted', { title: film.title });
+          await upsertMovie(db, movie);
+          logger.info('Movie upserted', { title: movie.title });
 
-          await upsertShowtimes(db, filmData.showtimes);
-          logger.info('Showtimes upserted', { count: filmData.showtimes.length });
+          await upsertShowtimes(db, movieData.showtimes);
+          logger.info('Showtimes upserted', { count: movieData.showtimes.length });
 
           weeklyPrograms.push({
-            cinema_id: cinema.id,
-            film_id: film.id,
-            week_start: filmData.showtimes[0]?.week_start ?? getWeekStartForDate(date),
-            is_new_this_week: filmData.is_new_this_week,
+            theater_id: theater.id,
+            movie_id: movie.id,
+            week_start: movieData.showtimes[0]?.week_start ?? getWeekStartForDate(date),
+            is_new_this_week: movieData.is_new_this_week,
             scraped_at: new Date().toISOString(),
           });
 
-          filmsCount++;
-          showtimesCount += filmData.showtimes.length;
+          moviesCount++;
+          showtimesCount += movieData.showtimes.length;
 
           await progress?.emit({
-            type: 'film_completed',
-            film_title: film.title,
-            showtimes_count: filmData.showtimes.length,
+            type: 'movie_completed',
+            movie_title: movie.title,
+            showtimes_count: movieData.showtimes.length,
           });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          logger.error('Error processing film', { title: film.title, error });
-          await progress?.emit({ type: 'film_failed', film_title: film.title, error: errorMessage });
+          logger.error('Error processing movie', { title: movie.title, error });
+          await progress?.emit({ type: 'movie_failed', movie_title: movie.title, error: errorMessage });
         }
       }
 
@@ -183,19 +183,19 @@ export class AllocineScraperStrategy implements IScraperStrategy {
         logger.info('Weekly programs updated', { count: weeklyPrograms.length });
       }
 
-      logger.info('Cinema date scraped', { cinema: cinema.name, date, films: filmShowtimesData.length });
-      await progress?.emit({ type: 'date_completed', date, films_count: filmsCount });
+      logger.info('Theater date scraped', { theater: theater.name, date, movies: movieShowtimesData.length });
+      await progress?.emit({ type: 'date_completed', date, movies_count: moviesCount });
 
-      return { filmsCount, showtimesCount };
+      return { moviesCount, showtimesCount };
     } catch (error) {
       // Re-throw RateLimitError immediately for scraper to handle
       if (error instanceof RateLimitError) {
-        logger.error('Rate limit detected - stopping scrape', { cinema: cinema.name, date, error });
+        logger.error('Rate limit detected - stopping scrape', { theater: theater.name, date, error });
         throw error;
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('Error scraping cinema for date', { cinema: cinema.name, date, error });
+      logger.error('Error scraping theater for date', { theater: theater.name, date, error });
       throw new Error(errorMessage);
     }
   }

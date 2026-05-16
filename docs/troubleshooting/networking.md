@@ -68,7 +68,7 @@ Response to preflight request doesn't pass access control check
 
 ```bash
 # Test OPTIONS request
-curl -X OPTIONS http://localhost:3000/api/cinemas \
+curl -X OPTIONS http://localhost:3000/api/theaters \
   -H "Origin: http://localhost:5173" \
   -H "Access-Control-Request-Method: POST" \
   -v
@@ -304,8 +304,8 @@ curl -N http://localhost:3000/api/scraper/progress
 # Expected output:
 # : heartbeat
 #
-# event: cinema_started
-# data: {"type":"cinema_started","cinema_name":"UGC Ciné Cité Les Halles"}
+# event: theater_started
+# data: {"type":"theater_started","theater_name":"UGC Ciné Cité Les Halles"}
 ```
 
 **Common issues:**
@@ -355,10 +355,10 @@ location /api/scraper/progress {
 **Configuration:**
 
 ```bash
-# Delay between cinemas (milliseconds)
+# Delay between theaters (milliseconds)
 SCRAPE_THEATER_DELAY_MS=3000  # Default: 3 seconds
 
-# Delay between film detail fetches (milliseconds)
+# Delay between movie detail fetches (milliseconds)
 SCRAPE_MOVIE_DELAY_MS=500  # Default: 500ms
 
 # Restart to apply
@@ -370,12 +370,12 @@ docker compose restart ics-web
 1. **Increase delays:**
 
 ```bash
-echo "SCRAPE_THEATER_DELAY_MS=5000" >> .env  # 5 seconds between cinemas
-echo "SCRAPE_MOVIE_DELAY_MS=1000" >> .env   # 1 second between films
+echo "SCRAPE_THEATER_DELAY_MS=5000" >> .env  # 5 seconds between theaters
+echo "SCRAPE_MOVIE_DELAY_MS=1000" >> .env   # 1 second between movies
 docker compose restart ics-web
 ```
 
-2. **Scrape fewer cinemas at once** (use API to scrape specific cinemas)
+2. **Scrape fewer theaters at once** (use API to scrape specific theaters)
 
 3. **Monitor for 403/429 errors in logs:**
 
@@ -486,7 +486,7 @@ SSRF guard: unexpected host in constructed URL https://evil.com/...
 curl http://localhost:3000/api/health
 
 # Test API endpoint
-curl http://localhost:3000/api/cinemas
+curl http://localhost:3000/api/theaters
 
 # Test with authentication
 curl http://localhost:3000/api/scraper/status \
@@ -519,13 +519,13 @@ docker network inspect allo-scrapper_default
 
 ```bash
 # Preflight request
-curl -X OPTIONS http://localhost:3000/api/cinemas \
+curl -X OPTIONS http://localhost:3000/api/theaters \
   -H "Origin: http://localhost:5173" \
   -H "Access-Control-Request-Method: POST" \
   -v
 
 # Actual request with origin
-curl http://localhost:3000/api/cinemas \
+curl http://localhost:3000/api/theaters \
   -H "Origin: http://localhost:5173" \
   -v
 ```

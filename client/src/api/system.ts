@@ -26,8 +26,8 @@ export interface ServerHealth {
 export interface DatabaseStats {
   size: string;
   tables: number;
-  cinemas: number;
-  films: number;
+  theaters: number;
+  movies: number;
   showtimes: number;
 }
 

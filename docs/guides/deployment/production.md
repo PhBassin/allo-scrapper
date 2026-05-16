@@ -120,7 +120,7 @@ NODE_ENV=production
 LOG_LEVEL=warn
 
 # Application Configuration
-APP_NAME=My Cinema App                    # Optional, default: "Allo-Scrapper"
+APP_NAME=My Theater App                    # Optional, default: "Allo-Scrapper"
 AUTO_MIGRATE=true                         # Optional, default: true
 
 # JWT Secret (REQUIRED for production)
@@ -128,7 +128,7 @@ JWT_SECRET=<GENERATE_WITH_openssl_rand_-base64_32>
 
 # CORS Configuration
 # Must include the origin the browser uses to reach the app
-ALLOWED_ORIGINS=https://cinema.example.com
+ALLOWED_ORIGINS=https://theater.example.com
 
 # Scraper Configuration
 SCRAPE_CRON_SCHEDULE=0 3 * * *    # Daily at 3 AM
@@ -140,7 +140,7 @@ SCRAPE_DAYS=14                    # Scrape 2 weeks ahead
 
 **`APP_NAME`** (optional, default: "Allo-Scrapper")
 ```bash
-APP_NAME=My Cinema App
+APP_NAME=My Theater App
 ```
 Used in logger output, health check responses, and application branding. Changes the service name across all monitoring and logging.
 
@@ -206,8 +206,8 @@ Expected output:
               List of relations
  Schema |      Name       | Type  |  Owner
 --------+-----------------+-------+----------
- public | cinemas         | table | postgres
- public | films           | table | postgres
+ public | theaters         | table | postgres
+ public | movies           | table | postgres
  public | scrape_sessions | table | postgres
  public | showtimes       | table | postgres
  public | users           | table | postgres
@@ -259,7 +259,7 @@ ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
 
 **Production with domain:**
 ```bash
-ALLOWED_ORIGINS=https://cinema.example.com,https://www.cinema.example.com
+ALLOWED_ORIGINS=https://theater.example.com,https://www.theater.example.com
 ```
 
 **After changing, restart:**
@@ -455,8 +455,8 @@ docker compose exec ics-db psql -U postgres -d ics
 
 # Inside psql:
 \dt          # List tables
-\d cinemas   # Describe cinemas table
-SELECT * FROM cinemas;
+\d theaters   # Describe theaters table
+SELECT * FROM theaters;
 \q           # Quit
 ```
 
@@ -466,8 +466,8 @@ SELECT * FROM cinemas;
 # Count records
 docker compose exec ics-db psql -U postgres -d ics \
   -c "SELECT 
-        (SELECT COUNT(*) FROM cinemas) as cinemas,
-        (SELECT COUNT(*) FROM films) as films,
+        (SELECT COUNT(*) FROM theaters) as theaters,
+        (SELECT COUNT(*) FROM movies) as movies,
         (SELECT COUNT(*) FROM showtimes) as showtimes;"
 
 # Recent scrapes
@@ -715,7 +715,7 @@ For critical production environments:
 sudo apt install nginx certbot python3-certbot-nginx
 
 # Obtain certificate
-sudo certbot --nginx -d cinema.example.com
+sudo certbot --nginx -d theater.example.com
 
 # Nginx will auto-configure SSL
 ```
@@ -932,7 +932,7 @@ docker pull ghcr.io/phbassin/allo-scrapper:stable && docker compose down && dock
 
 - **`.env`** - Environment configuration
 - **`docker-compose.yml`** - Service orchestration
-- **`server/src/config/cinemas.json`** - Cinema configuration
+- **`server/src/config/theaters.json`** - Theater configuration
 - **`backups/`** - Database backups
 
 ---

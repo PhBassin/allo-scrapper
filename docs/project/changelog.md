@@ -15,16 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Admin Cinema Management UI (Issues #256-263, #282)** — Complete CRUD interface for managing cinemas from admin panel
-  - New `AddCinemaModal` component with smart (auto-scrape URL) and manual modes (#268, #259)
-  - New `EditCinemaModal` component for editing cinema details (#269, #260)
-  - New `DeleteCinemaDialog` component with confirmation (#270, #261)
-  - New `CinemasPage` admin page with cinema list and search (#271, #262)
-  - Cinema location editing: address, city, postal code, screen count (#283, #282)
-  - Cinema API client and Cinema type updates (#265, #258)
-  - Admin protection on all cinema mutation routes (#264, #257)
+- **Admin Theater Management UI (Issues #256-263, #282)** — Complete CRUD interface for managing theaters from admin panel
+  - New `AddTheaterModal` component with smart (auto-scrape URL) and manual modes (#268, #259)
+  - New `EditTheaterModal` component for editing theater details (#269, #260)
+  - New `DeleteTheaterDialog` component with confirmation (#270, #261)
+  - New `TheatersPage` admin page with theater list and search (#271, #262)
+  - Theater location editing: address, city, postal code, screen count (#283, #282)
+  - Theater API client and Theater type updates (#265, #258)
+  - Admin protection on all theater mutation routes (#264, #257)
   - SSRF guard with post-construction URL validation (#264)
-  - Wired CinemasPage to router and admin navigation (#272, #263)
+  - Wired TheatersPage to router and admin navigation (#272, #263)
 
 - **OpenCode Agents & Skills** — Developer workflow automation
   - Created `docs-writer` specialized agent for documentation maintenance (#303, #302)
@@ -37,8 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Implemented JSON parse cache utility with `lru-cache` package
   - Added comprehensive tests with performance benchmarks
   - Configurable via `JSON_PARSE_CACHE_SIZE` environment variable
-  - Applied to all cinema/movie/showtime database queries
-  - Memoized `filteredCinemas` in admin cinemas page (#309)
+  - Applied to all theater/movie/showtime database queries
+  - Memoized `filteredTheaters` in admin theaters page (#309)
   - Cached `Intl.DateTimeFormat` instances for faster renders (#299)
 
 ### Documentation
@@ -68,10 +68,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Removed cinema-config service (Postgres is source of truth) (#278-281)
+- Removed theater-config service (Postgres is source of truth) (#278-281)
 - Removed GET `/sync` endpoint, replaced with direct DB queries (#280)
 - Centralized password strength validation (#255)
-- Rewrote cinema route tests to mock DB queries directly (#279)
+- Rewrote theater route tests to mock DB queries directly (#279)
 
 ### Chore
 
@@ -120,7 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **System Information & Diagnostics Dashboard** — Admin panel with real-time system monitoring at `/admin/system`
   - System health card: status, uptime, version
-  - Database stats card: cinemas, movies, showtimes counts
+  - Database stats card: theaters, movies, showtimes counts
   - System resources card: memory usage, Node.js version
   - Database health card: connection status, migrations status
   - Migrations table with all applied migrations and timestamps
@@ -147,7 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GET /api/theme.css` - Dynamically generated CSS with theme variables (public, cached with ETag)
   
 - **User Management System** — Role-based access control with comprehensive user CRUD
-  - Two roles: `admin` (full access) and `user` (cinema schedules only)
+  - Two roles: `admin` (full access) and `user` (theater schedules only)
   - Admin panel for user management (create, edit, delete users)
   - Safety guards: prevent last admin deletion, self-deletion prevention
   - Secure password reset with cryptographically random passwords
@@ -249,7 +249,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- **Cinema Admin Endpoints** — Added JWT authentication requirement to cinema management endpoints (`POST /api/cinemas`, `PUT /api/cinemas/:id`, `DELETE /api/cinemas/:id`) to prevent unauthorized modifications (#191)
+- **Theater Admin Endpoints** — Added JWT authentication requirement to theater management endpoints (`POST /api/theaters`, `PUT /api/theaters/:id`, `DELETE /api/theaters/:id`) to prevent unauthorized modifications (#191)
 
 ### Fixed
 
@@ -269,24 +269,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **APP_NAME Environment Variable** — Configurable application name for server logs, health check API, and service identifiers (default: `Allo-Scrapper`)
 - **VITE_APP_NAME Environment Variable** — Configurable application name for React UI: browser title, header, footer (default: `Allo-Scrapper`)
-- **Sticky Header** — Persistent navigation header on HomePage and CinemaPage with backdrop blur effect
+- **Sticky Header** — Persistent navigation header on HomePage and TheaterPage with backdrop blur effect
 - **Scroll-to-Top Button** — Floating button to quickly return to the top of the page
 
 ### Changed
 
-- **Database Rename** — Default database name changed from `its` to `ics` (Independent Cinema Showtimes) for consistency with Docker service naming (`ics-web`, `ics-db`, etc.)
+- **Database Rename** — Default database name changed from `its` to `ics` (Independent Theater Showtimes) for consistency with Docker service naming (`ics-web`, `ics-db`, etc.)
 - **Docker Compose** — Production deployment now pulls from the registry image (`ghcr.io/phbassin/allo-scrapper:stable`) with `pull_policy: always`
 
 ### Fixed
 
 - **Security: Hardcoded JWT Secret** — Removed insecure hardcoded `JWT_SECRET` fallback; application now requires an explicit secret to be set
-- **Security: Information Leakage** — Films API no longer exposes internal error details or unintended data in responses
-- **TypeScript Errors** — Resolved type errors in the films route handler
+- **Security: Information Leakage** — Movies API no longer exposes internal error details or unintended data in responses
+- **TypeScript Errors** — Resolved type errors in the movies route handler
 
 ### Performance
 
-- **Film Search Index** — Added index on `original_title` column and tuned search query for significantly faster film lookups
-- **CinemaPage Memoization** — Applied `useMemo` to expensive computations in CinemaPage to prevent unnecessary re-renders
+- **Movie Search Index** — Added index on `original_title` column and tuned search query for significantly faster movie lookups
+- **TheaterPage Memoization** — Applied `useMemo` to expensive computations in TheaterPage to prevent unnecessary re-renders
 
 ### Documentation
 
@@ -351,25 +351,25 @@ POSTGRES_DB=its
 
 - **Scraping Endpoint** — `/api/scrape` now requires JWT authentication (breaking change)
 - **Reports Endpoint** — `/api/reports` now requires JWT authentication (breaking change)
-- **Add Cinema Button** — Protected for authenticated users only in the UI
+- **Add Theater Button** — Protected for authenticated users only in the UI
 
 ### Fixed
 
 - **Security: Username Enumeration** — Implemented constant-time comparison to prevent timing attacks on login endpoint (server/src/routes/auth.ts:1)
-- **Security: SSRF Vulnerability** — Fixed Server-Side Request Forgery in cinema URL handling
+- **Security: SSRF Vulnerability** — Fixed Server-Side Request Forgery in theater URL handling
 - **NaN/Infinity Validation** — Parser and database queries now properly handle invalid numeric values
   - `duration_minutes`, `press_rating`, and `audience_rating` fields validated
   - Invalid values (NaN, Infinity, -Infinity) converted to `null` instead of causing database errors
 - **External Host Access** — Client now uses relative API URLs for better external host compatibility
-- **HTML Entity Decoding** — Film metadata properly decodes HTML entities in titles and descriptions
-- **Cinema Page Reload** — Cinema page now correctly reloads after scrape completion
+- **HTML Entity Decoding** — Movie metadata properly decodes HTML entities in titles and descriptions
+- **Theater Page Reload** — Theater page now correctly reloads after scrape completion
 - **401 Redirect Handling** — Improved authentication error handling with custom event dispatching
 - **Navigation State** — Fixed report detail to reports list navigation and URL state persistence
 
 ### Performance
 
 - **Batch Upsert Showtimes** — Reduced N+1 query problem by batching showtime insertions (~142x faster)
-- **React Memoization** — FilmCard and ShowtimeList components memoized to prevent unnecessary re-renders
+- **React Memoization** — MovieCard and ShowtimeList components memoized to prevent unnecessary re-renders
 - **Configurable Scraper Delays** — Added delays between requests to prevent 429 rate limiting errors from Allocine
 
 ### BREAKING CHANGES
@@ -388,7 +388,7 @@ POSTGRES_DB=its
 >
 > The following endpoints now require JWT authentication:
 > - `POST /api/scrape` - Manual scraping trigger
-> - `POST /api/scrape/cinema/:cinemaId` - Cinema-specific scraping
+> - `POST /api/scrape/theater/:theaterId` - Theater-specific scraping
 > - `GET /api/reports` - Reports listing
 > - `POST /api/reports/generate` - Report generation
 >
@@ -486,7 +486,7 @@ IMAGE_TAG=v1.1.0 docker compose up -d
 ### Security Advisories
 
 - **CVE-2024-TIMING-001** (Medium) - Username enumeration timing attack in login endpoint - Fixed in this release
-- **CVE-2024-SSRF-001** (High) - SSRF vulnerability in cinema URL handling - Fixed in this release
+- **CVE-2024-SSRF-001** (High) - SSRF vulnerability in theater URL handling - Fixed in this release
 
 Users are strongly encouraged to upgrade to v2.0.0 to address these security issues.
 
@@ -498,7 +498,7 @@ Users are strongly encouraged to upgrade to v2.0.0 to address these security iss
 
 - **`:stable` Docker tag** — images built from `main` branch and version tags (`v*`) are now also tagged `:stable`, providing a clear production-ready target
 - **Cleanup job on `main` push** — the post-build untagged image cleanup job now runs on every push to `main` (in addition to version tags)
-- **Volume mount for cinema config** — `server/src/config/` is now bind-mounted in production Docker Compose, so cinema changes made via API are immediately visible on the host filesystem and committable to git
+- **Volume mount for theater config** — `server/src/config/` is now bind-mounted in production Docker Compose, so theater changes made via API are immediately visible on the host filesystem and committable to git
 
 ### Changed
 
@@ -541,8 +541,8 @@ No API, database schema, or configuration changes are included in this release.
 ### Added
 
 - Initial release
-- Cinema showtime scraper for Allocine theaters
-- REST API (Express.js + TypeScript) for querying cinemas, films, and showtimes
+- Theater showtime scraper for Allocine theaters
+- REST API (Express.js + TypeScript) for querying theaters, movies, and showtimes
 - React frontend served statically from the Express server
 - PostgreSQL persistence with automatic schema initialization
 - Redis-backed scraper microservice (optional, via `--profile scraper`)
@@ -550,7 +550,7 @@ No API, database schema, or configuration changes are included in this release.
 - Server-Sent Events (SSE) for real-time scrape progress
 - GitHub Actions CI/CD workflow publishing images to GitHub Container Registry (ghcr.io)
 - Docker Compose profiles for modular deployment
-- `cinemas.json` configuration file with API-driven add/sync workflow
+- `theaters.json` configuration file with API-driven add/sync workflow
 
 [3.0.0-beta.1]: https://github.com/PhBassin/allo-scrapper/compare/v2.1.1...v3.0.0-beta.1
 [2.1.1]: https://github.com/PhBassin/allo-scrapper/compare/v2.1.0...v2.1.1

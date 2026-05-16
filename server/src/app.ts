@@ -15,8 +15,8 @@ import { errorHandler } from './middleware/error-handler.js';
 import type { DB } from './db/client.js';
 
 // Import routes
-import filmsRouter from './routes/films.js';
-import cinemasRouter from './routes/cinemas.js';
+import moviesRouter from './routes/movies.js';
+import theatersRouter from './routes/theaters.js';
 import scraperRouter from './routes/scraper.js';
 import reportsRouter from './routes/reports.js';
 import authRouter from './routes/auth.js';
@@ -75,8 +75,8 @@ export function createApp() {
 
   // API routes
   app.use('/api/auth', authRouter);
-  app.use('/api/films', filmsRouter);
-  app.use('/api/cinemas', cinemasRouter);
+  app.use('/api/movies', moviesRouter);
+  app.use('/api/theaters', theatersRouter);
   app.use('/api/scraper', scraperRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/settings', settingsRouter);

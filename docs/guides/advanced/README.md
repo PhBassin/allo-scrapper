@@ -16,7 +16,7 @@ Choose a guide based on your current challenge:
 |------|-------|-----------|
 | **Scale scraper to multiple instances** | [Production Scaling](./production-scaling.md) | 25 min |
 | **Tune scraper for rate limiting / 429 errors** | [Rate Limiting Tuning](./scraper-rate-limiting.md) | 20 min |
-| **Add support for a new cinema source** | [Custom Parser Development](./custom-parser-development.md) | 30 min |
+| **Add support for a new theater source** | [Custom Parser Development](./custom-parser-development.md) | 30 min |
 | **Manage users, roles, and permissions** | [Admin Operations](./admin-operations.md) | 25 min |
 | **Deploy to Kubernetes** | [Production Scaling - Kubernetes section](./production-scaling.md#kubernetes-scaling) | 10 min |
 | **Set up monitoring and alerts** | [Production Scaling - Monitoring section](./production-scaling.md#monitoring--alerting) | 15 min |
@@ -33,7 +33,7 @@ Choose a guide based on your current challenge:
 - **RUN_MODE Architecture** – Choose between oneshot (Kubernetes Jobs), consumer (Deployment), cron (Scheduled), or direct (local dev)
 - **Queue Management** – Redis FIFO structure, queue depth monitoring, backpressure handling
 - **Multi-Instance Deployment** – Docker Compose scaling, Kubernetes Deployments with HPA, auto-scaling based on queue depth
-- **Job Orchestration** – Job types (scrape, add_cinema), job lifecycle, retry strategies
+- **Job Orchestration** – Job types (scrape, add_theater), job lifecycle, retry strategies
 - **Monitoring & Alerting** – Key metrics (queue depth, success rate, duration), Prometheus queries, Grafana dashboards, alert rules
 - **Performance Optimization** – Rate limiting tuning, database connection pooling, Redis optimization
 - **Troubleshooting** – Queue growing, slow processing, memory leaks, Redis connection errors
@@ -60,7 +60,7 @@ Choose a guide based on your current challenge:
 - **Performance Benchmarking** – How to measure throughput, identify bottlenecks
 - **Timeout Settings** – Connection timeout, read timeout, retry strategies
 - **Monitoring** – Track rate limit errors, detect patterns, proactive adjustment
-- **Production Optimization** – Multi-instance scaling to process more cinemas in parallel
+- **Production Optimization** – Multi-instance scaling to process more theaters in parallel
 - **Advanced Techniques** – Rotating delays, circuit breakers, fallback strategies
 
 **Key Takeaways**:
@@ -77,7 +77,7 @@ Choose a guide based on your current challenge:
 
 ### 3. Custom Parser Development & Multi-Source Integration
 
-**When to read**: Adding support for cinema sources beyond AlloCiné (e.g., UGC, Pathé, custom APIs).
+**When to read**: Adding support for theater sources beyond AlloCiné (e.g., UGC, Pathé, custom APIs).
 
 **Topics covered**:
 - **Strategy Pattern Architecture** – Why Strategy Pattern, IScraperStrategy interface, pluggable scrapers
@@ -89,11 +89,11 @@ Choose a guide based on your current challenge:
 - **Testing & Validation** – Unit tests with fixtures, integration tests, regression tests for website changes
 
 **Key Takeaways**:
-- Each cinema source = new strategy implementation
+- Each theater source = new strategy implementation
 - Use fixtures from actual HTML to ensure reliability
 - Error handling essential (websites change frequently)
 - Fallback chains reduce failures when parsing fails
-- Start with single cinema, then scale to network
+- Start with single theater, then scale to network
 
 **Read time**: ~30 minutes
 
@@ -133,8 +133,8 @@ Choose a guide based on your current challenge:
 
 **Time commitment**: ~45 minutes
 
-### Content/Cinema Manager
-1. [Custom Parser Development](./custom-parser-development.md) – Add new cinema sources
+### Content/Theater Manager
+1. [Custom Parser Development](./custom-parser-development.md) – Add new theater sources
 2. [Scraper Rate Limiting](./scraper-rate-limiting.md) – Troubleshoot 429 errors
 3. [Production Scaling - Job Orchestration](./production-scaling.md#job-orchestration) – Understand job types
 
@@ -174,7 +174,7 @@ A: Use `consumer` mode for continuous background scraping. Use `oneshot` only fo
 **Q: How many scraper instances do I need?**
 A: Start with 1-2, monitor queue depth. Add instances when queue consistently > 20 jobs. Target 10 jobs per replica.
 
-**Q: How do I add a new cinema source?**
+**Q: How do I add a new theater source?**
 A: Follow [Custom Parser Development](./custom-parser-development.md). You'll implement a new `IScraperStrategy` class and write unit tests.
 
 **Q: What if users can't access the admin panel?**

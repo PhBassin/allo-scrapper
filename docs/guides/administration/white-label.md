@@ -1,6 +1,6 @@
 # White-Label Configuration
 
-Guide to customizing your cinema showtimes application branding through the admin panel.
+Guide to customizing your theater showtimes application branding through the admin panel.
 
 ---
 
@@ -23,7 +23,7 @@ Guide to customizing your cinema showtimes application branding through the admi
 
 ## Overview
 
-The white-label system allows you to completely customize your cinema application's appearance and branding. You can modify:
+The white-label system allows you to completely customize your theater application's appearance and branding. You can modify:
 
 - **Site name and logos** - Replace default branding with your own
 - **Color scheme** - 9 customizable colors for complete visual control
@@ -32,7 +32,7 @@ The white-label system allows you to completely customize your cinema applicatio
 - **Email templates** - Branded email communications
 
 **Who should use this guide:**
-- Cinema operators customizing their portal
+- Theater operators customizing their portal
 - Administrators managing branding
 - Non-technical staff updating visual elements
 
@@ -72,12 +72,12 @@ Configure core branding elements that appear throughout your application.
 
 ### Site Name
 
-**Purpose**: Your cinema portal's name displayed in the header, page titles, and footer.
+**Purpose**: Your theater portal's name displayed in the header, page titles, and footer.
 
 **How to change:**
 1. Navigate to the **"General"** tab
 2. Find the **"Site Name"** field
-3. Enter your desired name (e.g., "CinéParis", "Downtown Cinema Hub")
+3. Enter your desired name (e.g., "CinéParis", "Downtown Theater Hub")
 4. Click **"Save Changes"**
 
 **Where it appears:**
@@ -139,7 +139,7 @@ Customize your application's complete color palette with 9 theme variables.
 | **Secondary** | Headers and footers | `#1F2937` | Navigation bars, footer background |
 | **Accent** | Call-to-action highlights | `#3B82F6` | Important buttons, badges |
 | **Background** | Page background | `#F9FAFB` | Main page background |
-| **Surface** | Card backgrounds | `#FFFFFF` | Film cards, modal windows |
+| **Surface** | Card backgrounds | `#FFFFFF` | Movie cards, modal windows |
 | **Text Primary** | Main text | `#111827` | Headings, body text |
 | **Text Secondary** | Muted text | `#6B7280` | Labels, captions, metadata |
 | **Success** | Success messages | `#10B981` | Success notifications |
@@ -253,8 +253,8 @@ Customize footer text and navigation links.
 {site_name} © {year} - All rights reserved
 → "CinéParis © 2026 - All rights reserved"
 
-Cinema schedules by {site_name} - Updated weekly
-→ "Cinema schedules by Downtown Cinema - Updated weekly"
+Theater schedules by {site_name} - Updated weekly
+→ "Theater schedules by Downtown Theater - Updated weekly"
 ```
 
 ### Footer Links

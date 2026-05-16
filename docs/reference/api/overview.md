@@ -6,8 +6,8 @@ Complete reference for the Allo-Scrapper REST API.
 
 **Related Documentation:**
 - [Health Check](./health.md) - Service health endpoint
-- [Cinemas](./cinemas.md) - Cinema management endpoints
-- [Films](./films.md) - Film data endpoints
+- [Theaters](./theaters.md) - Theater management endpoints
+- [Movies](./movies.md) - Movie data endpoints
 - [Authentication](./auth.md) - Auth endpoints
 - [Scraper](./scraper.md) - Scraping control endpoints
 - [Reports](./reports.md) - Scrape reports endpoints
@@ -130,7 +130,7 @@ All API endpoints are protected with rate limiting to prevent abuse and ensure s
 | **Registration** | 3 registrations | 1 hour | New user registrations |
 | **Protected Endpoints** | 60 requests | 15 minutes | `/api/reports/*` endpoints |
 | **Scraper Trigger** | 10 requests | 15 minutes | `/api/scraper/trigger` endpoint |
-| **Public Endpoints** | 100 requests | 15 minutes | `/api/films/*`, `/api/cinemas/*` |
+| **Public Endpoints** | 100 requests | 15 minutes | `/api/movies/*`, `/api/theaters/*` |
 
 ### Rate Limit Headers
 
@@ -198,7 +198,7 @@ done
 **Checking rate limit headers:**
 ```bash
 # Make request and view headers
-curl -I http://localhost:3000/api/films
+curl -I http://localhost:3000/api/movies
 
 # Response includes:
 # RateLimit-Limit: 100
@@ -242,14 +242,14 @@ curl -X POST http://localhost:3000/api/auth/login \
 | Category | Endpoint | Method | Auth Required |
 |----------|----------|--------|---------------|
 | [Health](./health.md) | `/api/health` | GET | No |
-| [Cinemas](./cinemas.md) | `/api/cinemas` | GET | No |
-| [Cinemas](./cinemas.md) | `/api/cinemas/:id` | GET | No |
-| [Cinemas](./cinemas.md) | `/api/cinemas` | POST | `cinemas:create` |
-| [Cinemas](./cinemas.md) | `/api/cinemas/:id` | PUT | `cinemas:update` |
-| [Cinemas](./cinemas.md) | `/api/cinemas/:id` | DELETE | `cinemas:delete` |
-| [Films](./films.md) | `/api/films` | GET | No |
-| [Films](./films.md) | `/api/films/:id` | GET | No |
-| [Films](./films.md) | `/api/films/search` | GET | No |
+| [Theaters](./theaters.md) | `/api/theaters` | GET | No |
+| [Theaters](./theaters.md) | `/api/theaters/:id` | GET | No |
+| [Theaters](./theaters.md) | `/api/theaters` | POST | `theaters:create` |
+| [Theaters](./theaters.md) | `/api/theaters/:id` | PUT | `theaters:update` |
+| [Theaters](./theaters.md) | `/api/theaters/:id` | DELETE | `theaters:delete` |
+| [Movies](./movies.md) | `/api/movies` | GET | No |
+| [Movies](./movies.md) | `/api/movies/:id` | GET | No |
+| [Movies](./movies.md) | `/api/movies/search` | GET | No |
 | [Auth](./auth.md) | `/api/auth/login` | POST | No |
 | [Auth](./auth.md) | `/api/auth/register` | POST | No |
 | [Auth](./auth.md) | `/api/auth/change-password` | POST | Yes |
@@ -288,8 +288,8 @@ curl -X POST http://localhost:3000/api/auth/login \
 ## Related Documentation
 
 - [Health Check](./health.md) - Service health endpoint
-- [Cinemas API](./cinemas.md) - Cinema management
-- [Films API](./films.md) - Film data
+- [Theaters API](./theaters.md) - Theater management
+- [Movies API](./movies.md) - Movie data
 - [Authentication](./auth.md) - Login, registration, password management
 - [Scraper API](./scraper.md) - Trigger and monitor scraping
 - [Reports API](./reports.md) - View scrape reports

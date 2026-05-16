@@ -3,9 +3,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import CinemaShowtimes from './CinemaShowtimes';
-import type { CinemaWithShowtimes, Film } from '../types';
+import type { CinemaWithShowtimes, Movie } from '../types';
 
-const mockFilm: Film = {
+const mockMovie: Movie = {
   id: 1,
   title: 'Test Film',
   genres: [],
@@ -41,13 +41,13 @@ const renderWithRouter = (ui: React.ReactElement) => {
 
 describe('CinemaShowtimes Component', () => {
   it('renders empty state when no cinemas provided', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={[]} film={mockFilm} />);
+    renderWithRouter(<CinemaShowtimes cinemas={[]} movie={mockMovie} />);
     expect(screen.getByText(/Aucune séance disponible/i)).toBeInTheDocument();
   });
 
   it('renders cinemas and showtimes for the default date', () => {
     // Set fixed today date for tests if needed, but here we can just rely on the first date in the list
-    renderWithRouter(<CinemaShowtimes cinemas={mockCinemas} film={mockFilm} />);
+    renderWithRouter(<CinemaShowtimes cinemas={mockCinemas} movie={mockMovie} />);
     
     expect(screen.getByText('Cinema 1')).toBeInTheDocument();
     expect(screen.getByText('Cinema 2')).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('CinemaShowtimes Component', () => {
   });
 
   it('changes showtimes when a different date is selected', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={mockCinemas} film={mockFilm} />);
+    renderWithRouter(<CinemaShowtimes cinemas={mockCinemas} movie={mockMovie} />);
     
     // Find the button for Feb 19
     const dateButton = screen.getByText('19').closest('button');
@@ -72,7 +72,7 @@ describe('CinemaShowtimes Component', () => {
   });
 
   it('renders initialDate if provided', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={mockCinemas} film={mockFilm} initialDate="2026-02-19" />);
+    renderWithRouter(<CinemaShowtimes cinemas={mockCinemas} movie={mockMovie} initialDate="2026-02-19" />);
     
     expect(screen.getByText('16:00')).toBeInTheDocument();
     expect(screen.queryByText('14:00')).not.toBeInTheDocument();
@@ -92,7 +92,7 @@ describe('CinemaShowtimes Component', () => {
       } as any
     ];
 
-    renderWithRouter(<CinemaShowtimes cinemas={singleDateCinemas} film={mockFilm} />);
+    renderWithRouter(<CinemaShowtimes cinemas={singleDateCinemas} movie={mockMovie} />);
     
     // Date selector should be visible
     expect(screen.getByText('18')).toBeInTheDocument(); // Day number
@@ -115,7 +115,7 @@ describe('CinemaShowtimes Component', () => {
       } as any
     ];
 
-    renderWithRouter(<CinemaShowtimes cinemas={singleDateCinemas} film={mockFilm} />);
+    renderWithRouter(<CinemaShowtimes cinemas={singleDateCinemas} movie={mockMovie} />);
     
     // Should display the date button with correct format
     const dateButton = screen.getByText('18').closest('button');
@@ -164,7 +164,7 @@ describe('CinemaShowtimes — bouton Maintenant', () => {
   });
 
   it('renders the Maintenant button as the first button', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={cinemasWithToday} film={mockFilm} />);
+    renderWithRouter(<CinemaShowtimes cinemas={cinemasWithToday} movie={mockMovie} />);
     const buttons = screen.getAllByRole('button');
     expect(buttons[0]).toHaveTextContent(/maintenant/i);
   });
@@ -181,12 +181,12 @@ describe('CinemaShowtimes — bouton Maintenant', () => {
         ],
       } as any,
     ];
-    renderWithRouter(<CinemaShowtimes cinemas={notoday} film={mockFilm} />);
+    renderWithRouter(<CinemaShowtimes cinemas={notoday} movie={mockMovie} />);
     expect(screen.getByRole('button', { name: /maintenant/i })).toBeDisabled();
   });
 
   it('filters out showtimes before current time when Maintenant is clicked', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={cinemasWithToday} film={mockFilm} />);
+    renderWithRouter(<CinemaShowtimes cinemas={cinemasWithToday} movie={mockMovie} />);
 
     // Initially today is selected — all three today's showtimes visible
     expect(screen.getByText('14:00')).toBeInTheDocument();
@@ -202,7 +202,7 @@ describe('CinemaShowtimes — bouton Maintenant', () => {
   });
 
   it('resets time filter when another date button is clicked after Maintenant', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={cinemasWithToday} film={mockFilm} />);
+    renderWithRouter(<CinemaShowtimes cinemas={cinemasWithToday} movie={mockMovie} />);
 
     fireEvent.click(screen.getByRole('button', { name: /maintenant/i }));
     expect(screen.queryByText('14:00')).not.toBeInTheDocument();

@@ -2,22 +2,22 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import CinemasPage from './CinemasPage';
-import * as cinemasApi from '../../api/cinemas';
+import * as theatersApi from '../../api/theaters';
 import * as clientApi from '../../api/client';
 import { AuthContext } from '../../contexts/AuthContext';
 import type { PermissionName } from '../../types/role';
 
 // Mock API modules
-vi.mock('../../api/cinemas', () => ({
-  getCinemas: vi.fn(),
-  createCinema: vi.fn(),
-  updateCinema: vi.fn(),
-  deleteCinema: vi.fn(),
+vi.mock('../../api/theaters', () => ({
+  getTheaters: vi.fn(),
+  createTheater: vi.fn(),
+  updateTheater: vi.fn(),
+  deleteTheater: vi.fn(),
 }));
 
 vi.mock('../../api/client', () => ({
   triggerScrape: vi.fn(),
-  triggerCinemaScrape: vi.fn(),
+  triggerTheaterScrape: vi.fn(),
   getScrapeStatus: vi.fn(),
   subscribeToProgress: vi.fn(),
 }));
@@ -107,7 +107,7 @@ const mockCinemas = [
 
 describe('CinemasPage - Scrape All button', () => {
   beforeEach(() => {
-    vi.mocked(cinemasApi.getCinemas).mockResolvedValue(mockCinemas);
+    vi.mocked(theatersApi.getTheaters).mockResolvedValue(mockCinemas);
     vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ isRunning: false });
     vi.mocked(clientApi.triggerScrape).mockResolvedValue({ reportId: 1, message: 'ok' });
   });
@@ -166,7 +166,7 @@ describe('CinemasPage - Scrape All button', () => {
       ...mockCinemas,
       { id: 'C0999', name: 'New Cinema', city: 'Lyon', screen_count: 5 },
     ];
-    vi.mocked(cinemasApi.getCinemas)
+    vi.mocked(theatersApi.getTheaters)
       .mockResolvedValueOnce(mockCinemas)
       .mockResolvedValueOnce(updatedCinemas);
 
@@ -195,7 +195,7 @@ describe('CinemasPage - Scrape All button', () => {
     });
 
     await waitFor(() => {
-      expect(cinemasApi.getCinemas).toHaveBeenCalledTimes(2);
+      expect(theatersApi.getTheaters).toHaveBeenCalledTimes(2);
     });
 
     vi.useRealTimers();
@@ -204,9 +204,9 @@ describe('CinemasPage - Scrape All button', () => {
 
 describe('CinemasPage - Per-cinema scrape button', () => {
   beforeEach(() => {
-    vi.mocked(cinemasApi.getCinemas).mockResolvedValue(mockCinemas);
+    vi.mocked(theatersApi.getTheaters).mockResolvedValue(mockCinemas);
     vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ isRunning: false });
-    vi.mocked(clientApi.triggerCinemaScrape).mockResolvedValue({ reportId: 2, message: 'ok' });
+    vi.mocked(clientApi.triggerTheaterScrape).mockResolvedValue({ reportId: 2, message: 'ok' });
   });
 
   afterEach(() => {
@@ -222,7 +222,7 @@ describe('CinemasPage - Per-cinema scrape button', () => {
     expect(screen.getByTestId('scrape-cinema-C0002')).toBeInTheDocument();
   });
 
-  it('triggers triggerCinemaScrape with correct ID when per-cinema button is clicked', async () => {
+  it('triggers triggerTheaterScrape with correct ID when per-theater button is clicked', async () => {
     renderWithAuth(<CinemasPage />);
 
     await screen.findByText('UGC Ciné Cité Paris');
@@ -230,7 +230,7 @@ describe('CinemasPage - Per-cinema scrape button', () => {
     fireEvent.click(screen.getByTestId('scrape-cinema-C0153'));
 
     await waitFor(() => {
-      expect(clientApi.triggerCinemaScrape).toHaveBeenCalledWith('C0153');
+      expect(clientApi.triggerTheaterScrape).toHaveBeenCalledWith('C0153');
     });
   });
 
@@ -254,7 +254,7 @@ describe('CinemasPage - Scraping buttons not on public pages', () => {
     // This test documents the expected behaviour: scraping is admin-only.
     // The actual enforcement is structural (no ScrapeButton in HomePage).
     // We verify by checking that CinemasPage renders the scrape all button.
-    vi.mocked(cinemasApi.getCinemas).mockResolvedValue(mockCinemas);
+    vi.mocked(theatersApi.getTheaters).mockResolvedValue(mockCinemas);
     vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ isRunning: false });
 
     renderWithAuth(<CinemasPage />);
@@ -268,7 +268,7 @@ describe('CinemasPage - Scraping buttons not on public pages', () => {
 
 describe('CinemasPage - permission-based button visibility', () => {
   beforeEach(() => {
-    vi.mocked(cinemasApi.getCinemas).mockResolvedValue(mockCinemas);
+    vi.mocked(theatersApi.getTheaters).mockResolvedValue(mockCinemas);
     vi.mocked(clientApi.getScrapeStatus).mockResolvedValue({ isRunning: false });
   });
 

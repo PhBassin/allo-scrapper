@@ -3,7 +3,7 @@ import { useEffect, useContext, Suspense, lazy } from 'react';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import CinemaPage from './pages/CinemaPage';
-import FilmPage from './pages/FilmPage';
+import MoviePage from './pages/MoviePage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import AdminPage from './pages/admin/AdminPage';
@@ -103,8 +103,8 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route path="/cinema/:id" element={<CinemaPage />} />
-        <Route path="/film/:id" element={<FilmPage />} />
+        <Route path="/theater/:id" element={<CinemaPage />} />
+        <Route path="/movie/:id" element={<MoviePage />} />
         <Route
           path="/admin"
           element={

@@ -27,7 +27,7 @@ describe('Scrape Attempt Queries', () => {
 
       const id = await createScrapeAttempt(mockDb, {
         report_id: 1,
-        cinema_id: 'C0001',
+        theater_id: 'C0001',
         date: '2026-03-25',
       });
 
@@ -45,7 +45,7 @@ describe('Scrape Attempt Queries', () => {
 
       const id = await createScrapeAttempt(mockDb, {
         report_id: 1,
-        cinema_id: 'C0002',
+        theater_id: 'C0002',
         date: '2026-03-26',
         status: 'success',
       });
@@ -64,7 +64,7 @@ describe('Scrape Attempt Queries', () => {
 
       await createScrapeAttempt(mockDb, {
         report_id: 1,
-        cinema_id: 'C0001',
+        theater_id: 'C0001',
         date: '2026-03-25',
         status: 'failed',
       });
@@ -93,7 +93,7 @@ describe('Scrape Attempt Queries', () => {
 
       await updateScrapeAttempt(mockDb, 42, {
         status: 'success',
-        films_scraped: 5,
+        movies_scraped: 5,
         showtimes_scraped: 25,
       });
 
@@ -132,39 +132,39 @@ describe('Scrape Attempt Queries', () => {
         {
           id: 1,
           report_id: 1,
-          cinema_id: 'C0001',
+          theater_id: 'C0001',
           date: '2026-03-25',
           status: 'failed',
           error_type: 'network',
           error_message: 'Timeout',
           http_status_code: null,
-          films_scraped: 0,
+          movies_scraped: 0,
           showtimes_scraped: 0,
           attempted_at: '2026-03-24T10:00:00Z',
         },
         {
           id: 2,
           report_id: 1,
-          cinema_id: 'C0002',
+          theater_id: 'C0002',
           date: '2026-03-25',
           status: 'rate_limited',
           error_type: 'http_429',
           error_message: 'Too many requests',
           http_status_code: 429,
-          films_scraped: 0,
+          movies_scraped: 0,
           showtimes_scraped: 0,
           attempted_at: '2026-03-24T10:05:00Z',
         },
         {
           id: 3,
           report_id: 1,
-          cinema_id: 'C0003',
+          theater_id: 'C0003',
           date: '2026-03-25',
           status: 'not_attempted',
           error_type: null,
           error_message: null,
           http_status_code: null,
-          films_scraped: 0,
+          movies_scraped: 0,
           showtimes_scraped: 0,
           attempted_at: '2026-03-24T10:05:00Z',
         },
@@ -200,26 +200,26 @@ describe('Scrape Attempt Queries', () => {
         {
           id: 1,
           report_id: 1,
-          cinema_id: 'C0001',
+          theater_id: 'C0001',
           date: '2026-03-25',
           status: 'success',
           error_type: null,
           error_message: null,
           http_status_code: null,
-          films_scraped: 5,
+          movies_scraped: 5,
           showtimes_scraped: 25,
           attempted_at: '2026-03-24T10:00:00Z',
         },
         {
           id: 2,
           report_id: 1,
-          cinema_id: 'C0001',
+          theater_id: 'C0001',
           date: '2026-03-26',
           status: 'failed',
           error_type: 'network',
           error_message: 'Connection timeout',
           http_status_code: null,
-          films_scraped: 0,
+          movies_scraped: 0,
           showtimes_scraped: 0,
           attempted_at: '2026-03-24T10:05:00Z',
         },
@@ -240,17 +240,17 @@ describe('Scrape Attempt Queries', () => {
   });
 
   describe('getScrapeAttempt', () => {
-    it('should return specific attempt by report, cinema, and date', async () => {
+    it('should return specific attempt by report, theater, and date', async () => {
       const mockAttempt: ScrapeAttempt = {
         id: 1,
         report_id: 1,
-        cinema_id: 'C0001',
+        theater_id: 'C0001',
         date: '2026-03-25',
         status: 'success',
         error_type: null,
         error_message: null,
         http_status_code: null,
-        films_scraped: 5,
+        movies_scraped: 5,
         showtimes_scraped: 25,
         attempted_at: '2026-03-24T10:00:00Z',
       };
@@ -263,7 +263,7 @@ describe('Scrape Attempt Queries', () => {
 
       expect(result).toEqual(mockAttempt);
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE report_id = $1 AND cinema_id = $2 AND date = $3'),
+        expect.stringContaining('WHERE report_id = $1 AND theater_id = $2 AND date = $3'),
         [1, 'C0001', '2026-03-25']
       );
     });

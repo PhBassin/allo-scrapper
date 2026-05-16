@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import CinemaDateSelector from './CinemaDateSelector';
-import type { ShowtimeWithFilm } from '../types';
+import type { ShowtimeWithMovie } from '../types';
 
 const FIXED_TODAY = '2026-03-30';
 const FIXED_TIME = '14:32';
@@ -14,16 +14,16 @@ const mockFormatDateLabel = (dateStr: string) => {
   return { weekday: 'lun', day: date.getDate(), month: 'mars' };
 };
 
-const makeShowtime = (date: string, time = '14:00'): ShowtimeWithFilm => ({
+const makeShowtime = (date: string, time = '14:00'): ShowtimeWithMovie => ({
   id: `${date}-${time}`,
-  film_id: 1,
+  movie_id: 1,
   cinema_id: 'C1',
   date,
   time,
   datetime_iso: `${date}T${time}:00.000Z`,
   experiences: [],
   week_start: '2026-03-25',
-  film: { id: 1, title: 'Film Test', source_url: '' } as any,
+  movie: { id: 1, title: 'Film Test', source_url: '' } as any,
 });
 
 describe('CinemaDateSelector — bouton Maintenant', () => {

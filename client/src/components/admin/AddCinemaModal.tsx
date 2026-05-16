@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import type { CinemaCreate } from '../../api/cinemas';
+import type { TheaterCreate } from '../../api/theaters';
 
 interface AddCinemaModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (data: CinemaCreate) => Promise<void>;
+  onAdd: (data: TheaterCreate) => Promise<void>;
 }
 
 type Tab = 'smart' | 'manual';

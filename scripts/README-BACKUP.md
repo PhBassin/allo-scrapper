@@ -89,7 +89,7 @@ Are you sure you want to continue? (yes/no): yes
 ✅ Database restored successfully!
 
 🔍 Verify with:
-   docker compose exec ics-db psql -U postgres ics -c 'SELECT COUNT(*) FROM films;'
+   docker compose exec ics-db psql -U postgres ics -c 'SELECT COUNT(*) FROM movies;'
 ```
 
 ---
@@ -191,7 +191,7 @@ Are you ABSOLUTELY SURE you want to continue? Type 'yes' to proceed: yes
 🚀 Restarting production web service...
 🔍 Verifying restore...
 ✅ Production database restored successfully!
-   Films in database: 1234
+   Movies in database: 1234
    Safety backup saved: ~/allo-scrapper/backups/before_restore_production_20260301_143530.sql.gz
 ```
 
@@ -440,7 +440,7 @@ For a complete system backup (config + database):
 tar -czf allo-scrapper-complete-$(date +%Y%m%d).tar.gz \
   .env \
   docker-compose.yml \
-  server/src/config/cinemas.json \
+  server/src/config/theaters.json \
   backups/
 
 # Restore from complete backup

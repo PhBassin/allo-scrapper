@@ -25,7 +25,7 @@ AlloCiné (and most websites) actively monitor and throttle aggressive automated
 
 - **Avoid rate limiting** - Configure delays to stay under detection thresholds
 - **Debug scraping failures** - Understand 403/429 errors and recovery strategies
-- **Optimize for scale** - Balance speed and reliability with multiple cinemas
+- **Optimize for scale** - Balance speed and reliability with multiple theaters
 - **Monitor health** - Detect rate-limiting problems early
 
 ### Key Metrics
@@ -57,7 +57,7 @@ AlloCiné uses **multiple detection layers**:
 
 3. **Behavioral Analysis**
    - Request timing and sequencing (bot-like patterns)
-   - Specific cinema focus (ignores popular pages, targets obscure cinemas)
+   - Specific theater focus (ignores popular pages, targets obscure theaters)
    - Missing HTTP headers (referrer, accept-language)
 
 ### Why Delays Matter
@@ -88,49 +88,49 @@ Optimized Scraping (with delays):
 
 There are **two main delay settings**:
 
-#### `SCRAPE_THEATER_DELAY_MS` - Delay Between Cinemas
+#### `SCRAPE_THEATER_DELAY_MS` - Delay Between Theaters
 
-**Purpose:** Delay after scraping all dates for one cinema before starting next cinema
+**Purpose:** Delay after scraping all dates for one theater before starting next theater
 
 **Default:** 3000ms (3 seconds)
 
 **When to adjust:**
 - **Increase to 5000-10000ms** if experiencing 429 errors
-- **Decrease to 2000ms** if scraping only 1-3 cinemas
-- **Per-cinema basis** - see advanced section
+- **Decrease to 2000ms** if scraping only 1-3 theaters
+- **Per-theater basis** - see advanced section
 
-**Example timeline** (with 3 cinemas, 7 dates each):
+**Example timeline** (with 3 theaters, 7 dates each):
 ```
-Cinema 1:
-  └─ Dates 1-7: 7 requests × 500ms film delays = 3500ms
+Theater 1:
+  └─ Dates 1-7: 7 requests × 500ms movie delays = 3500ms
   └─ Wait: 3000ms (SCRAPE_THEATER_DELAY_MS)
 
-Cinema 2:
-  └─ Dates 1-7: 7 requests × 500ms film delays = 3500ms
+Theater 2:
+  └─ Dates 1-7: 7 requests × 500ms movie delays = 3500ms
   └─ Wait: 3000ms
 
-Cinema 3:
-  └─ Dates 1-7: 7 requests × 500ms film delays = 3500ms
+Theater 3:
+  └─ Dates 1-7: 7 requests × 500ms movie delays = 3500ms
 
 Total time: ~22 seconds for 21 showtimes requests
 ```
 
-#### `SCRAPE_MOVIE_DELAY_MS` - Delay Between Film Detail Fetches
+#### `SCRAPE_MOVIE_DELAY_MS` - Delay Between Movie Detail Fetches
 
-**Purpose:** Delay when fetching individual film metadata (duration, director, synopsis)
+**Purpose:** Delay when fetching individual movie metadata (duration, director, synopsis)
 
 **Default:** 500ms
 
 **When to adjust:**
-- **Increase to 1000ms** if fetching many unknown films
-- **Decrease to 200-300ms** if most films already cached
-- Film details only fetched for **new films without duration**
+- **Increase to 1000ms** if fetching many unknown movies
+- **Decrease to 200-300ms** if most movies already cached
+- Movie details only fetched for **new movies without duration**
 
 **Example trigger:**
 ```javascript
-// Film detail fetch is triggered only if:
-if (!existingFilm || existingFilm.duration_minutes === null) {
-  await fetchFilmPage(filmId);  // Add SCRAPE_MOVIE_DELAY_MS delay
+// Movie detail fetch is triggered only if:
+if (!existingMovie || existingMovie.duration_minutes === null) {
+  await fetchMoviePage(movieId);  // Add SCRAPE_MOVIE_DELAY_MS delay
 }
 ```
 
@@ -142,7 +142,7 @@ if (!existingFilm || existingFilm.duration_minutes === null) {
 
 **Symptoms:**
 - Scrape starts successfully
-- Fails midway through (after 5-15 cinemas)
+- Fails midway through (after 5-15 theaters)
 - Error message: `429 Too Many Requests`
 - Followed by subsequent scrapes also failing
 
@@ -170,16 +170,16 @@ docker compose restart ics-web
 docker compose restart ics-scraper
 ```
 
-**2. Reduce Cinema Count**
+**2. Reduce Theater Count**
 
-If scraping 20+ cinemas, split into two scheduled scrapes:
+If scraping 20+ theaters, split into two scheduled scrapes:
 
 ```sql
--- Scrape odd-numbered cinemas at 8am
-SELECT * FROM cinemas WHERE id % 2 = 1;
+-- Scrape odd-numbered theaters at 8am
+SELECT * FROM theaters WHERE id % 2 = 1;
 
--- Scrape even-numbered cinemas at 12pm
-SELECT * FROM cinemas WHERE id % 2 = 0;
+-- Scrape even-numbered theaters at 12pm
+SELECT * FROM theaters WHERE id % 2 = 0;
 ```
 
 **3. Check for Competing Requests**
@@ -213,13 +213,13 @@ curl -v "https://www.allocine.fr/_/showtimes?d=2026-03-18&t=C0072" \
 
 **What happens when 429 is detected:**
 
-1. **Immediate stop**: Scraper breaks both date loop and cinema loop
+1. **Immediate stop**: Scraper breaks both date loop and theater loop
 2. **Status change**: Report status set to `rate_limited` (not `failed`)
 3. **Error classification**: Error includes:
    ```json
    {
-     "cinema_name": "Example Cinema",
-     "cinema_id": "C0123",
+     "theater_name": "Example Theater",
+     "theater_id": "C0123",
      "date": "2026-03-24",
      "error": "HTTP 429 Too Many Requests",
      "error_type": "http_429",
@@ -227,7 +227,7 @@ curl -v "https://www.allocine.fr/_/showtimes?d=2026-03-18&t=C0072" \
    }
    ```
 4. **UI feedback**: Orange badge in admin panel with explanation
-5. **Remaining cinemas**: Marked as "not attempted" (not failed)
+5. **Remaining theaters**: Marked as "not attempted" (not failed)
 
 **Viewing rate-limited reports:**
 
@@ -253,15 +253,15 @@ curl http://localhost:3000/api/reports?page=1 \
 4. **Retry manually**: Use admin panel to trigger new scrape
 
 **Phase 2 (Implemented - v4.2.0+):**
-- **Resume capability**: Retry only the cinema/date combinations that weren't successfully scraped ✅
-- **Granular tracking**: Per-cinema, per-date attempt status (success, failed, rate_limited, not_attempted) ✅
+- **Resume capability**: Retry only the theater/date combinations that weren't successfully scraped ✅
+- **Granular tracking**: Per-theater, per-date attempt status (success, failed, rate_limited, not_attempted) ✅
 - **Parent-child reports**: Resumed scrapes link to original report via `parent_report_id` ✅
 - **UI integration**: Resume button appears on rate-limited reports in admin panel ✅
 
 **Resume Workflow:**
 
 1. **Rate limit detected**: Original scrape stops, status set to `rate_limited`
-2. **View details**: Admin clicks "View Details" to see per-cinema/per-date breakdown
+2. **View details**: Admin clicks "View Details" to see per-theater/per-date breakdown
 3. **Click resume**: Admin clicks "Resume Scrape" button on rate-limited report
 4. **New report created**: System creates new report with `parent_report_id` linking to original
 5. **Selective retry**: Only attempts marked as `pending`, `failed`, `rate_limited`, or `not_attempted` are retried
@@ -292,9 +292,9 @@ curl http://localhost:3000/api/reports/123/details \
       "not_attempted": 12
     },
     "attempts": [
-      { "cinema_id": "C0042", "cinema_name": "UGC Montparnasse", "date": "2026-03-25", "status": "success" },
-      { "cinema_id": "C0042", "cinema_name": "UGC Montparnasse", "date": "2026-03-26", "status": "rate_limited" },
-      { "cinema_id": "C0089", "cinema_name": "Max Linder", "date": "2026-03-25", "status": "not_attempted" }
+      { "theater_id": "C0042", "theater_name": "UGC Montparnasse", "date": "2026-03-25", "status": "success" },
+      { "theater_id": "C0042", "theater_name": "UGC Montparnasse", "date": "2026-03-26", "status": "rate_limited" },
+      { "theater_id": "C0089", "theater_name": "Max Linder", "date": "2026-03-25", "status": "not_attempted" }
     ]
   }
 }
@@ -311,8 +311,8 @@ curl -X POST http://localhost:3000/api/scraper/resume/123 \
     "parentReportId": 123,
     "message": "Resume scrape started successfully",
     "pendingAttempts": [
-      { "cinema_id": "C0042", "date": "2026-03-26" },
-      { "cinema_id": "C0089", "date": "2026-03-25" }
+      { "theater_id": "C0042", "date": "2026-03-26" },
+      { "theater_id": "C0089", "date": "2026-03-25" }
     ]
   }
 }
@@ -382,7 +382,7 @@ docker compose up --network=host
 
 **4. Check AlloCiné API Changes**
 
-If 403 persists across all cinemas, API may have changed:
+If 403 persists across all theaters, API may have changed:
 - Visit `https://www.allocine.fr/seance/` manually
 - Check Network tab in DevTools
 - Look for new authentication headers or CSRF tokens
@@ -396,7 +396,7 @@ If 403 persists across all cinemas, API may have changed:
 
 **Current system performance** (with defaults):
 ```
-3 cinemas × 7 days = 21 requests
+3 theaters × 7 days = 21 requests
 Time: ~22 seconds
 Rate: ~1 request/second
 Reliability: 99.9% (< 0.1% failures)
@@ -418,66 +418,66 @@ Success rate: 95% (1/20 scrapes fail)
 ```
 SCRAPE_THEATER_DELAY_MS=5000
 Success rate: 99.9% (< 1/500 scrapes fail)
-Tradeoff: +3 seconds per cinema added
+Tradeoff: +3 seconds per theater added
 ```
 
 #### Strategy 2: Reduce Delay for Speed
 
-**When:** Scraping only 1-3 cinemas, speed critical
+**When:** Scraping only 1-3 theaters, speed critical
 
 **Before:**
 ```
 SCRAPE_THEATER_DELAY_MS=3000
-5 cinemas: ~22 seconds
+5 theaters: ~22 seconds
 ```
 
 **After:**
 ```
 SCRAPE_THEATER_DELAY_MS=1500
-5 cinemas: ~12 seconds
+5 theaters: ~12 seconds
 Monitor for errors
 ```
 
-**Warning:** Only safe with very few cinemas
+**Warning:** Only safe with very few theaters
 
-#### Strategy 3: Optimize Film Detail Fetching
+#### Strategy 3: Optimize Movie Detail Fetching
 
-**Default behavior:** Fetches duration for every new film
+**Default behavior:** Fetches duration for every new movie
 
-**Optimization:** Cache film metadata more aggressively
+**Optimization:** Cache movie metadata more aggressively
 
 ```sql
--- Find films with missing duration
-SELECT id, title, duration_minutes FROM films 
+-- Find movies with missing duration
+SELECT id, title, duration_minutes FROM movies 
 WHERE duration_minutes IS NULL 
 LIMIT 10;
 
 -- Manually update if known
-UPDATE films SET duration_minutes = 150 
-WHERE id = 'film_12345';
+UPDATE movies SET duration_minutes = 150 
+WHERE id = 'movie_12345';
 ```
 
 #### Strategy 4: Split Large Scrapes
 
-**When:** Scraping 10+ cinemas regularly
+**When:** Scraping 10+ theaters regularly
 
 **Before:** One big scrape every week
 ```
-20 cinemas × 3000ms delay = 60 seconds minimum
+20 theaters × 3000ms delay = 60 seconds minimum
 High failure risk due to duration
 ```
 
 **After:** Two medium scrapes
 ```
-10 cinemas × 3000ms delay = 30 seconds each
+10 theaters × 3000ms delay = 30 seconds each
 Lower risk, can retry independently
 ```
 
 **Implementation:**
 ```bash
 # Schedule smaller scrapes
-SCRAPE_CRON_SCHEDULE="0 8 * * 3"    # All cinemas Wed 8am
-SCRAPE_CRON_SCHEDULE_2="0 20 * * 3" # Half cinemas Wed 8pm
+SCRAPE_CRON_SCHEDULE="0 8 * * 3"    # All theaters Wed 8am
+SCRAPE_CRON_SCHEDULE_2="0 20 * * 3" # Half theaters Wed 8pm
 ```
 
 ---
@@ -494,9 +494,9 @@ curl -N http://localhost:3000/api/scraper/progress \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Output example:
-data: {"type":"cinema_started","cinema_name":"UGC Montparnasse","cinema_id":"C0042"}
-data: {"type":"date_started","date":"2026-03-18","cinema_name":"UGC Montparnasse"}
-data: {"type":"film_started","film_title":"Dune: Part Two"}
+data: {"type":"theater_started","theater_name":"UGC Montparnasse","theater_id":"C0042"}
+data: {"type":"date_started","date":"2026-03-18","theater_name":"UGC Montparnasse"}
+data: {"type":"movie_started","movie_title":"Dune: Part Two"}
 data: {"type":"date_completed","success":true}
 ```
 
@@ -516,9 +516,9 @@ scrape_duration_seconds               # How long scrapes take
 docker compose logs ics-web | grep -i "429\|403\|timeout"
 
 # Example output showing rate limit:
-2026-03-18T10:15:23Z [scraper] Cinema C0042: 429 Too Many Requests
+2026-03-18T10:15:23Z [scraper] Theater C0042: 429 Too Many Requests
 2026-03-18T10:15:23Z [scraper] Retrying after 2000ms...
-2026-03-18T10:15:25Z [scraper] Cinema C0042: Success
+2026-03-18T10:15:25Z [scraper] Theater C0042: Success
 ```
 
 ### Debug Mode
@@ -575,11 +575,11 @@ DOCKER_GID=1000
 
 ### Scaling Checklist
 
-For **scaling to 50+ cinemas**:
+For **scaling to 50+ theaters**:
 
 1. **Split into multiple scrapes**
-   - Even cinemas: 3am Wednesday
-   - Odd cinemas: 9am Wednesday
+   - Even theaters: 3am Wednesday
+   - Odd theaters: 9am Wednesday
 
 2. **Use multiple scraper instances**
    ```bash
@@ -593,27 +593,27 @@ For **scaling to 50+ cinemas**:
 
 4. **Set up alerts**
    - Alert if scrape takes > 5 minutes
-   - Alert if > 20% cinemas fail
+   - Alert if > 20% theaters fail
    - Alert if queue depth > 10
 
 ---
 
 ## Advanced Techniques
 
-### Per-Cinema Delay Configuration
+### Per-Theater Delay Configuration
 
-**Future enhancement** - dynamically adjust delay per cinema:
+**Future enhancement** - dynamically adjust delay per theater:
 
 ```typescript
 // Pseudocode for future implementation
-const CINEMA_DELAY_MAP = {
+const THEATER_DELAY_MAP = {
   'C0042': 2000,  // UGC Montparnasse (high capacity, strict limits)
   'C0089': 3000,  // Max Linder (moderate)
   'W7504': 1500,  // Épée de Bois (low capacity, lenient)
 };
 
-async function scrapeCinema(cinema: Cinema) {
-  const delay = CINEMA_DELAY_MAP[cinema.id] || DEFAULT_DELAY;
+async function scrapeTheater(theater: Theater) {
+  const delay = THEATER_DELAY_MAP[theater.id] || DEFAULT_DELAY;
   // ... scrape logic ...
   await delayMs(delay);
 }
@@ -623,10 +623,10 @@ async function scrapeCinema(cinema: Cinema) {
 
 **Current setup:**
 - Single Puppeteer browser instance
-- Reused across all cinemas
+- Reused across all theaters
 - Closed after scrape completes
 
-**For very high scale** (100+ cinemas), consider:
+**For very high scale** (100+ theaters), consider:
 ```typescript
 // Browser pool to parallelize requests
 const BROWSER_POOL_SIZE = 2;
@@ -636,8 +636,8 @@ const browsers = await Promise.all(
     .map(() => puppeteer.launch())
 );
 
-// Distribute cinemas across browsers
-for (const cinema of cinemas) {
+// Distribute theaters across browsers
+for (const theater of theaters) {
   const browser = browsers[index % BROWSER_POOL_SIZE];
   // ...scrape with this browser...
 }
@@ -651,9 +651,9 @@ for (const cinema of cinemas) {
 // Pseudocode
 let lastFailureTime = null;
 
-for (const cinema of cinemas) {
+for (const theater of theaters) {
   try {
-    await scrapeCinema(cinema);
+    await scrapeTheater(theater);
     lastFailureTime = null;  // Reset on success
   } catch (err) {
     if (err.status === 429) {
@@ -674,7 +674,7 @@ for (const cinema of cinemas) {
 | Start conservative | Better to be slow and reliable | `SCRAPE_THEATER_DELAY_MS=3000` |
 | Monitor continuously | Catch problems early | Check queue depth daily |
 | Schedule off-peak | Less competition from other users | 3am instead of 8pm |
-| Test before scaling | Verify settings work | Try with 2 cinemas first |
+| Test before scaling | Verify settings work | Try with 2 theaters first |
 | Have fallback plan | Scrapes sometimes fail anyway | Cron can retry automatically |
 | Document changes | Future-you will thank you | Record why you changed delays |
 

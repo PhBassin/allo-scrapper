@@ -1,17 +1,17 @@
 import { useState, useMemo, useCallback } from 'react';
-import type { CinemaWithShowtimes, Film } from '../types';
+import type { CinemaWithShowtimes, Movie } from '../types';
 import ShowtimeList from './ShowtimeList';
 import { Link } from 'react-router-dom';
 import { getUniqueDates, formatDateLabel } from '../utils/date';
 
 interface CinemaShowtimesProps {
   cinemas: CinemaWithShowtimes[];
-  film: Film;
+  movie: Movie;
   initialDate?: string;
   initialAfterTime?: string | null;
 }
 
-export default function CinemaShowtimes({ cinemas, film, initialDate, initialAfterTime }: CinemaShowtimesProps) {
+export default function CinemaShowtimes({ cinemas, movie, initialDate, initialAfterTime }: CinemaShowtimesProps) {
   const allShowtimes = useMemo(() => 
     cinemas.flatMap(c => c.showtimes),
     [cinemas]
@@ -132,7 +132,7 @@ export default function CinemaShowtimes({ cinemas, film, initialDate, initialAft
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-lg font-bold">
-                  <Link to={`/cinema/${cinema.id}`} className="hover:text-primary transition">
+                  <Link to={`/theater/${cinema.id}`} className="hover:text-primary transition">
                     {cinema.name}
                   </Link>
                 </h3>
@@ -143,7 +143,7 @@ export default function CinemaShowtimes({ cinemas, film, initialDate, initialAft
                 )}
               </div>
               <Link
-                to={`/cinema/${cinema.id}`}
+                to={`/theater/${cinema.id}`}
                 className="text-xs font-semibold text-primary-dark hover:underline bg-yellow-100 px-2 py-1 rounded"
               >
                 Fiche cinéma
@@ -151,7 +151,7 @@ export default function CinemaShowtimes({ cinemas, film, initialDate, initialAft
             </div>
 
             <div className="pt-3 border-t border-gray-50">
-              <ShowtimeList showtimes={showtimes} film={film} cinema={cinema} />
+              <ShowtimeList showtimes={showtimes} movie={movie} cinema={cinema} />
             </div>
           </div>
         ))}

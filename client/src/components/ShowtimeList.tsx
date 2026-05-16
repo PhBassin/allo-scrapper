@@ -1,14 +1,14 @@
 import { useMemo, memo, useState, useCallback, useRef } from 'react';
-import type { Showtime, Film, Cinema } from '../types';
+import type { Showtime, Movie, Cinema } from '../types';
 import CalendarPopover from './CalendarPopover';
 
 interface ShowtimeListProps {
   showtimes: Showtime[];
-  film: Film;
+  movie: Movie;
   cinema: Cinema;
 }
 
-function ShowtimeList({ showtimes, film, cinema }: ShowtimeListProps) {
+function ShowtimeList({ showtimes, movie, cinema }: ShowtimeListProps) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
@@ -69,7 +69,7 @@ function ShowtimeList({ showtimes, film, cinema }: ShowtimeListProps) {
                   {isOpen && (
                     <CalendarPopover
                       showtime={showtime}
-                      film={film}
+                      movie={movie}
                       cinema={cinema}
                       anchorRef={anchorRef}
                       onClose={handleClose}

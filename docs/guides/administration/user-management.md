@@ -9,7 +9,7 @@ Guide to managing users and access control through the admin panel.
 Allo-Scrapper uses a comprehensive Role-Based Access Control (RBAC) system with granular permissions and flexible role assignments:
 
 - **Admin**: Full system access with bypass privileges for all operations
-- **Operator**: Predefined role for scraping operations and cinema management (7 specific permissions)
+- **Operator**: Predefined role for scraping operations and theater management (7 specific permissions)
 - **Custom Roles**: User-defined roles with specific permission combinations
 
 This guide covers managing user accounts through the admin panel interface. For API-based user management, see the [Users API Reference](../../reference/api/users.md).
@@ -56,7 +56,7 @@ This guide covers managing user accounts through the admin panel interface. For 
 **Effective Permissions**: All 26 permissions across all categories:
 - **User Management**: Create, edit, delete users; manage roles and permissions
 - **Settings Management**: Modify branding, colors, typography, footer, email settings
-- **Cinema Management**: Add, edit, remove cinemas; trigger scraping operations
+- **Theater Management**: Add, edit, remove theaters; trigger scraping operations
 - **System Access**: View system diagnostics, database statistics, migration status
 - **Role Management**: Create and manage custom roles and permissions
 - **Configuration**: Export/import settings, reset to defaults
@@ -73,19 +73,19 @@ This guide covers managing user accounts through the admin panel interface. For 
 
 **Permissions:**
 - `scraper:trigger` - Trigger global scraping operations
-- `scraper:trigger_single` - Trigger scraping for individual cinemas
-- `cinemas:create` - Add new cinemas to the system
-- `cinemas:update` - Modify existing cinema information
-- `cinemas:delete` - Remove cinemas from the system
-- `cinemas:read` - View cinemas list and details
+- `scraper:trigger_single` - Trigger scraping for individual theaters
+- `theaters:create` - Add new theaters to the system
+- `theaters:update` - Modify existing theater information
+- `theaters:delete` - Remove theaters from the system
+- `theaters:read` - View theaters list and details
 - `users:read` - View user details (read-only)
 - `reports:list` - View list of scraping reports
 - `reports:view` - View detailed scraping report information
 
 **Use Cases:**
-- Operations staff managing cinema data
+- Operations staff managing theater data
 - Personnel responsible for scraping operations
-- Users who need cinema management without full admin access
+- Users who need theater management without full admin access
 
 ### Custom Roles
 
@@ -94,8 +94,8 @@ This guide covers managing user accounts through the admin panel interface. For 
 
 **Examples of Custom Roles:**
 
-**Cinema Manager**:
-- `cinemas:create`, `cinemas:update`, `cinemas:delete`
+**Theater Manager**:
+- `theaters:create`, `theaters:update`, `theaters:delete`
 - `reports:list`, `reports:view`
 
 **Reports Viewer**:
@@ -172,7 +172,7 @@ This guide covers managing user accounts through the admin panel interface. For 
 - `SecurePass123!`
 - `MyP@ssw0rd`
 - `Admin2024#`
-- `Cinema$123`
+- `Theater$123`
 
 **Invalid examples:**
 - `password` (no uppercase, digit, or special character)
@@ -299,18 +299,18 @@ Custom roles provide flexibility to create specific permission sets for differen
 1. Navigate to admin panel → "Roles" section
 2. Click "Create New Role" button
 3. Fill in role details:
-   - **Name**: Descriptive role name (e.g., "Cinema Manager")
+   - **Name**: Descriptive role name (e.g., "Theater Manager")
    - **Description**: Purpose and scope of the role
 4. Select permissions from available categories:
-   - Users, Scraper, Cinemas, Settings, Reports, System, Roles
+   - Users, Scraper, Theaters, Settings, Reports, System, Roles
 5. Save the role
 
 #### Assigning Permissions to Roles
 
 **Permission Categories**:
 - **Users** (4): List, create, update, delete user accounts
-- **Scraper** (2): Trigger global or single-cinema scraping
-- **Cinemas** (3): Create, update, delete cinema information
+- **Scraper** (2): Trigger global or single-theater scraping
+- **Theaters** (3): Create, update, delete theater information
 - **Settings** (5): Read, update, reset, export, import application settings
 - **Reports** (2): List and view scraping reports
 - **System** (3): View system info, health, and migration status
@@ -318,7 +318,7 @@ Custom roles provide flexibility to create specific permission sets for differen
 
 **Best Practices**:
 - Start with minimal permissions and add as needed
-- Group related permissions together (e.g., cinema management)
+- Group related permissions together (e.g., theater management)
 - Test role functionality before assigning to users
 - Document the purpose of each custom role
 
@@ -371,10 +371,10 @@ Custom roles provide flexibility to create specific permission sets for differen
 - Delete user accounts
 - View user list and details
 
-**Cinema Management:**
-- Add new cinemas to the system
-- Edit cinema information
-- Remove cinemas
+**Theater Management:**
+- Add new theaters to the system
+- Edit theater information
+- Remove theaters
 - Trigger manual scraping operations
 
 **System Operations:**
@@ -389,10 +389,10 @@ Custom roles provide flexibility to create specific permission sets for differen
 **Read-only operations available to regular users:**
 
 **Content Viewing:**
-- Browse all films and showtimes
-- View cinema information and locations
+- Browse all movies and showtimes
+- View theater information and locations
 - Access search and filtering features
-- View detailed film information
+- View detailed movie information
 
 **Navigation:**
 - Access all public pages
@@ -404,7 +404,7 @@ Custom roles provide flexibility to create specific permission sets for differen
 - Access admin panel (`/admin/*` routes)
 - Modify any settings or configuration
 - Manage other user accounts
-- Add or remove cinemas
+- Add or remove theaters
 - View system diagnostics
 - Export or import settings
 

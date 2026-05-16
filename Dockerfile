@@ -1,5 +1,5 @@
 # ============================================================================
-# Multi-Stage Dockerfile for Cinema Scraper
+# Multi-Stage Dockerfile for Theater Scraper
 # ============================================================================
 # Stage 1: Dependencies (Shared)
 # Stage 2: Build Frontend (React + Vite)
@@ -108,7 +108,7 @@ RUN rm -f package-lock.json && \
 # Copy built backend from builder
 COPY --from=backend-builder --chown=nodejs:nodejs /app/server/dist ./server/dist
 # Copy only the JSON config file, not the entire directory (to preserve compiled JS files)
-COPY --from=backend-builder --chown=nodejs:nodejs /app/server/src/config/cinemas.json ./server/dist/config/cinemas.json
+COPY --from=backend-builder --chown=nodejs:nodejs /app/server/src/config/theaters.json ./server/dist/config/theaters.json
 
 # Copy database migrations
 COPY --chown=nodejs:nodejs migrations ./migrations

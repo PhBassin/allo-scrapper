@@ -61,8 +61,8 @@ This document provides a comprehensive overview of the Allo-Scrapper documentati
 | README.md | ✅ | March 2026 | High | API reference hub |
 | overview.md | ✅ | March 18, 2026 | High | API overview and base info (timestamp added) |
 | auth.md | ✅ | March 2026 | High | Authentication endpoints |
-| cinemas.md | ✅ | March 2026 | High | Cinema management API |
-| films.md | ✅ | March 18, 2026 | Medium | Film data endpoints (timestamp added) |
+| theaters.md | ✅ | March 2026 | High | Theater management API |
+| movies.md | ✅ | March 18, 2026 | Medium | Movie data endpoints (timestamp added) |
 | health.md | ✅ | March 18, 2026 | Low | Health check endpoint (timestamp added) |
 | scraper.md | ✅ | March 18, 2026 | High | Scraper control (6 schedule endpoints added) |
 | reports.md | ✅ | March 18, 2026 | High | Reports and statistics (timestamp added) |

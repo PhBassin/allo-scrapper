@@ -111,7 +111,7 @@ npm run test:ui
 
 - Write tests for public API functions first
 - Cover edge cases and error handling
-- Use descriptive test names: `should extract cinema address correctly`
+- Use descriptive test names: `should extract theater address correctly`
 - Group related tests in `describe()` blocks
 - Use fixtures for realistic data (see `server/tests/fixtures/`)
 - **For authentication tests:** Set `process.env.JWT_SECRET` before importing modules that use it
@@ -147,8 +147,8 @@ For detailed testing documentation, see [Testing Guide](./testing.md).
 
 | Type | Description | Example |
 |------|-------------|---------|
-| `feat` | New feature | `feat(scraper): add support for UGC cinemas` |
-| `fix` | Bug fix | `fix(api): handle missing film poster gracefully` |
+| `feat` | New feature | `feat(scraper): add support for UGC theaters` |
+| `fix` | Bug fix | `fix(api): handle missing movie poster gracefully` |
 | `docs` | Documentation only | `docs(readme): update API examples` |
 | `test` | Adding/updating tests | `test(parser): add edge cases for empty HTML` |
 | `chore` | Maintenance tasks | `chore(deps): update vitest to v1.2.0` |
@@ -177,14 +177,14 @@ For detailed testing documentation, see [Testing Guide](./testing.md).
 feat(scraper): add retry logic for failed requests
 
 # Bug fix referencing issue
-fix(api): return 404 for unknown cinema IDs
+fix(api): return 404 for unknown theater IDs
 
 Closes #42
 
 # Breaking change (use ! or BREAKING CHANGE footer)
-feat(api)!: change film endpoint response format
+feat(api)!: change movie endpoint response format
 
-BREAKING CHANGE: The /api/films/:id endpoint now returns
+BREAKING CHANGE: The /api/movies/:id endpoint now returns
 nested showtime objects instead of flat arrays.
 
 # Multiple-line body
@@ -212,13 +212,13 @@ refactor(parser): extract date parsing into utility
 
 ```bash
 # Commit 1: Add test
-test(parser): add test for cinema with no films
+test(parser): add test for theater with no movies
 
 # Commit 2: Implement feature
-feat(parser): handle cinemas with no films showing
+feat(parser): handle theaters with no movies showing
 
 # Commit 3: Update docs
-docs(readme): document empty cinema behavior
+docs(readme): document empty theater behavior
 ```
 
 ### Bad Examples
@@ -328,7 +328,7 @@ docker compose build
 docker compose build --build-arg VITE_APP_NAME="My Custom Name"
 
 # Manual docker build
-docker build --build-arg VITE_APP_NAME="Test Cinema" .
+docker build --build-arg VITE_APP_NAME="Test Theater" .
 
 # Verify the build result
 docker run --rm <image-name> cat /app/public/index.html | grep title
@@ -363,7 +363,7 @@ build-args: |
 Follow the same Conventional Commits format:
 
 ```
-feat(scraper): add support for MK2 cinema chain
+feat(scraper): add support for MK2 theater chain
 fix(api): correct showtime timezone handling
 docs: add deployment troubleshooting section
 ```
@@ -403,7 +403,7 @@ Use the PR template which includes:
 | Functions | camelCase | `parseTheaterPage()` |
 | Classes | PascalCase | `HttpClient` |
 | Constants | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT` |
-| Types/Interfaces | PascalCase | `Cinema`, `FilmData` |
+| Types/Interfaces | PascalCase | `Theater`, `MovieData` |
 
 ### File Organization
 

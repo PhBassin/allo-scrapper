@@ -15,7 +15,7 @@ function CinemasQuickLinks({ cinemas, canAddCinema, onAddCinema }: CinemasQuickL
         {cinemas.map((cinema) => (
           <Link
             key={cinema.id}
-            to={`/cinema/${cinema.id}`}
+            to={`/theater/${cinema.id}`}
             className="px-3 py-1.5 bg-gray-50 text-gray-700 text-sm rounded-lg hover:bg-primary hover:text-black transition font-semibold"
           >
             {cinema.name}

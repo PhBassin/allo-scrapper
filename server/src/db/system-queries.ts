@@ -29,8 +29,8 @@ export interface PendingMigration {
 export interface DatabaseStats {
   size: string;
   tables: number;
-  cinemas: number;
-  films: number;
+  theaters: number;
+  movies: number;
   showtimes: number;
 }
 
@@ -110,8 +110,8 @@ export async function getDatabaseStats(db: DB): Promise<DatabaseStats> {
   const [
     sizeResult,
     tableCountResult,
-    cinemaCountResult,
-    filmCountResult,
+    theaterCountResult,
+    movieCountResult,
     showtimeCountResult
   ] = await Promise.all([
     // Get database size
@@ -127,14 +127,14 @@ export async function getDatabaseStats(db: DB): Promise<DatabaseStats> {
          AND table_type = 'BASE TABLE'`,
       []
     ),
-    // Get cinema count
+    // Get theater count
     db.query(
-      `SELECT COUNT(*)::text AS count FROM cinemas`,
+      `SELECT COUNT(*)::text AS count FROM theaters`,
       []
     ),
-    // Get film count
+    // Get movie count
     db.query(
-      `SELECT COUNT(*)::text AS count FROM films`,
+      `SELECT COUNT(*)::text AS count FROM movies`,
       []
     ),
     // Get showtime count
@@ -146,15 +146,15 @@ export async function getDatabaseStats(db: DB): Promise<DatabaseStats> {
 
   const size = sizeResult.rows[0]?.size || '0 bytes';
   const tables = parseInt(tableCountResult.rows[0]?.count || '0', 10);
-  const cinemas = parseInt(cinemaCountResult.rows[0]?.count || '0', 10);
-  const films = parseInt(filmCountResult.rows[0]?.count || '0', 10);
+  const theaters = parseInt(theaterCountResult.rows[0]?.count || '0', 10);
+  const movies = parseInt(movieCountResult.rows[0]?.count || '0', 10);
   const showtimes = parseInt(showtimeCountResult.rows[0]?.count || '0', 10);
 
   return {
     size,
     tables,
-    cinemas,
-    films,
+    theaters,
+    movies,
     showtimes,
   };
 }

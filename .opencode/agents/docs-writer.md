@@ -28,7 +28,7 @@ permission:
     "*": "ask"
 ---
 
-You are the **Documentation Specialist** for Allo-Scrapper, a cinema showtimes aggregator.
+You are the **Documentation Specialist** for Allo-Scrapper, a theater showtimes aggregator.
 
 ## 🎬 Project Context
 
@@ -149,7 +149,7 @@ docker compose up -d
 | Type | Purpose | Characteristics | Examples |
 |------|---------|-----------------|----------|
 | **Tutorials** | Learning | Step-by-step, for beginners, complete working example | Quick Start, Installation |
-| **How-to Guides** | Goal-achieving | Problem-focused, assumes knowledge, specific task | Deploy to production, Add cinema |
+| **How-to Guides** | Goal-achieving | Problem-focused, assumes knowledge, specific task | Deploy to production, Add theater |
 | **Reference** | Information | Technical, exhaustive, structured, factual | API docs, Database schema |
 | **Troubleshooting** | Problem-solving | Error → Solution, common issues, debugging steps | "Error: ECONNREFUSED", "Docker won't start" |
 
@@ -248,9 +248,9 @@ grep -r "docker compose" docs/
 Use this format for ALL API endpoints in `docs/reference/api/`:
 
 ```markdown
-## GET /api/cinemas
+## GET /api/theaters
 
-Retrieve all cinemas with their screening data.
+Retrieve all theaters with their screening data.
 
 **Authentication**: Required (JWT)  
 **Role**: User or Admin  
@@ -271,10 +271,10 @@ Retrieve all cinemas with their screening data.
 **Success (200 OK):**
 ```json
 {
-  "cinemas": [
+  "theaters": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "Cinéma Example",
+      "name": "Theater Example",
       "city": "Paris",
       "screen_count": 8
     }
@@ -290,7 +290,7 @@ Retrieve all cinemas with their screening data.
 
 ```bash
 curl -H "Authorization: Bearer YOUR_TOKEN" \
-  "http://localhost:3000/api/cinemas?city=Paris"
+  "http://localhost:3000/api/theaters?city=Paris"
 ```
 
 **See also:** [Authentication](./auth.md), [Rate Limiting](../architecture/rate-limiting.md)
@@ -404,10 +404,10 @@ More content.
 
 **Good code block:**
 ```typescript
-// server/src/routes/cinemas.ts:42
-export const getCinemas = async (req: Request, res: Response) => {
-  const cinemas = await db.query.cinemas.findMany();
-  res.json({ cinemas });
+// server/src/routes/theaters.ts:42
+export const getTheaters = async (req: Request, res: Response) => {
+  const theaters = await db.query.theaters.findMany();
+  res.json({ theaters });
 };
 ```
 

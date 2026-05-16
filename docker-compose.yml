@@ -46,11 +46,11 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     volumes:
-      # Mount cinema config so API changes to cinemas.json are visible on host
-      # This enables: git add server/src/config/cinemas.json && git commit && git push
-      # IMPORTANT: Mount only cinemas.json, not the entire config/ directory
+      # Mount theater config so API changes to theaters.json are visible on host
+      # This enables: git add server/src/config/theaters.json && git commit && git push
+      # IMPORTANT: Mount only theaters.json, not the entire config/ directory
       # (config/ now contains compiled TypeScript files like rate-limits.js)
-      - ./server/src/config/cinemas.json:/app/server/dist/config/cinemas.json
+      - ./server/src/config/theaters.json:/app/server/dist/config/theaters.json
     environment:
       NODE_ENV: production
       POSTGRES_HOST: ics-db

@@ -28,12 +28,12 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
   const scraperService = new ScraperService(dbConn);
 
   try {
-    // Extract and validate cinemaId and filmId from request body
-    const { cinemaId, filmId } = (req.body ?? {}) as { cinemaId?: string; filmId?: number };
+    // Extract and validate theaterId and movieId from request body
+    const { theaterId, movieId } = (req.body ?? {}) as { theaterId?: string; movieId?: number };
 
-    // Permission check: scraper:trigger for all-cinema scrape, scraper:trigger_single for single-cinema
-    // scraper:trigger is a superset (allows both all-cinema and single-cinema)
-    const requiredPermission = cinemaId ? 'scraper:trigger_single' : 'scraper:trigger';
+    // Permission check: scraper:trigger for all-theater scrape, scraper:trigger_single for single-theater
+    // scraper:trigger is a superset (allows both all-theater and single-theater)
+    const requiredPermission = theaterId ? 'scraper:trigger_single' : 'scraper:trigger';
 
     // Admin bypass
     if (!(req.user?.role_name === 'admin' && req.user?.is_system_role)) {
@@ -45,7 +45,7 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
       }
     }
 
-    const { reportId, queueDepth } = await scraperService.triggerScrape({ cinemaId, filmId });
+    const { reportId, queueDepth } = await scraperService.triggerScrape({ theaterId, movieId });
 
     const response: ApiResponse = {
       success: true,
@@ -57,7 +57,7 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
     };
     res.json(response);
   } catch (error: any) {
-    if (error.message.startsWith('Cinema not found')) {
+    if (error.message.startsWith('Theater not found')) {
       return next(new NotFoundError(error.message));
     }
     next(error);
@@ -217,7 +217,7 @@ router.post(
         return next(new AuthError('User not authenticated'));
       }
 
-      const { name, description, cron_expression, enabled, target_cinemas } = req.body as ScrapeScheduleCreate;
+      const { name, description, cron_expression, enabled, target_theaters } = req.body as ScrapeScheduleCreate;
 
       if (!name || typeof name !== 'string' || name.trim() === '') {
         return next(new ValidationError('Schedule name is required'));
@@ -232,7 +232,7 @@ router.post(
         description,
         cron_expression: cron_expression.trim(),
         enabled,
-        target_cinemas,
+        target_theaters,
       }, userId);
 
       await getRedisClient().publishScheduleChange({
@@ -277,14 +277,14 @@ router.put(
         return next(new NotFoundError('Schedule not found'));
       }
 
-      const { name, description, cron_expression, enabled, target_cinemas } = req.body as ScrapeScheduleUpdate;
+      const { name, description, cron_expression, enabled, target_theaters } = req.body as ScrapeScheduleUpdate;
 
       const updated = await updateSchedule(db, id, {
         name,
         description,
         cron_expression,
         enabled,
-        target_cinemas,
+        target_theaters,
       }, userId);
 
       await getRedisClient().publishScheduleChange({
@@ -360,7 +360,7 @@ router.post(
       }
 
       const { reportId, queueDepth } = await scraperService.triggerScrape({
-        cinemaId: schedule.target_cinemas?.[0],
+        theaterId: schedule.target_theaters?.[0],
       });
 
       const response: ApiResponse = {

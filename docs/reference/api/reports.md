@@ -32,10 +32,10 @@ GET /api/reports
         "completed_at": "2024-02-15T10:15:23.000Z",
         "status": "success",
         "trigger_type": "cron",
-        "total_cinemas": 2,
-        "successful_cinemas": 2,
-        "failed_cinemas": 0,
-        "total_films_scraped": 45,
+        "total_theaters": 2,
+        "successful_theaters": 2,
+        "failed_theaters": 0,
+        "total_movies_scraped": 45,
         "total_showtimes_scraped": 234,
         "errors": []
       }
@@ -81,7 +81,7 @@ GET /api/reports/:id
     "id": 42,
     "status": "success",
     "trigger_type": "manual",
-    "total_cinemas": 3
+    "total_theaters": 3
   }
 }
 ```
@@ -111,7 +111,7 @@ GET /api/reports/:id/details
 **Parameters:**
 - `id` (integer): Report ID
 
-**Description:** Get detailed breakdown of all scrape attempts for this report, including per-cinema, per-date status.
+**Description:** Get detailed breakdown of all scrape attempts for this report, including per-theater, per-date status.
 
 **Response:**
 ```json
@@ -131,8 +131,8 @@ GET /api/reports/:id/details
     },
     "attempts": [
       {
-        "cinema_id": "C0042",
-        "cinema_name": "UGC Montparnasse",
+        "theater_id": "C0042",
+        "theater_name": "UGC Montparnasse",
         "date": "2026-03-25",
         "status": "success",
         "created_at": "2026-03-24T10:00:00Z",
@@ -140,8 +140,8 @@ GET /api/reports/:id/details
         "error_message": null
       },
       {
-        "cinema_id": "C0042",
-        "cinema_name": "UGC Montparnasse",
+        "theater_id": "C0042",
+        "theater_name": "UGC Montparnasse",
         "date": "2026-03-26",
         "status": "rate_limited",
         "created_at": "2026-03-24T10:00:15Z",
@@ -149,8 +149,8 @@ GET /api/reports/:id/details
         "error_message": "HTTP 429 Too Many Requests"
       },
       {
-        "cinema_id": "C0089",
-        "cinema_name": "Max Linder",
+        "theater_id": "C0089",
+        "theater_name": "Max Linder",
         "date": "2026-03-25",
         "status": "not_attempted",
         "created_at": "2026-03-24T10:00:17Z",
@@ -167,15 +167,15 @@ GET /api/reports/:id/details
 - `status` - Overall report status (`running`, `success`, `partial_success`, `failed`, `rate_limited`)
 - `parentReportId` - If this is a resumed scrape, ID of the original report (null otherwise)
 - `summary` - Aggregate counts of attempts by status
-  - `total` - Total number of cinema/date combinations attempted
+  - `total` - Total number of theater/date combinations attempted
   - `successful` - Number of successful attempts
   - `failed` - Number of failed attempts (non-rate-limit errors)
   - `rate_limited` - Number of rate-limited attempts
   - `not_attempted` - Number of attempts that were never started (stopped before reaching them)
   - `pending` - Number of attempts currently in progress
 - `attempts` - Array of all scrape attempts with detailed status
-  - `cinema_id` - Cinema identifier (e.g., "C0042")
-  - `cinema_name` - Human-readable cinema name
+  - `theater_id` - Theater identifier (e.g., "C0042")
+  - `theater_name` - Human-readable theater name
   - `date` - Scrape date in YYYY-MM-DD format
   - `status` - Attempt status (`pending`, `success`, `failed`, `rate_limited`, `not_attempted`)
   - `created_at` - When attempt was created
@@ -203,9 +203,9 @@ curl "http://localhost:3000/api/reports/123/details" \
 ```
 
 **Use Cases:**
-- **Debug rate limits**: See exactly which cinema/date hit the rate limit
+- **Debug rate limits**: See exactly which theater/date hit the rate limit
 - **Resume planning**: Identify which attempts need to be retried
-- **Performance analysis**: Understand failure patterns across cinemas/dates
+- **Performance analysis**: Understand failure patterns across theaters/dates
 - **Audit trail**: Track complete history of scrape attempts
 
 ---

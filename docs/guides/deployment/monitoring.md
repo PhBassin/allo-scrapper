@@ -82,7 +82,7 @@ Dashboards are automatically provisioned from `docker/grafana/dashboards/`.
 
 | Dashboard | UID | Description |
 |---|---|---|
-| **Scraper Performance** | `scraper-perf` | Job rate, duration histograms (p50/p95/p99), films & showtimes scraped |
+| **Scraper Performance** | `scraper-perf` | Job rate, duration histograms (p50/p95/p99), movies & showtimes scraped |
 | **Infrastructure** | `infra` | PostgreSQL connections/transactions, Redis memory/ops/queue depth, Node.js heap |
 | **Application (API & Logs)** | `app` | HTTP request rate, error rate, response latency, structured logs |
 
@@ -94,7 +94,7 @@ Dashboards are automatically provisioned from `docker/grafana/dashboards/`.
 **Dashboard features:**
 - Real-time metrics with auto-refresh
 - Time range selection (Last 5m, 1h, 24h, etc.)
-- Variable filters (by cinema, endpoint, etc.)
+- Variable filters (by theater, endpoint, etc.)
 - Direct links to traces from logs
 
 ---
@@ -106,8 +106,8 @@ Dashboards are automatically provisioned from `docker/grafana/dashboards/`.
 | Metric | Type | Labels | Description |
 |---|---|---|---|
 | `scrape_jobs_total` | Counter | `status` (success/failed), `trigger_type` | Total scrape jobs processed |
-| `scrape_duration_seconds` | Histogram | `cinema_id` | Time to scrape a single cinema |
-| `films_scraped_total` | Counter | — | Total films written to DB |
+| `scrape_duration_seconds` | Histogram | `theater_id` | Time to scrape a single theater |
+| `movies_scraped_total` | Counter | — | Total movies written to DB |
 | `showtimes_scraped_total` | Counter | — | Total showtimes written to DB |
 
 **Example queries:**
@@ -115,11 +115,11 @@ Dashboards are automatically provisioned from `docker/grafana/dashboards/`.
 # Scrape success rate (last 5m)
 rate(scrape_jobs_total{status="success"}[5m])
 
-# P95 scrape duration by cinema
+# P95 scrape duration by theater
 histogram_quantile(0.95, rate(scrape_duration_seconds_bucket[5m]))
 
-# Total films scraped today
-increase(films_scraped_total[24h])
+# Total movies scraped today
+increase(movies_scraped_total[24h])
 ```
 
 ---
@@ -157,9 +157,9 @@ Both `ics-web` and `ics-scraper` emit **structured JSON logs** in production (co
   "message": "Scrape completed",
   "service": "ics-scraper",
   "timestamp": "2026-02-20T18:00:00.000Z",
-  "cinema_id": "C0053",
+  "theater_id": "C0053",
   "duration_ms": 1234,
-  "films_count": 15,
+  "movies_count": 15,
   "showtimes_count": 87
 }
 ```
@@ -183,8 +183,8 @@ Both `ics-web` and `ics-scraper` emit **structured JSON logs** in production (co
 # Error logs from web service
 {container_name="ics-web"} |= "error"
 
-# Logs for specific cinema
-{container_name="ics-scraper"} | json | cinema_id="C0053"
+# Logs for specific theater
+{container_name="ics-scraper"} | json | theater_id="C0053"
 
 # Scrape duration > 5 seconds
 {container_name="ics-scraper"} | json | duration_ms > 5000
@@ -219,12 +219,12 @@ docker compose restart ics-web ics-scraper
 4. Search by:
    - Trace ID (from log lines)
    - Service name (`ics-scraper`, `ics-web`)
-   - Tags (cinema_id, endpoint, etc.)
+   - Tags (theater_id, endpoint, etc.)
 
 **Trace structure:**
 - **Root span**: HTTP request or scrape job
 - **Child spans**: Database queries, HTTP requests, parsing operations
-- **Attributes**: cinema_id, film_count, duration, etc.
+- **Attributes**: theater_id, movie_count, duration, etc.
 
 **Linking logs to traces:**
 - Trace IDs appear in Loki log lines when `OTEL_ENABLED=true`

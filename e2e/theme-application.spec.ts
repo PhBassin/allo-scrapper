@@ -51,7 +51,7 @@ test.describe('White-Label Theme Application', () => {
       await expect(page.locator('h1')).toContainText('Settings');
 
       // Update site name
-      const customSiteName = 'My Custom Cinema';
+      const customSiteName = 'My Custom Theater';
       await page.fill('input[name="site_name"]', customSiteName);
       await page.click('button:has-text("Save Changes")');
 
@@ -113,7 +113,7 @@ test.describe('White-Label Theme Application', () => {
       await page.click('button:has-text("Footer")');
 
       // Update footer text
-      const customFooterText = 'Custom cinema database - Updated daily';
+      const customFooterText = 'Custom theater database - Updated daily';
       await page.fill('textarea[name="footer_text"]', customFooterText);
       await page.click('button:has-text("Save Changes")');
 

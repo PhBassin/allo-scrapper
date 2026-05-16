@@ -49,7 +49,7 @@ describe('requirePermission middleware', () => {
       username: 'operator',
       role_name: 'operator',
       is_system_role: false,
-      permissions: ['cinemas:read'],
+      permissions: ['theaters:read'],
     });
     const middleware = requirePermission('scraper:trigger');
     await middleware(req, res, next);
@@ -68,7 +68,7 @@ describe('requirePermission middleware', () => {
       username: 'operator',
       role_name: 'operator',
       is_system_role: false,
-      permissions: ['scraper:trigger', 'cinemas:read'],
+      permissions: ['scraper:trigger', 'theaters:read'],
     });
     const middleware = requirePermission('scraper:trigger');
     await middleware(req, res, next);
@@ -113,9 +113,9 @@ describe('requirePermission middleware', () => {
       username: 'operator',
       role_name: 'operator',
       is_system_role: false,
-      permissions: ['cinemas:create'],
+      permissions: ['theaters:create'],
     });
-    const middleware = requirePermission('cinemas:create', 'cinemas:delete');
+    const middleware = requirePermission('theaters:create', 'theaters:delete');
     await middleware(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(403);
@@ -128,9 +128,9 @@ describe('requirePermission middleware', () => {
       username: 'operator',
       role_name: 'operator',
       is_system_role: false,
-      permissions: ['cinemas:create', 'cinemas:delete', 'cinemas:update'],
+      permissions: ['theaters:create', 'theaters:delete', 'theaters:update'],
     });
-    const middleware = requirePermission('cinemas:create', 'cinemas:delete');
+    const middleware = requirePermission('theaters:create', 'theaters:delete');
     await middleware(req, res, next);
 
     expect(next).toHaveBeenCalledOnce();

@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE movies
+  ADD COLUMN IF NOT EXISTS trailer_url TEXT;
+
+COMMIT;

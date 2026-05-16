@@ -10,10 +10,10 @@ export interface ScrapeReport {
   completed_at?: string;
   status: 'running' | 'success' | 'partial_success' | 'failed';
   trigger_type: 'manual' | 'cron';
-  total_cinemas?: number;
-  successful_cinemas?: number;
-  failed_cinemas?: number;
-  total_films_scraped?: number;
+  total_theaters?: number;
+  successful_theaters?: number;
+  failed_theaters?: number;
+  total_movies_scraped?: number;
   total_showtimes_scraped?: number;
   errors?: unknown[];
   progress_log?: unknown[];
@@ -53,21 +53,21 @@ export async function updateScrapeReport(
     fields.push(`status = $${paramIndex++}`);
     values.push(data.status);
   }
-  if (data.total_cinemas !== undefined) {
-    fields.push(`total_cinemas = $${paramIndex++}`);
-    values.push(data.total_cinemas);
+  if (data.total_theaters !== undefined) {
+    fields.push(`total_theaters = $${paramIndex++}`);
+    values.push(data.total_theaters);
   }
-  if (data.successful_cinemas !== undefined) {
-    fields.push(`successful_cinemas = $${paramIndex++}`);
-    values.push(data.successful_cinemas);
+  if (data.successful_theaters !== undefined) {
+    fields.push(`successful_theaters = $${paramIndex++}`);
+    values.push(data.successful_theaters);
   }
-  if (data.failed_cinemas !== undefined) {
-    fields.push(`failed_cinemas = $${paramIndex++}`);
-    values.push(data.failed_cinemas);
+  if (data.failed_theaters !== undefined) {
+    fields.push(`failed_theaters = $${paramIndex++}`);
+    values.push(data.failed_theaters);
   }
-  if (data.total_films_scraped !== undefined) {
-    fields.push(`total_films_scraped = $${paramIndex++}`);
-    values.push(data.total_films_scraped);
+  if (data.total_movies_scraped !== undefined) {
+    fields.push(`total_movies_scraped = $${paramIndex++}`);
+    values.push(data.total_movies_scraped);
   }
   if (data.total_showtimes_scraped !== undefined) {
     fields.push(`total_showtimes_scraped = $${paramIndex++}`);

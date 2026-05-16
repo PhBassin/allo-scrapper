@@ -2,7 +2,7 @@
 
 **Last updated:** March 18, 2026 | Status: Current ✅
 
-Complete guide to extending Allo-Scrapper with custom data sources, implementing new scraper strategies, and managing multiple cinema source integrations.
+Complete guide to extending Allo-Scrapper with custom data sources, implementing new scraper strategies, and managing multiple theater source integrations.
 
 ---
 
@@ -21,10 +21,10 @@ Complete guide to extending Allo-Scrapper with custom data sources, implementing
 
 ## Overview
 
-Allo-Scrapper uses the **Strategy Pattern** to support multiple cinema data sources. By default, only AlloCiné is implemented, but you can add:
+Allo-Scrapper uses the **Strategy Pattern** to support multiple theater data sources. By default, only AlloCiné is implemented, but you can add:
 
-- **New cinema websites** (CGR, Cinéma Pathé, independent theaters)
-- **Regional cinema chains** with custom APIs
+- **New theater websites** (CGR, Theater Pathé, independent theaters)
+- **Regional theater chains** with custom APIs
 - **Aggregator platforms** (Fandango, Ticketmaster)
 - **Fallback sources** for redundancy
 
@@ -32,7 +32,7 @@ Allo-Scrapper uses the **Strategy Pattern** to support multiple cinema data sour
 
 | Scenario | Solution |
 |----------|----------|
-| Add UGC Cinemas (has separate booking site) | Implement UGCScraperStrategy |
+| Add UGC Theaters (has separate booking site) | Implement UGCScraperStrategy |
 | Support AlloCiné + Pathé + CGR simultaneously | Multiple strategies, automatic routing |
 | Theater-specific custom API | CustomTheaterScraperStrategy |
 | Fallback if AlloCiné down | Use strategy chain with fallback |
@@ -54,27 +54,27 @@ export interface IScraperStrategy {
   
   // URL Handling
   canHandleUrl(url: string): boolean;
-  extractCinemaId(url: string): string | null;
-  cleanCinemaUrl(url: string): string;
+  extractTheaterId(url: string): string | null;
+  cleanTheaterUrl(url: string): string;
   
   // Metadata
   async loadTheaterMetadata(
     db: DB, 
-    cinema: CinemaConfig
+    theater: TheaterConfig
   ): Promise<{ 
     availableDates: string[]; 
-    cinema: Cinema 
+    theater: Theater 
   }>;
   
   // Scraping
   async scrapeTheater(
     db: DB, 
-    cinema: CinemaConfig, 
+    theater: TheaterConfig, 
     date: string, 
     movieDelayMs: number, 
     progress?: ProgressPublisher
   ): Promise<{ 
-    filmsCount: number; 
+    moviesCount: number; 
     showtimesCount: number 
   }>;
 }
@@ -83,8 +83,8 @@ export interface IScraperStrategy {
 ### How Strategy Selection Works
 
 ```
-User adds cinema via API:
-  POST /api/cinemas { url: "https://www.ugc.fr/..." }
+User adds theater via API:
+  POST /api/theaters { url: "https://www.ugc.fr/..." }
                            ↓
                   StrategyFactory.getStrategyByUrl(url)
                            ↓
@@ -94,7 +94,7 @@ User adds cinema via API:
                            ↓
           Returns UGCScraperStrategy instance
                            ↓
-         Saves cinema with source='ugc'
+         Saves theater with source='ugc'
 ```
 
 ---
@@ -108,7 +108,7 @@ Create a new file: `scraper/src/scraper/strategies/UGCScraperStrategy.ts`
 ```typescript
 import { IScraperStrategy } from './IScraperStrategy.js';
 import type { DB } from '../../db/client.js';
-import type { Cinema, CinemaConfig } from '../../types/scraper.js';
+import type { Theater, TheaterConfig } from '../../types/scraper.js';
 import type { ProgressPublisher } from '../../redis/client.js';
 
 export class UGCScraperStrategy implements IScraperStrategy {
@@ -117,20 +117,20 @@ export class UGCScraperStrategy implements IScraperStrategy {
   // ===== URL HANDLING =====
   canHandleUrl(url: string): boolean {
     // Match URLs like:
-    // https://www.ugccinemas.fr/cinemas/paris-odeon
-    // https://ugccinemas.fr/seance/cinema-123
-    return /ugccinemas\.fr/.test(url);
+    // https://www.ugctheaters.fr/theaters/paris-odeon
+    // https://ugctheaters.fr/seance/theater-123
+    return /ugctheaters\.fr/.test(url);
   }
 
-  extractCinemaId(url: string): string | null {
-    // Extract cinema ID from URL
-    // Example: https://ugccinemas.fr/cinemas/UGC-PARIS-ODEON
+  extractTheaterId(url: string): string | null {
+    // Extract theater ID from URL
+    // Example: https://ugctheaters.fr/theaters/UGC-PARIS-ODEON
     // Returns: UGC-PARIS-ODEON
-    const match = url.match(/cinemas\/([^/?]+)/);
+    const match = url.match(/theaters\/([^/?]+)/);
     return match ? match[1] : null;
   }
 
-  cleanCinemaUrl(url: string): string {
+  cleanTheaterUrl(url: string): string {
     // Normalize URL to canonical form
     return url.replace(/[?#].*$/, '');  // Remove query params
   }
@@ -138,70 +138,70 @@ export class UGCScraperStrategy implements IScraperStrategy {
   // ===== METADATA =====
   async loadTheaterMetadata(
     db: DB,
-    cinema: CinemaConfig
-  ): Promise<{ availableDates: string[]; cinema: Cinema }> {
-    // 1. Fetch cinema info page
-    const html = await this.fetchCinemaPage(cinema.url);
+    theater: TheaterConfig
+  ): Promise<{ availableDates: string[]; theater: Theater }> {
+    // 1. Fetch theater info page
+    const html = await this.fetchTheaterPage(theater.url);
 
-    // 2. Parse cinema metadata
-    const cinemaData = this.parseCinemaMetadata(html);
+    // 2. Parse theater metadata
+    const theaterData = this.parseTheaterMetadata(html);
 
     // 3. Extract available dates
     const availableDates = this.parseAvailableDates(html);
 
     // 4. Upsert to database
     await db.query(
-      'INSERT INTO cinemas (id, name, url, source) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET name=$2, url=$3',
-      [cinemaData.id, cinemaData.name, cinema.url, this.sourceName]
+      'INSERT INTO theaters (id, name, url, source) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET name=$2, url=$3',
+      [theaterData.id, theaterData.name, theater.url, this.sourceName]
     );
 
     return {
       availableDates,
-      cinema: { id: cinemaData.id, name: cinemaData.name, source: this.sourceName }
+      theater: { id: theaterData.id, name: theaterData.name, source: this.sourceName }
     };
   }
 
   // ===== SCRAPING =====
   async scrapeTheater(
     db: DB,
-    cinema: CinemaConfig,
+    theater: TheaterConfig,
     date: string,
     movieDelayMs: number,
     progress?: ProgressPublisher
-  ): Promise<{ filmsCount: number; showtimesCount: number }> {
+  ): Promise<{ moviesCount: number; showtimesCount: number }> {
     // 1. Fetch showtimes for date
-    const html = await this.fetchShowtimesPage(cinema.url, date);
+    const html = await this.fetchShowtimesPage(theater.url, date);
 
-    // 2. Parse films and showtimes
-    const { films, showtimes } = this.parseShowtimes(html, cinema.id, date);
+    // 2. Parse movies and showtimes
+    const { movies, showtimes } = this.parseShowtimes(html, theater.id, date);
 
-    // 3. Fetch film details for unknown films
-    for (const film of films) {
-      if (!film.duration_minutes) {
+    // 3. Fetch movie details for unknown movies
+    for (const movie of movies) {
+      if (!movie.duration_minutes) {
         await this.sleep(movieDelayMs);
-        const filmDetails = await this.fetchFilmDetails(film.id);
-        Object.assign(film, filmDetails);
+        const movieDetails = await this.fetchMovieDetails(movie.id);
+        Object.assign(movie, movieDetails);
       }
     }
 
     // 4. Upsert to database
-    await db.query('INSERT INTO films (id, title, duration_minutes) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET duration_minutes=$3', 
-      [films[0].id, films[0].title, films[0].duration_minutes]);
+    await db.query('INSERT INTO movies (id, title, duration_minutes) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET duration_minutes=$3', 
+      [movies[0].id, movies[0].title, movies[0].duration_minutes]);
     // ... more upserts ...
 
     // 5. Report progress
     progress?.emit({ type: 'showtimes_saved', count: showtimes.length });
 
-    return { filmsCount: films.length, showtimesCount: showtimes.length };
+    return { moviesCount: movies.length, showtimesCount: showtimes.length };
   }
 
   // ===== PRIVATE HELPER METHODS =====
-  private async fetchCinemaPage(url: string): Promise<string> {
+  private async fetchTheaterPage(url: string): Promise<string> {
     // Implement HTTP request with retries, timeouts, headers
     // See: scraper/src/scraper/http-client.ts for reference
   }
 
-  private parseCinemaMetadata(html: string): { id: string; name: string; } {
+  private parseTheaterMetadata(html: string): { id: string; name: string; } {
     // Use Cheerio to parse HTML
     // See: scraper/src/scraper/theater-parser.ts for reference
   }
@@ -214,12 +214,12 @@ export class UGCScraperStrategy implements IScraperStrategy {
     // Fetch showtimes for specific date
   }
 
-  private parseShowtimes(html: string, cinemaId: string, date: string) {
-    // Parse films and showtimes from HTML/JSON
+  private parseShowtimes(html: string, theaterId: string, date: string) {
+    // Parse movies and showtimes from HTML/JSON
   }
 
-  private async fetchFilmDetails(filmId: string) {
-    // Fetch film metadata (duration, director, synopsis)
+  private async fetchMovieDetails(movieId: string) {
+    // Fetch movie metadata (duration, director, synopsis)
   }
 
   private sleep(ms: number): Promise<void> {
@@ -279,39 +279,39 @@ describe('UGCScraperStrategy', () => {
     strategy = new UGCScraperStrategy();
     
     // Load HTML fixture
-    const fixturePath = path.resolve('./tests/fixtures/ugc-cinema-page.html');
+    const fixturePath = path.resolve('./tests/fixtures/ugc-theater-page.html');
     htmlFixture = fs.readFileSync(fixturePath, 'utf-8');
   });
 
   describe('URL Handling', () => {
-    it('should recognize UGC cinema URLs', () => {
-      expect(strategy.canHandleUrl('https://www.ugccinemas.fr/cinemas/paris-odeon'))
+    it('should recognize UGC theater URLs', () => {
+      expect(strategy.canHandleUrl('https://www.ugctheaters.fr/theaters/paris-odeon'))
         .toBe(true);
       
       expect(strategy.canHandleUrl('https://allocine.fr/seance/'))
         .toBe(false);
     });
 
-    it('should extract cinema ID from URL', () => {
-      const url = 'https://ugccinemas.fr/cinemas/UGC-PARIS-ODEON';
-      expect(strategy.extractCinemaId(url))
+    it('should extract theater ID from URL', () => {
+      const url = 'https://ugctheaters.fr/theaters/UGC-PARIS-ODEON';
+      expect(strategy.extractTheaterId(url))
         .toBe('UGC-PARIS-ODEON');
     });
 
     it('should clean URLs removing query params', () => {
-      const url = 'https://ugccinemas.fr/cinemas/paris?date=2026-03-18#reviews';
-      expect(strategy.cleanCinemaUrl(url))
-        .toBe('https://ugccinemas.fr/cinemas/paris');
+      const url = 'https://ugctheaters.fr/theaters/paris?date=2026-03-18#reviews';
+      expect(strategy.cleanTheaterUrl(url))
+        .toBe('https://ugctheaters.fr/theaters/paris');
     });
   });
 
   describe('Parsing', () => {
-    it('should parse cinema metadata', () => {
-      const result = strategy.parseCinemaMetadata(htmlFixture);
+    it('should parse theater metadata', () => {
+      const result = strategy.parseTheaterMetadata(htmlFixture);
       
       expect(result).toHaveProperty('id');
       expect(result).toHaveProperty('name');
-      expect(result.name).toMatch(/UGC|Cinéma/i);
+      expect(result.name).toMatch(/UGC|Theater/i);
     });
 
     it('should parse available dates', () => {
@@ -324,18 +324,18 @@ describe('UGCScraperStrategy', () => {
     });
 
     it('should parse showtimes from fixture', () => {
-      const { films, showtimes } = strategy.parseShowtimes(
+      const { movies, showtimes } = strategy.parseShowtimes(
         htmlFixture,
         'UGC-PARIS',
         '2026-03-18'
       );
       
-      expect(films.length).toBeGreaterThan(0);
+      expect(movies.length).toBeGreaterThan(0);
       expect(showtimes.length).toBeGreaterThan(0);
       
       // Verify structure
-      expect(films[0]).toHaveProperty('id');
-      expect(films[0]).toHaveProperty('title');
+      expect(movies[0]).toHaveProperty('id');
+      expect(movies[0]).toHaveProperty('title');
       expect(showtimes[0]).toHaveProperty('time');
     });
   });
@@ -351,13 +351,13 @@ describe('UGCScraperStrategy', () => {
 **Step 1: Fetch Real HTML**
 
 ```bash
-# Fetch cinema page
-curl "https://www.ugccinemas.fr/cinemas/paris-odeon" \
+# Fetch theater page
+curl "https://www.ugctheaters.fr/theaters/paris-odeon" \
   -H "User-Agent: Mozilla/5.0" \
-  -o scraper/tests/fixtures/ugc-cinema-page.html
+  -o scraper/tests/fixtures/ugc-theater-page.html
 
 # Fetch showtimes page
-curl "https://www.ugccinemas.fr/showtimes?cinema=UGC-PARIS&date=2026-03-18" \
+curl "https://www.ugctheaters.fr/showtimes?theater=UGC-PARIS&date=2026-03-18" \
   -H "User-Agent: Mozilla/5.0" \
   -o scraper/tests/fixtures/ugc-showtimes.html
 
@@ -380,21 +380,21 @@ git add scraper/tests/fixtures/ugc-*.html
 ```typescript
 import * as cheerio from 'cheerio';
 
-private parseCinemaMetadata(html: string) {
+private parseTheaterMetadata(html: string) {
   const $ = cheerio.load(html);
   
-  // Example: Parse cinema name from heading
-  const name = $('h1.cinema-title').text().trim();
+  // Example: Parse theater name from heading
+  const name = $('h1.theater-title').text().trim();
   
-  // Example: Parse cinema ID from data attribute
-  const id = $('[data-cinema-id]').attr('data-cinema-id');
+  // Example: Parse theater ID from data attribute
+  const id = $('[data-theater-id]').attr('data-theater-id');
   
   // Example: Parse address
-  const address = $('.cinema-address').text().trim();
+  const address = $('.theater-address').text().trim();
   
   return {
     id: id || 'unknown',
-    name: name || 'Unknown Cinema',
+    name: name || 'Unknown Theater',
     address
   };
 }
@@ -464,9 +464,9 @@ private async fetchShowtimesPageDynamic(url: string, date: string): Promise<stri
 ### Problem: Websites Change Structure
 
 ```
-2026-03-01: Cinema website redesigns
+2026-03-01: Theater website redesigns
   Old HTML:
-    <div class="cinema-name">...</div>
+    <div class="theater-name">...</div>
   New HTML:
     <h1 class="theater-title">...</h1>
 
@@ -476,11 +476,11 @@ private async fetchShowtimesPageDynamic(url: string, date: string): Promise<stri
 ### Solution 1: Defensive Parsing with Fallbacks
 
 ```typescript
-private parseCinemaName(html: string): string {
+private parseTheaterName(html: string): string {
   const $ = cheerio.load(html);
   
   // Try primary selector
-  let name = $('h1.cinema-name').text().trim();
+  let name = $('h1.theater-name').text().trim();
   
   // Fallback to secondary selector
   if (!name) {
@@ -499,8 +499,8 @@ private parseCinemaName(html: string): string {
   
   // Log if all failed
   if (!name) {
-    logger.warn(`Could not parse cinema name, using fallback`);
-    return 'Unknown Cinema';
+    logger.warn(`Could not parse theater name, using fallback`);
+    return 'Unknown Theater';
   }
   
   return name;
@@ -513,7 +513,7 @@ private parseCinemaName(html: string): string {
 // Tracker version with parser version
 const PARSER_VERSION = '2.0';  // Increment on breaking changes
 
-private async parseShowtimes(html: string, cinemaId: string, date: string) {
+private async parseShowtimes(html: string, theaterId: string, date: string) {
   // ... parsing logic ...
   
   const showtimes = [/* ... */];
@@ -534,15 +534,15 @@ expect(result.parserVersion).toBe('2.0');
 
 ```typescript
 async function monitorParserHealth(strategy: IScraperStrategy) {
-  const testUrl = 'https://...cinema-url...';
+  const testUrl = 'https://...theater-url...';
   const date = formatDate(new Date());
   
   try {
     const result = await strategy.scrapeTheater(db, { url: testUrl }, date, 500);
     
     // Check if result looks reasonable
-    if (result.filmsCount === 0) {
-      logger.error(`${strategy.sourceName} parser returned 0 films - possible HTML structure change`);
+    if (result.moviesCount === 0) {
+      logger.error(`${strategy.sourceName} parser returned 0 movies - possible HTML structure change`);
       // Alert operations team
       sendAlert(`Parser ${strategy.sourceName} may be broken`);
     }
@@ -572,18 +572,18 @@ export class FallbackStrategy implements IScraperStrategy {
   
   async scrapeTheater(
     db: DB,
-    cinema: CinemaConfig,
+    theater: TheaterConfig,
     date: string,
     movieDelayMs: number,
     progress?: ProgressPublisher
   ) {
     try {
-      return await this.primaryStrategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
+      return await this.primaryStrategy.scrapeTheater(db, theater, date, movieDelayMs, progress);
     } catch (primaryError) {
       logger.warn(`Primary strategy failed, trying fallback`, { error: primaryError });
       
       try {
-        return await this.fallbackStrategy.scrapeTheater(db, cinema, date, movieDelayMs, progress);
+        return await this.fallbackStrategy.scrapeTheater(db, theater, date, movieDelayMs, progress);
       } catch (fallbackError) {
         logger.error(`Both strategies failed`, { primaryError, fallbackError });
         throw fallbackError;
@@ -601,27 +601,27 @@ const withFallback = new FallbackStrategy(allocineStrategy, webScraperStrategy);
 ### Pattern 2: Caching & Deduplication
 
 ```typescript
-private filmCache = new Map<string, Film>();
+private movieCache = new Map<string, Movie>();
 
-private async fetchFilmDetails(filmId: string, sourceUrl: string): Promise<Film> {
+private async fetchMovieDetails(movieId: string, sourceUrl: string): Promise<Movie> {
   // Check cache first
-  if (this.filmCache.has(filmId)) {
-    return this.filmCache.get(filmId)!;
+  if (this.movieCache.has(movieId)) {
+    return this.movieCache.get(movieId)!;
   }
   
   // Fetch from database
-  const existing = await db.query('SELECT * FROM films WHERE id = $1', [filmId]);
+  const existing = await db.query('SELECT * FROM movies WHERE id = $1', [movieId]);
   if (existing.rows.length > 0) {
-    const film = existing.rows[0];
-    this.filmCache.set(filmId, film);
-    return film;
+    const movie = existing.rows[0];
+    this.movieCache.set(movieId, movie);
+    return movie;
   }
   
   // Fetch from source
-  const film = await this.parseFilmFromUrl(sourceUrl);
-  this.filmCache.set(filmId, film);
+  const movie = await this.parseMovieFromUrl(sourceUrl);
+  this.movieCache.set(movieId, movie);
   
-  return film;
+  return movie;
 }
 ```
 
@@ -656,14 +656,14 @@ describe('CustomStrategy', () => {
   // ✅ URL Handling
   test('canHandleUrl recognizes valid URLs');
   test('canHandleUrl rejects invalid URLs');
-  test('extractCinemaId parses ID correctly');
-  test('cleanCinemaUrl removes query params');
+  test('extractTheaterId parses ID correctly');
+  test('cleanTheaterUrl removes query params');
   
   // ✅ Parsing
-  test('parseCinemaMetadata extracts name, address, ID');
+  test('parseTheaterMetadata extracts name, address, ID');
   test('parseAvailableDates returns valid dates');
-  test('parseShowtimes returns films and showtimes');
-  test('parseShowtimes handles edge cases (no films, duplicate films)');
+  test('parseShowtimes returns movies and showtimes');
+  test('parseShowtimes handles edge cases (no movies, duplicate movies)');
   
   // ✅ Error Handling
   test('handles missing HTML elements gracefully');
@@ -671,7 +671,7 @@ describe('CustomStrategy', () => {
   test('returns empty results rather than crashing');
   
   // ✅ Database Integration
-  test('upserts cinema to database');
+  test('upserts theater to database');
   test('handles concurrent inserts');
 });
 ```
@@ -680,19 +680,19 @@ describe('CustomStrategy', () => {
 
 ```typescript
 describe('CustomStrategy Integration', () => {
-  // ✅ Real Cinema Integration
-  test('fetches real cinema page (marked @slow, skip in CI)');
-  test('parses real cinema metadata');
+  // ✅ Real Theater Integration
+  test('fetches real theater page (marked @slow, skip in CI)');
+  test('parses real theater metadata');
   test('parses real showtimes');
   
   // ✅ Data Quality
-  test('all films have valid IDs and titles');
-  test('all showtimes have valid times and cinema_id');
+  test('all movies have valid IDs and titles');
+  test('all showtimes have valid times and theater_id');
   test('no duplicate showtimes');
   
   // ✅ Persistence
-  test('cinema is saved to database');
-  test('films are saved to database');
+  test('theater is saved to database');
+  test('movies are saved to database');
   test('showtimes are saved to database');
 });
 ```
@@ -703,12 +703,12 @@ describe('CustomStrategy Integration', () => {
 
 ### Problem: "No scraper strategy found for URL"
 
-**Cause:** `canHandleUrl()` returns false for your cinema URL
+**Cause:** `canHandleUrl()` returns false for your theater URL
 
 **Solution:**
 ```typescript
 // Debug: Log which strategies are being checked
-const url = 'https://example-cinema.fr/showtimes';
+const url = 'https://example-theater.fr/showtimes';
 for (const strategy of strategies) {
   const handles = strategy.canHandleUrl(url);
   console.log(`${strategy.sourceName}: ${handles}`);  // Identify which returned false
@@ -716,27 +716,27 @@ for (const strategy of strategies) {
 
 // Fix: Update canHandleUrl regex
 canHandleUrl(url: string): boolean {
-  // Was: /example-cinema\.fr/
-  // Now: /example-cinema\.(fr|com)/  // Support both domains
-  return /example-cinema\.(fr|com)/.test(url);
+  // Was: /example-theater\.fr/
+  // Now: /example-theater\.(fr|com)/  // Support both domains
+  return /example-theater\.(fr|com)/.test(url);
 }
 ```
 
-### Problem: Parser returns 0 films
+### Problem: Parser returns 0 movies
 
 **Cause:** Selector no longer matches website HTML
 
 **Debug steps:**
 ```bash
 # 1. Check if website changed
-curl "https://example-cinema.fr/showtimes" -o /tmp/page.html
+curl "https://example-theater.fr/showtimes" -o /tmp/page.html
 open /tmp/page.html  # Visual inspection
 
 # 2. Update test fixture
-cp /tmp/page.html scraper/tests/fixtures/example-cinema-page.html
+cp /tmp/page.html scraper/tests/fixtures/example-theater-page.html
 
 # 3. Update selectors
-const name = $('h1.theater-name').text();  // Was: div.cinema-name
+const name = $('h1.theater-name').text();  // Was: div.theater-name
 ```
 
 ### Problem: Rate limit (429) errors from target website

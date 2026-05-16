@@ -7,7 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
-**Cinema showtimes aggregator** that scrapes and centralizes movie screening schedules from the source website cinema pages. Built with Express.js, React, and PostgreSQL, fully containerized with Docker.
+**Theater showtimes aggregator** that scrapes and centralizes movie screening schedules from the source website theater pages. Built with Express.js, React, and PostgreSQL, fully containerized with Docker.
 
 > **Latest Version**: 4.3.0 | **Status**: Production Ready ✅
 
@@ -28,12 +28,12 @@
 
 ## ✨ Features
 
-- **Automated Scraping**: Scheduled scraping of cinema showtimes from the source website
+- **Automated Scraping**: Scheduled scraping of theater showtimes from the source website
 - **Scraper Resilience**: Automatic HTTP 429 rate limit detection with graceful shutdown
 - **RESTful API**: Complete Express.js backend with TypeScript
 - **Modern UI**: React SPA with Vite for fast development
 - **Real-time Progress**: Server-Sent Events (SSE) for live scraping updates
-- **Weekly Reports**: Track cinema programs and identify new releases
+- **Weekly Reports**: Track theater programs and identify new releases
 - **White-Label Branding**: Complete customization (site name, logo, colors, fonts, footer) via admin panel
 - **User Management**: Role-based access control with comprehensive user CRUD
 - **Role Management**: Full CRUD for custom roles with granular permission assignment via admin panel
@@ -75,7 +75,7 @@
                             ▼
               ┌─────────────────────────┐
               │   PostgreSQL  Port 5432 │
-              │  cinemas / films /      │
+              │  theaters / movies /      │
               │  showtimes / reports    │
               └─────────────────────────┘
 
@@ -95,7 +95,7 @@
 3. API publishes scrape jobs to Redis (`scrape:jobs` queue) — the scraper microservice picks them up
 4. Scraper fetches data from the source website and writes results directly to PostgreSQL
 5. Progress events flow back to the API via Redis pub/sub → SSE → client
-6. PostgreSQL stores structured cinema, film, and showtime data
+6. PostgreSQL stores structured theater, movie, and showtime data
 7. Client receives JSON responses and renders UI
 
 ---
@@ -195,7 +195,7 @@ The system supports two roles:
 | Role | Permissions |
 |------|-------------|
 | **admin** | Full access: Settings, user management, reports, scraping control |
-| **user** | Limited access: View cinema schedules only |
+| **user** | Limited access: View theater schedules only |
 
 **Safety Features:**
 - Cannot delete the last admin user
@@ -405,7 +405,7 @@ npm run dev
 docker compose build
 
 # Manual build with custom name
-docker build --build-arg VITE_APP_NAME="My Cinema App" .
+docker build --build-arg VITE_APP_NAME="My Theater App" .
 ```
 
 **GitHub Actions:**
@@ -455,7 +455,7 @@ The application includes comprehensive rate limiting to protect against abuse an
 | Registration | 3 attempts | 1 hour | New user registration |
 | Protected Endpoints | 60 requests | 15 min | Authenticated user endpoints |
 | Scraper Endpoints | 10 requests | 15 min | Expensive scraping operations |
-| Public Endpoints | 100 requests | 15 min | Public read endpoints (cinemas, films) |
+| Public Endpoints | 100 requests | 15 min | Public read endpoints (theaters, movies) |
 | Health Check | 10 requests | 1 min | `/api/health` endpoint (localhost exempt) |
 
 ### Dynamic Configuration
@@ -616,4 +616,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ for cinema enthusiasts**
+**Made with ❤️ for theater enthusiasts**

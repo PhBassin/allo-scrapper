@@ -1,27 +1,27 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCinemas, getCinemaSchedule } from '../api/client';
-import type { ShowtimeWithFilm, Film } from '../types';
+import { getTheaters, getTheaterSchedule } from '../api/client';
+import type { ShowtimeWithMovie, Movie } from '../types';
 import ShowtimeList from '../components/ShowtimeList';
 import CinemaDateSelector from '../components/CinemaDateSelector';
 
-interface FilmGroup {
-  film: Film;
-  showtimes: ShowtimeWithFilm[];
+interface MovieGroup {
+  movie: Movie;
+  showtimes: ShowtimeWithMovie[];
 }
 
 export default function CinemaPage() {
   const { id } = useParams<{ id: string }>();
 
   const { data: cinemasData, isLoading: cinemasLoading, error: cinemasError } = useQuery({
-    queryKey: ['cinemas'],
-    queryFn: getCinemas
+    queryKey: ['theaters'],
+    queryFn: getTheaters
   });
 
   const { data: scheduleData, isLoading: scheduleLoading, error: scheduleError } = useQuery({
-    queryKey: ['cinema-schedule', id],
-    queryFn: () => getCinemaSchedule(id!),
+    queryKey: ['theater-schedule', id],
+    queryFn: () => getTheaterSchedule(id!),
     enabled: !!id
   });
 
@@ -38,7 +38,7 @@ export default function CinemaPage() {
   const cinema = cinemasData?.find(c => c.id === id) || null;
   const showtimes = useMemo(() => scheduleData?.showtimes || [], [scheduleData?.showtimes]);
 
-  const getInitialSelectedDate = (showtimes: ShowtimeWithFilm[]): string => {
+  const getInitialSelectedDate = (showtimes: ShowtimeWithMovie[]): string => {
     if (showtimes.length === 0) return '';
     const today = new Date().toISOString().split('T')[0];
     const dates = new Set(showtimes.map(s => s.date));
@@ -59,25 +59,25 @@ export default function CinemaPage() {
     setAfterTime(time);
   }, []);
 
-  const getUniqueDates = (showtimes: ShowtimeWithFilm[]): string[] => {
+  const getUniqueDates = (showtimes: ShowtimeWithMovie[]): string[] => {
     const dates = new Set(showtimes.map(s => s.date));
     return Array.from(dates).sort();
   };
 
-  const groupByFilm = (showtimes: ShowtimeWithFilm[]): FilmGroup[] => {
-    const filmMap = new Map<number, FilmGroup>();
+  const groupByMovie = (showtimes: ShowtimeWithMovie[]): MovieGroup[] => {
+    const movieMap = new Map<number, MovieGroup>();
 
     showtimes.forEach((showtime) => {
-      if (!filmMap.has(showtime.film.id)) {
-        filmMap.set(showtime.film.id, {
-          film: showtime.film,
+      if (!movieMap.has(showtime.movie.id)) {
+        movieMap.set(showtime.movie.id, {
+          movie: showtime.movie,
           showtimes: [],
         });
       }
-      filmMap.get(showtime.film.id)!.showtimes.push(showtime);
+      movieMap.get(showtime.movie.id)!.showtimes.push(showtime);
     });
 
-    return Array.from(filmMap.values());
+    return Array.from(movieMap.values());
   };
 
   // ⚡ PERFORMANCE: Cache Intl.DateTimeFormat instances to prevent expensive
@@ -97,7 +97,7 @@ export default function CinemaPage() {
   }, [formatterWeekday, formatterMonth]);
 
   // ⚡ PERFORMANCE: Memoize derived state calculations to prevent expensive
-  // array operations (getUniqueDates, filter, groupByFilm) on every render,
+  // array operations (getUniqueDates, filter, groupByMovie) on every render,
   // especially when showtimes array is large or during unrelated state updates (like scrape progress).
   const dates = useMemo(() => getUniqueDates(showtimes), [showtimes]);
   const effectiveSelectedDate = useMemo(() => {
@@ -109,7 +109,7 @@ export default function CinemaPage() {
     () => showtimes.filter(s => s.date === effectiveSelectedDate && (!afterTime || s.time >= afterTime)),
     [showtimes, effectiveSelectedDate, afterTime]
   );
-  const filmGroups = useMemo(() => groupByFilm(selectedShowtimes), [selectedShowtimes]);
+  const movieGroups = useMemo(() => groupByMovie(selectedShowtimes), [selectedShowtimes]);
 
   if (isLoading) {
     return (
@@ -173,17 +173,17 @@ export default function CinemaPage() {
 
       {/* Films List for Selected Date */}
       <div className="min-h-[300px]">
-        {filmGroups.length > 0 ? (
+        {movieGroups.length > 0 ? (
           <div className="space-y-6">
-            {filmGroups.map(({ film, showtimes }) => (
-              <div key={film.id} className="card p-5 md:p-6 transition hover:shadow-md border border-gray-100">
+            {movieGroups.map(({ movie, showtimes }) => (
+              <div key={movie.id} className="card p-5 md:p-6 transition hover:shadow-md border border-gray-100">
                 <div className="flex flex-col md:flex-row gap-6">
                   {/* Poster (hidden on mobile) */}
-                  {film.poster_url && (
+                  {movie.poster_url && (
                     <div className="hidden md:block w-24 flex-shrink-0">
                       <img 
-                        src={film.poster_url} 
-                        alt={film.title} 
+                        src={movie.poster_url} 
+                        alt={movie.title} 
                         className="w-full rounded shadow-sm"
                         loading="lazy"
                       />
@@ -193,40 +193,40 @@ export default function CinemaPage() {
                   <div className="flex-grow">
                     <div className="mb-4">
                       <h2 className="text-xl md:text-2xl font-bold mb-1">
-                        <Link to={`/film/${film.id}`} className="hover:text-primary transition">
-                          {film.title}
+                        <Link to={`/movie/${movie.id}`} className="hover:text-primary transition">
+                          {movie.title}
                         </Link>
                       </h2>
                       
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 mb-3">
-                        {film.duration_minutes && (
+                        {movie.duration_minutes && (
                           <span>
-                            ⏱ {Math.floor(film.duration_minutes / 60)}h{film.duration_minutes % 60 > 0 ? String(film.duration_minutes % 60).padStart(2, '0') : ''}
+                            ⏱ {Math.floor(movie.duration_minutes / 60)}h{movie.duration_minutes % 60 > 0 ? String(movie.duration_minutes % 60).padStart(2, '0') : ''}
                           </span>
                         )}
-                        {film.genres && film.genres.length > 0 && (
+                        {movie.genres && movie.genres.length > 0 && (
                           <span className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">
-                            {film.genres[0]}
+                            {movie.genres[0]}
                           </span>
                         )}
-                        {film.director && (
-                          <span className="hidden sm:inline">de {film.director}</span>
+                        {movie.director && (
+                          <span className="hidden sm:inline">de {movie.director}</span>
                         )}
                       </div>
 
                       {/* Ratings */}
-                      {(film.press_rating != null && film.press_rating > 0) || (film.audience_rating != null && film.audience_rating > 0) ? (
+                      {(movie.press_rating != null && movie.press_rating > 0) || (movie.audience_rating != null && movie.audience_rating > 0) ? (
                         <div className="flex gap-3 mb-4">
-                          {film.press_rating != null && film.press_rating > 0 && (
+                          {movie.press_rating != null && movie.press_rating > 0 && (
                             <div className="flex items-center gap-1">
                               <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Presse</span>
-                              <span className="font-bold text-sm">★ {film.press_rating.toFixed(1)}</span>
+                              <span className="font-bold text-sm">★ {movie.press_rating.toFixed(1)}</span>
                             </div>
                           )}
-                          {film.audience_rating != null && film.audience_rating > 0 && (
+                          {movie.audience_rating != null && movie.audience_rating > 0 && (
                             <div className="flex items-center gap-1">
                               <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Spectateurs</span>
-                              <span className="font-bold text-sm">★ {film.audience_rating.toFixed(1)}</span>
+                              <span className="font-bold text-sm">★ {movie.audience_rating.toFixed(1)}</span>
                             </div>
                           )}
                         </div>
@@ -234,7 +234,7 @@ export default function CinemaPage() {
                     </div>
 
                     <div className="pt-2 border-t border-gray-100">
-                      <ShowtimeList showtimes={showtimes} film={film} cinema={cinema} />
+                      <ShowtimeList showtimes={showtimes} movie={movie} cinema={cinema} />
                     </div>
                   </div>
                 </div>

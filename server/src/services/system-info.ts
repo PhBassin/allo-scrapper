@@ -36,7 +36,7 @@ export interface ServerHealth {
 export interface ScraperStatus {
   activeJobs: number;
   lastScrapeTime: Date | null;
-  totalCinemas: number;
+  totalTheaters: number;
 }
 
 /**
@@ -119,16 +119,16 @@ export async function getScraperStatus(db: DB): Promise<ScraperStatus> {
   );
   const lastScrapeTime = lastScrapeResult.rows[0]?.last_scrape || null;
 
-  // Get total cinemas count
-  const cinemasResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM cinemas`,
+  // Get total theaters count
+  const theatersResult = await db.query(
+    `SELECT COUNT(*)::text AS count FROM theaters`,
     []
   );
-  const totalCinemas = parseInt(cinemasResult.rows[0]?.count || '0', 10);
+  const totalTheaters = parseInt(theatersResult.rows[0]?.count || '0', 10);
 
   return {
     activeJobs,
     lastScrapeTime,
-    totalCinemas,
+    totalTheaters,
   };
 }

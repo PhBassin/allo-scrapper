@@ -12,7 +12,7 @@ import type { PermissionName } from '../types/role.js';
  *
  * Usage:
  *   router.post('/trigger', requireAuth, requirePermission('scraper:trigger'), handler)
- *   router.delete('/:id', requireAuth, requirePermission('cinemas:delete'), handler)
+ *   router.delete('/:id', requireAuth, requirePermission('theaters:delete'), handler)
  */
 export function requirePermission(...requiredPermissions: PermissionName[]) {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void | Response> => {

@@ -65,7 +65,7 @@ The admin panel is organized into **7 main tabs**, each controlling different as
 
 | Tab | Purpose | Permissions Required | Description |
 |-----|---------|---------------------|-------------|
-| **Cinemas** | Manage cinema locations | `cinemas:*` or `scraper:*` | Add, edit, delete cinemas; view showtimes |
+| **Theaters** | Manage theater locations | `theaters:*` or `scraper:*` | Add, edit, delete theaters; view showtimes |
 | **Schedules** | Manage scraping schedules | `scraper:schedules:*` | Create and manage automated scraping schedules |
 | **Rapports** | View scrape reports | `reports:list` or `reports:view` | Review scraping session history and status |
 | **Users** | User account management | `users:*` | Create users, manage accounts, reset passwords |
@@ -87,7 +87,7 @@ Configure core branding elements.
 
 #### Site Name
 - **Purpose**: Displayed in header, page title, browser tab, footer
-- **Format**: Plain text (e.g., "My Cinema Portal")
+- **Format**: Plain text (e.g., "My Theater Portal")
 - **Placeholders**: Available in footer as `{site_name}`
 - **Example**: Changing "Allo-Scrapper" to "CinéParis" updates all references site-wide
 
@@ -135,7 +135,7 @@ Customize the complete color palette with 9 theme variables.
 | **Secondary** | Header/footer background | `#1F2937` | Navigation bars, footers |
 | **Accent** | Call-to-action highlights | `#3B82F6` | Important buttons, badges |
 | **Background** | Page background | `#F9FAFB` | Main page background |
-| **Surface** | Card/panel backgrounds | `#FFFFFF` | Film cards, modals |
+| **Surface** | Card/panel backgrounds | `#FFFFFF` | Movie cards, modals |
 | **Text Primary** | Main text color | `#111827` | Headings, body text |
 | **Text Secondary** | Muted text | `#6B7280` | Labels, captions, metadata |
 | **Success** | Success messages | `#10B981` | Success toasts, checkmarks |
@@ -218,9 +218,9 @@ Customize footer text and links.
 - **Placeholders**:
   - `{site_name}` → Replaced with site name from General tab
   - `{year}` → Replaced with current year (e.g., 2026)
-- **Default**: `"Cinema schedules provided by source - Updated weekly"`
+- **Default**: `"Theater schedules provided by source - Updated weekly"`
 - **Example**: `"{site_name} © {year} - All rights reserved"`
-  - Renders as: "My Cinema Portal © 2026 - All rights reserved"
+  - Renders as: "My Theater Portal © 2026 - All rights reserved"
 
 #### Footer Links
 - **Purpose**: Custom navigation links (Privacy, Terms, Contact, etc.)
@@ -261,7 +261,7 @@ Configure email template branding for system-generated emails.
 #### Email From Name
 - **Purpose**: Sender name in email "From" field
 - **Default**: `"Allo-Scrapper"`
-- **Example**: `"My Cinema Portal"`
+- **Example**: `"My Theater Portal"`
 
 #### Email From Address
 - **Purpose**: Sender email address
@@ -276,7 +276,7 @@ Configure email template branding for system-generated emails.
 
 #### Email Footer Text
 - **Purpose**: Footer message in email templates
-- **Example**: `"You received this email from My Cinema Portal"`
+- **Example**: `"You received this email from My Theater Portal"`
 
 **Note**: Email features are prepared for future notifications (password resets, reports, etc.). Currently not actively sending emails unless configured.
 
@@ -387,8 +387,8 @@ View database size and data record counts.
 
 - **Database Size**: Total PostgreSQL database size (e.g., "8063 kB")
 - **Tables**: Total number of database tables
-- **Cinemas**: Count of cinema records
-- **Films**: Count of film records  
+- **Theaters**: Count of theater records
+- **Movies**: Count of movie records  
 - **Showtimes**: Count of showtime records
 
 **Use Cases**:
@@ -397,8 +397,8 @@ View database size and data record counts.
 - Identify cleanup needs (old showtimes)
 
 **Expected Values** (approximate):
-- Cinemas: 10-50 (depends on configuration)
-- Films: 100-500 (varies by season)
+- Theaters: 10-50 (depends on configuration)
+- Movies: 100-500 (varies by season)
 - Showtimes: 1,000-10,000 (depends on time period)
 
 ---
@@ -497,8 +497,8 @@ docker compose exec ics-web npm run migrate
 
 3. **Unexpected Data Counts**:
    - Zero showtimes after scraping → check scraper logs
-   - Duplicate films → check scraper deduplication logic
-   - Missing cinemas → verify `cinemas.json` configuration
+   - Duplicate movies → check scraper deduplication logic
+   - Missing theaters → verify `theaters.json` configuration
 
 ---
 
@@ -520,7 +520,7 @@ docker compose exec ics-web npm run migrate
   "version": "1.0",
   "exported_at": "2026-03-01T15:30:00.000Z",
   "settings": {
-    "site_name": "My Cinema Portal",
+    "site_name": "My Theater Portal",
     "logo_base64": "data:image/png;base64,...",
     "color_primary": "#FECC00",
     ...
@@ -638,7 +638,7 @@ Manage user accounts and roles.
 **Location**: `/admin?tab=schedules`  
 **Permission**: `scraper:schedules:*`
 
-Manage automated scraping schedules using cron expressions. Schedules allow you to configure when cinemas are scraped automatically, with per-cinema targeting.
+Manage automated scraping schedules using cron expressions. Schedules allow you to configure when theaters are scraped automatically, with per-theater targeting.
 
 ### Viewing Schedules
 
@@ -646,7 +646,7 @@ Manage automated scraping schedules using cron expressions. Schedules allow you 
 2. View the list of all existing scrape schedules with:
    - Name and description
    - Cron expression and human-readable equivalent (e.g., "Every day at 6:00 AM")
-   - Target cinemas (or "All cinemas")
+   - Target theaters (or "All theaters")
    - Status (Enabled / Disabled)
    - Last triggered and next trigger time
 
@@ -660,7 +660,7 @@ Manage automated scraping schedules using cron expressions. Schedules allow you 
 | **Name** | Yes | Unique name (e.g., "Daily Morning Scrape") |
 | **Cron Expression** | Yes | Standard 5-field cron (e.g., `0 6 * * *` for 6 AM daily) |
 | **Description** | No | Human-readable purpose |
-| **Target Cinemas** | No | Leave empty to scrape all cinemas; select specific IDs to limit scope |
+| **Target Theaters** | No | Leave empty to scrape all theaters; select specific IDs to limit scope |
 | **Enabled** | Yes | Toggle to activate/deactivate |
 
 3. Click **"Create"** to save
@@ -729,7 +729,7 @@ Click a role to expand its full permission list.
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| **Name** | Yes | Unique identifier, lowercase (e.g., `cinema_editor`) |
+| **Name** | Yes | Unique identifier, lowercase (e.g., `theater_editor`) |
 | **Description** | No | Human-readable purpose |
 
 3. Click **"Create"**
@@ -741,7 +741,7 @@ Click a role to expand its full permission list.
 2. The **Permissions** section shows all 34 available permissions grouped by category:
    - **users**: User account management
    - **scraper**: Scraping operations and schedule management
-   - **cinemas**: Cinema data management
+   - **theaters**: Theater data management
    - **settings**: Application configuration
    - **reports**: Scraping reports
    - **system**: System monitoring

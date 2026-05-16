@@ -26,11 +26,11 @@ High-level system architecture, component overview, and design decisions for All
 
 ## Overview
 
-Allo-Scrapper is a **full-stack cinema showtimes aggregator** that scrapes movie screening schedules from external cinema websites, stores them in a PostgreSQL database, and exposes them via a REST API and React frontend.
+Allo-Scrapper is a **full-stack theater showtimes aggregator** that scrapes movie screening schedules from external theater websites, stores them in a PostgreSQL database, and exposes them via a REST API and React frontend.
 
 ### Key Features
 
-- **Automated scraping**: Scheduled and on-demand scraping of cinema showtimes
+- **Automated scraping**: Scheduled and on-demand scraping of theater showtimes
 - **REST API**: Express.js backend with comprehensive endpoints
 - **Modern frontend**: React SPA with Tailwind CSS
 - **White-label branding**: Fully customizable branding system
@@ -73,8 +73,8 @@ Allo-Scrapper is a **full-stack cinema showtimes aggregator** that scrapes movie
     │   PostgreSQL     │  │      Redis       │
     │   (Port 5432)    │  │   (Port 6379)    │
     │                  │  │   Optional for   │
-    │  - Cinemas       │  │   microservice   │
-    │  - Films         │  │   scraper mode   │
+    │  - Theaters       │  │   microservice   │
+    │  - Movies         │  │   scraper mode   │
     │  - Showtimes     │  └────────┬─────────┘
     │  - Users         │           │
     │  - Settings      │           │ Job Queue
@@ -119,7 +119,7 @@ Monitoring Stack (Optional):
 **Technology**: Node.js 20 + Express.js + TypeScript
 
 **Responsibilities**:
-- REST API endpoints for cinemas, films, showtimes, users, settings
+- REST API endpoints for theaters, movies, showtimes, users, settings
 - JWT-based authentication and authorization
 - Rate limiting and security middleware
 - In-process scraping (legacy mode) or Redis job publishing (microservice mode)
@@ -142,8 +142,8 @@ Monitoring Stack (Optional):
 **Technology**: React 18 + TypeScript + Vite + Tailwind CSS
 
 **Responsibilities**:
-- User interface for browsing cinemas and showtimes
-- Admin panel for managing cinemas, users, and settings
+- User interface for browsing theaters and showtimes
+- Admin panel for managing theaters, users, and settings
 - Authentication (login/logout)
 - Real-time scrape progress via SSE
 - White-label branding with dynamic theme CSS
@@ -169,8 +169,8 @@ Monitoring Stack (Optional):
 - Transactional integrity
 
 **Schema**:
-- `cinemas` - Cinema information
-- `films` - Movie metadata
+- `theaters` - Theater information
+- `movies` - Movie metadata
 - `showtimes` - Screening schedules
 - `users` - User accounts and roles
 - `settings` - White-label branding configuration
@@ -197,8 +197,8 @@ See [Database Schema](../database/schema.md) for complete details.
 - Can run multiple scraper workers
 
 **Responsibilities** (both modes):
-- Fetch HTML from cinema websites
-- Parse showtimes, films, and metadata
+- Fetch HTML from theater websites
+- Parse showtimes, movies, and metadata
 - Update database with new/changed data
 - Report progress via Redis or SSE
 - Error handling and retries
@@ -247,7 +247,7 @@ Browser → Express API → PostgreSQL
 ```
 
 1. User navigates to homepage
-2. React app fetches `/api/films` and `/api/cinemas`
+2. React app fetches `/api/movies` and `/api/theaters`
 3. Express queries PostgreSQL
 4. Results returned as JSON
 5. React renders the UI
@@ -274,7 +274,7 @@ Admin → [Trigger Scrape] → Express API
 
 1. Admin triggers scrape via UI or cron job
 2. Express starts in-process scraper
-3. Scraper fetches HTML from cinema websites
+3. Scraper fetches HTML from theater websites
 4. Parser extracts showtimes
 5. Data written to PostgreSQL
 6. Progress updates sent via SSE
@@ -410,7 +410,7 @@ Browser → GET /api/theme.css
 
 **Rationale**:
 - **In-process**: Simple for development and small deployments
-- **Microservice**: Scalable for production with multiple cinemas
+- **Microservice**: Scalable for production with multiple theaters
 - **Backward compatibility**: Existing users don't need to migrate
 
 ---
@@ -444,7 +444,7 @@ Browser → GET /api/theme.css
 **Decision**: Relational database (PostgreSQL) instead of NoSQL (MongoDB, etc.)
 
 **Rationale**:
-- Complex relational data (cinemas ↔ showtimes ↔ films)
+- Complex relational data (theaters ↔ showtimes ↔ movies)
 - Strong ACID guarantees
 - Foreign key constraints prevent data corruption
 - Full-text search capabilities
@@ -511,7 +511,7 @@ See [White-Label System Architecture](./white-label-system.md) for details.
 **Not currently implemented**
 
 **Future options**:
-- **Redis cache**: Cache API responses (cinemas, films)
+- **Redis cache**: Cache API responses (theaters, movies)
 - **HTTP caching**: ETag / Cache-Control headers
 - **CDN**: Cache static assets (frontend bundle, images)
 

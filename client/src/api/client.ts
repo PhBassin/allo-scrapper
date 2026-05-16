@@ -1,10 +1,10 @@
 import axios from 'axios';
 import type {
   ApiResponse,
-  FilmWithShowtimes,
-  Film,
+  MovieWithShowtimes,
+  Movie,
   Cinema,
-  ShowtimeWithFilm,
+  ShowtimeWithMovie,
   ScrapeReport,
   PaginatedResponse,
   ScrapeStatus,
@@ -57,85 +57,85 @@ apiClient.interceptors.response.use(
 );
 
 // ============================================================================
-// FILMS API
+// MOVIES API
 // ============================================================================
 
-export async function getWeeklyFilms(): Promise<{ films: FilmWithShowtimes[]; weekStart: string }> {
-  const response = await apiClient.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string }>>('/films');
+export async function getWeeklyMovies(): Promise<{ movies: MovieWithShowtimes[]; weekStart: string }> {
+  const response = await apiClient.get<ApiResponse<{ movies: MovieWithShowtimes[]; weekStart: string }>>('/movies');
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch films');
+    throw new Error(response.data.error || 'Failed to fetch movies');
   }
   return response.data.data;
 }
 
-export async function getFilmsByDate(date: string): Promise<{ films: FilmWithShowtimes[]; weekStart: string; date: string }> {
-  const response = await apiClient.get<ApiResponse<{ films: FilmWithShowtimes[]; weekStart: string; date: string }>>('/films', {
+export async function getMoviesByDate(date: string): Promise<{ movies: MovieWithShowtimes[]; weekStart: string; date: string }> {
+  const response = await apiClient.get<ApiResponse<{ movies: MovieWithShowtimes[]; weekStart: string; date: string }>>('/movies', {
     params: { date }
   });
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch films');
+    throw new Error(response.data.error || 'Failed to fetch movies');
   }
   return response.data.data;
 }
 
-export async function getFilmById(id: number): Promise<FilmWithShowtimes> {
-  const response = await apiClient.get<ApiResponse<FilmWithShowtimes>>(`/films/${id}`);
+export async function getMovieById(id: number): Promise<MovieWithShowtimes> {
+  const response = await apiClient.get<ApiResponse<MovieWithShowtimes>>(`/movies/${id}`);
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch film');
+    throw new Error(response.data.error || 'Failed to fetch movie');
   }
   return response.data.data;
 }
 
 /**
- * Search films using fuzzy matching
+ * Search movies using fuzzy matching
  * @param query Search query (minimum 2 characters)
- * @returns Array of films matching the search query
+ * @returns Array of movies matching the search query
  */
-export async function searchFilms(query: string): Promise<Film[]> {
+export async function searchMovies(query: string): Promise<Movie[]> {
   // Validate query locally to avoid unnecessary API calls
   if (!query || query.trim().length < 2) {
     return [];
   }
 
-  const response = await apiClient.get<ApiResponse<{ films: Film[]; query: string }>>('/films/search', {
+  const response = await apiClient.get<ApiResponse<{ movies: Movie[]; query: string }>>('/movies/search', {
     params: { q: query.trim() }
   });
 
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to search films');
+    throw new Error(response.data.error || 'Failed to search movies');
   }
 
-  return response.data.data.films;
+  return response.data.data.movies;
 }
 
 // ============================================================================
-// CINEMAS API
+// THEATERS API
 // ============================================================================
 
-export async function getCinemas(): Promise<Cinema[]> {
-  const response = await apiClient.get<ApiResponse<Cinema[]>>('/cinemas');
+export async function getTheaters(): Promise<Cinema[]> {
+  const response = await apiClient.get<ApiResponse<Cinema[]>>('/theaters');
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch cinemas');
+    throw new Error(response.data.error || 'Failed to fetch theaters');
   }
   return response.data.data;
 }
 
-export async function getCinemaSchedule(
-  cinemaId: string
-): Promise<{ showtimes: ShowtimeWithFilm[]; weekStart: string }> {
-  const response = await apiClient.get<ApiResponse<{ showtimes: ShowtimeWithFilm[]; weekStart: string }>>(
-    `/cinemas/${cinemaId}`
+export async function getTheaterSchedule(
+  theaterId: string
+): Promise<{ showtimes: ShowtimeWithMovie[]; weekStart: string }> {
+  const response = await apiClient.get<ApiResponse<{ showtimes: ShowtimeWithMovie[]; weekStart: string }>>(
+    `/theaters/${theaterId}`
   );
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch cinema schedule');
+    throw new Error(response.data.error || 'Failed to fetch theater schedule');
   }
   return response.data.data;
 }
 
-export async function addCinema(url: string): Promise<Cinema> {
-  const response = await apiClient.post<ApiResponse<Cinema>>('/cinemas', { url });
+export async function addTheater(url: string): Promise<Cinema> {
+  const response = await apiClient.post<ApiResponse<Cinema>>('/theaters', { url });
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to add cinema');
+    throw new Error(response.data.error || 'Failed to add theater');
   }
   return response.data.data;
 }
@@ -152,22 +152,22 @@ export async function triggerScrape(): Promise<{ reportId: number; message: stri
   return response.data.data;
 }
 
-export async function triggerCinemaScrape(cinemaId: string): Promise<{ reportId: number; message: string }> {
+export async function triggerTheaterScrape(theaterId: string): Promise<{ reportId: number; message: string }> {
   const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
-    cinemaId,
+    theaterId,
   });
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to trigger cinema scrape');
+    throw new Error(response.data.error || 'Failed to trigger theater scrape');
   }
   return response.data.data;
 }
 
-export async function triggerFilmScrape(filmId: number): Promise<{ reportId: number; message: string }> {
+export async function triggerMovieScrape(movieId: number): Promise<{ reportId: number; message: string }> {
   const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
-    filmId,
+    movieId,
   });
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to trigger film scrape');
+    throw new Error(response.data.error || 'Failed to trigger movie scrape');
   }
   return response.data.data;
 }
@@ -230,7 +230,7 @@ export interface CreateSchedulePayload {
   description?: string | null;
   cron_expression: string;
   enabled?: boolean;
-  target_cinemas?: string[] | null;
+  target_theaters?: string[] | null;
 }
 
 export async function createSchedule(payload: CreateSchedulePayload): Promise<ScrapeSchedule> {
@@ -246,7 +246,7 @@ export interface UpdateSchedulePayload {
   description?: string | null;
   cron_expression?: string;
   enabled?: boolean;
-  target_cinemas?: string[] | null;
+  target_theaters?: string[] | null;
 }
 
 export async function updateSchedule(id: number, payload: UpdateSchedulePayload): Promise<ScrapeSchedule> {
@@ -289,13 +289,13 @@ export async function getScrapeReportById(id: number): Promise<ScrapeReport> {
 export interface ScrapeAttempt {
   id: number;
   report_id: number;
-  cinema_id: string;
+  theater_id: string;
   date: string;
   status: 'pending' | 'success' | 'failed' | 'rate_limited' | 'not_attempted';
   error_type?: string | null;
   error_message?: string | null;
   http_status_code?: number | null;
-  films_scraped: number;
+  movies_scraped: number;
   showtimes_scraped: number;
   attempted_at: string;
 }
