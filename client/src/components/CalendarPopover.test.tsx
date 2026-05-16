@@ -3,12 +3,18 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import CalendarPopover from './CalendarPopover';
 import type { Showtime, Film, Cinema } from '../types';
 
-const mockBuildGoogleCalendarUrl = vi.fn(() => 'https://calendar.google.com/calendar/render?action=TEMPLATE');
-const mockDownloadIcsFile = vi.fn();
+const { mockBuildGoogleCalendarUrl, mockDownloadIcsFile } = vi.hoisted(() => ({
+  mockBuildGoogleCalendarUrl: vi.fn<
+    (showtime: Showtime, film: Film, cinema: Cinema) => string
+  >(() => 'https://calendar.google.com/calendar/render?action=TEMPLATE'),
+  mockDownloadIcsFile: vi.fn<
+    (showtime: Showtime, film: Film, cinema: Cinema) => void
+  >(),
+}));
 
 vi.mock('../utils/calendar', () => ({
-  buildGoogleCalendarUrl: (...args: unknown[]) => mockBuildGoogleCalendarUrl(...args),
-  downloadIcsFile: (...args: unknown[]) => mockDownloadIcsFile(...args),
+  buildGoogleCalendarUrl: mockBuildGoogleCalendarUrl,
+  downloadIcsFile: mockDownloadIcsFile,
 }));
 
 const showtime: Showtime = {
