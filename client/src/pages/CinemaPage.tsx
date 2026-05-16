@@ -2,21 +2,10 @@ import { useState, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCinemas, getCinemaSchedule } from '../api/client';
-import type { ShowtimeWithFilm } from '../types';
-import ShowtimeList from '../components/ShowtimeList';
-import CinemaDateSelector from '../components/CinemaDateSelector';
+import type { ShowtimeWithFilm, Film } from '../types';
 
 interface FilmGroup {
-  film: {
-    id: number;
-    title: string;
-    poster_url?: string;
-    duration_minutes?: number;
-    genres?: string[];
-    director?: string;
-    press_rating?: number;
-    audience_rating?: number;
-  };
+  film: Film;
   showtimes: ShowtimeWithFilm[];
 }
 
