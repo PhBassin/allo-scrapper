@@ -3,19 +3,19 @@ import { Link } from 'react-router-dom';
 import { searchMovies } from '../api/client';
 import { useDebounce } from '../hooks/useDebounce';
 import { highlightText } from '../utils/highlight';
-import type { Film } from '../types';
+import type { Movie } from '../types';
 
-interface FilmSearchBarProps {
+interface MovieSearchBarProps {
   className?: string;
   placeholder?: string;
 }
 
-export default function FilmSearchBar({ 
+export default function MovieSearchBar({ 
   className = '', 
   placeholder = 'Rechercher un film...' 
-}: FilmSearchBarProps) {
+}: MovieSearchBarProps) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Film[]>([]);
+  const [results, setResults] = useState<Movie[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -33,8 +33,8 @@ export default function FilmSearchBar({
 
       setIsLoading(true);
       try {
-        const films = await searchMovies(debouncedQuery);
-        setResults(films);
+        const movies = await searchMovies(debouncedQuery);
+        setResults(movies);
         setIsOpen(true);
         setSelectedIndex(-1);
       } catch (error) {
@@ -99,7 +99,7 @@ export default function FilmSearchBar({
   };
 
   return (
-    <div ref={wrapperRef} className={`relative ${className}`} data-testid="film-search-bar">
+    <div ref={wrapperRef} className={`relative ${className}`} data-testid="movie-search-bar">
       <div className="relative">
         {/* Search Icon */}
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -212,7 +212,7 @@ export default function FilmSearchBar({
                     </div>
                   )}
 
-                  {/* Film Info */}
+                  {/* Movie Info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {highlightText(film.title, query)}

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import FilmPage from './FilmPage';
+import MoviePage from './MoviePage';
 import * as clientApi from '../api/client';
 
 vi.mock('../api/client', () => ({
@@ -20,14 +20,14 @@ function renderPage(path: string) {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route path="/movie/:id" element={<FilmPage />} />
+          <Route path="/movie/:id" element={<MoviePage />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
   );
 }
 
-describe('FilmPage', () => {
+describe('MoviePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -1,4 +1,4 @@
-import type { Showtime, Film, Cinema } from '../types';
+import type { Showtime, Movie, Cinema } from '../types';
 
 /**
  * Convert an ISO 8601 datetime string (local, no timezone designator) to
@@ -82,8 +82,8 @@ function foldIcsLine(line: string): string {
  * Build a Google Calendar "add event" URL.
  * Opens in a new tab with the event pre-filled.
  */
-export function buildGoogleCalendarUrl(showtime: Showtime, film: Film, cinema: Cinema): string {
-  const durationMinutes = film.duration_minutes ?? 120;
+export function buildGoogleCalendarUrl(showtime: Showtime, movie: Movie, cinema: Cinema): string {
+  const durationMinutes = movie.duration_minutes ?? 120;
   const dtStart = toCompactDateTime(showtime.datetime_iso);
   const dtEnd = addMinutesToIso(showtime.datetime_iso, durationMinutes);
   const location = buildLocation(cinema);
@@ -91,7 +91,7 @@ export function buildGoogleCalendarUrl(showtime: Showtime, film: Film, cinema: C
 
   const params = new URLSearchParams({
     action: 'TEMPLATE',
-    text: film.title,
+    text: movie.title,
     dates: `${dtStart}/${dtEnd}`,
     location,
     details,
@@ -103,8 +103,8 @@ export function buildGoogleCalendarUrl(showtime: Showtime, film: Film, cinema: C
 /**
  * Build the text content of an RFC 5545 .ics file for a single event.
  */
-export function buildIcsContent(showtime: Showtime, film: Film, cinema: Cinema): string {
-  const durationMinutes = film.duration_minutes ?? 120;
+export function buildIcsContent(showtime: Showtime, movie: Movie, cinema: Cinema): string {
+  const durationMinutes = movie.duration_minutes ?? 120;
   const dtStart = toCompactDateTime(showtime.datetime_iso);
   const dtEnd = addMinutesToIso(showtime.datetime_iso, durationMinutes);
   const location = buildLocation(cinema);
@@ -119,7 +119,7 @@ export function buildIcsContent(showtime: Showtime, film: Film, cinema: Cinema):
     `UID:${uid}`,
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,
-    `SUMMARY:${escapeIcsText(film.title)}`,
+    `SUMMARY:${escapeIcsText(movie.title)}`,
     `LOCATION:${escapeIcsText(location)}`,
     `DESCRIPTION:${escapeIcsText(details)}`,
     'END:VEVENT',
@@ -132,13 +132,13 @@ export function buildIcsContent(showtime: Showtime, film: Film, cinema: Cinema):
 /**
  * Trigger a browser download of a .ics file for the given showtime.
  */
-export function downloadIcsFile(showtime: Showtime, film: Film, cinema: Cinema): void {
-  const content = buildIcsContent(showtime, film, cinema);
+export function downloadIcsFile(showtime: Showtime, movie: Movie, cinema: Cinema): void {
+  const content = buildIcsContent(showtime, movie, cinema);
   const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${film.title.replace(/[^a-z0-9]/gi, '-')}.ics`;
+  link.download = `${movie.title.replace(/[^a-z0-9]/gi, '-')}.ics`;
   document.body.appendChild(link);
   try {
     link.click();

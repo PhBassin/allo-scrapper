@@ -1,9 +1,9 @@
 import { useState, useContext, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getWeeklyMovies, getMoviesByDate, getTheaters, addTheater } from '../api/client';
-import FilmCard from '../components/FilmCard';
+import MovieCard from '../components/MovieCard';
 import DaySelector from '../components/DaySelector';
-import FilmSearchBar from '../components/FilmSearchBar';
+import MovieSearchBar from '../components/MovieSearchBar';
 import ScrollToTop from '../components/ScrollToTop';
 import { AuthContext } from '../contexts/AuthContext';
 import CinemasQuickLinks from '../components/CinemasQuickLinks';
@@ -24,13 +24,13 @@ export default function HomePage() {
     queryFn: () => selectedDate ? getMoviesByDate(selectedDate) : getWeeklyMovies(),
   });
 
-  const allFilms = filmsData?.movies || [];
-  // When "Maintenant" is active, hide films whose showtimes are all in the past
-  const films = afterTime
-    ? allFilms.filter(film =>
+  const allMovies = filmsData?.movies || [];
+  // When "Maintenant" is active, hide movies whose showtimes are all in the past
+  const movies = afterTime
+    ? allMovies.filter(film =>
         film.theaters.some(c => c.showtimes.some(s => s.time >= afterTime))
       )
-    : allFilms;
+    : allMovies;
   const weekStart = filmsData?.weekStart || '';
 
   const isLoading = isLoadingCinemas || isLoadingFilms;
@@ -131,7 +131,7 @@ export default function HomePage() {
       >
         {/* Search + Day Selector — single row */}
         <div className="flex items-center gap-3">
-          <FilmSearchBar
+          <MovieSearchBar
             placeholder="Rechercher un film..."
             className="w-40 sm:w-52 flex-shrink-0"
           />
@@ -158,9 +158,9 @@ export default function HomePage() {
 
       {/* Films List */}
       <div className="space-y-6">
-        {films.length > 0 ? (
-          films.map((film) => (
-            <FilmCard key={film.id} film={film} initialAfterTime={afterTime} />
+        {movies.length > 0 ? (
+          movies.map((film) => (
+            <MovieCard key={film.id} movie={film} initialAfterTime={afterTime} />
           ))
         ) : (
           <div className="bg-gray-50 rounded-2xl p-12 text-center border-2 border-dashed border-gray-200">

@@ -124,7 +124,7 @@ describe('CinemaPage - renders cinema details', () => {
       showtimes: [
         {
           id: 'st-1',
-          film_id: 101,
+          movie_id: 101,
           cinema_id: 'C0153',
           date: '2026-02-24',
           time: '14:30',
@@ -133,7 +133,7 @@ describe('CinemaPage - renders cinema details', () => {
           format: '2D',
           experiences: [],
           week_start: '2026-02-23',
-          film: {
+          movie: {
             id: 101,
             title: 'Film Test',
             genres: ['Drame'],
@@ -177,7 +177,7 @@ describe('CinemaPage — bouton Maintenant', () => {
     showtimes: [
       {
         id: 'st-past',
-        film_id: 101,
+        movie_id: 101,
         cinema_id: 'C0153',
         date: FIXED_TODAY,
         time: '12:00',
@@ -186,11 +186,11 @@ describe('CinemaPage — bouton Maintenant', () => {
         format: '2D',
         experiences: [],
         week_start: '2026-03-25',
-        film: { id: 101, title: 'Film Passé', genres: [], actors: [], source_url: '' },
+        movie: { id: 101, title: 'Film Passé', genres: [], actors: [], source_url: '' },
       },
       {
         id: 'st-future',
-        film_id: 102,
+        movie_id: 102,
         cinema_id: 'C0153',
         date: FIXED_TODAY,
         time: '14:00',
@@ -199,7 +199,7 @@ describe('CinemaPage — bouton Maintenant', () => {
         format: '2D',
         experiences: [],
         week_start: '2026-03-25',
-        film: { id: 102, title: 'Film Futur', genres: [], actors: [], source_url: '' },
+        movie: { id: 102, title: 'Film Futur', genres: [], actors: [], source_url: '' },
       },
     ],
   });
@@ -256,7 +256,7 @@ describe('CinemaPage — bouton Maintenant', () => {
         ...makeSchedule().showtimes,
         {
           id: 'st-tomorrow',
-          film_id: 103,
+          movie_id: 103,
           cinema_id: 'C0153',
           date: '2026-03-31',
           time: '10:00',
@@ -265,7 +265,7 @@ describe('CinemaPage — bouton Maintenant', () => {
           format: '2D',
           experiences: [],
           week_start: '2026-03-25',
-          film: { id: 103, title: 'Film Demain', genres: [], actors: [], source_url: '' },
+          movie: { id: 103, title: 'Film Demain', genres: [], actors: [], source_url: '' },
         },
       ],
     });
