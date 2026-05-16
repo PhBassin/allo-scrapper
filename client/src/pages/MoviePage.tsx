@@ -15,7 +15,8 @@ export default function MoviePage() {
     enabled: !isInvalidId
   });
 
-  const error = isInvalidId ? 'Invalid film ID' : (queryError instanceof Error ? queryError.message : (queryError ? 'Failed to load film data' : null));
+  const error = isInvalidId ? 'Invalid movie ID' : (queryError instanceof Error ? queryError.message : (queryError ? 'Failed to load movie data' : null));
+
 
   if (isLoading) {
     return (
@@ -29,7 +30,7 @@ export default function MoviePage() {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6">
         <h2 className="text-xl font-bold text-red-800 mb-2">Erreur</h2>
-        <p className="text-red-600">{error || 'Film not found'}</p>
+        <p className="text-red-600">{error || 'Movie not found'}</p>
       </div>
     );
   }

@@ -174,60 +174,49 @@ export default function MovieSearchBar({
           data-testid="search-results"
         >
           {results.length > 0 ? (
-            results.map((film, index) => (
+            results.map((movie, index) => (
               <Link
-                key={film.id}
-                to={`/movie/${film.id}`}
-                onClick={handleResultClick}
-                className={`block px-4 py-2 hover:bg-gray-100 transition ${
-                  index === selectedIndex ? 'bg-gray-100' : ''
+                key={movie.id}
+                to={`/movie/${movie.id}`}
+                onClick={() => setIsOpen(false)}
+                className={`flex items-start gap-4 p-3 hover:bg-gray-50 transition-colors ${
+                  index === selectedIndex ? 'bg-blue-50' : ''
                 }`}
-                role="option"
-                aria-selected={index === selectedIndex}
-                data-testid="search-result-item"
+                onMouseEnter={() => setSelectedIndex(index)}
               >
-                <div className="flex items-start gap-3">
-                  {/* Poster Thumbnail */}
-                  {film.poster_url ? (
-                    <img
-                      src={film.poster_url}
-                      alt={film.title}
-                      className="w-12 h-16 object-cover rounded"
+                <div className="w-12 h-16 bg-gray-200 rounded flex-shrink-0 overflow-hidden shadow-sm">
+                  {movie.poster_url ? (
+                    <img 
+                      src={movie.poster_url} 
+                      alt={movie.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   ) : (
-                    <div className="w-12 h-16 bg-gray-200 rounded flex items-center justify-center">
-                      <svg
-                        className="w-6 h-6 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"
-                        />
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                     </div>
                   )}
-
-                  {/* Movie Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {highlightText(film.title, query)}
+                </div>
+                
+                <div className="flex-1 min-w-0 py-1">
+                  <h4 className="font-medium text-gray-900 truncate">
+                    {highlightText(movie.title, query)}
+                  </h4>
+                  {movie.original_title && movie.original_title !== movie.title && (
+                    <p className="text-sm text-gray-500 truncate mt-0.5">
+                      VO: {highlightText(movie.original_title, query)}
                     </p>
-                    {film.original_title && film.original_title !== film.title && (
-                      <p className="text-xs text-gray-500 truncate">
-                        {highlightText(film.original_title, query)}
-                      </p>
-                    )}
-                    {film.genres && film.genres.length > 0 && (
-                      <p className="text-xs text-gray-500 truncate">
-                        {film.genres.join(', ')}
-                      </p>
-                    )}
-                  </div>
+                  )}
+                  {movie.genres && movie.genres.length > 0 && (
+                    <div className="flex gap-1 mt-1.5 overflow-hidden">
+                      <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full truncate">
+                        {movie.genres.join(', ')}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </Link>
             ))

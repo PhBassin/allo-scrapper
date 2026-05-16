@@ -19,22 +19,22 @@ export default function HomePage() {
     queryFn: getTheaters,
   });
 
-  const { data: filmsData, isLoading: isLoadingFilms, error: filmsError } = useQuery({
+  const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
     queryKey: ['movies', selectedDate],
     queryFn: () => selectedDate ? getMoviesByDate(selectedDate) : getWeeklyMovies(),
   });
 
-  const allMovies = filmsData?.movies || [];
+  const allMovies = moviesData?.movies || [];
   // When "Maintenant" is active, hide movies whose showtimes are all in the past
   const movies = afterTime
-    ? allMovies.filter(film =>
-        film.theaters.some(c => c.showtimes.some(s => s.time >= afterTime))
+    ? allMovies.filter(movie =>
+        movie.theaters.some(c => c.showtimes.some(s => s.time >= afterTime))
       )
     : allMovies;
-  const weekStart = filmsData?.weekStart || '';
+  const weekStart = moviesData?.weekStart || '';
 
-  const isLoading = isLoadingCinemas || isLoadingFilms;
-  const error = filmsError instanceof Error ? filmsError.message : null;
+  const isLoading = isLoadingCinemas || isLoadingMovies;
+  const error = moviesError instanceof Error ? moviesError.message : null;
 
   const handleDateSelect = useCallback((date: string | null) => {
     setSelectedDate(date || '');
@@ -156,11 +156,11 @@ export default function HomePage() {
         onAddCinema={handleAddCinema}
       />
 
-      {/* Films List */}
+      {/* Movies List */}
       <div className="space-y-6">
         {movies.length > 0 ? (
-          movies.map((film) => (
-            <MovieCard key={film.id} movie={film} initialAfterTime={afterTime} />
+          movies.map((movie) => (
+            <MovieCard key={movie.id} movie={movie} initialAfterTime={afterTime} />
           ))
         ) : (
           <div className="bg-gray-50 rounded-2xl p-12 text-center border-2 border-dashed border-gray-200">
