@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Showtime, Film, Cinema } from '../types';
-import { buildGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
+import { buildGoogleCalendarUrl, downloadIcsFile, openIcsInCalendar } from '../utils/calendar';
 
 interface CalendarPopoverProps {
   showtime: Showtime;
@@ -39,7 +39,7 @@ export default function CalendarPopover({ showtime, film, cinema, onClose }: Cal
   }
 
   function handleAppleCalendar() {
-    downloadIcsFile(showtime, film, cinema);
+    openIcsInCalendar(showtime, film, cinema);
     onClose();
   }
 

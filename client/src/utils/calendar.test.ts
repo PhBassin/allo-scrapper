@@ -115,9 +115,10 @@ describe('buildIcsContent', () => {
     expect(ics).toContain('SUMMARY:Mon Film Test');
   });
 
-  it('contains cinema name and address as LOCATION', () => {
+  it('contains cinema name and address as LOCATION (RFC 5545 escaped)', () => {
     const ics = buildIcsContent(baseShowtime, baseFilm, baseCinema);
-    expect(ics).toContain('LOCATION:Cinéma Test, 10 rue du Cinéma');
+    // RFC 5545 requires commas to be escaped as \,
+    expect(ics).toContain('LOCATION:Cinéma Test\\, 10 rue du Cinéma');
   });
 
   it('uses cinema name only as LOCATION when address is missing', () => {

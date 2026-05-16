@@ -1,20 +1,23 @@
 import type { Showtime, Film, Cinema } from '../types';
 
 /**
- * Convert an ISO 8601 datetime string to compact YYYYMMDDTHHMMSS format for calendar use.
- * Strips hyphens, colons, and trailing 'Z'.
+ * Convert an ISO 8601 datetime string (local, no timezone designator) to
+ * compact YYYYMMDDTHHMMSS format for calendar use.
+ * Input is treated as local time (no Z suffix in the data from the scraper).
  */
 function toCompactDateTime(isoString: string): string {
-  return isoString.replace(/[-:]/g, '').replace(/\.\d+Z?$/, '').replace('Z', '');
+  // Strip hyphens and colons only — do not strip trailing Z if present, but
+  // the scraper produces local ISO strings without Z (e.g. "2026-05-20T20:30:00").
+  return isoString.replace(/[-:]/g, '').replace(/\.\d+$/, '');
 }
 
 /**
- * Add minutes to an ISO 8601 datetime string and return the result as compact YYYYMMDDTHHMMSS.
+ * Add minutes to a local ISO 8601 datetime string and return compact YYYYMMDDTHHMMSS.
+ * Uses local Date methods consistently with toCompactDateTime (both treat input as local).
  */
 function addMinutesToIso(isoString: string, minutes: number): string {
   const date = new Date(isoString);
   date.setMinutes(date.getMinutes() + minutes);
-  // Format manually to avoid timezone conversion — keep local representation
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -36,6 +39,43 @@ function buildDetails(showtime: Showtime): string {
   if (showtime.version) parts.push(showtime.version);
   if (showtime.format) parts.push(showtime.format);
   return parts.join(' ');
+}
+
+/**
+ * Escape special characters in an iCalendar text property value (RFC 5545 §3.3.11).
+ * Escapes: backslash, semicolon, comma, newline.
+ */
+function escapeIcsText(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '');
+}
+
+/**
+ * Fold long iCalendar lines per RFC 5545 §3.1:
+ * Lines longer than 75 octets must be folded with CRLF + single space.
+ */
+function foldIcsLine(line: string): string {
+  const maxBytes = 75;
+  const encoder = new TextEncoder();
+  if (encoder.encode(line).length <= maxBytes) return line;
+
+  const result: string[] = [];
+  let current = '';
+  for (const char of line) {
+    const candidate = current + char;
+    if (encoder.encode(candidate).length > maxBytes) {
+      result.push(current);
+      current = ' ' + char;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) result.push(current);
+  return result.join('\r\n');
 }
 
 /**
@@ -79,14 +119,14 @@ export function buildIcsContent(showtime: Showtime, film: Film, cinema: Cinema):
     `UID:${uid}`,
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,
-    `SUMMARY:${film.title}`,
-    `LOCATION:${location}`,
-    `DESCRIPTION:${details}`,
+    `SUMMARY:${escapeIcsText(film.title)}`,
+    `LOCATION:${escapeIcsText(location)}`,
+    `DESCRIPTION:${escapeIcsText(details)}`,
     'END:VEVENT',
     'END:VCALENDAR',
   ];
 
-  return lines.join('\r\n');
+  return lines.map(foldIcsLine).join('\r\n');
 }
 
 /**
@@ -100,7 +140,26 @@ export function downloadIcsFile(showtime: Showtime, film: Film, cinema: Cinema):
   link.href = url;
   link.download = `${film.title.replace(/[^a-z0-9]/gi, '-')}.ics`;
   document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  try {
+    link.click();
+  } finally {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
+ * Trigger an OS-level calendar import for Apple Calendar by opening the .ics
+ * without a download attribute — the browser lets the OS handle text/calendar.
+ */
+export function openIcsInCalendar(showtime: Showtime, film: Film, cinema: Cinema): void {
+  const content = buildIcsContent(showtime, film, cinema);
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  try {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  } finally {
+    // Delay revoke to give the browser time to start the download/open
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
 }

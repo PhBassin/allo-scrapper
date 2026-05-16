@@ -1,4 +1,4 @@
-import { useMemo, memo, useState, useCallback, useRef } from 'react';
+import { useMemo, memo, useState, useCallback } from 'react';
 import type { Showtime, Film, Cinema } from '../types';
 import CalendarPopover from './CalendarPopover';
 
@@ -9,10 +9,8 @@ interface ShowtimeListProps {
 }
 
 function ShowtimeList({ showtimes, film, cinema }: ShowtimeListProps) {
-  // Track which showtime button has its popover open (by index key)
+  // Track which showtime button has its popover open (by unique key)
   const [openKey, setOpenKey] = useState<string | null>(null);
-  // Keep a ref to the wrapper of the open button for positioning
-  const buttonWrapperRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Group showtimes by version (VF/VO)
   // ⚡ PERFORMANCE: Memoize grouping logic to avoid re-calculation on every render
@@ -46,17 +44,13 @@ function ShowtimeList({ showtimes, film, cinema }: ShowtimeListProps) {
           <p className="text-sm font-semibold text-gray-700 mb-2">{version}</p>
           <div className="flex flex-wrap gap-2">
             {versionShowtimes.map((showtime, index) => {
-              const key = `${showtime.time}-${index}`;
+              const key = `${version}-${showtime.time}-${index}`;
               const isOpen = openKey === key;
 
               return (
                 <div
                   key={key}
                   className="relative"
-                  ref={(el) => {
-                    if (el) buttonWrapperRefs.current.set(key, el);
-                    else buttonWrapperRefs.current.delete(key);
-                  }}
                 >
                   <button
                     type="button"
