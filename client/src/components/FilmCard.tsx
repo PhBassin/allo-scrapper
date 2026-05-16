@@ -115,7 +115,7 @@ function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
               }`}
             >
               <span>{showSchedule ? '▼ Cacher les horaires' : '▶ Voir les horaires'}</span>
-              <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">{film.cinemas.length} cinémas</span>
+              <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">{film.theaters.length} cinémas</span>
             </button>
             <Link 
               to={`/movie/${film.id}`} 
@@ -127,7 +127,7 @@ function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
 
           {showSchedule && (
             <div className="mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-              <CinemaShowtimes cinemas={film.cinemas} film={film} initialAfterTime={initialAfterTime} />
+              <CinemaShowtimes cinemas={film.theaters} film={film} initialAfterTime={initialAfterTime} />
             </div>
           )}
         </div>

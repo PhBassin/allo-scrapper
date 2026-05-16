@@ -28,7 +28,7 @@ export default function HomePage() {
   // When "Maintenant" is active, hide films whose showtimes are all in the past
   const films = afterTime
     ? allFilms.filter(film =>
-        film.cinemas.some(c => c.showtimes.some(s => s.time >= afterTime))
+        film.theaters.some(c => c.showtimes.some(s => s.time >= afterTime))
       )
     : allFilms;
   const weekStart = filmsData?.weekStart || '';

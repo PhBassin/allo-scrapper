@@ -66,7 +66,7 @@ export interface ShowtimeWithFilm extends Showtime {
 }
 
 export interface FilmWithCinemas extends Film {
-  cinemas: Cinema[];
+  theaters: Cinema[];
 }
 
 export interface CinemaWithShowtimes extends Cinema {
@@ -74,7 +74,7 @@ export interface CinemaWithShowtimes extends Cinema {
 }
 
 export interface FilmWithShowtimes extends Film {
-  cinemas: CinemaWithShowtimes[];
+  theaters: CinemaWithShowtimes[];
 }
 
 // Scrape Report types

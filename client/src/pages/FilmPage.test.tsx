@@ -40,7 +40,7 @@ describe('FilmPage', () => {
       actors: ['Acteur Test'],
       source_url: 'https://example.com/film/1',
       trailer_url: 'https://www.allocine.fr/video/player_gen_cmedia=1&cfilm=1.html',
-      cinemas: [],
+      theaters: [],
     } as any);
 
     renderPage('/movie/1');
@@ -59,7 +59,7 @@ describe('FilmPage', () => {
       genres: ['Drame'],
       actors: ['Acteur Test'],
       source_url: 'https://example.com/film/1',
-      cinemas: [],
+      theaters: [],
     } as any);
 
     renderPage('/movie/1');

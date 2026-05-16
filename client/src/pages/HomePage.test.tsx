@@ -121,7 +121,7 @@ describe('HomePage — bouton Maintenant', () => {
         genres: [],
         actors: [],
         source_url: '',
-        cinemas: [
+        theaters: [
           {
             id: 'C1',
             name: 'Cinema 1',
@@ -137,7 +137,7 @@ describe('HomePage — bouton Maintenant', () => {
         genres: [],
         actors: [],
         source_url: '',
-        cinemas: [
+        theaters: [
           {
             id: 'C1',
             name: 'Cinema 1',
