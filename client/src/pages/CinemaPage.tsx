@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCinemas, getCinemaSchedule } from '../api/client';
 import type { ShowtimeWithFilm, Film } from '../types';
+import ShowtimeList from '../components/ShowtimeList';
+import CinemaDateSelector from '../components/CinemaDateSelector';
 
 interface FilmGroup {
   film: Film;
