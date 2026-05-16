@@ -128,7 +128,7 @@ export default function FilmPage() {
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
               <span>📅 Horaires et Cinémas</span>
             </h2>
-            <CinemaShowtimes cinemas={film.cinemas} />
+            <CinemaShowtimes cinemas={film.cinemas} film={film} />
           </section>
 
           {/* Synopsis Section */}
