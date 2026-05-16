@@ -181,18 +181,18 @@ export default function ReportsPage() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Cinémas traités</p>
               <p className="font-semibold">
-                {selectedReport.successful_cinemas} / {selectedReport.total_cinemas}
+                {selectedReport.successful_theaters} / {selectedReport.total_theaters}
               </p>
             </div>
           </div>
 
-          {selectedReport.total_films_scraped !== undefined && (
+          {selectedReport.total_movies_scraped !== undefined && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-sm text-gray-600 mb-2">Statistiques</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-xs text-gray-500">Films</p>
-                  <p className="text-xl font-bold text-primary">{selectedReport.total_films_scraped}</p>
+                  <p className="text-xl font-bold text-primary">{selectedReport.total_movies_scraped}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Séances</p>
@@ -310,7 +310,7 @@ export default function ReportsPage() {
             <div className="space-y-3">
               {selectedReport.errors.map((err, index) => (
                 <div key={index} className="bg-red-50 border border-red-200 rounded p-3">
-                  <p className="font-semibold text-red-900">{err.cinema_name}</p>
+                  <p className="font-semibold text-red-900">{err.theater_name}</p>
                   <p className="text-sm text-red-700 mt-1">{err.error}</p>
                 </div>
               ))}
@@ -374,14 +374,14 @@ export default function ReportsPage() {
                     <div>
                       <p className="text-gray-500">Cinémas</p>
                       <p className="font-bold text-primary">
-                        {report.successful_cinemas}/{report.total_cinemas}
+                        {report.successful_theaters}/{report.total_theaters}
                       </p>
                     </div>
-                    {report.total_films_scraped !== undefined && (
+                    {report.total_movies_scraped !== undefined && (
                       <>
                         <div>
                           <p className="text-gray-500">Films</p>
-                          <p className="font-bold text-primary">{report.total_films_scraped}</p>
+                          <p className="font-bold text-primary">{report.total_movies_scraped}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Séances</p>
