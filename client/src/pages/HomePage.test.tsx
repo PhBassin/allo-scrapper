@@ -54,7 +54,7 @@ describe('HomePage', () => {
     (clientApi.getTheaters as any) = mockGetTheaters;
 
     // Default successful responses
-    mockGetWeeklyMovies.mockResolvedValue({ films: [], weekStart: '2023-01-01' });
+    mockGetWeeklyMovies.mockResolvedValue({ movies: [], weekStart: '2023-01-01' });
     mockGetTheaters.mockResolvedValue([]);
   });
 
@@ -114,7 +114,7 @@ describe('HomePage — bouton Maintenant', () => {
   const FIXED_NOW = new Date('2026-03-30T13:00:00');
 
   const makeFilmsResponse = () => ({
-    films: [
+    movies: [
       {
         id: 101,
         title: 'Film Passé',
@@ -163,7 +163,7 @@ describe('HomePage — bouton Maintenant', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(FIXED_NOW);
     vi.clearAllMocks();
-    (clientApi.getWeeklyMovies as any).mockResolvedValue({ films: [], weekStart: WEEK_START });
+    (clientApi.getWeeklyMovies as any).mockResolvedValue({ movies: [], weekStart: WEEK_START });
     (clientApi.getTheaters as any).mockResolvedValue([]);
     (clientApi.getMoviesByDate as any).mockResolvedValue(makeFilmsResponse());
   });

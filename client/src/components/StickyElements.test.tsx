@@ -66,7 +66,7 @@ const renderWithProviders = (ui: React.ReactElement) => {
 describe('Sticky Elements Stickiness', () => {
   it('HomePage search/date container should be sticky with offset', async () => {
     (clientApi.getTheaters as any).mockResolvedValue([]);
-    (clientApi.getWeeklyMovies as any).mockResolvedValue({ films: [], weekStart: '2024-01-01' });
+    (clientApi.getWeeklyMovies as any).mockResolvedValue({ movies: [], weekStart: '2024-01-01' });
 
     renderWithProviders(<HomePage />);
 
