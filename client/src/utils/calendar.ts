@@ -149,17 +149,10 @@ export function downloadIcsFile(showtime: Showtime, film: Film, cinema: Cinema):
 }
 
 /**
- * Trigger an OS-level calendar import for Apple Calendar by opening the .ics
- * without a download attribute — the browser lets the OS handle text/calendar.
+ * Alias — Apple Calendar on modern browsers cannot be triggered directly from
+ * a blob URL. This downloads the .ics with a proper filename; the user opens
+ * it to import into Calendar.app (macOS/iOS associate .ics with Calendar).
  */
 export function openIcsInCalendar(showtime: Showtime, film: Film, cinema: Cinema): void {
-  const content = buildIcsContent(showtime, film, cinema);
-  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  try {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  } finally {
-    // Delay revoke to give the browser time to start the download/open
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }
+  downloadIcsFile(showtime, film, cinema);
 }

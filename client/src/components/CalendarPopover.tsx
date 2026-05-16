@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Showtime, Film, Cinema } from '../types';
-import { buildGoogleCalendarUrl, downloadIcsFile, openIcsInCalendar } from '../utils/calendar';
+import { buildGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 
 interface CalendarPopoverProps {
   showtime: Showtime;
@@ -57,11 +57,6 @@ export default function CalendarPopover({ showtime, film, cinema, anchorRef, onC
     onClose();
   }
 
-  function handleAppleCalendar() {
-    openIcsInCalendar(showtime, film, cinema);
-    onClose();
-  }
-
   function handleDownloadIcs() {
     downloadIcsFile(showtime, film, cinema);
     onClose();
@@ -86,22 +81,14 @@ export default function CalendarPopover({ showtime, film, cinema, anchorRef, onC
 
       <button
         role="menuitem"
-        onClick={handleAppleCalendar}
-        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition cursor-pointer"
-      >
-        <span className="text-base leading-none" aria-hidden="true">🍎</span>
-        <span className="font-medium">Apple Calendar</span>
-      </button>
-
-      <div className="my-1 border-t border-gray-100" />
-
-      <button
-        role="menuitem"
         onClick={handleDownloadIcs}
         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition cursor-pointer"
       >
-        <span className="text-base leading-none" aria-hidden="true">⬇️</span>
-        <span className="font-medium">Télécharger .ics</span>
+        <span className="text-base leading-none" aria-hidden="true">📁</span>
+        <div className="flex flex-col">
+          <span className="font-medium">Apple / Outlook</span>
+          <span className="text-xs text-gray-400">Télécharger le fichier .ics</span>
+        </div>
       </button>
     </div>,
     document.body
