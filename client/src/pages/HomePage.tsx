@@ -1,6 +1,6 @@
 import { useState, useContext, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getWeeklyFilms, getFilmsByDate, getCinemas, addCinema } from '../api/client';
+import { getWeeklyMovies, getMoviesByDate, getTheaters, addTheater } from '../api/client';
 import FilmCard from '../components/FilmCard';
 import DaySelector from '../components/DaySelector';
 import FilmSearchBar from '../components/FilmSearchBar';
@@ -15,13 +15,13 @@ export default function HomePage() {
   const { isAuthenticated, hasPermission } = useContext(AuthContext);
 
   const { data: cinemas = [], isLoading: isLoadingCinemas } = useQuery({
-    queryKey: ['cinemas'],
-    queryFn: getCinemas,
+    queryKey: ['theaters'],
+    queryFn: getTheaters,
   });
 
   const { data: filmsData, isLoading: isLoadingFilms, error: filmsError } = useQuery({
-    queryKey: ['films', selectedDate],
-    queryFn: () => selectedDate ? getFilmsByDate(selectedDate) : getWeeklyFilms(),
+    queryKey: ['movies', selectedDate],
+    queryFn: () => selectedDate ? getMoviesByDate(selectedDate) : getWeeklyMovies(),
   });
 
   const allFilms = filmsData?.films || [];
@@ -66,11 +66,11 @@ export default function HomePage() {
     return formatDate(end.toISOString());
   };
 
-  const addCinemaMutation = useMutation({
-    mutationFn: addCinema,
+  const addTheaterMutation = useMutation({
+    mutationFn: addTheater,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
-      queryClient.invalidateQueries({ queryKey: ['films', selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ['theaters'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', selectedDate] });
     },
     onError: (err: Error) => {
       alert(err.message || 'Erreur lors de l\'ajout du cinéma');
@@ -81,8 +81,8 @@ export default function HomePage() {
     const url = window.prompt("Entrez l'URL Allociné du cinéma à ajouter (ex: https://www.allocine.fr/seance/salle_affich-salle=C0013.html):");
     if (!url) return;
 
-    addCinemaMutation.mutate(url);
-  }, [addCinemaMutation]);
+    addTheaterMutation.mutate(url);
+  }, [addTheaterMutation]);
 
   if (isLoading) {
     return (

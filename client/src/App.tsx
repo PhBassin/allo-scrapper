@@ -103,8 +103,8 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route path="/cinema/:id" element={<CinemaPage />} />
-        <Route path="/film/:id" element={<FilmPage />} />
+        <Route path="/theater/:id" element={<CinemaPage />} />
+        <Route path="/movie/:id" element={<FilmPage />} />
         <Route
           path="/admin"
           element={

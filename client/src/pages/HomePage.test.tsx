@@ -35,27 +35,27 @@ const renderWithClient = (ui: React.ReactElement) => {
   );
 };
 vi.mock('../api/client', () => ({
-  getWeeklyFilms: vi.fn(),
-  getFilmsByDate: vi.fn(),
-  getCinemas: vi.fn(),
-  addCinema: vi.fn(),
+  getWeeklyMovies: vi.fn(),
+  getMoviesByDate: vi.fn(),
+  getTheaters: vi.fn(),
+  addTheater: vi.fn(),
 }));
 
 describe('HomePage', () => {
-  let mockGetWeeklyFilms: ReturnType<typeof vi.fn>;
-  let mockGetCinemas: ReturnType<typeof vi.fn>;
+  let mockGetWeeklyMovies: ReturnType<typeof vi.fn>;
+  let mockGetTheaters: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    mockGetWeeklyFilms = vi.fn();
-    mockGetCinemas = vi.fn();
+    mockGetWeeklyMovies = vi.fn();
+    mockGetTheaters = vi.fn();
 
     // Re-bind mocks
-    (clientApi.getWeeklyFilms as any) = mockGetWeeklyFilms;
-    (clientApi.getCinemas as any) = mockGetCinemas;
+    (clientApi.getWeeklyMovies as any) = mockGetWeeklyMovies;
+    (clientApi.getTheaters as any) = mockGetTheaters;
 
     // Default successful responses
-    mockGetWeeklyFilms.mockResolvedValue({ films: [], weekStart: '2023-01-01' });
-    mockGetCinemas.mockResolvedValue([]);
+    mockGetWeeklyMovies.mockResolvedValue({ films: [], weekStart: '2023-01-01' });
+    mockGetTheaters.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -70,8 +70,8 @@ describe('HomePage', () => {
     );
 
     await waitFor(() => {
-      expect(mockGetWeeklyFilms).toHaveBeenCalled();
-      expect(mockGetCinemas).toHaveBeenCalled();
+      expect(mockGetWeeklyMovies).toHaveBeenCalled();
+      expect(mockGetTheaters).toHaveBeenCalled();
     });
   });
 
@@ -83,7 +83,7 @@ describe('HomePage', () => {
     );
 
     await waitFor(() => {
-      expect(mockGetWeeklyFilms).toHaveBeenCalled();
+      expect(mockGetWeeklyMovies).toHaveBeenCalled();
     });
 
     // Scraping UI has been moved to admin — should never appear on HomePage
@@ -98,7 +98,7 @@ describe('HomePage', () => {
     );
 
     await waitFor(() => {
-      expect(mockGetWeeklyFilms).toHaveBeenCalled();
+      expect(mockGetWeeklyMovies).toHaveBeenCalled();
     });
 
     // Scraping UI has been moved to admin — no scrape button on public pages
@@ -163,9 +163,9 @@ describe('HomePage — bouton Maintenant', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(FIXED_NOW);
     vi.clearAllMocks();
-    (clientApi.getWeeklyFilms as any).mockResolvedValue({ films: [], weekStart: WEEK_START });
-    (clientApi.getCinemas as any).mockResolvedValue([]);
-    (clientApi.getFilmsByDate as any).mockResolvedValue(makeFilmsResponse());
+    (clientApi.getWeeklyMovies as any).mockResolvedValue({ films: [], weekStart: WEEK_START });
+    (clientApi.getTheaters as any).mockResolvedValue([]);
+    (clientApi.getMoviesByDate as any).mockResolvedValue(makeFilmsResponse());
   });
 
   afterEach(() => {
@@ -185,7 +185,7 @@ describe('HomePage — bouton Maintenant', () => {
     fireEvent.click(screen.getByRole('button', { name: /maintenant/i }));
 
     await waitFor(() => {
-      expect(clientApi.getFilmsByDate).toHaveBeenCalledWith(FIXED_TODAY);
+      expect(clientApi.getMoviesByDate).toHaveBeenCalledWith(FIXED_TODAY);
     });
   });
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Cinema } from '../../types';
-import type { CinemaUpdate } from '../../api/cinemas';
+import type { TheaterUpdate } from '../../api/theaters';
 
 /**
  * Modal for editing a cinema's information.
@@ -25,7 +25,7 @@ interface EditCinemaModalProps {
   isOpen: boolean;
   cinema: Cinema;
   onClose: () => void;
-  onSave: (id: string, updates: CinemaUpdate) => Promise<void>;
+  onSave: (id: string, updates: TheaterUpdate) => Promise<void>;
 }
 
 const ALLOCINE_URL_PREFIX = 'https://www.allocine.fr/';
@@ -127,7 +127,7 @@ const EditCinemaModal: React.FC<EditCinemaModalProps> = ({ isOpen, cinema, onClo
     setIsSaving(true);
     setSubmitError(null);
     try {
-      const updates: CinemaUpdate = {};
+      const updates: TheaterUpdate = {};
 
       if (name.trim() !== cinema.name.trim()) updates.name = name.trim();
       if (url.trim() !== (cinema.url ?? '').trim()) updates.url = url.trim() || undefined;

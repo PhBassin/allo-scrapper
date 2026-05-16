@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCinemas, getCinemaSchedule } from '../api/client';
+import { getTheaters, getTheaterSchedule } from '../api/client';
 import type { ShowtimeWithFilm, Film } from '../types';
 import ShowtimeList from '../components/ShowtimeList';
 import CinemaDateSelector from '../components/CinemaDateSelector';
@@ -15,13 +15,13 @@ export default function CinemaPage() {
   const { id } = useParams<{ id: string }>();
 
   const { data: cinemasData, isLoading: cinemasLoading, error: cinemasError } = useQuery({
-    queryKey: ['cinemas'],
-    queryFn: getCinemas
+    queryKey: ['theaters'],
+    queryFn: getTheaters
   });
 
   const { data: scheduleData, isLoading: scheduleLoading, error: scheduleError } = useQuery({
-    queryKey: ['cinema-schedule', id],
-    queryFn: () => getCinemaSchedule(id!),
+    queryKey: ['theater-schedule', id],
+    queryFn: () => getTheaterSchedule(id!),
     enabled: !!id
   });
 
@@ -193,7 +193,7 @@ export default function CinemaPage() {
                   <div className="flex-grow">
                     <div className="mb-4">
                       <h2 className="text-xl md:text-2xl font-bold mb-1">
-                        <Link to={`/film/${film.id}`} className="hover:text-primary transition">
+                        <Link to={`/movie/${film.id}`} className="hover:text-primary transition">
                           {film.title}
                         </Link>
                       </h2>

@@ -53,6 +53,6 @@ describe('CinemasQuickLinks', () => {
     renderComponent();
 
     const ugcLink = screen.getByText('UGC Opéra').closest('a');
-    expect(ugcLink).toHaveAttribute('href', '/cinema/C0001');
+    expect(ugcLink).toHaveAttribute('href', '/theater/C0001');
   });
 });

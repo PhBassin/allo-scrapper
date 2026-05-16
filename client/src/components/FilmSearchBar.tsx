@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { searchFilms } from '../api/client';
+import { searchMovies } from '../api/client';
 import { useDebounce } from '../hooks/useDebounce';
 import { highlightText } from '../utils/highlight';
 import type { Film } from '../types';
@@ -33,7 +33,7 @@ export default function FilmSearchBar({
 
       setIsLoading(true);
       try {
-        const films = await searchFilms(debouncedQuery);
+        const films = await searchMovies(debouncedQuery);
         setResults(films);
         setIsOpen(true);
         setSelectedIndex(-1);
@@ -177,7 +177,7 @@ export default function FilmSearchBar({
             results.map((film, index) => (
               <Link
                 key={film.id}
-                to={`/film/${film.id}`}
+                to={`/movie/${film.id}`}
                 onClick={handleResultClick}
                 className={`block px-4 py-2 hover:bg-gray-100 transition ${
                   index === selectedIndex ? 'bg-gray-100' : ''

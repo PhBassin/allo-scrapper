@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getFilmById } from '../api/client';
+import { getMovieById } from '../api/client';
 import CinemaShowtimes from '../components/CinemaShowtimes';
 
 export default function FilmPage() {
@@ -10,8 +10,8 @@ export default function FilmPage() {
   const isInvalidId = Number.isNaN(filmId);
 
   const { data: film, isLoading, error: queryError } = useQuery({
-    queryKey: ['film', filmId],
-    queryFn: () => getFilmById(filmId),
+    queryKey: ['movie', filmId],
+    queryFn: () => getMovieById(filmId),
     enabled: !isInvalidId
   });
 

@@ -48,7 +48,7 @@ function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
           {/* Info */}
           <div className="flex-grow">
             <h3 className="text-2xl font-bold mb-1">
-              <Link to={`/film/${film.id}`} className="hover:text-primary transition">
+              <Link to={`/movie/${film.id}`} className="hover:text-primary transition">
                 {film.title}
               </Link>
             </h3>
@@ -118,7 +118,7 @@ function FilmCard({ film, isNew = false, initialAfterTime }: FilmCardProps) {
               <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">{film.cinemas.length} cinémas</span>
             </button>
             <Link 
-              to={`/film/${film.id}`} 
+              to={`/movie/${film.id}`} 
               className="text-sm font-bold text-gray-500 hover:text-primary transition"
             >
               Fiche complète →

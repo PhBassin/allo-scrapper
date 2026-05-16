@@ -6,7 +6,7 @@ import FilmPage from './FilmPage';
 import * as clientApi from '../api/client';
 
 vi.mock('../api/client', () => ({
-  getFilmById: vi.fn(),
+  getMovieById: vi.fn(),
 }));
 
 function renderPage(path: string) {
@@ -20,7 +20,7 @@ function renderPage(path: string) {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route path="/film/:id" element={<FilmPage />} />
+          <Route path="/movie/:id" element={<FilmPage />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -33,7 +33,7 @@ describe('FilmPage', () => {
   });
 
   it('renders trailer link when trailer_url is available', async () => {
-    vi.mocked(clientApi.getFilmById).mockResolvedValue({
+    vi.mocked(clientApi.getMovieById).mockResolvedValue({
       id: 1,
       title: 'Film Test',
       genres: ['Drame'],
@@ -43,7 +43,7 @@ describe('FilmPage', () => {
       cinemas: [],
     } as any);
 
-    renderPage('/film/1');
+    renderPage('/movie/1');
 
     const trailerLink = await screen.findByRole('link', { name: /Voir la bande-annonce/i });
     expect(trailerLink).toHaveAttribute(
@@ -53,7 +53,7 @@ describe('FilmPage', () => {
   });
 
   it('does not render trailer link when trailer_url is absent', async () => {
-    vi.mocked(clientApi.getFilmById).mockResolvedValue({
+    vi.mocked(clientApi.getMovieById).mockResolvedValue({
       id: 1,
       title: 'Film Test',
       genres: ['Drame'],
@@ -62,7 +62,7 @@ describe('FilmPage', () => {
       cinemas: [],
     } as any);
 
-    renderPage('/film/1');
+    renderPage('/movie/1');
 
     await screen.findByRole('heading', { name: 'Film Test' });
     expect(screen.queryByRole('link', { name: /Voir la bande-annonce/i })).not.toBeInTheDocument();

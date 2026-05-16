@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCinemas, createCinema, updateCinema, deleteCinema } from '../../api/cinemas';
-import type { CinemaCreate, CinemaUpdate } from '../../api/cinemas';
-import { triggerScrape, triggerCinemaScrape, getScrapeStatus } from '../../api/client';
+import { getTheaters, createTheater, updateTheater, deleteTheater } from '../../api/theaters';
+import type { TheaterCreate, TheaterUpdate } from '../../api/theaters';
+import { triggerScrape, triggerTheaterScrape, getScrapeStatus } from '../../api/client';
 import type { Cinema } from '../../types';
 import AddCinemaModal from '../../components/admin/AddCinemaModal';
 import EditCinemaModal from '../../components/admin/EditCinemaModal';
@@ -26,8 +26,8 @@ const CinemasPage: React.FC = () => {
   const queryClient = useQueryClient();
 
   const { data: cinemas = [], isLoading: loading, error: queryError } = useQuery({
-    queryKey: ['cinemas'],
-    queryFn: getCinemas
+    queryKey: ['theaters'],
+    queryFn: getTheaters
   });
 
   const error = queryError instanceof Error ? queryError.message : null;
@@ -71,37 +71,37 @@ const CinemasPage: React.FC = () => {
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const createMutation = useMutation({
-    mutationFn: createCinema,
+    mutationFn: createTheater,
     onSuccess: () => {
       setShowAddModal(false);
       setSuccessMessage('Cinema added successfully');
-      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
+      queryClient.invalidateQueries({ queryKey: ['theaters'] });
     }
   });
 
-  const handleAdd = async (data: CinemaCreate) => {
+  const handleAdd = async (data: TheaterCreate) => {
     createMutation.mutate(data);
   };
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: CinemaUpdate }) => updateCinema(id, updates),
+    mutationFn: ({ id, updates }: { id: string; updates: TheaterUpdate }) => updateTheater(id, updates),
     onSuccess: () => {
       setCinemaToEdit(null);
       setSuccessMessage('Cinema updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
+      queryClient.invalidateQueries({ queryKey: ['theaters'] });
     }
   });
 
-  const handleUpdate = async (id: string, updates: CinemaUpdate) => {
+  const handleUpdate = async (id: string, updates: TheaterUpdate) => {
     updateMutation.mutate({ id, updates });
   };
 
   const deleteMutation = useMutation({
-    mutationFn: deleteCinema,
+    mutationFn: deleteTheater,
     onSuccess: () => {
       setCinemaToDelete(null);
       setSuccessMessage('Cinema deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
+      queryClient.invalidateQueries({ queryKey: ['theaters'] });
       setIsDeleting(false);
     },
     onError: (err) => {
@@ -126,7 +126,7 @@ const CinemasPage: React.FC = () => {
     setTimeout(() => {
       setShowProgress(false);
       setScrapingCinemaId(null);
-      queryClient.invalidateQueries({ queryKey: ['cinemas'] });
+      queryClient.invalidateQueries({ queryKey: ['theaters'] });
     }, 2000);
   }, [queryClient]);
 
@@ -271,7 +271,7 @@ const CinemasPage: React.FC = () => {
                            variant="success"
                            onClick={() => {
                              setScrapingCinemaId(cinema.id);
-                             triggerCinemaScrape(cinema.id)
+                             triggerTheaterScrape(cinema.id)
                                .then(() => handleScrapeStart())
                                .catch(() => setScrapingCinemaId(null));
                            }}

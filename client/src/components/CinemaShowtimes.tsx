@@ -132,7 +132,7 @@ export default function CinemaShowtimes({ cinemas, film, initialDate, initialAft
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-lg font-bold">
-                  <Link to={`/cinema/${cinema.id}`} className="hover:text-primary transition">
+                  <Link to={`/theater/${cinema.id}`} className="hover:text-primary transition">
                     {cinema.name}
                   </Link>
                 </h3>
@@ -143,7 +143,7 @@ export default function CinemaShowtimes({ cinemas, film, initialDate, initialAft
                 )}
               </div>
               <Link
-                to={`/cinema/${cinema.id}`}
+                to={`/theater/${cinema.id}`}
                 className="text-xs font-semibold text-primary-dark hover:underline bg-yellow-100 px-2 py-1 rounded"
               >
                 Fiche cinéma

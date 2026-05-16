@@ -7,8 +7,8 @@ import * as clientApi from '../api/client';
 import type { Cinema } from '../types';
 
 vi.mock('../api/client', () => ({
-  getCinemas: vi.fn(),
-  getCinemaSchedule: vi.fn(),
+  getTheaters: vi.fn(),
+  getTheaterSchedule: vi.fn(),
 }));
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -55,15 +55,15 @@ describe('CinemaPage - renders cinema details', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(clientApi.getCinemas).mockResolvedValue([mockCinema]);
-    vi.mocked(clientApi.getCinemaSchedule).mockResolvedValue(mockSchedule);
+    vi.mocked(clientApi.getTheaters).mockResolvedValue([mockCinema]);
+    vi.mocked(clientApi.getTheaterSchedule).mockResolvedValue(mockSchedule);
   });
 
   it('renders the cinema name heading', async () => {
     renderWithClient(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
+      <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<CinemaPage />} />
         </Routes>
       </MemoryRouter>
     );
@@ -74,9 +74,9 @@ describe('CinemaPage - renders cinema details', () => {
 
   it('does NOT render a scrape button (scraping moved to admin)', async () => {
     renderWithClient(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
+      <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<CinemaPage />} />
         </Routes>
       </MemoryRouter>
     );
@@ -89,26 +89,26 @@ describe('CinemaPage - renders cinema details', () => {
 
   it('calls getCinemas and getCinemaSchedule on mount', async () => {
     renderWithClient(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
+      <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<CinemaPage />} />
         </Routes>
       </MemoryRouter>
     );
 
     await screen.findByRole('heading', { name: 'UGC Test' });
 
-    expect(clientApi.getCinemas).toHaveBeenCalledTimes(1);
-    expect(clientApi.getCinemaSchedule).toHaveBeenCalledWith('C0153');
+    expect(clientApi.getTheaters).toHaveBeenCalledTimes(1);
+    expect(clientApi.getTheaterSchedule).toHaveBeenCalledWith('C0153');
   });
 
   it('shows error message when cinema is not found', async () => {
-    vi.mocked(clientApi.getCinemas).mockResolvedValue([]);
+    vi.mocked(clientApi.getTheaters).mockResolvedValue([]);
 
     renderWithClient(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
+      <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<CinemaPage />} />
         </Routes>
       </MemoryRouter>
     );
@@ -119,7 +119,7 @@ describe('CinemaPage - renders cinema details', () => {
   });
 
   it('shows first available showtimes when no showtimes exist for today', async () => {
-    vi.mocked(clientApi.getCinemaSchedule).mockResolvedValue({
+    vi.mocked(clientApi.getTheaterSchedule).mockResolvedValue({
       weekStart: '2026-02-23',
       showtimes: [
         {
@@ -145,9 +145,9 @@ describe('CinemaPage - renders cinema details', () => {
     });
 
     renderWithClient(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
+      <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<CinemaPage />} />
         </Routes>
       </MemoryRouter>
     );
@@ -209,8 +209,8 @@ describe('CinemaPage — bouton Maintenant', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(FIXED_NOW);
     vi.clearAllMocks();
-    vi.mocked(clientApi.getCinemas).mockResolvedValue([mockCinema]);
-    vi.mocked(clientApi.getCinemaSchedule).mockResolvedValue(makeSchedule());
+    vi.mocked(clientApi.getTheaters).mockResolvedValue([mockCinema]);
+    vi.mocked(clientApi.getTheaterSchedule).mockResolvedValue(makeSchedule());
   });
 
   afterEach(() => {
@@ -219,9 +219,9 @@ describe('CinemaPage — bouton Maintenant', () => {
 
   const renderCinemaPage = () =>
     renderWithClient(
-      <MemoryRouter initialEntries={['/cinema/C0153']}>
+      <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/cinema/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<CinemaPage />} />
         </Routes>
       </MemoryRouter>
     );
@@ -250,7 +250,7 @@ describe('CinemaPage — bouton Maintenant', () => {
   });
 
   it('resets the time filter when another date is clicked', async () => {
-    vi.mocked(clientApi.getCinemaSchedule).mockResolvedValue({
+    vi.mocked(clientApi.getTheaterSchedule).mockResolvedValue({
       ...makeSchedule(),
       showtimes: [
         ...makeSchedule().showtimes,
