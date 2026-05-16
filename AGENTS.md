@@ -538,7 +538,7 @@ cd server && npx vitest run src/services/scraper/theater-parser.test.ts
 cd server && npm run test:coverage
 
 # Manual pre-push check (same as the hook)
-cd server && npx tsc --noEmit && npm run test:run
+cd server && npx tsc -b && npm run test:run
 
 # Run scraper microservice tests
 cd scraper && npm test
