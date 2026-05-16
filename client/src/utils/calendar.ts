@@ -147,12 +147,3 @@ export function downloadIcsFile(showtime: Showtime, film: Film, cinema: Cinema):
     URL.revokeObjectURL(url);
   }
 }
-
-/**
- * Alias — Apple Calendar on modern browsers cannot be triggered directly from
- * a blob URL. This downloads the .ics with a proper filename; the user opens
- * it to import into Calendar.app (macOS/iOS associate .ics with Calendar).
- */
-export function openIcsInCalendar(showtime: Showtime, film: Film, cinema: Cinema): void {
-  downloadIcsFile(showtime, film, cinema);
-}
