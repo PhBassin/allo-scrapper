@@ -104,24 +104,34 @@ router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('rep
     // Get all attempts for this report
     const attempts = await getScrapeAttemptsByReport(db, reportId);
 
-    // Group attempts by theater
-    const attemptsByTheater: Record<string, any[]> = {};
-    for (const attempt of attempts) {
+    // Group attempts by theater and calculate summary statistics in a single pass
+    // to avoid multiple O(n) filtering iterations over the attempts array
+    const attemptsByTheater: Record<string, any[]> = Object.create(null);
+    const summary = {
+      total_attempts: attempts.length,
+      successful: 0,
+      failed: 0,
+      rate_limited: 0,
+      not_attempted: 0,
+      pending: 0,
+    };
+
+    for (let i = 0; i < attempts.length; i++) {
+      const attempt = attempts[i];
+
+      // Grouping
       if (!attemptsByTheater[attempt.theater_id]) {
         attemptsByTheater[attempt.theater_id] = [];
       }
       attemptsByTheater[attempt.theater_id].push(attempt);
-    }
 
-    // Calculate summary statistics
-    const summary = {
-      total_attempts: attempts.length,
-      successful: attempts.filter(a => a.status === 'success').length,
-      failed: attempts.filter(a => a.status === 'failed').length,
-      rate_limited: attempts.filter(a => a.status === 'rate_limited').length,
-      not_attempted: attempts.filter(a => a.status === 'not_attempted').length,
-      pending: attempts.filter(a => a.status === 'pending').length,
-    };
+      // Statistics
+      if (attempt.status === 'success') summary.successful++;
+      else if (attempt.status === 'failed') summary.failed++;
+      else if (attempt.status === 'rate_limited') summary.rate_limited++;
+      else if (attempt.status === 'not_attempted') summary.not_attempted++;
+      else if (attempt.status === 'pending') summary.pending++;
+    }
 
     const response: ApiResponse = {
       success: true,
