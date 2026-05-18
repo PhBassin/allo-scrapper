@@ -27,3 +27,8 @@
 **Vulnerability:** The application was using the native `parseInt(value, 10)` function to parse route parameters (`req.params.id`) and query arguments (`limit`, `offset`). `parseInt` is very permissive and parses strings up to the first non-numeric character (e.g., `parseInt('123abc', 10)` returns `123`). This permissive parsing can lead to unexpected behavior, logic flaws, or even security issues like IDORs if an ID is loosely matched.
 **Learning:** Native `parseInt` should not be used for strict numerical validation of IDs or pagination parameters as it stops parsing at the first non-numeric character and returns the parsed portion, effectively ignoring invalid trailing characters.
 **Prevention:** Use a custom utility (`parseStrictInt` in `server/src/utils/number.ts`) that strictly enforces a valid integer format using regex (`/^-?\d+$/`) or native number validation (`Number.isInteger`) before processing the input.
+
+## 2026-03-26 - JWT Decode used instead of Verify for Rate Limiting
+**Vulnerability:** The rate limiter middleware (`server/src/middleware/rate-limit.ts`) used `jwt.decode(token)` to extract the user ID for bucketing quotas. `jwt.decode` does not check the token's cryptographic signature, allowing an attacker to send unsigned, unverified tokens with arbitrary spoofed user IDs.
+**Learning:** This could lead to a targeted Denial of Service (DoS) attack via quota exhaustion, where an attacker intentionally exhausts the rate limits of other users by spoofing their IDs.
+**Prevention:** Always use `jwt.verify(token, secret)` wrapped in a `try...catch` block to extract data from JWTs, even for seemingly non-auth tasks like rate limiting bucketing, to ensure the token payload cannot be tampered with.
