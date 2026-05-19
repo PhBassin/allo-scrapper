@@ -29,3 +29,6 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+## 2026-05-19 - [Concurrent DB queries in report-queries.ts]
+**Learning:** Sequential execution of `COUNT(*)` and paginated `SELECT` queries inside `getScrapeReports` creates an N+1 latency bottleneck specific to API endpoints calling this function. Running them concurrently with `Promise.all` yields a substantial speedup on database roundtrips.
+**Action:** When performing count and paginated select queries in a single repository function, run them concurrently using `Promise.all`, but always clone the shared parameter array (e.g. `[...params, limit, offset]`) to avoid side effects and race conditions between the queries.
