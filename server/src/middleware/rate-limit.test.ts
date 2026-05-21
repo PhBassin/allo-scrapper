@@ -1,3 +1,6 @@
+// Set secure JWT_SECRET BEFORE importing rate-limit
+process.env.JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
+
 import { describe, it, expect, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -12,9 +15,9 @@ import {
   healthCheckLimiter,
 } from './rate-limit.js';
 
-// Helper: sign a minimal JWT for rate-limit key tests (secret doesn't matter — we use jwt.decode)
+// Helper: sign a minimal JWT for rate-limit key tests
 const makeToken = (userId: number): string =>
-  jwt.sign({ id: userId, username: `user${userId}` }, 'test-secret');
+  jwt.sign({ id: userId, username: `user${userId}` }, process.env.JWT_SECRET as string);
 
 describe('Rate Limiting Middleware', () => {
   let app: express.Application;
@@ -185,6 +188,32 @@ describe('Rate Limiting Middleware', () => {
         .get('/protected-malformed')
         .set('Authorization', 'Bearer not.a.valid.jwt');
       expect(response.status).toBe(200);
+    });
+
+    it('should fall back to IP when Authorization header contains a token with an invalid signature', async () => {
+      // Create a tight-limit app to test fallback
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      const { default: rateLimit } = await import('express-rate-limit');
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      const tightLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 2,
+        skip: () => false,
+        keyGenerator: authenticatedKeyGenerator,
+      });
+      tightApp.get('/p-invalid', tightLimiter, (_req, res) => res.json({ ok: true }));
+
+      // Token with incorrect secret but same spoofed user ID 1
+      const spoofedToken = jwt.sign({ id: 1, username: 'user1' }, 'wrong-secret-minimum-32-chars-long-or-longer');
+      const sameIp = '1.2.3.4';
+
+      // If it fails to verify, it falls back to IP fallback.
+      // So requests with spoofedToken (invalid signature) and no token at all on same IP will count against the SAME IP bucket.
+      await request(tightApp).get('/p-invalid').set('Authorization', `Bearer ${spoofedToken}`).set('X-Forwarded-For', sameIp);
+      await request(tightApp).get('/p-invalid').set('X-Forwarded-For', sameIp); // no token, same IP
+      const exhausted = await request(tightApp).get('/p-invalid').set('X-Forwarded-For', sameIp);
+      expect(exhausted.status).toBe(429);
     });
   });
 
