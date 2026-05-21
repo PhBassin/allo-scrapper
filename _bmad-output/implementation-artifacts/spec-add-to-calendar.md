@@ -2,7 +2,7 @@
 title: 'Add to Calendar from Showtime Button'
 type: 'feature'
 created: '2026-05-16'
-status: 'in-progress'
+status: 'done'
 baseline_commit: 'dbf34e7b4707810760f0b36e620b2505be937c0d'
 context: []
 ---

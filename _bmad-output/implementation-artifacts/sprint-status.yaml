@@ -1,0 +1,91 @@
+# generated: 2026-05-21
+# last_updated: 2026-05-21
+# project: allo-scrapper
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#   - cancelled: Epic no longer relevant
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review
+#   - done: Story merged into develop
+#   - cancelled: Story no longer relevant
+
+generated: 2026-05-21
+last_updated: 2026-05-21
+project: allo-scrapper
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 0: Test Infrastructure Setup
+  # ─────────────────────────────────────────────────────────────
+  epic-0: done
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 1: Multi-Tenant Security & Isolation Hardening
+  # ─────────────────────────────────────────────────────────────
+  epic-1: done
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 2: Scraper Job Queue Reliability & Failure Handling
+  # ─────────────────────────────────────────────────────────────
+  epic-2: done
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 3: Real-Time Communication & Protection (SSE + Rate Limiting)
+  # ─────────────────────────────────────────────────────────────
+  epic-3: done
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 4: Database Migration Reliability & Idempotency
+  # ─────────────────────────────────────────────────────────────
+  epic-4: done
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 5: White-Label Theme Consistency & Validation
+  # ─────────────────────────────────────────────────────────────
+  epic-5: done
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 6: Email Template Validation & Branding
+  # ─────────────────────────────────────────────────────────────
+  epic-6: cancelled
+  epic-6-note: "Plus d'actualité — annulé le 2026-05-21"
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 7: Technical Debt Consolidation & Preparation
+  # ─────────────────────────────────────────────────────────────
+  epic-7: done
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 8: Add to Calendar from Showtime Button (hors sprint initial)
+  # ─────────────────────────────────────────────────────────────
+  epic-8: done
+
+  # ─────────────────────────────────────────────────────────────
+  # STORIES HORS SPRINT
+  # ─────────────────────────────────────────────────────────────
+  story-add-to-calendar: done
+  story-add-to-calendar-note: "Mergé via PR #1049 — e549792 feat(client): add to calendar from showtime button"
+
+# ─────────────────────────────────────────────────────────────
+# SPRINT STATUS
+# ─────────────────────────────────────────────────────────────
+sprint_status: completed
+sprint_completed_date: 2026-05-21
+total_epics: 8
+epics_done: 7
+epics_cancelled: 1
