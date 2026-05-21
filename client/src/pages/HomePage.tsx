@@ -24,13 +24,15 @@ export default function HomePage() {
     queryFn: () => selectedDate ? getMoviesByDate(selectedDate) : getWeeklyMovies(),
   });
 
-  const allMovies = moviesData?.movies || [];
+  const allMovies = useMemo(() => moviesData?.movies || [], [moviesData]);
   // When "Maintenant" is active, hide movies whose showtimes are all in the past
-  const movies = afterTime
-    ? allMovies.filter(movie =>
-        movie.theaters.some(c => c.showtimes.some(s => s.time >= afterTime))
-      )
-    : allMovies;
+  const movies = useMemo(() => {
+    return afterTime
+      ? allMovies.filter(movie =>
+          movie.theaters.some(c => c.showtimes.some(s => s.time >= afterTime))
+        )
+      : allMovies;
+  }, [allMovies, afterTime]);
   const weekStart = moviesData?.weekStart || '';
 
   const isLoading = isLoadingCinemas || isLoadingMovies;

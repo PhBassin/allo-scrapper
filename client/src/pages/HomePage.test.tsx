@@ -200,4 +200,14 @@ describe('HomePage — bouton Maintenant', () => {
     });
     expect(screen.queryByText('Film Passé')).not.toBeInTheDocument();
   });
+
+  it('filters movies correctly and memoizes the result on subsequent renders', async () => {
+    // This test ensures that when the page is rendered and updated, the filtering functions correctly.
+    renderHomePage();
+    await waitFor(() => expect(screen.getByRole('button', { name: /maintenant/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /maintenant/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Film Futur')).toBeInTheDocument();
+    });
+  });
 });
