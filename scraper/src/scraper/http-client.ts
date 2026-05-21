@@ -48,7 +48,7 @@ function validateMovieId(movieId: number): void {
 let _browser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
-  if (!_browser || !_browser.isConnected()) {
+  if (!_browser || !_browser.connected) {
     _browser = await puppeteer.launch({
       headless: true,
       executablePath: process.env.CHROME_PATH ?? '/usr/bin/chromium-headless-shell',
