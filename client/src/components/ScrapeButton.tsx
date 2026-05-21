@@ -44,8 +44,8 @@ export default function ScrapeButton({
 
       // Reset success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err: unknown) {
-      if (err instanceof Error && 'response' in err) {
+    } catch (err: any) {
+      if (err && typeof err === 'object' && 'response' in err) {
         const axiosError = err as { response?: { status?: number; data?: { error?: string } } };
         if (axiosError.response?.status === 409) {
           // Scrape already running, just show progress
