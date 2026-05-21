@@ -29,7 +29,7 @@ const mockContext = {
 vi.mock('puppeteer-core', () => ({
   default: {
     launch: vi.fn().mockResolvedValue({
-      isConnected: vi.fn().mockReturnValue(true),
+      connected: true,
       createBrowserContext: vi.fn().mockResolvedValue(mockContext),
       close: vi.fn(),
     }),
@@ -231,6 +231,11 @@ describe('http-client', () => {
   // fetchTheaterPage — Puppeteer-specific behaviour
   // -------------------------------------------------------------------------
   describe('fetchTheaterPage (Puppeteer integration)', () => {
+    it('should reuse the same browser instance on subsequent calls', async () => {
+      await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
+      await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
+    });
+
     it('should set user agent on the page before navigation', async () => {
       await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
 
