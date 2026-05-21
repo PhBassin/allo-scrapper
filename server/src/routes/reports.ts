@@ -95,32 +95,52 @@ router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('rep
       return next(new ValidationError('Invalid report ID'));
     }
 
-    const report = await getScrapeReport(db, reportId);
+    // Fetch report and attempts concurrently (Promise.all)
+    const [report, attempts] = await Promise.all([
+      getScrapeReport(db, reportId),
+      getScrapeAttemptsByReport(db, reportId),
+    ]);
 
     if (!report) {
       return next(new NotFoundError('Report not found'));
     }
 
-    // Get all attempts for this report
-    const attempts = await getScrapeAttemptsByReport(db, reportId);
-
-    // Group attempts by theater
+    // Group attempts by theater and calculate summary statistics in a single pass
     const attemptsByTheater: Record<string, any[]> = {};
+    let successful = 0;
+    let failed = 0;
+    let rate_limited = 0;
+    let not_attempted = 0;
+    let pending = 0;
+
     for (const attempt of attempts) {
-      if (!attemptsByTheater[attempt.theater_id]) {
-        attemptsByTheater[attempt.theater_id] = [];
+      const theaterId = attempt.theater_id;
+      if (!attemptsByTheater[theaterId]) {
+        attemptsByTheater[theaterId] = [];
       }
-      attemptsByTheater[attempt.theater_id].push(attempt);
+      attemptsByTheater[theaterId].push(attempt);
+
+      const status = attempt.status;
+      if (status === 'success') {
+        successful++;
+      } else if (status === 'failed') {
+        failed++;
+      } else if (status === 'rate_limited') {
+        rate_limited++;
+      } else if (status === 'not_attempted') {
+        not_attempted++;
+      } else if (status === 'pending') {
+        pending++;
+      }
     }
 
-    // Calculate summary statistics
     const summary = {
       total_attempts: attempts.length,
-      successful: attempts.filter(a => a.status === 'success').length,
-      failed: attempts.filter(a => a.status === 'failed').length,
-      rate_limited: attempts.filter(a => a.status === 'rate_limited').length,
-      not_attempted: attempts.filter(a => a.status === 'not_attempted').length,
-      pending: attempts.filter(a => a.status === 'pending').length,
+      successful,
+      failed,
+      rate_limited,
+      not_attempted,
+      pending,
     };
 
     const response: ApiResponse = {
