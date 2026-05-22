@@ -64,10 +64,10 @@ export type ValidationConstraints = Record<keyof RateLimitConfig, ValidationCons
  */
 export async function getRateLimits(): Promise<RateLimitConfigResponse> {
   const response = await apiClient.get<ApiResponse<RateLimitConfigResponse>>('/admin/rate-limits');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch rate limits');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch rate limits');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -75,10 +75,10 @@ export async function getRateLimits(): Promise<RateLimitConfigResponse> {
  */
 export async function updateRateLimits(updates: Partial<RateLimitConfig>): Promise<RateLimitConfigResponse> {
   const response = await apiClient.put<ApiResponse<RateLimitConfigResponse>>('/admin/rate-limits', updates);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to update rate limits');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to update rate limits');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -86,10 +86,10 @@ export async function updateRateLimits(updates: Partial<RateLimitConfig>): Promi
  */
 export async function resetRateLimits(): Promise<RateLimitConfigResponse> {
   const response = await apiClient.post<ApiResponse<RateLimitConfigResponse>>('/admin/rate-limits/reset');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to reset rate limits');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to reset rate limits');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -108,10 +108,10 @@ export async function getRateLimitAuditLog(params?: {
   const url = `/admin/rate-limits/audit${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
   const response = await apiClient.get<ApiResponse<RateLimitAuditLog>>(url);
   
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch audit log');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch audit log');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -119,8 +119,8 @@ export async function getRateLimitAuditLog(params?: {
  */
 export async function getValidationConstraints(): Promise<ValidationConstraints> {
   const response = await apiClient.get<ApiResponse<ValidationConstraints>>('/admin/rate-limits/constraints');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch validation constraints');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch validation constraints');
   }
-  return response.data.data;
+  return response.data;
 }

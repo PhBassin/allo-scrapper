@@ -30,15 +30,15 @@ const LoginPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const response = await apiClient.post('/auth/login', { username, password });
+            const response = await apiClient.post<any>('/auth/login', { username, password });
 
-            if (response.data.success) {
+            if (response.success) {
                 // API returns { success: true, data: { token, user } }
-                const { token, user } = response.data.data;
+                const { token, user } = response.data;
                 login(token, user);
                 navigate(from, { replace: true });
             } else {
-                setError(response.data.error || 'Login failed');
+                setError(response.error || 'Login failed');
             }
         } catch (err: unknown) {
             if (err instanceof Error && ('status' in err || 'data' in err)) {

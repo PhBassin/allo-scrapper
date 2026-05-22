@@ -92,7 +92,7 @@ async function fetchClient<T>(endpoint: string, options: RequestInit = {}): Prom
 
 // Helper methods
 const apiClient = {
-  get: <T>(endpoint: string, params?: Record<string, string | number | boolean>) => {
+  get: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined | null>) => {
     let url = endpoint;
     if (params) {
       const searchParams = new URLSearchParams();

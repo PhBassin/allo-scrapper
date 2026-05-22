@@ -39,13 +39,13 @@ const ChangePasswordPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const response = await apiClient.post('/auth/change-password', {
+            const response = await apiClient.post<any>('/auth/change-password', {
                 currentPassword,
                 newPassword,
             });
 
-             if (response.data.success) {
-                 setSuccess(response.data.data.message);
+             if (response.success) {
+                 setSuccess(response.data.message);
                  // Clear form
                  setCurrentPassword('');
                  setNewPassword('');
@@ -55,7 +55,7 @@ const ChangePasswordPage: React.FC = () => {
                      navigate('/');
                  }, 2000);
              } else {
-                 setError(response.data.error || 'Failed to change password');
+                 setError(response.error || 'Failed to change password');
              }
         } catch (err: unknown) {
             if (err instanceof Error && ('status' in err || 'data' in err)) {

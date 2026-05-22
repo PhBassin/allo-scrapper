@@ -28,20 +28,20 @@ function validateResponse<T>(schema: z.ZodSchema<T>, data: unknown, context: str
 export const rolesApi = {
   // List all roles
   getAll: (): Promise<RoleWithPermissions[]> =>
-    apiClient.get('/roles').then(r => 
-      validateResponse(z.array(RoleWithPermissionsSchema), r.data.data, 'GET /roles')
+    apiClient.get('/roles').then((r: any) => 
+      validateResponse(z.array(RoleWithPermissionsSchema), r.data, 'GET /roles')
     ),
 
   // Create a role
   create: (data: { name: string; description?: string }): Promise<RoleWithPermissions> =>
-    apiClient.post('/roles', data).then(r => 
-      validateResponse(RoleWithPermissionsSchema, r.data.data, 'POST /roles')
+    apiClient.post('/roles', data).then((r: any) => 
+      validateResponse(RoleWithPermissionsSchema, r.data, 'POST /roles')
     ),
 
   // Update a role
   update: (id: number, data: { name?: string; description?: string }): Promise<RoleWithPermissions> =>
-    apiClient.put(`/roles/${id}`, data).then(r => 
-      validateResponse(RoleWithPermissionsSchema, r.data.data, `PUT /roles/${id}`)
+    apiClient.put(`/roles/${id}`, data).then((r: any) => 
+      validateResponse(RoleWithPermissionsSchema, r.data, `PUT /roles/${id}`)
     ),
 
   // Delete a role
@@ -50,19 +50,19 @@ export const rolesApi = {
 
   // Set permissions for a role
   setPermissions: (id: number, permissionIds: number[]): Promise<RoleWithPermissions> =>
-    apiClient.put(`/roles/${id}/permissions`, { permission_ids: permissionIds }).then(r => 
-      validateResponse(RoleWithPermissionsSchema, r.data.data, `PUT /roles/${id}/permissions`)
+    apiClient.put(`/roles/${id}/permissions`, { permission_ids: permissionIds }).then((r: any) => 
+      validateResponse(RoleWithPermissionsSchema, r.data, `PUT /roles/${id}/permissions`)
     ),
 
   // List all available permissions
   getAllPermissions: (): Promise<Permission[]> =>
-    apiClient.get('/roles/permissions').then(r => 
-      validateResponse(z.array(PermissionSchema), r.data.data, 'GET /roles/permissions')
+    apiClient.get('/roles/permissions').then((r: any) => 
+      validateResponse(z.array(PermissionSchema), r.data, 'GET /roles/permissions')
     ),
 
   // List all permission category labels
   getPermissionCategoryLabels: (): Promise<PermissionCategoryLabel[]> =>
-    apiClient.get('/roles/permission-categories').then(r => 
-      validateResponse(z.array(PermissionCategoryLabelSchema), r.data.data, 'GET /roles/permission-categories')
+    apiClient.get('/roles/permission-categories').then((r: any) => 
+      validateResponse(z.array(PermissionCategoryLabelSchema), r.data, 'GET /roles/permission-categories')
     ),
 };

@@ -33,11 +33,11 @@ export interface TheaterUpdate {
 export async function getTheaters(): Promise<Cinema[]> {
   const response = await apiClient.get<ApiResponse<Cinema[]>>('/theaters');
 
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch theaters');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch theaters');
   }
 
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -47,11 +47,11 @@ export async function getTheaters(): Promise<Cinema[]> {
 export async function createTheater(data: TheaterCreate): Promise<Cinema> {
   const response = await apiClient.post<ApiResponse<Cinema>>('/theaters', data);
 
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to create theater');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to create theater');
   }
 
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -60,11 +60,11 @@ export async function createTheater(data: TheaterCreate): Promise<Cinema> {
 export async function updateTheater(id: string, data: TheaterUpdate): Promise<Cinema> {
   const response = await apiClient.put<ApiResponse<Cinema>>(`/theaters/${id}`, data);
 
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to update theater');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to update theater');
   }
 
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -81,7 +81,7 @@ export async function deleteTheater(id: string): Promise<void> {
 export async function syncTheaters(): Promise<void> {
   const response = await apiClient.post<ApiResponse<void>>('/theaters/sync');
 
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Failed to sync theaters');
+  if (!response.success) {
+    throw new Error(response.error || 'Failed to sync theaters');
   }
 }
