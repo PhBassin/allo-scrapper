@@ -76,12 +76,12 @@ const NAMED_ENTITIES: Record<string, string> = {
 };
 
 function decodeEntities(text: string): string {
-  return text.replace(/&(#(\d+)|#x([0-9a-fA-F]+)|([A-Za-z]+));/g, (_, _full, decimal, hex, named) => {
+  return text.replace(/&(#(\d+)|#x([0-9a-fA-F]+)|([A-Za-z]+));?/g, (_, _full, decimal, hex, named) => {
     if (decimal) {
-      return String.fromCharCode(parseInt(decimal, 10));
+      return String.fromCodePoint(parseInt(decimal, 10));
     }
     if (hex) {
-      return String.fromCharCode(parseInt(hex, 16));
+      return String.fromCodePoint(parseInt(hex, 16));
     }
     if (named && named in NAMED_ENTITIES) {
       return NAMED_ENTITIES[named];

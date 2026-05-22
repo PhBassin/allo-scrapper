@@ -63,14 +63,17 @@ async function fetchClient<T>(endpoint: string, options: RequestInit = {}): Prom
         }
       });
       window.dispatchEvent(event);
+      throw new ApiError('Unauthorized', 401);
     }
 
     let data;
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      data = await response.text();
+    if (response.status !== 204 && response.headers.get('content-length') !== '0') {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        data = await response.text();
+      }
     }
 
     if (!response.ok) {
@@ -86,19 +89,23 @@ async function fetchClient<T>(endpoint: string, options: RequestInit = {}): Prom
     if (error instanceof ApiError) {
       throw error;
     }
-    throw new ApiError(error instanceof Error ? error.message : 'Unknown network error');
+    throw new ApiError(error instanceof Error ? error.message : 'Unknown network error', 0);
   }
 }
 
 // Helper methods
 const apiClient = {
-  get: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined | null>) => {
+  get: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined | null | string[] | number[]>) => {
     let url = endpoint;
     if (params) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          searchParams.append(key, String(value));
+          if (Array.isArray(value)) {
+            value.forEach(v => searchParams.append(`${key}[]`, String(v)));
+          } else {
+            searchParams.append(key, String(value));
+          }
         }
       });
       const queryString = searchParams.toString();
