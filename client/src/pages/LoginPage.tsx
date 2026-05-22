@@ -41,10 +41,10 @@ const LoginPage: React.FC = () => {
                 setError(response.data.error || 'Login failed');
             }
         } catch (err: unknown) {
-            if (err instanceof Error && 'response' in err) {
-                const axiosError = err as { response?: { data?: { error?: string } } };
-                if (axiosError.response?.data?.error) {
-                    setError(axiosError.response.data.error);
+            if (err instanceof Error && ('status' in err || 'data' in err)) {
+                const apiError = err as import('../api/client').ApiError;
+                if (apiError.data?.error) {
+                    setError(apiError.data.error);
                 } else {
                     setError('An unexpected error occurred. Please try again later.');
                 }

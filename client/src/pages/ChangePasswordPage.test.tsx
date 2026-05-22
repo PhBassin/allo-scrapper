@@ -300,7 +300,7 @@ describe('ChangePasswordPage', () => {
 
   it('should show error message on API failure', async () => {
     const error: any = new Error('API Error');
-    error.response = { data: { error: 'Current password is incorrect' } };
+    error.data = { error: 'Current password is incorrect' };
     (apiClient.post as any).mockRejectedValue(error);
 
     render(
