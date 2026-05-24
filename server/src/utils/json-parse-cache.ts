@@ -1,5 +1,48 @@
-import { LRUCache } from 'lru-cache';
 import { logger } from './logger.js';
+
+/**
+ * Native Map-based LRU Cache to replace the lru-cache dependency.
+ */
+class SimpleLRU<K, V> {
+  public max: number;
+  private cache: Map<K, V>;
+
+  constructor(max: number) {
+    this.max = max;
+    this.cache = new Map();
+  }
+
+  has(key: K): boolean {
+    return this.cache.has(key);
+  }
+
+  get(key: K): V | undefined {
+    if (!this.cache.has(key)) return undefined;
+    const val = this.cache.get(key)!;
+    // Move to end (most recently used)
+    this.cache.delete(key);
+    this.cache.set(key, val);
+    return val;
+  }
+
+  set(key: K, val: V): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.max) {
+      // Evict oldest (first item)
+      this.cache.delete(this.cache.keys().next().value as K);
+    }
+    this.cache.set(key, val);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  get size(): number {
+    return this.cache.size;
+  }
+}
 
 /**
  * Get cache size from environment variable or use default.
@@ -46,9 +89,7 @@ const getCacheSize = (): number => {
  * 
  * @see https://github.com/isaacs/node-lru-cache
  */
-const jsonParseCache = new LRUCache<string, any>({ 
-  max: getCacheSize() 
-});
+const jsonParseCache = new SimpleLRU<string, any>(getCacheSize());
 
 /**
  * Cache performance metrics for observability.
