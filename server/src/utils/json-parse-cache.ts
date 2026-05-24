@@ -26,11 +26,16 @@ class SimpleLRU<K, V> {
   }
 
   set(key: K, val: V): void {
+    if (this.max === 0) return;
+    
     if (this.cache.has(key)) {
       this.cache.delete(key);
     } else if (this.cache.size >= this.max) {
-      // Evict oldest (first item)
-      this.cache.delete(this.cache.keys().next().value as K);
+      // Evict oldest (first item) without creating a new iterator wrapper per V8
+      for (const k of this.cache.keys()) {
+        this.cache.delete(k);
+        break;
+      }
     }
     this.cache.set(key, val);
   }

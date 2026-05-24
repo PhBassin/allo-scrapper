@@ -5,10 +5,10 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx --env-file-if-exists=.env watch src/index.ts",
     "build": "tsc",
-    "start": "node --env-file=.env dist/index.js",
-    "db:migrate": "tsx src/db/schema.ts",
+    "start": "node --env-file-if-exists=.env dist/index.js",
+    "db:migrate": "tsx --env-file-if-exists=.env src/db/schema.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",

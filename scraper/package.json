@@ -5,9 +5,9 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx --env-file-if-exists=.env watch src/index.ts",
     "build": "tsc",
-    "start": "node --env-file=.env dist/index.js",
+    "start": "node --env-file-if-exists=.env dist/index.js",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"

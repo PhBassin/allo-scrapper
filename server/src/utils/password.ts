@@ -5,11 +5,18 @@ import { logger } from './logger.js';
 const scrypt = util.promisify(crypto.scrypt);
 const randomBytes = util.promisify(crypto.randomBytes);
 
+const SCRYPT_PARAMS = {
+  N: 16384,
+  r: 8,
+  p: 1,
+  keyLen: 64,
+  saltLen: 16
+};
+
 export async function hashPassword(password: string): Promise<string> {
-  const salt = await randomBytes(16);
-  // Derived key length of 64 bytes
-  const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
-  return `scrypt:${salt.toString('hex')}:${derivedKey.toString('hex')}`;
+  const salt = await randomBytes(SCRYPT_PARAMS.saltLen);
+  const derivedKey = (await scrypt(password, salt, SCRYPT_PARAMS.keyLen, SCRYPT_PARAMS)) as Buffer;
+  return `scrypt:${SCRYPT_PARAMS.N}:${SCRYPT_PARAMS.r}:${SCRYPT_PARAMS.p}:${salt.toString('hex')}:${derivedKey.toString('hex')}`;
 }
 
 export async function comparePassword(password: string, hash: string): Promise<boolean> {
@@ -22,13 +29,34 @@ export async function comparePassword(password: string, hash: string): Promise<b
     }
 
     const parts = hash.split(':');
-    if (parts.length !== 3) return false;
+    
+    // Support new format: scrypt:N:r:p:salt:key
+    // Support old format (during this branch's migration): scrypt:salt:key
+    let N, r, p, saltHex, keyHex;
+    
+    if (parts.length === 6) {
+      N = parseInt(parts[1], 10);
+      r = parseInt(parts[2], 10);
+      p = parseInt(parts[3], 10);
+      saltHex = parts[4];
+      keyHex = parts[5];
+    } else if (parts.length === 3) {
+      // Fallback for hashes generated earlier in this branch
+      N = SCRYPT_PARAMS.N;
+      r = SCRYPT_PARAMS.r;
+      p = SCRYPT_PARAMS.p;
+      saltHex = parts[1];
+      keyHex = parts[2];
+    } else {
+      return false;
+    }
 
-    const salt = parts[1];
-    const key = parts[2];
+    const keyBuffer = Buffer.from(keyHex, 'hex');
+    const derivedKey = (await scrypt(password, Buffer.from(saltHex, 'hex'), keyBuffer.length, { N, r, p })) as Buffer;
 
-    const keyBuffer = Buffer.from(key, 'hex');
-    const derivedKey = (await scrypt(password, Buffer.from(salt, 'hex'), 64)) as Buffer;
+    if (keyBuffer.length !== derivedKey.length) {
+      return false;
+    }
 
     // Use timingSafeEqual to prevent timing attacks
     return crypto.timingSafeEqual(keyBuffer, derivedKey);

@@ -10,7 +10,7 @@ import type { PermissionName } from '../types/role.js';
 import { validateJWTSecret } from '../utils/jwt-secret-validator.js';
 
 // Pre-computed hash for 'dummy' (cost 10) to prevent timing attacks
-const DUMMY_HASH = '$2b$10$OjIEvY.r8hZtkpA2kEa0EeIJoxe2tgk/ANQghcJfuj5QA7h/lDEb2';
+const DUMMY_HASH = 'scrypt:16384:8:1:00000000000000000000000000000000:00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
 
 export class AuthService {
   constructor(private db: DB) {}
