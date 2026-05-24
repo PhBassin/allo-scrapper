@@ -41,7 +41,7 @@
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui",
     "integration-test": "./scripts/integration-test.sh",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "keywords": [
     "theater",
