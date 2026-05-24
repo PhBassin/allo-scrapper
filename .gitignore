@@ -70,3 +70,4 @@ backup_*.sql
 *.orig
 *.patch
 *.rej
+.codegraph/
