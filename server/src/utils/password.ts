@@ -2,7 +2,6 @@ import crypto from 'crypto';
 import util from 'util';
 import { logger } from './logger.js';
 
-const scrypt = util.promisify(crypto.scrypt);
 const randomBytes = util.promisify(crypto.randomBytes);
 
 const SCRYPT_PARAMS = {
@@ -15,7 +14,12 @@ const SCRYPT_PARAMS = {
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = await randomBytes(SCRYPT_PARAMS.saltLen);
-  const derivedKey = (await scrypt(password, salt, SCRYPT_PARAMS.keyLen, SCRYPT_PARAMS)) as Buffer;
+  const derivedKey = await new Promise<Buffer>((resolve, reject) => {
+    crypto.scrypt(password, salt, SCRYPT_PARAMS.keyLen, SCRYPT_PARAMS, (err, key) => {
+      if (err) reject(err);
+      else resolve(key as Buffer);
+    });
+  });
   return `scrypt:${SCRYPT_PARAMS.N}:${SCRYPT_PARAMS.r}:${SCRYPT_PARAMS.p}:${salt.toString('hex')}:${derivedKey.toString('hex')}`;
 }
 
@@ -52,7 +56,12 @@ export async function comparePassword(password: string, hash: string): Promise<b
     }
 
     const keyBuffer = Buffer.from(keyHex, 'hex');
-    const derivedKey = (await scrypt(password, Buffer.from(saltHex, 'hex'), keyBuffer.length, { N, r, p })) as Buffer;
+    const derivedKey = await new Promise<Buffer>((resolve, reject) => {
+      crypto.scrypt(password, Buffer.from(saltHex, 'hex'), keyBuffer.length, { N, r, p }, (err, key) => {
+        if (err) reject(err);
+        else resolve(key as Buffer);
+      });
+    });
 
     if (keyBuffer.length !== derivedKey.length) {
       return false;
