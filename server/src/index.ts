@@ -1,12 +1,8 @@
-import dotenv from 'dotenv';
 import { createApp } from './app.js';
 import { db } from './db/client.js';
 import { initializeDatabase } from './db/schema.js';
 import { logger } from './utils/logger.js';
 import { validateJWTSecret } from './utils/jwt-secret-validator.js';
-
-// Load environment variables
-dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 

@@ -1,7 +1,4 @@
 import pg from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 // Configuration de la connexion PostgreSQL
 const config = {
