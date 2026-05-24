@@ -40,7 +40,8 @@
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui",
-    "integration-test": "./scripts/integration-test.sh"
+    "integration-test": "./scripts/integration-test.sh",
+    "prepare": "husky || true"
   },
   "keywords": [
     "theater",
@@ -60,7 +61,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "flatted": "^3.4.2"
+    "flatted": "^3.4.2",
+    "husky": "^9.1.7"
   },
   "overrides": {
     "flatted": "^3.4.2"

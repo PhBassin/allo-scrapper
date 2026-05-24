@@ -1,16 +1,16 @@
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getUserByUsername, createUser, updateUserPassword } from '../db/user-queries.js';
 import { getPermissionNamesByRoleId } from '../db/role-queries.js';
 import type { DB } from '../db/client.js';
 import { validatePasswordStrength } from '../utils/security.js';
+import { hashPassword, comparePassword } from '../utils/password.js';
 import { logger } from '../utils/logger.js';
 import { parseJwtExpiration } from '../utils/jwt-config.js';
 import type { PermissionName } from '../types/role.js';
 import { validateJWTSecret } from '../utils/jwt-secret-validator.js';
 
 // Pre-computed hash for 'dummy' (cost 10) to prevent timing attacks
-const DUMMY_HASH = '$2b$10$OjIEvY.r8hZtkpA2kEa0EeIJoxe2tgk/ANQghcJfuj5QA7h/lDEb2';
+const DUMMY_HASH = 'scrypt:16384:8:1:00000000000000000000000000000000:00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
 
 export class AuthService {
   constructor(private db: DB) {}
@@ -22,7 +22,7 @@ export class AuthService {
 
     const user = await getUserByUsername(this.db, username);
     const hashToCompare = user ? user.password_hash : DUMMY_HASH;
-    const isMatch = await bcrypt.compare(password, hashToCompare);
+    const isMatch = await comparePassword(password, hashToCompare);
 
     if (!user || !isMatch) {
       throw new Error('Invalid credentials');
@@ -75,8 +75,7 @@ export class AuthService {
       throw new Error('Username already exists');
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+    const passwordHash = await hashPassword(password);
 
     const user = await createUser(this.db, username, passwordHash);
 
@@ -103,13 +102,12 @@ export class AuthService {
       throw new Error('User not found');
     }
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+    const isMatch = await comparePassword(currentPassword, user.password_hash);
     if (!isMatch) {
       throw new Error('Current password is incorrect');
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+    const newPasswordHash = await hashPassword(newPassword);
 
     await updateUserPassword(this.db, user.id, newPasswordHash);
     logger.info(`Password changed for user: ${user.username}`);

@@ -6,7 +6,7 @@ process.env.JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
-import bcrypt from 'bcryptjs';
+import * as passwordUtils from '../utils/password.js';
 import jwt from 'jsonwebtoken';
 import authRouter from './auth.js';
 import { db } from '../db/client.js';
@@ -76,7 +76,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'admin',
-                password_hash: await bcrypt.hash('password123', 10),
+                password_hash: await passwordUtils.hashPassword('password123'),
                 role_id: 1,
                 role_name: 'admin',
                 is_system_role: true,
@@ -99,7 +99,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'admin',
-                password_hash: await bcrypt.hash('password123', 10),
+                password_hash: await passwordUtils.hashPassword('password123'),
                 role_id: 1,
                 role_name: 'admin',
                 is_system_role: true,
@@ -120,7 +120,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 2,
                 username: 'operator',
-                password_hash: await bcrypt.hash('password123', 10),
+                password_hash: await passwordUtils.hashPassword('password123'),
                 role_id: 2,
                 role_name: 'operator',
                 is_system_role: false,
@@ -141,7 +141,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'admin',
-                password_hash: await bcrypt.hash('password123', 10),
+                password_hash: await passwordUtils.hashPassword('password123'),
                 role_id: 1,
                 role_name: 'admin',
                 is_system_role: true,
@@ -165,7 +165,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'admin',
-                password_hash: await bcrypt.hash('password123', 10),
+                password_hash: await passwordUtils.hashPassword('password123'),
                 role_id: 1,
                 role_name: 'admin',
                 is_system_role: true,
@@ -184,7 +184,7 @@ describe('Auth Routes', () => {
 
         it('should execute constant-time comparison for unknown user', async () => {
             vi.mocked(queries.getUserByUsername).mockResolvedValue(undefined);
-            const compareSpy = vi.spyOn(bcrypt, 'compare');
+            const compareSpy = vi.spyOn(passwordUtils, 'comparePassword');
 
             const response = await request(app)
                 .post('/api/auth/login')
@@ -194,7 +194,7 @@ describe('Auth Routes', () => {
             expect(response.body.success).toBe(false);
             expect(response.body.error).toBe('Invalid credentials');
 
-            // Verify that bcrypt.compare was called even though user was not found
+            // Verify that comparePassword was called even though user was not found
             expect(compareSpy).toHaveBeenCalled();
         });
 
@@ -270,7 +270,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'testuser',
-                password_hash: await bcrypt.hash('OldPass123!', 10),
+                password_hash: await passwordUtils.hashPassword('OldPass123!'),
                 role_id: 2,
                 role_name: 'user',
                 is_system_role: false,
@@ -292,7 +292,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'testuser',
-                password_hash: await bcrypt.hash('OldPass123!', 10),
+                password_hash: await passwordUtils.hashPassword('OldPass123!'),
                 role_id: 2,
                 role_name: 'user',
                 is_system_role: false,
@@ -314,7 +314,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'testuser',
-                password_hash: await bcrypt.hash('OldPass123!', 10),
+                password_hash: await passwordUtils.hashPassword('OldPass123!'),
                 role_id: 2,
                 role_name: 'user',
                 is_system_role: false,
@@ -336,7 +336,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'testuser',
-                password_hash: await bcrypt.hash('OldPass123!', 10),
+                password_hash: await passwordUtils.hashPassword('OldPass123!'),
                 role_id: 2,
                 role_name: 'user',
                 is_system_role: false,
@@ -358,7 +358,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'testuser',
-                password_hash: await bcrypt.hash('OldPass123!', 10),
+                password_hash: await passwordUtils.hashPassword('OldPass123!'),
                 role_id: 2,
                 role_name: 'user',
                 is_system_role: false,
@@ -380,7 +380,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'testuser',
-                password_hash: await bcrypt.hash('OldPass123!', 10),
+                password_hash: await passwordUtils.hashPassword('OldPass123!'),
                 role_id: 2,
                 role_name: 'user',
                 is_system_role: false,
@@ -402,7 +402,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'testuser',
-                password_hash: await bcrypt.hash('OldPass123!', 10),
+                password_hash: await passwordUtils.hashPassword('OldPass123!'),
                 role_id: 2,
                 role_name: 'user',
                 is_system_role: false,
@@ -426,11 +426,11 @@ describe('Auth Routes', () => {
             );
         });
 
-        it('should hash the new password with bcrypt', async () => {
+        it('should hash the new password', async () => {
             const mockUser = {
                 id: 1,
                 username: 'testuser',
-                password_hash: await bcrypt.hash('OldPass123!', 10),
+                password_hash: await passwordUtils.hashPassword('OldPass123!'),
                 role_id: 2,
                 role_name: 'user',
                 is_system_role: false,
@@ -439,26 +439,21 @@ describe('Auth Routes', () => {
             vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
             vi.mocked(queries.updateUserPassword).mockResolvedValue(undefined);
 
-            const bcryptHashSpy = vi.spyOn(bcrypt, 'hash');
+            const hashSpy = vi.spyOn(passwordUtils, 'hashPassword');
 
             await request(app)
                 .post('/api/auth/change-password')
                 .set('Authorization', `Bearer ${validToken}`)
                 .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123!' });
 
-            // bcrypt.hash can be called with (password, saltRounds) or (password, salt)
-            // Our implementation uses genSalt first, so the second arg is a salt string
-            expect(bcryptHashSpy).toHaveBeenCalledWith(
-                'NewPass123!',
-                expect.stringMatching(/^\$2[aby]\$\d+\$/) // bcrypt salt format
-            );
+            expect(hashSpy).toHaveBeenCalledWith('NewPass123!');
         });
 
         it('should not expose password hash in response', async () => {
             const mockUser = {
                 id: 1,
                 username: 'testuser',
-                password_hash: await bcrypt.hash('OldPass123!', 10),
+                password_hash: await passwordUtils.hashPassword('OldPass123!'),
                 role_id: 2,
                 role_name: 'user',
                 is_system_role: false,
@@ -480,7 +475,7 @@ describe('Auth Routes', () => {
             const mockUser = {
                 id: 1,
                 username: 'testuser',
-                password_hash: await bcrypt.hash('OldPass123!', 10),
+                password_hash: await passwordUtils.hashPassword('OldPass123!'),
                 role_id: 2,
                 role_name: 'user',
                 is_system_role: false,

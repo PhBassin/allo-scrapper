@@ -1,6 +1,3 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
 import { logger } from './utils/logger.js';
 import { registry, scrapeJobsTotal, scrapeDurationSeconds, moviesScrapedTotal, showtimesScrapedTotal } from './utils/metrics.js';
 import { initTracing } from './utils/tracer.js';
