@@ -1,4 +1,3 @@
-import axios from 'axios';
 import type {
   ApiResponse,
   MovieWithShowtimes,
@@ -12,38 +11,51 @@ import type {
   ScrapeSchedule,
 } from '../types';
 
-// Create axios instance
-// Use relative path by default to work with proxy in dev and same-origin in prod
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+/**
+ * Custom error class for API errors
+ */
+export class ApiError extends Error {
+  public status?: number;
+  public data?: any;
 
-// Add a request interceptor to include the JWT token
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+  constructor(message: string, status?: number, data?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
   }
-);
+}
 
-// Add a response interceptor to handle 401 errors
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Emit custom event for App.tsx to handle logout + redirect
-      // This allows proper React Router navigation instead of window.location
+/**
+ * Fetch wrapper handling auth, JSON parsing, and common errors
+ */
+async function fetchClient<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${API_BASE_URL}${endpoint}`;
+  
+  // Setup headers
+  const headers = new Headers(options.headers);
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  // Add auth token
+  const token = localStorage.getItem('token');
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const config: RequestInit = {
+    ...options,
+    headers,
+  };
+
+  try {
+    const response = await fetch(url, config);
+
+    // Handle 401 Unauthorized
+    if (response.status === 401) {
       const event = new CustomEvent('auth:unauthorized', {
         detail: { 
           originalPath: window.location.pathname,
@@ -51,10 +63,65 @@ apiClient.interceptors.response.use(
         }
       });
       window.dispatchEvent(event);
+      throw new ApiError('Unauthorized', 401);
     }
-    return Promise.reject(error);
+
+    let data;
+    if (response.status !== 204 && response.headers.get('content-length') !== '0') {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        data = await response.text();
+      }
+    }
+
+    if (!response.ok) {
+      throw new ApiError(
+        data?.error || `HTTP error! status: ${response.status}`,
+        response.status,
+        data
+      );
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(error instanceof Error ? error.message : 'Unknown network error', 0);
   }
-);
+}
+
+// Helper methods
+const apiClient = {
+  get: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined | null | string[] | number[]>) => {
+    let url = endpoint;
+    if (params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            value.forEach(v => searchParams.append(`${key}[]`, String(v)));
+          } else {
+            searchParams.append(key, String(value));
+          }
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+    }
+    return fetchClient<T>(url, { method: 'GET' });
+  },
+  post: <T>(endpoint: string, data?: any) => 
+    fetchClient<T>(endpoint, { method: 'POST', body: data ? JSON.stringify(data) : undefined }),
+  put: <T>(endpoint: string, data?: any) => 
+    fetchClient<T>(endpoint, { method: 'PUT', body: data ? JSON.stringify(data) : undefined }),
+  delete: <T>(endpoint: string) => 
+    fetchClient<T>(endpoint, { method: 'DELETE' }),
+};
 
 // ============================================================================
 // MOVIES API
@@ -62,28 +129,26 @@ apiClient.interceptors.response.use(
 
 export async function getWeeklyMovies(): Promise<{ movies: MovieWithShowtimes[]; weekStart: string }> {
   const response = await apiClient.get<ApiResponse<{ movies: MovieWithShowtimes[]; weekStart: string }>>('/movies');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch movies');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch movies');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export async function getMoviesByDate(date: string): Promise<{ movies: MovieWithShowtimes[]; weekStart: string; date: string }> {
-  const response = await apiClient.get<ApiResponse<{ movies: MovieWithShowtimes[]; weekStart: string; date: string }>>('/movies', {
-    params: { date }
-  });
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch movies');
+  const response = await apiClient.get<ApiResponse<{ movies: MovieWithShowtimes[]; weekStart: string; date: string }>>('/movies', { date });
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch movies');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export async function getMovieById(id: number): Promise<MovieWithShowtimes> {
   const response = await apiClient.get<ApiResponse<MovieWithShowtimes>>(`/movies/${id}`);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch movie');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch movie');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -97,15 +162,13 @@ export async function searchMovies(query: string): Promise<Movie[]> {
     return [];
   }
 
-  const response = await apiClient.get<ApiResponse<{ movies: Movie[]; query: string }>>('/movies/search', {
-    params: { q: query.trim() }
-  });
+  const response = await apiClient.get<ApiResponse<{ movies: Movie[]; query: string }>>('/movies/search', { q: query.trim() });
 
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to search movies');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to search movies');
   }
 
-  return response.data.data.movies;
+  return response.data.movies;
 }
 
 // ============================================================================
@@ -114,10 +177,10 @@ export async function searchMovies(query: string): Promise<Movie[]> {
 
 export async function getTheaters(): Promise<Cinema[]> {
   const response = await apiClient.get<ApiResponse<Cinema[]>>('/theaters');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch theaters');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch theaters');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export async function getTheaterSchedule(
@@ -126,18 +189,18 @@ export async function getTheaterSchedule(
   const response = await apiClient.get<ApiResponse<{ showtimes: ShowtimeWithMovie[]; weekStart: string }>>(
     `/theaters/${theaterId}`
   );
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch theater schedule');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch theater schedule');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export async function addTheater(url: string): Promise<Cinema> {
   const response = await apiClient.post<ApiResponse<Cinema>>('/theaters', { url });
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to add theater');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to add theater');
   }
-  return response.data.data;
+  return response.data;
 }
 
 // ============================================================================
@@ -146,38 +209,38 @@ export async function addTheater(url: string): Promise<Cinema> {
 
 export async function triggerScrape(): Promise<{ reportId: number; message: string }> {
   const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to trigger scrape');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to trigger scrape');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export async function triggerTheaterScrape(theaterId: string): Promise<{ reportId: number; message: string }> {
   const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
     theaterId,
   });
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to trigger theater scrape');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to trigger theater scrape');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export async function triggerMovieScrape(movieId: number): Promise<{ reportId: number; message: string }> {
   const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
     movieId,
   });
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to trigger movie scrape');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to trigger movie scrape');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export async function getScrapeStatus(): Promise<ScrapeStatus> {
   const response = await apiClient.get<ApiResponse<ScrapeStatus>>('/scraper/status');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch scrape status');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch scrape status');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onError?: (error: Error) => void): () => void {
@@ -211,18 +274,18 @@ export function subscribeToProgress(onEvent: (event: ProgressEvent) => void, onE
 
 export async function getSchedules(): Promise<ScrapeSchedule[]> {
   const response = await apiClient.get<ApiResponse<ScrapeSchedule[]>>('/scraper/schedules');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch schedules');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch schedules');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export async function getSchedule(id: number): Promise<ScrapeSchedule> {
   const response = await apiClient.get<ApiResponse<ScrapeSchedule>>(`/scraper/schedules/${id}`);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch schedule');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch schedule');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export interface CreateSchedulePayload {
@@ -235,10 +298,10 @@ export interface CreateSchedulePayload {
 
 export async function createSchedule(payload: CreateSchedulePayload): Promise<ScrapeSchedule> {
   const response = await apiClient.post<ApiResponse<ScrapeSchedule>>('/scraper/schedules', payload);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to create schedule');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to create schedule');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export interface UpdateSchedulePayload {
@@ -251,10 +314,10 @@ export interface UpdateSchedulePayload {
 
 export async function updateSchedule(id: number, payload: UpdateSchedulePayload): Promise<ScrapeSchedule> {
   const response = await apiClient.put<ApiResponse<ScrapeSchedule>>(`/scraper/schedules/${id}`, payload);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to update schedule');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to update schedule');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export async function deleteSchedule(id: number): Promise<void> {
@@ -271,19 +334,19 @@ export async function getScrapeReports(params?: {
   status?: 'running' | 'success' | 'partial_success' | 'failed';
   triggerType?: 'manual' | 'cron';
 }): Promise<PaginatedResponse<ScrapeReport>> {
-  const response = await apiClient.get<ApiResponse<PaginatedResponse<ScrapeReport>>>('/reports', { params });
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch reports');
+  const response = await apiClient.get<ApiResponse<PaginatedResponse<ScrapeReport>>>('/reports', params as Record<string, string | number>);
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch reports');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export async function getScrapeReportById(id: number): Promise<ScrapeReport> {
   const response = await apiClient.get<ApiResponse<ScrapeReport>>(`/reports/${id}`);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch report');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch report');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export interface ScrapeAttempt {
@@ -315,18 +378,18 @@ export interface ReportDetails {
 
 export async function getReportDetails(id: number): Promise<ReportDetails> {
   const response = await apiClient.get<ApiResponse<ReportDetails>>(`/reports/${id}/details`);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch report details');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch report details');
   }
-  return response.data.data;
+  return response.data;
 }
 
 export async function resumeScrape(reportId: number): Promise<{ reportId: number; parentReportId: number; pendingAttempts: number; message: string }> {
   const response = await apiClient.post<ApiResponse<{ reportId: number; parentReportId: number; pendingAttempts: number; message: string }>>(`/scraper/resume/${reportId}`);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to resume scrape');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to resume scrape');
   }
-  return response.data.data;
+  return response.data;
 }
 
 // Export api instance for custom requests

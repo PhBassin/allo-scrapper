@@ -30,21 +30,21 @@ const LoginPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const response = await apiClient.post('/auth/login', { username, password });
+            const response = await apiClient.post<any>('/auth/login', { username, password });
 
-            if (response.data.success) {
+            if (response.success) {
                 // API returns { success: true, data: { token, user } }
-                const { token, user } = response.data.data;
+                const { token, user } = response.data;
                 login(token, user);
                 navigate(from, { replace: true });
             } else {
-                setError(response.data.error || 'Login failed');
+                setError(response.error || 'Login failed');
             }
         } catch (err: unknown) {
-            if (err instanceof Error && 'response' in err) {
-                const axiosError = err as { response?: { data?: { error?: string } } };
-                if (axiosError.response?.data?.error) {
-                    setError(axiosError.response.data.error);
+            if (err instanceof Error && ('status' in err || 'data' in err)) {
+                const apiError = err as import('../api/client').ApiError;
+                if (apiError.data?.error) {
+                    setError(apiError.data.error);
                 } else {
                     setError('An unexpected error occurred. Please try again later.');
                 }
