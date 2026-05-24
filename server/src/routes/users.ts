@@ -14,9 +14,9 @@ import {
   getAdminCount,
   generateRandomPassword,
 } from '../db/user-queries.js';
-import bcrypt from 'bcryptjs';
 import { logger } from '../utils/logger.js';
 import { validatePasswordStrength } from '../utils/security.js';
+import { hashPassword } from '../utils/password.js';
 import { ValidationError, NotFoundError, AuthError } from '../utils/errors.js';
 
 const router = express.Router();
@@ -165,7 +165,7 @@ router.post(
       }
 
       // Hash password
-      const passwordHash = await bcrypt.hash(password, 10);
+      const passwordHash = await hashPassword(password);
 
       // Create user with direct DB query
       const result = await db.query<UserPublic>(
@@ -313,7 +313,7 @@ router.post(
       const newPassword = generateRandomPassword();
 
       // Hash password
-      const passwordHash = await bcrypt.hash(newPassword, 10);
+      const passwordHash = await hashPassword(newPassword);
 
       // Update password in database
       await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [

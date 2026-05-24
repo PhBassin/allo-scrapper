@@ -12,11 +12,9 @@ vi.mock('../db/client.js', () => ({
   },
 }));
 vi.mock('../db/user-queries.js');
-vi.mock('bcryptjs', () => ({
-  default: {
-    hash: vi.fn().mockResolvedValue('$2b$10$hashedPasswordExample1234567890123456789012'),
-    compare: vi.fn(),
-  },
+vi.mock('../utils/password.js', () => ({
+  hashPassword: vi.fn().mockResolvedValue('scrypt:salt:hashedPassword'),
+  comparePassword: vi.fn().mockResolvedValue(true)
 }));
 vi.mock('../utils/logger.js', () => ({
   logger: {
@@ -624,10 +622,10 @@ describe('User Management Routes', () => {
         .post('/api/users/2/reset-password')
         .set('Authorization', 'Bearer valid-admin-token');
 
-      // Verify password was hashed (bcrypt hash starts with $2b$)
+      // Verify password was hashed (scrypt format)
       expect(db.query).toHaveBeenCalled();
       const queryCall = vi.mocked(db.query).mock.calls[0];
-      expect(queryCall[1][0]).toMatch(/^\$2[aby]\$/);
+      expect(queryCall[1][0]).toMatch(/^scrypt:/);
       expect(queryCall[1][0]).not.toBe('RandomPass123!@#');
     });
 
