@@ -53,5 +53,13 @@ if ! npm run test:run; then
   exit 1
 fi
 
+echo "${YELLOW}[pre-push] Running E2E tests...${NC}"
+cd "$REPO_ROOT"
+if ! npm run e2e; then
+  echo "${RED}[pre-push] E2E tests FAILED. Ensure the full stack is running (docker compose up -d). Push aborted.${NC}"
+  exit 1
+fi
+echo "${GREEN}[pre-push] E2E tests passed.${NC}"
+
 echo "${GREEN}[pre-push] All checks passed. Pushing...${NC}"
 exit 0
