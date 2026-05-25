@@ -22,7 +22,7 @@
 #   - cancelled: Story no longer relevant
 
 generated: 2026-05-21
-last_updated: 2026-05-21
+last_updated: 2026-05-25
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -76,16 +76,29 @@ development_status:
   epic-8: done
 
   # ─────────────────────────────────────────────────────────────
+  # EPIC 9: Security Audit Remediation
+  # ─────────────────────────────────────────────────────────────
+  epic-9: in-progress
+  epic-9-note: "Remédiation suite à l'audit de sécurité du 2026-05-25 (5 points restants, 2 déjà traités dans PR #1075)"
+  9-1-protect-exposed-endpoints: ready-for-dev
+  9-2-harden-express-config: ready-for-dev
+  9-3-hot-reload-rate-limits: ready-for-dev
+  9-4-jwt-secret-rotation: ready-for-dev
+
+  # ─────────────────────────────────────────────────────────────
   # STORIES HORS SPRINT
   # ─────────────────────────────────────────────────────────────
   story-add-to-calendar: done
   story-add-to-calendar-note: "Mergé via PR #1049 — e549792 feat(client): add to calendar from showtime button"
+  story-1074-refresh-tokens: done
+  story-1074-refresh-tokens-note: "PR #1075 — JWT 1h + refresh tokens + CSRF (points 3+4 de l'audit sécurité)"
 
 # ─────────────────────────────────────────────────────────────
 # SPRINT STATUS
 # ─────────────────────────────────────────────────────────────
-sprint_status: completed
-sprint_completed_date: 2026-05-21
-total_epics: 8
+sprint_status: active
+sprint_active_date: 2026-05-25
+total_epics: 9
 epics_done: 7
+epics_in_progress: 1
 epics_cancelled: 1

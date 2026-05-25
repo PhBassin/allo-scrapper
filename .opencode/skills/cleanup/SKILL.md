@@ -38,6 +38,24 @@ Execute the post-PR merge cleanup workflow with maximum safety and helpful user 
 
 Execute these steps in order:
 
+### Step 0: Pull Develop First (ALWAYS)
+
+**Purpose**: Get the latest state of develop before ANY other action. This runs unconditionally, regardless of which branch you're on.
+
+```bash
+# Always pull develop first
+git fetch origin develop
+```
+
+**Output:**
+```
+🔄 Fetching latest origin/develop...
+```
+
+**Rationale**: The cleanup skill must always work with the freshest remote state. Merge verification, branch deletion decisions, and multi-branch cleanup all depend on knowing what's actually been merged upstream. Without this step, `git branch --merged develop` can return stale results.
+
+---
+
 ### Step 1: Pre-flight Safety Checks
 
 **Purpose**: Verify it's safe to proceed with cleanup.

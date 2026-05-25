@@ -4,6 +4,9 @@
 
 set -e
 
+# Ensure Node.js is available (nvm-managed)
+export PATH="/home/debian/.nvm/versions/node/v24.14.1/bin:$PATH"
+
 YELLOW='\033[0;33m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
