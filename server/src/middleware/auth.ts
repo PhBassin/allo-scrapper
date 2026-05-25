@@ -17,26 +17,17 @@ export interface AuthRequest extends Request {
 }
 
 export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void | Response => {
-    // 1. Try Authorization header first (Bearer token)
-    let token: string | null = null;
     const authHeader = req.headers.authorization;
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.split(' ')[1];
-    }
-
-    // 2. Fallback: cookie-based access token
-    if (!token && req.cookies?.auth_token) {
-        token = req.cookies.auth_token;
-    }
-
-    if (!token) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
         const response: ApiResponse = {
             success: false,
             error: 'Authentication required. No token provided.',
         };
         return res.status(401).json(response);
     }
+
+    const token = authHeader.split(' ')[1];
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET) as {

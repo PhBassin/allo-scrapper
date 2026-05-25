@@ -11,7 +11,25 @@ export interface RefreshTokenRecord {
   revoked_at: Date | null;
 }
 
-const DEFAULT_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const DEFAULT_EXPIRY_MS = parseRefreshTokenExpiry();
+
+function parseRefreshTokenExpiry(): number {
+  const envValue = process.env.REFRESH_TOKEN_EXPIRY;
+  if (!envValue) return 7 * 24 * 60 * 60 * 1000; // default: 7 days
+  // Support human-readable format like '7d', '30d'
+  const match = envValue.trim().match(/^(\d+)([dh])$/i);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    const unit = match[2].toLowerCase();
+    if (unit === 'd') return num * 24 * 60 * 60 * 1000;
+    if (unit === 'h') return num * 60 * 60 * 1000;
+  }
+  // Fallback: parse as milliseconds
+  const ms = parseInt(envValue, 10);
+  if (!isNaN(ms) && ms > 0) return ms;
+  logger.warn(`Invalid REFRESH_TOKEN_EXPIRY value: "${envValue}", using default 7d`);
+  return 7 * 24 * 60 * 60 * 1000;
+}
 
 /**
  * Service for generating, validating, and revoking refresh tokens.

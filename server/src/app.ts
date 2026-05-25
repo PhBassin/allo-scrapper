@@ -78,7 +78,7 @@ export function createApp() {
   app.use((req, res, next) => {
     // Skip CSRF for test environment, login, and refresh endpoints
     if (process.env.NODE_ENV === 'test') return next();
-    if (req.path === '/api/auth/login' || req.path === '/api/auth/refresh') return next();
+    if (req.path === '/api/auth/login' || req.path === '/api/auth/refresh' || req.path === '/api/auth/logout') return next();
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
     if (!req.path.startsWith('/api/')) return next();
     const cookieToken = req.cookies?.csrf_token;

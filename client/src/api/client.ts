@@ -16,6 +16,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 // Track refresh promise to deduplicate concurrent refresh attempts
 let refreshPromise: Promise<boolean> | null = null;
 
+// Prevent duplicate auth:unauthorized events from concurrent 401s
+let unauthorizedDispatched = false;
+
 /**
  * Read CSRF token from cookie.
  */
@@ -36,11 +39,17 @@ async function refreshAccessToken(): Promise<boolean> {
       headers['X-CSRF-Token'] = csrfToken;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
       headers,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) return false;
 
@@ -50,6 +59,8 @@ async function refreshAccessToken(): Promise<boolean> {
       if (data.data.user) {
         localStorage.setItem('user', JSON.stringify(data.data.user));
       }
+      // Reset the dedup flag on successful refresh
+      unauthorizedDispatched = false;
       return true;
     }
     return false;
@@ -149,14 +160,17 @@ async function fetchClient<T>(endpoint: string, options: RequestInit = {}): Prom
         }
       }
 
-      // Refresh failed — dispatch unauthorized event
-      const event = new CustomEvent('auth:unauthorized', {
-        detail: { 
-          originalPath: window.location.pathname,
-          reason: 'session_expired' as const,
-        }
-      });
-      window.dispatchEvent(event);
+      // Refresh failed — dispatch unauthorized event (only once)
+      if (!unauthorizedDispatched) {
+        unauthorizedDispatched = true;
+        const event = new CustomEvent('auth:unauthorized', {
+          detail: { 
+            originalPath: window.location.pathname,
+            reason: 'session_expired' as const,
+          }
+        });
+        window.dispatchEvent(event);
+      }
       throw new ApiError('Unauthorized', 401);
     }
 

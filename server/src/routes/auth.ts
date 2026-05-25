@@ -43,7 +43,13 @@ function setRefreshTokenCookie(res: Response, token: string): void {
  * Clear refresh token cookie.
  */
 function clearRefreshTokenCookie(res: Response): void {
-    res.clearCookie('refresh_token', { path: '/api/auth' });
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.clearCookie('refresh_token', {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'strict',
+        path: '/api/auth',
+    });
 }
 
 /**
@@ -65,7 +71,13 @@ function setCsrfCookie(res: Response): string {
  * Clear CSRF token cookie.
  */
 function clearCsrfCookie(res: Response): void {
-    res.clearCookie('csrf_token', { path: '/' });
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.clearCookie('csrf_token', {
+        httpOnly: false,
+        secure: isProduction,
+        sameSite: 'strict',
+        path: '/',
+    });
 }
 
 // POST /api/auth/login - Login user
@@ -189,9 +201,6 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
             return;
         }
 
-        // Revoke the old refresh token (rotation)
-        await refreshTokenService.revoke(refreshToken);
-
         // Get user info for new access token
         const userResult = await db.query<{
             id: number; username: string; role_id: number; role_name: string; is_system_role: boolean;
@@ -214,8 +223,14 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
 
         const user = userResult.rows[0];
 
-        // Generate new access token using AuthService's internal logic
-        // (reuse the JWT signing from AuthService by calling a helper)
+        // Generate new refresh token FIRST (before revoking old one)
+        // This ensures we never lose the refresh token if generate fails
+        const newRefreshToken = await refreshTokenService.generate(userId);
+
+        // Revoke the old refresh token (rotation — only after new one is secured)
+        await refreshTokenService.revoke(refreshToken);
+
+        // Generate new access token
         const jwt = await import('jsonwebtoken');
         const { validateJWTSecret } = await import('../utils/jwt-secret-validator.js');
         const { parseJwtExpiration } = await import('../utils/jwt-config.js');
@@ -237,8 +252,7 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
             { expiresIn: expiresIn as any }
         );
 
-        // Generate new refresh token (rotation)
-        const newRefreshToken = await refreshTokenService.generate(userId);
+        // Set new refresh token cookie
         setRefreshTokenCookie(res, newRefreshToken);
 
         // Rotate CSRF token
