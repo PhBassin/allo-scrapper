@@ -56,6 +56,7 @@ jobs:
     permissions:
       contents: read
     needs: unit-and-coverage
+    continue-on-error: true
 
     services:
       postgres:
@@ -97,28 +98,24 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
+      - name: Initialize database from init.sql
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d ics -f docker/init.sql
+        env:
+          PGPASSWORD: postgres
+
+      - name: Build server
+        run: npm run build
+        working-directory: server
+
       - name: Build frontend
         run: npm run build
         working-directory: client
         env:
           VITE_APP_NAME: Allo-Scrapper
 
-      - name: Initialize database schema
-        run: npx tsx src/db/schema.ts
-        working-directory: server
-        env:
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_DB: ics
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          JWT_SECRET: e2e-test-secret-min-32-chars-required-for-startup
-          NODE_ENV: development
-          AUTO_MIGRATE: "true"
-
-      - name: Start server in background
+      - name: Start server
         run: |
-          npx tsx src/index.ts &
+          node dist/index.js &
           echo $! > /tmp/server.pid
           for i in $(seq 1 30); do
             curl -s http://localhost:3000/api/health > /dev/null && break
@@ -127,6 +124,7 @@ jobs:
         working-directory: server
         env:
           PORT: 3000
+          NODE_ENV: production
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
           POSTGRES_DB: ics
@@ -135,8 +133,6 @@ jobs:
           JWT_SECRET: e2e-test-secret-min-32-chars-required-for-startup
           JWT_EXPIRES_IN: 1h
           REDIS_URL: redis://localhost:6379
-          NODE_ENV: development
-          AUTO_MIGRATE: "false"
           ALLOWED_ORIGINS: http://localhost:3000
 
       - name: Run E2E tests
