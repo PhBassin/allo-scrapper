@@ -1,85 +1,144 @@
 # Deployment Guide — allo-scrapper
 
-## Infrastructure Requirements
-- **Docker** + Docker Compose
-- **PostgreSQL 15** (or managed: RDS, Cloud SQL)
-- **Redis 7** (or managed: ElastiCache, Memorystore)
-- **Node.js >=24** (for local dev only)
+> Generated: 2026-05-21
 
-## Production Deployment (Docker Compose)
+## Docker Deployment (Recommended)
+
+### Prerequisites
+- Docker Engine 24+
+- Docker Compose v2
+- PostgreSQL 15+ (external or containerized)
+- Redis 7+ (external or containerized)
+
+### Production docker-compose.yml
+
+```yaml
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: allo_scrapper
+      POSTGRES_USER: allo
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
+  server:
+    build: ./server
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://allo:${DB_PASSWORD}@postgres:5432/allo_scrapper
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      NODE_ENV: production
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  scraper:
+    build: ./scraper
+    environment:
+      DATABASE_URL: postgresql://allo:${DB_PASSWORD}@postgres:5432/allo_scrapper
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  client:
+    build: ./client
+    ports:
+      - "80:5173"
+    environment:
+      VITE_API_URL: http://server:3001
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+```
+
+### Deployment Steps
 
 ```bash
-# Pull images or build
-docker compose pull
-# OR
+# 1. Clone and configure
+git clone <repo-url>
+cd allo-scrapper
+cp .env.example .env
+# Edit .env with production values
+
+# 2. Build images
 docker compose build
 
-# Start stack
+# 3. Start services
 docker compose up -d
 
-# With monitoring
-docker compose --profile monitoring up -d
+# 4. Run migrations
+docker compose exec server npm run db:migrate
+
+# 5. Verify health
+curl http://localhost:3001/api/system/health
+curl http://localhost
 ```
 
-### Services Started
-| Service | Port | Description |
-|---------|------|-------------|
-| ics-db | 5432 (internal) | PostgreSQL 15 |
-| ics-redis | 6379 (internal) | Redis 7 |
-| ics-web | 3000 | API server + static frontend |
-| ics-scraper | — | Scraper consumer (Redis BLPOP) |
-| ics-scraper-cron | — | Scraper cron scheduler |
+## Environment Variables for Production
 
-### Monitoring Profile (optional)
-| Service | Port | Description |
-|---------|------|-------------|
-| ics-prometheus | 9090 | Metrics collection |
-| ics-loki | 3100 | Log aggregation |
-| ics-tempo | 3200 | Distributed tracing |
-| ics-grafana | 3001 | Dashboards |
+| Variable | Purpose |
+|----------|---------|
+| `DB_PASSWORD` | PostgreSQL password |
+| `JWT_SECRET` | JWT signing secret (use strong random) |
+| `JWT_REFRESH_SECRET` | Refresh token secret |
+| `NODE_ENV` | Set to `production` |
 
-## Environment Configuration
-All configuration via `.env` file (see `.env.example`):
+## CI/CD Pipeline
 
-### Required
-- `JWT_SECRET` — Generate: `openssl rand -base64 64`
-- `POSTGRES_PASSWORD` — Database password
-- `REDIS_URL` — Default: `redis://ics-redis:6379`
-
-### Optional
-- `IMAGE_TAG` — Docker image tag (default: `stable`)
-- `TZ` — Timezone (default: `Europe/Paris`)
-- `SCRAPE_MODE` — `weekly`, `from_today_limited` (default: `weekly`)
-- `SCRAPE_DAYS` — Days to scrape (default: `7`)
-- `LOG_LEVEL` — `error`, `warn`, `info`, `debug`
+GitHub Actions workflows:
+- **Docker Build** — Builds and pushes images on merge to main
+- **Version Tag** — Auto-versioning based on PR labels
+- **Tests** — Vitest + Playwright on every PR
 
 ## Health Checks
-```bash
-# Server health
-curl http://localhost:3000/api/health
 
-# Scraper metrics
-curl http://localhost:9091/metrics
-
-# Docker health
-docker compose ps
-```
-
-## CI/CD Pipeline (GitHub Actions)
-1. **CI** (`ci.yml`) — Lint, test, build on PR
-2. **Docker Build & Push** (`docker-build-push.yml`) — Build on merge to main
-3. **Version Tag** (`version-tag.yml`) — Auto version bump + GitHub Release
-4. **Sync Main → Develop** (`sync-main-to-develop.yml`) — Merge-back
-5. **GHCR Cleanup** (`ghcr-cleanup.yml`) — Remove old images
+| Service | Endpoint |
+|---------|----------|
+| Server | `GET /api/system/health` |
+| Server Ready | `GET /api/system/ready` |
+| Client | `GET /` |
 
 ## Backup & Restore
+
 ```bash
-# Backup database
-./scripts/backup-db.sh
+# Backup PostgreSQL
+docker compose exec postgres pg_dump -U allo allo_scrapper > backup.sql
 
-# Export settings
-curl -X POST http://localhost:3000/api/settings/export   -H "Authorization: Bearer <admin-token>"
-
-# Restore from settings export
-curl -X POST http://localhost:3000/api/settings/import   -H "Content-Type: application/json"   -H "Authorization: Bearer <admin-token>"   -d @settings-export.json
+# Restore
+docker compose exec -T postgres psql -U allo allo_scrapper < backup.sql
 ```
+
+## Monitoring
+
+- **Logs:** Winston JSON logs → stdout → Docker logs
+- **Metrics:** OpenTelemetry → Prometheus endpoint
+- **Health:** Docker health checks on all services
+
+## Scaling
+
+- **Server:** Horizontal scaling via load balancer (stateless)
+- **Scraper:** Single instance (rate-limited, stateful browser)
+- **Client:** CDN for static assets
+- **Redis:** Single instance (sufficient for job queue)
+- **PostgreSQL:** Connection pooling via PgBouncer for high load

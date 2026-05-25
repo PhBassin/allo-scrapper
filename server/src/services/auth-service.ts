@@ -32,8 +32,8 @@ export class AuthService {
 
     const secret = validateJWTSecret();
 
-    // Parse JWT expiration from env var (default: 24h)
-    const expiresIn = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '24h');
+    // Parse JWT expiration from env var (default: 1h)
+    const expiresIn = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '1h');
 
     const token = jwt.sign(
       {

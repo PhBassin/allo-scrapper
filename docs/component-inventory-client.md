@@ -1,96 +1,105 @@
-# UI Component Inventory — Client (React)
+# Component Inventory — Client (allo-scrapper)
+
+> Generated: 2026-05-21 | 33 components across 3 categories
 
 ## Overview
-- **Framework**: React 19.2 + TypeScript 6.0
-- **Styling**: Tailwind CSS 4.1
-- **Routing**: React Router 7.13
-- **Data Fetching**: TanStack React Query 5.90 + Axios 1.13
-- **Validation**: Zod 4.3
-- **Testing**: Vitest 4.1 + Testing Library + jsdom
 
-## Page Components (14)
+The client has **33 components** organized into three main categories. Components follow React 19.2 patterns with TypeScript prop types.
 
-### Public Pages
-| Component | Path | File | Description |
-|-----------|------|------|-------------|
-| HomePage | `/` | `src/pages/HomePage.tsx` | Weekly movies, day selector, cinemas links, search |
-| CinemaPage | `/theater/:id` | `src/pages/CinemaPage.tsx` | Single cinema detail, date selector, showtimes |
-| MoviePage | `/movie/:id` | `src/pages/MoviePage.tsx` | Movie detail, cast, synopsis, showtimes by cinema |
-| LoginPage | `/login` | `src/pages/LoginPage.tsx` | Login form, session-expired detection |
-| ChangePasswordPage | `/change-password` | `src/pages/ChangePasswordPage.tsx` | Protected password change + strength validation |
+---
 
-### Admin Pages (under `/admin?tab=...`)
-| Component | Tab | File | Description |
-|-----------|-----|------|-------------|
-| AdminPage | — | `src/pages/admin/AdminPage.tsx` | Permission-gated tab container |
-| CinemasPage | cinemas | `src/pages/admin/CinemasPage.tsx` | Cinema CRUD table + scrape |
-| SchedulesPage | schedules | `src/pages/admin/SchedulesPage.tsx` | Cron schedule CRUD |
-| ReportsPage | rapports | `src/pages/ReportsPage.tsx` | Scrape reports history |
-| UsersPage | users | `src/pages/admin/UsersPage.tsx` | User management |
-| RoleManagementPage | roles | `src/components/admin/RoleManagementPage.tsx` | Role CRUD + permissions |
-| SettingsPage | settings | `src/pages/admin/SettingsPage.tsx` | White-label settings (colors, fonts, logos) |
-| RateLimitsPage | ratelimits | `src/pages/admin/RateLimitsPage.tsx` | Rate limit configuration |
-| SystemPage | system | `src/pages/admin/SystemPage.tsx` | System health + DB stats |
+## Public Components (17)
 
-## Shared Components (10)
-| Component | File | Purpose |
-|-----------|------|---------|
-| Layout | `src/components/Layout.tsx` | App shell: sticky header, nav, user dropdown, footer |
-| ProtectedRoute | `src/components/ProtectedRoute.tsx` | Auth guard → redirect to /login |
-| RequirePermission | `src/components/RequirePermission.tsx` | Permission guard (single/anyOf/allOf) |
-| RequireAdmin | `src/components/RequireAdmin.tsx` | Legacy admin-only guard |
-| ErrorBoundary | `src/components/ErrorBoundary.tsx` | Render error catch + reload UI |
-| MovieCard | `src/components/MovieCard.tsx` | Memoized movie listing card with expandable showtimes |
-| MovieSearchBar | `src/components/MovieSearchBar.tsx` | Debounced fuzzy search with dropdown |
-| ShowtimeList | `src/components/ShowtimeList.tsx` | Time buttons grouped by version → CalendarPopover |
-| DaySelector | `src/components/DaySelector.tsx` | 7-day selector + 'Now' + 'All days' |
-| CinemaDateSelector | `src/components/CinemaDateSelector.tsx` | Cinema date picker with showtime counts |
-| CinemasQuickLinks | `src/components/CinemasQuickLinks.tsx` | Cinema quick-link chips |
-| CinemaShowtimes | `src/components/CinemaShowtimes.tsx` | Showtimes grouped by cinema |
-| ScrapeButton | `src/components/ScrapeButton.tsx` | Scrape trigger with loading/success/error |
-| ScrapeProgress | `src/components/ScrapeProgress.tsx` | SSE real-time scrape progress bar |
-| CalendarPopover | `src/components/CalendarPopover.tsx` | Portal dropdown: Google Calendar / .ics download |
-| ScrollToTop | `src/components/ScrollToTop.tsx` | Floating scroll-to-top button |
-| PasswordRequirements | `src/components/PasswordRequirements.tsx` | Live password strength checklist |
+Components used by end-users browsing showtimes.
+
+### Layout
+| Component | File | Description |
+|-----------|------|-------------|
+| `Layout` | `client/src/components/Layout.tsx` | Main app shell with header, footer, navigation |
+
+### Movie Browsing
+| Component | File | Description |
+|-----------|------|-------------|
+| `MovieCard` | `client/src/components/MovieCard.tsx` | Movie poster, title, schedule summary |
+| `MovieSearchBar` | `client/src/components/MovieSearchBar.tsx` | Search/filter movies by title |
+| `PasswordRequirements` | `client/src/components/PasswordRequirements.tsx` | Password strength indicator |
+
+### Theater/Cinema
+| Component | File | Description |
+|-----------|------|-------------|
+| `CalendarPopover` | `client/src/components/CalendarPopover.tsx` | Date picker popover |
+| `CinemaDateSelector` | `client/src/components/CinemaDateSelector.tsx` | Date selection for cinema view |
+| `CinemaShowtimes` | `client/src/components/CinemaShowtimes.tsx` | Showtime listing for a cinema |
+| `CinemasQuickLinks` | `client/src/components/CinemasQuickLinks.tsx` | Quick navigation between cinemas |
+| `DaySelector` | `client/src/components/DaySelector.tsx` | Day-of-week selector |
+
+### Error Handling
+| Component | File | Description |
+|-----------|------|-------------|
+| `ErrorBoundary` | `client/src/components/ErrorBoundary.tsx` | React error boundary wrapper |
+
+---
+
+## Admin Components (13)
+
+Components used in the admin panel for system management.
+
+### Cinema Management
+| Component | File | Description |
+|-----------|------|-------------|
+| `AddCinemaModal` | `client/src/components/admin/AddCinemaModal.tsx` | Modal form to add new cinema |
+| `EditCinemaModal` | `client/src/components/admin/EditCinemaModal.tsx` | Modal form to edit cinema |
+| `DeleteCinemaDialog` | `client/src/components/admin/DeleteCinemaDialog.tsx` | Confirmation dialog for cinema deletion |
+
+### User Management
+| Component | File | Description |
+|-----------|------|-------------|
+| `CreateUserModal` | `client/src/components/admin/CreateUserModal.tsx` | Modal form to create user |
+| `DeleteUserDialog` | `client/src/components/admin/DeleteUserDialog.tsx` | Confirmation dialog for user deletion |
+| `PasswordResetDialog` | `client/src/components/admin/PasswordResetDialog.tsx` | Password reset dialog |
+
+### White-Label / Theming
+| Component | File | Description |
+|-----------|------|-------------|
+| `ColorPicker` | `client/src/components/admin/ColorPicker.tsx` | Color input for theme customization |
+| `FontSelector` | `client/src/components/admin/FontSelector.tsx` | Font family selector |
+| `FooterLinksEditor` | `client/src/components/admin/FooterLinksEditor.tsx` | Footer links configuration |
+| `ImageUpload` | `client/src/components/admin/ImageUpload.tsx` | Logo/favicon image upload |
+
+---
 
 ## UI Primitives (3)
-| Component | File | Props |
-|-----------|------|-------|
-| Button | `src/components/ui/Button.tsx` | variant (primary/secondary/danger), size (sm/md/lg) |
-| IconButton | `src/components/ui/IconButton.tsx` | variant (neutral/danger), aria-label required |
-| LinkButton | `src/components/ui/LinkButton.tsx` | variant (primary/danger/success/warning) |
 
-## Admin Modals & Forms (10)
-| Component | Purpose |
-|-----------|---------|
-| AddCinemaModal | Smart-add via URL + manual cinema creation |
-| EditCinemaModal | Edit cinema metadata (name, URL, address, etc.) |
-| DeleteCinemaDialog | Confirm cinema deletion |
-| CreateUserModal | User creation with password validation |
-| DeleteUserDialog | Confirm user deletion |
-| PasswordResetDialog | Show generated password (copy-once) |
-| RoleBadge | Visual role badge (admin/custom/system) |
-| ColorPicker | Hex color input + preview |
-| FontSelector | Google Fonts dropdown with live preview |
-| ImageUpload | Logo/favicon upload → base64 with size validation |
-| FooterLinksEditor | Dynamic footer links array editor (add/remove/reorder) |
-| ScheduleModal | Cron schedule create/edit (simple + advanced mode) |
+Base UI components for consistent design.
 
-## Custom Hooks (3)
-| Hook | File | Purpose |
-|------|------|---------|
-| useDebounce | `src/hooks/useDebounce.ts` | Generic debounce for inputs |
-| useScrapeProgress | `src/hooks/useScrapeProgress.ts` | SSE subscription to /scraper/progress |
-| useTheme | `src/hooks/useTheme.ts` | Dynamic CSS + favicon injection from settings |
+| Component | File | Description |
+|-----------|------|-------------|
+| `Button` | `client/src/components/ui/Button.tsx` | Primary button with variants |
+| `IconButton` | `client/src/components/ui/IconButton.tsx` | Icon-only button |
+| `LinkButton` | `client/src/components/ui/LinkButton.tsx` | Button styled as link |
 
-## Utilities (8)
-| Utility | File | Purpose |
-|---------|------|---------|
-| getUniqueDates | `src/utils/date.ts` | Extract unique sorted dates from showtimes |
-| formatDateLabel | `src/utils/date.ts` | fr-FR locale date formatting with caching |
-| buildGoogleCalendarUrl | `src/utils/calendar.ts` | Google Calendar add-event URL builder |
-| buildIcsContent | `src/utils/calendar.ts` | RFC 5545 .ics file generator |
-| downloadIcsFile | `src/utils/calendar.ts` | Browser .ics download trigger |
-| highlightText | `src/utils/highlight.tsx` | Case-insensitive text highlight with <mark> |
-| groupPermissionsByCategory | `src/utils/permission-grouping.ts` | Permissions grouped by category for UI |
-| ADMIN_PERMISSIONS | `src/utils/adminPermissions.ts` | Exhaustive admin route permission list |
+---
+
+## Custom Hooks
+
+| Hook | File | Description |
+|------|------|-------------|
+| `useTheme` | `client/src/hooks/useTheme.ts` | White-label theme management |
+| `useDebounce` | `client/src/hooks/useDebounce.ts` | Debounced value for search inputs |
+| `useScrapeProgress` | `client/src/hooks/useScrapeProgress.ts` | Real-time scraping progress via polling |
+
+---
+
+## API Modules
+
+Each API module wraps a domain's endpoints:
+
+| Module | File | Endpoints |
+|--------|------|-----------|
+| `client.ts` | `client/src/api/client.ts` | Axios instance, auth interceptors, base config |
+| `theaters.ts` | `client/src/api/theaters.ts` | CRUD theaters |
+| `users.ts` | `client/src/api/users.ts` | User management |
+| `roles.ts` | `client/src/api/roles.ts` | Role management |
+| `settings.ts` | `client/src/api/settings.ts` | App settings, white-label |
+| `system.ts` | `client/src/api/system.ts` | Health, metrics |
+| `rate-limits.ts` | `client/src/api/rate-limits.ts` | Rate limit configuration |

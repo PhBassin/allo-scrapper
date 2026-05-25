@@ -105,6 +105,7 @@ describe('System Queries', () => {
             { version: '021_add_movie_trailer_url.sql' },
             { version: '022_fix_showtime_deduplication.sql' },
             { version: '023_rename_cinema_to_theater_and_film_to_movie.sql' },
+            { version: '024_add_refresh_tokens.sql' },
           ],
         }),
       } as unknown as DB;

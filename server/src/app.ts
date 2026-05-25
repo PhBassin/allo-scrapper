@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Registry, collectDefaultMetrics } from 'prom-client';
 import { createHash } from 'crypto';
+import cookieParser from 'cookie-parser';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
@@ -69,6 +70,27 @@ export function createApp() {
   app.use(morgan('combined'));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+  app.use(cookieParser());
+
+  // CSRF protection: double-submit cookie pattern (inline for CodeQL compliance)
+  // CodeQL requires CSRF middleware to be inline (not in separate module) to
+  // satisfy js/missing-csrf-protection when cookieParser is present.
+  app.use((req, res, next) => {
+    // Skip CSRF for test environment, login, and refresh endpoints
+    if (process.env.NODE_ENV === 'test') return next();
+    if (req.path === '/api/auth/login' || req.path === '/api/auth/refresh' || req.path === '/api/auth/logout') return next();
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+    if (!req.path.startsWith('/api/')) return next();
+    const cookieToken = req.cookies?.csrf_token;
+    const headerToken = req.headers['x-csrf-token'] as string | undefined;
+    if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+      return res.status(403).json({
+        success: false,
+        error: 'CSRF token missing or invalid.',
+      });
+    }
+    next();
+  });
 
   // Rate limiting for all API routes
   app.use('/api', generalLimiter);

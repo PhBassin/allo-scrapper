@@ -1,43 +1,84 @@
 {
   "workflow_version": "1.2.0",
-  "timestamps": {"started": "2026-05-21T20:15:00Z", "last_updated": "2026-05-21T20:32:00Z", "completed": "2026-05-21T20:32:00Z"},
-  "mode": "initial_scan",
+  "timestamps": {
+    "started": "2026-05-21T22:22:00Z",
+    "last_updated": "2026-05-21T22:56:56Z"
+  },
+  "mode": "full_rescan",
   "scan_level": "exhaustive",
   "project_root": "/home/debian/agents/hermes/allo-scrapper",
   "project_knowledge": "/home/debian/agents/hermes/allo-scrapper/docs",
   "completed_steps": [
-    {"step": "step_1", "status": "completed", "timestamp": "2026-05-21T20:18:00Z", "summary": "Classified as multi-part with 4 parts: client(web), server(backend), scraper(backend), packages(library)"},
-    {"step": "step_2", "status": "completed", "timestamp": "2026-05-21T20:20:00Z", "summary": "Found ~60 existing docs across reference, guides, troubleshooting, getting-started, CI/CD"},
-    {"step": "step_3", "status": "completed", "timestamp": "2026-05-21T20:22:00Z", "summary": "Tech stack: React 19 + Express 5 + PostgreSQL 15 + Redis 7, monorepo npm workspaces, microservices"},
-    {"step": "step_4", "status": "completed", "timestamp": "2026-05-21T20:28:00Z", "summary": "Exhaustive scan: 52 API routes, 16 DB tables, 26 components, 3 parsers"},
-    {"step": "step_5", "status": "completed", "timestamp": "2026-05-21T20:29:00Z", "summary": "Source tree analysis with critical folders documented"},
-    {"step": "step_6", "status": "completed", "timestamp": "2026-05-21T20:29:00Z", "summary": "Development guide + deployment guide + contribution guide written"},
-    {"step": "step_7", "status": "completed", "timestamp": "2026-05-21T20:29:00Z", "summary": "Integration architecture with 7 integration points documented"},
-    {"step": "step_8", "status": "completed", "timestamp": "2026-05-21T20:30:00Z", "summary": "Architecture docs per part: client, server, scraper, packages"},
-    {"step": "step_9", "status": "completed", "timestamp": "2026-05-21T20:30:00Z", "summary": "Project overview, deployment guide, contribution guide written"},
-    {"step": "step_10", "status": "completed", "timestamp": "2026-05-21T20:30:00Z", "summary": "Master index generated"},
-    {"step": "step_11", "status": "completed", "timestamp": "2026-05-21T20:31:00Z", "summary": "Validation and review — user approved"},
-    {"step": "step_12", "status": "completed", "timestamp": "2026-05-21T20:32:00Z", "summary": "Workflow complete"}
+    {
+      "step": "step_1",
+      "status": "completed",
+      "timestamp": "2026-05-21T22:22:00Z",
+      "summary": "Classified as multi-part with 4 parts: client(web), server(backend), scraper(backend), packages(library)"
+    },
+    {
+      "step": "step_2",
+      "status": "completed",
+      "timestamp": "2026-05-21T22:22:00Z",
+      "summary": "Found ~85 existing docs across reference, guides, troubleshooting, getting-started"
+    },
+    {
+      "step": "step_3",
+      "status": "completed",
+      "timestamp": "2026-05-21T22:22:00Z",
+      "summary": "Tech stack: React 19 + Express 5 + PostgreSQL 15 + Redis 7, npm workspaces, microservices"
+    },
+    {
+      "step": "step_4",
+      "status": "completed",
+      "timestamp": "2026-05-21T22:22:00Z",
+      "summary": "Exhaustive scan: 52 API routes, 18 DB tables, 35+ components, 3 parsers, 22 migrations"
+    },
+    {
+      "step": "step_5",
+      "status": "completed",
+      "timestamp": "2026-05-21T22:56:56Z",
+      "summary": "Generated 16 documentation files from code scan"
+    },
+    {
+      "step": "step_6",
+      "status": "completed",
+      "timestamp": "2026-05-21T22:56:56Z",
+      "summary": "Generated development, deployment, and contribution guides"
+    },
+    {
+      "step": "step_7",
+      "status": "completed",
+      "timestamp": "2026-05-21T22:56:56Z",
+      "summary": "Updated index.md with all documentation links"
+    }
   ],
   "current_step": "completed",
   "findings": {
     "project_classification": {
       "repository_type": "multi-part",
       "parts_count": 4
-    }
+    },
+    "files_generated": 16,
+    "scan_summary": "154 source files scanned across server(58), client(70), scraper(26)"
   },
   "outputs_generated": [
-    "project-scan-report.json", "api-contracts-server.md", "data-models-server.md",
-    "component-inventory-client.md", "comprehensive-analysis-client.md",
-    "comprehensive-analysis-scraper.md", "comprehensive-analysis-packages.md",
-    "source-tree-analysis.md", "development-guide.md", "deployment-guide.md",
-    "contribution-guide.md", "integration-architecture.md",
-    "architecture-client.md", "architecture-server.md", "architecture-scraper.md",
-    "architecture-packages.md", "project-overview.md", "index.md"
-  ],
-  "verification": {
-    "summary": "All 18 files written and validated. Index.md links verified against existing files. No incomplete markers found.",
-    "open_risks": "none",
-    "next_checks": "none"
-  }
+    "project-scan-report.json",
+    "index.md",
+    "api-contracts-server.md",
+    "data-models-server.md",
+    "architecture-server.md",
+    "comprehensive-analysis-server.md",
+    "architecture-client.md",
+    "component-inventory-client.md",
+    "comprehensive-analysis-client.md",
+    "architecture-scraper.md",
+    "comprehensive-analysis-scraper.md",
+    "architecture-packages.md",
+    "integration-architecture.md",
+    "source-tree-analysis.md",
+    "project-overview.md",
+    "development-guide.md",
+    "deployment-guide.md",
+    "contribution-guide.md"
+  ]
 }

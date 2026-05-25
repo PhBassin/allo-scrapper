@@ -55,6 +55,22 @@ describe('AuthService', () => {
       await expect(authService.login('user', 'password')).rejects.toThrow('JWT_SECRET environment variable is not set');
     });
 
+    it('should use 1h as default expiry when JWT_EXPIRES_IN is not set', async () => {
+      delete process.env.JWT_EXPIRES_IN;
+      const mockUser = { id: 1, username: 'user', role_id: 1, role_name: 'admin', is_system_role: true, password_hash: 'hash' };
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockUser as any);
+      vi.mocked(passwordUtils.comparePassword).mockResolvedValue(true);
+      vi.mocked(jwt.sign).mockReturnValue('mock-token' as any);
+
+      await authService.login('user', 'password');
+
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 1 }),
+        expect.any(String),
+        expect.objectContaining({ expiresIn: '1h' })
+      );
+    });
+
     it('should return token and user on success', async () => {
       const mockUser = { id: 1, username: 'user', role_id: 1, role_name: 'admin', is_system_role: true, password_hash: 'hash' };
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockUser as any);

@@ -4,7 +4,7 @@ import { logger } from './logger.js';
  * Parses and validates JWT expiration time from environment variable.
  * 
  * Supports two formats:
- * 1. Human-readable: '24h', '7d', '30m', '3600s' (passed to jwt.sign as-is)
+ * 1. Human-readable: '1h', '7d', '30m', '3600s' (passed to jwt.sign as-is)
  * 2. Numeric: '86400' (converted to number for jwt.sign)
  * 
  * @param value - The JWT_EXPIRES_IN value from environment variable
@@ -12,7 +12,7 @@ import { logger } from './logger.js';
  * @throws Error if the format is invalid
  * 
  * @example
- * parseJwtExpiration('24h')    // returns '24h'
+ * parseJwtExpiration('1h')    // returns '1h'
  * parseJwtExpiration('86400')  // returns 86400
  * parseJwtExpiration('abc')    // throws Error
  */
