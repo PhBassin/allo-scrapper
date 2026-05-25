@@ -15,7 +15,7 @@ async function startServer() {
     validateJWTSecret();
     
     // Log JWT configuration
-    const jwtExpiration = process.env.JWT_EXPIRES_IN || '24h';
+    const jwtExpiration = process.env.JWT_EXPIRES_IN || '1h';
     logger.info(`🔐 JWT expiration set to: ${jwtExpiration}`);
 
     // Initialize database
