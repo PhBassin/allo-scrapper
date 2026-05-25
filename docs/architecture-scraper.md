@@ -1,62 +1,187 @@
-# Architecture — Scraper (Microservice)
+# Architecture — Scraper (allo-scrapper)
 
-## Executive Summary
-Standalone **Node.js microservice** that consumes scrape jobs from Redis, parses Allociné theater pages, and writes movie/showtime data to PostgreSQL. Supports cron scheduling and OpenTelemetry observability.
+> Generated: 2026-05-21 | Cheerio 1.0 + Puppeteer 24 + BullMQ + OpenTelemetry
 
-## Technology Stack
-| Category | Technology | Version |
-|----------|-----------|---------|
-| Runtime | Node.js | >=24.0.0 |
-| Language | TypeScript | ~6.0.2 |
-| HTML Parsing | Cheerio | 1.0 |
-| Browser Automation | Puppeteer | 24.39.1 |
-| Scheduling | node-cron | 4.2.1 |
-| Database | pg | 8.20.0 |
-| Queue | ioredis | 5.10.0 |
-| Tracing | OpenTelemetry | 0.213.0 |
-| Metrics | prom-client | 15.1.0 |
-| Logging | Winston | 3.11.0 |
-| HTML Entities | he | 1.2.0 |
-| Testing | Vitest | 4.1.1 |
+## Overview
 
-## Architecture Pattern
-**Event-driven microservice** with Redis-backed job queue:
+The scraper is an **event-driven microservice** that fetches movie showtime data from external theater websites. It communicates with the server via Redis (BullMQ) and uses the **Strategy pattern** for extensible parsing.
+
+**Tech Stack:**
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Cheerio | 1.0 | Static HTML parsing |
+| Puppeteer | 24 | Dynamic page rendering |
+| BullMQ | latest | Redis-backed job queue |
+| OpenTelemetry | latest | Metrics, tracing, observability |
+| node-cron | 4 | Scheduled scraping |
+| TypeScript | 6.0 | Type safety |
+| Drizzle ORM | latest | Local DB for scrape state |
+
+---
+
+## Directory Structure
+
 ```
-┌─────────┐     ┌──────────────┐     ┌────────────────┐
-│  Redis  │────▶│ Job Consumer │────▶│ Scraper Engine │
-│  Queue  │     │ (BLPOP)      │     │ (Strategy)     │
-└─────────┘     └──────────────┘     └───────┬────────┘
-                                             │
-                          ┌──────────────────┼──────────────────┐
-                          ▼                  ▼                  ▼
-                   ┌────────────┐    ┌────────────┐    ┌────────────┐
-                   │  Theater   │    │  Theater   │    │   Movie    │
-                   │  Parser    │    │  JSON      │    │   Parser   │
-                   │ (Cheerio)  │    │  Parser    │    │ (Cheerio)  │
-                   └─────┬──────┘    └─────┬──────┘    └─────┬──────┘
-                         │                 │                  │
-                         └─────────┬───────┴──────────────────┘
-                                   ▼
-                          ┌────────────────┐
-                          │  PostgreSQL 15 │
-                          └────────────────┘
+scraper/src/
+├── index.ts                    # Entry point — bootstrap, Redis, cron, telemetry
+├── db/                         # Local database access
+│   ├── client.ts               # PostgreSQL connection
+│   ├── theater-queries.ts      # Theater config queries
+│   ├── movie-queries.ts
+│   ├── showtime-queries.ts
+│   ├── schedule-queries.ts
+│   ├── scrape-attempt-queries.ts
+│   └── report-queries.ts
+├── redis/
+│   └── client.ts               # Redis (BullMQ) publisher/consumer
+├── scraper/                    # Core scraping logic
+│   ├── index.ts                # Scraper orchestration
+│   ├── http-client.ts          # Puppeteer/Cheerio HTTP client
+│   ├── theater-parser.ts       # HTML theater page parser
+│   ├── movie-parser.ts         # Movie showtime parser
+│   ├── theater-json-parser.ts  # JSON-LD structured data parser
+│   ├── strategy-factory.ts     # Parser strategy factory
+│   ├── utils.ts                # Scraper utilities
+│   └── strategies/
+│       ├── IScraperStrategy.ts      # Strategy interface
+│       └── AllocineScraperStrategy.ts # AlloCiné-specific strategy
+├── types/
+│   └── scraper.ts              # TypeScript types for scrape jobs
+└── utils/
+    ├── logger.ts               # Winston logger
+    ├── date.ts                 # Date utilities (scrape windows)
+    ├── errors.ts               # Custom error types
+    ├── error-classifier.ts     # Error categorization
+    ├── html-decode.ts          # HTML entity decoding
+    ├── metrics.ts              # OpenTelemetry metrics
+    └── tracer.ts               # OpenTelemetry distributed tracing
 ```
 
-## Parser Strategy
-### AllocineScraperStrategy (`IScraperStrategy`)
-1. **Metadata phase**: Puppeteer loads theater page → Cheerio parses HTML → upsert theater
-2. **Showtimes phase**: For each date in range, fetch JSON API → parse movies + showtimes → upsert
-3. **Enrichment phase**: If movie lacks details → MovieParser fetches detail page
-4. **Rate limit handling**: HTTP 429 → abort remaining theaters, mark as not_attempted
+---
 
-## Run Modes
-| Mode | ENV | Behavior |
-|------|-----|----------|
-| `consumer` | RUN_MODE=consumer | Long-running BLPOP loop, processes jobs from Redis |
-| `cron` | RUN_MODE=cron | Runs on schedule, BLPOP for manual triggers between ticks |
-| `oneshot` | RUN_MODE=oneshot | LPOP single job, process, exit |
+## Architecture: Strategy Pattern
+
+The scraper uses the **Strategy pattern** for extensible theater parsing:
+
+```
+ScraperOrchestrator
+  └─► StrategyFactory.getStrategy(url)
+       └─► IScraperStrategy
+            └─► AllocineScraperStrategy (implements IScraperStrategy)
+```
+
+### IScraperStrategy Interface
+Defined in `scraper/src/scraper/strategies/IScraperStrategy.ts`:
+- `scrapeTheater(url)` → Theater data
+- `scrapeMovie(url)` → Movie data
+- `scrapeShowtimes(url, date)` → Showtime data
+
+### AllocineScraperStrategy
+Concrete implementation for AlloCiné.fr:
+- Handles AlloCiné-specific HTML structure
+- Manages pagination and date navigation
+- Rate limiting aware
+
+---
+
+## Data Flow
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    SCRAPER MICROSERVICE                   │
+│                                                          │
+│  Cron Schedule / Redis Job                                │
+│         │                                                │
+│         ▼                                                │
+│  ScraperOrchestrator (index.ts)                          │
+│         │                                                │
+│         ├─► StrategyFactory.getStrategy(url)             │
+│         │       │                                        │
+│         │       ▼                                        │
+│         │   AllocineScraperStrategy                      │
+│         │       │                                        │
+│         │       ├─► http-client.ts (Puppeteer/Cheerio)   │
+│         │       │       │                                │
+│         │       │       ▼                                │
+│         │       │   AlloCiné Website                      │
+│         │       │                                        │
+│         │       ├─► theater-parser.ts (HTML → data)      │
+│         │       ├─► movie-parser.ts (HTML → data)        │
+│         │       └─► theater-json-parser.ts (JSON-LD)     │
+│         │                                                │
+│         ├─► DB Queries (save scraped data)               │
+│         └─► Redis (publish status updates)               │
+│                                                          │
+└──────────────────────┬──────────────────────────────────┘
+                       │ Redis (BullMQ)
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│                    SERVER (Express API)                    │
+│  RedisConsumer → Process scrape results → PostgreSQL      │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Job Queue (Redis/BullMQ)
+
+Communication between server and scraper uses **BullMQ** over Redis:
+
+| Queue Element | Direction | Purpose |
+|--------------|-----------|---------|
+| `ScrapeJob` | Server → Scraper | Trigger a scrape |
+| `ScrapeJobScrape` | Server → Scraper | Scrape specific theater |
+| `ScrapeJobAddTheater` | Server → Scraper | Add + scrape new theater |
+| Progress Events | Scraper → Server | Real-time status updates |
+| Results | Scraper → Server | Scraped data delivery |
+
+**Redis Client:** `scraper/src/redis/client.ts`
+- Publisher: Send results/progress to server
+- Consumer: Receive scrape jobs from server
+- Subscriber: Listen for control commands
+
+---
+
+## Scheduling
+
+The scraper supports two execution modes:
+
+1. **Cron-based** — Scheduled via `node-cron` (e.g., daily at 6 AM)
+2. **Event-driven** — Triggered by Redis jobs from server API
+
+Schedules are configured in the database (`schedules` table) and managed via the server admin panel.
+
+---
 
 ## Observability
-- **Traces**: OpenTelemetry SDK → OTLP gRPC → Tempo (HTTP + pg instrumentation)
-- **Metrics**: prom-client on port 9091 (scrape_jobs_total, scrape_duration_seconds, movies_scraped_total, showtimes_scraped_total, redis_queue_depth_total)
-- **Logs**: Winston JSON → stdout → Loki (via Docker Promtail)
+
+### OpenTelemetry Integration
+| Component | File | Purpose |
+|-----------|------|---------|
+| Metrics | `utils/metrics.ts` | Prometheus metrics (scrape count, duration, movies scraped) |
+| Tracing | `utils/tracer.ts` | Distributed tracing across server ↔ scraper |
+
+### Key Metrics
+- `scrapeJobsTotal` — Total scrape jobs executed
+- `scrapeDurationSeconds` — Scrape job duration histogram
+- `moviesScrapedTotal` — Movies extracted
+- `showtimesScrapedTotal` — Showtimes extracted
+
+### Logging
+- **Winston** structured logger (`utils/logger.ts`)
+- JSON format for log aggregation
+- Log levels: error, warn, info, debug
+
+---
+
+## Error Handling
+
+| Error Type | Handling |
+|-----------|----------|
+| Rate Limit | Exponential backoff via `RateLimitError` |
+| Network Error | Retry with backoff |
+| Parse Error | Skip and log, continue with next |
+| Timeout | Puppeteer page timeout, graceful degradation |
+| Invalid HTML | Fallback to JSON-LD parser |
+
+**Error Classifier:** `utils/error-classifier.ts` — categorizes errors for metrics and alerting.

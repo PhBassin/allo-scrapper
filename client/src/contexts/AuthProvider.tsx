@@ -147,8 +147,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(newUser);
     };
 
-    const logout = () => {
+    const logout = async () => {
         clearExpiryTimer();
+
+        // Call server to revoke refresh token
+        try {
+            const csrfToken = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1];
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (csrfToken) {
+                headers['X-CSRF-Token'] = csrfToken;
+            }
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                credentials: 'include',
+                headers,
+            });
+        } catch {
+            // Ignore network errors during logout
+        }
+
         setToken(null);
         setUser(null);
     };

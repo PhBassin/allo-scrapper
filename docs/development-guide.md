@@ -1,104 +1,171 @@
 # Development Guide — allo-scrapper
 
-## Prerequisites
-- **Node.js**: >= 24.0.0 (see `.nvmrc`: `24`)
-- **npm**: >= 10.0.0
-- **Docker**: For PostgreSQL 15, Redis 7, and monitoring stack
-- **Playwright**: For E2E tests (installed via npm)
+> Generated: 2026-05-21
 
-## Quick Start
+## Prerequisites
+
+- **Node.js** >= 24
+- **npm** >= 10
+- **Docker** + Docker Compose (for PostgreSQL and Redis)
+- **Git**
+
+## Initial Setup
 
 ```bash
-# Install all workspace dependencies
+# 1. Clone repository
+git clone <repo-url>
+cd allo-scrapper
+
+# 2. Install all workspace dependencies
 npm install
 
-# Start development environment (Docker required)
-npm run dev
+# 3. Start infrastructure
+docker compose up -d postgres redis
 
-# Or start individual services
-npm run server:dev    # Express API on port 3000
-npm run client:dev    # Vite dev server on port 5173
-npm run scraper:dev   # Scraper microservice
+# 4. Set up environment
+cp server/.env.example server/.env
+cp scraper/.env.example scraper/.env
+cp client/.env.example client/.env
+
+# 5. Run database migrations
+cd server
+npm run db:migrate
+cd ..
+
+# 6. Start development servers
+# Terminal 1: Server
+cd server && npm run dev
+
+# Terminal 2: Scraper
+cd scraper && npm run dev
+
+# Terminal 3: Client
+cd client && npm run dev
 ```
 
-## Environment Setup
-Copy `.env.example` → `.env` and configure:
-- `JWT_SECRET` — Required (generate: `openssl rand -base64 64`)
-- `DATABASE_URL` or `POSTGRES_*` — PostgreSQL connection
-- `REDIS_URL` — Redis connection
-- `ALLOWED_ORIGINS` — CORS origins
-- `SCRAPE_MODE`, `SCRAPE_DAYS` — Scraper configuration
+## Development Workflow
 
-## Development Commands
+### Branch Strategy
+```
+main         ← Production releases
+  └─ develop ← Integration branch
+       └─ feat/*  ← Feature branches
+       └─ fix/*   ← Bug fix branches
+       └─ docs/*  ← Documentation
+```
 
-### All Workspaces
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start full Docker dev stack (DB + Redis + server + client) |
-| `npm run build` | Build server + client |
-| `npm test` | Run tests in all workspaces |
-| `npm run e2e` | Playwright E2E tests |
-| `npm run e2e:headed` | E2E with visible browser |
-| `npm run clean` | Remove all build artifacts |
+### Commit Convention (Conventional Commits)
+```
+<type>(<scope>): <description>
 
-### Server (`cd server`)
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | tsx watch (hot reload) |
-| `npm run build` | TypeScript compilation |
-| `npm start` | Production start |
-| `npm test` | Vitest watch mode |
-| `npm run test:run` | Single test run |
-| `npm run test:coverage` | With coverage report |
-| `npm run db:migrate` | Run database migrations |
+feat(scraper): add new parser strategy
+fix(api): correct auth middleware
+docs: update AGENTS.md
+```
 
-### Client (`cd client`)
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Vite dev server |
-| `npm run build` | tsc + vite build |
-| `npm test` | Vitest watch mode |
-| `npm run test:run` | Single test run |
+### Pull Request Process
+1. Create issue with appropriate label
+2. Create branch: `<type>/<issue-number>-<description>`
+3. Write failing tests first (RED)
+4. Implement (GREEN)
+5. Update documentation
+6. Open PR referencing issue
+7. Wait for CI + review
+8. Merge to develop
 
-### Scraper (`cd scraper`)
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | tsx watch (hot reload) |
-| `npm run build` | TypeScript compilation |
-| `npm start` | Production start |
-| `npm run test:run` | Single test run |
+## Running Tests
 
-## Testing
-- **Unit/Integration**: Vitest (all workspaces)
-- **E2E**: Playwright (13 spec files in `e2e/`)
-- **Coverage targets**: Lines >= 80%, Functions >= 80%, Statements >= 80%, Branches >= 65%
-- **Scraper tests**: Real HTML fixtures in `scraper/tests/fixtures/`
-
-## Docker Compose Profiles
+### Server Tests
 ```bash
-# Production stack
-docker compose up -d
-
-# With monitoring (Prometheus, Grafana, Loki, Tempo)
-docker compose --profile monitoring up -d
-
-# Development stack
-docker compose -f docker-compose.dev.yml up --build
+cd server
+npm test              # Watch mode
+npm run test:run      # Single run
+npm run test:coverage # With coverage
+npx vitest run src/utils/url.test.ts  # Single file
 ```
 
-## Key Environment Variables
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NODE_ENV` | development | Environment (dev/production) |
-| `PORT` | 3000 | Server listen port |
-| `POSTGRES_HOST` | localhost | PostgreSQL host |
-| `POSTGRES_PORT` | 5432 | PostgreSQL port |
-| `POSTGRES_DB` | ics | Database name |
-| `REDIS_URL` | redis://localhost:6379 | Redis connection |
-| `JWT_SECRET` | (required) | JWT signing key (>=32 chars) |
-| `JWT_EXPIRES_IN` | 24h | Token expiry |
-| `AUTO_MIGRATE` | true | Auto-run migrations on startup |
-| `LOG_LEVEL` | info | Winston log level |
-| `SCRAPE_MODE` | weekly | Scrape scope |
-| `SCRAPE_DAYS` | 7 | Days to scrape |
-| `TZ` | Europe/Paris | Timezone |
+### Scraper Tests
+```bash
+cd scraper
+npm test
+npm run test:run
+```
+
+### Client Tests
+```bash
+cd client
+npm test
+npm run test:run
+```
+
+### E2E Tests (Playwright)
+```bash
+npm run e2e
+```
+
+## Code Quality
+
+```bash
+# Lint
+cd server && npm run lint
+cd client && npm run lint
+
+# Type check
+cd server && npm run typecheck
+cd client && npm run typecheck
+
+# Format
+npx prettier --check .
+```
+
+## Docker Development
+
+```bash
+# Build all services
+docker compose build
+
+# Run full stack
+docker compose up
+
+# Rebuild single service
+docker compose build server
+docker compose up -d server
+```
+
+## Database
+
+```bash
+# Generate migration
+cd server && npm run db:generate
+
+# Apply migrations
+cd server && npm run db:migrate
+
+# Open Drizzle Studio
+cd server && npm run db:studio
+```
+
+## Environment Variables
+
+### Server (`server/.env`)
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `REDIS_URL` | Yes | Redis connection string |
+| `JWT_SECRET` | Yes | JWT signing secret |
+| `JWT_REFRESH_SECRET` | Yes | Refresh token secret |
+| `PORT` | No | Server port (default: 3001) |
+| `CORS_ORIGIN` | No | CORS allowed origins |
+
+### Scraper (`scraper/.env`)
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection |
+| `REDIS_URL` | Yes | Redis connection |
+| `SCRAPE_INTERVAL` | No | Cron schedule |
+| `PUPPETEER_HEADLESS` | No | Headless mode (default: true) |
+
+### Client (`client/.env`)
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_API_URL` | Yes | Server API URL |

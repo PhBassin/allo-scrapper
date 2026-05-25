@@ -5,8 +5,11 @@ import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { AuthService } from '../services/auth-service.js';
+import { RefreshTokenService } from '../services/refresh-token-service.js';
 import type { PermissionName } from '../types/role.js';
 import { ValidationError, AuthError, NotFoundError } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
+import crypto from 'crypto';
 
 const router = express.Router();
 
@@ -22,14 +25,65 @@ export interface AuthResponse {
     };
 }
 
+/**
+ * Set refresh token as httpOnly cookie (7 days).
+ */
+function setRefreshTokenCookie(res: Response, token: string): void {
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.cookie('refresh_token', token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/api/auth',
+    });
+}
+
+/**
+ * Clear refresh token cookie.
+ */
+function clearRefreshTokenCookie(res: Response): void {
+    res.clearCookie('refresh_token', { path: '/api/auth' });
+}
+
+/**
+ * Set CSRF token cookie (readable by JS for double-submit pattern).
+ */
+function setCsrfCookie(res: Response): string {
+    const token = crypto.randomBytes(32).toString('hex');
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.cookie('csrf_token', token, {
+        httpOnly: false,
+        secure: isProduction,
+        sameSite: 'strict',
+        path: '/',
+    });
+    return token;
+}
+
+/**
+ * Clear CSRF token cookie.
+ */
+function clearCsrfCookie(res: Response): void {
+    res.clearCookie('csrf_token', { path: '/' });
+}
+
 // POST /api/auth/login - Login user
 router.post('/login', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const db: DB = req.app.get('db');
         const authService = new AuthService(db);
+        const refreshTokenService = new RefreshTokenService(db);
         const { username, password } = req.body;
 
         const authData = await authService.login(username, password);
+
+        // Generate and set refresh token cookie
+        const refreshToken = await refreshTokenService.generate(authData.user.id);
+        setRefreshTokenCookie(res, refreshToken);
+
+        // Set CSRF token for double-submit protection
+        setCsrfCookie(res);
 
         const response: ApiResponse<AuthResponse> = {
             success: true,
@@ -107,6 +161,124 @@ router.post('/change-password', authLimiter, requireAuth, async (req: AuthReques
         }
         next(error);
     }
+});
+
+// POST /api/auth/refresh - Refresh access token using refresh token cookie
+router.post('/refresh', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const db: DB = req.app.get('db');
+        const refreshTokenService = new RefreshTokenService(db);
+        const authService = new AuthService(db);
+
+        const refreshToken = req.cookies?.refresh_token;
+        if (!refreshToken) {
+            clearRefreshTokenCookie(res);
+            return res.status(401).json({
+                success: false,
+                error: 'No refresh token provided.',
+            });
+        }
+
+        const userId = await refreshTokenService.validate(refreshToken);
+        if (userId === null) {
+            clearRefreshTokenCookie(res);
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid or expired refresh token.',
+            });
+        }
+
+        // Revoke the old refresh token (rotation)
+        await refreshTokenService.revoke(refreshToken);
+
+        // Get user info for new access token
+        const userResult = await db.query<{
+            id: number; username: string; role_id: number; role_name: string; is_system_role: boolean;
+        }>(
+            `SELECT u.id, u.username, r.id as role_id, r.name as role_name, r.is_system_role
+             FROM users u
+             JOIN roles r ON u.role_id = r.id
+             WHERE u.id = $1`,
+            [userId]
+        );
+
+        if (userResult.rows.length === 0) {
+            clearRefreshTokenCookie(res);
+            return res.status(401).json({
+                success: false,
+                error: 'User not found.',
+            });
+        }
+
+        const user = userResult.rows[0];
+
+        // Generate new access token using AuthService's internal logic
+        // (reuse the JWT signing from AuthService by calling a helper)
+        const jwt = await import('jsonwebtoken');
+        const { validateJWTSecret } = await import('../utils/jwt-secret-validator.js');
+        const { parseJwtExpiration } = await import('../utils/jwt-config.js');
+        const { getPermissionNamesByRoleId } = await import('../db/role-queries.js');
+
+        const secret = validateJWTSecret();
+        const expiresIn = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '1h');
+        const permissions = await getPermissionNamesByRoleId(db, user.role_id);
+
+        const accessToken = jwt.sign(
+            {
+                id: user.id,
+                username: user.username,
+                role_name: user.role_name,
+                is_system_role: user.is_system_role,
+                permissions,
+            },
+            secret,
+            { expiresIn: expiresIn as any }
+        );
+
+        // Generate new refresh token (rotation)
+        const newRefreshToken = await refreshTokenService.generate(userId);
+        setRefreshTokenCookie(res, newRefreshToken);
+
+        // Rotate CSRF token
+        setCsrfCookie(res);
+
+        res.json({
+            success: true,
+            data: {
+                token: accessToken,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    role_id: user.role_id,
+                    role_name: user.role_name,
+                    is_system_role: user.is_system_role,
+                    permissions,
+                },
+            },
+        });
+    } catch (error: any) {
+        next(error);
+    }
+});
+
+// POST /api/auth/logout - Logout and revoke refresh token
+router.post('/logout', async (req: Request, res: Response) => {
+    const db: DB = req.app.get('db');
+    const refreshTokenService = new RefreshTokenService(db);
+
+    const refreshToken = req.cookies?.refresh_token;
+    if (refreshToken) {
+        try {
+            await refreshTokenService.revoke(refreshToken);
+        } catch (err) {
+            logger.warn('Failed to revoke refresh token during logout:', err);
+        }
+    }
+
+    clearRefreshTokenCookie(res);
+    clearCsrfCookie(res);
+
+    res.json({ success: true, data: { message: 'Logged out successfully' } });
 });
 
 export default router;

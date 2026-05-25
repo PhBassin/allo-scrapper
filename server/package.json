@@ -22,6 +22,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
@@ -35,6 +36,7 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.6",
     "@types/express-rate-limit": "^6.0.2",

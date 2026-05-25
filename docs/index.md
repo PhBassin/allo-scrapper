@@ -6,7 +6,7 @@
 - **Primary Language:** TypeScript (Node.js >=24)
 - **Architecture:** Microservices with Redis queue bridge
 - **Version:** 4.6.7
-- **Generated:** 2026-05-21 (BMAD Document Project — exhaustive scan)
+- **Updated:** 2026-05-21 (exhaustive code scan)
 
 ## Quick Reference
 
@@ -32,7 +32,7 @@
 
 ---
 
-## Generated Documentation
+## Generated Documentation (from code scan)
 
 ### Architecture
 - [Architecture — Client](./architecture-client.md)
@@ -50,6 +50,7 @@
 - [Comprehensive Analysis — Client](./comprehensive-analysis-client.md)
 - [Comprehensive Analysis — Scraper](./comprehensive-analysis-scraper.md)
 - [Comprehensive Analysis — Packages](./comprehensive-analysis-packages.md)
+- [Comprehensive Analysis — Server](./comprehensive-analysis-server.md)
 
 ### Development & Operations
 - [Project Overview](./project-overview.md)
@@ -80,72 +81,55 @@
 - [System API](./reference/api/system.md)
 - [Health API](./reference/api/health.md)
 - [Rate Limiting](./reference/api/rate-limiting.md)
-- [OpenAPI Spec](./reference/openapi.yaml)
+- [Interactive API Reference](./reference/api-interactive.md)
+
+### Database
+- [Database Overview](./reference/database/README.md)
+- [Schema Reference](./reference/database/schema.md)
+- [Migrations](./reference/database/migrations.md)
 
 ### Architecture Reference
 - [System Design](./reference/architecture/system-design.md)
 - [Scraper System](./reference/architecture/scraper-system.md)
 - [White-Label System](./reference/architecture/white-label-system.md)
 
-### Database
-- [Schema](./reference/database/schema.md)
-- [Migrations](./reference/database/migrations.md)
-
 ### Guides
 - [Development Setup](./guides/development/setup.md)
-- [Testing](./guides/development/testing.md)
+- [Testing Guide](./guides/development/testing.md)
 - [CI/CD](./guides/development/cicd.md)
 - [Contributing](./guides/development/contributing.md)
 - [Docker Deployment](./guides/deployment/docker.md)
-- [Production](./guides/deployment/production.md)
+- [Production Deployment](./guides/deployment/production.md)
+- [Networking](./guides/deployment/networking.md)
 - [Backup & Restore](./guides/deployment/backup-restore.md)
 - [Monitoring](./guides/deployment/monitoring.md)
-- [Networking](./guides/deployment/networking.md)
 - [Admin Panel](./guides/administration/admin-panel.md)
 - [White-Label](./guides/administration/white-label.md)
 - [User Management](./guides/administration/user-management.md)
 - [Admin Operations](./guides/advanced/admin-operations.md)
 - [Production Scaling](./guides/advanced/production-scaling.md)
 - [Custom Parser Development](./guides/advanced/custom-parser-development.md)
+- [Scraper Rate Limiting](./guides/advanced/scraper-rate-limiting.md)
+
+### Reference
+- [Roles & Permissions](./reference/roles-and-permissions.md)
+- [Performance](./reference/performance.md)
+- [Scraper Reference](./reference/scraper.md)
+- [Scripts Reference](./reference/scripts/README.md)
+  - [Deployment Scripts](./reference/scripts/deployment.md)
+  - [Maintenance Scripts](./reference/scripts/maintenance.md)
+  - [Backup Scripts](./reference/scripts/backup.md)
+  - [Restore Scripts](./reference/scripts/restore.md)
 
 ### Troubleshooting
 - [Common Issues](./troubleshooting/common-issues.md)
-- [Docker](./troubleshooting/docker.md)
-- [Scraper](./troubleshooting/scraper.md)
-- [Database](./troubleshooting/database.md)
-- [Networking](./troubleshooting/networking.md)
+- [Docker Issues](./troubleshooting/docker.md)
+- [Scraper Issues](./troubleshooting/scraper.md)
+- [Database Issues](./troubleshooting/database.md)
+- [Networking Issues](./troubleshooting/networking.md)
 
 ### Project
-- [README](./README.md)
+- [README](./project/agents.md)
 - [Changelog](./project/changelog.md)
 - [Security](./project/security.md)
 - [White-Label Plan](./project/white-label-plan.md)
-- [Agents](./project/agents.md)
-- [Documentation Roadmap](./documentation-roadmap.md)
-
-### Scripts
-- [Backup](./reference/scripts/backup.md)
-- [Restore](./reference/scripts/restore.md)
-- [Deployment](./reference/scripts/deployment.md)
-- [Maintenance](./reference/scripts/maintenance.md)
-
----
-
-## Getting Started
-
-### For Developers
-1. Read [Development Guide](./development-guide.md) for setup
-2. Read [Architecture — Server](./architecture-server.md) for API design
-3. Read [Architecture — Client](./architecture-client.md) for frontend design
-4. Read [Integration Architecture](./integration-architecture.md) for system flow
-
-### For AI Agents (Brownfield PRD)
-1. Point the PRD workflow to this index: `docs/index.md`
-2. For UI-only features: Reference [Architecture — Client](./architecture-client.md)
-3. For API-only features: Reference [Architecture — Server](./architecture-server.md) + [API Contracts](./api-contracts-server.md)
-4. For full-stack features: Reference all part architectures + [Integration Architecture](./integration-architecture.md)
-
-### For Operators
-1. Read [Deployment Guide](./deployment-guide.md)
-2. Monitor via [Grafana](http://localhost:3001) (if monitoring profile enabled)
-3. Check health: `curl http://localhost:3000/api/health`

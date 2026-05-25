@@ -1,69 +1,152 @@
-# Architecture — Server (Express REST API)
+# Architecture — Server (allo-scrapper)
 
-## Executive Summary
-REST API built with **Express 5.2** + **TypeScript 6.0**, backed by **PostgreSQL 15** and **Redis 7**. Provides JWT authentication, RBAC authorization, rate limiting, white-label theming, and a scraping job queue.
+> Generated: 2026-05-21 | Express 5.2 + PostgreSQL 15 + Redis 7
 
-## Technology Stack
-| Category | Technology | Version |
-|----------|-----------|---------|
-| Runtime | Node.js | >=24.0.0 |
-| Framework | Express | 5.2.1 |
-| Language | TypeScript | ~6.0.2 |
-| Database | PostgreSQL (pg) | 15 / 8.20.0 |
-| Cache/Queue | Redis (ioredis) | 7 / 5.10.0 |
-| Auth | JWT + bcrypt | jsonwebtoken 9.0.3 |
-| Security | Helmet + CORS | 8.1.0 / 2.8.5 |
-| Rate Limiting | express-rate-limit | 8.3.1 |
-| Logging | Winston + Morgan | 3.19.0 / 1.10.0 |
-| Metrics | prom-client | 15.1.3 |
-| Images | sharp | 0.34.5 |
-| Cache | lru-cache | 11.2.6 |
-| Testing | Vitest + Supertest | 4.1.1 / 7.2.2 |
+## Overview
 
-## Architecture Pattern
-**Layered REST API** with middleware pipeline:
+The server is the central API backend for allo-scrapper. It follows a **layered architecture** pattern:
+
 ```
-Request → Morgan → Helmet → CORS → Rate Limiter → requireAuth → requirePermission → Route Handler → Response
-                                                                                          ↓
-                                                                                    Service Layer
-                                                                                          ↓
-                                                                                    DB Queries (pg)
+Routes (HTTP handlers) → Services (business logic) → DB Queries (data access) → PostgreSQL
+                                                           ↕
+                                                       Redis (cache/queue)
 ```
 
-## Middleware Pipeline
-1. **Morgan** — Combined format HTTP logging
-2. **Helmet** — Strict CSP (no unsafe-inline scripts, limited img-src to CDNs)
-3. **CORS** — Origin-based (ALLOWED_ORIGINS)
-4. **Rate Limiters** — 7 tiers: auth (5/15min), register (3/hr), protected (60/15min), scraper (10/15min), public (100/15min), health (10/min)
-5. **requireAuth** — JWT Bearer token verification
-6. **requirePermission** — RBAC permission check (admin bypass)
-7. **errorHandler** — Global error → HTTP status mapping
+---
 
-## Service Layer (8 services)
-| Service | Responsibility |
-|---------|---------------|
-| AuthService | Login (bcrypt + timing-safe), JWT signing with permissions, password change |
-| ScraperService | Redis job publishing, SSE management, status queries |
-| TheaterService | CRUD + smart-add via Allociné URL parsing |
-| MovieService | Aggregation with concurrent DB queries, fuzzy search (pg_trgm) |
-| RedisClient | Singleton ioredis (pub + sub connections), job/event channels |
-| ProgressTracker | SSE fan-out broadcaster with replay buffer + heartbeats |
-| SystemInfo | App metadata, server health (uptime/memory), DB stats |
-| ThemeGenerator | Dynamic CSS from app_settings, Google Fonts detection (20 fonts) |
+## Directory Structure
 
-## Data Architecture
-- **16 PostgreSQL tables** (see data-models-server.md)
-- **Raw SQL** via pg — no ORM
-- **Automatic migrations** with SHA-256 checksums
-- **JSONB columns** for flexible data: genres, actors, experiences, footer_links, errors
-- **pg_trgm extension** for fuzzy movie search
-- **Redis** for job queue (scrape:jobs list) and pub/sub (scrape:progress, scraper:schedule:changed)
+```
+server/src/
+├── app.ts              # Express app setup, middleware registration
+├── index.ts            # Entry point — HTTP server bootstrap
+├── config/             # Configuration constants
+│   └── rate-limits.ts  
+├── db/                 # Database layer (Drizzle ORM)
+│   ├── client.ts       # PostgreSQL connection
+│   ├── schema.ts       # Table definitions
+│   ├── migrations.ts   # Migration runner
+│   └── *-queries.ts    # Per-table query modules
+├── middleware/          # Express middleware
+│   ├── auth.ts         # JWT authentication
+│   ├── permission.ts   # Role-based authorization
+│   ├── rate-limit.ts   # Rate limit enforcement
+│   ├── rate-limiter.ts # Rate limiter factory
+│   └── error-handler.ts
+├── routes/             # HTTP route handlers
+│   ├── auth.ts         # Authentication endpoints
+│   ├── movies.ts       
+│   ├── theaters.ts     
+│   ├── users.ts        
+│   ├── roles.ts        
+│   ├── scraper.ts      
+│   ├── reports.ts      
+│   ├── settings.ts     
+│   ├── system.ts       
+│   └── admin/          # Admin-only routes
+│       └── rate-limits.ts
+├── services/           # Business logic layer
+│   ├── auth-service.ts
+│   ├── movie-service.ts
+│   ├── scraper-service.ts
+│   ├── theater-service.ts
+│   ├── system-info.ts
+│   ├── theme-generator.ts
+│   ├── progress-tracker.ts
+│   └── redis-client.ts
+├── types/              # TypeScript type definitions
+│   ├── api.ts
+│   ├── user.ts
+│   ├── role.ts
+│   ├── scraper.ts
+│   └── settings.ts
+└── utils/              # Utility functions
+    ├── cors-config.ts
+    ├── date.ts
+    ├── errors.ts
+    ├── html-decode.ts
+    ├── image-validator.ts
+    ├── json-parse-cache.ts
+    ├── jwt-config.ts
+    ├── jwt-secret-validator.ts
+    ├── logger.ts
+    ├── number.ts
+    ├── security.ts
+    ├── showtimes.ts
+    └── url.ts
+```
+
+---
+
+## Request Lifecycle
+
+1. **HTTP Request** → `index.ts` (server.listen)
+2. **CORS** → `utils/cors-config.ts`
+3. **Security Headers** → Helmet
+4. **Body Parsing** → express.json()
+5. **Rate Limiting** → `middleware/rate-limiter.ts`
+6. **Route Matching** → Express router
+7. **JWT Auth** → `middleware/auth.ts` (if route requires)
+8. **Permission Check** → `middleware/permission.ts` (if route requires)
+9. **Route Handler** → `routes/*.ts`
+10. **Business Logic** → `services/*.ts`
+11. **Data Access** → `db/*-queries.ts`
+12. **Response** → JSON
+13. **Error Handling** → `middleware/error-handler.ts` (on error)
+
+---
 
 ## Key Design Decisions
-1. **Permissions in JWT payload** — No DB lookup per request
-2. **Admin bypass** — is_system_role=true grants all permissions
-3. **Timing-safe login** — Dummy hash comparison prevents user enumeration
-4. **Singleton Redis client** — Separate pub/sub connections
-5. **LRU cache for JSON.parse** — Memoized parsing for repeated operations
-6. **ETag caching for theme** — 1h Cache-Control, If-None-Match
-7. **SSE with replay buffer** — New subscribers get buffered events
+
+### Authentication
+- JWT-based with access + refresh token pattern
+- Secrets validated via `utils/jwt-secret-validator.ts`
+- Token configuration in `utils/jwt-config.ts`
+
+### Authorization
+- Role-based access control (RBAC)
+- Granular permissions per role
+- Middleware: `requirePermission` checks against user roles
+
+### Rate Limiting
+- Configurable per-endpoint rate limits
+- Stored in database (`rate_limits` table)
+- Admin panel for configuration at `/api/admin/rate-limits`
+
+### Redis Integration
+- BullMQ for job queues (scraper communication)
+- Connection via `services/redis-client.ts`
+- Progress tracking via `services/progress-tracker.ts`
+
+### Logging
+- Winston logger via `utils/logger.ts`
+- Structured JSON logging
+
+### Security
+- Helmet for HTTP headers
+- CORS configuration
+- Input validation with Zod
+- HTML decode for XSS prevention
+- Image validation for upload safety
+
+---
+
+## Configuration
+
+| Env Variable | Purpose |
+|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `REDIS_URL` | Redis connection string |
+| `JWT_SECRET` | JWT signing secret |
+| `JWT_REFRESH_SECRET` | Refresh token secret |
+| `PORT` | Server port (default: 3001) |
+| `CORS_ORIGIN` | Allowed CORS origins |
+| `NODE_ENV` | Environment (development/production) |
+
+---
+
+## Testing
+
+- **Framework:** Vitest
+- **Test files:** Co-located with source (`*.test.ts`)
+- **Coverage targets:** 80% lines, 80% functions, 80% statements, 65% branches

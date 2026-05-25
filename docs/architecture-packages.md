@@ -1,19 +1,41 @@
-# Architecture — Shared Libraries (Packages)
+# Architecture — Packages (allo-scrapper)
 
-## Executive Summary
-Monorepo workspace packages providing shared logging and SaaS multi-tenant extensions across the allo-scrapper codebase.
+> Generated: 2026-05-21 | Shared libraries for allo-scrapper monorepo
 
-## Packages
+## Overview
 
-### logger (`packages/logger/`)
-- **Type**: Winston wrapper
-- **Purpose**: Standardized logging across server and scraper
-- **Output**: Compiled to `dist/` (TypeScript → JS + .d.ts)
-- **Usage**: Imported as workspace dependency by server and scraper
+The `packages/` directory contains shared libraries used by the server and scraper. These are part of the **npm workspaces** monorepo setup.
 
-### saas (`packages/saas/`)
-- **Type**: Multi-tenant server extensions
-- **Purpose**: Organization-boundary enforcement, tenant-aware services
-- **Middleware included**: rate-limit, input-validation, auth, permission, org-boundary
-- **Services included**: scraper-service, cinema-service, film-service, theme-generator, redis-client
-- **Status**: Compiled but not currently active in main codebase (future SaaS deployment path)
+**Location:** `packages/`
+
+---
+
+## Package Inventory
+
+| Package | Purpose |
+|---------|---------|
+| Shared logger | Winston logging configuration used by server + scraper |
+| SaaS extensions | White-label / multi-tenant utilities |
+
+---
+
+## NPM Workspaces
+
+The project root `package.json` defines workspaces:
+```json
+{
+  "workspaces": ["server", "scraper", "client", "packages/*"]
+}
+```
+
+Shared packages are referenced as local dependencies in `server/package.json` and `scraper/package.json`.
+
+---
+
+## Build
+
+Packages are typically compiled TypeScript → JavaScript and consumed as compiled output by dependents.
+
+## Note
+
+The `packages/` directory currently has **0 compiled TypeScript source files** (compiled output only). Most shared code evolved to live directly in `server/src/utils/` and `scraper/src/utils/` for simplicity.
