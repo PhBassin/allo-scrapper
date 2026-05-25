@@ -243,6 +243,57 @@ describe('Rate Limiting Middleware', () => {
     });
   });
 
+    describe('multi-secret JWT verification (rotation)', () => {
+    let previousSecrets: string | undefined;
+
+    beforeEach(() => {
+      previousSecrets = process.env.JWT_PREVIOUS_SECRETS;
+    });
+
+    afterEach(() => {
+      if (previousSecrets !== undefined) {
+        process.env.JWT_PREVIOUS_SECRETS = previousSecrets;
+      } else {
+        delete process.env.JWT_PREVIOUS_SECRETS;
+      }
+    });
+
+    it('should verify tokens signed with a previous secret', async () => {
+      const oldSecret = 'old-secret-that-is-at-least-thirty-two-characters!';
+      process.env.JWT_PREVIOUS_SECRETS = oldSecret;
+
+      // Sign token with the OLD secret (simulating rotation)
+      const oldToken = jwt.sign({ id: 42, username: 'rotated-user' }, oldSecret);
+
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      const { createRateLimiter } = await import('./rate-limiter.js');
+
+      // Track the generated key instead of hitting rate limit
+      let generatedKey = '';
+      const trackingLimiter = createRateLimiter({
+        windowMs: 60_000,
+        max: 100,
+        skip: () => false,
+        keyGenerator: (req) => {
+          generatedKey = authenticatedKeyGenerator(req);
+          return generatedKey;
+        },
+      });
+
+      tightApp.get('/rotate-test', trackingLimiter, (_req, res) => res.json({ ok: true }));
+
+      await request(tightApp)
+        .get('/rotate-test')
+        .set('Authorization', `Bearer ${oldToken}`)
+        .set('X-Forwarded-For', '10.0.0.1');
+
+      // The key should be user:42 (user id from token), not IP-based
+      expect(generatedKey).toBe('user:42');
+    });
+  });
+
   describe('Environment variable configuration', () => {
     it('should respect RATE_LIMIT_WINDOW_MS environment variable', () => {
       const windowMs = process.env.RATE_LIMIT_WINDOW_MS;
