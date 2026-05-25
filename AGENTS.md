@@ -29,9 +29,9 @@ This document provides instructions for AI coding agents (Claude, GitHub Copilot
              → After merge: use cleanup skill or manually switch back to develop, pull latest
 ```
 
-**Conditional steps (not always required):**
+**Mandatory steps:**
 - **Docker build** — run `docker compose build` before pushing if Dockerfile or dependencies changed
-- **E2E tests** — Run Playwright integration tests (`npm run e2e`) when modifying frontend workflows, API interactions, or real-time features
+- **E2E tests** — Run Playwright integration tests (`npm run e2e`). The CI pipeline runs them automatically via service containers. The pre-push hook checks if the Docker stack is running and runs e2e if available. **E2E tests are mandatory in CI when modifying API middleware, frontend workflows, or real-time features.**
 
 ---
 
