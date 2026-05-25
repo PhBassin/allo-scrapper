@@ -11,6 +11,7 @@ import cookieParser from 'cookie-parser';
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
 import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
+import { requireAuth } from './middleware/auth.js';
 import { generateThemeCSS } from './services/theme-generator.js';
 import { errorHandler } from './middleware/error-handler.js';
 import type { DB } from './db/client.js';
@@ -203,8 +204,8 @@ export function createApp() {
     }
   });
 
-  // Prometheus metrics endpoint
-  app.get('/metrics', async (_req, res) => {
+  // Prometheus metrics endpoint (rate-limited + requires auth)
+  app.get('/metrics', generalLimiter, requireAuth, async (_req, res) => {
     try {
       res.set('Content-Type', serverRegistry.contentType);
       res.end(await serverRegistry.metrics());

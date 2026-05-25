@@ -41,13 +41,13 @@ Movie information and showtimes.
 Scraper control, progress tracking, SSE events, and schedule management.
 
 **Endpoints:**
-- `POST /api/scraper/trigger` - Trigger scrape (full or single theater)
-- `GET /api/scraper/status` - Get scraper status
-- `GET /api/scraper/progress` - SSE progress stream
-- `GET /api/scraper/schedules` - List scrape schedules
-- `POST /api/scraper/schedules` - Create schedule
-- `PUT /api/scraper/schedules/:id` - Update schedule
-- `DELETE /api/scraper/schedules/:id` - Delete schedule
+- `POST /api/scraper/trigger` - Trigger scrape (full or single theater) **[Auth]**
+- `GET /api/scraper/status` - Get scraper status **[Auth]**
+- `GET /api/scraper/progress` - SSE progress stream **[Auth]**
+- `GET /api/scraper/schedules` - List scrape schedules **[Auth]**
+- `POST /api/scraper/schedules` - Create schedule **[Auth]**
+- `PUT /api/scraper/schedules/:id` - Update schedule **[Auth]**
+- `DELETE /api/scraper/schedules/:id` - Delete schedule **[Auth]**
 
 ---
 
@@ -101,11 +101,12 @@ User management and role assignment.
 ---
 
 ### [System](./system.md)
-System information and health checks.
+System information, metrics, and health checks.
 
 **Endpoints:**
 - `GET /api/health` - Health check (rate-limited, cached 5 seconds)
 - `GET /api/system/info` - System info (requires `system:info`)
+- `GET /metrics` - Prometheus metrics **[Auth]**
 
 ---
 
