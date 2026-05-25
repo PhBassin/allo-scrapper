@@ -41,6 +41,12 @@ if ! npm run test:run; then
   exit 1
 fi
 
+echo "${YELLOW}[pre-push] Running coverage check...${NC}"
+if ! npm run test:coverage; then
+  echo "${RED}[pre-push] Server coverage thresholds NOT MET. Push aborted.${NC}"
+  exit 1
+fi
+
 cd "$REPO_ROOT/scraper"
 if ! npm run test:run; then
   echo "${RED}[pre-push] Scraper tests FAILED. Push aborted.${NC}"
