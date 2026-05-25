@@ -18,7 +18,7 @@ on:
       - develop
 
 jobs:
-  build-and-test:
+  unit-and-coverage:
     name: TypeScript build & tests
     runs-on: ubuntu-latest
     permissions:
@@ -49,3 +49,109 @@ jobs:
       - name: Check test coverage
         run: npm run test:coverage
         working-directory: server
+
+  e2e:
+    name: E2E tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    needs: unit-and-coverage
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ics
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: client
+        env:
+          VITE_APP_NAME: Allo-Scrapper
+
+      - name: Initialize database schema
+        run: npx tsx src/db/schema.ts
+        working-directory: server
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: ics
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          JWT_SECRET: e2e-test-secret-min-32-chars-required-for-startup
+          NODE_ENV: development
+          AUTO_MIGRATE: "true"
+
+      - name: Start server in background
+        run: |
+          npx tsx src/index.ts &
+          echo $! > /tmp/server.pid
+          for i in $(seq 1 30); do
+            curl -s http://localhost:3000/api/health > /dev/null && break
+            sleep 2
+          done
+        working-directory: server
+        env:
+          PORT: 3000
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: ics
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          JWT_SECRET: e2e-test-secret-min-32-chars-required-for-startup
+          JWT_EXPIRES_IN: 1h
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: development
+          AUTO_MIGRATE: "false"
+          ALLOWED_ORIGINS: http://localhost:3000
+
+      - name: Run E2E tests
+        run: npx playwright test
+        env:
+          CI: "true"
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Stop server
+        if: always()
+        run: kill $(cat /tmp/server.pid) || true
