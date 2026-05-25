@@ -204,8 +204,8 @@ export function createApp() {
     }
   });
 
-  // Prometheus metrics endpoint
-  app.get('/metrics', requireAuth, async (_req, res) => {
+  // Prometheus metrics endpoint (rate-limited + requires auth)
+  app.get('/metrics', generalLimiter, requireAuth, async (_req, res) => {
     try {
       res.set('Content-Type', serverRegistry.contentType);
       res.end(await serverRegistry.metrics());
