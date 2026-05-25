@@ -81,7 +81,8 @@ development_status:
   epic-9: in-progress
   epic-9-note: "Remédiation suite à l'audit de sécurité du 2026-05-25 (5 points restants, 2 déjà traités dans PR #1075)"
   9-1-protect-exposed-endpoints: ready-for-dev
-  9-2-harden-express-config: ready-for-dev
+  9-2-harden-express-config: done
+  9-2-harden-express-config-note: "PR #1076 — merged 2026-05-25"
   9-3-hot-reload-rate-limits: ready-for-dev
   9-4-jwt-secret-rotation: ready-for-dev
 
