@@ -3,6 +3,9 @@ import type { ApiResponse } from '../types/api.js';
 import type { PermissionName } from '../types/role.js';
 import { getSecrets, verifyWithMultipleSecrets } from '../utils/jwt-secrets.js';
 
+// Fail-fast: validate secrets at module load
+getSecrets();
+
 export interface AuthRequest extends Request {
     user?: {
         id: number;

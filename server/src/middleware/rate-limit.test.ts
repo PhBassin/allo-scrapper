@@ -246,8 +246,10 @@ describe('Rate Limiting Middleware', () => {
     describe('multi-secret JWT verification (rotation)', () => {
     let previousSecrets: string | undefined;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       previousSecrets = process.env.JWT_PREVIOUS_SECRETS;
+      const { invalidateSecretsCache } = await import('../utils/jwt-secrets.js');
+      invalidateSecretsCache();
     });
 
     afterEach(() => {
@@ -259,10 +261,8 @@ describe('Rate Limiting Middleware', () => {
     });
 
     it('should verify tokens signed with a previous secret', async () => {
-      const oldSecret = 'old-secret-that-is-at-least-thirty-two-characters!';
+      const oldSecret = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6_old';
       process.env.JWT_PREVIOUS_SECRETS = oldSecret;
-
-      // Sign token with the OLD secret (simulating rotation)
       const oldToken = jwt.sign({ id: 42, username: 'rotated-user' }, oldSecret);
 
       const tightApp = express();

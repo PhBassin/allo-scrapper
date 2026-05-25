@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { getSecrets, getCurrentSecret, verifyWithMultipleSecrets } from './jwt-secrets.js';
+import { getSecrets, getCurrentSecret, verifyWithMultipleSecrets, invalidateSecretsCache } from './jwt-secrets.js';
 import jwt from 'jsonwebtoken';
 
 const VALID_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
@@ -13,11 +13,13 @@ describe('getSecrets', () => {
     originalJwtSecret = process.env.JWT_SECRET;
     originalPreviousSecrets = process.env.JWT_PREVIOUS_SECRETS;
     process.env.JWT_SECRET = VALID_SECRET;
+    invalidateSecretsCache();
   });
 
   afterEach(() => {
     process.env.JWT_SECRET = originalJwtSecret;
     process.env.JWT_PREVIOUS_SECRETS = originalPreviousSecrets;
+    invalidateSecretsCache();
   });
 
   it('should return array with only current secret when no previous secrets', () => {
@@ -70,10 +72,12 @@ describe('getCurrentSecret', () => {
   beforeEach(() => {
     originalJwtSecret = process.env.JWT_SECRET;
     process.env.JWT_SECRET = VALID_SECRET;
+    invalidateSecretsCache();
   });
 
   afterEach(() => {
     process.env.JWT_SECRET = originalJwtSecret;
+    invalidateSecretsCache();
   });
 
   it('should return the current JWT_SECRET', () => {

@@ -1,6 +1,10 @@
 import type { Request } from 'express';
 import { getSecrets, verifyWithMultipleSecrets } from '../utils/jwt-secrets.js';
 import { createRateLimiter, ipKeyGenerator, type MutableConfig } from './rate-limiter.js';
+import { logger } from '../utils/logger.js';
+
+// Fail-fast: validate secrets at module load
+getSecrets();
 
 const parseEnvInt = (key: string, defaultValue: number): number => {
   const val = process.env[key];
@@ -57,7 +61,8 @@ export const authenticatedKeyGenerator = (req: Request): string => {
       const verified = verifyWithMultipleSecrets(token, getSecrets()) as { id?: number } | null;
       if (verified?.id) return `user:${verified.id}`;
     }
-  } catch {
+  } catch (err) {
+    logger.warn('Authenticated key generator fallback to IP', { error: err instanceof Error ? err.message : String(err) });
     // fall through to IP fallback
   }
   return ipKeyGenerator(req.ip ?? 'unknown');
