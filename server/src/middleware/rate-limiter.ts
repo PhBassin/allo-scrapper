@@ -1,10 +1,20 @@
 import type { Request, Response, NextFunction } from 'express';
 
-interface RateLimitOptions {
-  windowMs: number;
+export interface MutableConfig {
   max: number;
-  message?: string;
+  windowMs: number;
+}
+
+interface RateLimitOptions {
+  windowMs?: number;
+  max?: number;
+  config?: MutableConfig;
+  message?: string | object;
   statusCode?: number;
+  skip?: (req: Request) => boolean;
+  keyGenerator?: (req: Request) => string;
+  skipSuccessfulRequests?: boolean;
+  standardHeaders?: boolean;
 }
 
 interface ClientRecord {
@@ -12,66 +22,90 @@ interface ClientRecord {
   resetTime: number;
 }
 
-/**
- * Creates a simple in-memory rate limiter middleware.
- *
- * @param options Configuration options for the rate limiter
- * @returns Express middleware function
- */
 export function createRateLimiter(options: RateLimitOptions) {
   const {
-    windowMs,
-    max,
+    config,
     message = 'Too many requests, please try again later.',
-    statusCode = 429
+    statusCode = 429,
+    skip,
+    keyGenerator,
+    skipSuccessfulRequests = false,
+    standardHeaders = false,
   } = options;
+
+  function getMax(): number {
+    return config ? config.max : (options.max ?? 100);
+  }
+
+  function getWindowMs(): number {
+    return config ? config.windowMs : (options.windowMs ?? 60_000);
+  }
 
   const hits = new Map<string, ClientRecord>();
 
-  // Cleanup mechanism to prevent memory leaks
-  // Runs every windowMs to remove expired entries
-  setInterval(() => {
+  const cleanupInterval = setInterval(() => {
     const now = Date.now();
     for (const [ip, record] of hits.entries()) {
       if (now > record.resetTime) {
         hits.delete(ip);
       }
     }
-  }, windowMs);
+  }, getWindowMs());
+
+  if (cleanupInterval.unref) {
+    cleanupInterval.unref();
+  }
 
   return function rateLimitMiddleware(req: Request, res: Response, next: NextFunction) {
-    // Use req.ip which handles proxy trust via app settings
-    // Default is req.socket.remoteAddress
-    const ip = req.ip || 'unknown-ip';
-    const now = Date.now();
-
-    let record = hits.get(ip);
-
-    // If no record or window expired, start new window
-    if (!record || now > record.resetTime) {
-      record = {
-        count: 1,
-        resetTime: now + windowMs
-      };
-      hits.set(ip, record);
+    if (skip && skip(req)) {
       return next();
     }
 
-    // Increment count
+    const key = keyGenerator ? keyGenerator(req) : (req.ip || 'unknown-ip');
+    const now = Date.now();
+    const currentWindowMs = getWindowMs();
+    const currentMax = getMax();
+
+    let record = hits.get(key);
+
+    if (!record || now > record.resetTime) {
+      record = { count: 0, resetTime: now + currentWindowMs };
+      hits.set(key, record);
+    }
+
     record.count++;
 
-    // Check limit
-    if (record.count > max) {
-      // Set Retry-After header
+    if (standardHeaders) {
+      const remaining = Math.max(0, currentMax - record.count);
+      const resetSeconds = Math.ceil((record.resetTime - now) / 1000);
+      res.setHeader('RateLimit-Limit', currentMax);
+      res.setHeader('RateLimit-Remaining', remaining);
+      res.setHeader('RateLimit-Reset', resetSeconds);
+    }
+
+    if (record.count > currentMax) {
       const retryAfterSeconds = Math.ceil((record.resetTime - now) / 1000);
       res.setHeader('Retry-After', retryAfterSeconds);
+      const body = typeof message === 'string'
+        ? { success: false, error: message }
+        : message;
+      return res.status(statusCode).json(body);
+    }
 
-      return res.status(statusCode).json({
-        success: false,
-        error: message
-      });
+    if (skipSuccessfulRequests) {
+      const originalJson = res.json.bind(res);
+      res.json = function (body: any) {
+        if (res.statusCode >= 200 && res.statusCode < 400) {
+          record.count = Math.max(0, record.count - 1);
+        }
+        return originalJson(body);
+      };
     }
 
     next();
   };
+}
+
+export function ipKeyGenerator(ip: string): string {
+  return ip;
 }
