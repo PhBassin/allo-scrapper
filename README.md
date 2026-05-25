@@ -464,11 +464,11 @@ Rate limits can be managed through the admin interface:
 
 1. Navigate to `/admin?tab=ratelimits` (admin-only)
 2. Adjust limits based on your needs
-3. Changes take effect within 30 seconds (no restart required)
+3. Changes take effect **immediately** (no restart required)
 4. All changes are logged in the audit trail
 
 **Features:**
-- ✅ **Hot Reload** - Changes apply within 30 seconds via cache invalidation
+- ✅ **Hot Reload** - Changes apply immediately via in-memory config refresh
 - ✅ **Audit Trail** - Complete history of all changes with user attribution
 - ✅ **Validation** - Enforced min/max constraints prevent misconfiguration
 - ✅ **Backward Compatible** - Falls back to environment variables if database unavailable
