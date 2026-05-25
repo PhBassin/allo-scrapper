@@ -66,6 +66,9 @@ test.out
 *.out
 backup_*.sql
 
+# TypeScript build info (incremental compilation cache)
+*.tsbuildinfo
+
 # Git merge/rebase artifacts
 *.orig
 *.patch
