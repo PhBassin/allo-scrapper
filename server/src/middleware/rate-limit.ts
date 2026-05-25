@@ -1,9 +1,6 @@
-import jwt from 'jsonwebtoken';
 import type { Request } from 'express';
-import { validateJWTSecret } from '../utils/jwt-secret-validator.js';
+import { getSecrets, verifyWithMultipleSecrets } from '../utils/jwt-secrets.js';
 import { createRateLimiter, ipKeyGenerator, type MutableConfig } from './rate-limiter.js';
-
-const JWT_SECRET = validateJWTSecret();
 
 const parseEnvInt = (key: string, defaultValue: number): number => {
   const val = process.env[key];
@@ -57,7 +54,7 @@ export const authenticatedKeyGenerator = (req: Request): string => {
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      const verified = jwt.verify(token, JWT_SECRET) as { id?: number } | null;
+      const verified = verifyWithMultipleSecrets(token, getSecrets()) as { id?: number } | null;
       if (verified?.id) return `user:${verified.id}`;
     }
   } catch {

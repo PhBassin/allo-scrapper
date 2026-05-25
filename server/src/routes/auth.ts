@@ -232,11 +232,11 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
 
         // Generate new access token
         const jwt = await import('jsonwebtoken');
-        const { validateJWTSecret } = await import('../utils/jwt-secret-validator.js');
+        const { getCurrentSecret } = await import('../utils/jwt-secrets.js');
         const { parseJwtExpiration } = await import('../utils/jwt-config.js');
         const { getPermissionNamesByRoleId } = await import('../db/role-queries.js');
 
-        const secret = validateJWTSecret();
+        const secret = getCurrentSecret();
         const expiresIn = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '1h');
         const permissions = await getPermissionNamesByRoleId(db, user.role_id);
 
