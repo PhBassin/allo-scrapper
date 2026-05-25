@@ -69,7 +69,7 @@ export function createApp() {
   app.use(cors(getCorsOptions()));
   app.use(morgan('combined'));
   app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.urlencoded({ extended: false }));
   app.use(cookieParser());
 
   // CSRF protection: double-submit cookie pattern (inline for CodeQL compliance)
