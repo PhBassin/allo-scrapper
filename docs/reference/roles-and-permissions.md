@@ -409,7 +409,7 @@ const logout = () => {
 
 #### Configuration
 
-Token expiry duration is controlled by the `JWT_EXPIRES_IN` environment variable on the server (default: `24h`). The client automatically adapts to whatever expiry time is encoded in the JWT.
+Token expiry duration is controlled by the `JWT_EXPIRES_IN` environment variable on the server (default: `1h`). The client automatically adapts to whatever expiry time is encoded in the JWT.
 
 ---
 
@@ -896,14 +896,14 @@ This ensures that **any** administrative permission grants access to the admin p
 ```
 
 #### Token Expiry
-**Default**: Tokens expire after 24 hours (configurable via `JWT_EXPIRES_IN`)  
+**Default**: Tokens expire after 1 hour (configurable via `JWT_EXPIRES_IN`)  
 **Client Behavior**: Proactive auto-logout at exact expiry time (see [Client-Side Token Expiry Handling](#client-side-token-expiry-handling))  
 **Impact**: Users see "session expired" message and must re-authenticate  
 **No refresh tokens**: Must enter credentials again
 
 **Configuration**:
 ```env
-JWT_EXPIRES_IN=24h  # Default: 24 hours
+JWT_EXPIRES_IN=1h  # Default: 1 hour
 JWT_EXPIRES_IN=7d   # Alternative: 7 days
 JWT_EXPIRES_IN=30m  # Alternative: 30 minutes
 ```
