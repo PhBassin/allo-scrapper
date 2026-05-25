@@ -30,7 +30,7 @@ vi.mock('../db/client.js', () => ({
 vi.mock('../middleware/auth.js', () => ({
   requireAuth: (req: any, res: any, next: any) => {
     if (shouldRejectAuth) {
-      return res.status(401).json({ success: false, error: 'Authentication required' });
+      return res.status(401).json({ success: false, error: 'Authentication required. No token provided.' });
     }
     req.user = currentMockUser;
     next();
@@ -173,15 +173,17 @@ describe('Routes - Scraper', () => {
 
     it('should return 401 for unauthenticated requests', async () => {
       shouldRejectAuth = true;
-      const app = await setupApp();
-      const response = await request(app).get('/api/scraper/status');
+      try {
+        const app = await setupApp();
+        const response = await request(app).get('/api/scraper/status');
 
-      expect(response.status).toBe(401);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('Authentication required');
-      expect(mockGetStatus).not.toHaveBeenCalled();
-
-      shouldRejectAuth = false;
+        expect(response.status).toBe(401);
+        expect(response.body.success).toBe(false);
+        expect(response.body.error).toBe('Authentication required. No token provided.');
+        expect(mockGetStatus).not.toHaveBeenCalled();
+      } finally {
+        shouldRejectAuth = false;
+      }
     });
   });
 

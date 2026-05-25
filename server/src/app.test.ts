@@ -13,7 +13,7 @@ let shouldRejectAuth = false;
 vi.mock('./middleware/auth.js', () => ({
   requireAuth: (req: any, res: any, next: any) => {
     if (shouldRejectAuth) {
-      return res.status(401).json({ success: false, error: 'Authentication required' });
+      return res.status(401).json({ success: false, error: 'Authentication required. No token provided.' });
     }
     (req as any).user = { id: 1, username: 'test', role_name: 'admin', is_system_role: true, permissions: [] };
     next();
@@ -231,14 +231,16 @@ describe('App - Theme Endpoint', () => {
   describe('GET /metrics', () => {
     it('should return 401 for unauthenticated requests', async () => {
       shouldRejectAuth = true;
-      const res = await request(app)
-        .get('/metrics')
-        .expect(401);
+      try {
+        const res = await request(app)
+          .get('/metrics')
+          .expect(401);
 
-      expect(res.body.success).toBe(false);
-      expect(res.body.error).toBe('Authentication required');
-
-      shouldRejectAuth = false;
+        expect(res.body.success).toBe(false);
+        expect(res.body.error).toBe('Authentication required. No token provided.');
+      } finally {
+        shouldRejectAuth = false;
+      }
     });
 
     it('should return Prometheus metrics when authenticated', async () => {
