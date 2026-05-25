@@ -164,11 +164,10 @@ router.post('/change-password', authLimiter, requireAuth, async (req: AuthReques
 });
 
 // POST /api/auth/refresh - Refresh access token using refresh token cookie
-router.post('/refresh', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/refresh', authLimiter, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const db: DB = req.app.get('db');
         const refreshTokenService = new RefreshTokenService(db);
-        const authService = new AuthService(db);
 
         const refreshToken = req.cookies?.refresh_token;
         if (!refreshToken) {
