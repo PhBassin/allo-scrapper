@@ -1,11 +1,53 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import crypto from 'crypto';
-import { RefreshTokenService } from './refresh-token-service.js';
+import { RefreshTokenService, parseRefreshTokenExpiry } from './refresh-token-service.js';
 import type { DB } from '../db/client.js';
 
 function hashToken(raw: string): string {
   return crypto.createHash('sha256').update(raw, 'utf8').digest('hex');
 }
+
+describe('parseRefreshTokenExpiry', () => {
+  const originalEnv = process.env.REFRESH_TOKEN_EXPIRY;
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env.REFRESH_TOKEN_EXPIRY;
+    } else {
+      process.env.REFRESH_TOKEN_EXPIRY = originalEnv;
+    }
+  });
+
+  it('should return 7 days (ms) when env var is not set', () => {
+    delete process.env.REFRESH_TOKEN_EXPIRY;
+    expect(parseRefreshTokenExpiry()).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+
+  it('should parse "7d" as 7 days in ms', () => {
+    process.env.REFRESH_TOKEN_EXPIRY = '7d';
+    expect(parseRefreshTokenExpiry()).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+
+  it('should parse "30d" as 30 days in ms', () => {
+    process.env.REFRESH_TOKEN_EXPIRY = '30d';
+    expect(parseRefreshTokenExpiry()).toBe(30 * 24 * 60 * 60 * 1000);
+  });
+
+  it('should parse "24h" as 24 hours in ms', () => {
+    process.env.REFRESH_TOKEN_EXPIRY = '24h';
+    expect(parseRefreshTokenExpiry()).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it('should parse numeric string as ms', () => {
+    process.env.REFRESH_TOKEN_EXPIRY = '3600000';
+    expect(parseRefreshTokenExpiry()).toBe(3600000);
+  });
+
+  it('should fallback to 7d on invalid value', () => {
+    process.env.REFRESH_TOKEN_EXPIRY = 'invalid';
+    expect(parseRefreshTokenExpiry()).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+});
 
 describe('RefreshTokenService', () => {
   let service: RefreshTokenService;

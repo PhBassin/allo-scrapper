@@ -13,7 +13,7 @@ export interface RefreshTokenRecord {
 
 const DEFAULT_EXPIRY_MS = parseRefreshTokenExpiry();
 
-function parseRefreshTokenExpiry(): number {
+export function parseRefreshTokenExpiry(): number {
   const envValue = process.env.REFRESH_TOKEN_EXPIRY;
   if (!envValue) return 7 * 24 * 60 * 60 * 1000; // default: 7 days
   // Support human-readable format like '7d', '30d'
