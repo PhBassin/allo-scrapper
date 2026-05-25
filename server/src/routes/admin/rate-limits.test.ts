@@ -25,6 +25,7 @@ vi.mock('../../middleware/auth.js', () => ({
 }));
 vi.mock('../../middleware/rate-limit.js', () => ({
   protectedLimiter: (req: any, res: any, next: any) => next(),
+  refreshRateLimits: vi.fn(),
 }));
 vi.mock('../../middleware/permission.js', () => ({
   requirePermission: (..._perms: string[]) => (req: any, res: any, next: any) => next(),
@@ -126,6 +127,18 @@ describe('Routes - Admin - Rate Limits', () => {
       });
 
       vi.mocked(rateLimitQueries.updateRateLimits).mockResolvedValue(updatedConfig);
+      vi.mocked(rateLimitsConfig.getRateLimitConfig).mockResolvedValue({
+        windowMs: 900000,
+        generalMax: 150,
+        authMax: 5,
+        registerMax: 3,
+        registerWindowMs: 3600000,
+        protectedMax: 60,
+        scraperMax: 20,
+        publicMax: 100,
+        healthMax: 10,
+        healthWindowMs: 60000,
+      });
 
       const response = await request(app)
         .put('/api/admin/rate-limits')
@@ -136,7 +149,7 @@ describe('Routes - Admin - Rate Limits', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.config.generalMax).toBe(150);
       expect(response.body.data.config.scraperMax).toBe(20);
-      expect(response.body.data.message).toBe('Rate limits updated. Changes will take effect within 30 seconds.');
+      expect(response.body.data.message).toBe('Rate limits updated. Changes take effect immediately.');
 
       expect(rateLimitQueries.updateRateLimits).toHaveBeenCalledWith(
         mockDb,

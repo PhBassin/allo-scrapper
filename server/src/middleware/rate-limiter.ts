@@ -1,9 +1,15 @@
 import type { Request, Response, NextFunction } from 'express';
 
-interface RateLimitOptions {
-  windowMs: number;
+export interface MutableConfig {
   max: number;
-  message?: string;
+  windowMs: number;
+}
+
+interface RateLimitOptions {
+  windowMs?: number;
+  max?: number;
+  config?: MutableConfig;
+  message?: string | object;
   statusCode?: number;
   skip?: (req: Request) => boolean;
   keyGenerator?: (req: Request) => string;
@@ -18,8 +24,7 @@ interface ClientRecord {
 
 export function createRateLimiter(options: RateLimitOptions) {
   const {
-    windowMs,
-    max,
+    config,
     message = 'Too many requests, please try again later.',
     statusCode = 429,
     skip,
@@ -27,6 +32,14 @@ export function createRateLimiter(options: RateLimitOptions) {
     skipSuccessfulRequests = false,
     standardHeaders = false,
   } = options;
+
+  function getMax(): number {
+    return config ? config.max : (options.max ?? 100);
+  }
+
+  function getWindowMs(): number {
+    return config ? config.windowMs : (options.windowMs ?? 60_000);
+  }
 
   const hits = new Map<string, ClientRecord>();
 
@@ -37,7 +50,7 @@ export function createRateLimiter(options: RateLimitOptions) {
         hits.delete(ip);
       }
     }
-  }, windowMs);
+  }, getWindowMs());
 
   if (cleanupInterval.unref) {
     cleanupInterval.unref();
@@ -50,25 +63,27 @@ export function createRateLimiter(options: RateLimitOptions) {
 
     const key = keyGenerator ? keyGenerator(req) : (req.ip || 'unknown-ip');
     const now = Date.now();
+    const currentWindowMs = getWindowMs();
+    const currentMax = getMax();
 
     let record = hits.get(key);
 
     if (!record || now > record.resetTime) {
-      record = { count: 0, resetTime: now + windowMs };
+      record = { count: 0, resetTime: now + currentWindowMs };
       hits.set(key, record);
     }
 
     record.count++;
 
     if (standardHeaders) {
-      const remaining = Math.max(0, max - record.count);
+      const remaining = Math.max(0, currentMax - record.count);
       const resetSeconds = Math.ceil((record.resetTime - now) / 1000);
-      res.setHeader('RateLimit-Limit', max);
+      res.setHeader('RateLimit-Limit', currentMax);
       res.setHeader('RateLimit-Remaining', remaining);
       res.setHeader('RateLimit-Reset', resetSeconds);
     }
 
-    if (record.count > max) {
+    if (record.count > currentMax) {
       const retryAfterSeconds = Math.ceil((record.resetTime - now) / 1000);
       res.setHeader('Retry-After', retryAfterSeconds);
       const body = typeof message === 'string'

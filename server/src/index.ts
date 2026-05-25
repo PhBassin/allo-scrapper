@@ -39,6 +39,10 @@ async function startServer() {
     // Register database connection for dependency injection
     app.set('db', db);
 
+    // Start rate limit config refresher (hot-reload)
+    const { startConfigRefresher } = await import('./services/rate-limit-refresher.js');
+    startConfigRefresher(db);
+
     // Start server
     const server = app.listen(Number(PORT), () => {
       logger.info(`✅ Server running on port ${PORT}`);

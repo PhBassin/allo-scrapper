@@ -10,7 +10,8 @@ import {
 import { requireAuth, type AuthRequest } from '../../middleware/auth.js';
 import { requirePermission } from '../../middleware/permission.js';
 import { protectedLimiter } from '../../middleware/rate-limit.js';
-import { invalidateRateLimitCache } from '../../config/rate-limits.js';
+import { invalidateRateLimitCache, getRateLimitConfig } from '../../config/rate-limits.js';
+import { refreshRateLimits } from '../../middleware/rate-limit.js';
 import type { ApiResponse } from '../../types/api.js';
 import { ValidationError } from '../../utils/errors.js';
 import { parseStrictInt } from '../../utils/number.js';
@@ -71,14 +72,16 @@ router.put('/', protectedLimiter, requireAuth, requirePermission('ratelimits:upd
 
     const updated = await updateRateLimits(db, updates, user.id, user.username, user.role_name, userIp, userAgent);
     
-    // Invalidate cache to force reload
+    // Invalidate cache and refresh live limiters
     invalidateRateLimitCache();
+    const dbConfig = await getRateLimitConfig(db);
+    refreshRateLimits(dbConfig);
 
     const response: ApiResponse = {
       success: true,
       data: {
         ...updated,
-        message: 'Rate limits updated. Changes will take effect within 30 seconds.',
+        message: 'Rate limits updated. Changes take effect immediately.',
       },
     };
     res.json(response);
