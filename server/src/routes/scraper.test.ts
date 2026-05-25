@@ -9,6 +9,7 @@ const mockSubscribeToProgress = vi.fn();
 const mockPublishScheduleChange = vi.fn();
 
 let currentMockUser = { role_name: 'admin', is_system_role: true, permissions: [], id: 1, username: 'admin' };
+let shouldRejectAuth = false;
 
 vi.mock('../services/scraper-service.js', () => {
   return {
@@ -27,7 +28,10 @@ vi.mock('../db/client.js', () => ({
 }));
 
 vi.mock('../middleware/auth.js', () => ({
-  requireAuth: (req: any, _res: any, next: any) => {
+  requireAuth: (req: any, res: any, next: any) => {
+    if (shouldRejectAuth) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
     req.user = currentMockUser;
     next();
   },
@@ -165,6 +169,19 @@ describe('Routes - Scraper', () => {
       expect(response.body.data.isRunning).toBe(true);
       expect(response.body.data.latestReport.id).toBe(99);
       expect(mockGetStatus).toHaveBeenCalled();
+    });
+
+    it('should return 401 for unauthenticated requests', async () => {
+      shouldRejectAuth = true;
+      const app = await setupApp();
+      const response = await request(app).get('/api/scraper/status');
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Authentication required');
+      expect(mockGetStatus).not.toHaveBeenCalled();
+
+      shouldRejectAuth = false;
     });
   });
 
