@@ -172,19 +172,21 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
         const refreshToken = req.cookies?.refresh_token;
         if (!refreshToken) {
             clearRefreshTokenCookie(res);
-            return res.status(401).json({
+            res.status(401).json({
                 success: false,
                 error: 'No refresh token provided.',
             });
+            return;
         }
 
         const userId = await refreshTokenService.validate(refreshToken);
         if (userId === null) {
             clearRefreshTokenCookie(res);
-            return res.status(401).json({
+            res.status(401).json({
                 success: false,
                 error: 'Invalid or expired refresh token.',
             });
+            return;
         }
 
         // Revoke the old refresh token (rotation)
@@ -203,10 +205,11 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
 
         if (userResult.rows.length === 0) {
             clearRefreshTokenCookie(res);
-            return res.status(401).json({
+            res.status(401).json({
                 success: false,
                 error: 'User not found.',
             });
+            return;
         }
 
         const user = userResult.rows[0];
