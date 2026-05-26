@@ -117,9 +117,20 @@ jobs:
           node dist/index.js &
           echo $! > /tmp/server.pid
           for i in $(seq 1 30); do
-            curl -s http://localhost:3000/api/health > /dev/null && break
+            if curl -fsS http://localhost:3000/api/health > /dev/null; then
+              exit 0
+            fi
+
+            if ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
+              echo "Server process exited before health check passed"
+              exit 1
+            fi
+
             sleep 2
           done
+
+          echo "Server did not become healthy within 60 seconds"
+          exit 1
         working-directory: server
         env:
           PORT: 3000
@@ -129,7 +140,7 @@ jobs:
           POSTGRES_DB: ics
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          JWT_SECRET: e2e-test-secret-min-32-chars-required-for-startup
+          JWT_SECRET: ci-jwt-token-signing-key-2026-valid-only
           JWT_EXPIRES_IN: 1h
           REDIS_URL: redis://localhost:6379
           ALLOWED_ORIGINS: http://localhost:3000
