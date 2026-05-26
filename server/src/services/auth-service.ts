@@ -7,7 +7,7 @@ import { hashPassword, comparePassword } from '../utils/password.js';
 import { logger } from '../utils/logger.js';
 import { parseJwtExpiration } from '../utils/jwt-config.js';
 import type { PermissionName } from '../types/role.js';
-import { validateJWTSecret } from '../utils/jwt-secret-validator.js';
+import { getCurrentSecret } from '../utils/jwt-secrets.js';
 
 // Pre-computed hash for 'dummy' (cost 10) to prevent timing attacks
 const DUMMY_HASH = 'scrypt:16384:8:1:00000000000000000000000000000000:00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
@@ -30,7 +30,7 @@ export class AuthService {
 
     const permissions = await getPermissionNamesByRoleId(this.db, user.role_id) as PermissionName[];
 
-    const secret = validateJWTSecret();
+    const secret = getCurrentSecret();
 
     // Parse JWT expiration from env var (default: 1h)
     const expiresIn = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '1h');

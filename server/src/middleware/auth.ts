@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import type { ApiResponse } from '../types/api.js';
 import type { PermissionName } from '../types/role.js';
-import { validateJWTSecret } from '../utils/jwt-secret-validator.js';
+import { getSecrets, verifyWithMultipleSecrets } from '../utils/jwt-secrets.js';
 
-const JWT_SECRET = validateJWTSecret();
+// Fail-fast: validate secrets at module load
+getSecrets();
 
 export interface AuthRequest extends Request {
     user?: {
@@ -30,7 +30,7 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
     const token = authHeader.split(' ')[1];
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as {
+        const decoded = verifyWithMultipleSecrets(token, getSecrets()) as {
             id: number;
             username: string;
             role_name: string;

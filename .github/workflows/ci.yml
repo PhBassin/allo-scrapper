@@ -18,7 +18,7 @@ on:
       - develop
 
 jobs:
-  build-and-test:
+  unit-and-coverage:
     name: TypeScript build & tests
     runs-on: ubuntu-latest
     permissions:

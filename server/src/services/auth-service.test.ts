@@ -84,6 +84,23 @@ describe('AuthService', () => {
       expect(result.user.username).toBe('user');
       expect(result.user.permissions).toEqual(['users:read']);
     });
+
+    it('should sign token with current secret (getCurrentSecret)', async () => {
+      const mockUser = { id: 1, username: 'user', role_id: 1, role_name: 'admin', is_system_role: true, password_hash: 'hash' };
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockUser as any);
+      vi.mocked(passwordUtils.comparePassword).mockResolvedValue(true);
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['users:read'] as any);
+      vi.mocked(jwt.sign).mockReturnValue('mock-token' as any);
+
+      await authService.login('user', 'password');
+
+      const { getCurrentSecret } = await import('../utils/jwt-secrets.js');
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 1 }),
+        getCurrentSecret(),
+        expect.any(Object)
+      );
+    });
   });
 
   describe('register', () => {

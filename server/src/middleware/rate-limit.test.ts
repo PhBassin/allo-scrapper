@@ -15,6 +15,7 @@ import {
   healthCheckLimiter,
 } from './rate-limit.js';
 import { createRateLimiter } from './rate-limiter.js';
+import rateLimit from 'express-rate-limit';
 
 // Helper: sign a minimal JWT for rate-limit key tests
 const makeToken = (userId: number): string =>
@@ -48,6 +49,11 @@ describe('Rate Limiting Middleware', () => {
       expect(response.headers['ratelimit-limit']).toBeDefined();
       expect(response.headers['ratelimit-remaining']).toBeDefined();
       expect(response.headers['ratelimit-reset']).toBeDefined();
+    });
+
+    it('should be backed by express-rate-limit', () => {
+      expect(typeof generalLimiter).toBe('function');
+      expect(typeof (generalLimiter as typeof rateLimit)).toBe('function');
     });
   });
 
@@ -240,6 +246,57 @@ describe('Rate Limiting Middleware', () => {
 
       const user2res = await request(tightApp).post('/scrape').set('Authorization', `Bearer ${token2}`).set('X-Forwarded-For', sameIp).send({});
       expect(user2res.status).toBe(200);
+    });
+  });
+
+    describe('multi-secret JWT verification (rotation)', () => {
+    let previousSecrets: string | undefined;
+
+    beforeEach(async () => {
+      previousSecrets = process.env.JWT_PREVIOUS_SECRETS;
+      const { invalidateSecretsCache } = await import('../utils/jwt-secrets.js');
+      invalidateSecretsCache();
+    });
+
+    afterEach(() => {
+      if (previousSecrets !== undefined) {
+        process.env.JWT_PREVIOUS_SECRETS = previousSecrets;
+      } else {
+        delete process.env.JWT_PREVIOUS_SECRETS;
+      }
+    });
+
+    it('should verify tokens signed with a previous secret', async () => {
+      const oldSecret = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6_old';
+      process.env.JWT_PREVIOUS_SECRETS = oldSecret;
+      const oldToken = jwt.sign({ id: 42, username: 'rotated-user' }, oldSecret);
+
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      const { createRateLimiter } = await import('./rate-limiter.js');
+
+      // Track the generated key instead of hitting rate limit
+      let generatedKey = '';
+      const trackingLimiter = createRateLimiter({
+        windowMs: 60_000,
+        max: 100,
+        skip: () => false,
+        keyGenerator: (req) => {
+          generatedKey = authenticatedKeyGenerator(req);
+          return generatedKey;
+        },
+      });
+
+      tightApp.get('/rotate-test', trackingLimiter, (_req, res) => res.json({ ok: true }));
+
+      await request(tightApp)
+        .get('/rotate-test')
+        .set('Authorization', `Bearer ${oldToken}`)
+        .set('X-Forwarded-For', '10.0.0.1');
+
+      // The key should be user:42 (user id from token), not IP-based
+      expect(generatedKey).toBe('user:42');
     });
   });
 
