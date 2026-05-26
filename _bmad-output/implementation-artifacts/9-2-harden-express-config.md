@@ -1,7 +1,7 @@
 ---
 story_key: 9-2-harden-express-config
 epic: 9-security-audit-remediation
-status: ready-for-dev
+status: done
 created: 2026-05-25
 ---
 

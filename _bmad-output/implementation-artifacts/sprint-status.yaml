@@ -22,7 +22,7 @@
 #   - cancelled: Story no longer relevant
 
 generated: 2026-05-21
-last_updated: 2026-05-25
+last_updated: 2026-05-26
 project: allo-scrapper
 project_key: NOKEY
 tracking_system: file-system
@@ -78,16 +78,16 @@ development_status:
   # ─────────────────────────────────────────────────────────────
   # EPIC 9: Security Audit Remediation
   # ─────────────────────────────────────────────────────────────
-  epic-9: in-progress
-  epic-9-note: "Remédiation suite à l'audit de sécurité du 2026-05-25 (5 points restants, 2 déjà traités dans PR #1075)"
+  epic-9: done
+  epic-9-note: "Remédiation suite à l'audit de sécurité du 2026-05-25 terminée, y compris 9.4 merge"
   9-1-protect-exposed-endpoints: done
   9-1-protect-exposed-endpoints-note: "PR #1077 — merged 2026-05-25"
   9-2-harden-express-config: done
   9-2-harden-express-config-note: "PR #1076 — merged 2026-05-25"
   9-3-hot-reload-rate-limits: done
   9-3-hot-reload-rate-limits-note: "PR #1081 — merged 2026-05-25"
-  9-4-jwt-secret-rotation: review
-  9-4-jwt-secret-rotation-note: "PR #1083 — code review patches applied"
+  9-4-jwt-secret-rotation: done
+  9-4-jwt-secret-rotation-note: "PR #1083 — merged 2026-05-26"
 
   # ─────────────────────────────────────────────────────────────
   # STORIES HORS SPRINT
@@ -100,9 +100,9 @@ development_status:
 # ─────────────────────────────────────────────────────────────
 # SPRINT STATUS
 # ─────────────────────────────────────────────────────────────
-sprint_status: active
+sprint_status: complete
 sprint_active_date: 2026-05-25
 total_epics: 9
-epics_done: 7
-epics_in_progress: 1
+epics_done: 8
+epics_in_progress: 0
 epics_cancelled: 1
