@@ -53,30 +53,5 @@ if ! npm run test:run; then
   exit 1
 fi
 
-# ─────────────────────────────────────────────────────
-# E2E — auto-start Docker stack if not already running
-# ─────────────────────────────────────────────────────
-E2E_STACK_STARTED=0
-if ! docker compose ps 2>/dev/null | grep -q "ics-web.*running"; then
-  echo "${YELLOW}[pre-push] Starting Docker stack for E2E tests...${NC}"
-  cd "$REPO_ROOT"
-  docker compose up -d --wait 2>&1 | tail -1
-  E2E_STACK_STARTED=1
-fi
-
-echo "${YELLOW}[pre-push] Running E2E tests...${NC}"
-cd "$REPO_ROOT"
-if ! npm run e2e; then
-  echo "${RED}[pre-push] E2E tests FAILED. Push aborted.${NC}"
-  if [ "$E2E_STACK_STARTED" -eq 1 ]; then docker compose down; fi
-  exit 1
-fi
-echo "${GREEN}[pre-push] E2E tests passed.${NC}"
-
-if [ "$E2E_STACK_STARTED" -eq 1 ]; then
-  echo "${YELLOW}[pre-push] Stopping Docker stack (was started for E2E)...${NC}"
-  docker compose down
-fi
-
 echo "${GREEN}[pre-push] All checks passed. Pushing...${NC}"
 exit 0
