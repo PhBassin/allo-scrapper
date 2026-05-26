@@ -15,6 +15,7 @@ import {
   healthCheckLimiter,
 } from './rate-limit.js';
 import { createRateLimiter } from './rate-limiter.js';
+import rateLimit from 'express-rate-limit';
 
 // Helper: sign a minimal JWT for rate-limit key tests
 const makeToken = (userId: number): string =>
@@ -48,6 +49,11 @@ describe('Rate Limiting Middleware', () => {
       expect(response.headers['ratelimit-limit']).toBeDefined();
       expect(response.headers['ratelimit-remaining']).toBeDefined();
       expect(response.headers['ratelimit-reset']).toBeDefined();
+    });
+
+    it('should be backed by express-rate-limit', () => {
+      expect(typeof generalLimiter).toBe('function');
+      expect(typeof (generalLimiter as typeof rateLimit)).toBe('function');
     });
   });
 
