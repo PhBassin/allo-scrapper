@@ -1,6 +1,11 @@
 import { CorsOptions } from 'cors';
 
-export const getCorsOptions = (): CorsOptions => {
+export interface CorsConfigOptions {
+  strict?: boolean;
+}
+
+export const getCorsOptions = (opts: CorsConfigOptions = {}): CorsOptions => {
+  const { strict = false } = opts;
   const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
   const allowedOrigins = allowedOriginsEnv
     ? allowedOriginsEnv.split(',').map((origin) => origin.trim())
@@ -8,7 +13,17 @@ export const getCorsOptions = (): CorsOptions => {
 
   return {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
+      // Strict mode: block requests with no origin (prevents sandboxed iframe attacks)
+      if (strict && (!origin || origin === 'null')) {
+        return callback(
+          new Error(
+            `CORS blocked request with no or null origin in strict mode. ` +
+            `Requests to this endpoint must include a valid Origin header.`
+          )
+        );
+      }
+
+      // Lenient mode: allow requests with no origin (mobile apps or curl requests)
       if (!origin) {
         return callback(null, true);
       }

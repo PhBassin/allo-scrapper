@@ -47,8 +47,7 @@ export function createApp() {
   // Security: Helmet with strict CSP (no unsafe-inline/unsafe-eval in script-src)
   // Note: style-src keeps unsafe-inline for React inline styles in 3 components
   // (ScrapeProgress, ColorPicker, FontSelector use dynamic inline styles)
-  app.use(
-    helmet({
+  app.use(helmet({
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
@@ -67,7 +66,6 @@ export function createApp() {
       },
     })
   );
-  app.use(cors(getCorsOptions()));
   app.use(morgan('combined'));
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
@@ -96,8 +94,11 @@ export function createApp() {
   // Rate limiting for all API routes
   app.use('/api', generalLimiter);
 
-  // API routes
-  app.use('/api/auth', authRouter);
+  // Auth routes use strict CORS to prevent sandboxed iframe attacks (issue #1096)
+  app.use('/api/auth', cors(getCorsOptions({ strict: true })), authRouter);
+
+  // All other API routes use lenient CORS (allows curl/mobile requests without Origin header)
+  app.use('/api', cors(getCorsOptions()));
   app.use('/api/movies', moviesRouter);
   app.use('/api/theaters', theatersRouter);
   app.use('/api/scraper', scraperRouter);

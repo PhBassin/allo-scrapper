@@ -95,3 +95,90 @@ describe('getCorsOptions', () => {
     }
   });
 });
+
+describe('getCorsOptions strict mode', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    vi.resetModules();
+    process.env = { ...originalEnv };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('should block requests with no origin (undefined)', () => {
+    process.env.ALLOWED_ORIGINS = 'http://example.com';
+    const options = getCorsOptions({ strict: true });
+
+    const originCheck = options.origin;
+    const callback = vi.fn();
+
+    if (typeof originCheck === 'function') {
+      // @ts-ignore
+      originCheck(undefined, callback);
+      expect(callback).toHaveBeenCalledWith(expect.any(Error));
+    }
+  });
+
+  it('should block requests with null origin', () => {
+    process.env.ALLOWED_ORIGINS = 'http://example.com';
+    const options = getCorsOptions({ strict: true });
+
+    const originCheck = options.origin;
+    const callback = vi.fn();
+
+    if (typeof originCheck === 'function') {
+      // @ts-ignore
+      originCheck('null', callback);
+      expect(callback).toHaveBeenCalledWith(expect.any(Error));
+    }
+  });
+
+  it('should block requests with empty string origin', () => {
+    process.env.ALLOWED_ORIGINS = 'http://example.com';
+    const options = getCorsOptions({ strict: true });
+
+    const originCheck = options.origin;
+    const callback = vi.fn();
+
+    if (typeof originCheck === 'function') {
+      // @ts-ignore
+      originCheck('', callback);
+      expect(callback).toHaveBeenCalledWith(expect.any(Error));
+    }
+  });
+
+  it('should still allow requests from allowed origins in strict mode', () => {
+    process.env.ALLOWED_ORIGINS = 'http://example.com,http://test.com';
+    const options = getCorsOptions({ strict: true });
+
+    const originCheck = options.origin;
+    const callback = vi.fn();
+
+    if (typeof originCheck === 'function') {
+      // @ts-ignore
+      originCheck('http://example.com', callback);
+      expect(callback).toHaveBeenCalledWith(null, true);
+
+      // @ts-ignore
+      originCheck('http://test.com', callback);
+      expect(callback).toHaveBeenCalledWith(null, true);
+    }
+  });
+
+  it('should still block requests from disallowed origins in strict mode', () => {
+    process.env.ALLOWED_ORIGINS = 'http://example.com';
+    const options = getCorsOptions({ strict: true });
+
+    const originCheck = options.origin;
+    const callback = vi.fn();
+
+    if (typeof originCheck === 'function') {
+      // @ts-ignore
+      originCheck('http://hacker.com', callback);
+      expect(callback).toHaveBeenCalledWith(expect.any(Error));
+    }
+  });
+});
