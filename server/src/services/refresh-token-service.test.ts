@@ -53,11 +53,13 @@ describe('RefreshTokenService', () => {
   let service: RefreshTokenService;
   let mockDb: {
     query: ReturnType<typeof vi.fn>;
+    transaction: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
     mockDb = {
       query: vi.fn(),
+      transaction: vi.fn(),
     };
     service = new RefreshTokenService(mockDb as unknown as DB);
   });
@@ -206,6 +208,51 @@ describe('RefreshTokenService', () => {
         expect.stringContaining('DELETE FROM refresh_tokens'),
         [7]
       );
+    });
+  });
+
+  describe('rotate', () => {
+    it('should atomically revoke old token and generate new token', async () => {
+      let committed = false;
+      let rolledBack = false;
+
+      mockDb.transaction.mockImplementation(async (fn) => {
+        const clientQuery = vi.fn().mockResolvedValue({ rows: [] });
+        const client = { query: clientQuery };
+        const result = await fn(client);
+        committed = true;
+        return result;
+      });
+
+      const newToken = await service.rotate(1, 'old-raw-token');
+
+      expect(newToken).toBeDefined();
+      expect(newToken.length).toBeGreaterThan(32);
+      expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+      expect(committed).toBe(true);
+    });
+
+    it('should rollback transaction on failure — no partial state', async () => {
+      const dbError = new Error('DB connection lost');
+
+      mockDb.transaction.mockImplementation(async () => {
+        throw dbError;
+      });
+
+      await expect(service.rotate(1, 'old-raw-token')).rejects.toThrow('DB connection lost');
+      expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('should accept custom expiry', async () => {
+      mockDb.transaction.mockImplementation(async (fn) => {
+        const clientQuery = vi.fn().mockResolvedValue({ rows: [] });
+        return fn({ query: clientQuery });
+      });
+
+      const newToken = await service.rotate(1, 'old-token', 3600_000);
+
+      expect(newToken).toBeDefined();
+      expect(mockDb.transaction).toHaveBeenCalledTimes(1);
     });
   });
 });
