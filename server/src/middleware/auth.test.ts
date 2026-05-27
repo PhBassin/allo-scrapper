@@ -27,7 +27,7 @@ describe('requireAuth (multi-secret verification)', () => {
     process.env.JWT_PREVIOUS_SECRETS = OLD_SECRET;
 
     const { requireAuth } = await import('./auth.js');
-    const token = jwt.sign({ id: 1, username: 'test' }, VALID_SECRET);
+    const token = jwt.sign({ id: 1, username: 'test' }, VALID_SECRET, { algorithm: 'HS256' });
     const req = { headers: { authorization: `Bearer ${token}` } } as any;
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
     const next = vi.fn();
@@ -42,7 +42,7 @@ describe('requireAuth (multi-secret verification)', () => {
     process.env.JWT_PREVIOUS_SECRETS = OLD_SECRET;
 
     const { requireAuth } = await import('./auth.js');
-    const token = jwt.sign({ id: 2, username: 'rotated' }, OLD_SECRET);
+    const token = jwt.sign({ id: 2, username: 'rotated' }, OLD_SECRET, { algorithm: 'HS256' });
     const req = { headers: { authorization: `Bearer ${token}` } } as any;
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
     const next = vi.fn();
@@ -57,7 +57,7 @@ describe('requireAuth (multi-secret verification)', () => {
     process.env.JWT_PREVIOUS_SECRETS = OLD_SECRET;
 
     const { requireAuth } = await import('./auth.js');
-    const token = jwt.sign({ id: 3, username: 'hacker' }, 'unknown-secret-min-32-chars-long-here!');
+    const token = jwt.sign({ id: 3, username: 'hacker' }, 'unknown-secret-min-32-chars-long-here!', { algorithm: 'HS256' });
     const req = { headers: { authorization: `Bearer ${token}` } } as any;
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
     const next = vi.fn();

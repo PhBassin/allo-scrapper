@@ -19,7 +19,7 @@ import rateLimit from 'express-rate-limit';
 
 // Helper: sign a minimal JWT for rate-limit key tests
 const makeToken = (userId: number): string =>
-  jwt.sign({ id: userId, username: `user${userId}` }, process.env.JWT_SECRET as string);
+  jwt.sign({ id: userId, username: `user${userId}` }, process.env.JWT_SECRET as string, { algorithm: 'HS256' });
 
 describe('Rate Limiting Middleware', () => {
   let app: express.Application;
@@ -210,7 +210,7 @@ describe('Rate Limiting Middleware', () => {
       tightApp.get('/p-invalid', tightLimiter, (_req, res) => res.json({ ok: true }));
 
       // Token with incorrect secret but same spoofed user ID 1
-      const spoofedToken = jwt.sign({ id: 1, username: 'user1' }, 'wrong-secret-minimum-32-chars-long-or-longer');
+      const spoofedToken = jwt.sign({ id: 1, username: 'user1' }, 'wrong-secret-minimum-32-chars-long-or-longer', { algorithm: 'HS256' });
       const sameIp = '1.2.3.4';
 
       // If it fails to verify, it falls back to IP fallback.
@@ -269,7 +269,7 @@ describe('Rate Limiting Middleware', () => {
     it('should verify tokens signed with a previous secret', async () => {
       const oldSecret = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6_old';
       process.env.JWT_PREVIOUS_SECRETS = oldSecret;
-      const oldToken = jwt.sign({ id: 42, username: 'rotated-user' }, oldSecret);
+      const oldToken = jwt.sign({ id: 42, username: 'rotated-user' }, oldSecret, { algorithm: 'HS256' });
 
       const tightApp = express();
       tightApp.set('trust proxy', 1);

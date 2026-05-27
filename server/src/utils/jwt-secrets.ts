@@ -57,7 +57,7 @@ export function verifyWithMultipleSecrets(token: string, secrets: string[]): jwt
 
   for (let i = 0; i < secrets.length; i++) {
     try {
-      const decoded = jwt.verify(token, secrets[i]) as jwt.JwtPayload;
+      const decoded = jwt.verify(token, secrets[i], { algorithms: ['HS256'] }) as jwt.JwtPayload;
       if (i > 0) {
         logger.debug(`JWT verified with previous secret (index ${i + 1})`);
       }

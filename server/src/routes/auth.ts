@@ -249,7 +249,7 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
                 permissions,
             },
             secret,
-            { expiresIn: expiresIn as any }
+            { algorithm: 'HS256', expiresIn: expiresIn as any }
         );
 
         // Set new refresh token cookie
