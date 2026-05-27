@@ -314,7 +314,6 @@ describe('UsersPage', () => {
       const user = userEvent.setup();
       vi.mocked(usersApi.resetUserPassword).mockResolvedValue({
         user: mockUsers[1],
-        newPassword: 'NewRandomPass123!',
       });
 
       renderWithAuth(<UsersPage />);
@@ -327,11 +326,10 @@ describe('UsersPage', () => {
       await user.click(resetButtons[1]);
 
       await waitFor(() => {
-        expect(usersApi.resetUserPassword).toHaveBeenCalledWith(2);
+        expect(usersApi.resetUserPassword).toHaveBeenCalledWith(2, expect.any(String));
       });
 
       expect(await screen.findByRole('heading', { name: /password reset successful/i })).toBeInTheDocument();
-      expect(screen.getByDisplayValue('NewRandomPass123!')).toBeInTheDocument();
     });
   });
 

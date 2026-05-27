@@ -285,12 +285,12 @@ async function handleAdminSeed(db: DB): Promise<void> {
   logger.warn('🔐 DEFAULT ADMIN USER CREATED');
   logger.warn('═══════════════════════════════════════════════════════════');
   logger.warn('Username: admin');
-  logger.warn(`Password: ${password}`);
+  console.log(`Password: ${password}`);
   logger.warn('═══════════════════════════════════════════════════════════');
   logger.warn('⚠️  SECURITY WARNING:');
   logger.warn('1. Save this password immediately');
   logger.warn('2. Change it after first login');
-  logger.warn('3. This password will NOT be shown again');
+  logger.warn('3. This password will NOT be logged or shown again');
   logger.warn('═══════════════════════════════════════════════════════════');
 }
 
@@ -349,11 +349,11 @@ async function handleAdminRoleIdSeed(db: DB): Promise<void> {
   logger.warn('🔐 DEFAULT ADMIN USER CREATED');
   logger.warn('═══════════════════════════════════════════════════════════');
   logger.warn('Username: admin');
-  logger.warn(`Password: ${password}`);
+  console.log(`Password: ${password}`);
   logger.warn('═══════════════════════════════════════════════════════════');
   logger.warn('⚠️  SECURITY WARNING:');
   logger.warn('1. Save this password immediately');
   logger.warn('2. Change it after first login');
-  logger.warn('3. This password will NOT be shown again');
+  logger.warn('3. This password will NOT be logged or shown again');
   logger.warn('═══════════════════════════════════════════════════════════');
 }

@@ -25,7 +25,6 @@ export interface UserRoleUpdate {
 
 export interface PasswordResetResult {
   user: UserPublic;
-  newPassword: string;
 }
 
 // ============================================================================
@@ -100,12 +99,13 @@ export async function updateUserRole(id: number, roleId: number): Promise<UserPu
 
 /**
  * Reset user password (admin only)
- * Generates a secure random password (16 characters)
+ * Sends a client-generated password to be hashed server-side
  * @param id User ID
- * @returns User and new password (must be shown to admin immediately)
+ * @param newPassword Password generated on the client side
+ * @returns User info (password NOT returned in response)
  */
-export async function resetUserPassword(id: number): Promise<PasswordResetResult> {
-  const response = await apiClient.post<ApiResponse<PasswordResetResult>>(`/users/${id}/reset-password`);
+export async function resetUserPassword(id: number, newPassword: string): Promise<PasswordResetResult> {
+  const response = await apiClient.post<ApiResponse<PasswordResetResult>>(`/users/${id}/reset-password`, { newPassword });
 
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to reset password');

@@ -235,7 +235,7 @@ describe('Users API Client', () => {
   });
 
   describe('resetUserPassword', () => {
-    it('should reset user password and return new password', async () => {
+    it('should send client-generated password and return user info', async () => {
       const mockResponse = {
         user: {
           id: 2,
@@ -244,7 +244,6 @@ describe('Users API Client', () => {
           role_name: 'user',
           created_at: '2024-01-02T00:00:00Z',
         },
-        newPassword: 'Abc123!@#$%^&*()',
       };
 
       vi.mocked(apiClient.post).mockResolvedValueOnce({
@@ -252,11 +251,12 @@ describe('Users API Client', () => {
         data: mockResponse,
       });
 
-      const result = await resetUserPassword(2);
+      const newPassword = 'Abc123!@#$%^&*()';
+      const result = await resetUserPassword(2, newPassword);
 
-      expect(apiClient.post).toHaveBeenCalledWith('/users/2/reset-password');
+      expect(apiClient.post).toHaveBeenCalledWith('/users/2/reset-password', { newPassword });
       expect(result).toEqual(mockResponse);
-      expect(result.newPassword).toHaveLength(16);
+      expect(result).not.toHaveProperty('newPassword');
     });
 
     it('should throw error when user not found', async () => {
@@ -265,7 +265,7 @@ describe('Users API Client', () => {
         error: 'User not found',
       });
 
-      await expect(resetUserPassword(999)).rejects.toThrow('User not found');
+      await expect(resetUserPassword(999, 'Abc123!@#$%^&*()')).rejects.toThrow('User not found');
     });
   });
 
