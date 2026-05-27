@@ -51,6 +51,11 @@ describe('AuthContext', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   describe('Initial state', () => {
@@ -375,7 +380,7 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
     });
 
-    it('should clear timer on manual logout', () => {
+    it('should clear timer on manual logout', async () => {
       // Create a token that expires in 10 seconds
       const expireInTenSeconds = Math.floor(Date.now() / 1000) + 10;
       const token = createTokenWithExp(expireInTenSeconds);
@@ -402,11 +407,11 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
       
       // Manual logout
-      act(() => {
+      await act(async () => {
         screen.getByRole('button', { name: 'Logout' }).click();
+        await Promise.resolve();
       });
 
-      // Should be logged out immediately
       expect(screen.getByTestId('isAuthenticated').textContent).toBe('false');
       
       // Fast forward past original expiry time
