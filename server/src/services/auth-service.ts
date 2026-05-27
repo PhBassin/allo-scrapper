@@ -44,7 +44,7 @@ export class AuthService {
         permissions,
       },
       secret,
-      { expiresIn: expiresIn as any }
+      { algorithm: 'HS256', expiresIn: expiresIn as any }
     );
 
     return {

@@ -17,6 +17,7 @@ client/dist/
 .env.*
 !.env.example
 .env-*
+*.bak
 
 # Database
 data/
