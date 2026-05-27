@@ -223,12 +223,8 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
 
         const user = userResult.rows[0];
 
-        // Generate new refresh token FIRST (before revoking old one)
-        // This ensures we never lose the refresh token if generate fails
-        const newRefreshToken = await refreshTokenService.generate(userId);
-
-        // Revoke the old refresh token (rotation — only after new one is secured)
-        await refreshTokenService.revoke(refreshToken);
+        // Atomically rotate: generate new token AND revoke old one in one transaction
+        const newRefreshToken = await refreshTokenService.rotate(userId, refreshToken);
 
         // Generate new access token
         const jwt = await import('jsonwebtoken');
