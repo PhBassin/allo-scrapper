@@ -121,11 +121,15 @@ export class RefreshTokenService {
     const expiresAt = new Date(Date.now() + expiryMs);
 
     await this.db.transaction(async (client) => {
-      await client.query(
+      const updateResult = await client.query(
         `UPDATE refresh_tokens SET revoked_at = NOW()
-         WHERE token_hash = $1 AND revoked_at IS NULL`,
-        [oldTokenHash]
+         WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL`,
+        [oldTokenHash, userId]
       );
+
+      if (updateResult.rowCount === 0) {
+        throw new Error('Refresh token already consumed or invalid');
+      }
 
       await client.query(
         `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)

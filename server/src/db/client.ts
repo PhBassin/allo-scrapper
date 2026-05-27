@@ -35,7 +35,10 @@ export const db = {
       await client.query('COMMIT');
       return result;
     } catch (error) {
-      await client.query('ROLLBACK');
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+      }
       throw error;
     } finally {
       client.release();

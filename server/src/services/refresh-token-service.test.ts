@@ -214,10 +214,15 @@ describe('RefreshTokenService', () => {
   describe('rotate', () => {
     it('should atomically revoke old token and generate new token', async () => {
       let committed = false;
-      let rolledBack = false;
+      const issuedQueries: { sql: string; params: any[] }[] = [];
 
       mockDb.transaction.mockImplementation(async (fn) => {
-        const clientQuery = vi.fn().mockResolvedValue({ rows: [] });
+        const clientQuery = vi.fn().mockImplementation((sql: string, params: any[]) => {
+          issuedQueries.push({ sql, params });
+          // First call: UPDATE — must return rowCount=1
+          if (issuedQueries.length === 1) return Promise.resolve({ rows: [], rowCount: 1 });
+          return Promise.resolve({ rows: [] });
+        });
         const client = { query: clientQuery };
         const result = await fn(client);
         committed = true;
@@ -230,6 +235,37 @@ describe('RefreshTokenService', () => {
       expect(newToken.length).toBeGreaterThan(32);
       expect(mockDb.transaction).toHaveBeenCalledTimes(1);
       expect(committed).toBe(true);
+      expect(issuedQueries).toHaveLength(2);
+      expect(issuedQueries[0].sql).toContain('UPDATE refresh_tokens');
+      expect(issuedQueries[0].sql).toContain('user_id');
+      expect(issuedQueries[0].sql).toContain('revoked_at IS NULL');
+      expect(issuedQueries[0].params).toEqual([expect.any(String), 1]);
+      expect(issuedQueries[1].sql).toContain('INSERT INTO refresh_tokens');
+    });
+
+    it('should throw when old token is already revoked (rowCount=0)', async () => {
+      mockDb.transaction.mockImplementation(async (fn) => {
+        const clientQuery = vi.fn()
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+        const client = { query: clientQuery };
+        return fn(client);
+      });
+
+      await expect(service.rotate(1, 'already-revoked-token'))
+        .rejects.toThrow('Refresh token already consumed or invalid');
+      expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw when token belongs to a different user', async () => {
+      mockDb.transaction.mockImplementation(async (fn) => {
+        const clientQuery = vi.fn()
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+        const client = { query: clientQuery };
+        return fn(client);
+      });
+
+      await expect(service.rotate(1, 'bobs-token'))
+        .rejects.toThrow('Refresh token already consumed or invalid');
     });
 
     it('should rollback transaction on failure — no partial state', async () => {
@@ -245,7 +281,9 @@ describe('RefreshTokenService', () => {
 
     it('should accept custom expiry', async () => {
       mockDb.transaction.mockImplementation(async (fn) => {
-        const clientQuery = vi.fn().mockResolvedValue({ rows: [] });
+        const clientQuery = vi.fn()
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+          .mockResolvedValue({ rows: [] });
         return fn({ query: clientQuery });
       });
 
