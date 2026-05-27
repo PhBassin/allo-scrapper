@@ -42,7 +42,7 @@ vi.mock('../middleware/auth.js', () => ({
         const token = authHeader.split(' ')[1];
 
         try {
-            const decoded = jwt.verify(token, TEST_JWT_SECRET) as { id: number; username: string };
+            const decoded = jwt.verify(token, TEST_JWT_SECRET, { algorithms: ['HS256'] }) as { id: number; username: string };
             req.user = decoded;
             next();
         } catch (error) {
@@ -230,7 +230,7 @@ describe('Auth Routes', () => {
             validToken = jwt.sign(
                 { id: 1, username: 'testuser' },
                 JWT_SECRET,
-                { expiresIn: '24h' }
+                { algorithm: 'HS256', expiresIn: '24h' }
             );
         });
 

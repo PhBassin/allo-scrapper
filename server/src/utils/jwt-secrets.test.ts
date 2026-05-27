@@ -89,19 +89,19 @@ describe('verifyWithMultipleSecrets', () => {
   const payload = { id: 1, username: 'test' };
 
   it('should verify token signed with current secret (first in list)', () => {
-    const token = jwt.sign(payload, VALID_SECRET);
+    const token = jwt.sign(payload, VALID_SECRET, { algorithm: 'HS256' });
     const decoded = verifyWithMultipleSecrets(token, [VALID_SECRET, ANOTHER_VALID_SECRET]);
     expect(decoded.id).toBe(1);
   });
 
   it('should verify token signed with previous secret', () => {
-    const token = jwt.sign(payload, ANOTHER_VALID_SECRET);
+    const token = jwt.sign(payload, ANOTHER_VALID_SECRET, { algorithm: 'HS256' });
     const decoded = verifyWithMultipleSecrets(token, [VALID_SECRET, ANOTHER_VALID_SECRET]);
     expect(decoded.id).toBe(1);
   });
 
   it('should throw on token signed with unknown secret', () => {
-    const token = jwt.sign(payload, 'unknown-secret-that-is-at-least-32-chars-long!');
+    const token = jwt.sign(payload, 'unknown-secret-that-is-at-least-32-chars-long!', { algorithm: 'HS256' });
     expect(() => verifyWithMultipleSecrets(token, [VALID_SECRET])).toThrow();
   });
 
@@ -110,7 +110,7 @@ describe('verifyWithMultipleSecrets', () => {
   });
 
   it('should verify current secret first (fast path)', () => {
-    const token = jwt.sign(payload, VALID_SECRET);
+    const token = jwt.sign(payload, VALID_SECRET, { algorithm: 'HS256' });
     const start = performance.now();
     for (let i = 0; i < 100; i++) {
       verifyWithMultipleSecrets(token, [VALID_SECRET, ANOTHER_VALID_SECRET]);
