@@ -108,6 +108,37 @@ export class RefreshTokenService {
   }
 
   /**
+   * Atomically rotate a refresh token: revoke the old one and generate a new one
+   * inside a single database transaction. If any part fails, the entire operation
+   * is rolled back — no two-token state can persist.
+   *
+   * Returns the raw new token on success.
+   */
+  async rotate(userId: number, oldToken: string, expiryMs: number = DEFAULT_EXPIRY_MS): Promise<string> {
+    const oldTokenHash = this.hashToken(oldToken);
+    const rawToken = crypto.randomBytes(48).toString('base64url');
+    const newTokenHash = this.hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + expiryMs);
+
+    await this.db.transaction(async (client) => {
+      await client.query(
+        `UPDATE refresh_tokens SET revoked_at = NOW()
+         WHERE token_hash = $1 AND revoked_at IS NULL`,
+        [oldTokenHash]
+      );
+
+      await client.query(
+        `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+         VALUES ($1, $2, $3)`,
+        [userId, newTokenHash, expiresAt]
+      );
+    });
+
+    logger.debug(`Refresh token rotated for user ${userId}`);
+    return rawToken;
+  }
+
+  /**
    * Revoke all refresh tokens for a user (e.g., on password change or logout-all).
    */
   async revokeAllForUser(userId: number): Promise<void> {

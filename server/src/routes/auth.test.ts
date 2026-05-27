@@ -5,6 +5,7 @@ process.env.JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import * as passwordUtils from '../utils/password.js';
 import jwt from 'jsonwebtoken';
@@ -12,12 +13,14 @@ import authRouter from './auth.js';
 import { db } from '../db/client.js';
 import * as queries from '../db/user-queries.js';
 import type { AuthRequest } from '../middleware/auth.js';
+import { RefreshTokenService } from '../services/refresh-token-service.js';
 
 const TEST_JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
 
 vi.mock('../db/client.js', () => ({
     db: {
         query: vi.fn(),
+        transaction: vi.fn(),
     },
 }));
 
@@ -26,6 +29,26 @@ vi.mock('../db/user-queries.js');
 vi.mock('../db/role-queries.js', () => ({
     getPermissionNamesByRoleId: vi.fn().mockResolvedValue(['settings:read', 'reports:list']),
 }));
+
+vi.mock('../services/refresh-token-service.js', () => {
+    const mockValidate = vi.fn();
+    const mockRotate = vi.fn();
+    const mockRevoke = vi.fn();
+    const mockGenerate = vi.fn();
+
+    return {
+        RefreshTokenService: vi.fn(function() {
+            this.validate = mockValidate;
+            this.rotate = mockRotate;
+            this.revoke = mockRevoke;
+            this.generate = mockGenerate;
+        }),
+        __mockValidate: mockValidate,
+        __mockRotate: mockRotate,
+        __mockRevoke: mockRevoke,
+        __mockGenerate: mockGenerate,
+    };
+});
 
 // Mock the auth middleware with proper JWT verification using test secret
 vi.mock('../middleware/auth.js', () => ({
@@ -61,6 +84,7 @@ vi.mock('../middleware/permission.js', () => ({
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 app.set('db', db); // Register mock db for dependency injection
 app.use('/api/auth', authRouter);
 app.use(errorHandler);
@@ -492,6 +516,65 @@ describe('Auth Routes', () => {
             expect(response.status).toBe(500);
             expect(response.body.success).toBe(false);
             expect(response.body.error).toBe('Database error');
+        });
+    });
+
+    describe('POST /api/auth/refresh', () => {
+        it('should return new access token for valid refresh token', async () => {
+            const refreshTokenMocks = await import('../services/refresh-token-service.js');
+            const mockValidate = (refreshTokenMocks as any).__mockValidate;
+            const mockRotate = (refreshTokenMocks as any).__mockRotate;
+            const mockGenerate = (refreshTokenMocks as any).__mockGenerate;
+            const mockRevoke = (refreshTokenMocks as any).__mockRevoke;
+
+            mockValidate.mockResolvedValue(1);
+            mockRotate.mockResolvedValue('new-refresh-token-raw');
+
+            vi.mocked(db.query).mockResolvedValue({
+                rows: [{
+                    id: 1,
+                    username: 'testuser',
+                    role_id: 2,
+                    role_name: 'user',
+                    is_system_role: false,
+                }],
+            });
+
+            const response = await request(app)
+                .post('/api/auth/refresh')
+                .set('Cookie', 'refresh_token=valid-old-token');
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+            expect(response.body.data.token).toBeDefined();
+            expect(response.body.data.user.username).toBe('testuser');
+            expect(mockRotate).toHaveBeenCalledWith(1, 'valid-old-token');
+            expect(mockGenerate).not.toHaveBeenCalled();
+            expect(mockRevoke).not.toHaveBeenCalled();
+        });
+
+        it('should return 401 if no refresh token cookie', async () => {
+            const response = await request(app)
+                .post('/api/auth/refresh');
+
+            expect(response.status).toBe(401);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toBe('No refresh token provided.');
+        });
+
+        it('should return 401 if refresh token is invalid', async () => {
+            const refreshTokenMocks = await import('../services/refresh-token-service.js');
+            const mockValidate = (refreshTokenMocks as any).__mockValidate;
+
+            mockValidate.mockResolvedValue(null);
+
+            const response = await request(app)
+                .post('/api/auth/refresh')
+                .set('Cookie', 'refresh_token=invalid-token');
+
+            expect(response.status).toBe(401);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toBe('Invalid or expired refresh token.');
         });
     });
 });
