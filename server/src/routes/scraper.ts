@@ -2,7 +2,7 @@ import { parseStrictInt } from '../utils/number.js';
 import express, { Response, NextFunction } from 'express';
 import type { ApiResponse } from '../types/api.js';
 import type { DB } from '../db/client.js';
-import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { requireAuth, isAdminUser, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { scraperLimiter, protectedLimiter } from '../middleware/rate-limit.js';
 import { ScraperService } from '../services/scraper-service.js';
@@ -36,7 +36,7 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
     const requiredPermission = theaterId ? 'scraper:trigger_single' : 'scraper:trigger';
 
     // Admin bypass
-    if (!(req.user?.role_name === 'admin' && req.user?.is_system_role)) {
+    if (!isAdminUser(req.user)) {
       const userPermissions = new Set(req.user?.permissions || []);
       
       // User needs the specific permission OR scraper:trigger (which grants both)
@@ -78,7 +78,7 @@ router.post('/resume/:reportId', scraperLimiter, requireAuth, async (req: AuthRe
 
     // Permission check: resuming requires scraper:trigger permission
     // Admin bypass
-    if (!(req.user?.role_name === 'admin' && req.user?.is_system_role)) {
+    if (!isAdminUser(req.user)) {
       const userPermissions = new Set(req.user?.permissions || []);
       
       if (!userPermissions.has('scraper:trigger')) {

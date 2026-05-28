@@ -27,15 +27,19 @@ vi.mock('../db/client.js', () => ({
   db: { query: vi.fn() }
 }));
 
-vi.mock('../middleware/auth.js', () => ({
-  requireAuth: (req: any, res: any, next: any) => {
-    if (shouldRejectAuth) {
-      return res.status(401).json({ success: false, error: 'Authentication required. No token provided.' });
-    }
-    req.user = currentMockUser;
-    next();
-  },
-}));
+vi.mock('../middleware/auth.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    requireAuth: (req: any, res: any, next: any) => {
+      if (shouldRejectAuth) {
+        return res.status(401).json({ success: false, error: 'Authentication required. No token provided.' });
+      }
+      req.user = currentMockUser;
+      next();
+    },
+  };
+});
 
 // Mock rate limiter to avoid issues in tests
 vi.mock('../middleware/rate-limit.js', () => ({
