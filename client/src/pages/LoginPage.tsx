@@ -34,8 +34,8 @@ const LoginPage: React.FC = () => {
 
             if (response.success) {
                 // API returns { success: true, data: { token, user } }
-                const { token, user } = response.data;
-                login(token, user);
+                const { user } = response.data;
+                login(user);
                 navigate(from, { replace: true });
             } else {
                 setError(response.error || 'Login failed');

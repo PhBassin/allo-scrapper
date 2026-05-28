@@ -54,8 +54,8 @@ async function refreshAccessToken(): Promise<boolean> {
     if (!response.ok) return false;
 
     const data = await response.json();
-    if (data.success && data.data?.token) {
-      if (data.data.user) {
+    if (data.success) {
+      if (data.data?.user) {
         localStorage.setItem('user', JSON.stringify(data.data.user));
       }
       unauthorizedDispatched = false;

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import { useContext } from 'react';
 import { AuthContext, type User } from './AuthContext';
 import { AuthProvider } from './AuthProvider';
@@ -60,7 +60,7 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('isAdmin').textContent).toBe('false');
     });
 
-    it('should be authenticated when user is in localStorage', () => {
+    it('should be authenticated when user is in localStorage', async () => {
       localStorage.setItem('user', JSON.stringify(operatorUser));
 
       render(
@@ -69,13 +69,15 @@ describe('AuthContext', () => {
         </AuthProvider>
       );
 
-      expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
+      await waitFor(() => {
+        expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
+      });
       expect(screen.getByTestId('username').textContent).toBe('operator');
     });
   });
 
   describe('User interface', () => {
-    it('should expose role_id and role_name on the User type', () => {
+    it('should expose role_id and role_name on the User type', async () => {
       localStorage.setItem('user', JSON.stringify(operatorUser));
 
       render(
@@ -84,7 +86,9 @@ describe('AuthContext', () => {
         </AuthProvider>
       );
 
-      expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
+      await waitFor(() => {
+        expect(screen.getByTestId('isAuthenticated').textContent).toBe('true');
+      });
       expect(screen.getByTestId('username').textContent).toBe('operator');
       expect(screen.getByTestId('role_name').textContent).toBe('operator');
     });
@@ -192,7 +196,7 @@ describe('AuthContext', () => {
       return (
         <div>
           <span data-testid="auth">{String(ctx.isAuthenticated)}</span>
-          <button onClick={() => ctx.login('tok', adminUser)}>Login</button>
+          <button onClick={() => ctx.login(adminUser)}>Login</button>
           <button onClick={() => ctx.logout()}>Logout</button>
         </div>
       );
@@ -223,7 +227,9 @@ describe('AuthContext', () => {
         </AuthProvider>
       );
 
-      expect(screen.getByTestId('auth').textContent).toBe('true');
+      await waitFor(() => {
+        expect(screen.getByTestId('auth').textContent).toBe('true');
+      });
 
       await act(async () => {
         screen.getByRole('button', { name: 'Logout' }).click();

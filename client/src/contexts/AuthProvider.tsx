@@ -11,8 +11,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const savedUser = localStorage.getItem('user');
         return savedUser ? JSON.parse(savedUser) : null;
     });
+    const [sessionChecked, setSessionChecked] = useState(false);
 
-    const isAuthenticated = !!user;
+    useEffect(() => {
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('auth:expired');
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        async function validateSession() {
+            try {
+                const csrfToken = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1];
+                const headers: Record<string, string> = {};
+                if (csrfToken) {
+                    headers['X-CSRF-Token'] = csrfToken;
+                }
+                const res = await fetch('/api/auth/me', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers,
+                });
+                if (!res.ok) {
+                    if (!cancelled) {
+                        setUser(null);
+                        localStorage.removeItem('user');
+                    }
+                }
+            } catch {
+                if (!cancelled) {
+                    setUser(null);
+                    localStorage.removeItem('user');
+                }
+            } finally {
+                if (!cancelled) {
+                    setSessionChecked(true);
+                }
+            }
+        }
+        if (user) {
+            validateSession();
+        } else {
+            setSessionChecked(true);
+        }
+        return () => { cancelled = true; };
+    }, []);
+
+    const isAuthenticated = sessionChecked ? !!user : false;
     const isAdmin = user?.role_name === 'admin' && user?.is_system_role === true;
 
     const hasPermission = (permission: string): boolean => {
@@ -29,7 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     }, [user]);
 
-    const login = (_newToken: string, newUser: User) => {
+    const login = (newUser: User) => {
         setUser(newUser);
     };
 
@@ -53,7 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, token: null, user, isAdmin, hasPermission, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, user, isAdmin, hasPermission, login, logout }}>
             {children}
         </AuthContext.Provider>
     );
