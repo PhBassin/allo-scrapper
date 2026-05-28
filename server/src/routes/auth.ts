@@ -13,6 +13,8 @@ import crypto from 'crypto';
 
 const router = express.Router();
 
+const ACCESS_TOKEN_MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes
+
 export interface AuthResponse {
     token: string;
     user: {
@@ -25,14 +27,15 @@ export interface AuthResponse {
     };
 }
 
+const isSecureCookie = process.env.COOKIE_SECURE !== 'false';
+
 /**
  * Set refresh token as httpOnly cookie (7 days).
  */
 function setRefreshTokenCookie(res: Response, token: string): void {
-    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('refresh_token', token, {
         httpOnly: true,
-        secure: isProduction,
+        secure: isSecureCookie,
         sameSite: 'strict',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: '/api/auth',
@@ -43,10 +46,9 @@ function setRefreshTokenCookie(res: Response, token: string): void {
  * Clear refresh token cookie.
  */
 function clearRefreshTokenCookie(res: Response): void {
-    const isProduction = process.env.NODE_ENV === 'production';
     res.clearCookie('refresh_token', {
         httpOnly: true,
-        secure: isProduction,
+        secure: isSecureCookie,
         sameSite: 'strict',
         path: '/api/auth',
     });
@@ -56,12 +58,11 @@ function clearRefreshTokenCookie(res: Response): void {
  * Set access token as httpOnly cookie (15 min expiration).
  */
 function setAccessTokenCookie(res: Response, token: string): void {
-    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('access_token', token, {
         httpOnly: true,
-        secure: isProduction,
-        sameSite: 'strict',
-        maxAge: 15 * 60 * 1000, // 15 minutes
+        secure: isSecureCookie,
+        sameSite: 'lax',
+        maxAge: ACCESS_TOKEN_MAX_AGE_MS, // 15 minutes
         path: '/',
     });
 }
@@ -70,11 +71,10 @@ function setAccessTokenCookie(res: Response, token: string): void {
  * Clear access token cookie.
  */
 function clearAccessTokenCookie(res: Response): void {
-    const isProduction = process.env.NODE_ENV === 'production';
     res.clearCookie('access_token', {
         httpOnly: true,
-        secure: isProduction,
-        sameSite: 'strict',
+        secure: isSecureCookie,
+        sameSite: 'lax',
         path: '/',
     });
 }
@@ -84,10 +84,9 @@ function clearAccessTokenCookie(res: Response): void {
  */
 function setCsrfCookie(res: Response): string {
     const token = crypto.randomBytes(32).toString('hex');
-    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('csrf_token', token, {
         httpOnly: false,
-        secure: isProduction,
+        secure: isSecureCookie,
         sameSite: 'strict',
         path: '/',
     });
@@ -98,10 +97,9 @@ function setCsrfCookie(res: Response): string {
  * Clear CSRF token cookie.
  */
 function clearCsrfCookie(res: Response): void {
-    const isProduction = process.env.NODE_ENV === 'production';
     res.clearCookie('csrf_token', {
         httpOnly: false,
-        secure: isProduction,
+        secure: isSecureCookie,
         sameSite: 'strict',
         path: '/',
     });
@@ -182,6 +180,15 @@ router.post('/change-password', authLimiter, requireAuth, async (req: AuthReques
 
         await authService.changePassword(req.user!.username, currentPassword, newPassword);
 
+        const refreshTokenService = new RefreshTokenService(db);
+
+        // Revoke all refresh tokens for this user — forces re-login on all devices
+        await refreshTokenService.revokeAllForUser(req.user!.id);
+
+        // Clear auth cookies to force a fresh login
+        clearRefreshTokenCookie(res);
+        clearAccessTokenCookie(res);
+
         const response: ApiResponse = {
             success: true,
             data: {
@@ -214,6 +221,7 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
         const refreshToken = req.cookies?.refresh_token;
         if (!refreshToken) {
             clearRefreshTokenCookie(res);
+            clearAccessTokenCookie(res);
             res.status(401).json({
                 success: false,
                 error: 'No refresh token provided.',
@@ -224,6 +232,7 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
         const userId = await refreshTokenService.validate(refreshToken);
         if (userId === null) {
             clearRefreshTokenCookie(res);
+            clearAccessTokenCookie(res);
             res.status(401).json({
                 success: false,
                 error: 'Invalid or expired refresh token.',
@@ -244,6 +253,7 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
 
         if (userResult.rows.length === 0) {
             clearRefreshTokenCookie(res);
+            clearAccessTokenCookie(res);
             res.status(401).json({
                 success: false,
                 error: 'User not found.',
@@ -325,6 +335,19 @@ router.post('/logout', async (req: Request, res: Response) => {
     clearCsrfCookie(res);
 
     res.json({ success: true, data: { message: 'Logged out successfully' } });
+});
+
+// GET /api/auth/me - Validate current session (cookie-based)
+router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
+    res.json({
+        success: true,
+        data: {
+            user: {
+                id: req.user!.id,
+                username: req.user!.username,
+            },
+        },
+    });
 });
 
 export default router;

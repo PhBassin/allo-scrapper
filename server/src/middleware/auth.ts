@@ -22,7 +22,7 @@ function extractToken(req: AuthRequest): string | null {
     }
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
-        return authHeader.split(' ')[1];
+        return authHeader.split(' ').slice(1).join(' ').trim();
     }
     return null;
 }
