@@ -56,7 +56,7 @@ describe('Rate Limit Refresher', () => {
 
   describe('AC4: No performance regression', () => {
     it('should have rate limit check overhead < 1ms', async () => {
-      const { createRateLimiter } = await import('./rate-limiter.js');
+      const rateLimit = (await import('express-rate-limit')).default;
 
       const req = { ip: '1.2.3.4', headers: {} } as any;
       const res = {
@@ -67,7 +67,7 @@ describe('Rate Limit Refresher', () => {
       } as any;
       const next = vi.fn();
 
-      const limiter = createRateLimiter({
+      const limiter = rateLimit({
         windowMs: 60000,
         max: 10000,
         skip: () => false,
