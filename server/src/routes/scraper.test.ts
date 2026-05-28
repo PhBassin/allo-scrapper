@@ -35,6 +35,9 @@ vi.mock('../middleware/auth.js', () => ({
     req.user = currentMockUser;
     next();
   },
+  isAdminUser: (user: any) => {
+    return user?.role_name === 'admin' && user?.is_system_role === true;
+  },
 }));
 
 // Mock rate limiter to avoid issues in tests

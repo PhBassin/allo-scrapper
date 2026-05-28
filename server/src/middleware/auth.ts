@@ -27,6 +27,25 @@ function extractToken(req: AuthRequest): string | null {
     return null;
 }
 
+/**
+ * Check if the given user object represents a system administrator.
+ *
+ * A user is considered admin when:
+ * - role_name === 'admin' (string comparison against the role name — prefers
+ *   future migration to role ID for immutability)
+ * - is_system_role === true (prevents privilege escalation by users who
+ *   name their custom role 'admin')
+ *
+ * This is the single source of truth for admin bypass logic used by
+ * requirePermission middleware and any route that performs inline
+ * admin checks.
+ */
+export function isAdminUser(
+  user: AuthRequest['user'] | null | undefined,
+): boolean {
+  return user?.role_name === 'admin' && user?.is_system_role === true;
+}
+
 export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void | Response => {
     const token = extractToken(req);
 
