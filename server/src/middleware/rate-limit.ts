@@ -2,8 +2,16 @@ import type { Request } from 'express';
 import type { RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
 import { getSecrets, verifyWithMultipleSecrets } from '../utils/jwt-secrets.js';
-import { ipKeyGenerator, type MutableConfig } from './rate-limiter.js';
 import { logger } from '../utils/logger.js';
+
+export interface MutableConfig {
+  max: number;
+  windowMs: number;
+}
+
+export function ipKeyGenerator(ip: string): string {
+  return ip;
+}
 
 // Fail-fast: validate secrets at module load
 getSecrets();
