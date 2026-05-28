@@ -1,5 +1,37 @@
 import { logger } from './logger.js';
 
+function parseExpiryToMs(value: string): number {
+  const trimmed = value.trim();
+  const humanReadablePattern = /^(\d+)([hdms])$/;
+  const match = trimmed.match(humanReadablePattern);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    switch (match[2]) {
+      case 's': return num * 1000;
+      case 'm': return num * 60 * 1000;
+      case 'h': return num * 60 * 60 * 1000;
+      case 'd': return num * 24 * 60 * 60 * 1000;
+    }
+  }
+  const numericPattern = /^(\d+)$/;
+  if (numericPattern.test(trimmed)) {
+    return parseInt(trimmed, 10) * 1000;
+  }
+  return -1;
+}
+
+export function validateJwtExpirationForCookie(jwtExpiresIn: string, cookieMaxAgeMs: number): void {
+  const jwtMs = parseExpiryToMs(jwtExpiresIn);
+  if (jwtMs > 0 && jwtMs < cookieMaxAgeMs) {
+    const cookieMin = Math.round(cookieMaxAgeMs / 60000);
+    logger.warn(
+      `⚠️  JWT_EXPIRES_IN (${jwtExpiresIn}) is shorter than access_token cookie maxAge (${cookieMin}min). ` +
+      `The JWT will expire before the browser sends the cookie, causing 401 → refresh thrashing. ` +
+      `Set JWT_EXPIRES_IN >= ${cookieMin}min.`
+    );
+  }
+}
+
 /**
  * Parses and validates JWT expiration time from environment variable.
  * 

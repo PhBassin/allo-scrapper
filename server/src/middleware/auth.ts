@@ -16,18 +16,27 @@ export interface AuthRequest extends Request {
     };
 }
 
-export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void | Response => {
+function extractToken(req: AuthRequest): string | null {
+    if (req.cookies?.access_token) {
+        return req.cookies.access_token;
+    }
     const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return authHeader.split(' ').slice(1).join(' ').trim();
+    }
+    return null;
+}
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void | Response => {
+    const token = extractToken(req);
+
+    if (!token) {
         const response: ApiResponse = {
             success: false,
             error: 'Authentication required. No token provided.',
         };
         return res.status(401).json(response);
     }
-
-    const token = authHeader.split(' ')[1];
 
     try {
         const decoded = verifyWithMultipleSecrets(token, getSecrets()) as {

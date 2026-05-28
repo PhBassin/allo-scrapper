@@ -178,8 +178,8 @@ export function createApp() {
       
       const css = await generateThemeCSS(db);
       
-      // Generate ETag from CSS content (MD5 hash)
-      const etag = createHash('md5').update(css, 'utf8').digest('hex');
+      // Generate ETag from CSS content (SHA-256 hash)
+      const etag = createHash('sha256').update(css, 'utf8').digest('hex');
       
       // Check If-None-Match header for HTTP caching
       const clientEtag = req.headers['if-none-match'];
