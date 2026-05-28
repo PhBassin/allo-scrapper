@@ -305,6 +305,26 @@ describe('App - Theme Endpoint', () => {
       expect(cspHeader).toMatch(/font-src[^;]*https:\/\/fonts\.gstatic\.com/);
     });
 
+    it('should include upgrade-insecure-requests directive', async () => {
+      // Mock DB for health check
+      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
+      const dbWithMock: DB = { 
+        query: mockQuery,
+        end: vi.fn()
+      } as unknown as DB;
+      app.set('db', dbWithMock);
+
+      const res = await request(app)
+        .get('/api/health')
+        .expect(200);
+
+      const cspHeader = res.headers['content-security-policy'];
+      expect(cspHeader).toBeDefined();
+      
+      // CSP should include upgrade-insecure-requests to force HTTPS
+      expect(cspHeader).toContain('upgrade-insecure-requests');
+    });
+
     it('should maintain existing CSP directives', async () => {
       // Mock DB for health check
       const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
