@@ -117,6 +117,14 @@ describe('Auth Routes', () => {
             expect(response.body.data.token).toBeDefined();
             expect(response.body.data.user.username).toBe('admin');
             expect(response.body.data.user.password_hash).toBeUndefined(); // Should not expose hash
+            // Should set access_token cookie as httpOnly
+            const setCookieHeaders = response.headers['set-cookie'];
+            expect(setCookieHeaders).toBeDefined();
+            const cookies = Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders];
+            const accessTokenCookie = cookies.find((c: string) => c.startsWith('access_token='));
+            expect(accessTokenCookie).toBeDefined();
+            expect(accessTokenCookie).toContain('HttpOnly');
+            expect(accessTokenCookie).toContain('SameSite=Strict');
         });
 
         it('should return is_system_role in the user object for valid credentials', async () => {
@@ -548,6 +556,13 @@ describe('Auth Routes', () => {
             expect(response.body.success).toBe(true);
             expect(response.body.data.token).toBeDefined();
             expect(response.body.data.user.username).toBe('testuser');
+            // Should set access_token cookie as httpOnly
+            const setCookieHeaders = response.headers['set-cookie'];
+            const cookies = Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders];
+            const accessTokenCookie = cookies.find((c: string) => c.startsWith('access_token='));
+            expect(accessTokenCookie).toBeDefined();
+            expect(accessTokenCookie).toContain('HttpOnly');
+            expect(accessTokenCookie).toContain('SameSite=Strict');
             expect(mockRotate).toHaveBeenCalledWith(1, 'valid-old-token');
             expect(mockGenerate).not.toHaveBeenCalled();
             expect(mockRevoke).not.toHaveBeenCalled();
@@ -575,6 +590,41 @@ describe('Auth Routes', () => {
             expect(response.status).toBe(401);
             expect(response.body.success).toBe(false);
             expect(response.body.error).toBe('Invalid or expired refresh token.');
+        });
+    });
+
+    describe('POST /api/auth/logout', () => {
+        it('should clear access_token and refresh_token cookies', async () => {
+            const refreshTokenMocks = await import('../services/refresh-token-service.js');
+            const mockRevoke = (refreshTokenMocks as any).__mockRevoke;
+            mockRevoke.mockResolvedValue(undefined);
+
+            const response = await request(app)
+                .post('/api/auth/logout')
+                .set('Cookie', 'refresh_token=some-token; access_token=some-access-token');
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+
+            const setCookieHeaders = response.headers['set-cookie'];
+            const cookies = Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders];
+
+            const accessTokenClear = cookies.find((c: string) => c.startsWith('access_token=;'));
+            expect(accessTokenClear).toBeDefined();
+
+            const refreshTokenClear = cookies.find((c: string) => c.startsWith('refresh_token=;'));
+            expect(refreshTokenClear).toBeDefined();
+
+            const csrfTokenClear = cookies.find((c: string) => c.startsWith('csrf_token=;'));
+            expect(csrfTokenClear).toBeDefined();
+        });
+
+        it('should succeed even without cookies', async () => {
+            const response = await request(app)
+                .post('/api/auth/logout');
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
         });
     });
 });
