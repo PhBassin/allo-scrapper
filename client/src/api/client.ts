@@ -55,11 +55,9 @@ async function refreshAccessToken(): Promise<boolean> {
 
     const data = await response.json();
     if (data.success && data.data?.token) {
-      localStorage.setItem('token', data.data.token);
       if (data.data.user) {
         localStorage.setItem('user', JSON.stringify(data.data.user));
       }
-      // Reset the dedup flag on successful refresh
       unauthorizedDispatched = false;
       return true;
     }
@@ -97,12 +95,6 @@ async function fetchClient<T>(endpoint: string, options: RequestInit = {}): Prom
     headers.set('Content-Type', 'application/json');
   }
 
-  // Add auth token
-  const token = localStorage.getItem('token');
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
   // Add CSRF token for mutation requests
   const method = (options.method || 'GET').toUpperCase();
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
@@ -133,11 +125,7 @@ async function fetchClient<T>(endpoint: string, options: RequestInit = {}): Prom
       const refreshed = await refreshPromise;
 
       if (refreshed) {
-        // Retry the original request with new token
-        const newToken = localStorage.getItem('token');
-        if (newToken) {
-          headers.set('Authorization', `Bearer ${newToken}`);
-        }
+        // Retry the original request — browser sends access_token cookie automatically
         // Re-read CSRF token (may have been rotated)
         const newCsrfToken = getCsrfToken();
         if (newCsrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {

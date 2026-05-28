@@ -53,6 +53,33 @@ function clearRefreshTokenCookie(res: Response): void {
 }
 
 /**
+ * Set access token as httpOnly cookie (15 min expiration).
+ */
+function setAccessTokenCookie(res: Response, token: string): void {
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.cookie('access_token', token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000, // 15 minutes
+        path: '/',
+    });
+}
+
+/**
+ * Clear access token cookie.
+ */
+function clearAccessTokenCookie(res: Response): void {
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.clearCookie('access_token', {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'strict',
+        path: '/',
+    });
+}
+
+/**
  * Set CSRF token cookie (readable by JS for double-submit pattern).
  */
 function setCsrfCookie(res: Response): string {
@@ -93,6 +120,9 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
         // Generate and set refresh token cookie
         const refreshToken = await refreshTokenService.generate(authData.user.id);
         setRefreshTokenCookie(res, refreshToken);
+
+        // Set access token as httpOnly cookie for protection against XSS
+        setAccessTokenCookie(res, authData.token);
 
         // Set CSRF token for double-submit protection
         setCsrfCookie(res);
@@ -251,6 +281,9 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
         // Set new refresh token cookie
         setRefreshTokenCookie(res, newRefreshToken);
 
+        // Set access token as httpOnly cookie for protection against XSS
+        setAccessTokenCookie(res, accessToken);
+
         // Rotate CSRF token
         setCsrfCookie(res);
 
@@ -288,6 +321,7 @@ router.post('/logout', async (req: Request, res: Response) => {
     }
 
     clearRefreshTokenCookie(res);
+    clearAccessTokenCookie(res);
     clearCsrfCookie(res);
 
     res.json({ success: true, data: { message: 'Logged out successfully' } });
