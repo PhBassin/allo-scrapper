@@ -14,7 +14,6 @@ import {
   publicLimiter,
   healthCheckLimiter,
 } from './rate-limit.js';
-import { createRateLimiter } from './rate-limiter.js';
 import rateLimit from 'express-rate-limit';
 
 // Helper: sign a minimal JWT for rate-limit key tests
@@ -153,7 +152,7 @@ describe('Rate Limiting Middleware', () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
       const { authenticatedKeyGenerator } = await import('./rate-limit.js');
-      const tightLimiter = createRateLimiter({
+      const tightLimiter = rateLimit({
         windowMs: 60_000,
         max: 2,
         skip: () => false,
@@ -201,7 +200,7 @@ describe('Rate Limiting Middleware', () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
       const { authenticatedKeyGenerator } = await import('./rate-limit.js');
-      const tightLimiter = createRateLimiter({
+      const tightLimiter = rateLimit({
         windowMs: 60_000,
         max: 2,
         skip: () => false,
@@ -227,7 +226,7 @@ describe('Rate Limiting Middleware', () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
       const { authenticatedKeyGenerator } = await import('./rate-limit.js');
-      const tightLimiter = createRateLimiter({
+      const tightLimiter = rateLimit({
         windowMs: 60_000,
         max: 2,
         skip: () => false,
@@ -274,11 +273,10 @@ describe('Rate Limiting Middleware', () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
       const { authenticatedKeyGenerator } = await import('./rate-limit.js');
-      const { createRateLimiter } = await import('./rate-limiter.js');
 
       // Track the generated key instead of hitting rate limit
       let generatedKey = '';
-      const trackingLimiter = createRateLimiter({
+      const trackingLimiter = rateLimit({
         windowMs: 60_000,
         max: 100,
         skip: () => false,
@@ -367,7 +365,7 @@ describe('Rate Limiting Middleware', () => {
     it('should rate limit after max requests (10 by default)', async () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
-      const tightLimiter = createRateLimiter({
+      const tightLimiter = rateLimit({
         windowMs: 60_000, // 1 minute
         max: 10,
         skip: (req) => {
@@ -403,7 +401,7 @@ describe('Rate Limiting Middleware', () => {
     it('should exempt localhost IPs from rate limiting', async () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
-      const tightLimiter = createRateLimiter({
+      const tightLimiter = rateLimit({
         windowMs: 60_000,
         max: 2, // Very strict limit to make test fast
         skip: (req) => {
@@ -434,7 +432,7 @@ describe('Rate Limiting Middleware', () => {
     it('should return proper error message when rate limited', async () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
-      const tightLimiter = createRateLimiter({
+      const tightLimiter = rateLimit({
         windowMs: 60_000,
         max: 1,
         skip: (req) => {
