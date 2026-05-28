@@ -71,6 +71,7 @@ describe('Rate Limit Refresher', () => {
         windowMs: 60000,
         max: 10000,
         skip: () => false,
+        validate: false,
       });
 
       for (let i = 0; i < 100; i++) {
