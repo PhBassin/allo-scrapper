@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import CalendarPopover from './CalendarPopover';
-import type { Showtime, Movie, Cinema } from '../types';
+import type { Showtime, Movie, Theater } from '../types';
 
 const { mockBuildGoogleCalendarUrl, mockDownloadIcsFile } = vi.hoisted(() => ({
   mockBuildGoogleCalendarUrl: vi.fn<
-    (showtime: Showtime, movie: Movie, cinema: Cinema) => string
+    (showtime: Showtime, movie: Movie, theater: Theater) => string
   >(() => 'https://calendar.google.com/calendar/render?action=TEMPLATE'),
   mockDownloadIcsFile: vi.fn<
-    (showtime: Showtime, movie: Movie, cinema: Cinema) => void
+    (showtime: Showtime, movie: Movie, theater: Theater) => void
   >(),
 }));
 
@@ -20,7 +20,7 @@ vi.mock('../utils/calendar', () => ({
 const showtime: Showtime = {
   id: 'st-1',
   movie_id: 1,
-  cinema_id: 'C1',
+  theater_id: 'C1',
   date: '2026-05-20',
   time: '20:30',
   datetime_iso: '2026-05-20T20:30:00',
@@ -36,9 +36,9 @@ const movie: Movie = {
   source_url: 'https://example.com',
 };
 
-const cinema: Cinema = {
+const theater: Theater = {
   id: 'C1',
-  name: 'Cinema Test',
+  name: 'Theater Test',
   city: 'Paris',
 };
 
@@ -75,7 +75,7 @@ describe('CalendarPopover', () => {
       <CalendarPopover
         showtime={showtime}
         movie={movie}
-        cinema={cinema}
+        theater={theater}
         anchorRef={{ current: anchorButton }}
         onClose={onClose}
       />
@@ -91,7 +91,7 @@ describe('CalendarPopover', () => {
       <CalendarPopover
         showtime={showtime}
         movie={movie}
-        cinema={cinema}
+        theater={theater}
         anchorRef={{ current: anchorButton }}
         onClose={onClose}
       />
@@ -99,7 +99,7 @@ describe('CalendarPopover', () => {
 
     fireEvent.click(screen.getByRole('menuitem', { name: /google calendar/i }));
 
-    expect(mockBuildGoogleCalendarUrl).toHaveBeenCalledWith(showtime, movie, cinema);
+    expect(mockBuildGoogleCalendarUrl).toHaveBeenCalledWith(showtime, movie, theater);
     expect(openSpy).toHaveBeenCalledWith(
       'https://calendar.google.com/calendar/render?action=TEMPLATE',
       '_blank',
@@ -113,7 +113,7 @@ describe('CalendarPopover', () => {
       <CalendarPopover
         showtime={showtime}
         movie={movie}
-        cinema={cinema}
+        theater={theater}
         anchorRef={{ current: anchorButton }}
         onClose={onClose}
       />
@@ -121,7 +121,7 @@ describe('CalendarPopover', () => {
 
     fireEvent.click(screen.getByRole('menuitem', { name: /apple \/ outlook/i }));
 
-    expect(mockDownloadIcsFile).toHaveBeenCalledWith(showtime, movie, cinema);
+    expect(mockDownloadIcsFile).toHaveBeenCalledWith(showtime, movie, theater);
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

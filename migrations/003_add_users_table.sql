@@ -4,10 +4,10 @@
 -- Description: Creates users table for JWT authentication (admin seed moved to migration 007)
 --
 -- IMPORTANT: Backup your database before running this migration!
---   docker compose exec -T db pg_dump -U postgres its > backup_before_users_table.sql
+--   docker compose exec -T ics-db pg_dump -U postgres ics > backup_before_users_table.sql
 --
 -- Apply this migration:
---   docker compose exec -T db psql -U postgres -d its -f migrations/003_add_users_table.sql
+--   docker compose exec -T ics-db psql -U postgres -d ics -f migrations/003_add_users_table.sql
 
 BEGIN;
 

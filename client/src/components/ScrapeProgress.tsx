@@ -78,7 +78,7 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
         )}
       </div>
 
-      {/* Cinema Progress */}
+      {/* Theater Progress */}
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
           <p className="text-sm font-medium text-gray-700">

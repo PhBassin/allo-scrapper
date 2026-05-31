@@ -2,8 +2,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import CinemaShowtimes from './CinemaShowtimes';
-import type { CinemaWithShowtimes, Movie } from '../types';
+import TheaterShowtimes from './TheaterShowtimes';
+import type { TheaterWithShowtimes, Movie } from '../types';
 
 const mockMovie: Movie = {
   id: 1,
@@ -13,10 +13,10 @@ const mockMovie: Movie = {
   source_url: 'https://example.com',
 };
 
-const mockCinemas: CinemaWithShowtimes[] = [
+const mockTheaters: TheaterWithShowtimes[] = [
   {
     id: 'C1',
-    name: 'Cinema 1',
+    name: 'Theater 1',
     address: 'Address 1',
     city: 'Paris',
     showtimes: [
@@ -26,7 +26,7 @@ const mockCinemas: CinemaWithShowtimes[] = [
   } as any,
   {
     id: 'C2',
-    name: 'Cinema 2',
+    name: 'Theater 2',
     address: 'Address 2',
     city: 'Paris',
     showtimes: [
@@ -39,25 +39,25 @@ const renderWithRouter = (ui: React.ReactElement) => {
   return render(ui, { wrapper: BrowserRouter });
 };
 
-describe('CinemaShowtimes Component', () => {
-  it('renders empty state when no cinemas provided', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={[]} movie={mockMovie} />);
+describe('TheaterShowtimes Component', () => {
+  it('renders empty state when no theaters provided', () => {
+    renderWithRouter(<TheaterShowtimes theaters={[]} movie={mockMovie} />);
     expect(screen.getByText(/Aucune séance disponible/i)).toBeInTheDocument();
   });
 
-  it('renders cinemas and showtimes for the default date', () => {
+  it('renders theaters and showtimes for the default date', () => {
     // Set fixed today date for tests if needed, but here we can just rely on the first date in the list
-    renderWithRouter(<CinemaShowtimes cinemas={mockCinemas} movie={mockMovie} />);
+    renderWithRouter(<TheaterShowtimes theaters={mockTheaters} movie={mockMovie} />);
     
-    expect(screen.getByText('Cinema 1')).toBeInTheDocument();
-    expect(screen.getByText('Cinema 2')).toBeInTheDocument();
+    expect(screen.getByText('Theater 1')).toBeInTheDocument();
+    expect(screen.getByText('Theater 2')).toBeInTheDocument();
     expect(screen.getByText('14:00')).toBeInTheDocument();
     expect(screen.getByText('20:00')).toBeInTheDocument();
     expect(screen.queryByText('16:00')).not.toBeInTheDocument(); // different date
   });
 
   it('changes showtimes when a different date is selected', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={mockCinemas} movie={mockMovie} />);
+    renderWithRouter(<TheaterShowtimes theaters={mockTheaters} movie={mockMovie} />);
     
     // Find the button for Feb 19
     const dateButton = screen.getByText('19').closest('button');
@@ -65,24 +65,24 @@ describe('CinemaShowtimes Component', () => {
     
     fireEvent.click(dateButton!);
     
-    expect(screen.getByText('Cinema 1')).toBeInTheDocument();
-    expect(screen.queryByText('Cinema 2')).not.toBeInTheDocument(); // Cinema 2 has no showtimes on Feb 19
+    expect(screen.getByText('Theater 1')).toBeInTheDocument();
+    expect(screen.queryByText('Theater 2')).not.toBeInTheDocument(); // Theater 2 has no showtimes on Feb 19
     expect(screen.getByText('16:00')).toBeInTheDocument();
     expect(screen.queryByText('14:00')).not.toBeInTheDocument();
   });
 
   it('renders initialDate if provided', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={mockCinemas} movie={mockMovie} initialDate="2026-02-19" />);
+    renderWithRouter(<TheaterShowtimes theaters={mockTheaters} movie={mockMovie} initialDate="2026-02-19" />);
     
     expect(screen.getByText('16:00')).toBeInTheDocument();
     expect(screen.queryByText('14:00')).not.toBeInTheDocument();
   });
 
   it('displays date selector even when there is only one date', () => {
-    const singleDateCinemas: CinemaWithShowtimes[] = [
+    const singleDateTheaters: TheaterWithShowtimes[] = [
       {
         id: 'C1',
-        name: 'Cinema 1',
+        name: 'Theater 1',
         address: 'Address 1',
         city: 'Paris',
         showtimes: [
@@ -92,7 +92,7 @@ describe('CinemaShowtimes Component', () => {
       } as any
     ];
 
-    renderWithRouter(<CinemaShowtimes cinemas={singleDateCinemas} movie={mockMovie} />);
+    renderWithRouter(<TheaterShowtimes theaters={singleDateTheaters} movie={mockMovie} />);
     
     // Date selector should be visible
     expect(screen.getByText('18')).toBeInTheDocument(); // Day number
@@ -103,10 +103,10 @@ describe('CinemaShowtimes Component', () => {
   });
 
   it('displays the correct date label when there is only one date', () => {
-    const singleDateCinemas: CinemaWithShowtimes[] = [
+    const singleDateTheaters: TheaterWithShowtimes[] = [
       {
         id: 'C1',
-        name: 'Cinema 1',
+        name: 'Theater 1',
         address: 'Address 1',
         city: 'Paris',
         showtimes: [
@@ -115,7 +115,7 @@ describe('CinemaShowtimes Component', () => {
       } as any
     ];
 
-    renderWithRouter(<CinemaShowtimes cinemas={singleDateCinemas} movie={mockMovie} />);
+    renderWithRouter(<TheaterShowtimes theaters={singleDateTheaters} movie={mockMovie} />);
     
     // Should display the date button with correct format
     const dateButton = screen.getByText('18').closest('button');
@@ -126,15 +126,15 @@ describe('CinemaShowtimes Component', () => {
   });
 });
 
-describe('CinemaShowtimes — bouton Maintenant', () => {
+describe('TheaterShowtimes — bouton Maintenant', () => {
   const FIXED_TODAY = '2026-02-18';
   // Current time 15:00 — showtimes at 14:00 are past, 16:00 and 20:00 are future
   const FIXED_NOW = new Date('2026-02-18T15:00:00');
 
-  const cinemasWithToday: CinemaWithShowtimes[] = [
+  const theatersWithToday: TheaterWithShowtimes[] = [
     {
       id: 'C1',
-      name: 'Cinema 1',
+      name: 'Theater 1',
       address: 'Address 1',
       city: 'Paris',
       showtimes: [
@@ -145,7 +145,7 @@ describe('CinemaShowtimes — bouton Maintenant', () => {
     } as any,
     {
       id: 'C2',
-      name: 'Cinema 2',
+      name: 'Theater 2',
       address: 'Address 2',
       city: 'Paris',
       showtimes: [
@@ -164,16 +164,16 @@ describe('CinemaShowtimes — bouton Maintenant', () => {
   });
 
   it('renders the Maintenant button as the first button', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={cinemasWithToday} movie={mockMovie} />);
+    renderWithRouter(<TheaterShowtimes theaters={theatersWithToday} movie={mockMovie} />);
     const buttons = screen.getAllByRole('button');
     expect(buttons[0]).toHaveTextContent(/maintenant/i);
   });
 
   it('Maintenant button is disabled when today has no showtimes in the list', () => {
-    const notoday: CinemaWithShowtimes[] = [
+    const notoday: TheaterWithShowtimes[] = [
       {
         id: 'C1',
-        name: 'Cinema 1',
+        name: 'Theater 1',
         address: 'Address 1',
         city: 'Paris',
         showtimes: [
@@ -181,12 +181,12 @@ describe('CinemaShowtimes — bouton Maintenant', () => {
         ],
       } as any,
     ];
-    renderWithRouter(<CinemaShowtimes cinemas={notoday} movie={mockMovie} />);
+    renderWithRouter(<TheaterShowtimes theaters={notoday} movie={mockMovie} />);
     expect(screen.getByRole('button', { name: /maintenant/i })).toBeDisabled();
   });
 
   it('filters out showtimes before current time when Maintenant is clicked', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={cinemasWithToday} movie={mockMovie} />);
+    renderWithRouter(<TheaterShowtimes theaters={theatersWithToday} movie={mockMovie} />);
 
     // Initially today is selected — all three today's showtimes visible
     expect(screen.getByText('14:00')).toBeInTheDocument();
@@ -202,7 +202,7 @@ describe('CinemaShowtimes — bouton Maintenant', () => {
   });
 
   it('resets time filter when another date button is clicked after Maintenant', () => {
-    renderWithRouter(<CinemaShowtimes cinemas={cinemasWithToday} movie={mockMovie} />);
+    renderWithRouter(<TheaterShowtimes theaters={theatersWithToday} movie={mockMovie} />);
 
     fireEvent.click(screen.getByRole('button', { name: /maintenant/i }));
     expect(screen.queryByText('14:00')).not.toBeInTheDocument();

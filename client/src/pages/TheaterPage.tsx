@@ -4,17 +4,17 @@ import { useQuery } from '@tanstack/react-query';
 import { getTheaters, getTheaterSchedule } from '../api/client';
 import type { ShowtimeWithMovie, Movie } from '../types';
 import ShowtimeList from '../components/ShowtimeList';
-import CinemaDateSelector from '../components/CinemaDateSelector';
+import TheaterDateSelector from '../components/TheaterDateSelector';
 
 interface MovieGroup {
   movie: Movie;
   showtimes: ShowtimeWithMovie[];
 }
 
-export default function CinemaPage() {
+export default function TheaterPage() {
   const { id } = useParams<{ id: string }>();
 
-  const { data: cinemasData, isLoading: cinemasLoading, error: cinemasError } = useQuery({
+  const { data: theatersData, isLoading: theatersLoading, error: theatersError } = useQuery({
     queryKey: ['theaters'],
     queryFn: getTheaters
   });
@@ -25,17 +25,17 @@ export default function CinemaPage() {
     enabled: !!id
   });
 
-  const isLoading = cinemasLoading || scheduleLoading;
-  const queryError = cinemasError || scheduleError;
-  const error = queryError instanceof Error ? queryError.message : (queryError ? 'Failed to load cinema data' : null);
+  const isLoading = theatersLoading || scheduleLoading;
+  const queryError = theatersError || scheduleError;
+  const error = queryError instanceof Error ? queryError.message : (queryError ? 'Failed to load theater data' : null);
 
-  // Validate if cinema was not found in cinemasData
-  if (!isLoading && cinemasData && !cinemasData.some(c => c.id === id)) {
-    // Setting an error message similar to before if cinema is not found
-    // however returning 'Cinema not found' directly in JSX handles it below
+  // Validate if theater was not found in theatersData
+  if (!isLoading && theatersData && !theatersData.some(c => c.id === id)) {
+    // Setting an error message similar to before if theater is not found
+    // however returning 'Theater not found' directly in JSX handles it below
   }
 
-  const cinema = cinemasData?.find(c => c.id === id) || null;
+  const theater = theatersData?.find(c => c.id === id) || null;
   const showtimes = useMemo(() => scheduleData?.showtimes || [], [scheduleData?.showtimes]);
 
   const getInitialSelectedDate = (showtimes: ShowtimeWithMovie[]): string => {
@@ -119,11 +119,11 @@ export default function CinemaPage() {
     );
   }
 
-  if (error || !cinema) {
+  if (error || !theater) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6">
         <h2 className="text-xl font-bold text-red-800 mb-2">Erreur</h2>
-        <p className="text-red-600">{error || 'Cinema not found'}</p>
+        <p className="text-red-600">{error || 'Theater not found'}</p>
       </div>
     );
   }
@@ -134,22 +134,22 @@ export default function CinemaPage() {
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <Link to="/" className="hover:text-primary hover:underline">← Accueil</Link>
         <span>/</span>
-        <span>{cinema.name}</span>
+        <span>{theater.name}</span>
       </div>
 
-      {/* Cinema Header */}
+      {/* Theater Header */}
       <div className="mb-6">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">{cinema.name}</h1>
+        <h1 className="text-3xl md:text-4xl font-bold mb-2">{theater.name}</h1>
         
-        {cinema.address && (
+        {theater.address && (
           <p className="text-gray-600 mb-1">
-            📍 {cinema.address}, {cinema.postal_code} {cinema.city}
+            📍 {theater.address}, {theater.postal_code} {theater.city}
           </p>
         )}
         
-        {cinema.screen_count != null && cinema.screen_count > 0 && (
+        {theater.screen_count != null && theater.screen_count > 0 && (
           <p className="text-gray-600">
-            🎬 {cinema.screen_count} salle{cinema.screen_count > 1 ? 's' : ''}
+            🎬 {theater.screen_count} salle{theater.screen_count > 1 ? 's' : ''}
           </p>
         )}
       </div>
@@ -160,7 +160,7 @@ export default function CinemaPage() {
         style={{ top: 'var(--layout-header-offset, 64px)' }}
         data-testid="sticky-date-selector-container"
       >
-        <CinemaDateSelector
+        <TheaterDateSelector
           dates={dates}
           selectedDate={effectiveSelectedDate}
           showtimes={showtimes}
@@ -234,7 +234,7 @@ export default function CinemaPage() {
                     </div>
 
                     <div className="pt-2 border-t border-gray-100">
-                      <ShowtimeList showtimes={showtimes} movie={movie} cinema={cinema} />
+                      <ShowtimeList showtimes={showtimes} movie={movie} theater={theater} />
                     </div>
                   </div>
                 </div>

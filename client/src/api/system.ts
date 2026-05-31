@@ -57,7 +57,7 @@ export interface MigrationsInfo {
 export interface ScraperStatus {
   activeJobs: number;
   lastScrapeTime: string | null;
-  totalCinemas: number;
+  totalTheaters: number;
 }
 
 export interface SystemHealth {
