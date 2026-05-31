@@ -240,11 +240,17 @@ These variables are **required** for the application to function properly.
 
 ### Monitoring & Observability
 
+> The variables below belong to the optional observability stack
+> (`docker-compose.monitoring.yml`) and are documented in
+> [`.env.monitoring.example`](../../.env.monitoring.example), **not** in the
+> main `.env`. Copy that file to `.env.monitoring` (or append its content to
+> your existing `.env`) before starting the monitoring stack.
+
 #### `OTEL_ENABLED`
 - **Description**: Enable OpenTelemetry distributed tracing
 - **Default**: `false`
 - **Values**: `true`, `false`
-- **Notes**: Requires Tempo instance (included in monitoring profile)
+- **Notes**: Requires Tempo (provided by `docker-compose.monitoring.yml`)
 
 #### `OTEL_EXPORTER_OTLP_ENDPOINT`
 - **Description**: OTLP gRPC endpoint for Tempo
@@ -428,7 +434,7 @@ SCRAPE_DAYS=14
 APP_NAME=My Theater Portal
 VITE_APP_NAME=My Theater Portal
 
-# Optional: Monitoring
+# Optional: Monitoring (put these in .env.monitoring, not .env)
 OTEL_ENABLED=true
 OTEL_EXPORTER_OTLP_ENDPOINT=http://ics-tempo:4317
 GRAFANA_ADMIN_USER=admin
