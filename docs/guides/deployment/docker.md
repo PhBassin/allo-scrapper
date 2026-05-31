@@ -210,10 +210,10 @@ docker compose up -d
 docker compose --profile scraper up -d
 
 # With full observability stack (Prometheus, Grafana, Loki, Tempo)
-docker compose --profile monitoring up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 
 # Everything
-docker compose --profile monitoring --profile scraper up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 ```
 
 **Base services (`docker compose up -d`):**
@@ -225,11 +225,14 @@ docker compose --profile monitoring --profile scraper up -d
 - `ics-scraper`: Scraper microservice (job consumer)
 - `ics-scraper-cron`: Cron-triggered scraper
 
-**`--profile monitoring` adds:**
+**`docker-compose.monitoring.yml` adds:**
 - `ics-prometheus`: Metrics (port 9090)
 - `ics-grafana`: Dashboards (port 3001, default admin/admin)
 - `ics-loki` + `ics-promtail`: Log aggregation
 - `ics-tempo`: Distributed tracing (OTLP port 4317)
+- `ics-postgres-exporter`, `ics-redis-exporter`: data-store metrics
+
+Configure it via `.env.monitoring` (copy from `.env.monitoring.example`).
 - `ics-postgres-exporter`, `ics-redis-exporter`: DB/Redis metrics
 
 > See [Monitoring](./monitoring.md) for full observability setup instructions.
@@ -282,7 +285,7 @@ docker compose --profile scraper up -d
 ### Monitoring Profile
 
 ```bash
-docker compose --profile monitoring up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 ```
 
 **Adds:**
@@ -556,7 +559,7 @@ docker inspect ics-web | jq '.[0].State.Health'
 
 - Uses pre-built images from GHCR
 - Includes base services (db, redis, web)
-- Supports `--profile scraper` and `--profile monitoring`
+- Supports the optional monitoring stack via `docker-compose.monitoring.yml`
 - Optimized for production
 
 ### docker-compose.dev.yml (Development)

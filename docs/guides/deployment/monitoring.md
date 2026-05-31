@@ -36,7 +36,7 @@ Complete guide to the observability stack shipped with Allo-Scrapper.
 | **postgres-exporter** | PostgreSQL → Prometheus | — |
 | **redis-exporter** | Redis → Prometheus | — |
 
-All monitoring services run under the `monitoring` Docker Compose profile.
+All monitoring services live in a dedicated Compose file (`docker-compose.monitoring.yml`), separate from the main application stack. Their environment variables are documented in `.env.monitoring.example`.
 
 ---
 
@@ -44,7 +44,7 @@ All monitoring services run under the `monitoring` Docker Compose profile.
 
 ```bash
 # Start monitoring alongside the main app
-docker compose --profile monitoring up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 
 # Open Grafana
 open http://localhost:3001   # user: admin / password: admin
@@ -60,16 +60,16 @@ open http://localhost:3001   # user: admin / password: admin
 
 ```bash
 # Start only monitoring (assumes ics-db, ics-redis, ics-web are already up)
-docker compose --profile monitoring up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 
 # Start everything (app + scraper + monitoring)
-docker compose --profile monitoring --profile scraper up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 
 # Stop monitoring only
-docker compose --profile monitoring down
+docker compose -f docker-compose.monitoring.yml down
 
 # Stop everything
-docker compose --profile monitoring --profile scraper down
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml down
 ```
 
 **Note:** The monitoring stack requires the base application services (ics-db, ics-redis, ics-web) to be running.
@@ -477,7 +477,7 @@ docker compose restart ics-postgres-exporter ics-redis-exporter
 
 Always run the monitoring stack in production:
 ```bash
-docker compose --profile monitoring --profile scraper up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 ```
 
 ### 2. Set Appropriate Log Levels

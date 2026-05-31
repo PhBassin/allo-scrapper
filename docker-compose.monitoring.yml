@@ -2,10 +2,20 @@
 # Monitoring stack (Loki + Promtail + Prometheus + Grafana + Tempo + exporters)
 #
 # Usage:
-#   - Main stack only:        docker compose up -d
-#   - Main stack + monitoring: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+#   - Main stack only:
+#       docker compose up -d
+#   - Main stack + monitoring (recommended):
+#       docker compose --env-file .env --env-file .env.monitoring \
+#         -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 #   - Monitoring only (main stack already running):
-#                              docker compose -f docker-compose.monitoring.yml up -d
+#       docker compose --env-file .env --env-file .env.monitoring \
+#         -f docker-compose.monitoring.yml up -d
+#
+# Required env vars (see .env.monitoring.example):
+#   - OTEL_ENABLED, OTEL_EXPORTER_OTLP_ENDPOINT (tracing from app services)
+#   - GRAFANA_ADMIN_USER, GRAFANA_ADMIN_PASSWORD (Grafana credentials)
+#   - POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB (from main .env, used by
+#     the postgres-exporter)
 #
 # This file is separate from docker-compose.yml so deployment platforms that
 # ignore Compose profiles (e.g. Coolify) do not surface monitoring services

@@ -553,7 +553,7 @@ docker builder prune -a
 docker compose up -d
 
 # Start with profiles
-docker compose --profile scraper --profile monitoring up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 
 # Stop all services
 docker compose down
