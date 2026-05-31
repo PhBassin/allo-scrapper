@@ -20,7 +20,7 @@ High-level system architecture and component overview.
 - React frontend
 - PostgreSQL database
 - Redis (optional, for microservice mode)
-- Scraper (in-process or microservice)
+- Scraper (Redis microservice)
 - Observability stack (Prometheus, Grafana, Loki, Tempo)
 
 **Best for:** Understanding the big picture, architectural decisions
@@ -101,22 +101,8 @@ Monitoring Stack:
 └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
-### Scraper Data Flow (Legacy Mode)
-```
-User → [Start Scrape] → API Server → Scraper Service
-                              ↓
-                      Progress Tracker (SSE)
-                              ↓
-                         HTTP Client
-                              ↓
-                      Theater Parser
-                              ↓
-                         Database
-                              ↓
-                      [Scrape Complete]
-```
+### Scraper Data Flow
 
-### Scraper Data Flow (Microservice Mode)
 ```
 User → [Start Scrape] → API Server → Redis Publisher
                               ↓
@@ -142,11 +128,10 @@ User → [Start Scrape] → API Server → Redis Publisher
 ## Design Principles
 
 1. **Separation of Concerns**: Clear boundaries between scraping, API, and frontend
-2. **Progressive Enhancement**: Start with simple in-process mode, scale to microservices
+2. **Microservice First**: Scraper runs as standalone service with Redis communication
 3. **Observability First**: Comprehensive logging, metrics, and tracing
 4. **Configuration over Code**: Settings managed via database, not hardcoded
 5. **Testability**: Unit tests, integration tests, E2E tests at all layers
-6. **Backward Compatibility**: Support both legacy and new modes
 
 ---
 

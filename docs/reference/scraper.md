@@ -292,17 +292,7 @@ See [API.md](./api/README.md) for complete API reference:
 
 ## Scraper Architecture
 
-### In-Process Mode (Default)
-
-```
-Express API (ics-web)
- └─> Scraper Service (in-process)
-      └─> PostgreSQL (direct insert)
-```
-
-**Feature flag:** `USE_REDIS_SCRAPER=false` (default)
-
-### Microservice Mode
+The scraper runs as a microservice, decoupled from the API server via Redis.
 
 ```
 Express API (ics-web)
@@ -313,14 +303,14 @@ Express API (ics-web)
                 └─> Express API (SSE streaming)
 ```
 
-**Feature flag:** `USE_REDIS_SCRAPER=true`
+The scraper microservice (`ics-scraper` and `ics-scraper-cron`) is always included in `docker-compose.yaml` — no feature flag needed.
 
 **Benefits:**
 - Isolates scraping workload from API server
 - Enables horizontal scaling (multiple scraper workers)
 - Better observability (metrics, tracing)
 
-See [DOCKER.md](../guides/deployment/docker.md) for scraper microservice deployment.
+See [Docker Setup](../guides/deployment/docker.md) for scraper microservice deployment.
 
 ---
 

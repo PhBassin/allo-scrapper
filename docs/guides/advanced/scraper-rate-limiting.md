@@ -566,7 +566,6 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://ics-tempo:4317
 # ✅ Resilience
 SCRAPE_DAYS=7
 SCRAPE_MODE=weekly
-USE_REDIS_SCRAPER=true  # Microservice mode for isolation
 
 # ✅ Deploymentment
 DOCKER_UID=1000
@@ -583,7 +582,7 @@ For **scaling to 50+ theaters**:
 
 2. **Use multiple scraper instances**
    ```bash
-   docker compose --profile scraper up -d --scale ics-scraper=2
+   docker compose up -d --scale ics-scraper=2
    ```
 
 3. **Monitor queue depth**

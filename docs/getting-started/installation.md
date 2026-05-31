@@ -89,11 +89,10 @@ cd allo-scrapper
 #### 3. Configure Environment
 
 ```bash
+# Production base (5 variables)
 cp .env.example .env
-```
 
-Edit `.env` to customize (optional - defaults work for local development):
-```bash
+# Customize: set POSTGRES_PASSWORD and JWT_SECRET
 nano .env
 ```
 
@@ -203,18 +202,17 @@ cd ..
 #### 5. Configure Environment
 
 ```bash
-cp .env.example .env
+# Append dev overrides to production template
+cat .env.example .env.dev.example > .env
 nano .env
 ```
 
-Update PostgreSQL connection settings:
+Required settings for manual setup:
 ```bash
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=ics
-POSTGRES_USER=postgres
 POSTGRES_PASSWORD=yourpassword
+JWT_SECRET=$(openssl rand -base64 64)
 ```
+The dev overrides file sets `POSTGRES_HOST=localhost` and other local defaults automatically.
 
 #### 6. Initialize Database
 
@@ -265,9 +263,9 @@ For complete production deployment instructions, see:
 git clone https://github.com/PhBassin/allo-scrapper.git
 cd allo-scrapper
 
-# Configure environment for production
+# Configure environment for production (5 variables only)
 cp .env.example .env
-nano .env  # Set JWT_SECRET, database password, etc.
+nano .env  # Set POSTGRES_PASSWORD and JWT_SECRET
 
 # Pull pre-built images from GitHub Container Registry
 npm run docker:pull
@@ -281,13 +279,13 @@ curl http://localhost:3000/api/health
 
 **Important Production Settings:**
 
-In `.env`, configure:
+In `.env`, the only required settings are:
 ```bash
-NODE_ENV=production
-JWT_SECRET=<generate with: openssl rand -base64 32>
 POSTGRES_PASSWORD=<strong password>
-LOG_LEVEL=warn
+JWT_SECRET=<generate with: openssl rand -base64 64>
+ALLOWED_ORIGINS=https://your-domain.com
 ```
+All other variables (NODE_ENV, PORT, TZ, etc.) are hardcoded in `docker-compose.yaml`.
 
 See [Configuration Guide](./configuration.md) for all environment variables.
 

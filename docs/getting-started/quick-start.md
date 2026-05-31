@@ -23,11 +23,11 @@ cd allo-scrapper
 ### 2. Configure Environment
 
 ```bash
-# Copy the example environment file
-cp .env.example .env
+# Create .env with production base + dev overrides
+cat .env.example .env.dev.example > .env
 
-# (Optional) Edit .env if you want to customize settings
-# The defaults work out of the box for local development
+# Generate a JWT secret and set POSTGRES_PASSWORD in .env
+# openssl rand -base64 64  →  paste into JWT_SECRET=
 ```
 
 ### 3. Start All Services

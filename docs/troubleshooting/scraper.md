@@ -573,7 +573,7 @@ docker compose exec ics-redis redis-cli ping
 # Expected: PONG
 
 # Restart scraper microservice
-docker compose --profile scraper restart ics-scraper
+docker compose restart ics-scraper
 ```
 
 **⚠️ No automatic reconnection** - scraper must be restarted.
@@ -875,12 +875,11 @@ SCRAPE_THEATER_DELAY_MS=3000
 # Delay between movie detail fetches (milliseconds)
 SCRAPE_MOVIE_DELAY_MS=500
 
-# Use Redis-based scraper microservice
-USE_REDIS_SCRAPER=false
-
 # Redis connection (for microservice mode)
 REDIS_URL=redis://ics-redis:6379
 ```
+
+> **Note:** As of v4.x, the scraper microservice is always included in `docker-compose.yaml` — the `USE_REDIS_SCRAPER` flag has been removed. Scraping always dispatches via Redis.
 
 ---
 
@@ -890,11 +889,11 @@ REDIS_URL=redis://ics-redis:6379
 # Edit .env file
 nano .env
 
-# Restart server (in-process mode)
+# Restart scraper microservice (all scraping uses Redis)
 docker compose restart ics-web
 
 # Restart scraper microservice
-docker compose --profile scraper restart ics-scraper
+docker compose restart ics-scraper
 ```
 
 ---

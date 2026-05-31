@@ -97,60 +97,37 @@ curl -o docker/init.sql https://raw.githubusercontent.com/PhBassin/allo-scrapper
 ### 3. Configure Environment
 
 ```bash
-# Copy example environment file
+# Copy example environment file (5 variables only)
 cp .env.example .env
 
 # Edit configuration
 nano .env
 ```
 
-**Critical production settings:**
+**Required production settings:**
 
 ```bash
-# Database Configuration
-POSTGRES_HOST=ics-db
-POSTGRES_PORT=5432
-POSTGRES_DB=ics
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=<STRONG_PASSWORD_HERE>  # ⚠️ CHANGE THIS!
+# Docker image tag
+IMAGE_TAG=stable
 
-# Server Configuration
-PORT=3000
-NODE_ENV=production
-LOG_LEVEL=warn
+# Database password
+POSTGRES_PASSWORD=<STRONG_PASSWORD_HERE>  # REQUIRED
 
-# Application Configuration
-APP_NAME=My Theater App                    # Optional, default: "Allo-Scrapper"
-AUTO_MIGRATE=true                         # Optional, default: true
+# JWT signing key
+JWT_SECRET=<GENERATE_WITH_openssl_rand_-base64_64>  # REQUIRED, min 32 chars
 
-# JWT Secret (REQUIRED for production)
-JWT_SECRET=<GENERATE_WITH_openssl_rand_-base64_32>
-
-# CORS Configuration
-# Must include the origin the browser uses to reach the app
+# CORS allowed origins
 ALLOWED_ORIGINS=https://theater.example.com
 
-# Scraper Configuration
+# Scrape schedule (cron expression)
 SCRAPE_CRON_SCHEDULE=0 3 * * *    # Daily at 3 AM
-TZ=Europe/Paris                   # Your timezone
-SCRAPE_DAYS=14                    # Scrape 2 weeks ahead
 ```
 
-**Additional Configuration Variables:**
+**All other variables** (NODE_ENV, POSTGRES_HOST, PORT, TZ, LOG_LEVEL, AUTO_MIGRATE, etc.) are **hardcoded** in `docker-compose.yaml`. You do not need to set them in `.env`.
 
-**`APP_NAME`** (optional, default: "Allo-Scrapper")
-```bash
-APP_NAME=My Theater App
-```
-Used in logger output, health check responses, and application branding. Changes the service name across all monitoring and logging.
+To override any hardcoded variable, edit `docker-compose.yaml` directly.
 
-**`AUTO_MIGRATE`** (optional, default: true)
-```bash
-AUTO_MIGRATE=true
-```
-Controls automatic database migrations on startup. Set to `false` to prevent automatic schema changes in production (requires manual migration with `npm run migrate:up` in server/ directory).
-
-See [Configuration Guide](../../getting-started/configuration.md) for all environment variables.
+See [Configuration Guide](../../getting-started/configuration.md) for complete reference.
 
 ---
 

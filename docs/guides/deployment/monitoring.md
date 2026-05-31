@@ -204,12 +204,13 @@ Traces are exported via OTLP gRPC to Tempo (`OTEL_EXPORTER_OTLP_ENDPOINT`, defau
 
 **Enable tracing:**
 ```bash
-# .env
+# .env.monitoring
 OTEL_ENABLED=true
 OTEL_EXPORTER_OTLP_ENDPOINT=http://ics-tempo:4317
 
-# Restart services
-docker compose restart ics-web ics-scraper
+# Restart with monitoring
+docker compose --env-file .env --env-file .env.monitoring \
+  -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 ```
 
 **Viewing traces in Grafana:**
@@ -235,22 +236,22 @@ docker compose restart ics-web ics-scraper
 
 ## Environment Variables
 
+Monitoring variables live in `.env.monitoring` (copy from `.env.monitoring.example`), **not** in the main `.env`:
+
 | Variable | Default | Description |
 |---|---|---|
-| `LOG_LEVEL` | `info` | Log verbosity (`error`, `warn`, `info`, `debug`) |
-| `METRICS_PORT` | `9091` | Prometheus metrics port (scraper microservice only) |
 | `OTEL_ENABLED` | `false` | Enable OpenTelemetry tracing |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://ics-tempo:4317` | OTLP gRPC endpoint |
 | `GRAFANA_ADMIN_USER` | `admin` | Grafana admin username |
 | `GRAFANA_ADMIN_PASSWORD` | `admin` | Grafana admin password |
 
-**Update environment variables:**
-```bash
-# Edit .env
-nano .env
+`LOG_LEVEL` is hardcoded to `info` in `docker-compose.yaml` (change there if needed).
+`METRICS_PORT` (9091) is hardcoded in the compose file for scraper services.
 
-# Restart services
-docker compose restart ics-web ics-scraper
+**Set up monitoring env:**
+```bash
+cp .env.monitoring.example .env.monitoring
+nano .env.monitoring
 ```
 
 ---

@@ -190,8 +190,7 @@ docker compose restart ics-web
 # Reduce number of days scraped
 SCRAPE_DAYS=3  # Reduce from 7
 
-# Consider using scraper microservice mode for better rate limiting
-USE_REDIS_SCRAPER=true
+# Scraper microservice is always included in docker-compose.yaml
 ```
 
 ---
