@@ -120,7 +120,7 @@ export default function Layout({ children, title }: LayoutProps) {
                 Accueil
               </Link>
               {hasAdminAccess && (
-                <Link to="/admin?tab=cinemas" className="hover:text-primary transition">
+                <Link to="/admin?tab=theaters" className="hover:text-primary transition">
                   Admin
                 </Link>
               )}

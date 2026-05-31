@@ -199,7 +199,7 @@ const SettingsPage: React.FC = () => {
                                         onChange={(e) => handleFieldChange('site_name', e.target.value)}
                                         disabled={!canUpdate}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="My Cinema Site"
+                                        placeholder="My Theater Site"
                                     />
                                 </div>
 
@@ -311,7 +311,7 @@ const SettingsPage: React.FC = () => {
                                         disabled={!canUpdate}
                                         rows={3}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="© 2024 My Cinema Site. All rights reserved."
+                                        placeholder="© 2024 My Theater Site. All rights reserved."
                                     />
                                 </div>
 
@@ -335,7 +335,7 @@ const SettingsPage: React.FC = () => {
                                         onChange={(e) => handleFieldChange('email_from_name', e.target.value)}
                                         disabled={!canUpdate}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="My Cinema Site"
+                                        placeholder="My Theater Site"
                                     />
                                 </div>
 

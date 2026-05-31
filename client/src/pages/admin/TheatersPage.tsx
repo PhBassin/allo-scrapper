@@ -3,10 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getTheaters, createTheater, updateTheater, deleteTheater } from '../../api/theaters';
 import type { TheaterCreate, TheaterUpdate } from '../../api/theaters';
 import { triggerScrape, triggerTheaterScrape, getScrapeStatus } from '../../api/client';
-import type { Cinema } from '../../types';
-import AddCinemaModal from '../../components/admin/AddCinemaModal';
-import EditCinemaModal from '../../components/admin/EditCinemaModal';
-import DeleteCinemaDialog from '../../components/admin/DeleteCinemaDialog';
+import type { Theater } from '../../types';
+import AddTheaterModal from '../../components/admin/AddTheaterModal';
+import EditTheaterModal from '../../components/admin/EditTheaterModal';
+import DeleteTheaterDialog from '../../components/admin/DeleteTheaterDialog';
 import ScrapeButton from '../../components/ScrapeButton';
 import ScrapeProgress from '../../components/ScrapeProgress';
 import Button from '../../components/ui/Button';
@@ -15,17 +15,17 @@ import { AuthContext } from '../../contexts/AuthContext';
 
 const SUCCESS_DISMISS_MS = 5000;
 
-const CinemasPage: React.FC = () => {
+const TheatersPage: React.FC = () => {
   const { hasPermission } = useContext(AuthContext);
   const canScrapeAll = hasPermission('scraper:trigger');
   const canScrapeSingle = hasPermission('scraper:trigger_single');
-  const canCreate = hasPermission('cinemas:create');
-  const canUpdate = hasPermission('cinemas:update');
-  const canDelete = hasPermission('cinemas:delete');
+  const canCreate = hasPermission('theaters:create');
+  const canUpdate = hasPermission('theaters:update');
+  const canDelete = hasPermission('theaters:delete');
 
   const queryClient = useQueryClient();
 
-  const { data: cinemas = [], isLoading: loading, error: queryError } = useQuery({
+  const { data: theaters = [], isLoading: loading, error: queryError } = useQuery({
     queryKey: ['theaters'],
     queryFn: getTheaters
   });
@@ -39,12 +39,12 @@ const CinemasPage: React.FC = () => {
 
   // Scraping state
   const [showProgress, setShowProgress] = useState(false);
-  const [, setScrapingCinemaId] = useState<string | null>(null);
+  const [, setScrapingTheaterId] = useState<string | null>(null);
 
   // Modal / dialog state
   const [showAddModal, setShowAddModal] = useState(false);
-  const [cinemaToEdit, setCinemaToEdit] = useState<Cinema | null>(null);
-  const [cinemaToDelete, setCinemaToDelete] = useState<Cinema | null>(null);
+  const [theaterToEdit, setTheaterToEdit] = useState<Theater | null>(null);
+  const [theaterToDelete, setTheaterToDelete] = useState<Theater | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -74,7 +74,7 @@ const CinemasPage: React.FC = () => {
     mutationFn: createTheater,
     onSuccess: () => {
       setShowAddModal(false);
-      setSuccessMessage('Cinema added successfully');
+      setSuccessMessage('Theater added successfully');
       queryClient.invalidateQueries({ queryKey: ['theaters'] });
     }
   });
@@ -86,8 +86,8 @@ const CinemasPage: React.FC = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: TheaterUpdate }) => updateTheater(id, updates),
     onSuccess: () => {
-      setCinemaToEdit(null);
-      setSuccessMessage('Cinema updated successfully');
+      setTheaterToEdit(null);
+      setSuccessMessage('Theater updated successfully');
       queryClient.invalidateQueries({ queryKey: ['theaters'] });
     }
   });
@@ -99,21 +99,21 @@ const CinemasPage: React.FC = () => {
   const deleteMutation = useMutation({
     mutationFn: deleteTheater,
     onSuccess: () => {
-      setCinemaToDelete(null);
-      setSuccessMessage('Cinema deleted successfully');
+      setTheaterToDelete(null);
+      setSuccessMessage('Theater deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['theaters'] });
       setIsDeleting(false);
     },
     onError: (err) => {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to delete cinema');
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete theater');
       setIsDeleting(false);
     }
   });
 
-  const handleDelete = async (cinemaId: string) => {
+  const handleDelete = async (theaterId: string) => {
     setIsDeleting(true);
     setDeleteError(null);
-    deleteMutation.mutate(cinemaId);
+    deleteMutation.mutate(theaterId);
   };
 
   // ── Scraping handlers ────────────────────────────────────────────────────────
@@ -125,34 +125,34 @@ const CinemasPage: React.FC = () => {
   const handleScrapeComplete = useCallback(() => {
     setTimeout(() => {
       setShowProgress(false);
-      setScrapingCinemaId(null);
+      setScrapingTheaterId(null);
       queryClient.invalidateQueries({ queryKey: ['theaters'] });
     }, 2000);
   }, [queryClient]);
 
   // ── Filtering ────────────────────────────────────────────────────────────────
 
-  // ⚡ PERFORMANCE: Memoize the filtered cinemas list to prevent expensive
+  // ⚡ PERFORMANCE: Memoize the filtered theaters list to prevent expensive
   // recalculation of the entire array on every render, especially when unrelated
   // state (like modal visibility or form data) changes.
-  const filteredCinemas = useMemo(() => {
-    return cinemas.filter((cinema) => {
+  const filteredTheaters = useMemo(() => {
+    return theaters.filter((theater) => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
-        cinema.name.toLowerCase().includes(q) ||
-        cinema.id.toLowerCase().includes(q) ||
-        (cinema.city ?? '').toLowerCase().includes(q)
+        theater.name.toLowerCase().includes(q) ||
+        theater.id.toLowerCase().includes(q) ||
+        (theater.city ?? '').toLowerCase().includes(q)
       );
     });
-  }, [cinemas, searchQuery]);
+  }, [theaters, searchQuery]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-600">Loading cinemas...</div>
+        <div className="text-gray-600">Loading theaters...</div>
       </div>
     );
   }
@@ -161,7 +161,7 @@ const CinemasPage: React.FC = () => {
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Cinema Management</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Theater Management</h1>
         <div className="flex items-center gap-3">
           {canScrapeAll && (
             <ScrapeButton
@@ -176,9 +176,9 @@ const CinemasPage: React.FC = () => {
           {canCreate && (
             <Button
               onClick={() => setShowAddModal(true)}
-              data-testid="add-cinema-button"
+              data-testid="add-theater-button"
             >
-              Add Cinema
+              Add Theater
             </Button>
           )}
         </div>
@@ -212,20 +212,20 @@ const CinemasPage: React.FC = () => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by name, ID, or city..."
-          data-testid="cinema-search-input"
+          data-testid="theater-search-input"
           className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
 
       {/* Empty State */}
-      {filteredCinemas.length === 0 ? (
+      {filteredTheaters.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-600">
-            {searchQuery.trim() ? 'No cinemas match your search' : 'No cinemas found'}
+            {searchQuery.trim() ? 'No theaters match your search' : 'No theaters found'}
           </p>
         </div>
       ) : (
-        /* Cinemas Table */
+        /* Theaters Table */
         <div className="bg-white shadow-md rounded-lg overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -248,20 +248,20 @@ const CinemasPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredCinemas.map((cinema) => (
-                <tr key={cinema.id} className="hover:bg-gray-50">
+              {filteredTheaters.map((theater) => (
+                <tr key={theater.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-mono text-sm text-gray-900">{cinema.id}</div>
+                    <div className="font-mono text-sm text-gray-900">{theater.id}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-bold text-gray-900">{cinema.name}</div>
+                    <div className="text-sm font-bold text-gray-900">{theater.name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{cinema.city ?? '-'}</div>
+                    <div className="text-sm text-gray-500">{theater.city ?? '-'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-500">
-                      {cinema.screen_count != null ? cinema.screen_count : '-'}
+                      {theater.screen_count != null ? theater.screen_count : '-'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -270,20 +270,20 @@ const CinemasPage: React.FC = () => {
                          <LinkButton
                            variant="success"
                            onClick={() => {
-                             setScrapingCinemaId(cinema.id);
-                             triggerTheaterScrape(cinema.id)
+                             setScrapingTheaterId(theater.id);
+                             triggerTheaterScrape(theater.id)
                                .then(() => handleScrapeStart())
-                               .catch(() => setScrapingCinemaId(null));
+                               .catch(() => setScrapingTheaterId(null));
                            }}
-                           data-testid={`scrape-cinema-${cinema.id}`}
+                           data-testid={`scrape-theater-${theater.id}`}
                          >
                            Scraper
                          </LinkButton>
                        )}
                        {canUpdate && (
                          <LinkButton
-                           onClick={() => setCinemaToEdit(cinema)}
-                           data-testid={`edit-cinema-${cinema.id}`}
+                           onClick={() => setTheaterToEdit(theater)}
+                           data-testid={`edit-theater-${theater.id}`}
                          >
                            Edit
                          </LinkButton>
@@ -292,10 +292,10 @@ const CinemasPage: React.FC = () => {
                          <LinkButton
                            variant="danger"
                            onClick={() => {
-                             setCinemaToDelete(cinema);
+                             setTheaterToDelete(theater);
                              setDeleteError(null);
                            }}
-                           data-testid={`delete-cinema-${cinema.id}`}
+                           data-testid={`delete-theater-${theater.id}`}
                          >
                            Delete
                          </LinkButton>
@@ -309,31 +309,31 @@ const CinemasPage: React.FC = () => {
         </div>
       )}
 
-      {/* Add Cinema Modal */}
-      <AddCinemaModal
+      {/* Add Theater Modal */}
+      <AddTheaterModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onAdd={handleAdd}
       />
 
-      {/* Edit Cinema Modal — key forces remount when switching cinemas */}
-      {cinemaToEdit && (
-        <EditCinemaModal
-          key={cinemaToEdit.id}
+      {/* Edit Theater Modal — key forces remount when switching theaters */}
+      {theaterToEdit && (
+        <EditTheaterModal
+          key={theaterToEdit.id}
           isOpen={true}
-          cinema={cinemaToEdit}
-          onClose={() => setCinemaToEdit(null)}
+          theater={theaterToEdit}
+          onClose={() => setTheaterToEdit(null)}
           onSave={handleUpdate}
         />
       )}
 
-      {/* Delete Cinema Dialog */}
-      {cinemaToDelete && (
-        <DeleteCinemaDialog
+      {/* Delete Theater Dialog */}
+      {theaterToDelete && (
+        <DeleteTheaterDialog
           isOpen={true}
-          cinema={cinemaToDelete}
+          theater={theaterToDelete}
           onClose={() => {
-            setCinemaToDelete(null);
+            setTheaterToDelete(null);
             setDeleteError(null);
           }}
           onConfirm={handleDelete}
@@ -345,4 +345,4 @@ const CinemasPage: React.FC = () => {
   );
 };
 
-export default CinemasPage;
+export default TheatersPage;

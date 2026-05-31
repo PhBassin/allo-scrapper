@@ -12,7 +12,7 @@ const mockAuthContext = {
   isAdmin: true,
   hasPermission: vi.fn<(p: PermissionName) => boolean>(() => true),
   token: 'mock-token',
-  user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['scraper:trigger', 'cinemas:create'] as PermissionName[] },
+  user: { id: 1, username: 'admin', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['scraper:trigger', 'theaters:create'] as PermissionName[] },
   login: vi.fn(),
   logout: vi.fn(),
 };
@@ -29,7 +29,7 @@ const mockNonAdminAuthContext = {
 
 const mockSettingsContext = {
       publicSettings: {
-        site_name: 'Test Cinema App',
+        site_name: 'Test Theater App',
         logo_base64: null,
         favicon_base64: null,
         color_primary: '#1976d2',
@@ -79,7 +79,7 @@ describe('Layout - Header navigation changes', () => {
       // Should have Admin link
       const adminLink = screen.getByRole('link', { name: /admin/i });
       expect(adminLink).toBeInTheDocument();
-      expect(adminLink).toHaveAttribute('href', '/admin?tab=cinemas');
+      expect(adminLink).toHaveAttribute('href', '/admin?tab=theaters');
     });
 
     it('should NOT display "Admin" link for non-admin users', () => {
@@ -113,7 +113,7 @@ describe('Layout - Header navigation changes', () => {
   });
 
   describe('Phase 4: Remove admin links from dropdown', () => {
-    it('should NOT display Cinemas link in dropdown menu', async () => {
+    it('should NOT display Theaters link in dropdown menu', async () => {
       const user = userEvent.setup();
       renderWithProviders(mockAuthContext);
       
@@ -121,8 +121,8 @@ describe('Layout - Header navigation changes', () => {
       const userMenuButton = screen.getByTestId('user-menu-button');
       await user.click(userMenuButton);
       
-      // Cinemas link should NOT exist in dropdown
-      expect(screen.queryByTestId('admin-cinemas-link')).not.toBeInTheDocument();
+      // Theaters link should NOT exist in dropdown
+      expect(screen.queryByTestId('admin-theaters-link')).not.toBeInTheDocument();
     });
 
     it('should NOT display Settings link in dropdown menu', async () => {

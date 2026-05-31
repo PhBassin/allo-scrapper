@@ -6,7 +6,7 @@ import DaySelector from '../components/DaySelector';
 import MovieSearchBar from '../components/MovieSearchBar';
 import ScrollToTop from '../components/ScrollToTop';
 import { AuthContext } from '../contexts/AuthContext';
-import CinemasQuickLinks from '../components/CinemasQuickLinks';
+import TheatersQuickLinks from '../components/TheatersQuickLinks';
 
 export default function HomePage() {
   const queryClient = useQueryClient();
@@ -14,7 +14,7 @@ export default function HomePage() {
   const [afterTime, setAfterTime] = useState<string | null>(null);
   const { isAuthenticated, hasPermission } = useContext(AuthContext);
 
-  const { data: cinemas = [], isLoading: isLoadingCinemas } = useQuery({
+  const { data: theaters = [], isLoading: isLoadingTheaters } = useQuery({
     queryKey: ['theaters'],
     queryFn: getTheaters,
   });
@@ -35,7 +35,7 @@ export default function HomePage() {
   }, [allMovies, afterTime]);
   const weekStart = moviesData?.weekStart || '';
 
-  const isLoading = isLoadingCinemas || isLoadingMovies;
+  const isLoading = isLoadingTheaters || isLoadingMovies;
   const error = moviesError instanceof Error ? moviesError.message : null;
 
   const handleDateSelect = useCallback((date: string | null) => {
@@ -79,7 +79,7 @@ export default function HomePage() {
     }
   });
 
-  const handleAddCinema = useCallback(async () => {
+  const handleAddTheater = useCallback(async () => {
     const url = window.prompt("Entrez l'URL Allociné du cinéma à ajouter (ex: https://www.allocine.fr/seance/salle_affich-salle=C0013.html):");
     if (!url) return;
 
@@ -151,11 +151,11 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Quick Cinema Links - Below sticky header */}
-      <CinemasQuickLinks
-        cinemas={cinemas}
-        canAddCinema={isAuthenticated && hasPermission('cinemas:create')}
-        onAddCinema={handleAddCinema}
+      {/* Quick Theater Links - Below sticky header */}
+      <TheatersQuickLinks
+        theaters={theaters}
+        canAddTheater={isAuthenticated && hasPermission('theaters:create')}
+        onAddTheater={handleAddTheater}
       />
 
       {/* Movies List */}

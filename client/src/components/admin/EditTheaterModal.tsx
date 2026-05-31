@@ -1,29 +1,29 @@
 import React, { useState } from 'react';
-import type { Cinema } from '../../types';
+import type { Theater } from '../../types';
 import type { TheaterUpdate } from '../../api/theaters';
 
 /**
- * Modal for editing a cinema's information.
+ * Modal for editing a theater's information.
  *
- * IMPORTANT: The parent must supply `key={cinema.id}` when rendering this
- * component so React remounts it whenever the selected cinema changes.
+ * IMPORTANT: The parent must supply `key={theater.id}` when rendering this
+ * component so React remounts it whenever the selected theater changes.
  * Without this, useState initial values are only applied on first mount,
- * causing stale data when switching between cinemas without closing:
+ * causing stale data when switching between theaters without closing:
  *
- *   {cinemaToEdit && (
- *     <EditCinemaModal
- *       key={cinemaToEdit.id}
+ *   {theaterToEdit && (
+ *     <EditTheaterModal
+ *       key={theaterToEdit.id}
  *       isOpen={true}
- *       cinema={cinemaToEdit}
- *       onClose={() => setCinemaToEdit(null)}
- *       onSave={handleUpdateCinema}
+ *       theater={theaterToEdit}
+ *       onClose={() => setTheaterToEdit(null)}
+ *       onSave={handleUpdateTheater}
  *     />
  *   )}
  */
 
-interface EditCinemaModalProps {
+interface EditTheaterModalProps {
   isOpen: boolean;
-  cinema: Cinema;
+  theater: Theater;
   onClose: () => void;
   onSave: (id: string, updates: TheaterUpdate) => Promise<void>;
 }
@@ -34,14 +34,14 @@ function isAllocineUrl(url: string): boolean {
   return url.startsWith(ALLOCINE_URL_PREFIX);
 }
 
-const EditCinemaModal: React.FC<EditCinemaModalProps> = ({ isOpen, cinema, onClose, onSave }) => {
-  const [name, setName] = useState(cinema.name);
-  const [url, setUrl] = useState(cinema.url ?? '');
-  const [address, setAddress] = useState(cinema.address ?? '');
-  const [postalCode, setPostalCode] = useState(cinema.postal_code ?? '');
-  const [city, setCity] = useState(cinema.city ?? '');
+const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, onClose, onSave }) => {
+  const [name, setName] = useState(theater.name);
+  const [url, setUrl] = useState(theater.url ?? '');
+  const [address, setAddress] = useState(theater.address ?? '');
+  const [postalCode, setPostalCode] = useState(theater.postal_code ?? '');
+  const [city, setCity] = useState(theater.city ?? '');
   const [screenCount, setScreenCount] = useState<string>(
-    cinema.screen_count != null ? String(cinema.screen_count) : ''
+    theater.screen_count != null ? String(theater.screen_count) : ''
   );
 
   const [nameError, setNameError] = useState<string | undefined>();
@@ -56,12 +56,12 @@ const EditCinemaModal: React.FC<EditCinemaModalProps> = ({ isOpen, cinema, onClo
   if (!isOpen) return null;
 
   const hasChanges =
-    name.trim() !== cinema.name.trim() ||
-    url.trim() !== (cinema.url ?? '').trim() ||
-    address.trim() !== (cinema.address ?? '').trim() ||
-    postalCode.trim() !== (cinema.postal_code ?? '').trim() ||
-    city.trim() !== (cinema.city ?? '').trim() ||
-    screenCount.trim() !== (cinema.screen_count != null ? String(cinema.screen_count) : '');
+    name.trim() !== theater.name.trim() ||
+    url.trim() !== (theater.url ?? '').trim() ||
+    address.trim() !== (theater.address ?? '').trim() ||
+    postalCode.trim() !== (theater.postal_code ?? '').trim() ||
+    city.trim() !== (theater.city ?? '').trim() ||
+    screenCount.trim() !== (theater.screen_count != null ? String(theater.screen_count) : '');
 
   const validateName = (value: string): string | undefined => {
     if (!value.trim()) return 'Name is required';
@@ -129,21 +129,21 @@ const EditCinemaModal: React.FC<EditCinemaModalProps> = ({ isOpen, cinema, onClo
     try {
       const updates: TheaterUpdate = {};
 
-      if (name.trim() !== cinema.name.trim()) updates.name = name.trim();
-      if (url.trim() !== (cinema.url ?? '').trim()) updates.url = url.trim() || undefined;
-      if (address.trim() !== (cinema.address ?? '').trim()) updates.address = address.trim() || undefined;
-      if (postalCode.trim() !== (cinema.postal_code ?? '').trim())
+      if (name.trim() !== theater.name.trim()) updates.name = name.trim();
+      if (url.trim() !== (theater.url ?? '').trim()) updates.url = url.trim() || undefined;
+      if (address.trim() !== (theater.address ?? '').trim()) updates.address = address.trim() || undefined;
+      if (postalCode.trim() !== (theater.postal_code ?? '').trim())
         updates.postal_code = postalCode.trim() || undefined;
-      if (city.trim() !== (cinema.city ?? '').trim()) updates.city = city.trim() || undefined;
+      if (city.trim() !== (theater.city ?? '').trim()) updates.city = city.trim() || undefined;
 
-      const currentScreenCount = cinema.screen_count != null ? String(cinema.screen_count) : '';
+      const currentScreenCount = theater.screen_count != null ? String(theater.screen_count) : '';
       if (screenCount.trim() !== currentScreenCount) {
         updates.screen_count = screenCount.trim() ? Number(screenCount.trim()) : undefined;
       }
 
-      await onSave(cinema.id, updates);
+      await onSave(theater.id, updates);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to save cinema');
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save theater');
     } finally {
       setIsSaving(false);
     }
@@ -161,13 +161,13 @@ const EditCinemaModal: React.FC<EditCinemaModalProps> = ({ isOpen, cinema, onClo
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      data-testid="edit-cinema-modal-backdrop"
+      data-testid="edit-theater-modal-backdrop"
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">Edit Cinema</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Edit Theater</h2>
           <button
             type="button"
             onClick={onClose}
@@ -185,7 +185,7 @@ const EditCinemaModal: React.FC<EditCinemaModalProps> = ({ isOpen, cinema, onClo
         <div className="px-6 pt-4 pb-2 bg-gray-50 border-b border-gray-200">
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <dt className="text-gray-500 font-medium">ID</dt>
-            <dd className="font-mono text-gray-900">{cinema.id}</dd>
+            <dd className="font-mono text-gray-900">{theater.id}</dd>
           </dl>
         </div>
 
@@ -317,4 +317,4 @@ const EditCinemaModal: React.FC<EditCinemaModalProps> = ({ isOpen, cinema, onClo
   );
 };
 
-export default EditCinemaModal;
+export default EditTheaterModal;

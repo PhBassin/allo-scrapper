@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import type { ShowtimeWithMovie } from '../types';
 
-interface CinemaDateSelectorProps {
+interface TheaterDateSelectorProps {
   dates: string[];
   selectedDate: string;
   showtimes: ShowtimeWithMovie[];
@@ -11,7 +11,7 @@ interface CinemaDateSelectorProps {
   isNowActive?: boolean;
 }
 
-function CinemaDateSelector({ dates, selectedDate, showtimes, onSelectDate, formatDateLabel, onNow, isNowActive = false }: CinemaDateSelectorProps) {
+function TheaterDateSelector({ dates, selectedDate, showtimes, onSelectDate, formatDateLabel, onNow, isNowActive = false }: TheaterDateSelectorProps) {
   if (dates.length === 0) return null;
 
   const today = new Date().toISOString().split('T')[0];
@@ -89,4 +89,4 @@ function CinemaDateSelector({ dates, selectedDate, showtimes, onSelectDate, form
 
 // ⚡ PERFORMANCE: Memoize component to prevent re-renders when parent re-renders
 // but selectedDate and showtimes haven't changed.
-export default memo(CinemaDateSelector);
+export default memo(TheaterDateSelector);

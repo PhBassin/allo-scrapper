@@ -80,12 +80,12 @@ describe('highlightText', () => {
     });
 
     it('should highlight match at the end of text', () => {
-      const result = highlightText('Cinema', 'ema');
+      const result = highlightText('Theater', 'ter');
       const { container } = render(<>{result}</>);
       
       const mark = container.querySelector('mark');
-      expect(mark?.textContent).toBe('ema');
-      expect(container.textContent).toBe('Cinema');
+      expect(mark?.textContent).toBe('ter');
+      expect(container.textContent).toBe('Theater');
     });
   });
 

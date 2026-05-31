@@ -35,8 +35,8 @@ export interface Movie {
   trailer_url?: string;
 }
 
-// Cinema types
-export interface Cinema {
+// Theater types
+export interface Theater {
   id: string;
   name: string;
   url?: string;
@@ -51,7 +51,7 @@ export interface Cinema {
 export interface Showtime {
   id: string;
   movie_id: number;
-  cinema_id: string;
+  theater_id: string;
   date: string;
   time: string;
   datetime_iso: string;
@@ -65,16 +65,16 @@ export interface ShowtimeWithMovie extends Showtime {
   movie: Movie;
 }
 
-export interface MovieWithCinemas extends Movie {
-  theaters: Cinema[];
+export interface MovieWithTheaters extends Movie {
+  theaters: Theater[];
 }
 
-export interface CinemaWithShowtimes extends Cinema {
+export interface TheaterWithShowtimes extends Theater {
   showtimes: Showtime[];
 }
 
 export interface MovieWithShowtimes extends Movie {
-  theaters: CinemaWithShowtimes[];
+  theaters: TheaterWithShowtimes[];
 }
 
 // Scrape Report types
@@ -150,7 +150,7 @@ export interface ScrapeSchedule {
   description: string | null;
   cron_expression: string;
   enabled: boolean;
-  target_cinemas: string[] | null;
+  target_theaters: string[] | null;
   created_by: number | null;
   updated_by: number | null;
   created_at: string;

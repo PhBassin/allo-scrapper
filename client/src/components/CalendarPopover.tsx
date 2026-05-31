@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Showtime, Movie, Cinema } from '../types';
+import type { Showtime, Movie, Theater } from '../types';
 import { buildGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 
 interface CalendarPopoverProps {
   showtime: Showtime;
   movie: Movie;
-  cinema: Cinema;
+  theater: Theater;
   anchorRef: React.RefObject<HTMLButtonElement | null>;
   onClose: () => void;
 }
 
-export default function CalendarPopover({ showtime, movie, cinema, anchorRef, onClose }: CalendarPopoverProps) {
+export default function CalendarPopover({ showtime, movie, theater, anchorRef, onClose }: CalendarPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<React.CSSProperties>({ visibility: 'hidden' });
 
@@ -52,13 +52,13 @@ export default function CalendarPopover({ showtime, movie, cinema, anchorRef, on
   }, [onClose]);
 
   function handleGoogleCalendar() {
-    const url = buildGoogleCalendarUrl(showtime, movie, cinema);
+    const url = buildGoogleCalendarUrl(showtime, movie, theater);
     window.open(url, '_blank', 'noopener,noreferrer');
     onClose();
   }
 
   function handleDownloadIcs() {
-    downloadIcsFile(showtime, movie, cinema);
+    downloadIcsFile(showtime, movie, theater);
     onClose();
   }
 

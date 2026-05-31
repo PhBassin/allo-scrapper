@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import CinemasPage from './CinemasPage';
+import TheatersPage from './TheatersPage';
 import SettingsPage from './SettingsPage';
 import UsersPage from './UsersPage';
 import SystemPage from './SystemPage';
@@ -11,7 +11,7 @@ import RateLimitsPage from './RateLimitsPage';
 import { AuthContext } from '../../contexts/AuthContext';
 import type { PermissionName } from '../../types/role';
 
-type TabId = 'cinemas' | 'schedules' | 'rapports' | 'users' | 'roles' | 'settings' | 'ratelimits' | 'system';
+type TabId = 'theaters' | 'schedules' | 'rapports' | 'users' | 'roles' | 'settings' | 'ratelimits' | 'system';
 
 interface Tab {
   id: TabId;
@@ -26,10 +26,10 @@ interface Tab {
 
 const tabs: Tab[] = [
   {
-    id: 'cinemas',
-    label: 'Cinemas',
-    // Cinemas tab is visible to anyone with at least one cinema/scraper permissions
-    anyPermissions: ['cinemas:create', 'cinemas:read', 'cinemas:update', 'cinemas:delete', 'scraper:trigger', 'scraper:trigger_single'],
+    id: 'theaters',
+    label: 'Theaters',
+    // Theaters tab is visible to anyone with at least one theater/scraper permissions
+    anyPermissions: ['theaters:create', 'theaters:read', 'theaters:update', 'theaters:delete', 'scraper:trigger', 'scraper:trigger_single'],
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
@@ -112,7 +112,7 @@ const tabs: Tab[] = [
 const AdminPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { hasPermission } = useContext(AuthContext);
-  const currentTab = searchParams.get('tab') || 'cinemas';
+  const currentTab = searchParams.get('tab') || 'theaters';
 
   // Filter tabs to only those the user has permission to see
   const visibleTabs = useMemo(() => {
@@ -129,8 +129,8 @@ const AdminPage: React.FC = () => {
 
   const visibleTabIds = useMemo(() => visibleTabs.map((t) => t.id), [visibleTabs]);
 
-  // Validate tab and fallback to first visible tab (or 'cinemas')
-  const fallbackTab: TabId = visibleTabIds[0] ?? 'cinemas';
+  // Validate tab and fallback to first visible tab (or 'theaters')
+  const fallbackTab: TabId = visibleTabIds[0] ?? 'theaters';
   const activeTab: TabId = visibleTabIds.includes(currentTab as TabId)
     ? (currentTab as TabId)
     : fallbackTab;
@@ -180,7 +180,7 @@ const AdminPage: React.FC = () => {
 
       {/* Tab content */}
       <div role="tabpanel">
-        {activeTab === 'cinemas' && <CinemasPage />}
+        {activeTab === 'theaters' && <TheatersPage />}
         {activeTab === 'schedules' && <SchedulesPage />}
         {activeTab === 'rapports' && <ReportsPage />}
         {activeTab === 'users' && <UsersPage />}

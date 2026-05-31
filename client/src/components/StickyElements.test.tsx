@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HomePage from '../pages/HomePage';
-import CinemaPage from '../pages/CinemaPage';
+import TheaterPage from '../pages/TheaterPage';
 import { AuthContext } from '../contexts/AuthContext';
 import * as clientApi from '../api/client';
 
@@ -24,7 +24,7 @@ const mockAuthContext = {
     role_id: 1, 
     role_name: 'admin', 
     is_system_role: true, 
-    permissions: ['cinemas:create', 'scraper:trigger'] as any[] 
+    permissions: ['theaters:create', 'scraper:trigger'] as any[] 
   },
   logout: vi.fn(),
   login: vi.fn(),
@@ -77,13 +77,13 @@ describe('Sticky Elements Stickiness', () => {
     expect(stickySection).toHaveStyle({ top: 'var(--layout-header-offset, 64px)' });
   });
 
-  it('CinemaPage date selector should be sticky with offset', async () => {
-    (clientApi.getTheaters as any).mockResolvedValue([{ id: '1', name: 'Test Cinema' }]);
+  it('TheaterPage date selector should be sticky with offset', async () => {
+    (clientApi.getTheaters as any).mockResolvedValue([{ id: '1', name: 'Test Theater' }]);
     (clientApi.getTheaterSchedule as any).mockResolvedValue({ showtimes: [] });
     
     (useParams as any).mockReturnValue({ id: '1' });
 
-    renderWithProviders(<CinemaPage />);
+    renderWithProviders(<TheaterPage />);
 
     const dateSelectorContainer = await screen.findByTestId('sticky-date-selector-container');
     expect(dateSelectorContainer).toBeInTheDocument();
