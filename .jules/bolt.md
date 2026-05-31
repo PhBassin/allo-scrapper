@@ -29,3 +29,6 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+## 2026-05-31 - [Avoid Map and array methods in hot paths]
+**Learning:** In performance-critical loops like `mergeMoviesAndShowtimes` and `getWeeklyMovies` that process arrays of objects, using `Map` along with array methods (`.map()`, spread operators, and `Array.from(Map.values())`) introduces measurable overhead due to prototype lookups and memory allocation (intermediate array closures).
+**Action:** Use `Object.create(null)` for plain key-value dictionaries, maintain parallel arrays for ordered insertion, and use standard `for` loops with `Object.assign` to minimize overhead and allocations in data transformation bottlenecks.

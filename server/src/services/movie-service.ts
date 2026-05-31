@@ -46,18 +46,26 @@ export class MovieService {
   }
 
   private mergeMoviesAndShowtimes(movies: any[], allShowtimes: any[]): MovieWithShowtimes[] {
-    const showtimesByMovie = new Map<number, Array<Showtime & { theater: Theater }>>();
+    // ⚡ PERFORMANCE: Use Object.create(null) instead of Map for O(1) lookups without prototype overhead.
+    // Classic for-loop avoids iterator allocations. Avoid array spread operations.
+    const showtimesByMovie: Record<number, Array<Showtime & { theater: Theater }>> = Object.create(null);
     
-    for (const s of allShowtimes) {
-      if (!showtimesByMovie.has(s.movie_id)) {
-        showtimesByMovie.set(s.movie_id, []);
+    for (let i = 0; i < allShowtimes.length; i++) {
+      const s = allShowtimes[i];
+      if (!showtimesByMovie[s.movie_id]) {
+        showtimesByMovie[s.movie_id] = [];
       }
-      showtimesByMovie.get(s.movie_id)!.push(s);
+      showtimesByMovie[s.movie_id].push(s);
     }
 
-    return movies.map(f => ({
-      ...f,
-      theaters: groupShowtimesByTheater(showtimesByMovie.get(f.id) || [])
-    }));
+    const result = new Array(movies.length);
+    for (let i = 0; i < movies.length; i++) {
+      const f = movies[i];
+      const merged = Object.assign({}, f);
+      merged.theaters = groupShowtimesByTheater(showtimesByMovie[f.id] || []);
+      result[i] = merged;
+    }
+
+    return result;
   }
 }
