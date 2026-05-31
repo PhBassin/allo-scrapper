@@ -1,0 +1,128 @@
+# ---------------------------------------------------------------------------
+# Monitoring stack (Loki + Promtail + Prometheus + Grafana + Tempo + exporters)
+#
+# Usage:
+#   - Main stack only:        docker compose up -d
+#   - Main stack + monitoring: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+#   - Monitoring only (main stack already running):
+#                              docker compose -f docker-compose.monitoring.yml up -d
+#
+# This file is separate from docker-compose.yml so deployment platforms that
+# ignore Compose profiles (e.g. Coolify) do not surface monitoring services
+# for the application deployment.
+# ---------------------------------------------------------------------------
+
+services:
+  # Loki – log aggregation backend
+  ics-loki:
+    image: grafana/loki:2.9.0
+    restart: unless-stopped
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./docker/loki-config.yml:/etc/loki/config.yml:ro
+      - loki-data:/tmp/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - ics-network
+
+  # Promtail – log shipper (collects Docker container stdout/stderr → Loki)
+  ics-promtail:
+    image: grafana/promtail:2.9.0
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./docker/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - ics-loki
+    networks:
+      - ics-network
+
+  # Prometheus – metrics scraping and storage
+  ics-prometheus:
+    image: prom/prometheus:v2.51.0
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - ics-network
+
+  # PostgreSQL exporter – exposes pg metrics for Prometheus
+  ics-postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@ics-db:5432/${POSTGRES_DB:-ics}?sslmode=disable"
+    networks:
+      - ics-network
+
+  # Redis exporter – exposes Redis metrics for Prometheus
+  ics-redis-exporter:
+    image: oliver006/redis_exporter:v1.60.0
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://ics-redis:6379
+    networks:
+      - ics-network
+
+  # Tempo – distributed tracing backend (receives OTLP from scraper and server)
+  ics-tempo:
+    image: grafana/tempo:2.3.0
+    restart: unless-stopped
+    command: -config.file=/etc/tempo/config.yml
+    volumes:
+      - ./docker/tempo.yml:/etc/tempo/config.yml:ro
+      - tempo-data:/tmp/tempo
+    ports:
+      - "3200:3200" # Tempo HTTP API
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+    networks:
+      - ics-network
+
+  # Grafana – dashboards for metrics (Prometheus), logs (Loki) and traces (Tempo)
+  ics-grafana:
+    image: grafana/grafana:10.4.0
+    restart: unless-stopped
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+    volumes:
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - ics-prometheus
+      - ics-loki
+      - ics-tempo
+    networks:
+      - ics-network
+
+networks:
+  # Shared with the main application stack (docker-compose.yml).
+  # When running this file alone, the network must already exist
+  # (start the main stack first, or use -f to merge both files).
+  ics-network:
+    name: ics-network
+    external: true
+
+volumes:
+  loki-data:
+  prometheus-data:
+  tempo-data:
+  grafana-data:
