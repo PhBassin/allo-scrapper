@@ -139,7 +139,7 @@ No API, schema, or configuration changes are required. Only the Docker tag needs
 ### Quick Deployment
 
 ```bash
-# Pull and start services (uses docker-compose.yml)
+# Pull and start services (uses docker-compose.yaml)
 docker compose pull
 docker compose up -d
 
@@ -149,7 +149,7 @@ docker images | grep allo-scrapper
 
 ### Using Specific Versions
 
-Edit your `.env` file or `docker-compose.yml` to specify a version:
+Edit your `.env` file or `docker-compose.yaml` to specify a version:
 
 ```yaml
 services:
@@ -200,7 +200,7 @@ npm run dev:down
 
 ## Production Mode
 
-Uses `docker-compose.yml` with pre-built images from GitHub Container Registry:
+Uses `docker-compose.yaml` with pre-built images from GitHub Container Registry:
 
 ```bash
 # Base stack (app + DB + Redis)
@@ -210,10 +210,10 @@ docker compose up -d
 docker compose --profile scraper up -d
 
 # With full observability stack (Prometheus, Grafana, Loki, Tempo)
-docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 
 # Everything
-docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 ```
 
 **Base services (`docker compose up -d`):**
@@ -285,7 +285,7 @@ docker compose --profile scraper up -d
 ### Monitoring Profile
 
 ```bash
-docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 ```
 
 **Adds:**
@@ -397,7 +397,7 @@ See [Backup & Restore](./backup-restore.md) for complete backup workflows.
 
 ### Token Expiry Management
 
-All three Docker Compose files (`docker-compose.yml`, `docker-compose.dev.yml`, `docker-compose.build.yml`) forward the `JWT_EXPIRES_IN` environment variable from your `.env` file to the application containers.
+All three Docker Compose files (`docker-compose.yaml`, `docker-compose.dev.yml`, `docker-compose.build.yml`) forward the `JWT_EXPIRES_IN` environment variable from your `.env` file to the application containers.
 
 **Configuration in `.env`:**
 ```env
@@ -555,7 +555,7 @@ docker inspect ics-web | jq '.[0].State.Health'
 
 ## Docker Compose Files
 
-### docker-compose.yml (Production)
+### docker-compose.yaml (Production)
 
 - Uses pre-built images from GHCR
 - Includes base services (db, redis, web)

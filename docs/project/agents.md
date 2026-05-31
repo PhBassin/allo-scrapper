@@ -350,8 +350,8 @@ cd scraper && npm test
 docker compose build                                          # Build all images
 docker compose up -d                                         # Base stack (app + DB + Redis)
 docker compose --profile scraper up -d                       # With scraper microservice
-docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d                    # With Prometheus/Grafana/Loki/Tempo
-docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d  # Everything
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d                    # With Prometheus/Grafana/Loki/Tempo
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d  # Everything
 ```
 
 ### Git

@@ -10,7 +10,7 @@
 - PostgreSQL 15+ (external or containerized)
 - Redis 7+ (external or containerized)
 
-### Production docker-compose.yml
+### Production docker-compose.yaml
 
 ```yaml
 version: '3.8'

@@ -83,8 +83,8 @@ cd allo-scrapper
 
 **Option B: Download files manually**:
 ```bash
-# Download docker-compose.yml
-curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/docker-compose.yml
+# Download docker-compose.yaml
+curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/docker-compose.yaml
 
 # Download .env.example
 curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/.env.example
@@ -601,7 +601,7 @@ For production monitoring with Prometheus, Grafana, Loki, and Tempo:
 
 ```bash
 # Start with monitoring profile
-docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 ```
 
 See [Monitoring Guide](./monitoring.md) for complete setup.
@@ -665,7 +665,7 @@ docker compose down
 # 3. Use previous image version
 docker pull ghcr.io/phbassin/allo-scrapper:<previous-tag>
 
-# 4. Update docker-compose.yml to pin version
+# 4. Update docker-compose.yaml to pin version
 # image: ghcr.io/phbassin/allo-scrapper:<previous-tag>
 
 # 5. Restart
@@ -884,7 +884,7 @@ docker system prune -a --volumes
 
 **Slow response times:**
 1. Check container resources: `docker stats`
-2. Increase memory limit in `docker-compose.yml`
+2. Increase memory limit in `docker-compose.yaml`
 3. Add database indexes (see [Database Schema](../../reference/database/schema.md))
 
 **High CPU usage:**
@@ -931,7 +931,7 @@ docker pull ghcr.io/phbassin/allo-scrapper:stable && docker compose down && dock
 ### Important Files
 
 - **`.env`** - Environment configuration
-- **`docker-compose.yml`** - Service orchestration
+- **`docker-compose.yaml`** - Service orchestration
 - **`server/src/config/theaters.json`** - Theater configuration
 - **`backups/`** - Database backups
 

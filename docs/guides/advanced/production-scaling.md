@@ -238,7 +238,7 @@ environment:
 **Cron Expression Examples:**
 ```
 "0 8 * * *"         # Every day at 8 AM
-"0 8 * * 3"         # Every Wednesday at 8 AM (from docker-compose.yml default)
+"0 8 * * 3"         # Every Wednesday at 8 AM (from docker-compose.yaml default)
 "0 0,6,12,18 * * *" # Every 6 hours
 "*/30 * * * *"      # Every 30 minutes
 ```
@@ -983,7 +983,7 @@ docker stats ics-scraper
 
 2. **Restart scraper instances periodically:**
    ```yaml
-   # In docker-compose.yml
+   # In docker-compose.yaml
    restart: on-failure:3  # Restart after 3 failures
    ```
 

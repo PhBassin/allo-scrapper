@@ -374,7 +374,7 @@ lsof -i :3000
 # Kill the process
 kill -9 <PID>
 
-# Or change the port in docker-compose.yml
+# Or change the port in docker-compose.yaml
 # ports:
 #   - "3001:3000"  # Map to port 3001 instead
 

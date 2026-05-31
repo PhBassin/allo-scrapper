@@ -36,7 +36,7 @@ nano .env
 ```
 
 The `.env` file is automatically loaded by:
-- Docker Compose (via `env_file` in docker-compose.yml)
+- Docker Compose (via `env_file` in docker-compose.yaml)
 - Node.js server (via `dotenv` package)
 - Vite dev server (variables prefixed with `VITE_`)
 
@@ -176,7 +176,7 @@ These variables are **required** for the application to function properly.
 - **Tools**: Use [crontab.guru](https://crontab.guru/) to build expressions
 - **Notes**: 
   - Used by both the in-process cron (ics-web) and scraper microservice cron (ics-scraper-cron)
-  - Internal variable `CRON_SCHEDULE` is automatically set from this value in docker-compose.yml
+  - Internal variable `CRON_SCHEDULE` is automatically set from this value in docker-compose.yaml
 
 #### `SCRAPE_THEATER_DELAY_MS`
 - **Description**: Delay between theater scrapes (milliseconds)
@@ -184,7 +184,7 @@ These variables are **required** for the application to function properly.
 - **Range**: `1000` - `10000`
 - **Notes**: 
   - Lower values = faster scraping, higher values = more polite to source website
-  - ⚠️ **Docker Compose**: `SCRAPE_DELAY_MS` in docker-compose.yml is obsolete and ignored (use `SCRAPE_THEATER_DELAY_MS` in `.env` instead)
+  - ⚠️ **Docker Compose**: `SCRAPE_DELAY_MS` in docker-compose.yaml is obsolete and ignored (use `SCRAPE_THEATER_DELAY_MS` in `.env` instead)
 
 #### `SCRAPE_MOVIE_DELAY_MS`
 - **Description**: Delay between movie detail fetches (milliseconds)
@@ -555,7 +555,7 @@ docker compose restart
 
 **Docker variables not loading:**
 - Check `.env` is in project root
-- Verify `env_file: .env` in docker-compose.yml
+- Verify `env_file: .env` in docker-compose.yaml
 - Restart services: `docker compose restart`
 
 ### Cron Schedule Not Working

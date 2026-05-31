@@ -6,7 +6,7 @@
 #       docker compose up -d
 #   - Main stack + monitoring (recommended):
 #       docker compose --env-file .env --env-file .env.monitoring \
-#         -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+#         -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 #   - Monitoring only (main stack already running):
 #       docker compose --env-file .env --env-file .env.monitoring \
 #         -f docker-compose.monitoring.yml up -d
@@ -17,7 +17,7 @@
 #   - POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB (from main .env, used by
 #     the postgres-exporter)
 #
-# This file is separate from docker-compose.yml so deployment platforms that
+# This file is separate from docker-compose.yaml so deployment platforms that
 # ignore Compose profiles (e.g. Coolify) do not surface monitoring services
 # for the application deployment.
 # ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ services:
       - ics-network
 
 networks:
-  # Shared with the main application stack (docker-compose.yml).
+  # Shared with the main application stack (docker-compose.yaml).
   # When running this file alone, the network must already exist
   # (start the main stack first, or use -f to merge both files).
   ics-network:

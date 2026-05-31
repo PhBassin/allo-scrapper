@@ -647,7 +647,7 @@ docker inspect ics-web --format='{{.State.OOMKilled}}'
 **Solution:**
 
 ```bash
-# Add memory limits to docker-compose.yml
+# Add memory limits to docker-compose.yaml
 services:
   ics-web:
     deploy:
