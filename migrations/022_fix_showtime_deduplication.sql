@@ -16,10 +16,10 @@
 --      as an additional safety net
 --
 -- IMPORTANT: Backup your database before running!
---   docker compose exec -T db pg_dump -U postgres its > backup_before_022.sql
+--   docker compose exec -T ics-db pg_dump -U postgres ics > backup_before_022.sql
 --
 -- Apply:
---   docker compose exec -T db psql -U postgres -d its -f migrations/022_fix_showtime_deduplication.sql
+--   docker compose exec -T ics-db psql -U postgres -d ics -f migrations/022_fix_showtime_deduplication.sql
 
 BEGIN;
 

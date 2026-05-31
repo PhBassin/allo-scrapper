@@ -10,7 +10,7 @@ import { AuthContext } from '../contexts/AuthContext';
 // Mock the API client
 const mockAuthContext = {
   isAuthenticated: true,
-  user: { id: 1, username: 'testuser', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['cinemas:create', 'scraper:trigger'] as any[] },
+  user: { id: 1, username: 'testuser', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['theaters:create', 'scraper:trigger'] as any[] },
   logout: vi.fn(),
   login: vi.fn(),
   isAdmin: false,
@@ -124,7 +124,7 @@ describe('HomePage — bouton Maintenant', () => {
         theaters: [
           {
             id: 'C1',
-            name: 'Cinema 1',
+            name: 'Theater 1',
             address: '',
             city: 'Paris',
             showtimes: [{ id: 's1', date: FIXED_TODAY, time: '12:00', experiences: [] }],
@@ -140,7 +140,7 @@ describe('HomePage — bouton Maintenant', () => {
         theaters: [
           {
             id: 'C1',
-            name: 'Cinema 1',
+            name: 'Theater 1',
             address: '',
             city: 'Paris',
             showtimes: [{ id: 's2', date: FIXED_TODAY, time: '14:00', experiences: [] }],

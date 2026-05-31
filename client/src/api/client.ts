@@ -2,7 +2,7 @@ import type {
   ApiResponse,
   MovieWithShowtimes,
   Movie,
-  Cinema,
+  Theater,
   ShowtimeWithMovie,
   ScrapeReport,
   PaginatedResponse,
@@ -271,8 +271,8 @@ export async function searchMovies(query: string): Promise<Movie[]> {
 // THEATERS API
 // ============================================================================
 
-export async function getTheaters(): Promise<Cinema[]> {
-  const response = await apiClient.get<ApiResponse<Cinema[]>>('/theaters');
+export async function getTheaters(): Promise<Theater[]> {
+  const response = await apiClient.get<ApiResponse<Theater[]>>('/theaters');
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to fetch theaters');
   }
@@ -291,8 +291,8 @@ export async function getTheaterSchedule(
   return response.data;
 }
 
-export async function addTheater(url: string): Promise<Cinema> {
-  const response = await apiClient.post<ApiResponse<Cinema>>('/theaters', { url });
+export async function addTheater(url: string): Promise<Theater> {
+  const response = await apiClient.post<ApiResponse<Theater>>('/theaters', { url });
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to add theater');
   }

@@ -52,7 +52,7 @@ describe('useTheme', () => {
 
   it('should update favicon when publicSettings includes favicon_base64', async () => {
     const mockSettings: AppSettingsPublic = {
-      site_name: 'My Cinema',
+      site_name: 'My Theater',
       favicon_base64: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
       logo_base64: null,
       color_primary: '#FECC00',
@@ -81,7 +81,7 @@ describe('useTheme', () => {
 
   it('should update document title when publicSettings includes site_name', async () => {
     const mockSettings: AppSettingsPublic = {
-      site_name: 'My Custom Cinema Site',
+      site_name: 'My Custom Theater Site',
       favicon_base64: null,
       logo_base64: null,
       color_primary: '#FECC00',
@@ -102,7 +102,7 @@ describe('useTheme', () => {
     renderHook(() => useTheme(), { wrapper: createWrapper(mockSettings) });
 
     await waitFor(() => {
-      expect(document.title).toBe('My Custom Cinema Site');
+      expect(document.title).toBe('My Custom Theater Site');
     });
   });
 

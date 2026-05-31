@@ -34,7 +34,7 @@ const mockAuthContext = {
 
 const mockSettingsContext = {
   publicSettings: {
-    site_name: 'Test Cinema',
+    site_name: 'Test Theater',
     logo_base64: null,
     favicon_base64: null,
     color_primary: '#FECC00',
@@ -48,12 +48,12 @@ const mockSettingsContext = {
     color_error: '#EF4444',
     font_family_heading: 'Playfair Display',
     font_family_body: 'Roboto',
-    footer_text: '© 2024 Test Cinema',
+    footer_text: '© 2024 Test Theater',
     footer_links: [],
   },
   adminSettings: {
     id: 1,
-    site_name: 'Test Cinema',
+    site_name: 'Test Theater',
     logo_base64: null,
     favicon_base64: null,
     color_primary: '#FECC00',
@@ -67,9 +67,9 @@ const mockSettingsContext = {
     color_error: '#EF4444',
     font_family_heading: 'Playfair Display',
     font_family_body: 'Roboto',
-    footer_text: '© 2024 Test Cinema',
+    footer_text: '© 2024 Test Theater',
     footer_links: [],
-    email_from_name: 'Test Cinema',
+    email_from_name: 'Test Theater',
     email_from_address: 'noreply@test.com',
     email_logo_base64: null,
     updated_at: '2024-01-01T00:00:00.000Z',
@@ -195,7 +195,7 @@ describe('SettingsPage - Permission-based button visibility', () => {
     await screen.findByText('White-Label Settings');
 
     // Check text input is disabled
-    const siteNameInput = screen.getByPlaceholderText('My Cinema Site') as HTMLInputElement;
+    const siteNameInput = screen.getByPlaceholderText('My Theater Site') as HTMLInputElement;
     expect(siteNameInput.disabled).toBe(true);
   });
 
@@ -207,7 +207,7 @@ describe('SettingsPage - Permission-based button visibility', () => {
     await screen.findByText('White-Label Settings');
 
     // Check text input is enabled
-    const siteNameInput = screen.getByPlaceholderText('My Cinema Site') as HTMLInputElement;
+    const siteNameInput = screen.getByPlaceholderText('My Theater Site') as HTMLInputElement;
     expect(siteNameInput.disabled).toBe(false);
   });
 
@@ -228,7 +228,7 @@ describe('SettingsPage - Permission-based button visibility', () => {
     expect(screen.queryByTestId('save-settings-button')).not.toBeInTheDocument();
 
     // And all inputs should be disabled
-    const siteNameInput = screen.getByPlaceholderText('My Cinema Site') as HTMLInputElement;
+    const siteNameInput = screen.getByPlaceholderText('My Theater Site') as HTMLInputElement;
     expect(siteNameInput.disabled).toBe(true);
   });
 });

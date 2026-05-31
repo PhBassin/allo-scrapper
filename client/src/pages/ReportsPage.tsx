@@ -266,11 +266,11 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Per-cinema breakdown */}
+            {/* Per-theater breakdown */}
             <div className="space-y-4">
-              {Object.entries(reportDetails.attempts).map(([cinemaId, attempts]) => (
-                <div key={cinemaId} className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-semibold mb-3">Cinéma {cinemaId}</h3>
+              {Object.entries(reportDetails.attempts).map(([theaterId, attempts]) => (
+                <div key={theaterId} className="border border-gray-200 rounded-lg p-4">
+                  <h3 className="font-semibold mb-3">Cinéma {theaterId}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                     {attempts.map((attempt) => {
                       const statusColors = {

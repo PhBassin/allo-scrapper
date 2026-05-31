@@ -1,4 +1,4 @@
-import type { Showtime, Movie, Cinema } from '../types';
+import type { Showtime, Movie, Theater } from '../types';
 
 /**
  * Convert an ISO 8601 datetime string (local, no timezone designator) to
@@ -27,11 +27,11 @@ function addMinutesToIso(isoString: string, minutes: number): string {
   return `${year}${month}${day}T${hours}${mins}${secs}`;
 }
 
-function buildLocation(cinema: Cinema): string {
-  if (cinema.address) {
-    return `${cinema.name}, ${cinema.address}`;
+function buildLocation(theater: Theater): string {
+  if (theater.address) {
+    return `${theater.name}, ${theater.address}`;
   }
-  return cinema.name;
+  return theater.name;
 }
 
 function buildDetails(showtime: Showtime): string {
@@ -82,11 +82,11 @@ function foldIcsLine(line: string): string {
  * Build a Google Calendar "add event" URL.
  * Opens in a new tab with the event pre-filled.
  */
-export function buildGoogleCalendarUrl(showtime: Showtime, movie: Movie, cinema: Cinema): string {
+export function buildGoogleCalendarUrl(showtime: Showtime, movie: Movie, theater: Theater): string {
   const durationMinutes = movie.duration_minutes ?? 120;
   const dtStart = toCompactDateTime(showtime.datetime_iso);
   const dtEnd = addMinutesToIso(showtime.datetime_iso, durationMinutes);
-  const location = buildLocation(cinema);
+  const location = buildLocation(theater);
   const details = buildDetails(showtime);
 
   const params = new URLSearchParams({
@@ -103,13 +103,13 @@ export function buildGoogleCalendarUrl(showtime: Showtime, movie: Movie, cinema:
 /**
  * Build the text content of an RFC 5545 .ics file for a single event.
  */
-export function buildIcsContent(showtime: Showtime, movie: Movie, cinema: Cinema): string {
+export function buildIcsContent(showtime: Showtime, movie: Movie, theater: Theater): string {
   const durationMinutes = movie.duration_minutes ?? 120;
   const dtStart = toCompactDateTime(showtime.datetime_iso);
   const dtEnd = addMinutesToIso(showtime.datetime_iso, durationMinutes);
-  const location = buildLocation(cinema);
+  const location = buildLocation(theater);
   const details = buildDetails(showtime);
-  const uid = `${showtime.datetime_iso}-${showtime.cinema_id}@allo-scrapper`;
+  const uid = `${showtime.datetime_iso}-${showtime.theater_id}@allo-scrapper`;
 
   const lines = [
     'BEGIN:VCALENDAR',
@@ -132,8 +132,8 @@ export function buildIcsContent(showtime: Showtime, movie: Movie, cinema: Cinema
 /**
  * Trigger a browser download of a .ics file for the given showtime.
  */
-export function downloadIcsFile(showtime: Showtime, movie: Movie, cinema: Cinema): void {
-  const content = buildIcsContent(showtime, movie, cinema);
+export function downloadIcsFile(showtime: Showtime, movie: Movie, theater: Theater): void {
+  const content = buildIcsContent(showtime, movie, theater);
   const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

@@ -1,6 +1,6 @@
 import apiClient from './client';
 import type { ApiResponse } from '../types';
-import type { Cinema } from '../types';
+import type { Theater } from '../types';
 
 // ============================================================================
 // THEATER ADMIN TYPES
@@ -30,8 +30,8 @@ export interface TheaterUpdate {
 /**
  * Get all theaters (public)
  */
-export async function getTheaters(): Promise<Cinema[]> {
-  const response = await apiClient.get<ApiResponse<Cinema[]>>('/theaters');
+export async function getTheaters(): Promise<Theater[]> {
+  const response = await apiClient.get<ApiResponse<Theater[]>>('/theaters');
 
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to fetch theaters');
@@ -44,8 +44,8 @@ export async function getTheaters(): Promise<Cinema[]> {
  * Add a new theater (admin only).
  * Pass { url } for smart add (auto-scrape), or { id, name } for manual add.
  */
-export async function createTheater(data: TheaterCreate): Promise<Cinema> {
-  const response = await apiClient.post<ApiResponse<Cinema>>('/theaters', data);
+export async function createTheater(data: TheaterCreate): Promise<Theater> {
+  const response = await apiClient.post<ApiResponse<Theater>>('/theaters', data);
 
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to create theater');
@@ -57,8 +57,8 @@ export async function createTheater(data: TheaterCreate): Promise<Cinema> {
 /**
  * Update a theater's name and/or URL (admin only).
  */
-export async function updateTheater(id: string, data: TheaterUpdate): Promise<Cinema> {
-  const response = await apiClient.put<ApiResponse<Cinema>>(`/theaters/${id}`, data);
+export async function updateTheater(id: string, data: TheaterUpdate): Promise<Theater> {
+  const response = await apiClient.put<ApiResponse<Theater>>(`/theaters/${id}`, data);
 
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to update theater');
