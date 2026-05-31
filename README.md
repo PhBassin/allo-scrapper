@@ -83,10 +83,11 @@
               │   Redis  (mandatory)    │  Job queue + progress pub/sub
               └─────────────────────────┘
 
-  Monitoring (--profile monitoring):
+  Monitoring (separate compose file — docker-compose.monitoring.yml):
   Prometheus :9090 → Grafana :3001
   Loki + Promtail (logs) → Grafana
   Tempo :3200 (traces, OTLP :4317) → Grafana
+  Start with: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 ```
 
 **Data Flow:**
