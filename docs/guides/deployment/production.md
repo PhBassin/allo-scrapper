@@ -601,7 +601,7 @@ For production monitoring with Prometheus, Grafana, Loki, and Tempo:
 
 ```bash
 # Start with monitoring profile
-docker compose --profile monitoring up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 ```
 
 See [Monitoring Guide](./monitoring.md) for complete setup.

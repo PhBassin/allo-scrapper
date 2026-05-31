@@ -275,7 +275,7 @@ OTEL_ENABLED=true
 OTEL_EXPORTER_OTLP_ENDPOINT=http://ics-tempo:4317
 
 # Start with monitoring
-docker compose --profile monitoring up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 
 # View traces in Grafana
 open http://localhost:3001
