@@ -109,48 +109,22 @@ npm install
 ### 1. Create Environment File
 
 ```bash
-# Copy example environment file
-cp .env.example .env
+# Append dev overrides to production template
+cat .env.example .env.dev.example > .env
 ```
 
-### 2. Configure Essential Variables
+This gives you the production base (IMAGE_TAG, POSTGRES_PASSWORD, ALLOWED_ORIGINS, SCRAPE_CRON_SCHEDULE, JWT_SECRET) plus dev overrides (POSTGRES_HOST=localhost, NODE_ENV=development, etc.).
 
-Edit `.env` and update these critical settings:
+### 2. Set Required Secrets
+
+Edit `.env` and set the required secrets:
 
 ```bash
-# Database (when using Docker)
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=ics
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=password
-
-# Server
-PORT=3000
-NODE_ENV=development
-
-# CORS (required for Vite dev server)
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-
-# JWT Secret (generate secure secret for production)
-JWT_SECRET=dev-secret-key-change-in-prod
-
-# Client API URL (for Vite dev server)
-VITE_API_BASE_URL=http://localhost:3000/api
-
-# Auto-migrations (recommended for development)
-AUTO_MIGRATE=true
+POSTGRES_PASSWORD=yourpassword
+JWT_SECRET=$(openssl rand -base64 64)
 ```
 
-### 3. Generate Secure JWT Secret (Optional for Dev)
-
-```bash
-# Using OpenSSL
-openssl rand -base64 32
-
-# Using Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-```
+All other variables (POSTGRES_HOST, PORT, NODE_ENV, TZ, SCRAPE_DAYS, etc.) are already set by `.env.dev.example`. See [.env.dev.example](../../../.env.dev.example) for the full list.
 
 ---
 
@@ -246,11 +220,8 @@ curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Authorization: Bearer <token>"
 ```
 
-**Scraper microservice (optional)**:
+**Scraper microservice** (always included in Docker):
 ```bash
-# Enable Redis scraper in .env
-USE_REDIS_SCRAPER=true
-
 # Start Redis
 docker compose up -d ics-redis
 

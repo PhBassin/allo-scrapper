@@ -122,7 +122,7 @@ Monitoring Stack (Optional):
 - REST API endpoints for theaters, movies, showtimes, users, settings
 - JWT-based authentication and authorization
 - Rate limiting and security middleware
-- In-process scraping (legacy mode) or Redis job publishing (microservice mode)
+- Redis job publishing for scraper dispatch
 - Server-Sent Events (SSE) for real-time scrape progress
 - Database migrations (automatic on startup)
 - Static file serving (production frontend)
@@ -182,25 +182,13 @@ See [Database Schema](../database/schema.md) for complete details.
 
 ### 4. Scraper Service
 
-**Two Modes:**
+All scraping is dispatched via Redis to the standalone scraper microservice (`ics-scraper` container), always included in `docker-compose.yaml`.
 
-#### A. Legacy Mode (In-Process)
-- Scraping runs inside the Express server process
-- No Redis required
-- Simpler deployment
-- Limited scalability
-
-#### B. Microservice Mode (Redis Queue)
-- Scraping runs in a separate container (`scraper/`)
-- Redis job queue for communication
-- Better scalability and fault isolation
-- Can run multiple scraper workers
-
-**Responsibilities** (both modes):
+**Responsibilities**:
 - Fetch HTML from theater websites
 - Parse showtimes, movies, and metadata
 - Update database with new/changed data
-- Report progress via Redis or SSE
+- Report progress via Redis pub/sub
 - Error handling and retries
 - Rate limiting to avoid blocking
 
@@ -208,7 +196,7 @@ See [Scraper System Architecture](./scraper-system.md) for details.
 
 ---
 
-### 5. Redis (Optional)
+### 5. Redis
 
 **Technology**: Redis 7
 
@@ -254,35 +242,7 @@ Browser → Express API → PostgreSQL
 
 ---
 
-### 2. Scraping Showtimes (Legacy Mode)
-
-```
-Admin → [Trigger Scrape] → Express API
-                               ↓
-                       Scraper Service (in-process)
-                               ↓
-                         HTTP Client
-                               ↓
-                      Theater Parser (HTML)
-                               ↓
-                         PostgreSQL
-                               ↓
-                     [Scrape Complete]
-                               ↓
-                        SSE → Browser
-```
-
-1. Admin triggers scrape via UI or cron job
-2. Express starts in-process scraper
-3. Scraper fetches HTML from theater websites
-4. Parser extracts showtimes
-5. Data written to PostgreSQL
-6. Progress updates sent via SSE
-7. Browser displays real-time progress
-
----
-
-### 3. Scraping Showtimes (Microservice Mode)
+### 2. Scraping Showtimes
 
 ```
 Admin → [Trigger Scrape] → Express API
@@ -299,25 +259,23 @@ Admin → [Trigger Scrape] → Express API
                                ↓
                          PostgreSQL
                                ↓
-                   Redis Progress Publisher
+                    Redis Progress Events
                                ↓
-                      Express API (SSE)
-                               ↓
-                            Browser
+                        SSE → Browser
 ```
 
 1. Admin triggers scrape via UI or cron job
 2. Express publishes job to Redis queue
-3. Scraper microservice pops job from queue
-4. Scraper fetches and parses HTML
-5. Data written to PostgreSQL
-6. Progress published to Redis
-7. Express API forwards progress via SSE
-8. Browser displays real-time progress
+3. Scraper microservice picks up the job
+4. Scraper fetches HTML from theater websites
+5. Parser extracts showtimes
+6. Data written to PostgreSQL
+7. Progress events published back via Redis
+8. Browser receives real-time progress via SSE
 
 ---
 
-### 4. User Authentication
+### 3. User Authentication
 
 ```
 Browser → [Login] → POST /api/auth/login
@@ -404,26 +362,29 @@ Browser → GET /api/theme.css
 
 ---
 
-### 2. Two Scraper Modes
+### 2. Scraper Architecture
 
-**Decision**: Support both in-process (legacy) and microservice (Redis) scraping
+**Decision**: All scraping is dispatched via Redis to the standalone scraper microservice
 
 **Rationale**:
-- **In-process**: Simple for development and small deployments
-- **Microservice**: Scalable for production with multiple theaters
-- **Backward compatibility**: Existing users don't need to migrate
+- **Fault isolation**: Scraper failures don't affect API availability
+- **Scalability**: Multiple scraper workers can run in parallel
+- **Observability**: Per-service metrics and distributed tracing
+- **Simplicity**: Single code path, no feature flags required
+
+> Prior to v4.x, an in-process mode coexisted with the microservice. It was removed to simplify the architecture.
 
 ---
 
 ### 3. Automatic Migrations
 
-**Decision**: Run database migrations automatically on server startup (when `AUTO_MIGRATE=true`)
+**Decision**: Run database migrations automatically on server startup (`AUTO_MIGRATE=true`, hardcoded in `docker-compose.yaml`)
 
 **Rationale**:
 - Zero-config deployments
 - No manual SQL execution required
 - Safe: migrations are idempotent
-- Can be disabled for debugging (`AUTO_MIGRATE=false`)
+- Can be disabled by editing `docker-compose.yaml` (`AUTO_MIGRATE=false`)
 
 ---
 

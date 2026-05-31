@@ -68,7 +68,7 @@ System design, architecture diagrams, and technical decisions.
 
 **Contents:**
 - System architecture overview
-- Scraper system design (in-process vs microservice)
+- Scraper system design (Redis microservice)
 - White-label system architecture
 - Database design
 - Observability stack

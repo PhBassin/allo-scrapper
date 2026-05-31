@@ -27,44 +27,30 @@ Detailed architecture and design of the theater showtimes scraping system.
 
 ## Overview
 
-The scraper system fetches theater showtimes from AlloCiné and stores them in PostgreSQL. It supports **two operational modes**:
+The scraper system fetches theater showtimes from AlloCiné and stores them in PostgreSQL. All scrape jobs are dispatched via Redis pub/sub to the standalone scraper microservice, which is always included in `docker-compose.yaml`.
 
-1. **Legacy Mode (In-Process)**: Scraping runs inside the Express API server
-2. **Microservice Mode (Redis Queue)**: Scraping runs in a standalone container
-
-Both modes share the same core scraping logic but differ in orchestration and communication.
+> **Historical note:** Prior to v4.x, the scraper supported an in-process mode (`USE_REDIS_SCRAPER=false`) where scraping ran inside the Express API server. This mode has been removed in favor of the microservice architecture.
 
 ---
 
-## Scraper Modes
+## Scraper Architecture
 
-### Mode Comparison
+The scraper runs as a Redis-backed microservice, always included in `docker-compose.yaml`. There is no in-process mode — all scrape jobs are dispatched via Redis pub/sub.
 
-| Feature | Legacy (In-Process) | Microservice (Redis) |
-|---------|---------------------|----------------------|
-| **Deployment** | Single container | Two containers (API + scraper) |
-| **Dependencies** | PostgreSQL only | PostgreSQL + Redis |
-| **Scalability** | Limited (one process) | High (multiple workers) |
-| **Fault Isolation** | Low (scraper crash = API crash) | High (independent processes) |
-| **Progress Tracking** | Direct SSE events | Via Redis pub/sub |
-| **Best For** | Development, small deployments | Production, high traffic |
-| **Configuration** | `USE_REDIS_SCRAPER=false` | `USE_REDIS_SCRAPER=true` |
+```
+Express API (ics-web)
+ └─> Redis Publisher (scrape:jobs)
+      └─> Redis Consumer (ics-scraper)
+           └─> PostgreSQL (direct insert)
+           └─> Redis Publisher (progress events)
+                └─> Express API (SSE streaming)
+```
 
----
-
-### Mode Selection
-
-**Use Legacy Mode when:**
-- Running locally for development
-- Managing < 10 theaters
-- Simplicity is prioritized over scalability
-- Redis is not available
-
-**Use Microservice Mode when:**
-- Running in production with multiple theaters
-- Need horizontal scalability (multiple scraper workers)
-- Want fault isolation (scraper failures don't affect API)
-- Already using Redis for other purposes
+**Benefits of the microservice architecture:**
+- Isolates scraping workload from API server
+- Enables horizontal scaling (multiple scraper workers via `--scale ics-scraper=N`)
+- Independent fault isolation (scraper failures don't affect API availability)
+- Better observability (per-service metrics, distributed tracing)
 
 ---
 
@@ -277,29 +263,9 @@ export async function getTheaterConfigs(db: DB): Promise<TheaterConfig[]>
 
 **File**: `server/src/services/progress-tracker.ts`
 
-**Purpose**: Stream real-time progress updates to frontend
+**Purpose**: Stream real-time progress updates to frontend via Redis pub/sub.
 
-**Two Implementations**:
-
-#### A. Direct SSE (Legacy Mode)
-```typescript
-export class DirectProgressTracker implements ProgressTracker {
-  emit(event: ProgressEvent): void {
-    // Send directly to SSE connection
-    this.res.write(`data: ${JSON.stringify(event)}\n\n`);
-  }
-}
-```
-
-#### B. Redis Publisher (Microservice Mode)
-```typescript
-export class RedisProgressPublisher implements ProgressTracker {
-  emit(event: ProgressEvent): void {
-    // Publish to Redis channel
-    await redis.publish('scrape:progress', JSON.stringify(event));
-  }
-}
-```
+Progress events are published to a Redis channel by the scraper microservice and consumed by the API server, which forwards them to the frontend via SSE.
 
 **Event Types**:
 ```typescript
@@ -315,7 +281,7 @@ type ProgressEvent =
 
 ---
 
-### 6. Redis Job Queue (Microservice Mode Only)
+### 6. Redis Job Queue
 
 **Files**:
 - `server/src/services/redis-client.ts` - Job publisher (API server)
@@ -356,7 +322,7 @@ API Server                    Redis                    Scraper
 
 ## Data Flow
 
-### Legacy Mode (In-Process)
+All scrape jobs follow the same flow through Redis:
 
 ```
 User (Browser)
@@ -368,15 +334,20 @@ POST /api/scraper/trigger
 ┌───────────────────────────────────┐
 │  Express API Server               │
 │                                   │
-│  1. Create scrape_sessions record│
-│  2. Start scraper in-process     │
-│  3. Open SSE connection          │
+│  1. Create scrape report         │
+│  2. Publish job to Redis queue   │
+│  3. Subscribe to progress events │
 └───────┬───────────────────────────┘
         │
         ↓
 ┌───────────────────────────────────┐
-│  Scraper Orchestrator             │
-│  server/src/services/scraper/     │
+│  Redis (scrape:jobs queue)        │
+└───────┬───────────────────────────┘
+        │
+        ↓
+┌───────────────────────────────────┐
+│  Scraper Microservice             │
+│  (ics-scraper container)          │
 │                                   │
 │  For each theater:                 │
 │    - Fetch theater page (HTML)    │
@@ -389,7 +360,7 @@ POST /api/scraper/trigger
 │        - Parse movie metadata      │
 │        - Upsert to PostgreSQL     │
 │      - Delay (rate limit)         │
-│    - Emit progress events via SSE │
+│    - Emit progress events via Redis│
 └───────┬───────────────────────────┘
         │
         ↓
@@ -398,7 +369,7 @@ POST /api/scraper/trigger
 │  - theaters                        │
 │  - movies                          │
 │  - showtimes                      │
-│  - scrape_sessions                │
+│  - scrape_reports                 │
 └───────────────────────────────────┘
 ```
 

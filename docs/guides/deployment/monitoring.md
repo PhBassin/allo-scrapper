@@ -44,7 +44,7 @@ All monitoring services live in a dedicated Compose file (`docker-compose.monito
 
 ```bash
 # Start monitoring alongside the main app
-docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 
 # Open Grafana
 open http://localhost:3001   # user: admin / password: admin
@@ -60,16 +60,16 @@ open http://localhost:3001   # user: admin / password: admin
 
 ```bash
 # Start only monitoring (assumes ics-db, ics-redis, ics-web are already up)
-docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 
 # Start everything (app + scraper + monitoring)
-docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 
 # Stop monitoring only
 docker compose -f docker-compose.monitoring.yml down
 
 # Stop everything
-docker compose -f docker-compose.yml -f docker-compose.monitoring.yml down
+docker compose -f docker-compose.yaml -f docker-compose.monitoring.yml down
 ```
 
 **Note:** The monitoring stack requires the base application services (ics-db, ics-redis, ics-web) to be running.
@@ -204,12 +204,13 @@ Traces are exported via OTLP gRPC to Tempo (`OTEL_EXPORTER_OTLP_ENDPOINT`, defau
 
 **Enable tracing:**
 ```bash
-# .env
+# .env.monitoring
 OTEL_ENABLED=true
 OTEL_EXPORTER_OTLP_ENDPOINT=http://ics-tempo:4317
 
-# Restart services
-docker compose restart ics-web ics-scraper
+# Restart with monitoring
+docker compose --env-file .env --env-file .env.monitoring \
+  -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 ```
 
 **Viewing traces in Grafana:**
@@ -235,22 +236,22 @@ docker compose restart ics-web ics-scraper
 
 ## Environment Variables
 
+Monitoring variables live in `.env.monitoring` (copy from `.env.monitoring.example`), **not** in the main `.env`:
+
 | Variable | Default | Description |
 |---|---|---|
-| `LOG_LEVEL` | `info` | Log verbosity (`error`, `warn`, `info`, `debug`) |
-| `METRICS_PORT` | `9091` | Prometheus metrics port (scraper microservice only) |
 | `OTEL_ENABLED` | `false` | Enable OpenTelemetry tracing |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://ics-tempo:4317` | OTLP gRPC endpoint |
 | `GRAFANA_ADMIN_USER` | `admin` | Grafana admin username |
 | `GRAFANA_ADMIN_PASSWORD` | `admin` | Grafana admin password |
 
-**Update environment variables:**
-```bash
-# Edit .env
-nano .env
+`LOG_LEVEL` is hardcoded to `info` in `docker-compose.yaml` (change there if needed).
+`METRICS_PORT` (9091) is hardcoded in the compose file for scraper services.
 
-# Restart services
-docker compose restart ics-web ics-scraper
+**Set up monitoring env:**
+```bash
+cp .env.monitoring.example .env.monitoring
+nano .env.monitoring
 ```
 
 ---
@@ -378,7 +379,7 @@ docker compose up -d ics-grafana
 
 **Solution:**
 ```bash
-# Edit docker-compose.yml
+# Edit docker-compose.yaml
 # Add retention flags to prometheus command:
 # --storage.tsdb.retention.time=7d
 # --storage.tsdb.retention.size=5GB
@@ -477,7 +478,7 @@ docker compose restart ics-postgres-exporter ics-redis-exporter
 
 Always run the monitoring stack in production:
 ```bash
-docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 ```
 
 ### 2. Set Appropriate Log Levels

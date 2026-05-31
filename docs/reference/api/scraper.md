@@ -28,18 +28,6 @@ POST /api/scraper/trigger
 
 **Response (200 — started):**
 
-**In-Process Mode** (default: `USE_REDIS_SCRAPER=false`):
-```json
-{
-  "success": true,
-  "data": {
-    "reportId": 43,
-    "message": "Scrape started successfully"
-  }
-}
-```
-
-**Redis Microservice Mode** (`USE_REDIS_SCRAPER=true`):
 ```json
 {
   "success": true,
@@ -54,7 +42,7 @@ POST /api/scraper/trigger
 **Response Fields:**
 - `reportId` - Unique scrape report ID (can be used to track progress in database)
 - `message` - Human-readable status message
-- `queueDepth` - (Redis mode only) Number of jobs in the Redis queue after this job was added
+- `queueDepth` - Number of jobs in the Redis queue after this job was added
 
 **Response (404 — theater not found):**
 ```json
@@ -124,35 +112,12 @@ GET /api/scraper/status
 
 **Authentication:** Not required (public endpoint)
 
-**Response (In-Process Mode):**
-```json
-{
-  "success": true,
-  "data": {
-    "isRunning": true,
-    "useRedisScraper": false,
-    "currentSession": {
-      "reportId": 43,
-      "triggerType": "manual",
-      "startedAt": "2024-02-15T10:00:00.000Z",
-      "status": "running"
-    },
-    "latestReport": {
-      "id": 42,
-      "completed_at": "2024-02-15T10:15:23.000Z",
-      "status": "success"
-    }
-  }
-}
-```
-
-**Response (Redis Microservice Mode):**
+**Response (200 — success):**
 ```json
 {
   "success": true,
   "data": {
     "isRunning": false,
-    "useRedisScraper": true,
     "currentSession": null,
     "latestReport": {
       "id": 42,
@@ -164,9 +129,8 @@ GET /api/scraper/status
 ```
 
 **Response Fields:**
-- `isRunning` - Whether a scrape is currently running in-process (always `false` in Redis mode)
-- `useRedisScraper` - Whether the Redis microservice scraper is enabled (`USE_REDIS_SCRAPER` env var)
-- `currentSession` - Current scrape session details (null in Redis mode or when no scrape is running)
+- `isRunning` - Whether a scrape is currently being processed by a worker
+- `currentSession` - Current scrape session details (null when no scrape is running)
 - `latestReport` - Most recent completed scrape report from database
 
 **Example:**
@@ -314,30 +278,13 @@ POST /api/scraper/resume/:reportId
 
 **Response (200 — started):**
 
-**In-Process Mode** (`USE_REDIS_SCRAPER=false`):
 ```json
 {
   "success": true,
   "data": {
     "reportId": 124,
     "parentReportId": 123,
-    "message": "Resume scrape started successfully",
-    "pendingAttempts": [
-      { "theater_id": "C0042", "date": "2026-03-26" },
-      { "theater_id": "C0089", "date": "2026-03-25" }
-    ]
-  }
-}
-```
-
-**Redis Microservice Mode** (`USE_REDIS_SCRAPER=true`):
-```json
-{
-  "success": true,
-  "data": {
-    "reportId": 124,
-    "parentReportId": 123,
-    "message": "Resume scrape job queued for microservice",
+    "message": "Resume job queued for microservice",
     "queueDepth": 1,
     "pendingAttempts": [
       { "theater_id": "C0042", "date": "2026-03-26" },
@@ -352,7 +299,7 @@ POST /api/scraper/resume/:reportId
 - `parentReportId` - Original report ID that is being resumed
 - `message` - Human-readable status message
 - `pendingAttempts` - List of theater/date combinations that will be retried
-- `queueDepth` - (Redis mode only) Number of jobs in queue after this job was added
+- `queueDepth` - Number of jobs in queue after this job was added
 
 **Response (404 — report not found):**
 ```json

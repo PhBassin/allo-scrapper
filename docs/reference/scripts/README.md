@@ -293,7 +293,7 @@ Running 5 tests using 1 worker
 ```
 
 **Environment:**
-- Uses `docker-compose.yml` configuration
+- Uses `docker-compose.yaml` configuration
 - Runs against real database and Redis
 - Cleans up after completion
 

@@ -97,9 +97,9 @@ scp "$BACKUP_FILE" "$SSH_CONNECTION:$REMOTE_TEMP"
 
 echo "🔄 Restoring database on production..."
 if [[ "$BACKUP_FILE" == *.gz ]]; then
-    ssh "$SSH_CONNECTION" "gunzip -c $REMOTE_TEMP | docker exec -i \$(docker compose -f $REMOTE_PATH/docker-compose.yml ps -q ics-db) psql -U postgres ics"
+    ssh "$SSH_CONNECTION" "gunzip -c $REMOTE_TEMP | docker exec -i \$(docker compose -f $REMOTE_PATH/docker-compose.yaml ps -q ics-db) psql -U postgres ics"
 else
-    ssh "$SSH_CONNECTION" "docker exec -i \$(docker compose -f $REMOTE_PATH/docker-compose.yml ps -q ics-db) psql -U postgres ics < $REMOTE_TEMP"
+    ssh "$SSH_CONNECTION" "docker exec -i \$(docker compose -f $REMOTE_PATH/docker-compose.yaml ps -q ics-db) psql -U postgres ics < $REMOTE_TEMP"
 fi
 
 # Clean up remote temp file

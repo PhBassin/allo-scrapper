@@ -1,108 +1,64 @@
 # Deployment Guide — allo-scrapper
 
-> Generated: 2026-05-21
+> Last updated: 2026-05-31
 
 ## Docker Deployment (Recommended)
 
 ### Prerequisites
 - Docker Engine 24+
 - Docker Compose v2
-- PostgreSQL 15+ (external or containerized)
-- Redis 7+ (external or containerized)
+- Git
 
-### Production docker-compose.yml
+### Production docker-compose.yaml
+
+The main compose file (`docker-compose.yaml`) includes all services (DB, Redis, web, scraper consumer, scraper cron). Only 5 environment variables are needed — everything else is hardcoded.
 
 ```yaml
-version: '3.8'
-services:
-  postgres:
-    image: postgres:15-alpine
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    environment:
-      POSTGRES_DB: allo_scrapper
-      POSTGRES_USER: allo
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redisdata:/data
-    restart: unless-stopped
-
-  server:
-    build: ./server
-    ports:
-      - "3001:3001"
-    environment:
-      DATABASE_URL: postgresql://allo:${DB_PASSWORD}@postgres:5432/allo_scrapper
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      NODE_ENV: production
-    depends_on:
-      - postgres
-      - redis
-    restart: unless-stopped
-
-  scraper:
-    build: ./scraper
-    environment:
-      DATABASE_URL: postgresql://allo:${DB_PASSWORD}@postgres:5432/allo_scrapper
-      REDIS_URL: redis://redis:6379
-      NODE_ENV: production
-    depends_on:
-      - postgres
-      - redis
-    restart: unless-stopped
-
-  client:
-    build: ./client
-    ports:
-      - "80:5173"
-    environment:
-      VITE_API_URL: http://server:3001
-    depends_on:
-      - server
-    restart: unless-stopped
-
-volumes:
-  pgdata:
-  redisdata:
+# Key services in docker-compose.yaml:
+# - ics-db (PostgreSQL 15)
+# - ics-redis (Redis 7)
+# - ics-web (API + frontend, port 3000)
+# - ics-scraper (job consumer)
+# - ics-scraper-cron (scheduled scraper)
 ```
 
 ### Deployment Steps
 
 ```bash
 # 1. Clone and configure
-git clone <repo-url>
+git clone https://github.com/PhBassin/allo-scrapper.git
 cd allo-scrapper
 cp .env.example .env
-# Edit .env with production values
+# Set POSTGRES_PASSWORD and JWT_SECRET in .env
 
-# 2. Build images
-docker compose build
-
-# 3. Start services
+# 2. Start services (DB auto-migrates on first startup)
 docker compose up -d
 
-# 4. Run migrations
-docker compose exec server npm run db:migrate
+# 3. Verify health
+curl http://localhost:3000/api/health
+```
 
-# 5. Verify health
-curl http://localhost:3001/api/system/health
-curl http://localhost
+### With Monitoring
+
+```bash
+cp .env.monitoring.example .env.monitoring
+docker compose --env-file .env --env-file .env.monitoring \
+  -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 ```
 
 ## Environment Variables for Production
 
+Only 5 variables in `.env`:
+
 | Variable | Purpose |
 |----------|---------|
-| `DB_PASSWORD` | PostgreSQL password |
-| `JWT_SECRET` | JWT signing secret (use strong random) |
-| `JWT_REFRESH_SECRET` | Refresh token secret |
-| `NODE_ENV` | Set to `production` |
+| `IMAGE_TAG` | Docker image tag (`stable`, `latest`, or version) |
+| `POSTGRES_PASSWORD` | PostgreSQL password |
+| `JWT_SECRET` | JWT signing secret (min 32 chars) |
+| `ALLOWED_ORIGINS` | CORS origins (comma-separated) |
+| `SCRAPE_CRON_SCHEDULE` | Cron expression for auto-scraping |
+
+All other config (NODE_ENV, PORT, POSTGRES_HOST, TZ, etc.) is hardcoded in `docker-compose.yaml`.
 
 ## CI/CD Pipeline
 
@@ -115,30 +71,32 @@ GitHub Actions workflows:
 
 | Service | Endpoint |
 |---------|----------|
-| Server | `GET /api/system/health` |
-| Server Ready | `GET /api/system/ready` |
-| Client | `GET /` |
+| Web | `GET /api/health` |
+| PostgreSQL | `pg_isready` (internal) |
+| Redis | `redis-cli ping` (internal) |
 
 ## Backup & Restore
 
 ```bash
 # Backup PostgreSQL
-docker compose exec postgres pg_dump -U allo allo_scrapper > backup.sql
+docker compose exec ics-db pg_dump -U postgres ics > backup.sql
 
 # Restore
-docker compose exec -T postgres psql -U allo allo_scrapper < backup.sql
+docker compose exec -T ics-db psql -U postgres ics < backup.sql
 ```
 
 ## Monitoring
 
-- **Logs:** Winston JSON logs → stdout → Docker logs
-- **Metrics:** OpenTelemetry → Prometheus endpoint
+- **Metrics:** Prometheus → Grafana (port 3001)
+- **Logs:** Promtail → Loki → Grafana
+- **Traces:** OpenTelemetry → Tempo → Grafana
 - **Health:** Docker health checks on all services
+
+See [Monitoring Guide](guides/deployment/monitoring.md) for setup.
 
 ## Scaling
 
-- **Server:** Horizontal scaling via load balancer (stateless)
+- **Web:** Horizontal scaling via load balancer (stateless)
 - **Scraper:** Single instance (rate-limited, stateful browser)
-- **Client:** CDN for static assets
 - **Redis:** Single instance (sufficient for job queue)
 - **PostgreSQL:** Connection pooling via PgBouncer for high load

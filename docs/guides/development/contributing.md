@@ -264,7 +264,7 @@ When you open a PR, GitHub Actions automatically builds a Docker image tagged wi
    # Option A: Run directly
    docker run -p 3000:3000 -e POSTGRES_HOST=host.docker.internal ghcr.io/phbassin/allo-scrapper:pr-141
    
-   # Option B: Use docker-compose (temporarily edit docker-compose.yml)
+   # Option B: Use docker-compose (temporarily edit docker-compose.yaml)
    services:
      ics-web:
        image: ghcr.io/phbassin/allo-scrapper:pr-141
@@ -335,14 +335,10 @@ docker run --rm <image-name> cat /app/public/index.html | grep title
 # Expected: <title>Allo-Scrapper</title> (or your custom name)
 ```
 
-**Note:** The `VITE_APP_NAME` build argument is automatically passed by:
-- `docker-compose.yml` (reads from `.env` file with fallback to `Allo-Scrapper`)
-- GitHub Actions workflow (hardcoded as `Allo-Scrapper` in `.github/workflows/docker-build-push.yml`)
+**Note:** The `VITE_APP_NAME` build argument is set in the Dockerfile with a default of `Allo-Scrapper`. To change the app name, pass the build arg when building:
 
-To change the app name for all CI/CD builds, modify the workflow file:
-```yaml
-build-args: |
-  VITE_APP_NAME=Your New Name
+```bash
+docker compose -f docker-compose.build.yml build --build-arg VITE_APP_NAME="My Custom Name"
 ```
 
 ---

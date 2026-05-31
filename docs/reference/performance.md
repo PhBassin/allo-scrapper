@@ -275,7 +275,7 @@ OTEL_ENABLED=true
 OTEL_EXPORTER_OTLP_ENDPOINT=http://ics-tempo:4317
 
 # Start with monitoring
-docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 
 # View traces in Grafana
 open http://localhost:3001
@@ -459,7 +459,7 @@ const pool = new Pool({
 # Check PostgreSQL max_connections
 docker compose exec ics-db psql -U postgres -c "SHOW max_connections;"
 
-# Increase if needed (postgresql.conf or docker-compose.yml)
+# Increase if needed (postgresql.conf or docker-compose.yaml)
 ```
 
 ---

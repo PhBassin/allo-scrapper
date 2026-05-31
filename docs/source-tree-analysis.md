@@ -8,7 +8,7 @@
 allo-scrapper/
 ├── AGENTS.md                 # AI coding agent instructions
 ├── README.md                 # Project README
-├── docker-compose.yml        # Orchestration
+├── docker-compose.yaml        # Orchestration
 ├── package.json              # npm workspaces root
 ├── docs/                     # Project documentation (85+ files)
 │   ├── index.md

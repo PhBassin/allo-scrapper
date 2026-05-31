@@ -101,7 +101,7 @@ services:
     depends_on: [server]
 ```
 
-**Orchestration file:** `docker-compose.yml` at project root.
+**Orchestration file:** `docker-compose.yaml` at project root.
 
 ---
 

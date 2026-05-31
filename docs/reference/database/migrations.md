@@ -35,12 +35,12 @@ The Allo-Scrapper project uses an **automatic migration system** that runs at se
 
 **Configuration:**
 
-The `AUTO_MIGRATE` environment variable controls automatic migrations:
+`AUTO_MIGRATE` is hardcoded to `true` in `docker-compose.yaml`. To change it, edit the compose file:
 
 ```bash
-# .env file
+# docker-compose.yaml → ics-web → environment
 AUTO_MIGRATE=true   # Default: migrations run automatically at startup
-AUTO_MIGRATE=false  # Disable automatic migrations (manual mode)
+# AUTO_MIGRATE=false  # Disable automatic migrations (manual mode)
 ```
 
 ### Migration Tracking

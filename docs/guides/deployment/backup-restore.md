@@ -432,7 +432,7 @@ For a complete system backup (config + database):
 # Create complete backup
 tar -czf allo-scrapper-complete-$(date +%Y%m%d).tar.gz \
   .env \
-  docker-compose.yml \
+  docker-compose.yaml \
   server/src/config/theaters.json \
   backups/
 

@@ -237,7 +237,7 @@ docker pull ghcr.io/phbassin/allo-scrapper:pr-141
 docker run -p 3000:3000 ghcr.io/phbassin/allo-scrapper:pr-141
 
 # Or use with docker-compose
-# Edit docker-compose.yml:
+# Edit docker-compose.yaml:
 services:
   ics-web:
     image: ghcr.io/phbassin/allo-scrapper:pr-141

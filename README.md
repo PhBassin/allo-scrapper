@@ -88,7 +88,7 @@
   Loki + Promtail (logs) → Grafana
   Tempo :3200 (traces, OTLP :4317) → Grafana
   Start with: docker compose --env-file .env --env-file .env.monitoring \
-                -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+                -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
   (see .env.monitoring.example for required variables)
 ```
 
@@ -271,14 +271,12 @@ The easiest way to deploy is using pre-built Docker images from GitHub Container
 git clone https://github.com/PhBassin/allo-scrapper.git
 cd allo-scrapper
 
-# Copy environment file
+# Copy and edit the environment file (5 variables — see comments inside)
 cp .env.example .env
+# Fill in POSTGRES_PASSWORD and JWT_SECRET in .env
 
-# Pull the latest image and start services
+# Start all services (database auto-migrates on first startup)
 docker compose up -d
-
-# Initialize database (runs automatically on first startup)
-docker compose exec ics-web npm run db:migrate
 
 # Trigger first scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
@@ -294,7 +292,8 @@ curl -X POST http://localhost:3000/api/scraper/trigger
 
 **Update to latest version:**
 ```bash
-docker compose pull ics-web
+# Pull the latest image and restart
+docker compose pull
 docker compose up -d
 ```
 
@@ -307,14 +306,14 @@ If you want to build the Docker image from source:
 git clone https://github.com/PhBassin/allo-scrapper.git
 cd allo-scrapper
 
-# Copy environment file
+# Copy and edit the environment file
 cp .env.example .env
+# Fill in POSTGRES_PASSWORD and JWT_SECRET in .env
 
-# Build and start services
-docker compose up --build -d
+# Build and start services (uses docker-compose.build.yml)
+docker compose -f docker-compose.build.yml up --build -d
 
-# Initialize database
-docker compose exec ics-web npm run db:migrate
+# Database auto-migrates on first startup — no manual migration needed
 
 # Trigger first scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
@@ -344,14 +343,12 @@ cd ../client
 npm install
 
 # Setup environment and database
-cd ../server
-cp .env.example .env
+cd ..
+cp .env.example .env && cat .env.dev.example >> .env
 
-# Generate a secure JWT secret (REQUIRED)
-openssl rand -base64 64
-
-# Edit .env with your PostgreSQL, Redis credentials, and paste the JWT secret
-# JWT_SECRET=<paste-generated-secret-here>
+# Generate a secure JWT secret and set it in .env
+# openssl rand -base64 64  →  paste into JWT_SECRET=
+cd server
 npm run db:migrate
 
 # Start Redis (required — scraping will not work without it)
@@ -404,7 +401,7 @@ npm run dev
 
 **Docker Build:**
 ```bash
-# Using docker-compose.yml (reads from .env file)
+# Using docker-compose.yaml (reads from .env file)
 docker compose build
 
 # Manual build with custom name
