@@ -29,3 +29,7 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+## 2026-06-02 - N+1 Query in `Promise.all` with Array.map
+
+**Learning:** When using `Promise.all` combined with an array `.map()` to fetch child records for each parent row, the database still experiences N+1 overhead because of network roundtrips, despite concurrent execution in Node.js.
+**Action:** Always replace concurrent DB map loops with a single batch query using Postgres arrays (e.g. `WHERE foreign_id = ANY($1::int[])`) and group the results manually in memory to reduce latency.
