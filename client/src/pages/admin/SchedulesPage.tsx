@@ -18,9 +18,11 @@ const SchedulesPage: React.FC = () => {
   const canUpdate = hasPermission('scraper:schedules:update');
   const canDelete = hasPermission('scraper:schedules:delete');
 
-  const fetchSchedules = useCallback(async () => {
+  const fetchSchedules = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const data = await getSchedules();
       setSchedules(data);
       setError(null);
@@ -32,7 +34,11 @@ const SchedulesPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchSchedules();
+    const timeoutId = window.setTimeout(() => {
+      void fetchSchedules(false);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [fetchSchedules]);
 
   const handleCreate = async (data: CreateSchedulePayload) => {
@@ -94,7 +100,7 @@ const SchedulesPage: React.FC = () => {
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
         <p className="text-red-600">{error}</p>
-        <button onClick={fetchSchedules} className="mt-2 text-sm text-red-700 underline">
+        <button onClick={() => void fetchSchedules()} className="mt-2 text-sm text-red-700 underline">
           Retry
         </button>
       </div>

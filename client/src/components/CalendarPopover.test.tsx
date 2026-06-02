@@ -76,7 +76,7 @@ describe('CalendarPopover', () => {
         showtime={showtime}
         movie={movie}
         theater={theater}
-        anchorRef={{ current: anchorButton }}
+        anchorEl={anchorButton}
         onClose={onClose}
       />
     );
@@ -92,7 +92,7 @@ describe('CalendarPopover', () => {
         showtime={showtime}
         movie={movie}
         theater={theater}
-        anchorRef={{ current: anchorButton }}
+        anchorEl={anchorButton}
         onClose={onClose}
       />
     );
@@ -114,7 +114,7 @@ describe('CalendarPopover', () => {
         showtime={showtime}
         movie={movie}
         theater={theater}
-        anchorRef={{ current: anchorButton }}
+        anchorEl={anchorButton}
         onClose={onClose}
       />
     );

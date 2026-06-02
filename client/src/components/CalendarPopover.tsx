@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { Showtime, Movie, Theater } from '../types';
 import { buildGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
@@ -7,25 +7,25 @@ interface CalendarPopoverProps {
   showtime: Showtime;
   movie: Movie;
   theater: Theater;
-  anchorRef: React.RefObject<HTMLButtonElement | null>;
+  anchorEl: HTMLButtonElement | null;
   onClose: () => void;
 }
 
-export default function CalendarPopover({ showtime, movie, theater, anchorRef, onClose }: CalendarPopoverProps) {
+export default function CalendarPopover({ showtime, movie, theater, anchorEl, onClose }: CalendarPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<React.CSSProperties>({ visibility: 'hidden' });
+  const style = useMemo<React.CSSProperties>(() => {
+    if (!anchorEl) {
+      return { visibility: 'hidden' };
+    }
 
-  // Position the popover below the anchor button using getBoundingClientRect
-  useEffect(() => {
-    if (!anchorRef.current) return;
-    const rect = anchorRef.current.getBoundingClientRect();
-    setStyle({
+    const rect = anchorEl.getBoundingClientRect();
+    return {
       position: 'fixed',
       top: rect.bottom + 4,
       left: rect.left,
       zIndex: 9999,
-    });
-  }, [anchorRef]);
+    };
+  }, [anchorEl]);
 
   // Close on outside click
   useEffect(() => {
@@ -33,14 +33,14 @@ export default function CalendarPopover({ showtime, movie, theater, anchorRef, o
       const target = e.target as Node;
       if (
         popoverRef.current && !popoverRef.current.contains(target) &&
-        anchorRef.current && !anchorRef.current.contains(target)
+        anchorEl && !anchorEl.contains(target)
       ) {
         onClose();
       }
     }
     document.addEventListener('mousedown', handleMouseDown);
     return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [onClose, anchorRef]);
+  }, [anchorEl, onClose]);
 
   // Close on Escape key
   useEffect(() => {

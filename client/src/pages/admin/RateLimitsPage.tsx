@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { AuthContext } from '../../contexts/AuthContext';
 import {
   getRateLimits,
@@ -26,12 +26,10 @@ const RateLimitsPage: React.FC = () => {
   const canReset = hasPermission('ratelimits:reset');
   const canViewAudit = hasPermission('ratelimits:audit');
 
-  useEffect(() => {
-    fetchConfig();
-  }, []);
-
-  const fetchConfig = async () => {
-    setIsLoading(true);
+  const fetchConfig = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(true);
+    }
     try {
       const data = await getRateLimits();
       setConfig(data);
@@ -41,7 +39,15 @@ const RateLimitsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void fetchConfig(false);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchConfig]);
 
   const handleChange = (field: keyof RateLimitConfig, value: number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -253,7 +259,7 @@ const RateLimitsPage: React.FC = () => {
         {/* Save Button */}
         {canUpdate && hasChanges && (
           <div className="flex justify-end gap-2 pt-6 mt-6 border-t">
-            <Button variant="secondary" onClick={fetchConfig}>
+            <Button variant="secondary" onClick={() => void fetchConfig()}>
               Cancel
             </Button>
             <Button variant="primary" onClick={handleSave} disabled={saveStatus === 'saving'}>

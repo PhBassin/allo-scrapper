@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { rolesApi } from '../../api/roles';
 import type { RoleWithPermissions, Permission, PermissionCategoryLabel } from '../../types/role';
 import { groupPermissionsByCategory } from '../../utils/permission-grouping';
@@ -339,10 +339,12 @@ const RoleManagementPage: React.FC = () => {
   const [editingRole, setEditingRole] = useState<RoleWithPermissions | null>(null);
   const [deletingRole, setDeletingRole] = useState<RoleWithPermissions | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (showLoading) {
+        setLoading(true);
+        setError(null);
+      }
       const [rolesData, permsData, categoriesData] = await Promise.all([
         rolesApi.getAll(),
         rolesApi.getAllPermissions(),
@@ -356,11 +358,15 @@ const RoleManagementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const timeoutId = window.setTimeout(() => {
+      void fetchData(false);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchData]);
 
   const handleCreate = async (
     data: { name: string; description?: string },

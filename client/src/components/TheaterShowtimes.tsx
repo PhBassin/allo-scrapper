@@ -42,7 +42,6 @@ export default function TheaterShowtimes({ theaters, movie, initialDate, initial
     const mm = String(now.getMinutes()).padStart(2, '0');
     setSelectedDate(today);
     setAfterTime(`${hh}:${mm}`);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todayInDates, today]);
 
   // ⚡ PERFORMANCE: Use reduce instead of map().filter() to avoid allocating intermediate

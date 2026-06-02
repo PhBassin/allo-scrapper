@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
 import { getUsers, createUser, updateUserRole, resetUserPassword, deleteUser } from '../../api/users';
 import type { UserPublic, UserCreate } from '../../api/users';
 import { rolesApi } from '../../api/roles';
@@ -120,10 +120,12 @@ const UsersPage: React.FC = () => {
   const [userForRoleChange, setUserForRoleChange] = useState<UserPublic | null>(null);
 
   // Fetch users and roles
-  const fetchData = async () => {
+  const fetchData = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (showLoading) {
+        setLoading(true);
+        setError(null);
+      }
       const [usersData, rolesData] = await Promise.all([
         getUsers(),
         rolesApi.getAll(),
@@ -135,11 +137,15 @@ const UsersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const timeoutId = window.setTimeout(() => {
+      void fetchData(false);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchData]);
 
   // Create user
   const handleCreateUser = async (data: UserCreate) => {

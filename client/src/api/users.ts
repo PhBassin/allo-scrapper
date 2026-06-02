@@ -41,7 +41,8 @@ export async function getUsers(params?: {
   offset?: number
 }): Promise<UserPublic[]> {
   const response = await apiClient.get<ApiResponse<UserPublic[]>>('/users', {
-    ...params as any,
+    ...(params?.limit !== undefined ? { limit: params.limit } : {}),
+    ...(params?.offset !== undefined ? { offset: params.offset } : {}),
   });
 
   if (!response.success || !response.data) {

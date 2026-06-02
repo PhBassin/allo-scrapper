@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { ScrapeSchedule } from '../../types';
 
 interface ScheduleModalProps {
@@ -53,7 +53,6 @@ function parseCronToSimple(cron: string): {
 
   const [minute, hour, monthDay, , weekdays] = parts;
 
-  // Determine frequency
   let frequency: Frequency = 'daily';
   let weekdaysArr: number[] = [];
   let monthDayNum = 1;
@@ -68,6 +67,10 @@ function parseCronToSimple(cron: string): {
 
   const hourNum = hour === '*' ? 0 : parseInt(hour, 10);
   const minuteNum = minute === '*' ? 0 : parseInt(minute, 10);
+
+  if ([hourNum, minuteNum, monthDayNum, ...weekdaysArr].some((value) => Number.isNaN(value))) {
+    return null;
+  }
 
   return {
     frequency,
@@ -88,9 +91,10 @@ function buildCron(
   switch (frequency) {
     case 'daily':
       return `${minute} ${hour} * * *`;
-    case 'weekly':
+    case 'weekly': {
       const days = weekdays.length > 0 ? weekdays.join(',') : '*';
       return `${minute} ${hour} * * ${days}`;
+    }
     case 'monthly':
       return `${minute} ${hour} ${monthDay} * *`;
     default:
@@ -103,7 +107,6 @@ function formatCronDescription(cron: string): string {
   if (parts.length !== 5) return cron;
 
   const [minute, hour, monthDay, , weekdays] = parts;
-
   const timeStr = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
 
   if (weekdays !== '*') {
@@ -142,30 +145,57 @@ function validateCron(expression: string): string | null {
   return null;
 }
 
-const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, schedule }) => {
+function getInitialSimpleState(schedule?: ScrapeSchedule | null) {
+  const parsed = parseCronToSimple(schedule?.cron_expression ?? '0 3 * * 3');
+
+  if (parsed) {
+    return {
+      frequency: parsed.frequency,
+      hour: parsed.hour,
+      minute: parsed.minute,
+      weekdays: parsed.weekdays.length > 0 ? parsed.weekdays : [3],
+      monthDay: parsed.monthDay,
+    };
+  }
+
+  return {
+    frequency: 'weekly' as const,
+    hour: 3,
+    minute: 0,
+    weekdays: [3],
+    monthDay: 1,
+  };
+}
+
+interface ScheduleModalContentProps {
+  onClose: () => void;
+  onSave: ScheduleModalProps['onSave'];
+  schedule?: ScrapeSchedule | null;
+}
+
+const ScheduleModalContent: React.FC<ScheduleModalContentProps> = ({ onClose, onSave, schedule }) => {
+  const initialSimpleState = getInitialSimpleState(schedule);
   const [mode, setMode] = useState<'simple' | 'advanced'>('simple');
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [cronExpression, setCronExpression] = useState('0 3 * * 3');
-  const [enabled, setEnabled] = useState(true);
+  const [name, setName] = useState(schedule?.name ?? '');
+  const [description, setDescription] = useState(schedule?.description ?? '');
+  const [advancedCron, setAdvancedCron] = useState(schedule?.cron_expression ?? '0 3 * * 3');
+  const [enabled, setEnabled] = useState(schedule?.enabled ?? true);
   const [errors, setErrors] = useState<{ name?: string; cron?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [frequency, setFrequency] = useState<Frequency>(initialSimpleState.frequency);
+  const [hour, setHour] = useState(initialSimpleState.hour);
+  const [minute, setMinute] = useState(initialSimpleState.minute);
+  const [weekdays, setWeekdays] = useState<number[]>(initialSimpleState.weekdays);
+  const [monthDay, setMonthDay] = useState(initialSimpleState.monthDay);
 
-  // Simple mode state
-  const [frequency, setFrequency] = useState<Frequency>('weekly');
-  const [hour, setHour] = useState(3);
-  const [minute, setMinute] = useState(0);
-  const [weekdays, setWeekdays] = useState<number[]>([3]); // Default Wednesday
-  const [monthDay, setMonthDay] = useState(1);
-
-  // Sync simple mode to cron
   const simpleCron = useMemo(
     () => buildCron(frequency, hour, minute, weekdays, monthDay),
     [frequency, hour, minute, weekdays, monthDay]
   );
 
-  // Sync cron to simple mode when switching to simple
+  const displayedCronExpression = mode === 'simple' ? simpleCron : advancedCron;
+
   const syncFromCron = (cron: string) => {
     const parsed = parseCronToSimple(cron);
     if (parsed) {
@@ -174,58 +204,38 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
       setMinute(parsed.minute);
       setWeekdays(parsed.weekdays.length > 0 ? parsed.weekdays : [3]);
       setMonthDay(parsed.monthDay);
-    } else {
-      // Default to weekly Wednesday 3am if can't parse
-      setFrequency('weekly');
-      setHour(3);
-      setMinute(0);
-      setWeekdays([3]);
-      setMonthDay(1);
+      return;
     }
+
+    setFrequency('weekly');
+    setHour(3);
+    setMinute(0);
+    setWeekdays([3]);
+    setMonthDay(1);
   };
 
-  useEffect(() => {
-    if (schedule) {
-      setName(schedule.name);
-      setDescription(schedule.description || '');
-      setCronExpression(schedule.cron_expression);
-      setEnabled(schedule.enabled);
-      syncFromCron(schedule.cron_expression);
-      setMode('simple');
-    } else {
-      setName('');
-      setDescription('');
-      setCronExpression('0 3 * * 3');
-      setEnabled(true);
-      setFrequency('weekly');
-      setHour(3);
-      setMinute(0);
-      setWeekdays([3]);
-      setMonthDay(1);
-      setMode('simple');
+  const handleModeChange = (nextMode: 'simple' | 'advanced') => {
+    if (nextMode === mode) {
+      return;
     }
-    setErrors({});
-    setSubmitError(null);
-  }, [schedule, isOpen]);
 
-  // Update cron when simple mode changes
-  useEffect(() => {
-    if (mode === 'simple') {
-      setCronExpression(simpleCron);
+    if (nextMode === 'simple') {
+      syncFromCron(advancedCron);
+    } else {
+      setAdvancedCron(simpleCron);
     }
-  }, [simpleCron, mode]);
+
+    setMode(nextMode);
+  };
 
   const handlePresetClick = (cron: string) => {
-    setCronExpression(cron);
+    setAdvancedCron(cron);
     syncFromCron(cron);
     setMode('simple');
   };
 
   const handleCronChange = (value: string) => {
-    setCronExpression(value);
-    if (mode === 'simple') {
-      syncFromCron(value);
-    }
+    setAdvancedCron(value);
   };
 
   const toggleWeekday = (day: number) => {
@@ -236,17 +246,16 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
     }
   };
 
-  if (!isOpen) return null;
-
   const handleClose = () => {
     if (isSubmitting) return;
     onClose();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setSubmitError(null);
 
+    const cronExpression = mode === 'simple' ? simpleCron : advancedCron;
     const newErrors: { name?: string; cron?: string } = {};
     if (!name.trim()) {
       newErrors.name = 'Name is required';
@@ -263,13 +272,12 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
 
     setIsSubmitting(true);
     try {
-      const payload = {
+      await onSave({
         name: name.trim(),
         description: description.trim() || null,
         cron_expression: cronExpression.trim(),
         enabled,
-      };
-      await onSave(payload);
+      });
       onClose();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Failed to save schedule');
@@ -324,14 +332,14 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
                 <div className="flex bg-gray-100 rounded-md p-0.5">
                   <button
                     type="button"
-                    onClick={() => setMode('simple')}
+                    onClick={() => handleModeChange('simple')}
                     className={`px-3 py-1 text-xs rounded ${mode === 'simple' ? 'bg-white shadow text-gray-900' : 'text-gray-600'}`}
                   >
                     Simple
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMode('advanced')}
+                    onClick={() => handleModeChange('advanced')}
                     className={`px-3 py-1 text-xs rounded ${mode === 'advanced' ? 'bg-white shadow text-gray-900' : 'text-gray-600'}`}
                   >
                     Advanced
@@ -341,7 +349,6 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
 
               {mode === 'simple' ? (
                 <div className="space-y-3">
-                  {/* Frequency */}
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Frequency</label>
                     <select
@@ -356,7 +363,6 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
                     </select>
                   </div>
 
-                  {/* Time */}
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <label className="block text-xs text-gray-500 mb-1">Hour</label>
@@ -366,9 +372,9 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                         disabled={isSubmitting}
                       >
-                        {HOURS.map((h) => (
-                          <option key={h.value} value={h.value}>
-                            {h.label}
+                        {HOURS.map((entry) => (
+                          <option key={entry.value} value={entry.value}>
+                            {entry.label}
                           </option>
                         ))}
                       </select>
@@ -381,16 +387,15 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                         disabled={isSubmitting}
                       >
-                        {MINUTES.map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label}
+                        {MINUTES.map((entry) => (
+                          <option key={entry.value} value={entry.value}>
+                            {entry.label}
                           </option>
                         ))}
                       </select>
                     </div>
                   </div>
 
-                  {/* Weekdays */}
                   {frequency === 'weekly' && (
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Days</label>
@@ -414,7 +419,6 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
                     </div>
                   )}
 
-                  {/* Month Day */}
                   {frequency === 'monthly' && (
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Day of Month</label>
@@ -424,26 +428,25 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                         disabled={isSubmitting}
                       >
-                        {MONTH_DAYS.map((d) => (
-                          <option key={d.value} value={d.value}>
-                            {d.label}
+                        {MONTH_DAYS.map((day) => (
+                          <option key={day.value} value={day.value}>
+                            {day.label}
                           </option>
                         ))}
                       </select>
                     </div>
                   )}
 
-                  {/* Preview */}
                   <div className="p-2 bg-gray-50 rounded-md text-xs text-gray-600">
-                    <span className="font-mono">{cronExpression}</span>
-                    <span className="ml-2">→ {formatCronDescription(cronExpression)}</span>
+                    <span className="font-mono">{displayedCronExpression}</span>
+                    <span className="ml-2">→ {formatCronDescription(displayedCronExpression)}</span>
                   </div>
                 </div>
               ) : (
                 <div>
                   <input
                     type="text"
-                    value={cronExpression}
+                    value={advancedCron}
                     onChange={(e) => handleCronChange(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-md font-mono text-sm ${errors.cron ? 'border-red-500' : 'border-gray-300'}`}
                     placeholder="0 3 * * 3"
@@ -457,7 +460,6 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
               )}
             </div>
 
-            {/* Presets */}
             <div className="mb-4">
               <p className="text-xs text-gray-500 mb-1">Quick presets:</p>
               <div className="flex flex-wrap gap-1">
@@ -516,6 +518,15 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, 
       </div>
     </div>
   );
+};
+
+const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, onSave, schedule }) => {
+  if (!isOpen) {
+    return null;
+  }
+
+  const modalKey = schedule ? `${schedule.id}-${schedule.updated_at}` : 'new';
+  return <ScheduleModalContent key={modalKey} onClose={onClose} onSave={onSave} schedule={schedule} />;
 };
 
 export default ScheduleModal;

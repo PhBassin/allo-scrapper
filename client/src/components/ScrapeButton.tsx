@@ -1,5 +1,6 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
+import { getApiErrorMessage, isApiErrorLike } from '../api/client';
 
 interface ScrapeButtonProps {
   onTrigger: () => Promise<void>;
@@ -44,16 +45,11 @@ export default function ScrapeButton({
 
       // Reset success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      if (err && typeof err === 'object' && ('status' in err || 'data' in err)) {
-        const apiError = err as import('../api/client').ApiError;
-        if (apiError.status === 409) {
-          onScrapeStart?.();
-        } else {
-          setError(apiError.data?.error || 'Erreur lors du démarrage du scraping');
-        }
+    } catch (err: unknown) {
+      if (isApiErrorLike(err) && err.status === 409) {
+        onScrapeStart?.();
       } else {
-        setError('Erreur lors du démarrage du scraping');
+        setError(getApiErrorMessage(err, 'Erreur lors du démarrage du scraping'));
       }
     } finally {
       setIsLoading(false);

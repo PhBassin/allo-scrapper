@@ -2,16 +2,27 @@ import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { AuthContext, type User } from './AuthContext';
 
+function readStoredUser(): User | null {
+    const savedUser = localStorage.getItem('user');
+    if (!savedUser) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(savedUser) as User;
+    } catch {
+        localStorage.removeItem('user');
+        return null;
+    }
+}
+
 interface AuthProviderProps {
     children: ReactNode;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-    const [user, setUser] = useState<User | null>(() => {
-        const savedUser = localStorage.getItem('user');
-        return savedUser ? JSON.parse(savedUser) : null;
-    });
-    const [sessionChecked, setSessionChecked] = useState(false);
+    const [user, setUser] = useState<User | null>(() => readStoredUser());
+    const [sessionChecked, setSessionChecked] = useState<boolean>(() => readStoredUser() === null);
 
     useEffect(() => {
         localStorage.removeItem('token');
@@ -20,6 +31,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     useEffect(() => {
         let cancelled = false;
+        const initialUser = readStoredUser();
+
+        if (!initialUser) {
+            return () => { cancelled = true; };
+        }
+
         async function validateSession() {
             try {
                 const csrfToken = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1];
@@ -49,11 +66,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 }
             }
         }
-        if (user) {
-            validateSession();
-        } else {
-            setSessionChecked(true);
-        }
+
+        void validateSession();
         return () => { cancelled = true; };
     }, []);
 

@@ -6,11 +6,15 @@ import ChangePasswordPage from './ChangePasswordPage';
 import apiClient from '../api/client';
 
 // Mock the API client
-vi.mock('../api/client', () => ({
-  default: {
-    post: vi.fn(),
-  },
-}));
+vi.mock('../api/client', async () => {
+  const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
+  return {
+    ...actual,
+    default: {
+      post: vi.fn(),
+    },
+  };
+});
 
 // Mock react-router-dom's useNavigate
 const mockNavigate = vi.fn();

@@ -124,7 +124,7 @@ describe('groupPermissionsByCategory', () => {
     const result = groupPermissionsByCategory(permsWithUnknown, mockCategoryLabels, 'en');
 
     expect(result).toHaveLength(4);
-    const unknownGroup = result.find((group: any) => group.categoryKey === 'unknown_category');
+    const unknownGroup = result.find((group) => group.categoryKey === 'unknown_category');
     expect(unknownGroup).toBeDefined();
     expect(unknownGroup?.displayLabel).toBe('unknown_category'); // Fallback to key
     expect(unknownGroup?.permissions).toHaveLength(1);
@@ -138,7 +138,7 @@ describe('groupPermissionsByCategory', () => {
   it('maintains permission order within each group', () => {
     const result = groupPermissionsByCategory(mockPermissions, mockCategoryLabels, 'en');
 
-    const usersGroup = result.find((group: any) => group.categoryKey === 'users');
+    const usersGroup = result.find((group) => group.categoryKey === 'users');
     expect(usersGroup?.permissions[0].id).toBe(1);
     expect(usersGroup?.permissions[1].id).toBe(2);
   });
@@ -152,7 +152,7 @@ describe('groupPermissionsByCategory', () => {
 
     const result = groupPermissionsByCategory(dupePerms, mockCategoryLabels, 'en');
 
-    const usersGroup = result.find((group: any) => group.categoryKey === 'users');
+    const usersGroup = result.find((group) => group.categoryKey === 'users');
     // Note: duplicates ARE included because we just iterate and push
     expect(usersGroup?.permissions).toHaveLength(3);
   });

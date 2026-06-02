@@ -1,7 +1,14 @@
 import React, { useState, useContext } from 'react';
 import { SettingsContext } from '../../contexts/SettingsContext';
 import { AuthContext } from '../../contexts/AuthContext';
-import { downloadSettingsExport, uploadSettingsImport, resetSettings, type AppSettings, type AppSettingsUpdate, type FooterLink } from '../../api/settings';
+import {
+    downloadSettingsExport,
+    uploadSettingsImport,
+    resetSettings,
+    type AppSettings,
+    type AppSettingsUpdate,
+    type FooterLink,
+} from '../../api/settings';
 import ColorPicker from '../../components/admin/ColorPicker';
 import FontSelector from '../../components/admin/FontSelector';
 import ImageUpload from '../../components/admin/ImageUpload';
@@ -10,63 +17,68 @@ import Button from '../../components/ui/Button';
 
 type Tab = 'general' | 'colors' | 'typography' | 'footer' | 'email';
 
-const getInitialFormData = (settings: AppSettings | null): AppSettingsUpdate => {
-    if (!settings) return {};
-    return {
-        site_name: settings.site_name,
-        logo_base64: settings.logo_base64,
-        favicon_base64: settings.favicon_base64,
-        color_primary: settings.color_primary,
-        color_secondary: settings.color_secondary,
-        color_accent: settings.color_accent,
-        color_background: settings.color_background,
-        color_text: settings.color_text,
-        color_text_secondary: settings.color_text_secondary,
-        color_border: settings.color_border,
-        color_success: settings.color_success,
-        color_error: settings.color_error,
-        font_family_heading: settings.font_family_heading,
-        font_family_body: settings.font_family_body,
-        footer_text: settings.footer_text,
-        footer_links: settings.footer_links,
-        email_from_name: settings.email_from_name,
-        email_from_address: settings.email_from_address,
-        email_logo_base64: settings.email_logo_base64,
-    };
-};
+const TABS = [
+    { id: 'general', label: 'General' },
+    { id: 'colors', label: 'Colors' },
+    { id: 'typography', label: 'Typography' },
+    { id: 'footer', label: 'Footer' },
+    { id: 'email', label: 'Email' },
+] as const satisfies ReadonlyArray<{ id: Tab; label: string }>;
 
-const SettingsPage: React.FC = () => {
-    const { adminSettings, refreshAdminSettings, updateSettings, isLoading } = useContext(SettingsContext);
-    const { hasPermission } = useContext(AuthContext);
+const getInitialFormData = (settings: AppSettings): AppSettingsUpdate => ({
+    site_name: settings.site_name,
+    logo_base64: settings.logo_base64,
+    favicon_base64: settings.favicon_base64,
+    color_primary: settings.color_primary,
+    color_secondary: settings.color_secondary,
+    color_accent: settings.color_accent,
+    color_background: settings.color_background,
+    color_text: settings.color_text,
+    color_text_secondary: settings.color_text_secondary,
+    color_border: settings.color_border,
+    color_success: settings.color_success,
+    color_error: settings.color_error,
+    font_family_heading: settings.font_family_heading,
+    font_family_body: settings.font_family_body,
+    footer_text: settings.footer_text,
+    footer_links: settings.footer_links,
+    email_from_name: settings.email_from_name,
+    email_from_address: settings.email_from_address,
+    email_logo_base64: settings.email_logo_base64,
+});
+
+interface SettingsEditorProps {
+    adminSettings: AppSettings;
+    canExport: boolean;
+    canImport: boolean;
+    canReset: boolean;
+    canUpdate: boolean;
+    isLoading: boolean;
+    refreshAdminSettings: () => Promise<void>;
+    updateSettings: (updates: AppSettingsUpdate) => Promise<AppSettings>;
+}
+
+const SettingsEditor: React.FC<SettingsEditorProps> = ({
+    adminSettings,
+    canExport,
+    canImport,
+    canReset,
+    canUpdate,
+    isLoading,
+    refreshAdminSettings,
+    updateSettings,
+}) => {
     const [activeTab, setActiveTab] = useState<Tab>('general');
+    const [formData, setFormData] = useState<AppSettingsUpdate>(() => getInitialFormData(adminSettings));
     const [hasChanges, setHasChanges] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-    // Permission checks
-    const canUpdate = hasPermission('settings:update');
-    const canReset = hasPermission('settings:reset');
-    const canExport = hasPermission('settings:export');
-    const canImport = hasPermission('settings:import');
-
-    // Form state
-    const [formData, setFormData] = useState<AppSettingsUpdate>(() => getInitialFormData(adminSettings));
-
-    // Load admin settings on mount
-    React.useEffect(() => {
-        refreshAdminSettings();
-    }, [refreshAdminSettings]);
-
-    // Update form data when settings load
-    React.useEffect(() => {
-        setFormData(getInitialFormData(adminSettings));
-    }, [adminSettings]);
 
     const handleFieldChange = <K extends keyof AppSettingsUpdate>(
         field: K,
         value: AppSettingsUpdate[K]
     ) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData((prev) => ({ ...prev, [field]: value }));
         setHasChanges(true);
     };
 
@@ -88,7 +100,7 @@ const SettingsPage: React.FC = () => {
         if (!confirm('Reset all settings to defaults? This action cannot be undone.')) {
             return;
         }
-        
+
         setSaveStatus('saving');
         setErrorMessage(null);
         try {
@@ -111,12 +123,12 @@ const SettingsPage: React.FC = () => {
         }
     };
 
-    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
+    const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
         if (!file) return;
 
         if (!confirm('Import settings from file? This will overwrite current settings.')) {
-            e.target.value = '';
+            event.target.value = '';
             return;
         }
 
@@ -132,25 +144,14 @@ const SettingsPage: React.FC = () => {
             setSaveStatus('error');
             setErrorMessage(error instanceof Error ? error.message : 'Failed to import settings');
         }
-        e.target.value = ''; // Reset file input
-    };
 
-    if (!adminSettings) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Loading settings...</p>
-                </div>
-            </div>
-        );
-    }
+        event.target.value = '';
+    };
 
     return (
         <div className="min-h-screen bg-gray-50">
             <div className="max-w-6xl mx-auto p-6">
                 <div className="bg-white rounded-lg shadow-sm">
-                    {/* Header */}
                     <div className="border-b border-gray-200 p-6">
                         <h1 className="text-2xl font-bold text-gray-900">White-Label Settings</h1>
                         <p className="mt-1 text-sm text-gray-600">
@@ -158,16 +159,9 @@ const SettingsPage: React.FC = () => {
                         </p>
                     </div>
 
-                    {/* Tabs */}
                     <div className="border-b border-gray-200">
                         <nav className="flex space-x-8 px-6" aria-label="Tabs">
-                            {([
-                                { id: 'general', label: 'General' },
-                                { id: 'colors', label: 'Colors' },
-                                { id: 'typography', label: 'Typography' },
-                                { id: 'footer', label: 'Footer' },
-                                { id: 'email', label: 'Email' },
-                            ] as const).map((tab) => (
+                            {TABS.map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
@@ -185,7 +179,6 @@ const SettingsPage: React.FC = () => {
                         </nav>
                     </div>
 
-                    {/* Tab content */}
                     <div className="p-6">
                         {activeTab === 'general' && (
                             <div className="space-y-6 max-w-2xl">
@@ -223,79 +216,22 @@ const SettingsPage: React.FC = () => {
 
                         {activeTab === 'colors' && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-                                <ColorPicker
-                                    label="Primary Color"
-                                    value={formData.color_primary || '#FECC00'}
-                                    onChange={(value) => handleFieldChange('color_primary', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Secondary Color"
-                                    value={formData.color_secondary || '#1E40AF'}
-                                    onChange={(value) => handleFieldChange('color_secondary', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Accent Color"
-                                    value={formData.color_accent || '#10B981'}
-                                    onChange={(value) => handleFieldChange('color_accent', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Background Color"
-                                    value={formData.color_background || '#FFFFFF'}
-                                    onChange={(value) => handleFieldChange('color_background', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Text Color"
-                                    value={formData.color_text || '#1F2937'}
-                                    onChange={(value) => handleFieldChange('color_text', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Secondary Text Color"
-                                    value={formData.color_text_secondary || '#6B7280'}
-                                    onChange={(value) => handleFieldChange('color_text_secondary', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Border Color"
-                                    value={formData.color_border || '#E5E7EB'}
-                                    onChange={(value) => handleFieldChange('color_border', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Success Color"
-                                    value={formData.color_success || '#10B981'}
-                                    onChange={(value) => handleFieldChange('color_success', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Error Color"
-                                    value={formData.color_error || '#EF4444'}
-                                    onChange={(value) => handleFieldChange('color_error', value)}
-                                    disabled={!canUpdate}
-                                />
+                                <ColorPicker label="Primary Color" value={formData.color_primary || '#FECC00'} onChange={(value) => handleFieldChange('color_primary', value)} disabled={!canUpdate} />
+                                <ColorPicker label="Secondary Color" value={formData.color_secondary || '#1E40AF'} onChange={(value) => handleFieldChange('color_secondary', value)} disabled={!canUpdate} />
+                                <ColorPicker label="Accent Color" value={formData.color_accent || '#10B981'} onChange={(value) => handleFieldChange('color_accent', value)} disabled={!canUpdate} />
+                                <ColorPicker label="Background Color" value={formData.color_background || '#FFFFFF'} onChange={(value) => handleFieldChange('color_background', value)} disabled={!canUpdate} />
+                                <ColorPicker label="Text Color" value={formData.color_text || '#1F2937'} onChange={(value) => handleFieldChange('color_text', value)} disabled={!canUpdate} />
+                                <ColorPicker label="Secondary Text Color" value={formData.color_text_secondary || '#6B7280'} onChange={(value) => handleFieldChange('color_text_secondary', value)} disabled={!canUpdate} />
+                                <ColorPicker label="Border Color" value={formData.color_border || '#E5E7EB'} onChange={(value) => handleFieldChange('color_border', value)} disabled={!canUpdate} />
+                                <ColorPicker label="Success Color" value={formData.color_success || '#10B981'} onChange={(value) => handleFieldChange('color_success', value)} disabled={!canUpdate} />
+                                <ColorPicker label="Error Color" value={formData.color_error || '#EF4444'} onChange={(value) => handleFieldChange('color_error', value)} disabled={!canUpdate} />
                             </div>
                         )}
 
                         {activeTab === 'typography' && (
                             <div className="space-y-6 max-w-2xl">
-                                <FontSelector
-                                    label="Heading Font"
-                                    value={formData.font_family_heading || 'Playfair Display'}
-                                    onChange={(value) => handleFieldChange('font_family_heading', value)}
-                                    disabled={!canUpdate}
-                                    type="heading"
-                                />
-                                <FontSelector
-                                    label="Body Font"
-                                    value={formData.font_family_body || 'Roboto'}
-                                    onChange={(value) => handleFieldChange('font_family_body', value)}
-                                    disabled={!canUpdate}
-                                    type="body"
-                                />
+                                <FontSelector label="Heading Font" value={formData.font_family_heading || 'Playfair Display'} onChange={(value) => handleFieldChange('font_family_heading', value)} disabled={!canUpdate} type="heading" />
+                                <FontSelector label="Body Font" value={formData.font_family_body || 'Roboto'} onChange={(value) => handleFieldChange('font_family_body', value)} disabled={!canUpdate} type="body" />
                             </div>
                         )}
 
@@ -364,7 +300,6 @@ const SettingsPage: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Footer actions */}
                     <div className="border-t border-gray-200 p-6 bg-gray-50 flex items-center justify-between">
                         <div className="flex gap-2">
                             {canExport && (
@@ -423,6 +358,45 @@ const SettingsPage: React.FC = () => {
                 </div>
             </div>
         </div>
+    );
+};
+
+const SettingsPage: React.FC = () => {
+    const { adminSettings, refreshAdminSettings, updateSettings, isLoading } = useContext(SettingsContext);
+    const { hasPermission } = useContext(AuthContext);
+
+    const canUpdate = hasPermission('settings:update');
+    const canReset = hasPermission('settings:reset');
+    const canExport = hasPermission('settings:export');
+    const canImport = hasPermission('settings:import');
+
+    React.useEffect(() => {
+        void refreshAdminSettings();
+    }, [refreshAdminSettings]);
+
+    if (!adminSettings) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading settings...</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <SettingsEditor
+            key={adminSettings.updated_at}
+            adminSettings={adminSettings}
+            canExport={canExport}
+            canImport={canImport}
+            canReset={canReset}
+            canUpdate={canUpdate}
+            isLoading={isLoading}
+            refreshAdminSettings={refreshAdminSettings}
+            updateSettings={updateSettings}
+        />
     );
 };
 

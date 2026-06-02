@@ -19,9 +19,11 @@ const SystemPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const loadData = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(true);
+      setError(null);
+    }
     try {
       const [infoData, migrationsData, healthData] = await Promise.all([
         canViewInfo ? getSystemInfo() : Promise.resolve(null),
@@ -39,7 +41,11 @@ const SystemPage: React.FC = () => {
   }, [canViewInfo, canViewHealth, canViewMigrations]);
 
   useEffect(() => {
-    loadData();
+    const timeoutId = window.setTimeout(() => {
+      void loadData(false);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadData]);
 
   // Auto-refresh every 30 seconds if enabled
@@ -47,7 +53,7 @@ const SystemPage: React.FC = () => {
     if (!autoRefresh) return;
 
     const interval = setInterval(() => {
-      loadData();
+      void loadData(false);
     }, 30000);
 
     return () => clearInterval(interval);
@@ -86,7 +92,7 @@ const SystemPage: React.FC = () => {
           <p className="text-red-800">{error}</p>
           <Button
             variant="danger"
-            onClick={loadData}
+            onClick={() => void loadData()}
             className="mt-4"
           >
             Retry
@@ -112,7 +118,7 @@ const SystemPage: React.FC = () => {
             Auto-refresh (30s)
           </label>
           <Button
-            onClick={loadData}
+            onClick={() => void loadData()}
             disabled={isLoading}
           >
             {isLoading ? 'Refreshing...' : 'Refresh'}

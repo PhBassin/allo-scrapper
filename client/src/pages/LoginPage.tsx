@@ -1,13 +1,20 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import apiClient from '../api/client';
+import apiClient, { getApiErrorMessage } from '../api/client';
+import type { User } from '../contexts/AuthContext';
+import type { ApiResponse } from '../types';
 
 interface LoginLocationState {
     from?: {
         pathname?: string;
     };
     reason?: 'session_expired';
+}
+
+interface LoginResponse {
+    token: string;
+    user: User;
 }
 
 const LoginPage: React.FC = () => {
@@ -28,11 +35,11 @@ const LoginPage: React.FC = () => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
-
+ 
         try {
-            const response = await apiClient.post<any>('/auth/login', { username, password });
-
-            if (response.success) {
+            const response = await apiClient.post<ApiResponse<LoginResponse>>('/auth/login', { username, password });
+ 
+            if (response.success && response.data) {
                 // API returns { success: true, data: { token, user } }
                 const { user } = response.data;
                 login(user);
@@ -41,16 +48,7 @@ const LoginPage: React.FC = () => {
                 setError(response.error || 'Login failed');
             }
         } catch (err: unknown) {
-            if (err instanceof Error && ('status' in err || 'data' in err)) {
-                const apiError = err as import('../api/client').ApiError;
-                if (apiError.data?.error) {
-                    setError(apiError.data.error);
-                } else {
-                    setError('An unexpected error occurred. Please try again later.');
-                }
-            } else {
-                setError('An unexpected error occurred. Please try again later.');
-            }
+            setError(getApiErrorMessage(err, 'An unexpected error occurred. Please try again later.'));
             console.error('Login error:', err);
         } finally {
             setIsLoading(false);

@@ -72,14 +72,29 @@ async function refreshAccessToken(): Promise<boolean> {
  */
 export class ApiError extends Error {
   public status?: number;
-  public data?: any;
+  public data?: unknown;
 
-  constructor(message: string, status?: number, data?: any) {
+  constructor(message: string, status?: number, data?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.data = data;
   }
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+export function isApiErrorLike(error: unknown): error is Error & { status?: number; data?: unknown } {
+  return error instanceof Error && ('status' in error || 'data' in error);
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (isApiErrorLike(error) && isObject(error.data) && typeof error.data.error === 'string') {
+    return error.data.error;
+  }
+  return fallback;
 }
 
 /**
@@ -211,9 +226,9 @@ const apiClient = {
     }
     return fetchClient<T>(url, { method: 'GET' });
   },
-  post: <T>(endpoint: string, data?: any) => 
+  post: <T>(endpoint: string, data?: unknown) => 
     fetchClient<T>(endpoint, { method: 'POST', body: data ? JSON.stringify(data) : undefined }),
-  put: <T>(endpoint: string, data?: any) => 
+  put: <T>(endpoint: string, data?: unknown) => 
     fetchClient<T>(endpoint, { method: 'PUT', body: data ? JSON.stringify(data) : undefined }),
   delete: <T>(endpoint: string) => 
     fetchClient<T>(endpoint, { method: 'DELETE' }),

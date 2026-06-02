@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ScrapeButton from './ScrapeButton';
 import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import { AuthContext } from '../contexts/AuthContext';
+import { ApiError } from '../api/client';
 import type { PermissionName } from '../types/role';
 
 const mockAuthContext = {
@@ -61,9 +62,7 @@ describe('ScrapeButton', () => {
   });
 
   it('should handle 409 Conflict by calling onScrapeStart (resuming)', async () => {
-    const error: any = new Error('Already running');
-    error.status = 409;
-    error.data = { error: 'Already running' };
+    const error = new ApiError('Already running', 409, { error: 'Already running' });
     
     mockOnTrigger.mockRejectedValue(error);
     const onScrapeStart = vi.fn();
@@ -81,9 +80,7 @@ describe('ScrapeButton', () => {
   });
 
   it('should show error message for other errors', async () => {
-    const error: any = new Error('Server exploded');
-    error.status = 500;
-    error.data = { error: 'Server exploded' };
+    const error = new ApiError('Server exploded', 500, { error: 'Server exploded' });
     
     mockOnTrigger.mockRejectedValue(error);
 

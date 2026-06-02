@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../api/client';
+import apiClient, { getApiErrorMessage } from '../api/client';
 import PasswordRequirements from '../components/PasswordRequirements';
+import type { ApiResponse } from '../types';
+
+interface ChangePasswordResponse {
+    message: string;
+}
 
 const ChangePasswordPage: React.FC = () => {
     const [currentPassword, setCurrentPassword] = useState('');
@@ -39,12 +44,12 @@ const ChangePasswordPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const response = await apiClient.post<any>('/auth/change-password', {
+            const response = await apiClient.post<ApiResponse<ChangePasswordResponse>>('/auth/change-password', {
                 currentPassword,
                 newPassword,
             });
 
-             if (response.success) {
+             if (response.success && response.data) {
                  setSuccess(response.data.message);
                  // Clear form
                  setCurrentPassword('');
@@ -58,16 +63,7 @@ const ChangePasswordPage: React.FC = () => {
                  setError(response.error || 'Failed to change password');
              }
         } catch (err: unknown) {
-            if (err instanceof Error && ('status' in err || 'data' in err)) {
-                const apiError = err as import('../api/client').ApiError;
-                if (apiError.data?.error) {
-                    setError(apiError.data.error);
-                } else {
-                    setError('An unexpected error occurred. Please try again later.');
-                }
-            } else {
-                setError('An unexpected error occurred. Please try again later.');
-            }
+            setError(getApiErrorMessage(err, 'An unexpected error occurred. Please try again later.'));
             console.error('Change password error:', err);
         } finally {
             setIsLoading(false);
