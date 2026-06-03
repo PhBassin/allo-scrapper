@@ -43,6 +43,16 @@ describe('parseRefreshTokenExpiry', () => {
     expect(parseRefreshTokenExpiry()).toBe(3600000);
   });
 
+  it('should fallback to 7d on zero days', () => {
+    process.env.REFRESH_TOKEN_EXPIRY = '0d';
+    expect(parseRefreshTokenExpiry()).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+
+  it('should fallback to 7d on zero hours', () => {
+    process.env.REFRESH_TOKEN_EXPIRY = '0h';
+    expect(parseRefreshTokenExpiry()).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+
   it('should fallback to 7d on invalid value', () => {
     process.env.REFRESH_TOKEN_EXPIRY = 'invalid';
     expect(parseRefreshTokenExpiry()).toBe(7 * 24 * 60 * 60 * 1000);
