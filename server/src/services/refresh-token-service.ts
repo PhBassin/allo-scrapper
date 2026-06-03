@@ -14,12 +14,17 @@ export interface RefreshTokenRecord {
 const DEFAULT_EXPIRY_MS = parseRefreshTokenExpiry();
 
 export function parseRefreshTokenExpiry(): number {
+  const DEFAULT = 7 * 24 * 60 * 60 * 1000; // 7 days
   const envValue = process.env.REFRESH_TOKEN_EXPIRY;
-  if (!envValue) return 7 * 24 * 60 * 60 * 1000; // default: 7 days
+  if (!envValue) return DEFAULT;
   // Support human-readable format like '7d', '30d'
   const match = envValue.trim().match(/^(\d+)([dh])$/i);
   if (match) {
     const num = parseInt(match[1], 10);
+    if (num <= 0) {
+      logger.warn(`REFRESH_TOKEN_EXPIRY value must be positive: "${envValue}", using default 7d`);
+      return DEFAULT;
+    }
     const unit = match[2].toLowerCase();
     if (unit === 'd') return num * 24 * 60 * 60 * 1000;
     if (unit === 'h') return num * 60 * 60 * 1000;
@@ -28,7 +33,7 @@ export function parseRefreshTokenExpiry(): number {
   const ms = parseInt(envValue, 10);
   if (!isNaN(ms) && ms > 0) return ms;
   logger.warn(`Invalid REFRESH_TOKEN_EXPIRY value: "${envValue}", using default 7d`);
-  return 7 * 24 * 60 * 60 * 1000;
+  return DEFAULT;
 }
 
 /**
