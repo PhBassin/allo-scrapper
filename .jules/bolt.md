@@ -29,3 +29,7 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+
+## 2024-05-25 - [Optimize getAllRoles Batched Permission Query]
+**Learning:** Found that `getAllRoles` was executing an N+1 query problem by combining `Promise.all` with `.map` to fetch permissions for each role. While concurrent, this causes unnecessary database roundtrips and connection overhead.
+**Action:** When fetching child records for parent rows (like permissions for roles), always use a single batched query with a PostgreSQL array parameter (e.g., `WHERE foreign_id = ANY($1::int[])`), and then join the related results in memory using a simple grouping map.
