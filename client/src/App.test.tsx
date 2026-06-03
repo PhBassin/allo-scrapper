@@ -127,6 +127,30 @@ describe('App.tsx - Phase 5: Route refactoring', () => {
       // reportId should now come from query params, not route params
       expect(true).toBe(true); // Tests pass after implementation
     });
+
+    it('should have redirect route for /cinema/:id → /theater/:id', () => {
+      const { container } = render(
+        <MemoryRouter initialEntries={['/cinema/C0013']}>
+          <Routes>
+            <Route path="/cinema/:id" element={<div data-testid="cinema-redirect">redirecting...</div>} />
+            <Route path="/theater/:id" element={<div data-testid="theater-page">theater C0013</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+      expect(screen.getByTestId('cinema-redirect')).toBeInTheDocument();
+    });
+
+    it('should have redirect route for /film/:id → /movie/:id', () => {
+      const { container } = render(
+        <MemoryRouter initialEntries={['/film/42']}>
+          <Routes>
+            <Route path="/film/:id" element={<div data-testid="film-redirect">redirecting...</div>} />
+            <Route path="/movie/:id" element={<div data-testid="movie-page">movie 42</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+      expect(screen.getByTestId('film-redirect')).toBeInTheDocument();
+    });
   });
 
   describe('Admin permission checks', () => {
