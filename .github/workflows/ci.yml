@@ -16,7 +16,7 @@ on:
     branches:
       - main
       - develop
-      - 'chore/**'
+      - 'chore/*'
 
 jobs:
   unit-and-coverage:
