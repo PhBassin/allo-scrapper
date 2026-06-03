@@ -1,55 +1,55 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect } from 'vitest';
-import CinemasQuickLinks from './CinemasQuickLinks';
+import TheatersQuickLinks from './TheatersQuickLinks';
 
-const mockCinemas = [
+const mockTheaters = [
   { id: 'C0001', name: 'UGC Opéra', city: 'Paris', screen_count: 5 },
   { id: 'C0002', name: 'Pathé Wepler', city: 'Paris', screen_count: 8 },
 ];
 
-const renderComponent = (props: Partial<React.ComponentProps<typeof CinemasQuickLinks>> = {}) =>
+const renderComponent = (props: Partial<React.ComponentProps<typeof TheatersQuickLinks>> = {}) =>
   render(
     <MemoryRouter>
-      <CinemasQuickLinks
-        cinemas={mockCinemas}
-        canAddCinema={false}
-        onAddCinema={vi.fn()}
+      <TheatersQuickLinks
+        theaters={mockTheaters}
+        canAddTheater={false}
+        onAddTheater={vi.fn()}
         {...props}
       />
     </MemoryRouter>
   );
 
-describe('CinemasQuickLinks', () => {
-  it('renders a link for each cinema', () => {
+describe('TheatersQuickLinks', () => {
+  it('renders a link for each theater', () => {
     renderComponent();
 
     expect(screen.getByText('UGC Opéra')).toBeInTheDocument();
     expect(screen.getByText('Pathé Wepler')).toBeInTheDocument();
   });
 
-  it('shows "+ Ajouter un cinéma" button when canAddCinema is true', () => {
-    renderComponent({ canAddCinema: true });
+  it('shows "+ Ajouter un cinéma" button when canAddTheater is true', () => {
+    renderComponent({ canAddTheater: true });
 
     expect(screen.getByText('+ Ajouter un cinéma')).toBeInTheDocument();
   });
 
-  it('hides "+ Ajouter un cinéma" button when canAddCinema is false', () => {
-    renderComponent({ canAddCinema: false });
+  it('hides "+ Ajouter un cinéma" button when canAddTheater is false', () => {
+    renderComponent({ canAddTheater: false });
 
     expect(screen.queryByText('+ Ajouter un cinéma')).not.toBeInTheDocument();
   });
 
-  it('calls onAddCinema when the button is clicked', () => {
-    const onAddCinema = vi.fn();
-    renderComponent({ canAddCinema: true, onAddCinema });
+  it('calls onAddTheater when the button is clicked', () => {
+    const onAddTheater = vi.fn();
+    renderComponent({ canAddTheater: true, onAddTheater });
 
     fireEvent.click(screen.getByText('+ Ajouter un cinéma'));
 
-    expect(onAddCinema).toHaveBeenCalledTimes(1);
+    expect(onAddTheater).toHaveBeenCalledTimes(1);
   });
 
-  it('renders cinema links with correct href', () => {
+  it('renders theater links with correct href', () => {
     renderComponent();
 
     const ugcLink = screen.getByText('UGC Opéra').closest('a');

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { TheaterCreate } from '../../api/theaters';
 
-interface AddCinemaModalProps {
+interface AddTheaterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (data: TheaterCreate) => Promise<void>;
@@ -28,7 +28,7 @@ interface ManualErrors {
   submit?: string;
 }
 
-const AddCinemaModal: React.FC<AddCinemaModalProps> = ({ isOpen, onClose, onAdd }) => {
+const AddTheaterModal: React.FC<AddTheaterModalProps> = ({ isOpen, onClose, onAdd }) => {
   const [activeTab, setActiveTab] = useState<Tab>('smart');
 
   // Smart Add state
@@ -88,7 +88,7 @@ const AddCinemaModal: React.FC<AddCinemaModalProps> = ({ isOpen, onClose, onAdd 
       await onAdd({ url: smartUrl });
       resetForm();
     } catch (err) {
-      setSmartErrors({ submit: err instanceof Error ? err.message : 'Failed to add cinema' });
+      setSmartErrors({ submit: err instanceof Error ? err.message : 'Failed to add theater' });
     } finally {
       setIsSubmitting(false);
     }
@@ -133,7 +133,7 @@ const AddCinemaModal: React.FC<AddCinemaModalProps> = ({ isOpen, onClose, onAdd 
       await onAdd({ id: manualId, name: manualName.trim(), url: manualUrl });
       resetForm();
     } catch (err) {
-      setManualErrors({ submit: err instanceof Error ? err.message : 'Failed to add cinema' });
+      setManualErrors({ submit: err instanceof Error ? err.message : 'Failed to add theater' });
     } finally {
       setIsSubmitting(false);
     }
@@ -149,13 +149,13 @@ const AddCinemaModal: React.FC<AddCinemaModalProps> = ({ isOpen, onClose, onAdd 
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      data-testid="add-cinema-modal-backdrop"
+      data-testid="add-theater-modal-backdrop"
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">Add Cinema</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Add Theater</h2>
           <button
             type="button"
             onClick={handleClose}
@@ -199,7 +199,7 @@ const AddCinemaModal: React.FC<AddCinemaModalProps> = ({ isOpen, onClose, onAdd 
         {activeTab === 'smart' && (
           <form onSubmit={handleSmartSubmit} className="px-6 py-4">
             <p className="text-sm text-gray-500 mb-4">
-              The cinema metadata and showtimes will be automatically scraped. This can take 30+ seconds.
+              The theater metadata and showtimes will be automatically scraped. This can take 30+ seconds.
             </p>
             <div className="mb-4">
               <label htmlFor="smart-url" className="block text-sm font-medium text-gray-700 mb-1">
@@ -237,7 +237,7 @@ const AddCinemaModal: React.FC<AddCinemaModalProps> = ({ isOpen, onClose, onAdd 
                 disabled={isSubmitting}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Adding...' : 'Add Cinema'}
+                {isSubmitting ? 'Adding...' : 'Add Theater'}
               </button>
             </div>
           </form>
@@ -248,7 +248,7 @@ const AddCinemaModal: React.FC<AddCinemaModalProps> = ({ isOpen, onClose, onAdd 
           <form onSubmit={handleManualSubmit} className="px-6 py-4">
             <div className="mb-4">
               <label htmlFor="manual-id" className="block text-sm font-medium text-gray-700 mb-1">
-                Cinema ID
+                Theater ID
               </label>
               <input
                 id="manual-id"
@@ -316,7 +316,7 @@ const AddCinemaModal: React.FC<AddCinemaModalProps> = ({ isOpen, onClose, onAdd 
                 disabled={isSubmitting}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Adding...' : 'Add Cinema'}
+                {isSubmitting ? 'Adding...' : 'Add Theater'}
               </button>
             </div>
           </form>
@@ -326,4 +326,4 @@ const AddCinemaModal: React.FC<AddCinemaModalProps> = ({ isOpen, onClose, onAdd 
   );
 };
 
-export default AddCinemaModal;
+export default AddTheaterModal;

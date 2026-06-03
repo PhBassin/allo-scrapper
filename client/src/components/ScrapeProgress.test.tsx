@@ -156,7 +156,7 @@ describe('ScrapeProgress', () => {
     expect(mockUseScrapeProgress).toHaveBeenCalledWith(onComplete);
   });
 
-  it('should show current cinema being processed', () => {
+  it('should show current theater being processed', () => {
     const mockState: ProgressState = {
       isConnected: true,
       events: [
@@ -196,7 +196,7 @@ describe('ScrapeProgress', () => {
       isConnected: false, // SSE connection closed
       events: [
         { type: 'started', total_theaters: 1, total_dates: 7 },
-        { type: 'theater_completed', theater_name: 'Test Cinema', total_movies: 5 },
+        { type: 'theater_completed', theater_name: 'Test Theater', total_movies: 5 },
         { type: 'completed', summary: { 
           total_theaters: 1, 
           successful_theaters: 1, 

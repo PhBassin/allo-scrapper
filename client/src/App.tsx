@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { useEffect, useContext, Suspense, lazy } from 'react';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
-import CinemaPage from './pages/CinemaPage';
+import TheaterPage from './pages/TheaterPage';
 import MoviePage from './pages/MoviePage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
@@ -103,7 +103,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route path="/theater/:id" element={<CinemaPage />} />
+        <Route path="/theater/:id" element={<TheaterPage />} />
         <Route path="/movie/:id" element={<MoviePage />} />
         <Route
           path="/admin"

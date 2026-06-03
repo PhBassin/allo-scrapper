@@ -2,9 +2,9 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi, describe, it, beforeEach, afterEach, expect } from 'vitest';
-import CinemaPage from './CinemaPage';
+import TheaterPage from './TheaterPage';
 import * as clientApi from '../api/client';
-import type { Cinema } from '../types';
+import type { Theater } from '../types';
 
 vi.mock('../api/client', () => ({
   getTheaters: vi.fn(),
@@ -16,7 +16,7 @@ import { AuthContext } from '../contexts/AuthContext';
 
 const mockAuthContext = {
   isAuthenticated: true,
-  user: { id: 1, username: 'testuser', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['cinemas:create', 'scraper:trigger'] as any[] },
+  user: { id: 1, username: 'testuser', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['theaters:create', 'scraper:trigger'] as any[] },
   logout: vi.fn(),
   login: vi.fn(),
   isAdmin: false,
@@ -41,8 +41,8 @@ const renderWithClient = (ui: React.ReactElement) => {
   );
 };
 
-describe('CinemaPage - renders cinema details', () => {
-  const mockCinema: Cinema = {
+describe('TheaterPage - renders theater details', () => {
+  const mockTheater: Theater = {
     id: 'C0153',
     name: 'UGC Test',
     city: 'Paris',
@@ -55,15 +55,15 @@ describe('CinemaPage - renders cinema details', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(clientApi.getTheaters).mockResolvedValue([mockCinema]);
+    vi.mocked(clientApi.getTheaters).mockResolvedValue([mockTheater]);
     vi.mocked(clientApi.getTheaterSchedule).mockResolvedValue(mockSchedule);
   });
 
-  it('renders the cinema name heading', async () => {
+  it('renders the theater name heading', async () => {
     renderWithClient(
       <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/theater/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<TheaterPage />} />
         </Routes>
       </MemoryRouter>
     );
@@ -76,22 +76,22 @@ describe('CinemaPage - renders cinema details', () => {
     renderWithClient(
       <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/theater/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<TheaterPage />} />
         </Routes>
       </MemoryRouter>
     );
 
     await screen.findByRole('heading', { name: 'UGC Test' });
 
-    // Scraping controls have been moved to admin CinemasPage
+    // Scraping controls have been moved to admin TheatersPage
     expect(screen.queryByText(/Scraper uniquement ce cinéma/i)).not.toBeInTheDocument();
   });
 
-  it('calls getCinemas and getCinemaSchedule on mount', async () => {
+  it('calls getTheaters and getTheaterSchedule on mount', async () => {
     renderWithClient(
       <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/theater/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<TheaterPage />} />
         </Routes>
       </MemoryRouter>
     );
@@ -102,19 +102,19 @@ describe('CinemaPage - renders cinema details', () => {
     expect(clientApi.getTheaterSchedule).toHaveBeenCalledWith('C0153');
   });
 
-  it('shows error message when cinema is not found', async () => {
+  it('shows error message when theater is not found', async () => {
     vi.mocked(clientApi.getTheaters).mockResolvedValue([]);
 
     renderWithClient(
       <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/theater/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<TheaterPage />} />
         </Routes>
       </MemoryRouter>
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Cinema not found/i)).toBeInTheDocument();
+      expect(screen.getByText(/Theater not found/i)).toBeInTheDocument();
     });
   });
 
@@ -125,7 +125,7 @@ describe('CinemaPage - renders cinema details', () => {
         {
           id: 'st-1',
           movie_id: 101,
-          cinema_id: 'C0153',
+          theater_id: 'C0153',
           date: '2026-02-24',
           time: '14:30',
           datetime_iso: '2026-02-24T14:30:00.000Z',
@@ -147,7 +147,7 @@ describe('CinemaPage - renders cinema details', () => {
     renderWithClient(
       <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/theater/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<TheaterPage />} />
         </Routes>
       </MemoryRouter>
     );
@@ -158,12 +158,12 @@ describe('CinemaPage - renders cinema details', () => {
   });
 });
 
-describe('CinemaPage — bouton Maintenant', () => {
+describe('TheaterPage — bouton Maintenant', () => {
   const FIXED_TODAY = '2026-03-30';
   // Current time set to 13:00 so that showtimes at 12:00 are past and 14:00 is future
   const FIXED_NOW = new Date('2026-03-30T13:00:00');
 
-  const mockCinema: Cinema = {
+  const mockTheater: Theater = {
     id: 'C0153',
     name: 'UGC Test',
     city: 'Paris',
@@ -178,7 +178,7 @@ describe('CinemaPage — bouton Maintenant', () => {
       {
         id: 'st-past',
         movie_id: 101,
-        cinema_id: 'C0153',
+        theater_id: 'C0153',
         date: FIXED_TODAY,
         time: '12:00',
         datetime_iso: `${FIXED_TODAY}T12:00:00.000Z`,
@@ -191,7 +191,7 @@ describe('CinemaPage — bouton Maintenant', () => {
       {
         id: 'st-future',
         movie_id: 102,
-        cinema_id: 'C0153',
+        theater_id: 'C0153',
         date: FIXED_TODAY,
         time: '14:00',
         datetime_iso: `${FIXED_TODAY}T14:00:00.000Z`,
@@ -209,7 +209,7 @@ describe('CinemaPage — bouton Maintenant', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(FIXED_NOW);
     vi.clearAllMocks();
-    vi.mocked(clientApi.getTheaters).mockResolvedValue([mockCinema]);
+    vi.mocked(clientApi.getTheaters).mockResolvedValue([mockTheater]);
     vi.mocked(clientApi.getTheaterSchedule).mockResolvedValue(makeSchedule());
   });
 
@@ -217,23 +217,23 @@ describe('CinemaPage — bouton Maintenant', () => {
     vi.useRealTimers();
   });
 
-  const renderCinemaPage = () =>
+  const renderTheaterPage = () =>
     renderWithClient(
       <MemoryRouter initialEntries={['/theater/C0153']}>
         <Routes>
-          <Route path="/theater/:id" element={<CinemaPage />} />
+          <Route path="/theater/:id" element={<TheaterPage />} />
         </Routes>
       </MemoryRouter>
     );
 
   it('renders the Maintenant button in the date selector', async () => {
-    renderCinemaPage();
+    renderTheaterPage();
     await screen.findByRole('heading', { name: 'UGC Test' });
     expect(screen.getByRole('button', { name: /maintenant/i })).toBeInTheDocument();
   });
 
   it('filters out past showtimes when Maintenant is clicked', async () => {
-    renderCinemaPage();
+    renderTheaterPage();
     await screen.findByText('Film Passé');
 
     // Both films visible initially
@@ -257,7 +257,7 @@ describe('CinemaPage — bouton Maintenant', () => {
         {
           id: 'st-tomorrow',
           movie_id: 103,
-          cinema_id: 'C0153',
+          theater_id: 'C0153',
           date: '2026-03-31',
           time: '10:00',
           datetime_iso: '2026-03-31T10:00:00.000Z',
@@ -270,7 +270,7 @@ describe('CinemaPage — bouton Maintenant', () => {
       ],
     });
 
-    renderCinemaPage();
+    renderTheaterPage();
     await screen.findByText('Film Passé');
 
     // Activate "Now" mode
