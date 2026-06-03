@@ -129,7 +129,7 @@ describe('App.tsx - Phase 5: Route refactoring', () => {
     });
 
     it('should have redirect route for /cinema/:id → /theater/:id', () => {
-      const { container } = render(
+      render(
         <MemoryRouter initialEntries={['/cinema/C0013']}>
           <Routes>
             <Route path="/cinema/:id" element={<div data-testid="cinema-redirect">redirecting...</div>} />
@@ -141,7 +141,7 @@ describe('App.tsx - Phase 5: Route refactoring', () => {
     });
 
     it('should have redirect route for /film/:id → /movie/:id', () => {
-      const { container } = render(
+      render(
         <MemoryRouter initialEntries={['/film/42']}>
           <Routes>
             <Route path="/film/:id" element={<div data-testid="film-redirect">redirecting...</div>} />
