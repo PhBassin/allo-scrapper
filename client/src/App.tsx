@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useContext, Suspense, lazy } from 'react';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
@@ -45,6 +45,16 @@ function LoadingScreen() {
       </div>
     </div>
   );
+}
+
+function CinemaRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/theater/${id}`} replace />;
+}
+
+function FilmRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/movie/${id}`} replace />;
 }
 
 function AppRoutes() {
@@ -103,6 +113,8 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/cinema/:id" element={<CinemaRedirect />} />
+        <Route path="/film/:id" element={<FilmRedirect />} />
         <Route path="/theater/:id" element={<TheaterPage />} />
         <Route path="/movie/:id" element={<MoviePage />} />
         <Route

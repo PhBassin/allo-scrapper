@@ -38,9 +38,17 @@ jobs:
           rm -f package-lock.json
           npm install --legacy-peer-deps
 
-      - name: TypeScript type-check
+      - name: TypeScript type-check (server)
         run: npx tsc --noEmit
         working-directory: server
+
+      - name: TypeScript type-check (client)
+        run: npx tsc -b
+        working-directory: client
+
+      - name: TypeScript type-check (scraper)
+        run: npx tsc --noEmit
+        working-directory: scraper
 
       - name: Run tests
         run: npm run test:run
