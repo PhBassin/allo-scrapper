@@ -41,8 +41,13 @@ describe('Role & Permission Queries', () => {
 
       vi.mocked(mockDb.query)
         .mockResolvedValueOnce({ rows: mockRoles, rowCount: 2 } as any)
-        .mockResolvedValueOnce({ rows: mockPermissionsForAdmin, rowCount: 0 } as any)
-        .mockResolvedValueOnce({ rows: mockPermissionsForOperator, rowCount: 1 } as any);
+        .mockResolvedValueOnce({
+          rows: [
+            ...mockPermissionsForAdmin.map((p) => ({ role_id: 1, ...p })),
+            ...mockPermissionsForOperator.map((p) => ({ role_id: 2, ...p })),
+          ],
+          rowCount: mockPermissionsForAdmin.length + mockPermissionsForOperator.length,
+        } as any);
 
       const result = await getAllRoles(mockDb);
 
