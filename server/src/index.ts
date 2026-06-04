@@ -82,7 +82,7 @@ async function startServer() {
   } catch (error) {
     // Log only the error message to prevent sensitive data exposure
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('❌ Failed to start server:', errorMessage);
+    logger.error(`❌ Failed to start server: ${errorMessage}`);
     process.exit(1);
   }
 }

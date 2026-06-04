@@ -29,7 +29,7 @@ export async function initializeDatabase() {
     } catch (error) {
       // Log only the error message to prevent sensitive data exposure
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ Database migration failed:', errorMessage);
+        logger.error(`❌ Database migration failed: ${errorMessage}`);
       throw error;
     }
   } else {
