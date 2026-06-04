@@ -23,26 +23,24 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
 
   // Derive state from events
   const startedEvent = events.find((e): e is Extract<ProgressEvent, { type: 'started' }> => e.type === 'started');
-  const cinemaCompletedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'cinema_completed' }> => e.type === 'cinema_completed');
-  const filmStartedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'film_started' }> => e.type === 'film_started');
-  const filmCompletedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'film_completed' }> => e.type === 'film_completed');
+  const theaterCompletedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'theater_completed' }> => e.type === 'theater_completed');
+  const movieStartedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'movie_started' }> => e.type === 'movie_started');
+  const movieCompletedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'movie_completed' }> => e.type === 'movie_completed');
 
-  const totalCinemas = startedEvent?.total_cinemas || 0;
-  const processedCinemas = cinemaCompletedEvents.length;
-  const totalFilms = filmStartedEvents.length;
-  const processedFilms = filmCompletedEvents.length;
+  const totalTheaters = startedEvent?.total_theaters || 0;
+  const processedTheaters = theaterCompletedEvents.length;
+  const totalMovies = movieStartedEvents.length;
+  const processedMovies = movieCompletedEvents.length;
 
-  // Get current cinema/film from latest event
-  const currentCinema = latestEvent?.type === 'cinema_started' || latestEvent?.type === 'date_started' 
-    ? latestEvent.cinema_name 
+  const currentTheater = latestEvent?.type === 'theater_started' || latestEvent?.type === 'date_started' 
+    ? latestEvent.theater_name 
     : undefined;
-  const currentFilm = latestEvent?.type === 'film_started' 
-    ? latestEvent.film_title 
+  const currentMovie = latestEvent?.type === 'movie_started' 
+    ? latestEvent.movie_title 
     : undefined;
 
-  // Calculate progress percentages
-  const cinemaProgress = totalCinemas > 0 ? (processedCinemas / totalCinemas) * 100 : 0;
-  const filmProgress = totalFilms > 0 ? (processedFilms / totalFilms) * 100 : 0;
+  const theaterProgress = totalTheaters > 0 ? (processedTheaters / totalTheaters) * 100 : 0;
+  const movieProgress = totalMovies > 0 ? (processedMovies / totalMovies) * 100 : 0;
 
   // Check if completed
   const isCompleted = latestEvent?.type === 'completed';
@@ -80,25 +78,25 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
         )}
       </div>
 
-      {/* Cinema Progress */}
+      {/* Theater Progress */}
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
           <p className="text-sm font-medium text-gray-700">
             Cinémas traités
           </p>
           <p className="text-sm text-gray-600">
-            {processedCinemas} / {totalCinemas}
+            {processedTheaters} / {totalTheaters}
           </p>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
             className="bg-primary h-2 rounded-full transition-all duration-300"
-            style={{ width: `${cinemaProgress}%` }}
+            style={{ width: `${theaterProgress}%` }}
           ></div>
         </div>
-        {currentCinema && (
+        {currentTheater && (
           <p className="text-xs text-gray-500 mt-1">
-            En cours: {currentCinema}
+            En cours: {currentTheater}
           </p>
         )}
       </div>
@@ -110,18 +108,18 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
             Films traités
           </p>
           <p className="text-sm text-gray-600">
-            {processedFilms} / {totalFilms}
+            {processedMovies} / {totalMovies}
           </p>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
             className="bg-green-500 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${filmProgress}%` }}
+            style={{ width: `${movieProgress}%` }}
           ></div>
         </div>
-        {currentFilm && (
+        {currentMovie && (
           <p className="text-xs text-gray-500 mt-1">
-            En cours: {currentFilm}
+            En cours: {currentMovie}
           </p>
         )}
       </div>

@@ -43,7 +43,7 @@ describe('useScrapeProgress', () => {
 
     const { result } = renderHook(() => useScrapeProgress());
 
-    const testEvent = { type: 'started', total_cinemas: 1, total_dates: 1 };
+    const testEvent = { type: 'started', total_theaters: 1, total_dates: 1 };
     
     act(() => {
       eventCallback(testEvent);

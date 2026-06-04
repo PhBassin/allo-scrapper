@@ -236,7 +236,7 @@ ics-redis   redis:7-alpine                           Up 6 seconds (healthy)
 
 - Docker and Docker Compose installed
 - Access to GitHub Container Registry (image is public)
-- `docker-compose.yml` configured to use the image
+- `docker-compose.yaml` configured to use the image
 
 ---
 

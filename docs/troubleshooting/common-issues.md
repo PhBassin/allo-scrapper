@@ -51,7 +51,7 @@ docker compose exec ics-db psql -U postgres -d ics -c "SELECT 1;"
 
 ---
 
-### Problem: `relation "films" does not exist`
+### Problem: `relation "movies" does not exist`
 
 **Cause:** Database migration not applied.
 
@@ -96,21 +96,21 @@ curl -X POST http://localhost:3000/api/auth/login \
 
 ### Problem: Old data persisting after config changes
 
-**Cause:** Changes to `cinemas.json` not reflected in database.
+**Cause:** Changes to `theaters.json` not reflected in database.
 
 **Solution:**
 
 ```bash
 # The config directory is volume-mounted, so API changes are visible on host immediately.
 
-# If you manually edited cinemas.json on the host, restart the server to pick up changes:
+# If you manually edited theaters.json on the host, restart the server to pick up changes:
 docker compose restart ics-web
 
-# Trigger a new scrape to fetch data for updated cinemas:
+# Trigger a new scrape to fetch data for updated theaters:
 curl -X POST http://localhost:3000/api/scraper/trigger
 
 # If the JSON file and database diverged (e.g. after manual DB edits), resync:
-curl http://localhost:3000/api/cinemas/sync
+curl http://localhost:3000/api/theaters/sync
 
 # Full reset (clears all data):
 docker compose down -v
@@ -146,26 +146,26 @@ curl -N -H "Accept: text/event-stream" http://localhost:3000/api/scraper/progres
 
 ---
 
-### Problem: Cinema-specific scraping fails
+### Problem: Theater-specific scraping fails
 
-**Symptoms:** Specific cinema always fails during scrape.
+**Symptoms:** Specific theater always fails during scrape.
 
 **Solution:**
 
 ```bash
-# Check if cinema exists in database
-curl http://localhost:3000/api/cinemas | jq '.data[] | select(.id=="C0089")'
+# Check if theater exists in database
+curl http://localhost:3000/api/theaters | jq '.data[] | select(.id=="C0089")'
 
-# Test scraping single cinema
+# Test scraping single theater
 curl -X POST http://localhost:3000/api/scraper/trigger \
   -H "Content-Type: application/json" \
-  -d '{"cinemaId":"C0089"}'
+  -d '{"theaterId":"C0089"}'
 
 # View error details in scrape report
 curl http://localhost:3000/api/reports | jq '.data.items[0].errors'
 
 # Common causes:
-# - Cinema ID changed on source website
+# - Theater ID changed on source website
 # - HTML structure changed (parser needs update)
 # - Rate limiting from source website
 ```
@@ -190,15 +190,14 @@ docker compose restart ics-web
 # Reduce number of days scraped
 SCRAPE_DAYS=3  # Reduce from 7
 
-# Consider using scraper microservice mode for better rate limiting
-USE_REDIS_SCRAPER=true
+# Scraper microservice is always included in docker-compose.yaml
 ```
 
 ---
 
 ## API Issues
 
-### Problem: `Cannot GET /api/films`
+### Problem: `Cannot GET /api/movies`
 
 **Cause:** Server not running or API route not working.
 
@@ -228,7 +227,7 @@ docker compose restart
 
 ```bash
 # Check if database has data
-docker compose exec ics-db psql -U postgres -d ics -c "SELECT COUNT(*) FROM cinemas;"
+docker compose exec ics-db psql -U postgres -d ics -c "SELECT COUNT(*) FROM theaters;"
 
 # Trigger scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
@@ -237,7 +236,7 @@ curl -X POST http://localhost:3000/api/scraper/trigger
 curl http://localhost:3000/api/scraper/status
 
 # Verify data exists
-curl http://localhost:3000/api/films | jq '.data.films | length'
+curl http://localhost:3000/api/movies | jq '.data.movies | length'
 ```
 
 ---
@@ -364,7 +363,7 @@ docker compose restart ics-web
 
 **Error:**
 ```
-Access to fetch at 'http://192.168.1.100:3000/api/films' from origin 
+Access to fetch at 'http://192.168.1.100:3000/api/movies' from origin 
 'http://192.168.1.100:3000' has been blocked by CORS policy
 ```
 

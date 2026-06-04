@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import type { AuthRequest } from './auth.js';
+import { isAdminUser } from './auth.js';
 import type { ApiResponse } from '../types/api.js';
 import { logger } from '../utils/logger.js';
 import type { PermissionName } from '../types/role.js';
@@ -12,7 +13,7 @@ import type { PermissionName } from '../types/role.js';
  *
  * Usage:
  *   router.post('/trigger', requireAuth, requirePermission('scraper:trigger'), handler)
- *   router.delete('/:id', requireAuth, requirePermission('cinemas:delete'), handler)
+ *   router.delete('/:id', requireAuth, requirePermission('theaters:delete'), handler)
  */
 export function requirePermission(...requiredPermissions: PermissionName[]) {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void | Response> => {
@@ -22,7 +23,7 @@ export function requirePermission(...requiredPermissions: PermissionName[]) {
     }
 
     // Admin bypass — system role with name 'admin' has all permissions
-    if (req.user.role_name === 'admin' && req.user.is_system_role) {
+    if (isAdminUser(req.user)) {
       return next();
     }
 

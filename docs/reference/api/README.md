@@ -14,26 +14,26 @@ User authentication and JWT token management.
 
 ---
 
-### [Cinemas](./cinemas.md)
-Cinema management and metadata.
+### [Theaters](./theaters.md)
+Theater management and metadata.
 
 **Endpoints:**
-- `GET /api/cinemas` - List all cinemas
-- `GET /api/cinemas/:id` - Get cinema details
-- `POST /api/cinemas` - Add new cinema (admin only)
-- `PUT /api/cinemas/:id` - Update cinema (admin only)
-- `DELETE /api/cinemas/:id` - Delete cinema (admin only)
-- `POST /api/cinemas/sync` - Sync from config file (admin only)
+- `GET /api/theaters` - List all theaters
+- `GET /api/theaters/:id` - Get theater details
+- `POST /api/theaters` - Add new theater (admin only)
+- `PUT /api/theaters/:id` - Update theater (admin only)
+- `DELETE /api/theaters/:id` - Delete theater (admin only)
+- `POST /api/theaters/sync` - Sync from config file (admin only)
 
 ---
 
-### [Films](./films.md)
-Film information and showtimes.
+### [Movies](./movies.md)
+Movie information and showtimes.
 
 **Endpoints:**
-- `GET /api/films` - List all films
-- `GET /api/films/:id` - Get film details
-- `GET /api/films/:id/showtimes` - Get showtimes for a film
+- `GET /api/movies` - List all movies
+- `GET /api/movies/:id` - Get movie details
+- `GET /api/movies/:id/showtimes` - Get showtimes for a movie
 
 ---
 
@@ -41,13 +41,13 @@ Film information and showtimes.
 Scraper control, progress tracking, SSE events, and schedule management.
 
 **Endpoints:**
-- `POST /api/scraper/trigger` - Trigger scrape (full or single cinema)
-- `GET /api/scraper/status` - Get scraper status
-- `GET /api/scraper/progress` - SSE progress stream
-- `GET /api/scraper/schedules` - List scrape schedules
-- `POST /api/scraper/schedules` - Create schedule
-- `PUT /api/scraper/schedules/:id` - Update schedule
-- `DELETE /api/scraper/schedules/:id` - Delete schedule
+- `POST /api/scraper/trigger` - Trigger scrape (full or single theater) **[Auth]**
+- `GET /api/scraper/status` - Get scraper status **[Auth]**
+- `GET /api/scraper/progress` - SSE progress stream **[Auth]**
+- `GET /api/scraper/schedules` - List scrape schedules **[Auth]**
+- `POST /api/scraper/schedules` - Create schedule **[Auth]**
+- `PUT /api/scraper/schedules/:id` - Update schedule **[Auth]**
+- `DELETE /api/scraper/schedules/:id` - Delete schedule **[Auth]**
 
 ---
 
@@ -101,11 +101,12 @@ User management and role assignment.
 ---
 
 ### [System](./system.md)
-System information and health checks.
+System information, metrics, and health checks.
 
 **Endpoints:**
 - `GET /api/health` - Health check (rate-limited, cached 5 seconds)
 - `GET /api/system/info` - System info (requires `system:info`)
+- `GET /metrics` - Prometheus metrics **[Auth]**
 
 ---
 

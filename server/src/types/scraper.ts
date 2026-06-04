@@ -1,7 +1,7 @@
 // Types TypeScript partagés pour le scraper et la base de données
 
-export interface Cinema {
-  id: string; // Unique cinema identifier (e.g., "W7504", "C0072")
+export interface Theater {
+  id: string; // Unique theater identifier (e.g., "W7504", "C0072")
   name: string;
   address?: string;
   postal_code?: string;
@@ -11,8 +11,8 @@ export interface Cinema {
   url?: string; // Source website page URL for scraping
 }
 
-export interface Film {
-  id: number; // Unique film identifier
+export interface Movie {
+  id: number; // Unique movie identifier
   title: string;
   original_title?: string;
   poster_url?: string;
@@ -34,8 +34,8 @@ export interface Film {
 
 export interface Showtime {
   id: string; // Unique showtime identifier
-  film_id: number;
-  cinema_id: string;
+  movie_id: number;
+  theater_id: string;
   date: string; // Format YYYY-MM-DD
   time: string; // Format HH:MM
   datetime_iso: string; // Full ISO 8601
@@ -47,45 +47,45 @@ export interface Showtime {
 
 export interface WeeklyProgram {
   id?: number;
-  cinema_id: string;
-  film_id: number;
+  theater_id: string;
+  movie_id: number;
   week_start: string; // Date du mercredi (YYYY-MM-DD)
   is_new_this_week: boolean;
   scraped_at: string; // ISO 8601
 }
 
-// Configuration d'un cinéma
-export interface CinemaConfig {
+// Configuration d'un theater
+export interface TheaterConfig {
   id: string;
   name: string;
   url: string;
 }
 
-// Data parsed from cinema page
+// Data parsed from theater page
 export interface TheaterPageData {
-  cinema: Cinema;
-  films: FilmShowtimeData[];
+  theater: Theater;
+  movies: MovieShowtimeData[];
   dates: string[]; // Available dates
   selected_date: string;
 }
 
-// Film data with its showtimes on cinema page
-export interface FilmShowtimeData {
-  film: Film;
+// Movie data with its showtimes on theater page
+export interface MovieShowtimeData {
+  movie: Movie;
   showtimes: Showtime[];
   is_new_this_week: boolean;
 }
 
-export interface CinemaWithShowtimes extends Cinema {
+export interface TheaterWithShowtimes extends Theater {
   showtimes: Showtime[];
 }
 
-export interface FilmWithShowtimes extends Film {
-  cinemas: CinemaWithShowtimes[];
+export interface MovieWithShowtimes extends Movie {
+  theaters: TheaterWithShowtimes[];
 }
 
-// Data parsed from film details page
-export interface FilmPageData {
+// Data parsed from movie details page
+export interface MoviePageData {
   duration_minutes?: number;
   trailer_url?: string;
   director?: string;

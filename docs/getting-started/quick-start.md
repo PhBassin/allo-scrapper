@@ -23,11 +23,11 @@ cd allo-scrapper
 ### 2. Configure Environment
 
 ```bash
-# Copy the example environment file
-cp .env.example .env
+# Create .env with production base + dev overrides
+cat .env.example .env.dev.example > .env
 
-# (Optional) Edit .env if you want to customize settings
-# The defaults work out of the box for local development
+# Generate a JWT secret and set POSTGRES_PASSWORD in .env
+# openssl rand -base64 64  →  paste into JWT_SECRET=
 ```
 
 ### 3. Start All Services
@@ -92,7 +92,7 @@ You should see:
 
 1. Navigate to **http://localhost:5173**
 2. Click the **"Start Scrape"** button
-3. Watch real-time progress as cinemas are scraped
+3. Watch real-time progress as theaters are scraped
 4. View showtimes when complete
 
 ### Option 2: Using the API
@@ -101,7 +101,7 @@ You should see:
 curl -X POST http://localhost:3000/api/scraper/start
 ```
 
-**Note:** The first scrape may take several minutes depending on the number of configured cinemas.
+**Note:** The first scrape may take several minutes depending on the number of configured theaters.
 
 ---
 
@@ -111,21 +111,21 @@ After scraping completes:
 
 ### Web Interface
 
-- **Home page**: View all cinemas and their showtime counts
-- **Cinema details**: Click a cinema to see its complete schedule
+- **Home page**: View all theaters and their showtime counts
+- **Theater details**: Click a theater to see its complete schedule
 - **Reports**: View statistics and aggregated data
 
 ### API
 
 ```bash
-# Get all cinemas
-curl http://localhost:3000/api/cinemas
+# Get all theaters
+curl http://localhost:3000/api/theaters
 
 # Get showtimes report
 curl http://localhost:3000/api/reports/showtimes
 
-# Get all films
-curl http://localhost:3000/api/films
+# Get all movies
+curl http://localhost:3000/api/movies
 ```
 
 ---
@@ -173,20 +173,20 @@ npm run dev
 
 ## 🔧 Customization
 
-### Add Your Own Cinemas
+### Add Your Own Theaters
 
-Edit the cinema configuration file:
+Edit the theater configuration file:
 
 ```bash
-# File: server/src/config/cinemas.json
-nano server/src/config/cinemas.json
+# File: server/src/config/theaters.json
+nano server/src/config/theaters.json
 ```
 
-Add a cinema entry:
+Add a theater entry:
 ```json
 {
   "id": "C0001",
-  "name": "My Local Cinema",
+  "name": "My Local Theater",
   "url": "https://www.allocine.fr/seance/salle_gen_csalle=C0001.html"
 }
 ```
@@ -273,7 +273,7 @@ Now that you're up and running:
 - **Hot Reload**: Code changes in `server/` and `client/` automatically reload
 - **Database GUI**: Use [pgAdmin](https://www.pgadmin.org/) or [DBeaver](https://dbeaver.io/) to connect to `localhost:5432`
 - **API Testing**: Use [Postman](https://www.postman.com/) or [HTTPie](https://httpie.io/) for API exploration
-- **Monitoring**: Enable the monitoring stack with `docker compose --profile monitoring up -d`
+- **Monitoring**: Enable the monitoring stack with `docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d`
 
 ---
 

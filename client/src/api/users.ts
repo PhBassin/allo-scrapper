@@ -25,7 +25,6 @@ export interface UserRoleUpdate {
 
 export interface PasswordResetResult {
   user: UserPublic;
-  newPassword: string;
 }
 
 // ============================================================================
@@ -42,14 +41,14 @@ export async function getUsers(params?: {
   offset?: number
 }): Promise<UserPublic[]> {
   const response = await apiClient.get<ApiResponse<UserPublic[]>>('/users', {
-    params: params || {},
+    ...params as any,
   });
 
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch users');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch users');
   }
 
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -60,11 +59,11 @@ export async function getUsers(params?: {
 export async function getUserById(id: number): Promise<UserPublic> {
   const response = await apiClient.get<ApiResponse<UserPublic>>(`/users/${id}`);
 
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch user');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch user');
   }
 
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -75,11 +74,11 @@ export async function getUserById(id: number): Promise<UserPublic> {
 export async function createUser(data: UserCreate): Promise<UserPublic> {
   const response = await apiClient.post<ApiResponse<UserPublic>>('/users', data);
 
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to create user');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to create user');
   }
 
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -91,27 +90,28 @@ export async function createUser(data: UserCreate): Promise<UserPublic> {
 export async function updateUserRole(id: number, roleId: number): Promise<UserPublic> {
   const response = await apiClient.put<ApiResponse<UserPublic>>(`/users/${id}/role`, { role_id: roleId });
 
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to update user role');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to update user role');
   }
 
-  return response.data.data;
+  return response.data;
 }
 
 /**
  * Reset user password (admin only)
- * Generates a secure random password (16 characters)
+ * Sends a client-generated password to be hashed server-side
  * @param id User ID
- * @returns User and new password (must be shown to admin immediately)
+ * @param newPassword Password generated on the client side
+ * @returns User info (password NOT returned in response)
  */
-export async function resetUserPassword(id: number): Promise<PasswordResetResult> {
-  const response = await apiClient.post<ApiResponse<PasswordResetResult>>(`/users/${id}/reset-password`);
+export async function resetUserPassword(id: number, newPassword: string): Promise<PasswordResetResult> {
+  const response = await apiClient.post<ApiResponse<PasswordResetResult>>(`/users/${id}/reset-password`, { newPassword });
 
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to reset password');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to reset password');
   }
 
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -124,7 +124,7 @@ export async function resetUserPassword(id: number): Promise<PasswordResetResult
 export async function deleteUser(id: number): Promise<void> {
   const response = await apiClient.delete<ApiResponse<void>>(`/users/${id}`);
 
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Failed to delete user');
+  if (!response.success) {
+    throw new Error(response.error || 'Failed to delete user');
   }
 }

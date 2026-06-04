@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isValidAllocineUrl, extractCinemaIdFromUrl, cleanCinemaUrl } from './url.js';
+import { isValidAllocineUrl, extractTheaterIdFromUrl, cleanTheaterUrl } from './url.js';
 
 describe('isValidAllocineUrl', () => {
   it('returns true for valid Allociné URLs', () => {
@@ -24,40 +24,40 @@ describe('isValidAllocineUrl', () => {
   });
 });
 
-describe('extractCinemaIdFromUrl', () => {
+describe('extractTheaterIdFromUrl', () => {
   it('extracts ID from standard Allociné URL', () => {
-    expect(extractCinemaIdFromUrl('https://www.allocine.fr/seance/salle_affich-salle=C0013.html')).toBe('C0013');
+    expect(extractTheaterIdFromUrl('https://www.allocine.fr/seance/salle_affich-salle=C0013.html')).toBe('C0013');
   });
 
   it('extracts ID from URL with csalle parameter', () => {
-    expect(extractCinemaIdFromUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0013.html')).toBe('C0013');
+    expect(extractTheaterIdFromUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0013.html')).toBe('C0013');
   });
 
   it('returns null for invalid URLs', () => {
-    expect(extractCinemaIdFromUrl('https://malicious.com/attack?param-salle=C1234')).toBeNull();
-    expect(extractCinemaIdFromUrl('http://localhost:8080/my-exploit?_csalle=C9999')).toBeNull();
-    expect(extractCinemaIdFromUrl('https://www.allocine.fr.evil.com/seance/salle_gen_csalle=C0013.html')).toBeNull();
-    expect(extractCinemaIdFromUrl('/seance/salle_gen_csalle=C0013.html')).toBeNull();
-    expect(extractCinemaIdFromUrl('https://www.allocine.fr/film/fichefilm_gen_cfilm=12345.html')).toBeNull();
-    expect(extractCinemaIdFromUrl('https://www.google.com')).toBeNull();
+    expect(extractTheaterIdFromUrl('https://malicious.com/attack?param-salle=C1234')).toBeNull();
+    expect(extractTheaterIdFromUrl('http://localhost:8080/my-exploit?_csalle=C9999')).toBeNull();
+    expect(extractTheaterIdFromUrl('https://www.allocine.fr.evil.com/seance/salle_gen_csalle=C0013.html')).toBeNull();
+    expect(extractTheaterIdFromUrl('/seance/salle_gen_csalle=C0013.html')).toBeNull();
+    expect(extractTheaterIdFromUrl('https://www.allocine.fr/film/fichefilm_gen_cfilm=12345.html')).toBeNull();
+    expect(extractTheaterIdFromUrl('https://www.google.com')).toBeNull();
   });
 });
 
-describe('cleanCinemaUrl', () => {
+describe('cleanTheaterUrl', () => {
   it('strips query string from URL', () => {
-    expect(cleanCinemaUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0013.html?date=2026-01-01')).toBe(
+    expect(cleanTheaterUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0013.html?date=2026-01-01')).toBe(
       'https://www.allocine.fr/seance/salle_gen_csalle=C0013.html'
     );
   });
 
   it('strips fragment from URL', () => {
-    expect(cleanCinemaUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0013.html#showtimes')).toBe(
+    expect(cleanTheaterUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0013.html#showtimes')).toBe(
       'https://www.allocine.fr/seance/salle_gen_csalle=C0013.html'
     );
   });
 
   it('leaves clean URLs unchanged', () => {
-    expect(cleanCinemaUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0013.html')).toBe(
+    expect(cleanTheaterUrl('https://www.allocine.fr/seance/salle_gen_csalle=C0013.html')).toBe(
       'https://www.allocine.fr/seance/salle_gen_csalle=C0013.html'
     );
   });

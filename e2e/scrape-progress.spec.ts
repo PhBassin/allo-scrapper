@@ -62,8 +62,8 @@ test.describe('Scrape Progress Visibility', () => {
     // Verify loading state appears first
     await expect(progressWindow).toContainText(/connexion en cours|scraping en cours/i, { timeout: 5000 });
 
-    // Wait for scrape to progress - check for "Cinémas traités" indicator
-    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
+    // Wait for scrape to progress - check for "Theaters traités" indicator
+    await expect(page.getByText(/theaters traités/i)).toBeVisible({ timeout: 30000 });
 
     // Wait for completion (with generous timeout for real scrape)
     // Look for either "Scraping terminé" or completion indicators
@@ -92,8 +92,8 @@ test.describe('Scrape Progress Visibility', () => {
     const progressWindow = page.getByTestId('scrape-progress');
     await expect(progressWindow).toBeVisible({ timeout: 10000 });
 
-    // Wait for scrape to be in progress (cinema processing started)
-    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
+    // Wait for scrape to be in progress (theater processing started)
+    await expect(page.getByText(/theaters traités/i)).toBeVisible({ timeout: 30000 });
 
     // Refresh the page
     await page.reload();
@@ -106,7 +106,7 @@ test.describe('Scrape Progress Visibility', () => {
     await expect(page.getByTestId('scrape-progress')).toBeVisible({ timeout: 10000 });
 
     // Should show progress details (not just loading state)
-    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/theaters traités/i)).toBeVisible({ timeout: 30000 });
   });
 
   test('clicking scrape button during active scrape resumes progress without error', async ({ page }) => {
@@ -120,7 +120,7 @@ test.describe('Scrape Progress Visibility', () => {
     await expect(progressWindow).toBeVisible({ timeout: 10000 });
 
     // Wait for scrape to be actively processing
-    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/theaters traités/i)).toBeVisible({ timeout: 30000 });
 
     // Click the scrape button again while scrape is running (find by success text now)
     const activeButton = page.locator('button').filter({ hasText: /scraping/i }).first();
@@ -133,8 +133,8 @@ test.describe('Scrape Progress Visibility', () => {
     // Progress window should still be visible
     await expect(progressWindow).toBeVisible();
 
-    // Progress should continue (cinemas counter should still be present)
-    await expect(page.getByText(/cinémas traités/i)).toBeVisible();
+    // Progress should continue (theaters counter should still be present)
+    await expect(page.getByText(/theaters traités/i)).toBeVisible();
   });
 
   test('progress window shows loading state before first SSE event', async ({ page }) => {
@@ -164,18 +164,18 @@ test.describe('Scrape Progress Visibility', () => {
     const progressWindow = page.getByTestId('scrape-progress');
     await expect(progressWindow).toBeVisible({ timeout: 10000 });
 
-    // Wait for cinema progress to show
-    await expect(page.getByText(/cinémas traités/i)).toBeVisible({ timeout: 30000 });
+    // Wait for theater progress to show
+    await expect(page.getByText(/theaters traités/i)).toBeVisible({ timeout: 30000 });
 
-    // Check for cinema progress elements (format: "0 / 3" or similar)
-    const cinemaProgress = progressWindow.getByText(/\d+ \/ \d+/).first();
-    await expect(cinemaProgress).toBeVisible();
+    // Check for theater progress elements (format: "0 / 3" or similar)
+    const theaterProgress = progressWindow.getByText(/\d+ \/ \d+/).first();
+    await expect(theaterProgress).toBeVisible();
 
-    // Check for films progress section
-    await expect(page.getByText(/films traités/i)).toBeVisible();
+    // Check for movies progress section
+    await expect(page.getByText(/movies traités/i)).toBeVisible();
 
     // Verify progress bars are present within the progress window
     const progressBars = progressWindow.locator('.h-2.rounded-full');
-    expect(await progressBars.count()).toBeGreaterThanOrEqual(2); // Cinema and film progress bars
+    expect(await progressBars.count()).toBeGreaterThanOrEqual(2); // Theater and movie progress bars
   });
 });

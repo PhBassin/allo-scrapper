@@ -1,9 +1,9 @@
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useContext, Suspense, lazy } from 'react';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
-import CinemaPage from './pages/CinemaPage';
-import FilmPage from './pages/FilmPage';
+import TheaterPage from './pages/TheaterPage';
+import MoviePage from './pages/MoviePage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import AdminPage from './pages/admin/AdminPage';
@@ -45,6 +45,16 @@ function LoadingScreen() {
       </div>
     </div>
   );
+}
+
+function CinemaRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/theater/${id}`} replace />;
+}
+
+function FilmRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/movie/${id}`} replace />;
 }
 
 function AppRoutes() {
@@ -103,8 +113,10 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route path="/cinema/:id" element={<CinemaPage />} />
-        <Route path="/film/:id" element={<FilmPage />} />
+        <Route path="/cinema/:id" element={<CinemaRedirect />} />
+        <Route path="/film/:id" element={<FilmRedirect />} />
+        <Route path="/theater/:id" element={<TheaterPage />} />
+        <Route path="/movie/:id" element={<MoviePage />} />
         <Route
           path="/admin"
           element={

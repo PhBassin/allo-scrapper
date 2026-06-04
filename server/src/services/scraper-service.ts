@@ -1,7 +1,7 @@
 import { getRedisClient } from './redis-client.js';
 import { progressTracker } from './progress-tracker.js';
 import { createScrapeReport, getLatestScrapeReport } from '../db/report-queries.js';
-import { getCinemas } from '../db/cinema-queries.js';
+import { getTheaters } from '../db/theater-queries.js';
 import type { DB } from '../db/client.js';
 import { logger } from '../utils/logger.js';
 import type { ScrapeAttempt } from '../db/scrape-attempt-queries.js';
@@ -11,18 +11,18 @@ export class ScraperService {
 
   /**
    * Triggers a new scrape job by publishing it to the Redis queue.
-   * Validates the cinemaId if provided.
+   * Validates the theaterId if provided.
    */
-  async triggerScrape(options: { cinemaId?: string; filmId?: number } = {}) {
-    const { cinemaId, filmId } = options;
+  async triggerScrape(options: { theaterId?: string; movieId?: number } = {}) {
+    const { theaterId, movieId } = options;
 
-    // Validate cinemaId exists in database if provided
-    if (cinemaId) {
-      const cinemas = await getCinemas(this.db);
-      const cinemaExists = cinemas.some(c => c.id === cinemaId);
+    // Validate theaterId exists in database if provided
+    if (theaterId) {
+      const theaters = await getTheaters(this.db);
+      const theaterExists = theaters.some(c => c.id === theaterId);
 
-      if (!cinemaExists) {
-        throw new Error(`Cinema not found: ${cinemaId}`);
+      if (!theaterExists) {
+        throw new Error(`Theater not found: ${theaterId}`);
       }
     }
 
@@ -37,8 +37,8 @@ export class ScraperService {
       reportId,
       triggerType: 'manual',
       options: {
-        ...(cinemaId && { cinemaId }),
-        ...(filmId && { filmId }),
+        ...(theaterId && { theaterId }),
+        ...(movieId && { movieId }),
       },
     });
 
@@ -56,9 +56,9 @@ export class ScraperService {
     // Reset stale events
     progressTracker.reset();
 
-    // Build list of cinema/date pairs to retry
+    // Build list of theater/date pairs to retry
     const pendingList = pendingAttempts.map(a => ({
-      cinema_id: a.cinema_id,
+      theater_id: a.theater_id,
       date: a.date,
     }));
 

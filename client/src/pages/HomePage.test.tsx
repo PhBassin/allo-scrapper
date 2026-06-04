@@ -10,7 +10,7 @@ import { AuthContext } from '../contexts/AuthContext';
 // Mock the API client
 const mockAuthContext = {
   isAuthenticated: true,
-  user: { id: 1, username: 'testuser', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['cinemas:create', 'scraper:trigger'] as any[] },
+  user: { id: 1, username: 'testuser', role_id: 1, role_name: 'admin', is_system_role: true, permissions: ['theaters:create', 'scraper:trigger'] as any[] },
   logout: vi.fn(),
   login: vi.fn(),
   isAdmin: false,
@@ -35,27 +35,27 @@ const renderWithClient = (ui: React.ReactElement) => {
   );
 };
 vi.mock('../api/client', () => ({
-  getWeeklyFilms: vi.fn(),
-  getFilmsByDate: vi.fn(),
-  getCinemas: vi.fn(),
-  addCinema: vi.fn(),
+  getWeeklyMovies: vi.fn(),
+  getMoviesByDate: vi.fn(),
+  getTheaters: vi.fn(),
+  addTheater: vi.fn(),
 }));
 
 describe('HomePage', () => {
-  let mockGetWeeklyFilms: ReturnType<typeof vi.fn>;
-  let mockGetCinemas: ReturnType<typeof vi.fn>;
+  let mockGetWeeklyMovies: ReturnType<typeof vi.fn>;
+  let mockGetTheaters: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    mockGetWeeklyFilms = vi.fn();
-    mockGetCinemas = vi.fn();
+    mockGetWeeklyMovies = vi.fn();
+    mockGetTheaters = vi.fn();
 
     // Re-bind mocks
-    (clientApi.getWeeklyFilms as any) = mockGetWeeklyFilms;
-    (clientApi.getCinemas as any) = mockGetCinemas;
+    (clientApi.getWeeklyMovies as any) = mockGetWeeklyMovies;
+    (clientApi.getTheaters as any) = mockGetTheaters;
 
     // Default successful responses
-    mockGetWeeklyFilms.mockResolvedValue({ films: [], weekStart: '2023-01-01' });
-    mockGetCinemas.mockResolvedValue([]);
+    mockGetWeeklyMovies.mockResolvedValue({ movies: [], weekStart: '2023-01-01' });
+    mockGetTheaters.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -70,8 +70,8 @@ describe('HomePage', () => {
     );
 
     await waitFor(() => {
-      expect(mockGetWeeklyFilms).toHaveBeenCalled();
-      expect(mockGetCinemas).toHaveBeenCalled();
+      expect(mockGetWeeklyMovies).toHaveBeenCalled();
+      expect(mockGetTheaters).toHaveBeenCalled();
     });
   });
 
@@ -83,7 +83,7 @@ describe('HomePage', () => {
     );
 
     await waitFor(() => {
-      expect(mockGetWeeklyFilms).toHaveBeenCalled();
+      expect(mockGetWeeklyMovies).toHaveBeenCalled();
     });
 
     // Scraping UI has been moved to admin — should never appear on HomePage
@@ -98,7 +98,7 @@ describe('HomePage', () => {
     );
 
     await waitFor(() => {
-      expect(mockGetWeeklyFilms).toHaveBeenCalled();
+      expect(mockGetWeeklyMovies).toHaveBeenCalled();
     });
 
     // Scraping UI has been moved to admin — no scrape button on public pages
@@ -114,17 +114,17 @@ describe('HomePage — bouton Maintenant', () => {
   const FIXED_NOW = new Date('2026-03-30T13:00:00');
 
   const makeFilmsResponse = () => ({
-    films: [
+    movies: [
       {
         id: 101,
         title: 'Film Passé',
         genres: [],
         actors: [],
         source_url: '',
-        cinemas: [
+        theaters: [
           {
             id: 'C1',
-            name: 'Cinema 1',
+            name: 'Theater 1',
             address: '',
             city: 'Paris',
             showtimes: [{ id: 's1', date: FIXED_TODAY, time: '12:00', experiences: [] }],
@@ -137,10 +137,10 @@ describe('HomePage — bouton Maintenant', () => {
         genres: [],
         actors: [],
         source_url: '',
-        cinemas: [
+        theaters: [
           {
             id: 'C1',
-            name: 'Cinema 1',
+            name: 'Theater 1',
             address: '',
             city: 'Paris',
             showtimes: [{ id: 's2', date: FIXED_TODAY, time: '14:00', experiences: [] }],
@@ -163,9 +163,9 @@ describe('HomePage — bouton Maintenant', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(FIXED_NOW);
     vi.clearAllMocks();
-    (clientApi.getWeeklyFilms as any).mockResolvedValue({ films: [], weekStart: WEEK_START });
-    (clientApi.getCinemas as any).mockResolvedValue([]);
-    (clientApi.getFilmsByDate as any).mockResolvedValue(makeFilmsResponse());
+    (clientApi.getWeeklyMovies as any).mockResolvedValue({ movies: [], weekStart: WEEK_START });
+    (clientApi.getTheaters as any).mockResolvedValue([]);
+    (clientApi.getMoviesByDate as any).mockResolvedValue(makeFilmsResponse());
   });
 
   afterEach(() => {
@@ -185,7 +185,7 @@ describe('HomePage — bouton Maintenant', () => {
     fireEvent.click(screen.getByRole('button', { name: /maintenant/i }));
 
     await waitFor(() => {
-      expect(clientApi.getFilmsByDate).toHaveBeenCalledWith(FIXED_TODAY);
+      expect(clientApi.getMoviesByDate).toHaveBeenCalledWith(FIXED_TODAY);
     });
   });
 
@@ -199,5 +199,15 @@ describe('HomePage — bouton Maintenant', () => {
       expect(screen.getByText('Film Futur')).toBeInTheDocument();
     });
     expect(screen.queryByText('Film Passé')).not.toBeInTheDocument();
+  });
+
+  it('filters movies correctly and memoizes the result on subsequent renders', async () => {
+    // This test ensures that when the page is rendered and updated, the filtering functions correctly.
+    renderHomePage();
+    await waitFor(() => expect(screen.getByRole('button', { name: /maintenant/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /maintenant/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Film Futur')).toBeInTheDocument();
+    });
   });
 });

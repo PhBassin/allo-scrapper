@@ -24,7 +24,7 @@ GET /api/settings
 {
   "success": true,
   "data": {
-    "site_name": "My Cinema Portal",
+    "site_name": "My Theater Portal",
     "logo_base64": "data:image/png;base64,iVBORw0KG...",
     "favicon_base64": "data:image/x-icon;base64,AAABA...",
     "color_primary": "#FECC00",
@@ -38,16 +38,16 @@ GET /api/settings
     "color_error": "#EF4444",
     "font_primary": "Inter",
     "font_secondary": "Roboto",
-    "footer_text": "Cinema schedules updated weekly",
+    "footer_text": "Theater schedules updated weekly",
     "footer_copyright": "{site_name} © {year}",
     "footer_links": [
       {"label": "Privacy Policy", "url": "https://example.com/privacy"},
       {"label": "Contact", "url": "https://example.com/contact"}
     ],
-    "email_from_name": "My Cinema Portal",
+    "email_from_name": "My Theater Portal",
     "email_from_address": "noreply@example.com",
     "email_header_color": "#FECC00",
-    "email_footer_text": "You received this email from My Cinema Portal"
+    "email_footer_text": "You received this email from My Theater Portal"
   }
 }
 ```
@@ -75,7 +75,7 @@ GET /api/settings/admin
   "success": true,
   "data": {
     "id": 1,
-    "site_name": "My Cinema Portal",
+    "site_name": "My Theater Portal",
     "logo_base64": "data:image/png;base64,iVBORw0KG...",
     "favicon_base64": "data:image/x-icon;base64,AAABA...",
     "color_primary": "#FECC00",
@@ -89,15 +89,15 @@ GET /api/settings/admin
     "color_error": "#EF4444",
     "font_primary": "Inter",
     "font_secondary": "Roboto",
-    "footer_text": "Cinema schedules updated weekly",
+    "footer_text": "Theater schedules updated weekly",
     "footer_copyright": "{site_name} © {year}",
     "footer_links": [
       {"label": "Privacy Policy", "url": "https://example.com/privacy"}
     ],
-    "email_from_name": "My Cinema Portal",
+    "email_from_name": "My Theater Portal",
     "email_from_address": "noreply@example.com",
     "email_header_color": "#FECC00",
-    "email_footer_text": "You received this email from My Cinema Portal",
+    "email_footer_text": "You received this email from My Theater Portal",
     "updated_at": "2026-03-01T14:30:00.000Z",
     "updated_by": 1
   }
@@ -139,7 +139,7 @@ PUT /api/settings
 **Request Body:**
 ```json
 {
-  "site_name": "My Cinema Portal",
+  "site_name": "My Theater Portal",
   "color_primary": "#FF5733",
   "font_primary": "Montserrat",
   "footer_text": "Updated footer text with {site_name} and {year} placeholders",
@@ -174,7 +174,7 @@ Unsupported formats or oversized images will be rejected with a 400 error.
   "success": true,
   "data": {
     "id": 1,
-    "site_name": "My Cinema Portal",
+    "site_name": "My Theater Portal",
     "color_primary": "#FF5733",
     "updated_at": "2026-03-01T15:00:00.000Z"
   }
@@ -209,7 +209,7 @@ curl -X PUT http://localhost:3000/api/settings \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "site_name": "My Cinema Portal",
+    "site_name": "My Theater Portal",
     "color_primary": "#FF5733",
     "font_primary": "Montserrat"
   }'
@@ -275,7 +275,7 @@ POST /api/settings/export
     "version": "1.0",
     "exported_at": "2026-03-01T15:30:00.000Z",
     "settings": {
-      "site_name": "My Cinema Portal",
+      "site_name": "My Theater Portal",
       "logo_base64": "data:image/png;base64,...",
       "color_primary": "#FECC00",
       "footer_links": [...]
@@ -325,7 +325,7 @@ POST /api/settings/import
   "version": "1.0",
   "exported_at": "2026-03-01T15:30:00.000Z",
   "settings": {
-    "site_name": "My Cinema Portal",
+    "site_name": "My Theater Portal",
     "color_primary": "#FECC00"
   }
 }

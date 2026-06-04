@@ -48,4 +48,38 @@ describe('Report Queries', () => {
       );
     });
   });
+
+  describe('getScrapeReports', () => {
+    it('should query count and paginated reports concurrently', async () => {
+      const { getScrapeReports } = await import('./report-queries.js');
+      
+      const mockDb = {
+        query: vi.fn().mockImplementation((sql: string) => {
+          if (sql.includes('COUNT(*)')) {
+            return { rows: [{ count: '10' }] };
+          }
+          return { rows: [{ id: 1 }, { id: 2 }] };
+        }),
+      } as unknown as DB;
+
+      const result = await getScrapeReports(mockDb, { limit: 5, offset: 2 });
+
+      expect(result).toEqual({
+        reports: [{ id: 1 }, { id: 2 }],
+        total: 10,
+      });
+
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
+      expect(mockDb.query).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('SELECT COUNT(*)'),
+        []
+      );
+      expect(mockDb.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('SELECT * FROM scrape_reports'),
+        [5, 2]
+      );
+    });
+  });
 });

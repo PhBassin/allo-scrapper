@@ -8,6 +8,18 @@ import { createApp } from './app.js';
 vi.mock('./services/theme-generator.js');
 vi.mock('./utils/logger.js');
 
+let shouldRejectAuth = false;
+
+vi.mock('./middleware/auth.js', () => ({
+  requireAuth: (req: any, res: any, next: any) => {
+    if (shouldRejectAuth) {
+      return res.status(401).json({ success: false, error: 'Authentication required. No token provided.' });
+    }
+    (req as any).user = { id: 1, username: 'test', role_name: 'admin', is_system_role: true, permissions: [] };
+    next();
+  },
+}));
+
 import * as themeGenerator from './services/theme-generator.js';
 
 describe('App - Theme Endpoint', () => {
@@ -217,7 +229,21 @@ describe('App - Theme Endpoint', () => {
   });
 
   describe('GET /metrics', () => {
-    it('should return Prometheus metrics', async () => {
+    it('should return 401 for unauthenticated requests', async () => {
+      shouldRejectAuth = true;
+      try {
+        const res = await request(app)
+          .get('/metrics')
+          .expect(401);
+
+        expect(res.body.success).toBe(false);
+        expect(res.body.error).toBe('Authentication required. No token provided.');
+      } finally {
+        shouldRejectAuth = false;
+      }
+    });
+
+    it('should return Prometheus metrics when authenticated', async () => {
       const res = await request(app)
         .get('/metrics')
         .expect(200);
@@ -277,6 +303,26 @@ describe('App - Theme Endpoint', () => {
       
       // CSP should allow fonts.gstatic.com for loading font files
       expect(cspHeader).toMatch(/font-src[^;]*https:\/\/fonts\.gstatic\.com/);
+    });
+
+    it('should include upgrade-insecure-requests directive', async () => {
+      // Mock DB for health check
+      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
+      const dbWithMock: DB = { 
+        query: mockQuery,
+        end: vi.fn()
+      } as unknown as DB;
+      app.set('db', dbWithMock);
+
+      const res = await request(app)
+        .get('/api/health')
+        .expect(200);
+
+      const cspHeader = res.headers['content-security-policy'];
+      expect(cspHeader).toBeDefined();
+      
+      // CSP should include upgrade-insecure-requests to force HTTPS
+      expect(cspHeader).toContain('upgrade-insecure-requests');
     });
 
     it('should maintain existing CSP directives', async () => {

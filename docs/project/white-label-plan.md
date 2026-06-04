@@ -68,7 +68,7 @@
 3. **Interface admin avec onglets**
    - Tab 1: Branding (personnalisation visuelle)
    - Tab 2: Utilisateurs (gestion utilisateurs)
-   - Tab 3: Cinémas (gestion existante)
+   - Tab 3: Theaters (gestion existante)
    - Tab 4: Système (export/import config)
 
 4. **Export/Import configuration**
@@ -520,13 +520,13 @@ CREATE INDEX idx_users_role ON users(role);
   - ✅ Tests `server/src/db/system-queries.test.ts` - 13/13 PASSING
   - ✅ `getAppliedMigrations()` - Liste migrations depuis `schema_migrations`
   - ✅ `getPendingMigrations()` - Comparer fichiers migrations avec DB
-  - ✅ `getDatabaseStats()` - Counts tables, cinemas, films, showtimes
+  - ✅ `getDatabaseStats()` - Counts tables, theaters, movies, showtimes
   
 - ✅ **System Info Service** (`server/src/services/system-info.ts`) - 155 lignes
   - ✅ Tests `server/src/services/system-info.test.ts` - 14/14 PASSING
   - ✅ `getAppInfo()` - Version, buildDate, environment, nodeVersion
   - ✅ `getServerHealth()` - Uptime, memory (formatted to MB), platform, arch
-  - ✅ `getScraperStatus()` - Active jobs, last scrape (from scrape_reports), cinema count
+  - ✅ `getScraperStatus()` - Active jobs, last scrape (from scrape_reports), theater count
 
 - ✅ **System Routes** (`server/src/routes/system.ts`) - 129 lignes
   - ⚠️ Tests `server/src/routes/system.test.ts` - 9/13 PASSING (middleware mock issues, documented)
@@ -547,7 +547,7 @@ CREATE INDEX idx_users_role ON users(role);
   - ✅ Health Status Card (status indicator, DB connection, uptime, memory)
   - ✅ App Info Card (version, build date, environment, Node version)
   - ✅ Server Health Card (platform, architecture, uptime, memory bars)
-  - ✅ Database Stats Card (tables count, cinemas, films, showtimes)
+  - ✅ Database Stats Card (tables count, theaters, movies, showtimes)
   - ✅ Migrations Table (applied/pending with status badges)
   - ✅ Loading states and error handling
 

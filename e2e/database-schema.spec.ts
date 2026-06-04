@@ -103,24 +103,24 @@ test.describe('Database Schema', () => {
     expect(protectedResponse.status()).not.toBe(401);
   });
 
-  test('core cinema tables exist and are accessible', async ({ request }) => {
+  test('core theater tables exist and are accessible', async ({ request }) => {
     // Verify other core tables exist by checking API endpoints
     
-    // Cinemas table
-    const cinemasResponse = await request.get('/api/cinemas');
-    expect(cinemasResponse.ok()).toBeTruthy();
-    const cinemasData = await cinemasResponse.json();
-    expect(cinemasData.success).toBe(true);
-    expect(Array.isArray(cinemasData.data)).toBe(true);
+    // Theaters table
+    const theatersResponse = await request.get('/api/theaters');
+    expect(theatersResponse.ok()).toBeTruthy();
+    const theatersData = await theatersResponse.json();
+    expect(theatersData.success).toBe(true);
+    expect(Array.isArray(theatersData.data)).toBe(true);
 
-    // Films table (may be empty but should return object with films array)
-    const filmsResponse = await request.get('/api/films');
-    expect(filmsResponse.ok()).toBeTruthy();
-    const filmsData = await filmsResponse.json();
-    expect(filmsData.success).toBe(true);
-    expect(filmsData.data).toBeDefined();
-    // Films API returns {success: true, data: {films: [...], total: N}}
-    expect(Array.isArray(filmsData.data.films)).toBe(true);
+    // Movies table (may be empty but should return object with movies array)
+    const moviesResponse = await request.get('/api/movies');
+    expect(moviesResponse.ok()).toBeTruthy();
+    const moviesData = await moviesResponse.json();
+    expect(moviesData.success).toBe(true);
+    expect(moviesData.data).toBeDefined();
+    // Movies API returns {success: true, data: {movies: [...], total: N}}
+    expect(Array.isArray(moviesData.data.movies)).toBe(true);
   });
 
   test('database is using correct database name (ics)', async ({ request }) => {

@@ -1,0 +1,57 @@
+#!/bin/sh
+# pre-push hook: run tsc type-check and tests before every push
+# To skip in an emergency: git push --no-verify
+
+set -e
+
+# Ensure Node.js is available (nvm-managed)
+export PATH="/home/debian/.nvm/versions/node/v24.14.1/bin:$PATH"
+
+YELLOW='\033[0;33m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+echo "${YELLOW}[pre-push] Running TypeScript type-check...${NC}"
+
+# Check Server
+echo "Checking server..."
+cd "$REPO_ROOT/server"
+if ! npx tsc --noEmit; then
+  echo "${RED}[pre-push] Server TypeScript type-check FAILED. Push aborted.${NC}"
+  exit 1
+fi
+
+# Check Scraper
+echo "Checking scraper..."
+cd "$REPO_ROOT/scraper"
+if ! npx tsc --noEmit; then
+  echo "${RED}[pre-push] Scraper TypeScript type-check FAILED. Push aborted.${NC}"
+  exit 1
+fi
+
+echo "${GREEN}[pre-push] Type-check passed.${NC}"
+echo "${YELLOW}[pre-push] Running tests...${NC}"
+
+cd "$REPO_ROOT/server"
+if ! npm run test:run; then
+  echo "${RED}[pre-push] Server tests FAILED. Push aborted.${NC}"
+  exit 1
+fi
+
+echo "${YELLOW}[pre-push] Running coverage check...${NC}"
+if ! npm run test:coverage; then
+  echo "${RED}[pre-push] Server coverage thresholds NOT MET. Push aborted.${NC}"
+  exit 1
+fi
+
+cd "$REPO_ROOT/scraper"
+if ! npm run test:run; then
+  echo "${RED}[pre-push] Scraper tests FAILED. Push aborted.${NC}"
+  exit 1
+fi
+
+echo "${GREEN}[pre-push] All checks passed. Pushing...${NC}"
+exit 0

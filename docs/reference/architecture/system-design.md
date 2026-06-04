@@ -26,11 +26,11 @@ High-level system architecture, component overview, and design decisions for All
 
 ## Overview
 
-Allo-Scrapper is a **full-stack cinema showtimes aggregator** that scrapes movie screening schedules from external cinema websites, stores them in a PostgreSQL database, and exposes them via a REST API and React frontend.
+Allo-Scrapper is a **full-stack theater showtimes aggregator** that scrapes movie screening schedules from external theater websites, stores them in a PostgreSQL database, and exposes them via a REST API and React frontend.
 
 ### Key Features
 
-- **Automated scraping**: Scheduled and on-demand scraping of cinema showtimes
+- **Automated scraping**: Scheduled and on-demand scraping of theater showtimes
 - **REST API**: Express.js backend with comprehensive endpoints
 - **Modern frontend**: React SPA with Tailwind CSS
 - **White-label branding**: Fully customizable branding system
@@ -73,8 +73,8 @@ Allo-Scrapper is a **full-stack cinema showtimes aggregator** that scrapes movie
     │   PostgreSQL     │  │      Redis       │
     │   (Port 5432)    │  │   (Port 6379)    │
     │                  │  │   Optional for   │
-    │  - Cinemas       │  │   microservice   │
-    │  - Films         │  │   scraper mode   │
+    │  - Theaters       │  │   microservice   │
+    │  - Movies         │  │   scraper mode   │
     │  - Showtimes     │  └────────┬─────────┘
     │  - Users         │           │
     │  - Settings      │           │ Job Queue
@@ -119,10 +119,10 @@ Monitoring Stack (Optional):
 **Technology**: Node.js 20 + Express.js + TypeScript
 
 **Responsibilities**:
-- REST API endpoints for cinemas, films, showtimes, users, settings
+- REST API endpoints for theaters, movies, showtimes, users, settings
 - JWT-based authentication and authorization
 - Rate limiting and security middleware
-- In-process scraping (legacy mode) or Redis job publishing (microservice mode)
+- Redis job publishing for scraper dispatch
 - Server-Sent Events (SSE) for real-time scrape progress
 - Database migrations (automatic on startup)
 - Static file serving (production frontend)
@@ -142,8 +142,8 @@ Monitoring Stack (Optional):
 **Technology**: React 18 + TypeScript + Vite + Tailwind CSS
 
 **Responsibilities**:
-- User interface for browsing cinemas and showtimes
-- Admin panel for managing cinemas, users, and settings
+- User interface for browsing theaters and showtimes
+- Admin panel for managing theaters, users, and settings
 - Authentication (login/logout)
 - Real-time scrape progress via SSE
 - White-label branding with dynamic theme CSS
@@ -169,8 +169,8 @@ Monitoring Stack (Optional):
 - Transactional integrity
 
 **Schema**:
-- `cinemas` - Cinema information
-- `films` - Movie metadata
+- `theaters` - Theater information
+- `movies` - Movie metadata
 - `showtimes` - Screening schedules
 - `users` - User accounts and roles
 - `settings` - White-label branding configuration
@@ -182,25 +182,13 @@ See [Database Schema](../database/schema.md) for complete details.
 
 ### 4. Scraper Service
 
-**Two Modes:**
+All scraping is dispatched via Redis to the standalone scraper microservice (`ics-scraper` container), always included in `docker-compose.yaml`.
 
-#### A. Legacy Mode (In-Process)
-- Scraping runs inside the Express server process
-- No Redis required
-- Simpler deployment
-- Limited scalability
-
-#### B. Microservice Mode (Redis Queue)
-- Scraping runs in a separate container (`scraper/`)
-- Redis job queue for communication
-- Better scalability and fault isolation
-- Can run multiple scraper workers
-
-**Responsibilities** (both modes):
-- Fetch HTML from cinema websites
-- Parse showtimes, films, and metadata
+**Responsibilities**:
+- Fetch HTML from theater websites
+- Parse showtimes, movies, and metadata
 - Update database with new/changed data
-- Report progress via Redis or SSE
+- Report progress via Redis pub/sub
 - Error handling and retries
 - Rate limiting to avoid blocking
 
@@ -208,7 +196,7 @@ See [Scraper System Architecture](./scraper-system.md) for details.
 
 ---
 
-### 5. Redis (Optional)
+### 5. Redis
 
 **Technology**: Redis 7
 
@@ -247,42 +235,14 @@ Browser → Express API → PostgreSQL
 ```
 
 1. User navigates to homepage
-2. React app fetches `/api/films` and `/api/cinemas`
+2. React app fetches `/api/movies` and `/api/theaters`
 3. Express queries PostgreSQL
 4. Results returned as JSON
 5. React renders the UI
 
 ---
 
-### 2. Scraping Showtimes (Legacy Mode)
-
-```
-Admin → [Trigger Scrape] → Express API
-                               ↓
-                       Scraper Service (in-process)
-                               ↓
-                         HTTP Client
-                               ↓
-                      Theater Parser (HTML)
-                               ↓
-                         PostgreSQL
-                               ↓
-                     [Scrape Complete]
-                               ↓
-                        SSE → Browser
-```
-
-1. Admin triggers scrape via UI or cron job
-2. Express starts in-process scraper
-3. Scraper fetches HTML from cinema websites
-4. Parser extracts showtimes
-5. Data written to PostgreSQL
-6. Progress updates sent via SSE
-7. Browser displays real-time progress
-
----
-
-### 3. Scraping Showtimes (Microservice Mode)
+### 2. Scraping Showtimes
 
 ```
 Admin → [Trigger Scrape] → Express API
@@ -299,25 +259,23 @@ Admin → [Trigger Scrape] → Express API
                                ↓
                          PostgreSQL
                                ↓
-                   Redis Progress Publisher
+                    Redis Progress Events
                                ↓
-                      Express API (SSE)
-                               ↓
-                            Browser
+                        SSE → Browser
 ```
 
 1. Admin triggers scrape via UI or cron job
 2. Express publishes job to Redis queue
-3. Scraper microservice pops job from queue
-4. Scraper fetches and parses HTML
-5. Data written to PostgreSQL
-6. Progress published to Redis
-7. Express API forwards progress via SSE
-8. Browser displays real-time progress
+3. Scraper microservice picks up the job
+4. Scraper fetches HTML from theater websites
+5. Parser extracts showtimes
+6. Data written to PostgreSQL
+7. Progress events published back via Redis
+8. Browser receives real-time progress via SSE
 
 ---
 
-### 4. User Authentication
+### 3. User Authentication
 
 ```
 Browser → [Login] → POST /api/auth/login
@@ -404,26 +362,29 @@ Browser → GET /api/theme.css
 
 ---
 
-### 2. Two Scraper Modes
+### 2. Scraper Architecture
 
-**Decision**: Support both in-process (legacy) and microservice (Redis) scraping
+**Decision**: All scraping is dispatched via Redis to the standalone scraper microservice
 
 **Rationale**:
-- **In-process**: Simple for development and small deployments
-- **Microservice**: Scalable for production with multiple cinemas
-- **Backward compatibility**: Existing users don't need to migrate
+- **Fault isolation**: Scraper failures don't affect API availability
+- **Scalability**: Multiple scraper workers can run in parallel
+- **Observability**: Per-service metrics and distributed tracing
+- **Simplicity**: Single code path, no feature flags required
+
+> Prior to v4.x, an in-process mode coexisted with the microservice. It was removed to simplify the architecture.
 
 ---
 
 ### 3. Automatic Migrations
 
-**Decision**: Run database migrations automatically on server startup (when `AUTO_MIGRATE=true`)
+**Decision**: Run database migrations automatically on server startup (`AUTO_MIGRATE=true`, hardcoded in `docker-compose.yaml`)
 
 **Rationale**:
 - Zero-config deployments
 - No manual SQL execution required
 - Safe: migrations are idempotent
-- Can be disabled for debugging (`AUTO_MIGRATE=false`)
+- Can be disabled by editing `docker-compose.yaml` (`AUTO_MIGRATE=false`)
 
 ---
 
@@ -444,7 +405,7 @@ Browser → GET /api/theme.css
 **Decision**: Relational database (PostgreSQL) instead of NoSQL (MongoDB, etc.)
 
 **Rationale**:
-- Complex relational data (cinemas ↔ showtimes ↔ films)
+- Complex relational data (theaters ↔ showtimes ↔ movies)
 - Strong ACID guarantees
 - Foreign key constraints prevent data corruption
 - Full-text search capabilities
@@ -511,7 +472,7 @@ See [White-Label System Architecture](./white-label-system.md) for details.
 **Not currently implemented**
 
 **Future options**:
-- **Redis cache**: Cache API responses (cinemas, films)
+- **Redis cache**: Cache API responses (theaters, movies)
 - **HTTP caching**: ETag / Cache-Control headers
 - **CDN**: Cache static assets (frontend bundle, images)
 

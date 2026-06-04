@@ -36,8 +36,8 @@ const mockSystemInfo = {
   database: {
     size: '50 MB',
     tables: 10,
-    cinemas: 5,
-    films: 100,
+    theaters: 5,
+    movies: 100,
     showtimes: 500,
   },
 };
@@ -61,7 +61,7 @@ const mockHealth = {
   scrapers: {
     activeJobs: 0,
     lastScrapeTime: '2024-01-01T00:00:00.000Z',
-    totalCinemas: 5,
+    totalTheaters: 5,
   },
 };
 

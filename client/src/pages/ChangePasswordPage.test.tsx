@@ -178,7 +178,8 @@ describe('ChangePasswordPage', () => {
 
   it('should call API with correct payload on submit', async () => {
     (apiClient.post as any).mockResolvedValue({
-      data: { success: true, data: { message: 'Password changed successfully' } },
+      success: true,
+      data: { message: 'Password changed successfully' },
     });
 
     render(
@@ -207,7 +208,8 @@ describe('ChangePasswordPage', () => {
 
   it('should navigate to homepage after 2 seconds on successful password change', async () => {
     (apiClient.post as any).mockResolvedValue({
-      data: { success: true, data: { message: 'Password changed successfully' } },
+      success: true,
+      data: { message: 'Password changed successfully' },
     });
 
     // Use fake timers to control setTimeout
@@ -229,7 +231,6 @@ describe('ChangePasswordPage', () => {
     fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
     fireEvent.click(submitButton);
 
-    // Wait for success message using real timers
     await vi.waitFor(() => {
       expect(screen.getByText(/password changed successfully/i)).toBeInTheDocument();
     }, { timeout: 1000 });
@@ -246,7 +247,8 @@ describe('ChangePasswordPage', () => {
 
   it('should show success message on successful password change', async () => {
     (apiClient.post as any).mockResolvedValue({
-      data: { success: true, data: { message: 'Password changed successfully' } },
+      success: true,
+      data: { message: 'Password changed successfully' },
     });
 
     render(
@@ -272,7 +274,8 @@ describe('ChangePasswordPage', () => {
 
   it('should clear form on success', async () => {
     (apiClient.post as any).mockResolvedValue({
-      data: { success: true, data: { message: 'Password changed successfully' } },
+      success: true,
+      data: { message: 'Password changed successfully' },
     });
 
     render(
@@ -300,7 +303,7 @@ describe('ChangePasswordPage', () => {
 
   it('should show error message on API failure', async () => {
     const error: any = new Error('API Error');
-    error.response = { data: { error: 'Current password is incorrect' } };
+    error.data = { error: 'Current password is incorrect' };
     (apiClient.post as any).mockRejectedValue(error);
 
     render(

@@ -50,7 +50,7 @@ describe('Settings Routes', () => {
   describe('GET /api/settings (public)', () => {
     it('should return public settings without authentication', async () => {
       const mockPublicSettings = {
-        site_name: 'Test Cinema',
+        site_name: 'Test Theater',
         logo_base64: null,
         favicon_base64: null,
         color_primary: '#FECC00',
@@ -91,8 +91,8 @@ describe('Settings Routes', () => {
     it('should return full settings for admin users', async () => {
       const mockSettings = {
         id: 1,
-        site_name: 'Test Cinema',
-        email_from_name: 'Test Cinema',
+        site_name: 'Test Theater',
+        email_from_name: 'Test Theater',
         email_from_address: 'no-reply@test.com',
         color_primary: '#FECC00',
         color_secondary: '#1F2937',
@@ -135,7 +135,7 @@ describe('Settings Routes', () => {
   describe('PUT /api/settings (admin only)', () => {
     it('should update settings with valid data', async () => {
       const updates = {
-        site_name: 'Updated Cinema',
+        site_name: 'Updated Theater',
         color_primary: '#FF0000',
       };
 
@@ -171,7 +171,7 @@ describe('Settings Routes', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.site_name).toBe('Updated Cinema');
+      expect(response.body.data.site_name).toBe('Updated Theater');
     });
 
     it('should validate and compress logo image', async () => {
@@ -329,7 +329,7 @@ describe('Settings Routes', () => {
         version: '1.0',
         exported_at: '2026-03-01T06:00:00Z',
         settings: {
-          site_name: 'Test Cinema',
+          site_name: 'Test Theater',
           logo_base64: null,
           favicon_base64: null,
           color_primary: '#FECC00',
@@ -368,7 +368,7 @@ describe('Settings Routes', () => {
         version: '1.0',
         exported_at: '2026-03-01T05:00:00Z',
         settings: {
-          site_name: 'Imported Cinema',
+          site_name: 'Imported Theater',
           logo_base64: null,
           favicon_base64: null,
           color_primary: '#000000',

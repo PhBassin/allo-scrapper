@@ -19,10 +19,11 @@ Complete guide for Docker deployment, containerization, and optimization.
 - [Development Mode](#development-mode)
 - [Production Mode](#production-mode)
 - [Building Images Locally](#building-images-locally)
-- [Docker Compose Profiles](#docker-compose-profiles)
 - [Volume Management](#volume-management)
 - [Container Management](#container-management)
 - [Health Checks](#health-checks)
+- [JWT Configuration](#jwt-configuration)
+- [Docker Compose Files](#docker-compose-files)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -62,15 +63,15 @@ The Docker image has been aggressively optimized for production deployment:
 
 ### Configuration Volume Mount
 
-The `./server/src/config:/app/dist/config` bind mount allows cinema configuration changes made via the API (admin panel) to be immediately visible on the host filesystem. This enables version control of cinema configuration:
+The `./server/src/config:/app/dist/config` bind mount allows theater configuration changes made via the API (admin panel) to be immediately visible on the host filesystem. This enables version control of theater configuration:
 
 ```bash
-git add server/src/config/cinemas.json
-git commit -m "chore: update cinema configuration"
+git add server/src/config/theaters.json
+git commit -m "chore: update theater configuration"
 git push
 ```
 
-**Important:** This bind mount ensures that when cinemas are added/modified through the admin UI, the changes persist on the host and can be committed to version control.
+**Important:** This bind mount ensures that when theaters are added/modified through the admin UI, the changes persist on the host and can be committed to version control.
 
 **Key Innovation:** The largest optimization comes from installing Playwright browsers AS the nodejs user instead of as root and then using `chown -R`. The chown command would create a 271 MB duplicate layer containing copies of all the browser files.
 
@@ -139,7 +140,7 @@ No API, schema, or configuration changes are required. Only the Docker tag needs
 ### Quick Deployment
 
 ```bash
-# Pull and start services (uses docker-compose.yml)
+# Pull and start services (uses docker-compose.yaml)
 docker compose pull
 docker compose up -d
 
@@ -149,7 +150,7 @@ docker images | grep allo-scrapper
 
 ### Using Specific Versions
 
-Edit your `.env` file or `docker-compose.yml` to specify a version:
+Edit your `.env` file or `docker-compose.yaml` to specify a version:
 
 ```yaml
 services:
@@ -200,142 +201,35 @@ npm run dev:down
 
 ## Production Mode
 
-Uses `docker-compose.yml` with pre-built images from GitHub Container Registry:
+Uses `docker-compose.yaml` with pre-built images from GitHub Container Registry:
 
 ```bash
-# Base stack (app + DB + Redis)
+# Base stack (DB + Redis + Web + Scraper consumer + Cron)
 docker compose up -d
 
-# With scraper microservice
-docker compose --profile scraper up -d
-
 # With full observability stack (Prometheus, Grafana, Loki, Tempo)
-docker compose --profile monitoring up -d
-
-# Everything
-docker compose --profile monitoring --profile scraper up -d
+cp .env.monitoring.example .env.monitoring
+docker compose --env-file .env --env-file .env.monitoring \
+  -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 ```
 
 **Base services (`docker compose up -d`):**
 - `ics-db`: PostgreSQL 15 with volume persistence
 - `ics-redis`: Redis 7 (message queue + pub/sub)
 - `ics-web`: Combined API + static frontend (port 3000)
-
-**`--profile scraper` adds:**
 - `ics-scraper`: Scraper microservice (job consumer)
 - `ics-scraper-cron`: Cron-triggered scraper
 
-**`--profile monitoring` adds:**
+**`docker-compose.monitoring.yml` adds:**
 - `ics-prometheus`: Metrics (port 9090)
 - `ics-grafana`: Dashboards (port 3001, default admin/admin)
 - `ics-loki` + `ics-promtail`: Log aggregation
 - `ics-tempo`: Distributed tracing (OTLP port 4317)
-- `ics-postgres-exporter`, `ics-redis-exporter`: DB/Redis metrics
+- `ics-postgres-exporter`, `ics-redis-exporter`: data-store metrics
+
+Configure monitoring via `.env.monitoring` (copy from `.env.monitoring.example`).
 
 > See [Monitoring](./monitoring.md) for full observability setup instructions.
-
----
-
-## Docker Compose Profiles
-
-### Base Stack (No Profiles)
-
-```bash
-docker compose up -d
-```
-
-**Services:**
-- `ics-db` - PostgreSQL database
-- `ics-redis` - Redis (job queue + pub/sub)
-- `ics-web` - API + frontend (in-process scraper mode)
-
-**Ports:**
-- 3000 - Web application
-- 5432 - PostgreSQL (localhost only)
-- 6379 - Redis (localhost only)
-
----
-
-### Scraper Profile
-
-```bash
-docker compose --profile scraper up -d
-```
-
-**Adds:**
-- `ics-scraper` - Scraper microservice (job consumer)
-- `ics-scraper-cron` - Cron-triggered scraper
-
-**Requirements:**
-- `USE_REDIS_SCRAPER=true` in `.env`
-
-**Ports:**
-- 9091 - Scraper metrics (Prometheus)
-
-**Use Case:**
-- Isolate scraping workload from API server
-- Enable horizontal scaling (multiple scraper workers)
-- Better observability (metrics, tracing)
-
----
-
-### Monitoring Profile
-
-```bash
-docker compose --profile monitoring up -d
-```
-
-**Adds:**
-- `ics-prometheus` - Metrics collection (port 9090)
-- `ics-grafana` - Dashboards (port 3001)
-- `ics-loki` - Log aggregation
-- `ics-promtail` - Log shipping
-- `ics-tempo` - Distributed tracing (OTLP port 4317)
-- `ics-postgres-exporter` - PostgreSQL metrics
-- `ics-redis-exporter` - Redis metrics
-
-**Ports:**
-- 9090 - Prometheus UI
-- 3001 - Grafana UI (admin/admin)
-- 3200 - Tempo UI
-- 3100 - Loki API
-
-**Use Case:**
-- Production monitoring and observability
-- Performance analysis
-- Debugging distributed traces
-
-See [Monitoring](./monitoring.md) for complete setup.
-
----
-
-## Building Images Locally
-
-If you prefer to build from source instead of using pre-built images:
-
-```bash
-# Build locally using docker-compose.build.yml
-docker compose -f docker-compose.build.yml up --build -d
-
-# Or build manually
-npm run docker:build
-
-# Build with custom tag
-docker build -t allo-scrapper:v1.0.0 .
-
-# Multi-platform build (requires buildx)
-docker buildx build --platform linux/amd64,linux/arm64 -t allo-scrapper:latest .
-```
-
-### Build Arguments
-
-```bash
-# Build with specific Node version
-docker build --build-arg NODE_VERSION=20.11 -t allo-scrapper .
-
-# Build without Playwright (smaller image, no E2E tests)
-docker build --build-arg INSTALL_PLAYWRIGHT=false -t allo-scrapper .
-```
 
 ---
 
@@ -357,7 +251,7 @@ docker compose down -v
 **Volumes:**
 - `postgres-data` - PostgreSQL database persistence
 - `loki-data`, `prometheus-data`, `tempo-data`, `grafana-data` - Monitoring stack data
-- `./server/src/config:/app/dist/config` - Bind mount for cinema configuration (enables git commits of API changes)
+- `./server/src/config:/app/dist/config` - Bind mount for theater configuration (enables git commits of API changes)
 
 ### Backup Volumes
 
@@ -392,64 +286,16 @@ See [Backup & Restore](./backup-restore.md) for complete backup workflows.
 
 ## JWT Configuration
 
-### Token Expiry Management
+### Token Expiry
 
-All three Docker Compose files (`docker-compose.yml`, `docker-compose.dev.yml`, `docker-compose.build.yml`) forward the `JWT_EXPIRES_IN` environment variable from your `.env` file to the application containers.
+`JWT_EXPIRES_IN` is hardcoded to `1h` in `docker-compose.yaml`. To change it, edit the compose file:
 
-**Configuration in `.env`:**
-```env
-JWT_EXPIRES_IN=24h  # Default: 24 hours
-```
-
-**Docker Compose behavior:**
 ```yaml
-# In all compose files
 services:
   ics-web:
     environment:
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      JWT_EXPIRES_IN: 1h   # Change this value
 ```
-
-The `:-24h` syntax provides a fallback default of 24 hours if `JWT_EXPIRES_IN` is not set in your `.env` file.
-
-### Common Configurations
-
-**Production (Recommended):**
-```env
-JWT_EXPIRES_IN=24h  # Re-authenticate once per day
-```
-
-**Long Sessions (Internal Tools):**
-```env
-JWT_EXPIRES_IN=7d   # Re-authenticate once per week
-```
-
-**High Security (Public Apps):**
-```env
-JWT_EXPIRES_IN=1h   # Re-authenticate every hour
-```
-
-**Development:**
-```env
-JWT_EXPIRES_IN=24h  # Avoid frequent re-logins during development
-```
-
-### Applying Changes
-
-After modifying `JWT_EXPIRES_IN` in your `.env` file:
-
-```bash
-# Restart containers to pick up new environment variable
-docker compose restart ics-web
-
-# Or recreate containers (forces environment reload)
-docker compose up -d --force-recreate ics-web
-```
-
-**Important:** 
-- Existing JWT tokens remain valid until their original expiry time
-- Only newly issued tokens (new logins) use the updated `JWT_EXPIRES_IN` value
-- Users with active sessions must re-login to be affected by the new expiry duration
 
 ### Client Behavior
 
@@ -543,8 +389,7 @@ docker inspect ics-web | jq '.[0].State.Health'
 - `ics-web`: `GET /api/health` (HTTP 200) - API and frontend availability
 - `ics-db`: `pg_isready -U postgres` - Database readiness
 - `ics-redis`: `redis-cli ping` - Redis availability
-- `ics-scraper`: No explicit health check, but metrics available at `http://localhost:9091/metrics` (when using `--profile scraper`)
-- `ics-scraper-cron`: No explicit health check, but metrics available at `http://localhost:9091/metrics` (when using `--profile scraper`)
+- `ics-scraper` & `ics-scraper-cron`: No explicit health check; metrics available at `http://localhost:9091/metrics`
 
 **Note:** The scraper microservices (`ics-scraper` and `ics-scraper-cron`) expose metrics on port 9091 for Prometheus monitoring. The Docker Compose configuration allows them to start as dependencies are met; they will auto-restart if they crash.
 
@@ -552,11 +397,12 @@ docker inspect ics-web | jq '.[0].State.Health'
 
 ## Docker Compose Files
 
-### docker-compose.yml (Production)
+### docker-compose.yaml (Production)
 
 - Uses pre-built images from GHCR
-- Includes base services (db, redis, web)
-- Supports `--profile scraper` and `--profile monitoring`
+- Includes all base services (db, redis, web, scraper consumer, scraper cron)
+- Supports the optional monitoring stack via `docker-compose.monitoring.yml`
+- Only 5 env vars needed: IMAGE_TAG, POSTGRES_PASSWORD, JWT_SECRET, ALLOWED_ORIGINS, SCRAPE_CRON_SCHEDULE
 - Optimized for production
 
 ### docker-compose.dev.yml (Development)

@@ -95,7 +95,7 @@ Scraping failures and debugging.
 - Microservice mode problems
 
 **Common Issues:**
-- Cinema pages not found (404)
+- Theater pages not found (404)
 - Timeout errors
 - Parsing failures (HTML changes)
 - No showtimes found
@@ -145,11 +145,16 @@ curl -X POST http://localhost:3000/api/auth/login \
 
 ### Scraper Debugging
 ```bash
-# Check scraper status
-curl http://localhost:3000/api/scraper/status
+# Login to get token
+TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r '.data.token')
 
-# View progress (SSE stream)
-curl -N http://localhost:3000/api/scraper/progress
+# Check scraper status (requires auth)
+curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/scraper/status
+
+# View progress (SSE stream, requires auth)
+curl -N -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/scraper/progress
 ```
 
 ---

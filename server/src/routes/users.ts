@@ -12,11 +12,10 @@ import {
   updateUserRole,
   deleteUser,
   getAdminCount,
-  generateRandomPassword,
 } from '../db/user-queries.js';
-import bcrypt from 'bcryptjs';
 import { logger } from '../utils/logger.js';
 import { validatePasswordStrength } from '../utils/security.js';
+import { hashPassword } from '../utils/password.js';
 import { ValidationError, NotFoundError, AuthError } from '../utils/errors.js';
 
 const router = express.Router();
@@ -165,7 +164,7 @@ router.post(
       }
 
       // Hash password
-      const passwordHash = await bcrypt.hash(password, 10);
+      const passwordHash = await hashPassword(password);
 
       // Create user with direct DB query
       const result = await db.query<UserPublic>(
@@ -284,8 +283,8 @@ router.put(
 
 /**
  * POST /api/users/:id/reset-password
- * Reset user's password to a randomly generated one
- * Requires admin authentication
+ * Reset user's password. Password is generated client-side and sent in request body.
+ * Requires admin authentication.
  */
 router.post(
   '/:id/reset-password',
@@ -298,24 +297,27 @@ router.post(
 
       const userId = parseStrictInt(req.params.id);
 
-      // Validate user ID
       if (isNaN(userId)) {
         return next(new ValidationError('Invalid user ID'));
       }
 
-      // Check if user exists
       const targetUser = await getUserById(db, userId);
       if (!targetUser) {
         return next(new NotFoundError('User not found'));
       }
 
-      // Generate new password
-      const newPassword = generateRandomPassword();
+      const { newPassword } = req.body;
+      if (!newPassword || typeof newPassword !== 'string') {
+        return next(new ValidationError('New password is required'));
+      }
 
-      // Hash password
-      const passwordHash = await bcrypt.hash(newPassword, 10);
+      const passwordError = validatePasswordStrength(newPassword);
+      if (passwordError) {
+        return next(new ValidationError(passwordError));
+      }
 
-      // Update password in database
+      const passwordHash = await hashPassword(newPassword);
+
       await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
         passwordHash,
         userId,
@@ -332,9 +334,8 @@ router.post(
         success: true,
         data: {
           user: targetUser,
-          newPassword,
         },
-      } as ApiResponse<{ user: UserPublic; newPassword: string }>);
+      } as ApiResponse<{ user: UserPublic }>);
     } catch (error) {
       next(error);
     }

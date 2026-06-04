@@ -16,10 +16,13 @@ export const errorHandler = (
       logger.warn(`App Error [${error.statusCode}]`, { error: error.message, details: error.details });
     }
 
+    const isProd = process.env.NODE_ENV === 'production';
+    const is5xx = error.statusCode >= 500;
+
     return res.status(error.statusCode).json({
       success: false,
-      error: error.message,
-      ...(error.details && { details: error.details })
+      error: isProd && is5xx ? 'Internal server error' : error.message,
+      ...(!isProd || !is5xx ? (error.details && { details: error.details }) : {})
     });
   }
 

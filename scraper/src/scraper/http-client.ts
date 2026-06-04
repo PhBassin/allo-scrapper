@@ -1,4 +1,4 @@
-// HTTP client for fetching cinema and film pages from source website
+// HTTP client for fetching theater and movie pages from source website
 
 import puppeteer, { type Browser } from 'puppeteer-core';
 import { logger } from '../utils/logger.js';
@@ -9,13 +9,13 @@ const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 /**
- * Validates cinema ID format (e.g., "C0072", "W7517")
+ * Validates theater ID format (e.g., "C0072", "W7517")
  * @throws {Error} if format is invalid
  */
-function validateCinemaId(cinemaId: string): void {
-  // Cinema IDs must match: letter + 4-5 digits
-  if (!/^[A-Z]\d{4,5}$/.test(cinemaId)) {
-    throw new Error(`Invalid cinema ID format: ${cinemaId}`);
+function validateTheaterId(theaterId: string): void {
+  // Theater IDs must match: letter + 4-5 digits
+  if (!/^[A-Z]\d{4,5}$/.test(theaterId)) {
+    throw new Error(`Invalid theater ID format: ${theaterId}`);
   }
 }
 
@@ -35,12 +35,12 @@ function validateDate(date: string): void {
 }
 
 /**
- * Validates film ID format (must be a positive integer)
+ * Validates movie ID format (must be a positive integer)
  * @throws {Error} if format is invalid
  */
-function validateFilmId(filmId: number): void {
-  if (!Number.isInteger(filmId) || filmId <= 0) {
-    throw new Error(`Invalid film ID: ${filmId}`);
+function validateMovieId(movieId: number): void {
+  if (!Number.isInteger(movieId) || movieId <= 0) {
+    throw new Error(`Invalid movie ID: ${movieId}`);
   }
 }
 
@@ -48,7 +48,7 @@ function validateFilmId(filmId: number): void {
 let _browser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
-  if (!_browser || !_browser.isConnected()) {
+  if (!_browser || !_browser.connected) {
     _browser = await puppeteer.launch({
       headless: true,
       executablePath: process.env.CHROME_PATH ?? '/usr/bin/chromium-headless-shell',
@@ -78,15 +78,15 @@ export interface TheaterInitialData {
  * No date clicking is performed. Showtimes for each date are fetched
  * separately via the JSON API (fetchShowtimesJson).
  */
-export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterInitialData> {
+export async function fetchTheaterPage(theaterBaseUrl: string): Promise<TheaterInitialData> {
   const browser = await getBrowser();
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
 
   try {
     await page.setUserAgent(USER_AGENT);
-    logger.info('Loading theater page', { url: cinemaBaseUrl });
-    await page.goto(cinemaBaseUrl, { waitUntil: 'networkidle0', timeout: 60000 });
+    logger.info('Loading theater page', { url: theaterBaseUrl });
+    await page.goto(theaterBaseUrl, { waitUntil: 'networkidle0', timeout: 60000 });
 
     const html = await page.content();
 
@@ -110,19 +110,19 @@ export async function fetchTheaterPage(cinemaBaseUrl: string): Promise<TheaterIn
  * Fetch the showtimes JSON for a specific date from the Allociné internal API.
  * This is a plain HTTP request — no browser needed.
  *
- * @param cinemaId - e.g. "C0072"
+ * @param theaterId - e.g. "C0072"
  * @param date     - e.g. "2026-02-22"
  */
-export async function fetchShowtimesJson(cinemaId: string, date: string): Promise<unknown> {
+export async function fetchShowtimesJson(theaterId: string, date: string): Promise<unknown> {
   // Validate inputs before using in URL to prevent SSRF
-  validateCinemaId(cinemaId);
+  validateTheaterId(theaterId);
   validateDate(date);
 
   // Construct URL via URL object and re-validate hostname to satisfy SSRF guard.
-  // Even though cinemaId and date are already strictly validated above, building
+  // Even though theaterId and date are already strictly validated above, building
   // the URL with new URL() and asserting the final hostname prevents any future
   // taint from reaching the fetch call.
-  const constructed = new URL(`/_/showtimes/theater-${cinemaId}/d-${date}/`, ALLOCINE_BASE_URL);
+  const constructed = new URL(`/_/showtimes/theater-${theaterId}/d-${date}/`, ALLOCINE_BASE_URL);
   if (constructed.hostname !== 'www.allocine.fr' || constructed.protocol !== 'https:') {
     throw new Error(`SSRF guard: unexpected host in constructed URL ${constructed.href}`);
   }
@@ -134,7 +134,7 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
       'User-Agent': USER_AGENT,
       Accept: 'application/json',
       'Accept-Language': 'fr-FR,fr;q=0.9',
-      Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${cinemaId}.html`,
+      Referer: `${ALLOCINE_BASE_URL}/seance/salle_gen_csalle=${theaterId}.html`,
     },
   });
 
@@ -142,7 +142,7 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
     // Detect rate limiting specifically
     if (response.status === 429) {
       throw new RateLimitError(
-        `Rate limit exceeded for ${cinemaId} on ${date}`,
+        `Rate limit exceeded for ${theaterId} on ${date}`,
         response.status,
         url
       );
@@ -150,7 +150,7 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
 
     // Throw generic HttpError for other failures
     throw new HttpError(
-      `Failed to fetch showtimes JSON for ${cinemaId} on ${date}: ${response.status} ${response.statusText}`,
+      `Failed to fetch showtimes JSON for ${theaterId} on ${date}: ${response.status} ${response.statusText}`,
       response.status,
       url
     );
@@ -159,18 +159,18 @@ export async function fetchShowtimesJson(cinemaId: string, date: string): Promis
   return response.json();
 }
 
-export async function fetchFilmPage(filmId: number): Promise<string> {
+export async function fetchMoviePage(movieId: number): Promise<string> {
   // Validate input before using in URL to prevent SSRF
-  validateFilmId(filmId);
+  validateMovieId(movieId);
 
   // Construct URL via URL object and re-validate hostname (SSRF guard).
-  const constructed = new URL(`/film/fichefilm_gen_cfilm=${filmId}.html`, ALLOCINE_BASE_URL);
+  const constructed = new URL(`/film/fichefilm_gen_cfilm=${movieId}.html`, ALLOCINE_BASE_URL);
   if (constructed.hostname !== 'www.allocine.fr' || constructed.protocol !== 'https:') {
     throw new Error(`SSRF guard: unexpected host in constructed URL ${constructed.href}`);
   }
   const url = constructed.href;
 
-  logger.info('Fetching film page', { url });
+  logger.info('Fetching movie page', { url });
 
   const response = await fetch(url, {
     headers: {
@@ -185,7 +185,7 @@ export async function fetchFilmPage(filmId: number): Promise<string> {
     // Detect rate limiting specifically
     if (response.status === 429) {
       throw new RateLimitError(
-        `Rate limit exceeded for film ${filmId}`,
+        `Rate limit exceeded for movie ${movieId}`,
         response.status,
         url
       );
@@ -193,7 +193,7 @@ export async function fetchFilmPage(filmId: number): Promise<string> {
 
     // Throw generic HttpError for other failures
     throw new HttpError(
-      `Failed to fetch film page ${filmId}: ${response.status} ${response.statusText}`,
+      `Failed to fetch movie page ${movieId}: ${response.status} ${response.statusText}`,
       response.status,
       url
     );

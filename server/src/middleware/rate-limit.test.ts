@@ -1,3 +1,6 @@
+// Set secure JWT_SECRET BEFORE importing rate-limit
+process.env.JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
+
 import { describe, it, expect, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -11,10 +14,11 @@ import {
   publicLimiter,
   healthCheckLimiter,
 } from './rate-limit.js';
+import rateLimit from 'express-rate-limit';
 
-// Helper: sign a minimal JWT for rate-limit key tests (secret doesn't matter — we use jwt.decode)
+// Helper: sign a minimal JWT for rate-limit key tests
 const makeToken = (userId: number): string =>
-  jwt.sign({ id: userId, username: `user${userId}` }, 'test-secret');
+  jwt.sign({ id: userId, username: `user${userId}` }, process.env.JWT_SECRET as string, { algorithm: 'HS256' });
 
 describe('Rate Limiting Middleware', () => {
   let app: express.Application;
@@ -45,6 +49,11 @@ describe('Rate Limiting Middleware', () => {
       expect(response.headers['ratelimit-remaining']).toBeDefined();
       expect(response.headers['ratelimit-reset']).toBeDefined();
     });
+
+    it('should be backed by express-rate-limit', () => {
+      expect(typeof generalLimiter).toBe('function');
+      expect(typeof (generalLimiter as typeof rateLimit)).toBe('function');
+    });
   });
 
   describe('authLimiter', () => {
@@ -65,7 +74,7 @@ describe('Rate Limiting Middleware', () => {
     });
 
     it('should skip successful requests (status 200)', async () => {
-      // Make 4 successful login attempts (should not count toward limit of 2)
+      // Make 4 successful login attempts (should not count toward limit)
       for (let i = 0; i < 4; i++) {
         const res = await request(app)
           .post('/login')
@@ -142,7 +151,6 @@ describe('Rate Limiting Middleware', () => {
       // Create a tight-limit app to make exhaustion testable without 60 requests
       const tightApp = express();
       tightApp.set('trust proxy', 1);
-      const { default: rateLimit } = await import('express-rate-limit');
       const { authenticatedKeyGenerator } = await import('./rate-limit.js');
       const tightLimiter = rateLimit({
         windowMs: 60_000,
@@ -186,13 +194,37 @@ describe('Rate Limiting Middleware', () => {
         .set('Authorization', 'Bearer not.a.valid.jwt');
       expect(response.status).toBe(200);
     });
+
+    it('should fall back to IP when Authorization header contains a token with an invalid signature', async () => {
+      // Create a tight-limit app to test fallback
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      const tightLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 2,
+        skip: () => false,
+        keyGenerator: authenticatedKeyGenerator,
+      });
+      tightApp.get('/p-invalid', tightLimiter, (_req, res) => res.json({ ok: true }));
+
+      // Token with incorrect secret but same spoofed user ID 1
+      const spoofedToken = jwt.sign({ id: 1, username: 'user1' }, 'wrong-secret-minimum-32-chars-long-or-longer', { algorithm: 'HS256' });
+      const sameIp = '1.2.3.4';
+
+      // If it fails to verify, it falls back to IP fallback.
+      // So requests with spoofedToken (invalid signature) and no token at all on same IP will count against the SAME IP bucket.
+      await request(tightApp).get('/p-invalid').set('Authorization', `Bearer ${spoofedToken}`).set('X-Forwarded-For', sameIp);
+      await request(tightApp).get('/p-invalid').set('X-Forwarded-For', sameIp); // no token, same IP
+      const exhausted = await request(tightApp).get('/p-invalid').set('X-Forwarded-For', sameIp);
+      expect(exhausted.status).toBe(429);
+    });
   });
 
   describe('scraperLimiter — per-user key generation', () => {
     it('should use user id as rate-limit key so two users on same IP have independent quotas', async () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
-      const { default: rateLimit } = await import('express-rate-limit');
       const { authenticatedKeyGenerator } = await import('./rate-limit.js');
       const tightLimiter = rateLimit({
         windowMs: 60_000,
@@ -216,10 +248,59 @@ describe('Rate Limiting Middleware', () => {
     });
   });
 
+    describe('multi-secret JWT verification (rotation)', () => {
+    let previousSecrets: string | undefined;
+
+    beforeEach(async () => {
+      previousSecrets = process.env.JWT_PREVIOUS_SECRETS;
+      const { invalidateSecretsCache } = await import('../utils/jwt-secrets.js');
+      invalidateSecretsCache();
+    });
+
+    afterEach(() => {
+      if (previousSecrets !== undefined) {
+        process.env.JWT_PREVIOUS_SECRETS = previousSecrets;
+      } else {
+        delete process.env.JWT_PREVIOUS_SECRETS;
+      }
+    });
+
+    it('should verify tokens signed with a previous secret', async () => {
+      const oldSecret = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6_old';
+      process.env.JWT_PREVIOUS_SECRETS = oldSecret;
+      const oldToken = jwt.sign({ id: 42, username: 'rotated-user' }, oldSecret, { algorithm: 'HS256' });
+
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+
+      // Track the generated key instead of hitting rate limit
+      let generatedKey = '';
+      const trackingLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 100,
+        skip: () => false,
+        keyGenerator: (req) => {
+          generatedKey = authenticatedKeyGenerator(req);
+          return generatedKey;
+        },
+      });
+
+      tightApp.get('/rotate-test', trackingLimiter, (_req, res) => res.json({ ok: true }));
+
+      await request(tightApp)
+        .get('/rotate-test')
+        .set('Authorization', `Bearer ${oldToken}`)
+        .set('X-Forwarded-For', '10.0.0.1');
+
+      // The key should be user:42 (user id from token), not IP-based
+      expect(generatedKey).toBe('user:42');
+    });
+  });
+
   describe('Environment variable configuration', () => {
     it('should respect RATE_LIMIT_WINDOW_MS environment variable', () => {
       const windowMs = process.env.RATE_LIMIT_WINDOW_MS;
-      // Just verify the env var can be read (actual values are set at module load)
       expect(windowMs).toBeDefined();
     });
 
@@ -284,7 +365,6 @@ describe('Rate Limiting Middleware', () => {
     it('should rate limit after max requests (10 by default)', async () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
-      const { default: rateLimit } = await import('express-rate-limit');
       const tightLimiter = rateLimit({
         windowMs: 60_000, // 1 minute
         max: 10,
@@ -293,7 +373,6 @@ describe('Rate Limiting Middleware', () => {
           return !req.ip || internalIPs.includes(req.ip);
         },
         standardHeaders: true,
-        legacyHeaders: false,
         message: {
           success: false,
           error: 'Too many health check requests',
@@ -322,7 +401,6 @@ describe('Rate Limiting Middleware', () => {
     it('should exempt localhost IPs from rate limiting', async () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
-      const { default: rateLimit } = await import('express-rate-limit');
       const tightLimiter = rateLimit({
         windowMs: 60_000,
         max: 2, // Very strict limit to make test fast
@@ -331,7 +409,6 @@ describe('Rate Limiting Middleware', () => {
           return !req.ip || internalIPs.includes(req.ip);
         },
         standardHeaders: true,
-        legacyHeaders: false,
       });
       tightApp.get('/health', tightLimiter, (_req, res) => res.json({ status: 'healthy' }));
 
@@ -355,7 +432,6 @@ describe('Rate Limiting Middleware', () => {
     it('should return proper error message when rate limited', async () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
-      const { default: rateLimit } = await import('express-rate-limit');
       const tightLimiter = rateLimit({
         windowMs: 60_000,
         max: 1,

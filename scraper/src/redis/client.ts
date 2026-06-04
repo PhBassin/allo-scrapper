@@ -14,7 +14,7 @@ export interface ScheduleChangeEvent {
     name: string;
     cron_expression: string;
     enabled: boolean;
-    target_cinemas?: string[] | null;
+    target_theaters?: string[] | null;
   };
 }
 
@@ -30,15 +30,15 @@ export interface ScrapeJobScrape extends BaseScrapeJob {
   options?: {
     mode?: 'weekly' | 'from_today' | 'from_today_limited';
     days?: number;
-    cinemaId?: string;
-    filmId?: number;
+    theaterId?: string;
+    movieId?: number;
   };
 }
 
-export interface ScrapeJobAddCinema extends BaseScrapeJob {
-  type: 'add_cinema';
+export interface ScrapeJobAddTheater extends BaseScrapeJob {
+  type: 'add_theater';
   triggerType: 'manual';
-  /** The Allociné cinema URL to add and scrape */
+  /** The Allociné theater URL to add and scrape */
   url: string;
 }
 
@@ -47,7 +47,7 @@ export interface ScrapeJobAddCinema extends BaseScrapeJob {
  * Use `job.type` (or check for presence of the field for legacy jobs) to
  * narrow to a concrete job variant.
  */
-export type ScrapeJob = ScrapeJobScrape | ScrapeJobAddCinema;
+export type ScrapeJob = ScrapeJobScrape | ScrapeJobAddTheater;
 
 // ---------------------------------------------------------------------------
 // RedisProgressPublisher – implements ProgressPublisher interface

@@ -13,8 +13,8 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-// Film types
-export interface Film {
+// Movie types
+export interface Movie {
   id: number;
   title: string;
   original_title?: string;
@@ -35,8 +35,8 @@ export interface Film {
   trailer_url?: string;
 }
 
-// Cinema types
-export interface Cinema {
+// Theater types
+export interface Theater {
   id: string;
   name: string;
   url?: string;
@@ -50,8 +50,8 @@ export interface Cinema {
 // Showtime types
 export interface Showtime {
   id: string;
-  film_id: number;
-  cinema_id: string;
+  movie_id: number;
+  theater_id: string;
   date: string;
   time: string;
   datetime_iso: string;
@@ -61,20 +61,20 @@ export interface Showtime {
   week_start: string;
 }
 
-export interface ShowtimeWithFilm extends Showtime {
-  film: Film;
+export interface ShowtimeWithMovie extends Showtime {
+  movie: Movie;
 }
 
-export interface FilmWithCinemas extends Film {
-  cinemas: Cinema[];
+export interface MovieWithTheaters extends Movie {
+  theaters: Theater[];
 }
 
-export interface CinemaWithShowtimes extends Cinema {
+export interface TheaterWithShowtimes extends Theater {
   showtimes: Showtime[];
 }
 
-export interface FilmWithShowtimes extends Film {
-  cinemas: CinemaWithShowtimes[];
+export interface MovieWithShowtimes extends Movie {
+  theaters: TheaterWithShowtimes[];
 }
 
 // Scrape Report types
@@ -84,14 +84,14 @@ export interface ScrapeReport {
   completed_at?: string;
   status: 'running' | 'success' | 'partial_success' | 'failed' | 'rate_limited';
   trigger_type: 'manual' | 'cron';
-  total_cinemas?: number;
-  successful_cinemas?: number;
-  failed_cinemas?: number;
-  total_films_scraped?: number;
+  total_theaters?: number;
+  successful_theaters?: number;
+  failed_theaters?: number;
+  total_movies_scraped?: number;
   total_showtimes_scraped?: number;
   errors?: Array<{ 
-    cinema_name: string; 
-    cinema_id?: string;
+    theater_name: string; 
+    theater_id?: string;
     date?: string;
     error: string;
     error_type?: 'http_429' | 'http_5xx' | 'http_4xx' | 'network' | 'parse' | 'timeout';
@@ -102,29 +102,29 @@ export interface ScrapeReport {
 
 // Progress Event types
 export type ProgressEvent =
-  | { type: 'started'; total_cinemas: number; total_dates: number }
-  | { type: 'cinema_started'; cinema_name: string; cinema_id: string; index: number }
-  | { type: 'date_started'; date: string; cinema_name: string }
-  | { type: 'film_started'; film_title: string; film_id: number }
-  | { type: 'film_completed'; film_title: string; showtimes_count: number }
-  | { type: 'film_failed'; film_title: string; error: string }
-  | { type: 'date_completed'; date: string; films_count: number }
-  | { type: 'cinema_completed'; cinema_name: string; total_films: number }
-  | { type: 'cinema_failed'; cinema_name: string; error: string }
+  | { type: 'started'; total_theaters: number; total_dates: number }
+  | { type: 'theater_started'; theater_name: string; theater_id: string; index: number }
+  | { type: 'date_started'; date: string; theater_name: string }
+  | { type: 'movie_started'; movie_title: string; movie_id: number }
+  | { type: 'movie_completed'; movie_title: string; showtimes_count: number }
+  | { type: 'movie_failed'; movie_title: string; error: string }
+  | { type: 'date_completed'; date: string; movies_count: number }
+  | { type: 'theater_completed'; theater_name: string; total_movies: number }
+  | { type: 'theater_failed'; theater_name: string; error: string }
   | { type: 'completed'; summary: ScrapeSummary }
   | { type: 'failed'; error: string };
 
 export interface ScrapeSummary {
-  total_cinemas: number;
-  successful_cinemas: number;
-  failed_cinemas: number;
-  total_films: number;
+  total_theaters: number;
+  successful_theaters: number;
+  failed_theaters: number;
+  total_movies: number;
   total_showtimes: number;
   total_dates: number;
   duration_ms: number;
   errors: Array<{
-    cinema_name: string;
-    cinema_id: string;
+    theater_name: string;
+    theater_id: string;
     date?: string;
     error: string;
     error_type?: 'http_429' | 'http_5xx' | 'http_4xx' | 'network' | 'parse' | 'timeout';
@@ -150,7 +150,7 @@ export interface ScrapeSchedule {
   description: string | null;
   cron_expression: string;
   enabled: boolean;
-  target_cinemas: string[] | null;
+  target_theaters: string[] | null;
   created_by: number | null;
   updated_by: number | null;
   created_at: string;

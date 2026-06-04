@@ -16,7 +16,9 @@ client/dist/
 .env
 .env.*
 !.env.example
+!.env.monitoring.example
 .env-*
+*.bak
 
 # Database
 data/
@@ -66,7 +68,11 @@ test.out
 *.out
 backup_*.sql
 
+# TypeScript build info (incremental compilation cache)
+*.tsbuildinfo
+
 # Git merge/rebase artifacts
 *.orig
 *.patch
 *.rej
+.codegraph/

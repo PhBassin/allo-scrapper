@@ -6,17 +6,19 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Registry, collectDefaultMetrics } from 'prom-client';
 import { createHash } from 'crypto';
+import cookieParser from 'cookie-parser';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
 import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
+import { requireAuth } from './middleware/auth.js';
 import { generateThemeCSS } from './services/theme-generator.js';
 import { errorHandler } from './middleware/error-handler.js';
 import type { DB } from './db/client.js';
 
 // Import routes
-import filmsRouter from './routes/films.js';
-import cinemasRouter from './routes/cinemas.js';
+import moviesRouter from './routes/movies.js';
+import theatersRouter from './routes/theaters.js';
 import scraperRouter from './routes/scraper.js';
 import reportsRouter from './routes/reports.js';
 import authRouter from './routes/auth.js';
@@ -45,8 +47,8 @@ export function createApp() {
   // Security: Helmet with strict CSP (no unsafe-inline/unsafe-eval in script-src)
   // Note: style-src keeps unsafe-inline for React inline styles in 3 components
   // (ScrapeProgress, ColorPicker, FontSelector use dynamic inline styles)
-  app.use(
-    helmet({
+  // upgradeInsecureRequests is enabled to force HTTPS; HSTS is handled by helmet defaults.
+  app.use(helmet({
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
@@ -60,23 +62,46 @@ export function createApp() {
           baseUri: ["'self'"], // Prevent <base> tag injection
           formAction: ["'self'"], // Restrict form submissions
           frameAncestors: ["'none'"], // Prevent clickjacking (like X-Frame-Options)
-          upgradeInsecureRequests: null,
+          upgradeInsecureRequests: [],
         },
       },
     })
   );
-  app.use(cors(getCorsOptions()));
   app.use(morgan('combined'));
   app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.urlencoded({ extended: false }));
+  app.use(cookieParser());
+
+  // CSRF protection: double-submit cookie pattern (inline for CodeQL compliance)
+  // CodeQL requires CSRF middleware to be inline (not in separate module) to
+  // satisfy js/missing-csrf-protection when cookieParser is present.
+  app.use((req, res, next) => {
+    // Skip CSRF for test environment, login, and refresh endpoints
+    if (process.env.NODE_ENV === 'test') return next();
+    if (req.path === '/api/auth/login' || req.path === '/api/auth/refresh' || req.path === '/api/auth/logout') return next();
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+    if (!req.path.startsWith('/api/')) return next();
+    const cookieToken = req.cookies?.csrf_token;
+    const headerToken = req.headers['x-csrf-token'] as string | undefined;
+    if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+      return res.status(403).json({
+        success: false,
+        error: 'CSRF token missing or invalid.',
+      });
+    }
+    next();
+  });
 
   // Rate limiting for all API routes
   app.use('/api', generalLimiter);
 
-  // API routes
-  app.use('/api/auth', authRouter);
-  app.use('/api/films', filmsRouter);
-  app.use('/api/cinemas', cinemasRouter);
+  // Auth routes use strict CORS to prevent sandboxed iframe attacks (issue #1096)
+  app.use('/api/auth', cors(getCorsOptions({ strict: true })), authRouter);
+
+  // All other API routes use lenient CORS (allows curl/mobile requests without Origin header)
+  app.use('/api', cors(getCorsOptions()));
+  app.use('/api/movies', moviesRouter);
+  app.use('/api/theaters', theatersRouter);
   app.use('/api/scraper', scraperRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/settings', settingsRouter);
@@ -154,8 +179,8 @@ export function createApp() {
       
       const css = await generateThemeCSS(db);
       
-      // Generate ETag from CSS content (MD5 hash)
-      const etag = createHash('md5').update(css, 'utf8').digest('hex');
+      // Generate ETag from CSS content (SHA-256 hash)
+      const etag = createHash('sha256').update(css, 'utf8').digest('hex');
       
       // Check If-None-Match header for HTTP caching
       const clientEtag = req.headers['if-none-match'];
@@ -181,8 +206,8 @@ export function createApp() {
     }
   });
 
-  // Prometheus metrics endpoint
-  app.get('/metrics', async (_req, res) => {
+  // Prometheus metrics endpoint (rate-limited + requires auth)
+  app.get('/metrics', generalLimiter, requireAuth, async (_req, res) => {
     try {
       res.set('Content-Type', serverRegistry.contentType);
       res.end(await serverRegistry.metrics());

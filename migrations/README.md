@@ -1,6 +1,6 @@
 # Database Migrations
 
-This directory contains SQL migration scripts for the cinema showtimes database.
+This directory contains SQL migration scripts for the theater showtimes database.
 
 ## 🚀 Automatic Migrations (Recommended)
 
@@ -107,14 +107,14 @@ Migrations are numbered sequentially and should be applied in order. Each migrat
 ### 001_neutralize_references.sql
 **Version:** 2.0.1  
 **Date:** 2026-02-15  
-**Description:** Renames the old `allocine_url` column to `source_url` in the `films` table to use neutral terminology.
+**Description:** Renames the old `allocine_url` column to `source_url` in the `movies` table to use neutral terminology.
 
 **Breaking Change:** Yes - affects database schema
 
 ### 002_add_pg_trgm_extension.sql
 **Version:** 2.1.0  
 **Date:** 2026-02-21  
-**Description:** Enables PostgreSQL trigram extension (`pg_trgm`) for fuzzy text search and creates GIN index on `films.title` for improved similarity search performance.
+**Description:** Enables PostgreSQL trigram extension (`pg_trgm`) for fuzzy text search and creates GIN index on `movies.title` for improved similarity search performance.
 
 **Breaking Change:** No - adds extension and index only
 
@@ -198,7 +198,7 @@ Migrations are numbered sequentially and should be applied in order. Each migrat
 docker cp migrations/001_neutralize_references.sql $(docker compose ps -q db):/tmp/
 
 # 3. Apply migration
-docker compose exec db psql -U postgres -d cinema_showtimes -f /tmp/001_neutralize_references.sql
+docker compose exec db psql -U postgres -d theater_showtimes -f /tmp/001_neutralize_references.sql
 ```
 
 ### Method 2: Direct psql
@@ -218,7 +218,7 @@ docker compose exec -T db psql -U postgres -d ics < migrations/001_neutralize_re
 docker compose exec db sh
 
 # 2. Inside container
-psql -U postgres -d cinema_showtimes
+psql -U postgres -d theater_showtimes
 
 # 3. In psql
 \i /path/to/migration.sql
@@ -232,7 +232,7 @@ psql -U postgres -d cinema_showtimes
 ```sql
 -- Rollback: Rename source_url back to allocine_url
 BEGIN;
-ALTER TABLE films RENAME COLUMN source_url TO allocine_url;
+ALTER TABLE movies RENAME COLUMN source_url TO allocine_url;
 COMMIT;
 ```
 
@@ -241,7 +241,7 @@ COMMIT;
 ```sql
 -- Rollback: Remove index and extension
 BEGIN;
-DROP INDEX IF EXISTS idx_films_title_trgm;
+DROP INDEX IF EXISTS idx_movies_title_trgm;
 DROP EXTENSION IF EXISTS pg_trgm;
 COMMIT;
 ```
@@ -284,10 +284,10 @@ After applying a migration, verify the changes:
 
 ```bash
 # Check schema
-docker compose exec db psql -U postgres -d cinema_showtimes -c "\d films"
+docker compose exec db psql -U postgres -d theater_showtimes -c "\d movies"
 
 # Verify data
-docker compose exec db psql -U postgres -d cinema_showtimes -c "SELECT id, title, source_url FROM films LIMIT 5;"
+docker compose exec db psql -U postgres -d theater_showtimes -c "SELECT id, title, source_url FROM movies LIMIT 5;"
 ```
 
 ## Migration Workflow
@@ -313,7 +313,7 @@ docker compose exec db psql -U postgres -d cinema_showtimes -c "SELECT id, title
    ```bash
    # Check application still works
    curl http://localhost:3000/api/health
-   curl http://localhost:3000/api/films | jq '.[0].source_url'
+   curl http://localhost:3000/api/movies | jq '.[0].source_url'
    ```
 
 ## Creating New Migrations

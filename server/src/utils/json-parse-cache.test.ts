@@ -193,7 +193,7 @@ describe('parseJSONMemoized', () => {
   describe('Edge cases', () => {
     it('should handle complex nested objects', () => {
       const complexJson = JSON.stringify({
-        film: {
+        movie: {
           title: 'Matrix',
           actors: [
             { name: 'Keanu', roles: ['Neo'] },
@@ -204,14 +204,14 @@ describe('parseJSONMemoized', () => {
       });
       
       const result = parseJSONMemoized(complexJson);
-      expect(result.film.actors[0].name).toBe('Keanu');
+      expect(result.movie.actors[0].name).toBe('Keanu');
       
       // Verify deep clone
       const result2 = parseJSONMemoized(complexJson);
-      result2.film.actors[0].name = 'Modified';
+      result2.movie.actors[0].name = 'Modified';
       
       const result3 = parseJSONMemoized(complexJson);
-      expect(result3.film.actors[0].name).toBe('Keanu');
+      expect(result3.movie.actors[0].name).toBe('Keanu');
     });
 
     it('should handle arrays of objects', () => {

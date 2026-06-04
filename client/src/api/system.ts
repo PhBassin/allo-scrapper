@@ -26,8 +26,8 @@ export interface ServerHealth {
 export interface DatabaseStats {
   size: string;
   tables: number;
-  cinemas: number;
-  films: number;
+  theaters: number;
+  movies: number;
   showtimes: number;
 }
 
@@ -57,7 +57,7 @@ export interface MigrationsInfo {
 export interface ScraperStatus {
   activeJobs: number;
   lastScrapeTime: string | null;
-  totalCinemas: number;
+  totalTheaters: number;
 }
 
 export interface SystemHealth {
@@ -79,10 +79,10 @@ export interface SystemHealth {
  */
 export async function getSystemInfo(): Promise<SystemInfo> {
   const response = await apiClient.get<ApiResponse<SystemInfo>>('/system/info');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch system info');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch system info');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -90,10 +90,10 @@ export async function getSystemInfo(): Promise<SystemInfo> {
  */
 export async function getMigrations(): Promise<MigrationsInfo> {
   const response = await apiClient.get<ApiResponse<MigrationsInfo>>('/system/migrations');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch migrations');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch migrations');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -101,10 +101,10 @@ export async function getMigrations(): Promise<MigrationsInfo> {
  */
 export async function getSystemHealth(): Promise<SystemHealth> {
   const response = await apiClient.get<ApiResponse<SystemHealth>>('/system/health');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch system health');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch system health');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**

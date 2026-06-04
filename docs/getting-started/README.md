@@ -11,7 +11,7 @@ Get the application running in 5 minutes using Docker Compose.
 - Start all services with one command
 - Access the web interface
 - Run your first scrape
-- View cinema showtimes
+- View theater showtimes
 
 **Best for:** First-time users, demos, quick evaluation
 

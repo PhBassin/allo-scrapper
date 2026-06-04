@@ -103,7 +103,7 @@ docker compose exec ics-db psql -U postgres -d ics -c \
 
 ## Migration Issues
 
-### `relation "films" does not exist`
+### `relation "movies" does not exist`
 
 **Cause:** Database migrations not applied.
 
@@ -238,7 +238,7 @@ docker compose exec ics-db psql -U postgres -d ics -c "\d+ showtimes"
 
 Expected indexes:
 - Primary keys on all tables
-- Foreign keys: `showtimes.cinema_id`, `showtimes.film_id`
+- Foreign keys: `showtimes.theater_id`, `showtimes.movie_id`
 - `pg_trgm` extension for fuzzy search (migration 002)
 
 ---
@@ -285,11 +285,11 @@ docker compose exec ics-db psql -U postgres -d ics -c "VACUUM FULL ANALYZE;"
 ```bash
 # Check for duplicates
 docker compose exec ics-db psql -U postgres -d ics -c \
-  "SELECT cinema_id, COUNT(*) FROM cinemas GROUP BY cinema_id HAVING COUNT(*) > 1;"
+  "SELECT theater_id, COUNT(*) FROM theaters GROUP BY theater_id HAVING COUNT(*) > 1;"
 
 # Find constraint details
 docker compose exec ics-db psql -U postgres -d ics -c \
-  "\d+ cinemas"
+  "\d+ theaters"
 ```
 
 ---
@@ -298,23 +298,23 @@ docker compose exec ics-db psql -U postgres -d ics -c \
 
 **Error:** `violates foreign key constraint`
 
-**Cause:** Referenced record doesn't exist (e.g., showtime references non-existent film).
+**Cause:** Referenced record doesn't exist (e.g., showtime references non-existent movie).
 
 **Solution:**
 
 ```bash
 # Find orphaned showtimes
 docker compose exec ics-db psql -U postgres -d ics -c \
-  "SELECT s.id, s.film_id 
+  "SELECT s.id, s.movie_id 
    FROM showtimes s 
-   LEFT JOIN films f ON s.film_id = f.id 
+   LEFT JOIN movies f ON s.movie_id = f.id 
    WHERE f.id IS NULL 
    LIMIT 10;"
 
 # Clean up orphaned records
 docker compose exec ics-db psql -U postgres -d ics -c \
   "DELETE FROM showtimes 
-   WHERE film_id NOT IN (SELECT id FROM films);"
+   WHERE movie_id NOT IN (SELECT id FROM movies);"
 ```
 
 ---
@@ -354,7 +354,7 @@ gunzip -c backup-20260305.sql.gz | docker compose exec -T ics-db psql -U postgre
 docker compose exec ics-db psql -U postgres -d ics
 
 # Execute single query
-docker compose exec ics-db psql -U postgres -d ics -c "SELECT COUNT(*) FROM cinemas;"
+docker compose exec ics-db psql -U postgres -d ics -c "SELECT COUNT(*) FROM theaters;"
 ```
 
 ### Useful psql Commands
@@ -364,7 +364,7 @@ docker compose exec ics-db psql -U postgres -d ics -c "SELECT COUNT(*) FROM cine
 \dt
 
 -- Describe table schema
-\d+ cinemas
+\d+ theaters
 
 -- List all indexes
 \di

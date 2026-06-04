@@ -76,10 +76,10 @@ export interface AppSettingsExport {
  */
 export async function getPublicSettings(): Promise<AppSettingsPublic> {
   const response = await apiClient.get<ApiResponse<AppSettingsPublic>>('/settings');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch public settings');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch public settings');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -87,10 +87,10 @@ export async function getPublicSettings(): Promise<AppSettingsPublic> {
  */
 export async function getAdminSettings(): Promise<AppSettings> {
   const response = await apiClient.get<ApiResponse<AppSettings>>('/settings/admin');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to fetch admin settings');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch admin settings');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -98,10 +98,10 @@ export async function getAdminSettings(): Promise<AppSettings> {
  */
 export async function updateSettings(updates: AppSettingsUpdate): Promise<AppSettings> {
   const response = await apiClient.put<ApiResponse<AppSettings>>('/settings', updates);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to update settings');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to update settings');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -109,10 +109,10 @@ export async function updateSettings(updates: AppSettingsUpdate): Promise<AppSet
  */
 export async function resetSettings(): Promise<AppSettings> {
   const response = await apiClient.post<ApiResponse<AppSettings>>('/settings/reset');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to reset settings');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to reset settings');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -120,10 +120,10 @@ export async function resetSettings(): Promise<AppSettings> {
  */
 export async function exportSettings(): Promise<AppSettingsExport> {
   const response = await apiClient.post<ApiResponse<AppSettingsExport>>('/settings/export');
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to export settings');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to export settings');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**
@@ -131,10 +131,10 @@ export async function exportSettings(): Promise<AppSettingsExport> {
  */
 export async function importSettings(data: AppSettingsExport): Promise<AppSettings> {
   const response = await apiClient.post<ApiResponse<AppSettings>>('/settings/import', data);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.error || 'Failed to import settings');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to import settings');
   }
-  return response.data.data;
+  return response.data;
 }
 
 /**

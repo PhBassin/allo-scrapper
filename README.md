@@ -7,7 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
-**Cinema showtimes aggregator** that scrapes and centralizes movie screening schedules from the source website cinema pages. Built with Express.js, React, and PostgreSQL, fully containerized with Docker.
+**Theater showtimes aggregator** that scrapes and centralizes movie screening schedules from the source website theater pages. Built with Express.js, React, and PostgreSQL, fully containerized with Docker.
 
 > **Latest Version**: 4.3.0 | **Status**: Production Ready ✅
 
@@ -28,12 +28,12 @@
 
 ## ✨ Features
 
-- **Automated Scraping**: Scheduled scraping of cinema showtimes from the source website
+- **Automated Scraping**: Scheduled scraping of theater showtimes from the source website
 - **Scraper Resilience**: Automatic HTTP 429 rate limit detection with graceful shutdown
 - **RESTful API**: Complete Express.js backend with TypeScript
 - **Modern UI**: React SPA with Vite for fast development
 - **Real-time Progress**: Server-Sent Events (SSE) for live scraping updates
-- **Weekly Reports**: Track cinema programs and identify new releases
+- **Weekly Reports**: Track theater programs and identify new releases
 - **White-Label Branding**: Complete customization (site name, logo, colors, fonts, footer) via admin panel
 - **User Management**: Role-based access control with comprehensive user CRUD
 - **Role Management**: Full CRUD for custom roles with granular permission assignment via admin panel
@@ -75,7 +75,7 @@
                             ▼
               ┌─────────────────────────┐
               │   PostgreSQL  Port 5432 │
-              │  cinemas / films /      │
+              │  theaters / movies /      │
               │  showtimes / reports    │
               └─────────────────────────┘
 
@@ -83,10 +83,13 @@
               │   Redis  (mandatory)    │  Job queue + progress pub/sub
               └─────────────────────────┘
 
-  Monitoring (--profile monitoring):
+  Monitoring (separate compose file — docker-compose.monitoring.yml):
   Prometheus :9090 → Grafana :3001
   Loki + Promtail (logs) → Grafana
   Tempo :3200 (traces, OTLP :4317) → Grafana
+  Start with: docker compose --env-file .env --env-file .env.monitoring \
+                -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
+  (see .env.monitoring.example for required variables)
 ```
 
 **Data Flow:**
@@ -95,7 +98,7 @@
 3. API publishes scrape jobs to Redis (`scrape:jobs` queue) — the scraper microservice picks them up
 4. Scraper fetches data from the source website and writes results directly to PostgreSQL
 5. Progress events flow back to the API via Redis pub/sub → SSE → client
-6. PostgreSQL stores structured cinema, film, and showtime data
+6. PostgreSQL stores structured theater, movie, and showtime data
 7. Client receives JSON responses and renders UI
 
 ---
@@ -195,7 +198,7 @@ The system supports two roles:
 | Role | Permissions |
 |------|-------------|
 | **admin** | Full access: Settings, user management, reports, scraping control |
-| **user** | Limited access: View cinema schedules only |
+| **user** | Limited access: View theater schedules only |
 
 **Safety Features:**
 - Cannot delete the last admin user
@@ -268,14 +271,12 @@ The easiest way to deploy is using pre-built Docker images from GitHub Container
 git clone https://github.com/PhBassin/allo-scrapper.git
 cd allo-scrapper
 
-# Copy environment file
+# Copy and edit the environment file (5 variables — see comments inside)
 cp .env.example .env
+# Fill in POSTGRES_PASSWORD and JWT_SECRET in .env
 
-# Pull the latest image and start services
+# Start all services (database auto-migrates on first startup)
 docker compose up -d
-
-# Initialize database (runs automatically on first startup)
-docker compose exec ics-web npm run db:migrate
 
 # Trigger first scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
@@ -291,7 +292,8 @@ curl -X POST http://localhost:3000/api/scraper/trigger
 
 **Update to latest version:**
 ```bash
-docker compose pull ics-web
+# Pull the latest image and restart
+docker compose pull
 docker compose up -d
 ```
 
@@ -304,14 +306,14 @@ If you want to build the Docker image from source:
 git clone https://github.com/PhBassin/allo-scrapper.git
 cd allo-scrapper
 
-# Copy environment file
+# Copy and edit the environment file
 cp .env.example .env
+# Fill in POSTGRES_PASSWORD and JWT_SECRET in .env
 
-# Build and start services
-docker compose up --build -d
+# Build and start services (uses docker-compose.build.yml)
+docker compose -f docker-compose.build.yml up --build -d
 
-# Initialize database
-docker compose exec ics-web npm run db:migrate
+# Database auto-migrates on first startup — no manual migration needed
 
 # Trigger first scrape
 curl -X POST http://localhost:3000/api/scraper/trigger
@@ -341,14 +343,12 @@ cd ../client
 npm install
 
 # Setup environment and database
-cd ../server
-cp .env.example .env
+cd ..
+cp .env.example .env && cat .env.dev.example >> .env
 
-# Generate a secure JWT secret (REQUIRED)
-openssl rand -base64 64
-
-# Edit .env with your PostgreSQL, Redis credentials, and paste the JWT secret
-# JWT_SECRET=<paste-generated-secret-here>
+# Generate a secure JWT secret and set it in .env
+# openssl rand -base64 64  →  paste into JWT_SECRET=
+cd server
 npm run db:migrate
 
 # Start Redis (required — scraping will not work without it)
@@ -401,11 +401,11 @@ npm run dev
 
 **Docker Build:**
 ```bash
-# Using docker-compose.yml (reads from .env file)
+# Using docker-compose.yaml (reads from .env file)
 docker compose build
 
 # Manual build with custom name
-docker build --build-arg VITE_APP_NAME="My Cinema App" .
+docker build --build-arg VITE_APP_NAME="My Theater App" .
 ```
 
 **GitHub Actions:**
@@ -455,7 +455,7 @@ The application includes comprehensive rate limiting to protect against abuse an
 | Registration | 3 attempts | 1 hour | New user registration |
 | Protected Endpoints | 60 requests | 15 min | Authenticated user endpoints |
 | Scraper Endpoints | 10 requests | 15 min | Expensive scraping operations |
-| Public Endpoints | 100 requests | 15 min | Public read endpoints (cinemas, films) |
+| Public Endpoints | 100 requests | 15 min | Public read endpoints (theaters, movies) |
 | Health Check | 10 requests | 1 min | `/api/health` endpoint (localhost exempt) |
 
 ### Dynamic Configuration
@@ -464,11 +464,11 @@ Rate limits can be managed through the admin interface:
 
 1. Navigate to `/admin?tab=ratelimits` (admin-only)
 2. Adjust limits based on your needs
-3. Changes take effect within 30 seconds (no restart required)
+3. Changes take effect **immediately** (no restart required)
 4. All changes are logged in the audit trail
 
 **Features:**
-- ✅ **Hot Reload** - Changes apply within 30 seconds via cache invalidation
+- ✅ **Hot Reload** - Changes apply immediately via in-memory config refresh
 - ✅ **Audit Trail** - Complete history of all changes with user attribution
 - ✅ **Validation** - Enforced min/max constraints prevent misconfiguration
 - ✅ **Backward Compatible** - Falls back to environment variables if database unavailable
@@ -616,4 +616,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ for cinema enthusiasts**
+**Made with ❤️ for theater enthusiasts**

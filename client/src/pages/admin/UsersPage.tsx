@@ -4,6 +4,7 @@ import type { UserPublic, UserCreate } from '../../api/users';
 import { rolesApi } from '../../api/roles';
 import type { RoleWithPermissions } from '../../types/role';
 import { AuthContext } from '../../contexts/AuthContext';
+import { generateRandomPassword } from '../../utils/password';
 import RoleBadge from '../../components/admin/RoleBadge';
 import CreateUserModal from '../../components/admin/CreateUserModal';
 import DeleteUserDialog from '../../components/admin/DeleteUserDialog';
@@ -157,10 +158,11 @@ const UsersPage: React.FC = () => {
   const handleResetPassword = async (userId: number) => {
     try {
       setError(null);
-      const result = await resetUserPassword(userId);
+      const newPassword = generateRandomPassword();
+      const result = await resetUserPassword(userId, newPassword);
       setPasswordResetData({
         username: result.user.username,
-        newPassword: result.newPassword,
+        newPassword,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reset password');

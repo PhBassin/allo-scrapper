@@ -1,17 +1,17 @@
 import * as cheerio from 'cheerio';
-import type { TheaterPageData, Cinema, FilmShowtimeData, Film, Showtime } from '../types/scraper.js';
+import type { TheaterPageData, Theater, MovieShowtimeData, Movie, Showtime } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 
-// Parse the cinema page from the source website
-export function parseTheaterPage(html: string, cinemaId: string): TheaterPageData {
+// Parse the theater page from the source website
+export function parseTheaterPage(html: string, theaterId: string): TheaterPageData {
   const $ = cheerio.load(html);
 
-  // Extraire les données du cinéma depuis l'attribut data-theater
+  // Extraire les données du theater depuis l'attribut data-theater
   const theaterSection = $('#theaterpage-showtimes-index-ui');
   const theaterDataStr = theaterSection.attr('data-theater');
 
-  let cinema: Cinema = {
-    id: cinemaId,
+  let theater: Theater = {
+    id: theaterId,
     name: '',
     address: '',
     postal_code: '',
@@ -22,8 +22,8 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
   if (theaterDataStr) {
     try {
       const theaterData = JSON.parse(theaterDataStr);
-      cinema = {
-        id: cinemaId,
+      theater = {
+        id: theaterId,
         name: theaterData.name || '',
         address: theaterData.location?.address || '',
         postal_code: theaterData.location?.postalCode || '',
@@ -50,45 +50,45 @@ export function parseTheaterPage(html: string, cinemaId: string): TheaterPageDat
   // Date sélectionnée
   const selectedDate = theaterSection.attr('data-selected-date') || '';
 
-  // Parser chaque film
-  const films: FilmShowtimeData[] = [];
+  // Parser chaque movie
+  const movies: MovieShowtimeData[] = [];
   $('.movie-card-theater').each((_, element) => {
     try {
-      const filmData = parseFilmCard($, element, cinemaId, selectedDate);
-      if (filmData) {
-        films.push(filmData);
+      const movieData = parseMovieCard($, element, theaterId, selectedDate);
+      if (movieData) {
+        movies.push(movieData);
       }
     } catch (error) {
-      logger.error('Error parsing film card', { error });
+      logger.error('Error parsing movie card', { error });
     }
   });
 
   return {
-    cinema,
-    films,
+    theater,
+    movies,
     dates,
     selected_date: selectedDate,
   };
 }
 
-// Parser une carte de film individuelle
-function parseFilmCard(
+// Parser une carte de movie individuelle
+function parseMovieCard(
   $: cheerio.CheerioAPI,
   element: any,
-  cinemaId: string,
+  theaterId: string,
   date: string
-): FilmShowtimeData | null {
+): MovieShowtimeData | null {
   const $card = $(element);
 
-  // Extraire l'ID du film depuis le lien
+  // Extraire l'ID du movie depuis le lien
   const titleLink = $card.find('.meta-title-link');
   const href = titleLink.attr('href') || '';
-  const filmIdMatch = href.match(/cfilm=(\d+)/);
-  if (!filmIdMatch) {
-    logger.warn('Could not extract film ID from href', { href });
+  const movieIdMatch = href.match(/cfilm=(\d+)/);
+  if (!movieIdMatch) {
+    logger.warn('Could not extract movie ID from href', { href });
     return null;
   }
-  const filmId = parseInt(filmIdMatch[1], 10);
+  const movieId = parseInt(movieIdMatch[1], 10);
 
   // Titre
   const title = titleLink.text().trim();
@@ -169,8 +169,8 @@ function parseFilmCard(
     }
   });
 
-  const film: Film = {
-    id: filmId,
+  const movie: Movie = {
+    id: movieId,
     title,
     poster_url: posterUrl || undefined,
     genres,
@@ -187,21 +187,21 @@ function parseFilmCard(
   };
 
   // Parser les séances
-  const showtimes = parseShowtimes($, $card, filmId, cinemaId, date);
+  const showtimes = parseShowtimes($, $card, movieId, theaterId, date);
 
   return {
-    film,
+    movie,
     showtimes,
     is_new_this_week: isNewThisWeek,
   };
 }
 
-// Parser les séances d'un film
+// Parser les séances d'un movie
 function parseShowtimes(
   $: cheerio.CheerioAPI,
   $card: cheerio.Cheerio<any>,
-  filmId: number,
-  cinemaId: string,
+  movieId: number,
+  theaterId: string,
   defaultDate: string
 ): Showtime[] {
   const showtimes: Showtime[] = [];
@@ -263,9 +263,9 @@ function parseShowtimes(
       }
 
       showtimes.push({
-        id: `${cinemaId}_${filmId}_${showtimeDate}_${time}_${version}_${format ?? ''}`,
-        film_id: filmId,
-        cinema_id: cinemaId,
+        id: `${theaterId}_${movieId}_${showtimeDate}_${time}_${version}_${format ?? ''}`,
+        movie_id: movieId,
+        theater_id: theaterId,
         date: showtimeDate,
         time,
         datetime_iso: datetimeIso,

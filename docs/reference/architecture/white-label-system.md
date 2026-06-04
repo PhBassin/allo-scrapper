@@ -348,7 +348,7 @@ async function validateImage(
 
 ```json
 {
-  "site_name": "My Cinema",
+  "site_name": "My Theater",
   "logo_base64": "data:image/png;base64,...",
   "favicon_base64": "data:image/png;base64,...",
   "color_primary": "#FF5733",
@@ -362,7 +362,7 @@ async function validateImage(
   "color_error": "#EF4444",
   "font_primary": "Inter, sans-serif",
   "font_secondary": "Inter, sans-serif",
-  "footer_text": "© 2026 My Cinema",
+  "footer_text": "© 2026 My Theater",
   "footer_links": [
     { "text": "Privacy", "url": "/privacy" }
   ]
@@ -408,7 +408,7 @@ Response: 200 OK
 
 **Roles**:
 - `admin` - Full access with bypass privileges (can edit settings, manage users, view all data)
-- `operator` - Operational access (scraping, cinema management, reports)
+- `operator` - Operational access (scraping, theater management, reports)
 - Custom roles - Configurable permission sets for specific job functions
 
 **Permission Enforcement**:

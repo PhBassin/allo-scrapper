@@ -36,7 +36,7 @@ Complete guide to the observability stack shipped with Allo-Scrapper.
 | **postgres-exporter** | PostgreSQL → Prometheus | — |
 | **redis-exporter** | Redis → Prometheus | — |
 
-All monitoring services run under the `monitoring` Docker Compose profile.
+All monitoring services live in a dedicated Compose file (`docker-compose.monitoring.yml`), separate from the main application stack. Their environment variables are documented in `.env.monitoring.example`.
 
 ---
 
@@ -44,7 +44,7 @@ All monitoring services run under the `monitoring` Docker Compose profile.
 
 ```bash
 # Start monitoring alongside the main app
-docker compose --profile monitoring up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 
 # Open Grafana
 open http://localhost:3001   # user: admin / password: admin
@@ -60,16 +60,16 @@ open http://localhost:3001   # user: admin / password: admin
 
 ```bash
 # Start only monitoring (assumes ics-db, ics-redis, ics-web are already up)
-docker compose --profile monitoring up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 
 # Start everything (app + scraper + monitoring)
-docker compose --profile monitoring --profile scraper up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 
 # Stop monitoring only
-docker compose --profile monitoring down
+docker compose -f docker-compose.monitoring.yml down
 
 # Stop everything
-docker compose --profile monitoring --profile scraper down
+docker compose -f docker-compose.yaml -f docker-compose.monitoring.yml down
 ```
 
 **Note:** The monitoring stack requires the base application services (ics-db, ics-redis, ics-web) to be running.
@@ -82,7 +82,7 @@ Dashboards are automatically provisioned from `docker/grafana/dashboards/`.
 
 | Dashboard | UID | Description |
 |---|---|---|
-| **Scraper Performance** | `scraper-perf` | Job rate, duration histograms (p50/p95/p99), films & showtimes scraped |
+| **Scraper Performance** | `scraper-perf` | Job rate, duration histograms (p50/p95/p99), movies & showtimes scraped |
 | **Infrastructure** | `infra` | PostgreSQL connections/transactions, Redis memory/ops/queue depth, Node.js heap |
 | **Application (API & Logs)** | `app` | HTTP request rate, error rate, response latency, structured logs |
 
@@ -94,7 +94,7 @@ Dashboards are automatically provisioned from `docker/grafana/dashboards/`.
 **Dashboard features:**
 - Real-time metrics with auto-refresh
 - Time range selection (Last 5m, 1h, 24h, etc.)
-- Variable filters (by cinema, endpoint, etc.)
+- Variable filters (by theater, endpoint, etc.)
 - Direct links to traces from logs
 
 ---
@@ -106,8 +106,8 @@ Dashboards are automatically provisioned from `docker/grafana/dashboards/`.
 | Metric | Type | Labels | Description |
 |---|---|---|---|
 | `scrape_jobs_total` | Counter | `status` (success/failed), `trigger_type` | Total scrape jobs processed |
-| `scrape_duration_seconds` | Histogram | `cinema_id` | Time to scrape a single cinema |
-| `films_scraped_total` | Counter | — | Total films written to DB |
+| `scrape_duration_seconds` | Histogram | `theater_id` | Time to scrape a single theater |
+| `movies_scraped_total` | Counter | — | Total movies written to DB |
 | `showtimes_scraped_total` | Counter | — | Total showtimes written to DB |
 
 **Example queries:**
@@ -115,11 +115,11 @@ Dashboards are automatically provisioned from `docker/grafana/dashboards/`.
 # Scrape success rate (last 5m)
 rate(scrape_jobs_total{status="success"}[5m])
 
-# P95 scrape duration by cinema
+# P95 scrape duration by theater
 histogram_quantile(0.95, rate(scrape_duration_seconds_bucket[5m]))
 
-# Total films scraped today
-increase(films_scraped_total[24h])
+# Total movies scraped today
+increase(movies_scraped_total[24h])
 ```
 
 ---
@@ -157,9 +157,9 @@ Both `ics-web` and `ics-scraper` emit **structured JSON logs** in production (co
   "message": "Scrape completed",
   "service": "ics-scraper",
   "timestamp": "2026-02-20T18:00:00.000Z",
-  "cinema_id": "C0053",
+  "theater_id": "C0053",
   "duration_ms": 1234,
-  "films_count": 15,
+  "movies_count": 15,
   "showtimes_count": 87
 }
 ```
@@ -183,8 +183,8 @@ Both `ics-web` and `ics-scraper` emit **structured JSON logs** in production (co
 # Error logs from web service
 {container_name="ics-web"} |= "error"
 
-# Logs for specific cinema
-{container_name="ics-scraper"} | json | cinema_id="C0053"
+# Logs for specific theater
+{container_name="ics-scraper"} | json | theater_id="C0053"
 
 # Scrape duration > 5 seconds
 {container_name="ics-scraper"} | json | duration_ms > 5000
@@ -204,12 +204,13 @@ Traces are exported via OTLP gRPC to Tempo (`OTEL_EXPORTER_OTLP_ENDPOINT`, defau
 
 **Enable tracing:**
 ```bash
-# .env
+# .env.monitoring
 OTEL_ENABLED=true
 OTEL_EXPORTER_OTLP_ENDPOINT=http://ics-tempo:4317
 
-# Restart services
-docker compose restart ics-web ics-scraper
+# Restart with monitoring
+docker compose --env-file .env --env-file .env.monitoring \
+  -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 ```
 
 **Viewing traces in Grafana:**
@@ -219,12 +220,12 @@ docker compose restart ics-web ics-scraper
 4. Search by:
    - Trace ID (from log lines)
    - Service name (`ics-scraper`, `ics-web`)
-   - Tags (cinema_id, endpoint, etc.)
+   - Tags (theater_id, endpoint, etc.)
 
 **Trace structure:**
 - **Root span**: HTTP request or scrape job
 - **Child spans**: Database queries, HTTP requests, parsing operations
-- **Attributes**: cinema_id, film_count, duration, etc.
+- **Attributes**: theater_id, movie_count, duration, etc.
 
 **Linking logs to traces:**
 - Trace IDs appear in Loki log lines when `OTEL_ENABLED=true`
@@ -235,22 +236,22 @@ docker compose restart ics-web ics-scraper
 
 ## Environment Variables
 
+Monitoring variables live in `.env.monitoring` (copy from `.env.monitoring.example`), **not** in the main `.env`:
+
 | Variable | Default | Description |
 |---|---|---|
-| `LOG_LEVEL` | `info` | Log verbosity (`error`, `warn`, `info`, `debug`) |
-| `METRICS_PORT` | `9091` | Prometheus metrics port (scraper microservice only) |
 | `OTEL_ENABLED` | `false` | Enable OpenTelemetry tracing |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://ics-tempo:4317` | OTLP gRPC endpoint |
 | `GRAFANA_ADMIN_USER` | `admin` | Grafana admin username |
 | `GRAFANA_ADMIN_PASSWORD` | `admin` | Grafana admin password |
 
-**Update environment variables:**
-```bash
-# Edit .env
-nano .env
+`LOG_LEVEL` is hardcoded to `info` in `docker-compose.yaml` (change there if needed).
+`METRICS_PORT` (9091) is hardcoded in the compose file for scraper services.
 
-# Restart services
-docker compose restart ics-web ics-scraper
+**Set up monitoring env:**
+```bash
+cp .env.monitoring.example .env.monitoring
+nano .env.monitoring
 ```
 
 ---
@@ -378,7 +379,7 @@ docker compose up -d ics-grafana
 
 **Solution:**
 ```bash
-# Edit docker-compose.yml
+# Edit docker-compose.yaml
 # Add retention flags to prometheus command:
 # --storage.tsdb.retention.time=7d
 # --storage.tsdb.retention.size=5GB
@@ -477,7 +478,7 @@ docker compose restart ics-postgres-exporter ics-redis-exporter
 
 Always run the monitoring stack in production:
 ```bash
-docker compose --profile monitoring --profile scraper up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 ```
 
 ### 2. Set Appropriate Log Levels

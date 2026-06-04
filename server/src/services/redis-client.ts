@@ -20,7 +20,7 @@ export interface ScheduleChangeEvent {
     name: string;
     cron_expression: string;
     enabled: boolean;
-    target_cinemas?: string[] | null;
+    target_theaters?: string[] | null;
   };
 }
 
@@ -30,24 +30,24 @@ export interface ScrapeJobScrape extends BaseScrapeJob {
   options?: {
     mode?: 'weekly' | 'from_today' | 'from_today_limited';
     days?: number;
-    cinemaId?: string;
-    filmId?: number;
+    theaterId?: string;
+    movieId?: number;
     resumeMode?: boolean;
-    pendingAttempts?: Array<{ cinema_id: string; date: string }>;
+    pendingAttempts?: Array<{ theater_id: string; date: string }>;
   };
 }
 
-export interface ScrapeJobAddCinema extends BaseScrapeJob {
-  type: 'add_cinema';
+export interface ScrapeJobAddTheater extends BaseScrapeJob {
+  type: 'add_theater';
   triggerType: 'manual';
-  /** The Allociné cinema URL to add and scrape */
+  /** The Allociné theater URL to add and scrape */
   url: string;
 }
 
 /**
  * Discriminated union of all job types the scraper can process.
  */
-export type ScrapeJob = ScrapeJobScrape | ScrapeJobAddCinema;
+export type ScrapeJob = ScrapeJobScrape | ScrapeJobAddTheater;
 
 // ---------------------------------------------------------------------------
 // RedisClient
@@ -71,9 +71,9 @@ export class RedisClient {
     return this.publisher.rpush('scrape:jobs', JSON.stringify(job));
   }
 
-  /** Push an add_cinema job onto the queue. Returns the new queue length. */
-  async publishAddCinemaJob(reportId: number, url: string, traceContext?: Record<string, string>): Promise<number> {
-    const job: ScrapeJobAddCinema = { type: 'add_cinema', triggerType: 'manual', reportId, url, ...(traceContext && { traceContext }) };
+  /** Push an add_theater job onto the queue. Returns the new queue length. */
+  async publishAddTheaterJob(reportId: number, url: string, traceContext?: Record<string, string>): Promise<number> {
+    const job: ScrapeJobAddTheater = { type: 'add_theater', triggerType: 'manual', reportId, url, ...(traceContext && { traceContext }) };
     return this.publisher.rpush('scrape:jobs', JSON.stringify(job));
   }
 

@@ -6,7 +6,7 @@ export interface ScrapeSchedule {
   description: string | null;
   cron_expression: string;
   enabled: boolean;
-  target_cinemas: string[] | null;
+  target_theaters: string[] | null;
   created_by: number | null;
   updated_by: number | null;
   created_at: string;
@@ -20,7 +20,7 @@ export interface ScrapeScheduleCreate {
   description?: string | null;
   cron_expression: string;
   enabled?: boolean;
-  target_cinemas?: string[] | null;
+  target_theaters?: string[] | null;
 }
 
 export interface ScrapeScheduleUpdate {
@@ -28,15 +28,15 @@ export interface ScrapeScheduleUpdate {
   description?: string | null;
   cron_expression?: string;
   enabled?: boolean;
-  target_cinemas?: string[] | null;
+  target_theaters?: string[] | null;
 }
 
 function rowToSchedule(row: any): ScrapeSchedule {
   return {
     ...row,
-    target_cinemas: typeof row.target_cinemas === 'string' 
-      ? JSON.parse(row.target_cinemas) 
-      : row.target_cinemas,
+    target_theaters: typeof row.target_theaters === 'string' 
+      ? JSON.parse(row.target_theaters) 
+      : row.target_theaters,
   };
 }
 
@@ -70,12 +70,12 @@ export async function createSchedule(
   data: ScrapeScheduleCreate,
   userId: number
 ): Promise<ScrapeSchedule> {
-  const targetCinemasJson = data.target_cinemas 
-    ? JSON.stringify(data.target_cinemas) 
+  const targetTheatersJson = data.target_theaters 
+    ? JSON.stringify(data.target_theaters) 
     : null;
 
   const result = await db.query(
-    `INSERT INTO scrape_schedules (name, description, cron_expression, enabled, target_cinemas, created_by)
+    `INSERT INTO scrape_schedules (name, description, cron_expression, enabled, target_theaters, created_by)
      VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
     [
@@ -83,7 +83,7 @@ export async function createSchedule(
       data.description ?? null,
       data.cron_expression,
       data.enabled ?? true,
-      targetCinemasJson,
+      targetTheatersJson,
       userId,
     ]
   );
@@ -117,9 +117,9 @@ export async function updateSchedule(
     fields.push(`enabled = $${paramIndex++}`);
     values.push(data.enabled);
   }
-  if (data.target_cinemas !== undefined) {
-    fields.push(`target_cinemas = $${paramIndex++}::jsonb`);
-    values.push(data.target_cinemas ? JSON.stringify(data.target_cinemas) : null);
+  if (data.target_theaters !== undefined) {
+    fields.push(`target_theaters = $${paramIndex++}::jsonb`);
+    values.push(data.target_theaters ? JSON.stringify(data.target_theaters) : null);
   }
 
   if (fields.length === 0) {

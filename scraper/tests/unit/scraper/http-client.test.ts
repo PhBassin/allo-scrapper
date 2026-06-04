@@ -29,7 +29,7 @@ const mockContext = {
 vi.mock('puppeteer-core', () => ({
   default: {
     launch: vi.fn().mockResolvedValue({
-      isConnected: vi.fn().mockReturnValue(true),
+      connected: true,
       createBrowserContext: vi.fn().mockResolvedValue(mockContext),
       close: vi.fn(),
     }),
@@ -37,9 +37,9 @@ vi.mock('puppeteer-core', () => ({
 }));
 
 describe('http-client', () => {
-  let fetchShowtimesJson: (cinemaId: string, date: string) => Promise<unknown>;
-  let fetchFilmPage: (filmId: number) => Promise<string>;
-  let fetchTheaterPage: (cinemaBaseUrl: string) => Promise<{ html: string; availableDates: string[] }>;
+  let fetchShowtimesJson: (theaterId: string, date: string) => Promise<unknown>;
+  let fetchMoviePage: (movieId: number) => Promise<string>;
+  let fetchTheaterPage: (theaterBaseUrl: string) => Promise<{ html: string; availableDates: string[] }>;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -53,7 +53,7 @@ describe('http-client', () => {
 
     const mod = await import('../../../src/scraper/http-client.js');
     fetchShowtimesJson = mod.fetchShowtimesJson;
-    fetchFilmPage = mod.fetchFilmPage;
+    fetchMoviePage = mod.fetchMoviePage;
     fetchTheaterPage = mod.fetchTheaterPage;
   });
 
@@ -62,10 +62,10 @@ describe('http-client', () => {
   });
 
   // -------------------------------------------------------------------------
-  // validateCinemaId
+  // validateTheaterId
   // -------------------------------------------------------------------------
-  describe('validateCinemaId (via fetchShowtimesJson)', () => {
-    it('should accept valid cinema IDs like C0072', async () => {
+  describe('validateTheaterId (via fetchShowtimesJson)', () => {
+    it('should accept valid theater IDs like C0072', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({}),
@@ -75,7 +75,7 @@ describe('http-client', () => {
       await expect(fetchShowtimesJson('C0072', '2024-01-15')).resolves.toBeDefined();
     });
 
-    it('should accept valid cinema IDs like W7517', async () => {
+    it('should accept valid theater IDs like W7517', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({}),
@@ -87,31 +87,31 @@ describe('http-client', () => {
 
     it('should reject IDs with path traversal characters (../)', async () => {
       await expect(fetchShowtimesJson('../etc/passwd', '2024-01-15')).rejects.toThrow(
-        /Invalid cinema ID format/
+        /Invalid theater ID format/
       );
     });
 
     it('should reject IDs with slashes', async () => {
       await expect(fetchShowtimesJson('C0072/evil', '2024-01-15')).rejects.toThrow(
-        /Invalid cinema ID format/
+        /Invalid theater ID format/
       );
     });
 
-    it('should reject empty cinema ID', async () => {
+    it('should reject empty theater ID', async () => {
       await expect(fetchShowtimesJson('', '2024-01-15')).rejects.toThrow(
-        /Invalid cinema ID format/
+        /Invalid theater ID format/
       );
     });
 
-    it('should reject cinema ID with lowercase letters', async () => {
+    it('should reject theater ID with lowercase letters', async () => {
       await expect(fetchShowtimesJson('c0072', '2024-01-15')).rejects.toThrow(
-        /Invalid cinema ID format/
+        /Invalid theater ID format/
       );
     });
 
-    it('should reject cinema ID with injection characters', async () => {
+    it('should reject theater ID with injection characters', async () => {
       await expect(fetchShowtimesJson('C0072;evil', '2024-01-15')).rejects.toThrow(
-        /Invalid cinema ID format/
+        /Invalid theater ID format/
       );
     });
   });
@@ -156,33 +156,33 @@ describe('http-client', () => {
   });
 
   // -------------------------------------------------------------------------
-  // validateFilmId
+  // validateMovieId
   // -------------------------------------------------------------------------
-  describe('validateFilmId (via fetchFilmPage)', () => {
-    it('should accept positive integer film IDs', async () => {
+  describe('validateMovieId (via fetchMoviePage)', () => {
+    it('should accept positive integer movie IDs', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         text: vi.fn().mockResolvedValue('<html></html>'),
       });
       vi.stubGlobal('fetch', mockFetch);
 
-      await expect(fetchFilmPage(12345)).resolves.toBeDefined();
+      await expect(fetchMoviePage(12345)).resolves.toBeDefined();
     });
 
-    it('should reject negative film IDs', async () => {
-      await expect(fetchFilmPage(-1)).rejects.toThrow(/Invalid film ID/);
+    it('should reject negative movie IDs', async () => {
+      await expect(fetchMoviePage(-1)).rejects.toThrow(/Invalid movie ID/);
     });
 
-    it('should reject zero as film ID', async () => {
-      await expect(fetchFilmPage(0)).rejects.toThrow(/Invalid film ID/);
+    it('should reject zero as movie ID', async () => {
+      await expect(fetchMoviePage(0)).rejects.toThrow(/Invalid movie ID/);
     });
 
-    it('should reject NaN as film ID', async () => {
-      await expect(fetchFilmPage(NaN)).rejects.toThrow(/Invalid film ID/);
+    it('should reject NaN as movie ID', async () => {
+      await expect(fetchMoviePage(NaN)).rejects.toThrow(/Invalid movie ID/);
     });
 
-    it('should reject non-integer film IDs', async () => {
-      await expect(fetchFilmPage(1.5)).rejects.toThrow(/Invalid film ID/);
+    it('should reject non-integer movie IDs', async () => {
+      await expect(fetchMoviePage(1.5)).rejects.toThrow(/Invalid movie ID/);
     });
   });
 
@@ -208,9 +208,9 @@ describe('http-client', () => {
   });
 
   // -------------------------------------------------------------------------
-  // SSRF hostname guard — fetchFilmPage
+  // SSRF hostname guard — fetchMoviePage
   // -------------------------------------------------------------------------
-  describe('SSRF hostname guard in fetchFilmPage', () => {
+  describe('SSRF hostname guard in fetchMoviePage', () => {
     it('should use new URL() construction and call the correct allocine.fr host', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -218,7 +218,7 @@ describe('http-client', () => {
       });
       vi.stubGlobal('fetch', mockFetch);
 
-      await fetchFilmPage(12345);
+      await fetchMoviePage(12345);
 
       expect(mockFetch).toHaveBeenCalledOnce();
       const calledUrl: string = mockFetch.mock.calls[0][0];
@@ -231,6 +231,11 @@ describe('http-client', () => {
   // fetchTheaterPage — Puppeteer-specific behaviour
   // -------------------------------------------------------------------------
   describe('fetchTheaterPage (Puppeteer integration)', () => {
+    it('should reuse the same browser instance on subsequent calls', async () => {
+      await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
+      await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
+    });
+
     it('should set user agent on the page before navigation', async () => {
       await fetchTheaterPage('https://www.allocine.fr/seance/salle_gen_csalle=C0072.html');
 

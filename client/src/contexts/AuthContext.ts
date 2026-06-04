@@ -12,17 +12,15 @@ export interface User {
 
 export interface AuthContextType {
     isAuthenticated: boolean;
-    token: string | null;
     user: User | null;
     isAdmin: boolean;
     hasPermission: (permission: PermissionName) => boolean;
-    login: (token: string, user: User) => void;
+    login: (user: User) => void;
     logout: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType>({
     isAuthenticated: false,
-    token: null,
     user: null,
     isAdmin: false,
     hasPermission: () => false,

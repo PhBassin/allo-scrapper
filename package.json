@@ -1,7 +1,7 @@
 {
   "name": "allo-scrapper",
   "version": "4.6.7",
-  "description": "Cinema showtimes aggregator - Full-stack Express.js + React application with PostgreSQL backend",
+  "description": "Theater showtimes aggregator - Full-stack Express.js + React application with PostgreSQL backend",
   "type": "module",
   "private": true,
   "workspaces": [
@@ -40,10 +40,11 @@
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui",
-    "integration-test": "./scripts/integration-test.sh"
+    "integration-test": "./scripts/integration-test.sh",
+    "prepare": "husky || true"
   },
   "keywords": [
-    "cinema",
+    "theater",
     "showtimes",
     "scraper",
     "aggregator",
@@ -55,15 +56,18 @@
   "author": "",
   "license": "MIT",
   "engines": {
-    "node": ">=24.0.0",
+    "node": ">=24.0.0 <25.0.0",
     "npm": ">=10.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
-    "flatted": "^3.4.2"
+    "@playwright/test": "^1.60.0",
+    "flatted": "^3.4.2",
+    "husky": "^9.1.7"
   },
   "overrides": {
-    "flatted": "^3.4.2"
+    "flatted": "^3.4.2",
+    "qs": "6.15.2",
+    "brace-expansion": "5.0.6"
   },
   "optionalDependencies": {
     "fsevents": "^2.3.3"

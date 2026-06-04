@@ -1,12 +1,8 @@
-import dotenv from 'dotenv';
 import { createApp } from './app.js';
 import { db } from './db/client.js';
 import { initializeDatabase } from './db/schema.js';
 import { logger } from './utils/logger.js';
 import { validateJWTSecret } from './utils/jwt-secret-validator.js';
-
-// Load environment variables
-dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
@@ -19,8 +15,13 @@ async function startServer() {
     validateJWTSecret();
     
     // Log JWT configuration
-    const jwtExpiration = process.env.JWT_EXPIRES_IN || '24h';
+    const jwtExpiration = process.env.JWT_EXPIRES_IN || '1h';
     logger.info(`🔐 JWT expiration set to: ${jwtExpiration}`);
+
+    // Validate JWT expiry vs access token cookie maxAge
+    const { validateJwtExpirationForCookie } = await import('./utils/jwt-config.js');
+    const ACCESS_TOKEN_COOKIE_MAX_AGE_MS = 15 * 60 * 1000;
+    validateJwtExpirationForCookie(jwtExpiration, ACCESS_TOKEN_COOKIE_MAX_AGE_MS);
 
     // Initialize database
     logger.info('📦 Initializing database...');
@@ -42,6 +43,10 @@ async function startServer() {
 
     // Register database connection for dependency injection
     app.set('db', db);
+
+    // Start rate limit config refresher (hot-reload)
+    const { startConfigRefresher } = await import('./services/rate-limit-refresher.js');
+    startConfigRefresher(db);
 
     // Start server
     const server = app.listen(Number(PORT), () => {

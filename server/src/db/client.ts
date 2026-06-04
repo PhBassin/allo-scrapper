@@ -1,7 +1,4 @@
 import pg from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 // Configuration de la connexion PostgreSQL
 const config = {
@@ -23,9 +20,30 @@ export const pool = new pg.Pool(
   connectionString ? { connectionString } : config
 );
 
+export interface TransactionClient {
+  query: (text: string, params?: any[]) => Promise<pg.QueryResult<any>>;
+}
+
 // Wrapper pour garder une API similaire si nécessaire, ou on utilise directement pool
 export const db = {
   query: <T extends pg.QueryResultRow = any>(text: string, params?: any[]) => pool.query<T>(text, params),
+  transaction: async <T>(fn: (client: TransactionClient) => Promise<T>): Promise<T> => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
   // Méthode utilitaire pour fermer la connexion (utile pour les scripts one-off)
   end: () => pool.end()
 };

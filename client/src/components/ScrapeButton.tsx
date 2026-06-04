@@ -44,16 +44,13 @@ export default function ScrapeButton({
 
       // Reset success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err: unknown) {
-      if (err instanceof Error && 'response' in err) {
-        const axiosError = err as { response?: { status?: number; data?: { error?: string } } };
-        if (axiosError.response?.status === 409) {
-          // Scrape already running, just show progress
-          if (onScrapeStart) {
-            onScrapeStart();
-          }
+    } catch (err: any) {
+      if (err && typeof err === 'object' && ('status' in err || 'data' in err)) {
+        const apiError = err as import('../api/client').ApiError;
+        if (apiError.status === 409) {
+          onScrapeStart?.();
         } else {
-          setError(axiosError.response?.data?.error || 'Erreur lors du démarrage du scraping');
+          setError(apiError.data?.error || 'Erreur lors du démarrage du scraping');
         }
       } else {
         setError('Erreur lors du démarrage du scraping');

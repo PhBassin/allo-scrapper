@@ -12,11 +12,9 @@ vi.mock('../db/client.js', () => ({
   },
 }));
 vi.mock('../db/user-queries.js');
-vi.mock('bcryptjs', () => ({
-  default: {
-    hash: vi.fn().mockResolvedValue('$2b$10$hashedPasswordExample1234567890123456789012'),
-    compare: vi.fn(),
-  },
+vi.mock('../utils/password.js', () => ({
+  hashPassword: vi.fn().mockResolvedValue('scrypt:salt:hashedPassword'),
+  comparePassword: vi.fn().mockResolvedValue(true)
 }));
 vi.mock('../utils/logger.js', () => ({
   logger: {
@@ -581,54 +579,80 @@ describe('User Management Routes', () => {
   });
 
   describe('POST /api/users/:id/reset-password', () => {
-    it('should generate random password and update user (200)', async () => {
+    it('should accept client-generated password and update (200)', async () => {
       const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
-      vi.mocked(userQueries.generateRandomPassword).mockReturnValue('RandomPass123!@#');
       vi.mocked(db.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
 
       const response = await request(app)
         .post('/api/users/2/reset-password')
-        .set('Authorization', 'Bearer valid-admin-token');
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({ newPassword: 'RandomPass123!@#' });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.newPassword).toBe('RandomPass123!@#');
+      expect(response.body.data.newPassword).toBeUndefined();
       expect(response.body.data.user).toEqual(mockUser);
     });
 
-    it('should return new password in response for admin to share', async () => {
+    it('should not return password in response', async () => {
       const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
-      vi.mocked(userQueries.generateRandomPassword).mockReturnValue('NewPass456!@#');
       vi.mocked(db.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
 
       const response = await request(app)
         .post('/api/users/2/reset-password')
-        .set('Authorization', 'Bearer valid-admin-token');
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({ newPassword: 'NewPass456!@#' });
 
-      expect(response.body.data).toHaveProperty('newPassword');
-      expect(typeof response.body.data.newPassword).toBe('string');
+      expect(response.body.data).not.toHaveProperty('newPassword');
+      expect(response.body.data).toHaveProperty('user');
     });
 
     it('should hash password before storing', async () => {
       const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
 
       vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
-      vi.mocked(userQueries.generateRandomPassword).mockReturnValue('RandomPass123!@#');
       vi.mocked(db.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
 
       await request(app)
         .post('/api/users/2/reset-password')
-        .set('Authorization', 'Bearer valid-admin-token');
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({ newPassword: 'RandomPass123!@#' });
 
-      // Verify password was hashed (bcrypt hash starts with $2b$)
       expect(db.query).toHaveBeenCalled();
       const queryCall = vi.mocked(db.query).mock.calls[0];
-      expect(queryCall[1][0]).toMatch(/^\$2[aby]\$/);
+      expect(queryCall[1][0]).toMatch(/^scrypt:/);
       expect(queryCall[1][0]).not.toBe('RandomPass123!@#');
+    });
+
+    it('should return 400 when newPassword is missing', async () => {
+      const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
+
+      vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
+
+      const response = await request(app)
+        .post('/api/users/2/reset-password')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('password');
+    });
+
+    it('should return 400 when newPassword is empty string', async () => {
+      const mockUser = makeUser(2, 'user1', 2, 'operator', '2024-01-02T00:00:00Z');
+
+      vi.mocked(userQueries.getUserById).mockResolvedValue(mockUser);
+
+      const response = await request(app)
+        .post('/api/users/2/reset-password')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({ newPassword: '' });
+
+      expect(response.status).toBe(400);
     });
 
     it('should return 404 for non-existent user', async () => {
@@ -636,7 +660,8 @@ describe('User Management Routes', () => {
 
       const response = await request(app)
         .post('/api/users/999/reset-password')
-        .set('Authorization', 'Bearer valid-admin-token');
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({ newPassword: 'RandomPass123!@#' });
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('User not found');

@@ -160,7 +160,7 @@ echo "PORT=3001" >> .env
 docker compose up -d
 ```
 
-**Update docker-compose.yml ports mapping:**
+**Update docker-compose.yaml ports mapping:**
 
 ```yaml
 services:
@@ -198,7 +198,7 @@ docker compose up -d
 
 ### Config Volume Not Syncing
 
-**Issue:** Changes to `server/src/config/cinemas.json` not reflected in running container.
+**Issue:** Changes to `server/src/config/theaters.json` not reflected in running container.
 
 **Cause:** Volume mount caches old files or container needs restart.
 
@@ -378,7 +378,7 @@ docker compose exec ics-redis redis-cli INFO stats | grep evicted_keys
 
 **Increase limit (if needed):**
 
-Edit `docker-compose.yml`:
+Edit `docker-compose.yaml`:
 
 ```yaml
 command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --appendonly yes
@@ -553,7 +553,7 @@ docker builder prune -a
 docker compose up -d
 
 # Start with profiles
-docker compose --profile scraper --profile monitoring up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 
 # Stop all services
 docker compose down
@@ -599,7 +599,7 @@ docker compose exec ics-web sh
 # View resource usage
 docker stats ics-web
 
-# Validate docker-compose.yml
+# Validate docker-compose.yaml
 docker compose config
 ```
 

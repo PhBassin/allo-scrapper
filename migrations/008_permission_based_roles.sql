@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 -- 4. Seed les rôles de base (idempotent)
 INSERT INTO roles (name, description, is_system) VALUES
   ('admin', 'Administrateur — accès total', true),
-  ('operator', 'Opérateur — scraping et gestion des cinémas', true)
+  ('operator', 'Opérateur — scraping et gestion des theaters', true)
 ON CONFLICT (name) DO NOTHING;
 
 -- 5. Seed les 19 permissions (idempotent)
@@ -38,10 +38,10 @@ INSERT INTO permissions (name, description, category) VALUES
   ('users:update',          'Modifier un utilisateur',                    'users'),
   ('users:delete',          'Supprimer un utilisateur',                   'users'),
   ('scraper:trigger',       'Lancer un scrape global',                    'scraper'),
-  ('scraper:trigger_single','Lancer un scrape pour un cinéma',            'scraper'),
-  ('cinemas:create',        'Ajouter un cinéma',                          'cinemas'),
-  ('cinemas:update',        'Modifier un cinéma',                         'cinemas'),
-  ('cinemas:delete',        'Supprimer un cinéma',                        'cinemas'),
+  ('scraper:trigger_single','Lancer un scrape pour un theater',            'scraper'),
+  ('theaters:create',        'Ajouter un theater',                          'theaters'),
+  ('theaters:update',        'Modifier un theater',                         'theaters'),
+  ('theaters:delete',        'Supprimer un theater',                        'theaters'),
   ('settings:read',         'Lire les settings admin',                    'settings'),
   ('settings:update',       'Modifier les settings',                      'settings'),
   ('settings:reset',        'Réinitialiser les settings',                 'settings'),
@@ -62,7 +62,7 @@ FROM roles r, permissions p
 WHERE r.name = 'operator'
   AND p.name IN (
     'scraper:trigger', 'scraper:trigger_single',
-    'cinemas:create', 'cinemas:update', 'cinemas:delete',
+    'theaters:create', 'theaters:update', 'theaters:delete',
     'reports:list', 'reports:view'
   )
 ON CONFLICT DO NOTHING;

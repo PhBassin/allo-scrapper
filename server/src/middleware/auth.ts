@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import type { ApiResponse } from '../types/api.js';
 import type { PermissionName } from '../types/role.js';
-import { validateJWTSecret } from '../utils/jwt-secret-validator.js';
+import { getSecrets, verifyWithMultipleSecrets } from '../utils/jwt-secrets.js';
 
-const JWT_SECRET = validateJWTSecret();
+// Fail-fast: validate secrets at module load
+getSecrets();
 
 export interface AuthRequest extends Request {
     user?: {
@@ -16,10 +16,40 @@ export interface AuthRequest extends Request {
     };
 }
 
-export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void | Response => {
+function extractToken(req: AuthRequest): string | null {
+    if (req.cookies?.access_token) {
+        return req.cookies.access_token;
+    }
     const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return authHeader.substring(7).trim();
+    }
+    return null;
+}
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+/**
+ * Check if the given user object represents a system administrator.
+ *
+ * A user is considered admin when:
+ * - role_name === 'admin' (string comparison against the role name — prefers
+ *   future migration to role ID for immutability)
+ * - is_system_role === true (prevents privilege escalation by users who
+ *   name their custom role 'admin')
+ *
+ * This is the single source of truth for admin bypass logic used by
+ * requirePermission middleware and any route that performs inline
+ * admin checks.
+ */
+export function isAdminUser(
+  user: AuthRequest['user'] | null | undefined,
+): boolean {
+  return user?.role_name === 'admin' && user?.is_system_role === true;
+}
+
+export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void | Response => {
+    const token = extractToken(req);
+
+    if (!token) {
         const response: ApiResponse = {
             success: false,
             error: 'Authentication required. No token provided.',
@@ -27,10 +57,8 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
         return res.status(401).json(response);
     }
 
-    const token = authHeader.split(' ')[1];
-
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as {
+        const decoded = verifyWithMultipleSecrets(token, getSecrets()) as {
             id: number;
             username: string;
             role_name: string;

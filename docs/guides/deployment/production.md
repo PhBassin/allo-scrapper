@@ -83,8 +83,8 @@ cd allo-scrapper
 
 **Option B: Download files manually**:
 ```bash
-# Download docker-compose.yml
-curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/docker-compose.yml
+# Download docker-compose.yaml
+curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/docker-compose.yaml
 
 # Download .env.example
 curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/.env.example
@@ -97,60 +97,37 @@ curl -o docker/init.sql https://raw.githubusercontent.com/PhBassin/allo-scrapper
 ### 3. Configure Environment
 
 ```bash
-# Copy example environment file
+# Copy example environment file (5 variables only)
 cp .env.example .env
 
 # Edit configuration
 nano .env
 ```
 
-**Critical production settings:**
+**Required production settings:**
 
 ```bash
-# Database Configuration
-POSTGRES_HOST=ics-db
-POSTGRES_PORT=5432
-POSTGRES_DB=ics
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=<STRONG_PASSWORD_HERE>  # ⚠️ CHANGE THIS!
+# Docker image tag
+IMAGE_TAG=stable
 
-# Server Configuration
-PORT=3000
-NODE_ENV=production
-LOG_LEVEL=warn
+# Database password
+POSTGRES_PASSWORD=<STRONG_PASSWORD_HERE>  # REQUIRED
 
-# Application Configuration
-APP_NAME=My Cinema App                    # Optional, default: "Allo-Scrapper"
-AUTO_MIGRATE=true                         # Optional, default: true
+# JWT signing key
+JWT_SECRET=<GENERATE_WITH_openssl_rand_-base64_64>  # REQUIRED, min 32 chars
 
-# JWT Secret (REQUIRED for production)
-JWT_SECRET=<GENERATE_WITH_openssl_rand_-base64_32>
+# CORS allowed origins
+ALLOWED_ORIGINS=https://theater.example.com
 
-# CORS Configuration
-# Must include the origin the browser uses to reach the app
-ALLOWED_ORIGINS=https://cinema.example.com
-
-# Scraper Configuration
+# Scrape schedule (cron expression)
 SCRAPE_CRON_SCHEDULE=0 3 * * *    # Daily at 3 AM
-TZ=Europe/Paris                   # Your timezone
-SCRAPE_DAYS=14                    # Scrape 2 weeks ahead
 ```
 
-**Additional Configuration Variables:**
+**All other variables** (NODE_ENV, POSTGRES_HOST, PORT, TZ, LOG_LEVEL, AUTO_MIGRATE, etc.) are **hardcoded** in `docker-compose.yaml`. You do not need to set them in `.env`.
 
-**`APP_NAME`** (optional, default: "Allo-Scrapper")
-```bash
-APP_NAME=My Cinema App
-```
-Used in logger output, health check responses, and application branding. Changes the service name across all monitoring and logging.
+To override any hardcoded variable, edit `docker-compose.yaml` directly.
 
-**`AUTO_MIGRATE`** (optional, default: true)
-```bash
-AUTO_MIGRATE=true
-```
-Controls automatic database migrations on startup. Set to `false` to prevent automatic schema changes in production (requires manual migration with `npm run migrate:up` in server/ directory).
-
-See [Configuration Guide](../../getting-started/configuration.md) for all environment variables.
+See [Configuration Guide](../../getting-started/configuration.md) for complete reference.
 
 ---
 
@@ -206,8 +183,8 @@ Expected output:
               List of relations
  Schema |      Name       | Type  |  Owner
 --------+-----------------+-------+----------
- public | cinemas         | table | postgres
- public | films           | table | postgres
+ public | theaters         | table | postgres
+ public | movies           | table | postgres
  public | scrape_sessions | table | postgres
  public | showtimes       | table | postgres
  public | users           | table | postgres
@@ -259,7 +236,7 @@ ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
 
 **Production with domain:**
 ```bash
-ALLOWED_ORIGINS=https://cinema.example.com,https://www.cinema.example.com
+ALLOWED_ORIGINS=https://theater.example.com,https://www.theater.example.com
 ```
 
 **After changing, restart:**
@@ -455,8 +432,8 @@ docker compose exec ics-db psql -U postgres -d ics
 
 # Inside psql:
 \dt          # List tables
-\d cinemas   # Describe cinemas table
-SELECT * FROM cinemas;
+\d theaters   # Describe theaters table
+SELECT * FROM theaters;
 \q           # Quit
 ```
 
@@ -466,8 +443,8 @@ SELECT * FROM cinemas;
 # Count records
 docker compose exec ics-db psql -U postgres -d ics \
   -c "SELECT 
-        (SELECT COUNT(*) FROM cinemas) as cinemas,
-        (SELECT COUNT(*) FROM films) as films,
+        (SELECT COUNT(*) FROM theaters) as theaters,
+        (SELECT COUNT(*) FROM movies) as movies,
         (SELECT COUNT(*) FROM showtimes) as showtimes;"
 
 # Recent scrapes
@@ -601,7 +578,7 @@ For production monitoring with Prometheus, Grafana, Loki, and Tempo:
 
 ```bash
 # Start with monitoring profile
-docker compose --profile monitoring up -d
+docker compose --env-file .env --env-file .env.monitoring -f docker-compose.yaml -f docker-compose.monitoring.yml up -d
 ```
 
 See [Monitoring Guide](./monitoring.md) for complete setup.
@@ -665,7 +642,7 @@ docker compose down
 # 3. Use previous image version
 docker pull ghcr.io/phbassin/allo-scrapper:<previous-tag>
 
-# 4. Update docker-compose.yml to pin version
+# 4. Update docker-compose.yaml to pin version
 # image: ghcr.io/phbassin/allo-scrapper:<previous-tag>
 
 # 5. Restart
@@ -715,7 +692,7 @@ For critical production environments:
 sudo apt install nginx certbot python3-certbot-nginx
 
 # Obtain certificate
-sudo certbot --nginx -d cinema.example.com
+sudo certbot --nginx -d theater.example.com
 
 # Nginx will auto-configure SSL
 ```
@@ -884,7 +861,7 @@ docker system prune -a --volumes
 
 **Slow response times:**
 1. Check container resources: `docker stats`
-2. Increase memory limit in `docker-compose.yml`
+2. Increase memory limit in `docker-compose.yaml`
 3. Add database indexes (see [Database Schema](../../reference/database/schema.md))
 
 **High CPU usage:**
@@ -931,8 +908,8 @@ docker pull ghcr.io/phbassin/allo-scrapper:stable && docker compose down && dock
 ### Important Files
 
 - **`.env`** - Environment configuration
-- **`docker-compose.yml`** - Service orchestration
-- **`server/src/config/cinemas.json`** - Cinema configuration
+- **`docker-compose.yaml`** - Service orchestration
+- **`server/src/config/theaters.json`** - Theater configuration
 - **`backups/`** - Database backups
 
 ---

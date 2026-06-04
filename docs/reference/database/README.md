@@ -12,8 +12,8 @@ Complete database schema documentation for the Allo-Scrapper PostgreSQL database
 
 - [Overview](#overview)
 - [Tables](#tables)
-  - [cinemas](#cinemas)
-  - [films](#films)
+  - [theaters](#theaters)
+  - [movies](#movies)
   - [showtimes](#showtimes)
   - [weekly_programs](#weekly_programs)
   - [scrape_reports](#scrape_reports)
@@ -29,7 +29,7 @@ Complete database schema documentation for the Allo-Scrapper PostgreSQL database
 The database uses PostgreSQL 15+ with the following design principles:
 - **Relational data** with foreign key constraints
 - **JSON columns** for flexible array storage (genres, actors, experiences)
-- **Composite primary keys** for showtimes (cinema + film + date + time)
+- **Composite primary keys** for showtimes (theater + movie + date + time)
 - **Indexes** for optimized query performance
 - **JSONB** for scrape report metadata
 
@@ -37,19 +37,19 @@ The database uses PostgreSQL 15+ with the following design principles:
 
 ## Tables
 
-### cinemas
+### theaters
 
-Stores cinema venue information.
+Stores theater venue information.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | TEXT | PRIMARY KEY | Cinema ID from the source website (e.g., `C0089`, `W7504`) |
-| `name` | TEXT | NOT NULL | Cinema name |
+| `id` | TEXT | PRIMARY KEY | Theater ID from the source website (e.g., `C0089`, `W7504`) |
+| `name` | TEXT | NOT NULL | Theater name |
 | `address` | TEXT | | Street address |
 | `postal_code` | TEXT | | Postal code |
 | `city` | TEXT | | City name |
 | `screen_count` | INTEGER | | Number of screens |
-| `image_url` | TEXT | | Cinema image URL |
+| `image_url` | TEXT | | Theater image URL |
 | `url` | TEXT | | Source website page URL for scraping (null = not scraped) |
 
 **Indexes:**
@@ -57,18 +57,18 @@ Stores cinema venue information.
 
 **Example:**
 ```sql
-SELECT * FROM cinemas WHERE id = 'W7504';
+SELECT * FROM theaters WHERE id = 'W7504';
 ```
 
 ---
 
-### films
+### movies
 
-Stores film metadata.
+Stores movie metadata.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | INTEGER | PRIMARY KEY | Film ID from the source website |
+| `id` | INTEGER | PRIMARY KEY | Movie ID from the source website |
 | `title` | TEXT | NOT NULL | French title |
 | `original_title` | TEXT | | Original title |
 | `poster_url` | TEXT | | Poster image URL |
@@ -79,11 +79,11 @@ Stores film metadata.
 | `nationality` | TEXT | | Country of origin |
 | `director` | TEXT | | Director name |
 | `actors` | TEXT | | JSON array of actor names |
-| `synopsis` | TEXT | | Film synopsis |
+| `synopsis` | TEXT | | Movie synopsis |
 | `certificate` | TEXT | | Age rating (TP, -12, -16, etc.) |
 | `press_rating` | REAL | | Press rating (0-5) |
 | `audience_rating` | REAL | | Audience rating (0-5) |
-| `source_url` | TEXT | | Source website film page URL |
+| `source_url` | TEXT | | Source website movie page URL |
 | `trailer_url` | TEXT | | Trailer URL (when available) |
 
 **Indexes:**
@@ -92,10 +92,10 @@ Stores film metadata.
 
 **Example:**
 ```sql
-SELECT * FROM films WHERE id = 123456;
+SELECT * FROM movies WHERE id = 123456;
 
 -- Search with trigram similarity
-SELECT * FROM films 
+SELECT * FROM movies 
 WHERE similarity(title, 'Matrix') > 0.3 
 ORDER BY similarity(title, 'Matrix') DESC;
 ```
@@ -108,9 +108,9 @@ Stores individual screening times.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | TEXT | PRIMARY KEY | Composite unique ID (`{cinema_id}-{film_id}-{date}-{time}`) |
-| `film_id` | INTEGER | FOREIGN KEY → `films.id` | Film being screened |
-| `cinema_id` | TEXT | FOREIGN KEY → `cinemas.id` | Cinema screening the film |
+| `id` | TEXT | PRIMARY KEY | Composite unique ID (`{theater_id}-{movie_id}-{date}-{time}`) |
+| `movie_id` | INTEGER | FOREIGN KEY → `movies.id` | Movie being screened |
+| `theater_id` | TEXT | FOREIGN KEY → `theaters.id` | Theater screening the movie |
 | `date` | TEXT | NOT NULL | Date in `YYYY-MM-DD` format |
 | `time` | TEXT | NOT NULL | Time in `HH:MM` format (24-hour) |
 | `datetime_iso` | TEXT | | Full ISO 8601 datetime with timezone |
@@ -121,26 +121,26 @@ Stores individual screening times.
 
 **Indexes:**
 - Primary key on `id`
-- `idx_showtimes_cinema_date` on `(cinema_id, date)` - Cinema schedule queries
-- `idx_showtimes_film_date` on `(film_id, date)` - Film showtime queries
+- `idx_showtimes_theater_date` on `(theater_id, date)` - Theater schedule queries
+- `idx_showtimes_movie_date` on `(movie_id, date)` - Movie showtime queries
 - `idx_showtimes_week` on `(week_start)` - Weekly program queries
 
 **Foreign Keys:**
-- `film_id` references `films(id)` ON DELETE CASCADE
-- `cinema_id` references `cinemas(id)` ON DELETE CASCADE
+- `movie_id` references `movies(id)` ON DELETE CASCADE
+- `theater_id` references `theaters(id)` ON DELETE CASCADE
 
 **Example:**
 ```sql
--- Get all showtimes for a cinema on a specific date
+-- Get all showtimes for a theater on a specific date
 SELECT * FROM showtimes 
-WHERE cinema_id = 'W7504' AND date = '2024-02-15'
+WHERE theater_id = 'W7504' AND date = '2024-02-15'
 ORDER BY time;
 
--- Get all showtimes for a film
-SELECT s.*, c.name AS cinema_name 
+-- Get all showtimes for a movie
+SELECT s.*, c.name AS theater_name 
 FROM showtimes s
-JOIN cinemas c ON s.cinema_id = c.id
-WHERE s.film_id = 123456
+JOIN theaters c ON s.theater_id = c.id
+WHERE s.movie_id = 123456
 ORDER BY s.date, s.time;
 ```
 
@@ -148,13 +148,13 @@ ORDER BY s.date, s.time;
 
 ### weekly_programs
 
-Tracks which films are playing at which cinemas per week.
+Tracks which movies are playing at which theaters per week.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | SERIAL | PRIMARY KEY | Auto-incrementing ID |
-| `cinema_id` | TEXT | FOREIGN KEY → `cinemas.id` | Cinema showing the film |
-| `film_id` | INTEGER | FOREIGN KEY → `films.id` | Film being shown |
+| `theater_id` | TEXT | FOREIGN KEY → `theaters.id` | Theater showing the movie |
+| `movie_id` | INTEGER | FOREIGN KEY → `movies.id` | Movie being shown |
 | `week_start` | TEXT | NOT NULL | Week start date (`YYYY-MM-DD`) |
 | `is_new_this_week` | INTEGER | DEFAULT 0 | Boolean flag (0/1) - Is this a new release? |
 | `scraped_at` | TEXT | | Scrape timestamp (ISO 8601) |
@@ -162,19 +162,19 @@ Tracks which films are playing at which cinemas per week.
 **Indexes:**
 - Primary key on `id`
 - `idx_weekly_programs_week` on `(week_start)` - Weekly queries
-- UNIQUE constraint on `(cinema_id, film_id, week_start)` - Prevent duplicates
+- UNIQUE constraint on `(theater_id, movie_id, week_start)` - Prevent duplicates
 
 **Foreign Keys:**
-- `cinema_id` references `cinemas(id)` ON DELETE CASCADE
-- `film_id` references `films(id)` ON DELETE CASCADE
+- `theater_id` references `theaters(id)` ON DELETE CASCADE
+- `movie_id` references `movies(id)` ON DELETE CASCADE
 
 **Example:**
 ```sql
--- Get all films playing this week at a cinema
+-- Get all movies playing this week at a theater
 SELECT f.*, wp.is_new_this_week
 FROM weekly_programs wp
-JOIN films f ON wp.film_id = f.id
-WHERE wp.cinema_id = 'W7504' AND wp.week_start = '2024-02-12'
+JOIN movies f ON wp.movie_id = f.id
+WHERE wp.theater_id = 'W7504' AND wp.week_start = '2024-02-12'
 ORDER BY wp.is_new_this_week DESC, f.title;
 ```
 
@@ -191,10 +191,10 @@ Logs scraping job execution details.
 | `completed_at` | TIMESTAMPTZ | | Job completion time (nullable if still running) |
 | `status` | TEXT | NOT NULL | Status: `running`, `success`, `partial_success`, `failed` |
 | `trigger_type` | TEXT | NOT NULL | Trigger: `manual`, `cron` |
-| `total_cinemas` | INTEGER | DEFAULT 0 | Number of cinemas attempted |
-| `successful_cinemas` | INTEGER | DEFAULT 0 | Successfully scraped cinemas |
-| `failed_cinemas` | INTEGER | DEFAULT 0 | Failed cinema scrapes |
-| `total_films_scraped` | INTEGER | DEFAULT 0 | Total films found |
+| `total_theaters` | INTEGER | DEFAULT 0 | Number of theaters attempted |
+| `successful_theaters` | INTEGER | DEFAULT 0 | Successfully scraped theaters |
+| `failed_theaters` | INTEGER | DEFAULT 0 | Failed theater scrapes |
+| `total_movies_scraped` | INTEGER | DEFAULT 0 | Total movies found |
 | `total_showtimes_scraped` | INTEGER | DEFAULT 0 | Total showtimes found |
 | `errors` | JSONB | DEFAULT '[]' | Array of error objects |
 | `progress_log` | JSONB | DEFAULT '[]' | Array of progress events (SSE events) |
@@ -270,18 +270,18 @@ SELECT COUNT(*) FROM users;
 ## Relationships
 
 ```
-cinemas (1) ──────┬─── (N) showtimes
+theaters (1) ──────┬─── (N) showtimes
                   │
                   └─── (N) weekly_programs
                            │
-films (1) ────────┴────────┘
+movies (1) ────────┴────────┘
       │
       └─── (N) showtimes
 ```
 
 **Cascade Behavior:**
-- Deleting a cinema → Deletes all its showtimes and weekly_programs
-- Deleting a film → Deletes all its showtimes and weekly_programs
+- Deleting a theater → Deletes all its showtimes and weekly_programs
+- Deleting a movie → Deletes all its showtimes and weekly_programs
 - Deleting a scrape_report → No cascades (reports are independent)
 - Deleting a user → No cascades (no user-owned data currently)
 
@@ -293,8 +293,8 @@ films (1) ────────┴────────┘
 
 | Table | Index Name | Columns | Purpose |
 |-------|-----------|---------|---------|
-| `showtimes` | `idx_showtimes_cinema_date` | `(cinema_id, date)` | Cinema schedule queries |
-| `showtimes` | `idx_showtimes_film_date` | `(film_id, date)` | Film showtime queries |
+| `showtimes` | `idx_showtimes_theater_date` | `(theater_id, date)` | Theater schedule queries |
+| `showtimes` | `idx_showtimes_movie_date` | `(movie_id, date)` | Movie showtime queries |
 | `showtimes` | `idx_showtimes_week` | `(week_start)` | Weekly program queries |
 | `weekly_programs` | `idx_weekly_programs_week` | `(week_start)` | Weekly queries |
 | `scrape_reports` | `idx_scrape_reports_started_at` | `(started_at DESC)` | Recent reports |
@@ -304,8 +304,8 @@ films (1) ────────┴────────┘
 
 | Table | Index Type | Columns | Purpose |
 |-------|-----------|---------|---------|
-| `films` | GIN (trigram) | `title` | Fuzzy search by title |
-| `films` | GIN (trigram) | `original_title` | Fuzzy search by original title |
+| `movies` | GIN (trigram) | `title` | Fuzzy search by title |
+| `movies` | GIN (trigram) | `original_title` | Fuzzy search by original title |
 
 **Trigram Search Extension:**
 The database uses the PostgreSQL `pg_trgm` extension for fuzzy text search. This enables:
@@ -319,7 +319,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Example fuzzy search
 SELECT title, similarity(title, 'Matirx') AS score
-FROM films
+FROM movies
 WHERE similarity(title, 'Matirx') > 0.3
 ORDER BY score DESC;
 ```
@@ -333,9 +333,9 @@ ORDER BY score DESC;
 Located in `server/src/db/schema.ts` (single-file schema for now).
 
 **Migration History:**
-1. **Initial schema** - Core tables (`cinemas`, `films`, `showtimes`, `weekly_programs`, `scrape_reports`)
+1. **Initial schema** - Core tables (`theaters`, `movies`, `showtimes`, `weekly_programs`, `scrape_reports`)
 2. **Users table** (v2.0.0) - Authentication support
-3. **Trigram indexes** - Fuzzy film search
+3. **Trigram indexes** - Fuzzy movie search
 
 ### Running Migrations
 
@@ -359,7 +359,7 @@ docker compose exec ics-db psql -U postgres -d ics
 
 # Inside psql:
 \dt                    # List tables
-\d cinemas             # Describe cinemas table
+\d theaters             # Describe theaters table
 \di                    # List indexes
 \df                    # List functions
 SELECT version();      # PostgreSQL version
@@ -369,48 +369,48 @@ SELECT version();      # PostgreSQL version
 
 ## Query Examples
 
-### Cinema Queries
+### Theater Queries
 
 ```sql
--- Get cinema with all showtimes for today
+-- Get theater with all showtimes for today
 SELECT c.*, 
        json_agg(s.*) AS showtimes
-FROM cinemas c
-LEFT JOIN showtimes s ON c.id = s.cinema_id
+FROM theaters c
+LEFT JOIN showtimes s ON c.id = s.theater_id
 WHERE s.date = CURRENT_DATE
 GROUP BY c.id;
 
--- Count showtimes per cinema
+-- Count showtimes per theater
 SELECT c.name, COUNT(s.id) AS showtime_count
-FROM cinemas c
-LEFT JOIN showtimes s ON c.id = s.cinema_id
+FROM theaters c
+LEFT JOIN showtimes s ON c.id = s.theater_id
 GROUP BY c.id, c.name
 ORDER BY showtime_count DESC;
 ```
 
-### Film Queries
+### Movie Queries
 
 ```sql
--- Get film with all showtimes
+-- Get movie with all showtimes
 SELECT f.*, 
        json_agg(
          json_build_object(
-           'cinema_id', c.id,
-           'cinema_name', c.name,
+           'theater_id', c.id,
+           'theater_name', c.name,
            'date', s.date,
            'time', s.time
          )
        ) AS showtimes
-FROM films f
-LEFT JOIN showtimes s ON f.id = s.film_id
-LEFT JOIN cinemas c ON s.cinema_id = c.id
+FROM movies f
+LEFT JOIN showtimes s ON f.id = s.movie_id
+LEFT JOIN theaters c ON s.theater_id = c.id
 WHERE f.id = 123456
 GROUP BY f.id;
 
 -- Find new releases this week
 SELECT f.*, wp.week_start
 FROM weekly_programs wp
-JOIN films f ON wp.film_id = f.id
+JOIN movies f ON wp.movie_id = f.id
 WHERE wp.is_new_this_week = 1
   AND wp.week_start = '2024-02-12'
 ORDER BY f.title;
@@ -420,10 +420,10 @@ ORDER BY f.title;
 
 ```sql
 -- Get showtimes for a specific date range
-SELECT s.*, f.title, c.name AS cinema_name
+SELECT s.*, f.title, c.name AS theater_name
 FROM showtimes s
-JOIN films f ON s.film_id = f.id
-JOIN cinemas c ON s.cinema_id = c.id
+JOIN movies f ON s.movie_id = f.id
+JOIN theaters c ON s.theater_id = c.id
 WHERE s.date BETWEEN '2024-02-15' AND '2024-02-21'
 ORDER BY s.date, s.time;
 

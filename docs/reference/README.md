@@ -9,8 +9,8 @@ Complete REST API documentation with endpoints, schemas, and examples.
 
 **Contents:**
 - Authentication and JWT tokens
-- Cinemas management
-- Films and showtimes
+- Theaters management
+- Movies and showtimes
 - Scraper control and progress tracking
 - Reports and statistics
 - Settings management
@@ -68,7 +68,7 @@ System design, architecture diagrams, and technical decisions.
 
 **Contents:**
 - System architecture overview
-- Scraper system design (in-process vs microservice)
+- Scraper system design (Redis microservice)
 - White-label system architecture
 - Database design
 - Observability stack
@@ -95,7 +95,7 @@ Performance tuning, caching strategies, and monitoring.
 
 ### API Endpoints
 - `POST /api/auth/login` - Authentication
-- `GET /api/cinemas` - List cinemas
+- `GET /api/theaters` - List theaters
 - `POST /api/scraper/start` - Start scraping
 - `GET /api/reports/showtimes` - Showtimes report
 - `GET /api/settings` - Public settings
@@ -103,8 +103,8 @@ Performance tuning, caching strategies, and monitoring.
 → [Full API Reference](./api/)
 
 ### Database Tables
-- `cinemas` - Cinema locations
-- `films` - Movie information
+- `theaters` - Theater locations
+- `movies` - Movie information
 - `showtimes` - Screening schedules
 - `scrape_sessions` - Scrape tracking
 - `users` - User accounts

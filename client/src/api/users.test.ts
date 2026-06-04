@@ -26,15 +26,13 @@ describe('Users API Client', () => {
       ];
 
       vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: mockUsers,
-        },
+        success: true,
+        data: mockUsers,
       });
 
       const result = await getUsers();
 
-      expect(apiClient.get).toHaveBeenCalledWith('/users', { params: {} });
+      expect(apiClient.get).toHaveBeenCalledWith('/users', {});
       expect(result).toEqual(mockUsers);
     });
 
@@ -44,26 +42,23 @@ describe('Users API Client', () => {
       ];
 
       vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: mockUsers,
-        },
+        success: true,
+        data: mockUsers,
       });
 
       const result = await getUsers({ limit: 10, offset: 20 });
 
-      expect(apiClient.get).toHaveBeenCalledWith('/users', { 
-        params: { limit: 10, offset: 20 } 
+      expect(apiClient.get).toHaveBeenCalledWith('/users', {
+        limit: 10,
+        offset: 20,
       });
       expect(result).toEqual(mockUsers);
     });
 
     it('should throw error when API returns error', async () => {
       vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          success: false,
-          error: 'Unauthorized',
-        },
+        success: false,
+        error: 'Unauthorized',
       });
 
       await expect(getUsers()).rejects.toThrow('Unauthorized');
@@ -71,9 +66,7 @@ describe('Users API Client', () => {
 
     it('should throw default error when API returns no error message', async () => {
       vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          success: false,
-        },
+        success: false,
       });
 
       await expect(getUsers()).rejects.toThrow('Failed to fetch users');
@@ -91,10 +84,8 @@ describe('Users API Client', () => {
       };
 
       vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: mockUser,
-        },
+        success: true,
+        data: mockUser,
       });
 
       const result = await getUserById(1);
@@ -105,10 +96,8 @@ describe('Users API Client', () => {
 
     it('should throw error when user not found', async () => {
       vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          success: false,
-          error: 'User not found',
-        },
+        success: false,
+        error: 'User not found',
       });
 
       await expect(getUserById(999)).rejects.toThrow('User not found');
@@ -132,10 +121,8 @@ describe('Users API Client', () => {
       };
 
       vi.mocked(apiClient.post).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: createdUser,
-        },
+        success: true,
+        data: createdUser,
       });
 
       const result = await createUser(newUser);
@@ -159,10 +146,8 @@ describe('Users API Client', () => {
       };
 
       vi.mocked(apiClient.post).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: createdUser,
-        },
+        success: true,
+        data: createdUser,
       });
 
       const result = await createUser(newUser);
@@ -177,10 +162,8 @@ describe('Users API Client', () => {
       };
 
       vi.mocked(apiClient.post).mockResolvedValueOnce({
-        data: {
-          success: false,
-          error: 'Username already exists',
-        },
+        success: false,
+        error: 'Username already exists',
       });
 
       await expect(createUser(newUser)).rejects.toThrow('Username already exists');
@@ -193,10 +176,8 @@ describe('Users API Client', () => {
       };
 
       vi.mocked(apiClient.post).mockResolvedValueOnce({
-        data: {
-          success: false,
-          error: 'Password must be at least 8 characters',
-        },
+        success: false,
+        error: 'Password must be at least 8 characters',
       });
 
       await expect(createUser(newUser)).rejects.toThrow('Password must be at least 8 characters');
@@ -214,10 +195,8 @@ describe('Users API Client', () => {
       };
 
       vi.mocked(apiClient.put).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: updatedUser,
-        },
+        success: true,
+        data: updatedUser,
       });
 
       const result = await updateUserRole(2, 1);
@@ -236,10 +215,8 @@ describe('Users API Client', () => {
       };
 
       vi.mocked(apiClient.put).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: updatedUser,
-        },
+        success: true,
+        data: updatedUser,
       });
 
       const result = await updateUserRole(1, 2);
@@ -249,10 +226,8 @@ describe('Users API Client', () => {
 
     it('should throw error when user not found', async () => {
       vi.mocked(apiClient.put).mockResolvedValueOnce({
-        data: {
-          success: false,
-          error: 'User not found',
-        },
+        success: false,
+        error: 'User not found',
       });
 
       await expect(updateUserRole(999, 1)).rejects.toThrow('User not found');
@@ -260,7 +235,7 @@ describe('Users API Client', () => {
   });
 
   describe('resetUserPassword', () => {
-    it('should reset user password and return new password', async () => {
+    it('should send client-generated password and return user info', async () => {
       const mockResponse = {
         user: {
           id: 2,
@@ -269,41 +244,35 @@ describe('Users API Client', () => {
           role_name: 'user',
           created_at: '2024-01-02T00:00:00Z',
         },
-        newPassword: 'Abc123!@#$%^&*()',
       };
 
       vi.mocked(apiClient.post).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: mockResponse,
-        },
+        success: true,
+        data: mockResponse,
       });
 
-      const result = await resetUserPassword(2);
+      const newPassword = 'Abc123!@#$%^&*()';
+      const result = await resetUserPassword(2, newPassword);
 
-      expect(apiClient.post).toHaveBeenCalledWith('/users/2/reset-password');
+      expect(apiClient.post).toHaveBeenCalledWith('/users/2/reset-password', { newPassword });
       expect(result).toEqual(mockResponse);
-      expect(result.newPassword).toHaveLength(16);
+      expect(result).not.toHaveProperty('newPassword');
     });
 
     it('should throw error when user not found', async () => {
       vi.mocked(apiClient.post).mockResolvedValueOnce({
-        data: {
-          success: false,
-          error: 'User not found',
-        },
+        success: false,
+        error: 'User not found',
       });
 
-      await expect(resetUserPassword(999)).rejects.toThrow('User not found');
+      await expect(resetUserPassword(999, 'Abc123!@#$%^&*()')).rejects.toThrow('User not found');
     });
   });
 
   describe('deleteUser', () => {
     it('should delete user successfully', async () => {
       vi.mocked(apiClient.delete).mockResolvedValueOnce({
-        data: {
-          success: true,
-        },
+        success: true,
       });
 
       await deleteUser(2);
@@ -313,10 +282,8 @@ describe('Users API Client', () => {
 
     it('should throw error when trying to delete self', async () => {
       vi.mocked(apiClient.delete).mockResolvedValueOnce({
-        data: {
-          success: false,
-          error: 'Cannot delete your own account',
-        },
+        success: false,
+        error: 'Cannot delete your own account',
       });
 
       await expect(deleteUser(1)).rejects.toThrow('Cannot delete your own account');
@@ -324,10 +291,8 @@ describe('Users API Client', () => {
 
     it('should throw error when trying to delete last admin', async () => {
       vi.mocked(apiClient.delete).mockResolvedValueOnce({
-        data: {
-          success: false,
-          error: 'Cannot delete the last admin user',
-        },
+        success: false,
+        error: 'Cannot delete the last admin user',
       });
 
       await expect(deleteUser(1)).rejects.toThrow('Cannot delete the last admin user');
@@ -335,10 +300,8 @@ describe('Users API Client', () => {
 
     it('should throw error when user not found', async () => {
       vi.mocked(apiClient.delete).mockResolvedValueOnce({
-        data: {
-          success: false,
-          error: 'User not found',
-        },
+        success: false,
+        error: 'User not found',
       });
 
       await expect(deleteUser(999)).rejects.toThrow('User not found');

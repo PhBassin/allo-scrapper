@@ -4,8 +4,8 @@ import { generateRandomPassword } from './user-queries.js';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
 import { fileURLToPath } from 'url';
+import { hashPassword } from '../utils/password.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -273,7 +273,7 @@ async function handleAdminSeed(db: DB): Promise<void> {
 
   // Create new admin user with random password
   const password = generateRandomPassword();
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await hashPassword(password);
 
   await db.query(
     `INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)`,
@@ -285,12 +285,12 @@ async function handleAdminSeed(db: DB): Promise<void> {
   logger.warn('🔐 DEFAULT ADMIN USER CREATED');
   logger.warn('═══════════════════════════════════════════════════════════');
   logger.warn('Username: admin');
-  logger.warn(`Password: ${password}`);
+  console.log(`Password: ${password}`);
   logger.warn('═══════════════════════════════════════════════════════════');
   logger.warn('⚠️  SECURITY WARNING:');
   logger.warn('1. Save this password immediately');
   logger.warn('2. Change it after first login');
-  logger.warn('3. This password will NOT be shown again');
+  logger.warn('3. This password will NOT be logged or shown again');
   logger.warn('═══════════════════════════════════════════════════════════');
 }
 
@@ -337,7 +337,7 @@ async function handleAdminRoleIdSeed(db: DB): Promise<void> {
   // No admin user exists — create one (only possible on a completely fresh DB
   // where migration 007 was never applied)
   const password = generateRandomPassword();
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await hashPassword(password);
 
   await db.query(
     `INSERT INTO users (username, password_hash, role_id) VALUES ($1, $2, $3)`,
@@ -349,11 +349,11 @@ async function handleAdminRoleIdSeed(db: DB): Promise<void> {
   logger.warn('🔐 DEFAULT ADMIN USER CREATED');
   logger.warn('═══════════════════════════════════════════════════════════');
   logger.warn('Username: admin');
-  logger.warn(`Password: ${password}`);
+  console.log(`Password: ${password}`);
   logger.warn('═══════════════════════════════════════════════════════════');
   logger.warn('⚠️  SECURITY WARNING:');
   logger.warn('1. Save this password immediately');
   logger.warn('2. Change it after first login');
-  logger.warn('3. This password will NOT be shown again');
+  logger.warn('3. This password will NOT be logged or shown again');
   logger.warn('═══════════════════════════════════════════════════════════');
 }

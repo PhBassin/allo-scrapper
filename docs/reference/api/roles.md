@@ -49,9 +49,9 @@ Returns all roles with their assigned permissions.
     {
       "id": 2,
       "name": "operator",
-      "description": "Opérateur — scraping et gestion des cinémas",
+      "description": "Opérateur — scraping et gestion des theaters",
       "is_system": true,
-      "permissions": ["scraper:trigger", "cinemas:create", "..."]
+      "permissions": ["scraper:trigger", "theaters:create", "..."]
     }
   ]
 }
@@ -96,12 +96,12 @@ Returns a specific role with its full permission list.
   "data": {
     "id": 2,
     "name": "operator",
-    "description": "Opérateur — scraping et gestion des cinémas",
+    "description": "Opérateur — scraping et gestion des theaters",
     "is_system": true,
     "permissions": [
       { "id": 5, "name": "scraper:trigger", "category": "scraper" },
       { "id": 6, "name": "scraper:trigger_single", "category": "scraper" },
-      { "id": 7, "name": "cinemas:create", "category": "cinemas" }
+      { "id": 7, "name": "theaters:create", "category": "theaters" }
     ]
   }
 }
@@ -136,8 +136,8 @@ Creates a new custom role. System roles (`is_system = true`) cannot be created v
 
 ```json
 {
-  "name": "cinema_manager",
-  "description": "Manages cinema data only"
+  "name": "theater_manager",
+  "description": "Manages theater data only"
 }
 ```
 
@@ -156,8 +156,8 @@ Creates a new custom role. System roles (`is_system = true`) cannot be created v
   "success": true,
   "data": {
     "id": 3,
-    "name": "cinema_manager",
-    "description": "Manages cinema data only",
+    "name": "theater_manager",
+    "description": "Manages theater data only",
     "is_system": false,
     "permissions": []
   }
@@ -176,7 +176,7 @@ Creates a new custom role. System roles (`is_system = true`) cannot be created v
 curl -X POST http://localhost:3000/api/roles \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name": "cinema_manager", "description": "Manages cinema data only"}'
+  -d '{"name": "theater_manager", "description": "Manages theater data only"}'
 ```
 
 ---
@@ -202,8 +202,8 @@ Updates a custom role's name or description. System roles (`is_system = true`) c
 
 ```json
 {
-  "name": "cinema_editor",
-  "description": "Edits cinema data only"
+  "name": "theater_editor",
+  "description": "Edits theater data only"
 }
 ```
 
@@ -215,8 +215,8 @@ Updates a custom role's name or description. System roles (`is_system = true`) c
   "success": true,
   "data": {
     "id": 3,
-    "name": "cinema_editor",
-    "description": "Edits cinema data only",
+    "name": "theater_editor",
+    "description": "Edits theater data only",
     "is_system": false
   }
 }
@@ -235,7 +235,7 @@ Updates a custom role's name or description. System roles (`is_system = true`) c
 curl -X PUT http://localhost:3000/api/roles/3 \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name": "cinema_editor", "description": "Edits cinema data only"}'
+  -d '{"name": "theater_editor", "description": "Edits theater data only"}'
 ```
 
 ---
@@ -301,10 +301,10 @@ Replaces the full permission set for a role. The provided array becomes the new 
 ```json
 {
   "permissions": [
-    "cinemas:create",
-    "cinemas:update",
-    "cinemas:delete",
-    "cinemas:read",
+    "theaters:create",
+    "theaters:update",
+    "theaters:delete",
+    "theaters:read",
     "scraper:trigger_single"
   ]
 }
@@ -318,12 +318,12 @@ Replaces the full permission set for a role. The provided array becomes the new 
   "success": true,
   "data": {
     "id": 3,
-    "name": "cinema_manager",
+    "name": "theater_manager",
     "permissions": [
-      "cinemas:create",
-      "cinemas:update",
-      "cinemas:delete",
-      "cinemas:read",
+      "theaters:create",
+      "theaters:update",
+      "theaters:delete",
+      "theaters:read",
       "scraper:trigger_single"
     ]
   }
@@ -344,9 +344,9 @@ curl -X PUT http://localhost:3000/api/roles/3/permissions \
   -H "Content-Type: application/json" \
   -d '{
     "permissions": [
-      "cinemas:create",
-      "cinemas:update",
-      "cinemas:read",
+      "theaters:create",
+      "theaters:update",
+      "theaters:read",
       "scraper:trigger_single"
     ]
   }'
@@ -381,17 +381,17 @@ Returns all available permissions grouped by category. Use this to populate a pe
     ],
     "scraper": [
       { "id": 6, "name": "scraper:trigger", "description": "Trigger global scraping job" },
-      { "id": 7, "name": "scraper:trigger_single", "description": "Trigger scraping for a single cinema" },
+      { "id": 7, "name": "scraper:trigger_single", "description": "Trigger scraping for a single theater" },
       { "id": 8, "name": "scraper:schedules:list", "description": "View list of scrape schedules" },
       { "id": 9, "name": "scraper:schedules:create", "description": "Create new scrape schedules" },
       { "id": 10, "name": "scraper:schedules:update", "description": "Modify existing scrape schedules" },
       { "id": 11, "name": "scraper:schedules:delete", "description": "Delete scrape schedules" }
     ],
-    "cinemas": [
-      { "id": 12, "name": "cinemas:create", "description": "Add new cinemas" },
-      { "id": 13, "name": "cinemas:update", "description": "Modify cinema information" },
-      { "id": 14, "name": "cinemas:delete", "description": "Remove cinemas" },
-      { "id": 15, "name": "cinemas:read", "description": "View cinemas list and details" }
+    "theaters": [
+      { "id": 12, "name": "theaters:create", "description": "Add new theaters" },
+      { "id": 13, "name": "theaters:update", "description": "Modify theater information" },
+      { "id": 14, "name": "theaters:delete", "description": "Remove theaters" },
+      { "id": 15, "name": "theaters:read", "description": "View theaters list and details" }
     ],
     "settings": [
       { "id": 16, "name": "settings:read", "description": "View admin settings" },

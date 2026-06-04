@@ -38,10 +38,10 @@ POST /api/auth/login
         "users:read",
         "scraper:trigger",
         "scraper:trigger_single",
-        "cinemas:create",
-        "cinemas:update",
-        "cinemas:delete",
-        "cinemas:read",
+        "theaters:create",
+        "theaters:update",
+        "theaters:delete",
+        "theaters:read",
         "settings:read",
         "settings:update",
         "settings:reset",
@@ -254,15 +254,15 @@ curl -X POST http://localhost:3000/api/auth/login \
 
 All JWT tokens issued by the `/api/auth/login` endpoint have a configurable expiration time:
 
-- **Default**: 24 hours from issue time
+- **Default**: 1 hour from issue time
 - **Configuration**: Set via `JWT_EXPIRES_IN` environment variable
-- **Format**: Any valid `jsonwebtoken` duration string (e.g., `24h`, `7d`, `30m`)
+- **Format**: Any valid `jsonwebtoken` duration string (e.g., `1h`, `7d`, `30m`)
 - **Algorithm**: HS256 (HMAC with SHA-256)
 - **No Refresh Tokens**: Users must re-login after expiry
 
 **Example Configuration:**
 ```env
-JWT_EXPIRES_IN=24h  # Default: 24 hours
+JWT_EXPIRES_IN=1h  # Default: 1 hour
 JWT_EXPIRES_IN=7d   # Alternative: 7 days
 JWT_EXPIRES_IN=30m  # Alternative: 30 minutes
 ```
