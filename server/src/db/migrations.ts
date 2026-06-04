@@ -144,12 +144,24 @@ export async function applyMigration(db: DB, filename: string): Promise<void> {
 
   // Special handling for admin seed migration
   if (filename === '007_seed_default_admin.sql') {
-    await handleAdminSeed(db);
+    try {
+      await handleAdminSeed(db);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(`Admin seed handler failed (migration 007): ${msg}`);
+      throw error;
+    }
   }
 
   // Special handling for permission-based roles migration
   if (filename === '008_permission_based_roles.sql') {
-    await handleAdminRoleIdSeed(db);
+    try {
+      await handleAdminRoleIdSeed(db);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(`Admin role seed handler failed (migration 008): ${msg}`);
+      throw error;
+    }
   }
 
   logger.info(`Migration ${filename} completed successfully`);
