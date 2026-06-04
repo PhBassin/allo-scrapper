@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.7.1] - 2026-06-04
+
+### Fixed
+
+- fix(logging): use template literals so Winston JSON captures error messages (#1135) [@PhBassin](https://github.com/PhBassin) (7551f17)
+- fix(logging): use template literals so Winston JSON captures error messages (#1132) [@PhBassin](https://github.com/PhBassin) (2de014a)
+- fix(logging): use template literals so Winston JSON captures error messages [@phbassin](https://github.com/phbassin) (e250285)
+
+### Documentation
+
+- docs: condense AGENTS.md from 987 to 116 lines (#1134) [@PhBassin](https://github.com/PhBassin) (d460c0b)
+- docs: condense AGENTS.md from 987 to 116 lines [@phbassin](https://github.com/phbassin) (2bf5425)
+
 ## [4.7.0] - 2026-06-04
 
 ### Added
@@ -863,6 +876,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.7.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.0...v4.7.1
 [4.7.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.7...v4.7.0
 [4.6.7]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.6...v4.6.7
 [4.6.6]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.5...v4.6.6
