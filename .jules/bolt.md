@@ -29,3 +29,7 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+
+## 2026-06-06 - [Batched Queries with ANY($1::int[]) to fix N+1 in Node/Postgres]
+**Learning:** Found a severe N+1 database bottleneck in `getAllRoles` (`server/src/db/role-queries.ts`). It used `Promise.all` with an array `.map()` to fetch permissions for each role sequentially. This caused an excessive number of roundtrips to the DB.
+**Action:** Replaced the mapped `Promise.all` queries with a single batched query using the Postgres array parameter syntax: `WHERE foreign_id = ANY($1::int[])`. This required modifying the returned fields to include the foreign key (`role_id`), then grouping the related permissions by role in memory using a fast plain object map (`Object.create(null)`). Also, corresponding unit tests must be updated to expect a single, combined result set when mocking the batched DB call instead of sequentially chained mock responses.

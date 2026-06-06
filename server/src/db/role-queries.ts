@@ -29,13 +29,38 @@ export async function getAllRoles(db: DB): Promise<RoleWithPermissions[]> {
     return [];
   }
 
-  // ⚡ PERFORMANCE: Run independent DB queries concurrently to prevent N+1 bottleneck
-  const rolesWithPermissions = await Promise.all(
-    rolesResult.rows.map(async (role) => {
-      const permissions = await fetchPermissionsForRole(db, role.id);
-      return { ...role, permissions };
-    })
+  const roleIds = rolesResult.rows.map(role => role.id);
+
+  // ⚡ PERFORMANCE: Use a single batched query with ANY to eliminate N+1 overhead
+  const permissionsResult = await db.query<Permission & { role_id: number }>(
+    `SELECT p.id, p.name, p.description, p.category, p.created_at, rp.role_id
+     FROM permissions p
+     JOIN role_permissions rp ON rp.permission_id = p.id
+     WHERE rp.role_id = ANY($1::int[])
+     ORDER BY p.category, p.name`,
+    [roleIds]
   );
+
+  // Group permissions by role efficiently
+  const permissionsByRole: Record<number, Permission[]> = Object.create(null);
+  for (let i = 0; i < roleIds.length; i++) {
+    permissionsByRole[roleIds[i]] = [];
+  }
+
+  for (let i = 0; i < permissionsResult.rows.length; i++) {
+    const row = permissionsResult.rows[i];
+    const { role_id, ...permission } = row;
+    permissionsByRole[role_id].push(permission as Permission);
+  }
+
+  const rolesWithPermissions: RoleWithPermissions[] = [];
+  for (let i = 0; i < rolesResult.rows.length; i++) {
+    const role = rolesResult.rows[i];
+    rolesWithPermissions.push({
+      ...role,
+      permissions: permissionsByRole[role.id],
+    });
+  }
 
   return rolesWithPermissions;
 }
