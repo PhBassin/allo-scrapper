@@ -4,7 +4,7 @@ import { logger } from '../utils/logger.js';
 
 // --- Database Row Interfaces ---
 
-export interface MovieRow {
+interface MovieRow {
   id: number;
   title: string;
   original_title: string | null;
