@@ -23,6 +23,19 @@ test.describe('User Management', () => {
     await page.waitForSelector('text=User Management');
   }
 
+  async function createTestUser(page: any, prefix: string) {
+    const timestamp = Date.now();
+    const username = `${prefix}${timestamp}`;
+
+    await page.click('button:has-text("Create User")');
+    await page.fill('input[name="username"]', username);
+    await page.fill('input[name="password"]', 'TestPass123!');
+    await page.click('button:has-text("Create")');
+    await page.waitForSelector(`text=${username}`);
+
+    return username;
+  }
+
   test.describe('Access Control', () => {
     test('non-admin users cannot access users page', async ({ page }) => {
       // Create and login as regular user first (assuming test database has a regular user)
@@ -122,22 +135,7 @@ test.describe('User Management', () => {
       await loginAsAdmin(page);
       await navigateToUsersPage(page);
 
-      // Generate unique username
-      const timestamp = Date.now();
-      const username = `testuser${timestamp}`;
-
-      // Click Create User button
-      await page.click('button:has-text("Create User")');
-
-      // Fill form
-      await page.fill('input[name="username"]', username);
-      await page.fill('input[name="password"]', 'TestPass123!');
-
-      // Submit form
-      await page.click('button:has-text("Create")');
-
-      // Wait for modal to close and user to appear in table
-      await page.waitForSelector(`text=${username}`, { timeout: 10000 });
+      const username = await createTestUser(page, 'testuser');
 
       // Verify user appears in table
       await expect(page.locator(`text=${username}`)).toBeVisible();
@@ -206,15 +204,7 @@ test.describe('User Management', () => {
       await loginAsAdmin(page);
       await navigateToUsersPage(page);
 
-      // First create a regular user
-      const timestamp = Date.now();
-      const username = `roletest${timestamp}`;
-
-      await page.click('button:has-text("Create User")');
-      await page.fill('input[name="username"]', username);
-      await page.fill('input[name="password"]', 'TestPass123!');
-      await page.click('button:has-text("Create")');
-      await page.waitForSelector(`text=${username}`);
+      const username = await createTestUser(page, 'roletest');
 
       // Find the user row and click Change Role
       const userRow = page.locator(`tr:has-text("${username}")`);
@@ -250,15 +240,7 @@ test.describe('User Management', () => {
       await loginAsAdmin(page);
       await navigateToUsersPage(page);
 
-      // Create a test user first
-      const timestamp = Date.now();
-      const username = `passreset${timestamp}`;
-
-      await page.click('button:has-text("Create User")');
-      await page.fill('input[name="username"]', username);
-      await page.fill('input[name="password"]', 'TestPass123!');
-      await page.click('button:has-text("Create")');
-      await page.waitForSelector(`text=${username}`);
+      const username = await createTestUser(page, 'passreset');
 
       // Find the user row and click Reset Password
       const userRow = page.locator(`tr:has-text("${username}")`);
@@ -278,15 +260,7 @@ test.describe('User Management', () => {
       await loginAsAdmin(page);
       await navigateToUsersPage(page);
 
-      // Create a test user
-      const timestamp = Date.now();
-      const username = `copytest${timestamp}`;
-
-      await page.click('button:has-text("Create User")');
-      await page.fill('input[name="username"]', username);
-      await page.fill('input[name="password"]', 'TestPass123!');
-      await page.click('button:has-text("Create")');
-      await page.waitForSelector(`text=${username}`);
+      const username = await createTestUser(page, 'copytest');
 
       // Reset password
       const userRow = page.locator(`tr:has-text("${username}")`);
@@ -308,15 +282,7 @@ test.describe('User Management', () => {
       await loginAsAdmin(page);
       await navigateToUsersPage(page);
 
-      // Create a test user to delete
-      const timestamp = Date.now();
-      const username = `deletetest${timestamp}`;
-
-      await page.click('button:has-text("Create User")');
-      await page.fill('input[name="username"]', username);
-      await page.fill('input[name="password"]', 'TestPass123!');
-      await page.click('button:has-text("Create")');
-      await page.waitForSelector(`text=${username}`);
+      const username = await createTestUser(page, 'deletetest');
 
       // Find the user row and click Delete
       const userRow = page.locator(`tr:has-text("${username}")`);
@@ -341,15 +307,7 @@ test.describe('User Management', () => {
       await loginAsAdmin(page);
       await navigateToUsersPage(page);
 
-      // Create a test user
-      const timestamp = Date.now();
-      const username = `canceltest${timestamp}`;
-
-      await page.click('button:has-text("Create User")');
-      await page.fill('input[name="username"]', username);
-      await page.fill('input[name="password"]', 'TestPass123!');
-      await page.click('button:has-text("Create")');
-      await page.waitForSelector(`text=${username}`);
+      const username = await createTestUser(page, 'canceltest');
 
       // Click delete
       const userRow = page.locator(`tr:has-text("${username}")`);
