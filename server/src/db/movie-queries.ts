@@ -26,7 +26,7 @@ export interface MovieRow {
   trailer_url: string | null;
 }
 
-export interface WeeklyMovieRow extends MovieRow {
+interface WeeklyMovieRow extends MovieRow {
   theater_id: string;
   theater_name: string;
   theater_address: string | null;
@@ -40,7 +40,7 @@ export interface WeeklyMovieRow extends MovieRow {
  * Sanitize numeric fields in a Movie object to prevent NaN/Infinity from being inserted.
  * Converts NaN and Infinity to null with warning logs.
  */
-export function sanitizeNumericValue(value: number | undefined | null, fieldName: string, movieId: number): number | null {
+function sanitizeNumericValue(value: number | undefined | null, fieldName: string, movieId: number): number | null {
   if (value === undefined || value === null) return null;
   
   if (!Number.isFinite(value)) {

@@ -35,62 +35,6 @@ export async function createScrapeReport(
   return result.rows[0].id;
 }
 
-// Update a scrape report
-export async function updateScrapeReport(
-  db: DB,
-  reportId: number,
-  data: Partial<Omit<ScrapeReport, 'id' | 'started_at'>>
-): Promise<void> {
-  const fields: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  if (data.completed_at !== undefined) {
-    fields.push(`completed_at = $${paramIndex++}`);
-    values.push(data.completed_at);
-  }
-  if (data.status) {
-    fields.push(`status = $${paramIndex++}`);
-    values.push(data.status);
-  }
-  if (data.total_theaters !== undefined) {
-    fields.push(`total_theaters = $${paramIndex++}`);
-    values.push(data.total_theaters);
-  }
-  if (data.successful_theaters !== undefined) {
-    fields.push(`successful_theaters = $${paramIndex++}`);
-    values.push(data.successful_theaters);
-  }
-  if (data.failed_theaters !== undefined) {
-    fields.push(`failed_theaters = $${paramIndex++}`);
-    values.push(data.failed_theaters);
-  }
-  if (data.total_movies_scraped !== undefined) {
-    fields.push(`total_movies_scraped = $${paramIndex++}`);
-    values.push(data.total_movies_scraped);
-  }
-  if (data.total_showtimes_scraped !== undefined) {
-    fields.push(`total_showtimes_scraped = $${paramIndex++}`);
-    values.push(data.total_showtimes_scraped);
-  }
-  if (data.errors !== undefined) {
-    fields.push(`errors = $${paramIndex++}`);
-    values.push(JSON.stringify(data.errors));
-  }
-  if (data.progress_log !== undefined) {
-    fields.push(`progress_log = $${paramIndex++}`);
-    values.push(JSON.stringify(data.progress_log));
-  }
-
-  if (fields.length === 0) return;
-
-  values.push(reportId);
-  await db.query(
-    `UPDATE scrape_reports SET ${fields.join(', ')} WHERE id = $${paramIndex}`,
-    values
-  );
-}
-
 // Get a scrape report by ID
 export async function getScrapeReport(db: DB, reportId: number): Promise<ScrapeReport | undefined> {
   const result = await db.query<ScrapeReport>(
