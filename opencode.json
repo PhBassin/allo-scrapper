@@ -3,9 +3,17 @@
   "tools": {
     "skill": true
   },
+  "mcp": {
+    "fallow": {
+      "type": "local",
+      "command": ["npx", "fallow-mcp"],
+      "enabled": true,
+      "timeout": 30000
+    }
+  },
   "permission": {
     "skill": {
       "*": "allow"
     }
-  },
+  }
 }
