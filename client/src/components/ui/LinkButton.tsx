@@ -1,6 +1,6 @@
 import React from 'react';
 
-export interface LinkButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface LinkButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'danger' | 'success' | 'warning';
   children: React.ReactNode;
 }
