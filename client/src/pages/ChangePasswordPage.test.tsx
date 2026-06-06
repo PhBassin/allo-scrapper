@@ -156,7 +156,7 @@ describe('ChangePasswordPage', () => {
 
     renderChangePasswordPage();
 
-    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
+    const { submitButton } = getFormElements();
 
     fillFormAndSubmit();
 
@@ -172,8 +172,6 @@ describe('ChangePasswordPage', () => {
     });
 
     renderChangePasswordPage();
-
-    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
 
     fillFormAndSubmit();
 
@@ -195,8 +193,6 @@ describe('ChangePasswordPage', () => {
     vi.useFakeTimers();
     
     renderChangePasswordPage();
-
-    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
 
     fillFormAndSubmit();
 
@@ -222,8 +218,6 @@ describe('ChangePasswordPage', () => {
 
     renderChangePasswordPage();
 
-    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
-
     fillFormAndSubmit();
 
     await waitFor(() => {
@@ -242,7 +236,6 @@ describe('ChangePasswordPage', () => {
     const currentPasswordInput = screen.getByLabelText(/current password/i) as HTMLInputElement;
     const newPasswordInput = screen.getByLabelText(/^new password$/i) as HTMLInputElement;
     const confirmPasswordInput = screen.getByLabelText(/confirm new password/i) as HTMLInputElement;
-    const submitButton = screen.getByRole('button', { name: /change password/i });
 
     fillFormAndSubmit();
 
@@ -260,12 +253,7 @@ describe('ChangePasswordPage', () => {
 
     renderChangePasswordPage();
 
-    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
-
-    fireEvent.change(currentPasswordInput, { target: { value: 'WrongPass123!' } });
-    fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.click(submitButton);
+    fillFormAndSubmit({ currentPassword: 'WrongPass123!' });
 
     await waitFor(() => {
       expect(screen.getByText(/current password is incorrect/i)).toBeInTheDocument();
@@ -276,8 +264,6 @@ describe('ChangePasswordPage', () => {
     (apiClient.post as any).mockRejectedValue(new Error('Network error'));
 
     renderChangePasswordPage();
-
-    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
 
     fillFormAndSubmit();
 
