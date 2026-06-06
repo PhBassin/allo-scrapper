@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import apiClient from './client';
+import apiClient from './core';
 import type { RoleWithPermissions, Permission, PermissionCategoryLabel } from '../types/role';
 import { RoleWithPermissionsSchema, PermissionSchema, PermissionCategoryLabelSchema } from '../schemas/role';
 
