@@ -74,14 +74,3 @@ export async function updateTheater(id: string, data: TheaterUpdate): Promise<Th
 export async function deleteTheater(id: string): Promise<void> {
   await apiClient.delete(`/theaters/${id}`);
 }
-
-/**
- * Sync theaters from the database to the JSON config file (admin only).
- */
-export async function syncTheaters(): Promise<void> {
-  const response = await apiClient.post<ApiResponse<void>>('/theaters/sync');
-
-  if (!response.success) {
-    throw new Error(response.error || 'Failed to sync theaters');
-  }
-}
