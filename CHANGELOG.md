@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.7.2] - 2026-06-06
+
+### Maintenance
+
+- chore(deps): add fallow code analysis tool and generate project context (#1137) [@PhBassin](https://github.com/PhBassin) (df5ca07)
+- chore(deps): add fallow code analysis tool and generated project context [@phbassin](https://github.com/phbassin) (be4ff0d)
+
 ## [4.7.1] - 2026-06-04
 
 ### Fixed
@@ -876,6 +883,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.7.2]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.1...v4.7.2
 [4.7.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.0...v4.7.1
 [4.7.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.7...v4.7.0
 [4.6.7]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.6...v4.6.7
