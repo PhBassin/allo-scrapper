@@ -65,10 +65,6 @@ export interface ShowtimeWithMovie extends Showtime {
   movie: Movie;
 }
 
-export interface MovieWithTheaters extends Movie {
-  theaters: Theater[];
-}
-
 export interface TheaterWithShowtimes extends Theater {
   showtimes: Showtime[];
 }

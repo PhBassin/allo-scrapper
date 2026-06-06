@@ -47,14 +47,6 @@ export interface RateLimitAuditLog {
   offset: number;
 }
 
-export interface ValidationConstraint {
-  min: number;
-  max: number;
-  unit: string;
-}
-
-export type ValidationConstraints = Record<keyof RateLimitConfig, ValidationConstraint>;
-
 // ============================================================================
 // RATE LIMITS API FUNCTIONS
 // ============================================================================
@@ -110,17 +102,6 @@ export async function getRateLimitAuditLog(params?: {
   
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to fetch audit log');
-  }
-  return response.data;
-}
-
-/**
- * Get validation constraints for rate limit fields
- */
-export async function getValidationConstraints(): Promise<ValidationConstraints> {
-  const response = await apiClient.get<ApiResponse<ValidationConstraints>>('/admin/rate-limits/constraints');
-  if (!response.success || !response.data) {
-    throw new Error(response.error || 'Failed to fetch validation constraints');
   }
   return response.data;
 }

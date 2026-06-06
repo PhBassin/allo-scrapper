@@ -19,10 +19,6 @@ export interface UserCreate {
   role_id?: number;
 }
 
-export interface UserRoleUpdate {
-  role_id: number;
-}
-
 export interface PasswordResetResult {
   user: UserPublic;
 }

@@ -321,16 +321,6 @@ export async function triggerTheaterScrape(theaterId: string): Promise<{ reportI
   return response.data;
 }
 
-export async function triggerMovieScrape(movieId: number): Promise<{ reportId: number; message: string }> {
-  const response = await apiClient.post<ApiResponse<{ reportId: number; message: string }>>('/scraper/trigger', {
-    movieId,
-  });
-  if (!response.success || !response.data) {
-    throw new Error(response.error || 'Failed to trigger movie scrape');
-  }
-  return response.data;
-}
-
 export async function getScrapeStatus(): Promise<ScrapeStatus> {
   const response = await apiClient.get<ApiResponse<ScrapeStatus>>('/scraper/status');
   if (!response.success || !response.data) {
@@ -372,14 +362,6 @@ export async function getSchedules(): Promise<ScrapeSchedule[]> {
   const response = await apiClient.get<ApiResponse<ScrapeSchedule[]>>('/scraper/schedules');
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to fetch schedules');
-  }
-  return response.data;
-}
-
-export async function getSchedule(id: number): Promise<ScrapeSchedule> {
-  const response = await apiClient.get<ApiResponse<ScrapeSchedule>>(`/scraper/schedules/${id}`);
-  if (!response.success || !response.data) {
-    throw new Error(response.error || 'Failed to fetch schedule');
   }
   return response.data;
 }

@@ -16,11 +16,11 @@ if (!connectionString && !process.env.POSTGRES_PASSWORD) {
   throw new Error('Either DATABASE_URL or POSTGRES_PASSWORD environment variable is required');
 }
 
-export const pool = new pg.Pool(
+const pool = new pg.Pool(
   connectionString ? { connectionString } : config
 );
 
-export interface TransactionClient {
+interface TransactionClient {
   query: (text: string, params?: any[]) => Promise<pg.QueryResult<any>>;
 }
 

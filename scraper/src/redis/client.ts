@@ -140,7 +140,7 @@ export class RedisJobConsumer {
 // RedisScheduleSubscriber – listens for schedule change events
 // ---------------------------------------------------------------------------
 
-export class RedisScheduleSubscriber {
+class RedisScheduleSubscriber {
   private client: Redis;
 
   constructor(redisUrl: string) {
