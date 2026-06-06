@@ -45,6 +45,7 @@ router.post('/', protectedLimiter, requireAuth, requirePermission('theaters:crea
         };
         return res.status(201).json(response);
       } catch (error: any) {
+        if (error instanceof ValidationError) return next(error);
         return next(new ValidationError(error.message));
       }
     }
@@ -61,13 +62,8 @@ router.post('/', protectedLimiter, requireAuth, requirePermission('theaters:crea
       };
       return res.status(201).json(response);
     } catch (error: any) {
-      if (
-        error.message.includes('Invalid') || 
-        error.message.includes('too long') || 
-        error.message.includes('Missing') ||
-        error.message.includes('Name must be a string between') ||
-        error.message.includes('already exists')
-      ) {
+      if (error instanceof ValidationError) return next(error);
+      if (error.message.includes('already exists')) {
         return next(new ValidationError(error.message));
       }
       return next(error);
@@ -92,6 +88,7 @@ router.put('/:id', protectedLimiter, requireAuth, requirePermission('theaters:up
       };
       return res.json(response);
     } catch (error: any) {
+      if (error instanceof ValidationError) return next(error);
       if (error.message.includes('not found')) {
         return next(new NotFoundError(error.message));
       }
