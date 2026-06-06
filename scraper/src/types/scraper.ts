@@ -78,11 +78,11 @@ export interface MovieShowtimeData {
   is_new_this_week: boolean;
 }
 
-export interface TheaterWithShowtimes extends Theater {
+interface TheaterWithShowtimes extends Theater {
   showtimes: Showtime[];
 }
 
-export interface MovieWithShowtimes extends Movie {
+interface MovieWithShowtimes extends Movie {
   theaters: TheaterWithShowtimes[];
 }
 

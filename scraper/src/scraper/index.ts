@@ -21,7 +21,7 @@ export interface ProgressPublisher {
 }
 
 // No-op publisher for standalone use
-export class NoopProgressPublisher implements ProgressPublisher {
+class NoopProgressPublisher implements ProgressPublisher {
   async emit(_event: ProgressEvent): Promise<void> {}
 }
 
@@ -40,7 +40,7 @@ export async function loadTheaterMetadata(
 /**
  * Scraper un theater pour une date donnée (backward compatibility wrapper).
  */
-export async function scrapeTheater(
+async function scrapeTheater(
   db: DB,
   theater: TheaterConfig,
   date: string,

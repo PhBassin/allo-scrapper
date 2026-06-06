@@ -10,7 +10,7 @@
  * without introducing cross-package dependencies.
  */
 
-export function getCurrentWeekStart(): string {
+function getCurrentWeekStart(): string {
   const today = new Date();
   const dayOfWeek = today.getDay();
 
@@ -24,9 +24,9 @@ export function getCurrentWeekStart(): string {
   return wednesday.toISOString().split('T')[0];
 }
 
-export const getWeekStart = getCurrentWeekStart;
+const getWeekStart = getCurrentWeekStart;
 
-export function getWeekDates(weekStart?: string, numDays: number = 7): string[] {
+function getWeekDates(weekStart?: string, numDays: number = 7): string[] {
   const start = weekStart ? new Date(weekStart) : new Date(getCurrentWeekStart());
 
   const validatedDays = Math.max(1, Math.min(14, numDays));
@@ -45,7 +45,7 @@ export function getWeekDates(weekStart?: string, numDays: number = 7): string[] 
   return dates;
 }
 
-export function getTodayDate(): string {
+function getTodayDate(): string {
   const today = new Date();
   return today.toISOString().split('T')[0];
 }
@@ -83,7 +83,7 @@ export function getScrapeDates(
 /**
  * Parse a YYYY-MM-DD string as a local date (not UTC).
  */
-export function parseLocalDate(dateStr: string): Date {
+function parseLocalDate(dateStr: string): Date {
   return new Date(dateStr + 'T00:00:00');
 }
 
