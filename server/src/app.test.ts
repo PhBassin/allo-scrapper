@@ -22,6 +22,21 @@ vi.mock('./middleware/auth.js', () => ({
 
 import * as themeGenerator from './services/theme-generator.js';
 
+function mockHealthyDb(app: Express, resolve = true) {
+  const mockQuery = vi.fn();
+  if (resolve) {
+    mockQuery.mockResolvedValue({ rows: [{ result: 1 }] });
+  } else {
+    mockQuery.mockRejectedValue(new Error('Connection refused'));
+  }
+  const dbWithMock: DB = {
+    query: mockQuery,
+    end: vi.fn()
+  } as unknown as DB;
+  app.set('db', dbWithMock);
+  return { mockQuery };
+}
+
 describe('App - Theme Endpoint', () => {
   let app: Express;
   const mockDb: DB = {} as DB;
@@ -132,14 +147,7 @@ describe('App - Theme Endpoint', () => {
 
   describe('GET /api/health', () => {
     it('should return healthy status when database is accessible', async () => {
-      // Mock successful database query
-      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
-      const dbWithMock: DB = { 
-        query: mockQuery,
-        end: vi.fn()
-      } as unknown as DB;
-      
-      app.set('db', dbWithMock);
+      const { mockQuery } = mockHealthyDb(app);
 
       const res = await request(app)
         .get('/api/health')
@@ -153,13 +161,7 @@ describe('App - Theme Endpoint', () => {
     });
 
     it('should return cached status within TTL', async () => {
-      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
-      const dbWithMock: DB = {
-        query: mockQuery,
-        end: vi.fn()
-      } as unknown as DB;
-      
-      app.set('db', dbWithMock);
+      const { mockQuery } = mockHealthyDb(app);
 
       // First request - hits database
       const res1 = await request(app)
@@ -179,13 +181,7 @@ describe('App - Theme Endpoint', () => {
     });
 
     it('should return unhealthy status when database query fails', async () => {
-      const mockQuery = vi.fn().mockRejectedValue(new Error('Connection refused'));
-      const dbWithMock: DB = {
-        query: mockQuery,
-        end: vi.fn()
-      } as unknown as DB;
-      
-      app.set('db', dbWithMock);
+      const { mockQuery } = mockHealthyDb(app, false);
 
       const res = await request(app)
         .get('/api/health')
@@ -197,13 +193,7 @@ describe('App - Theme Endpoint', () => {
     });
 
     it('should include rate limit headers', async () => {
-      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
-      const dbWithMock: DB = {
-        query: mockQuery,
-        end: vi.fn()
-      } as unknown as DB;
-      
-      app.set('db', dbWithMock);
+      const { mockQuery } = mockHealthyDb(app);
 
       const res = await request(app)
         .get('/api/health')
@@ -266,13 +256,7 @@ describe('App - Theme Endpoint', () => {
 
   describe('Content Security Policy', () => {
     it('should allow Google Fonts stylesheets in CSP style-src-elem', async () => {
-      // Mock DB for health check
-      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
-      const dbWithMock: DB = { 
-        query: mockQuery,
-        end: vi.fn()
-      } as unknown as DB;
-      app.set('db', dbWithMock);
+      mockHealthyDb(app);
 
       const res = await request(app)
         .get('/api/health')
@@ -286,13 +270,7 @@ describe('App - Theme Endpoint', () => {
     });
 
     it('should allow Google Fonts CDN in CSP font-src', async () => {
-      // Mock DB for health check
-      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
-      const dbWithMock: DB = { 
-        query: mockQuery,
-        end: vi.fn()
-      } as unknown as DB;
-      app.set('db', dbWithMock);
+      mockHealthyDb(app);
 
       const res = await request(app)
         .get('/api/health')
@@ -306,13 +284,7 @@ describe('App - Theme Endpoint', () => {
     });
 
     it('should include upgrade-insecure-requests directive', async () => {
-      // Mock DB for health check
-      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
-      const dbWithMock: DB = { 
-        query: mockQuery,
-        end: vi.fn()
-      } as unknown as DB;
-      app.set('db', dbWithMock);
+      mockHealthyDb(app);
 
       const res = await request(app)
         .get('/api/health')
@@ -326,13 +298,7 @@ describe('App - Theme Endpoint', () => {
     });
 
     it('should maintain existing CSP directives', async () => {
-      // Mock DB for health check
-      const mockQuery = vi.fn().mockResolvedValue({ rows: [{ result: 1 }] });
-      const dbWithMock: DB = { 
-        query: mockQuery,
-        end: vi.fn()
-      } as unknown as DB;
-      app.set('db', dbWithMock);
+      mockHealthyDb(app);
 
       const res = await request(app)
         .get('/api/health')

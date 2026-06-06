@@ -22,6 +22,31 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+function renderChangePasswordPage() {
+  render(
+    <MemoryRouter>
+      <ChangePasswordPage />
+    </MemoryRouter>
+  );
+}
+
+function getFormElements() {
+  return {
+    currentPasswordInput: screen.getByLabelText(/current password/i),
+    newPasswordInput: screen.getByLabelText(/^new password$/i),
+    confirmPasswordInput: screen.getByLabelText(/confirm new password/i),
+    submitButton: screen.getByRole('button', { name: /change password/i }),
+  };
+}
+
+function fillFormAndSubmit(overrides?: { currentPassword?: string; newPassword?: string; confirmPassword?: string }) {
+  const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
+  fireEvent.change(currentPasswordInput, { target: { value: overrides?.currentPassword ?? 'OldPass123!' } });
+  fireEvent.change(newPasswordInput, { target: { value: overrides?.newPassword ?? 'NewPass123!' } });
+  fireEvent.change(confirmPasswordInput, { target: { value: overrides?.confirmPassword ?? 'NewPass123!' } });
+  fireEvent.click(submitButton);
+}
+
 describe('ChangePasswordPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -29,11 +54,7 @@ describe('ChangePasswordPage', () => {
   });
 
   it('should render all form fields', () => {
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
     expect(screen.getByLabelText(/current password/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^new password$/i)).toBeInTheDocument();
@@ -43,11 +64,7 @@ describe('ChangePasswordPage', () => {
   });
 
   it('should show password strength requirements hint', () => {
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
     expect(screen.getByText(/at least 8 characters/i)).toBeInTheDocument();
     expect(screen.getByText(/one uppercase letter/i)).toBeInTheDocument();
@@ -57,11 +74,7 @@ describe('ChangePasswordPage', () => {
   });
 
   it('should show dynamic validation icons that update as user types', async () => {
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
     const newPasswordInput = screen.getByLabelText(/^new password$/i);
 
@@ -105,16 +118,9 @@ describe('ChangePasswordPage', () => {
   });
 
   it('should show error if passwords do not match', async () => {
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
-    const currentPasswordInput = screen.getByLabelText(/current password/i);
-    const newPasswordInput = screen.getByLabelText(/^new password$/i);
-    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
-    const submitButton = screen.getByRole('button', { name: /change password/i });
+    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
 
     fireEvent.change(currentPasswordInput, { target: { value: 'OldPass123!' } });
     fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
@@ -129,16 +135,9 @@ describe('ChangePasswordPage', () => {
   });
 
   it('should show error if password does not meet requirements', async () => {
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
-    const currentPasswordInput = screen.getByLabelText(/current password/i);
-    const newPasswordInput = screen.getByLabelText(/^new password$/i);
-    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
-    const submitButton = screen.getByRole('button', { name: /change password/i });
+    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
 
     fireEvent.change(currentPasswordInput, { target: { value: 'OldPass123!' } });
     fireEvent.change(newPasswordInput, { target: { value: 'weak' } });
@@ -155,21 +154,11 @@ describe('ChangePasswordPage', () => {
   it('should disable submit button during loading', async () => {
     (apiClient.post as any).mockImplementation(() => new Promise(() => {})); // Never resolves
 
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
-    const currentPasswordInput = screen.getByLabelText(/current password/i);
-    const newPasswordInput = screen.getByLabelText(/^new password$/i);
-    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
-    const submitButton = screen.getByRole('button', { name: /change password/i });
+    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
 
-    fireEvent.change(currentPasswordInput, { target: { value: 'OldPass123!' } });
-    fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.click(submitButton);
+    fillFormAndSubmit();
 
     await waitFor(() => {
       expect(submitButton).toBeDisabled();
@@ -182,21 +171,11 @@ describe('ChangePasswordPage', () => {
       data: { message: 'Password changed successfully' },
     });
 
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
-    const currentPasswordInput = screen.getByLabelText(/current password/i);
-    const newPasswordInput = screen.getByLabelText(/^new password$/i);
-    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
-    const submitButton = screen.getByRole('button', { name: /change password/i });
+    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
 
-    fireEvent.change(currentPasswordInput, { target: { value: 'OldPass123!' } });
-    fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.click(submitButton);
+    fillFormAndSubmit();
 
      await waitFor(() => {
        expect(apiClient.post).toHaveBeenCalledWith('/auth/change-password', {
@@ -215,21 +194,11 @@ describe('ChangePasswordPage', () => {
     // Use fake timers to control setTimeout
     vi.useFakeTimers();
     
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
-    const currentPasswordInput = screen.getByLabelText(/current password/i);
-    const newPasswordInput = screen.getByLabelText(/^new password$/i);
-    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
-    const submitButton = screen.getByRole('button', { name: /change password/i });
+    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
 
-    fireEvent.change(currentPasswordInput, { target: { value: 'OldPass123!' } });
-    fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.click(submitButton);
+    fillFormAndSubmit();
 
     await vi.waitFor(() => {
       expect(screen.getByText(/password changed successfully/i)).toBeInTheDocument();
@@ -251,21 +220,11 @@ describe('ChangePasswordPage', () => {
       data: { message: 'Password changed successfully' },
     });
 
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
-    const currentPasswordInput = screen.getByLabelText(/current password/i);
-    const newPasswordInput = screen.getByLabelText(/^new password$/i);
-    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
-    const submitButton = screen.getByRole('button', { name: /change password/i });
+    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
 
-    fireEvent.change(currentPasswordInput, { target: { value: 'OldPass123!' } });
-    fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.click(submitButton);
+    fillFormAndSubmit();
 
     await waitFor(() => {
       expect(screen.getByText(/password changed successfully/i)).toBeInTheDocument();
@@ -278,21 +237,14 @@ describe('ChangePasswordPage', () => {
       data: { message: 'Password changed successfully' },
     });
 
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
     const currentPasswordInput = screen.getByLabelText(/current password/i) as HTMLInputElement;
     const newPasswordInput = screen.getByLabelText(/^new password$/i) as HTMLInputElement;
     const confirmPasswordInput = screen.getByLabelText(/confirm new password/i) as HTMLInputElement;
     const submitButton = screen.getByRole('button', { name: /change password/i });
 
-    fireEvent.change(currentPasswordInput, { target: { value: 'OldPass123!' } });
-    fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.click(submitButton);
+    fillFormAndSubmit();
 
     await waitFor(() => {
       expect(currentPasswordInput.value).toBe('');
@@ -306,16 +258,9 @@ describe('ChangePasswordPage', () => {
     error.data = { error: 'Current password is incorrect' };
     (apiClient.post as any).mockRejectedValue(error);
 
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
-    const currentPasswordInput = screen.getByLabelText(/current password/i);
-    const newPasswordInput = screen.getByLabelText(/^new password$/i);
-    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
-    const submitButton = screen.getByRole('button', { name: /change password/i });
+    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
 
     fireEvent.change(currentPasswordInput, { target: { value: 'WrongPass123!' } });
     fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
@@ -330,21 +275,11 @@ describe('ChangePasswordPage', () => {
   it('should handle network errors gracefully', async () => {
     (apiClient.post as any).mockRejectedValue(new Error('Network error'));
 
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
-    const currentPasswordInput = screen.getByLabelText(/current password/i);
-    const newPasswordInput = screen.getByLabelText(/^new password$/i);
-    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
-    const submitButton = screen.getByRole('button', { name: /change password/i });
+    const { currentPasswordInput, newPasswordInput, confirmPasswordInput, submitButton } = getFormElements();
 
-    fireEvent.change(currentPasswordInput, { target: { value: 'OldPass123!' } });
-    fireEvent.change(newPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'NewPass123!' } });
-    fireEvent.click(submitButton);
+    fillFormAndSubmit();
 
     await waitFor(() => {
       expect(screen.getByText(/unexpected error/i)).toBeInTheDocument();
@@ -352,11 +287,7 @@ describe('ChangePasswordPage', () => {
   });
 
   it('should navigate to home on cancel', () => {
-    render(
-      <MemoryRouter>
-        <ChangePasswordPage />
-      </MemoryRouter>
-    );
+    renderChangePasswordPage();
 
     const cancelButton = screen.getByRole('button', { name: /cancel/i });
     fireEvent.click(cancelButton);

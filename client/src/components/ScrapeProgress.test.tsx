@@ -9,6 +9,11 @@ vi.mock('../hooks/useScrapeProgress', () => ({
   useScrapeProgress: vi.fn(),
 }));
 
+function renderWithState(mockUseScrapeProgress: ReturnType<typeof vi.fn>, state: ProgressState) {
+  mockUseScrapeProgress.mockReturnValue({ ...state, reset: vi.fn() });
+  return render(<ScrapeProgress />);
+}
+
 describe('ScrapeProgress', () => {
   let mockUseScrapeProgress: ReturnType<typeof vi.fn>;
 
@@ -22,15 +27,12 @@ describe('ScrapeProgress', () => {
 
   it('should show loading state when connected but no events yet', () => {
     // This tests Bug 1 fix: should NOT return null when events.length === 0
-    const mockState: ProgressState = {
+    renderWithState(mockUseScrapeProgress, {
       isConnected: true,
       events: [],
       latestEvent: undefined,
       error: undefined,
-    };
-    mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
-
-    render(<ScrapeProgress />);
+    });
 
     // Should show loading/connecting state
     expect(screen.getByText(/connexion en cours/i)).toBeInTheDocument();
@@ -38,21 +40,18 @@ describe('ScrapeProgress', () => {
   });
 
   it('should show loading state when not connected', () => {
-    const mockState: ProgressState = {
+    renderWithState(mockUseScrapeProgress, {
       isConnected: false,
       events: [],
       latestEvent: undefined,
       error: undefined,
-    };
-    mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
-
-    render(<ScrapeProgress />);
+    });
 
     expect(screen.getByText(/connexion en cours/i)).toBeInTheDocument();
   });
 
   it('should show progress details when events are received', () => {
-    const mockState: ProgressState = {
+    renderWithState(mockUseScrapeProgress, {
       isConnected: true,
       events: [
         { type: 'started', total_theaters: 3, total_dates: 7 },
@@ -60,10 +59,7 @@ describe('ScrapeProgress', () => {
       ],
       latestEvent: { type: 'theater_started', theater_id: 'W7504', theater_name: 'Épée de Bois', index: 0 },
       error: undefined,
-    };
-    mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
-
-    render(<ScrapeProgress />);
+    });
 
     // Should show progress UI
     expect(screen.getByText(/scraping en cours/i)).toBeInTheDocument();
@@ -72,7 +68,7 @@ describe('ScrapeProgress', () => {
   });
 
   it('should show completed state when scrape finishes', () => {
-    const mockState: ProgressState = {
+    renderWithState(mockUseScrapeProgress, {
       isConnected: true,
       events: [
         { type: 'started', total_theaters: 2, total_dates: 7 },
@@ -100,16 +96,13 @@ describe('ScrapeProgress', () => {
         errors: [] 
       }},
       error: undefined,
-    };
-    mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
-
-    render(<ScrapeProgress />);
+    });
 
     expect(screen.getByText(/scraping terminé/i)).toBeInTheDocument();
   });
 
   it('should show failed state when scrape fails', () => {
-    const mockState: ProgressState = {
+    renderWithState(mockUseScrapeProgress, {
       isConnected: true,
       events: [
         { type: 'started', total_theaters: 1, total_dates: 7 },
@@ -117,24 +110,18 @@ describe('ScrapeProgress', () => {
       ],
       latestEvent: { type: 'failed', error: 'Network error' },
       error: undefined,
-    };
-    mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
-
-    render(<ScrapeProgress />);
+    });
 
     expect(screen.getByText(/scraping échoué/i)).toBeInTheDocument();
   });
 
   it('should display error message when hook reports an error', () => {
-    const mockState: ProgressState = {
+    renderWithState(mockUseScrapeProgress, {
       isConnected: false,
       events: [],
       latestEvent: undefined,
       error: 'Connection failed',
-    };
-    mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
-
-    render(<ScrapeProgress />);
+    });
 
     // Should still show loading state with error display
     expect(screen.getByText(/connexion en cours/i)).toBeInTheDocument();
@@ -142,13 +129,12 @@ describe('ScrapeProgress', () => {
 
   it('should call onComplete callback when passed as prop', () => {
     const onComplete = vi.fn();
-    const mockState: ProgressState = {
+    renderWithState(mockUseScrapeProgress, {
       isConnected: true,
       events: [],
       latestEvent: undefined,
       error: undefined,
-    };
-    mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
+    });
 
     render(<ScrapeProgress onComplete={onComplete} />);
 
@@ -157,7 +143,7 @@ describe('ScrapeProgress', () => {
   });
 
   it('should show current theater being processed', () => {
-    const mockState: ProgressState = {
+    renderWithState(mockUseScrapeProgress, {
       isConnected: true,
       events: [
         { type: 'started', total_theaters: 3, total_dates: 7 },
@@ -165,16 +151,13 @@ describe('ScrapeProgress', () => {
       ],
       latestEvent: { type: 'theater_started', theater_id: 'W7504', theater_name: 'Épée de Bois', index: 0 },
       error: undefined,
-    };
-    mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
-
-    render(<ScrapeProgress />);
+    });
 
     expect(screen.getByText(/en cours: Épée de Bois/i)).toBeInTheDocument();
   });
 
   it('should show current film being processed', () => {
-    const mockState: ProgressState = {
+    renderWithState(mockUseScrapeProgress, {
       isConnected: true,
       events: [
         { type: 'started', total_theaters: 1, total_dates: 7 },
@@ -182,17 +165,14 @@ describe('ScrapeProgress', () => {
       ],
       latestEvent: { type: 'movie_started', movie_id: 123, movie_title: 'Test Film' },
       error: undefined,
-    };
-    mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
-
-    render(<ScrapeProgress />);
+    });
 
     expect(screen.getByText(/en cours: Test Film/i)).toBeInTheDocument();
   });
 
   it('should keep showing completed state even after SSE disconnects', () => {
     // This tests the fix: completed state should remain visible even when isConnected = false
-    const mockState: ProgressState = {
+    renderWithState(mockUseScrapeProgress, {
       isConnected: false, // SSE connection closed
       events: [
         { type: 'started', total_theaters: 1, total_dates: 7 },
@@ -219,10 +199,7 @@ describe('ScrapeProgress', () => {
         errors: [] 
       }},
       error: undefined,
-    };
-    mockUseScrapeProgress.mockReturnValue({ ...mockState, reset: vi.fn() });
-
-    render(<ScrapeProgress />);
+    });
 
     // Should show completed state, NOT "Connexion en cours..."
     expect(screen.getByText(/scraping terminé/i)).toBeInTheDocument();
@@ -233,7 +210,7 @@ describe('ScrapeProgress', () => {
   });
 
   it('should display reload message when scrape completes successfully', () => {
-    const mockState: ProgressState = {
+    const { getByText } = renderWithState(mockUseScrapeProgress, {
       isConnected: true,
       events: [
         {
@@ -263,14 +240,7 @@ describe('ScrapeProgress', () => {
           errors: [],
         },
       },
-    };
-
-    mockUseScrapeProgress.mockReturnValue({
-      ...mockState,
-      reset: vi.fn(),
     });
-
-    const { getByText } = render(<ScrapeProgress />);
 
     // Verify completion message is displayed
     expect(getByText(/Scraping terminé/)).toBeInTheDocument();
@@ -282,7 +252,7 @@ describe('ScrapeProgress', () => {
   it('should keep reload message visible even after SSE disconnects', () => {
     // Simulate state after SSE disconnect (isConnected = false)
     // but with completed event still in events array
-    const mockState: ProgressState = {
+    const { getByText, queryByText } = renderWithState(mockUseScrapeProgress, {
       isConnected: false, // SSE disconnected
       events: [
         {
@@ -312,14 +282,7 @@ describe('ScrapeProgress', () => {
           errors: [],
         },
       },
-    };
-
-    mockUseScrapeProgress.mockReturnValue({
-      ...mockState,
-      reset: vi.fn(),
     });
-
-    const { getByText, queryByText } = render(<ScrapeProgress />);
 
     // Should NOT show "Connexion en cours..." (loading state)
     expect(queryByText(/Connexion en cours/)).not.toBeInTheDocument();
