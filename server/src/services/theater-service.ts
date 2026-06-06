@@ -1,9 +1,20 @@
 import { getShowtimesByTheaterAndWeek } from '../db/showtime-queries.js';
 import { createScrapeReport } from '../db/report-queries.js';
 import { getTheaters, addTheater, updateTheaterConfig, deleteTheater } from '../db/theater-queries.js';
-import { isValidAllocineUrl, extractTheaterIdFromUrl, cleanTheaterUrl } from '../utils/url.js';
+import { extractTheaterIdFromUrl, cleanTheaterUrl } from '../utils/url.js';
 import { getRedisClient } from './redis-client.js';
 import { logger } from '../utils/logger.js';
+import {
+  validateTheaterId,
+  validateTheaterName,
+  validateTheaterUrl,
+  validateOptionalUrl,
+  validateAddress,
+  validatePostalCode,
+  validateCity,
+  validateScreenCount,
+  validateAtLeastOneField,
+} from './theater-validator.js';
 import type { DB } from '../db/client.js';
 
 export class TheaterService {
@@ -18,13 +29,7 @@ export class TheaterService {
   }
 
   async addTheaterViaUrl(url: string) {
-    if (url.length > 2048) {
-      throw new Error('URL is too long (max 2048 characters)');
-    }
-
-    if (!isValidAllocineUrl(url)) {
-      throw new Error('Invalid Allocine URL. Must be https://www.allocine.fr/...');
-    }
+    validateTheaterUrl(url);
 
     const theaterId = extractTheaterIdFromUrl(url);
     if (!theaterId) {
@@ -45,25 +50,9 @@ export class TheaterService {
   }
 
   async addTheaterManual(id: string, name: string, url: string) {
-    if (typeof id !== 'string' || !/^[A-Za-z0-9]+$/.test(id)) {
-      throw new Error('Invalid ID format. Must be alphanumeric string.');
-    }
-
-    if (id.length > 20) {
-      throw new Error('ID is too long (max 20 characters)');
-    }
-
-    if (typeof name !== 'string' || name.length > 100) {
-      throw new Error('Name must be a string between 1 and 100 characters');
-    }
-
-    if (typeof url !== 'string' || url.length > 2048) {
-      throw new Error('URL is too long (max 2048 characters)');
-    }
-
-    if (!isValidAllocineUrl(url)) {
-      throw new Error('Invalid Allocine URL. Must be https://www.allocine.fr/...');
-    }
+    validateTheaterId(id);
+    validateTheaterName(name);
+    validateTheaterUrl(url);
 
     try {
       return await addTheater(this.db, { id, name, url });
@@ -81,50 +70,14 @@ export class TheaterService {
   ) {
     const { name, url, address, postal_code, city, screen_count } = data;
 
-    if (!name && !url && !address && postal_code === undefined && !city && screen_count === undefined) {
-      throw new Error('At least one field must be provided: name, url, address, postal_code, city, screen_count');
-    }
+    validateAtLeastOneField(data, ['name', 'url', 'address', 'postal_code', 'city', 'screen_count']);
 
-    if (name && (typeof name !== 'string' || name.length > 100)) {
-      throw new Error('Name must be a string between 1 and 100 characters');
-    }
-
-    if (url && (typeof url !== 'string' || url.length > 2048)) {
-      throw new Error('URL is too long (max 2048 characters)');
-    }
-
-    if (url && !isValidAllocineUrl(url)) {
-      throw new Error('Invalid Allocine URL. Must be https://www.allocine.fr/...');
-    }
-
-    if (address !== undefined && (typeof address !== 'string' || address.length > 200)) {
-      throw new Error('Address must be at most 200 characters');
-    }
-
-    if (postal_code !== undefined) {
-      if (typeof postal_code !== 'string' || postal_code.length > 10) {
-        throw new Error('Postal code must be at most 10 characters');
-      }
-      if (postal_code && !/^[a-zA-Z0-9]+$/.test(postal_code)) {
-        throw new Error('Postal code must be alphanumeric');
-      }
-    }
-
-    if (city !== undefined && (typeof city !== 'string' || city.length > 100)) {
-      throw new Error('City must be at most 100 characters');
-    }
-
-    if (screen_count !== undefined && screen_count !== null) {
-      if (typeof screen_count !== 'number') {
-        throw new Error('Screen count must be a number');
-      }
-      if (!Number.isInteger(screen_count)) {
-        throw new Error('Screen count must be an integer');
-      }
-      if (screen_count < 1 || screen_count > 50) {
-        throw new Error('Screen count must be between 1 and 50');
-      }
-    }
+    if (name) validateTheaterName(name);
+    validateOptionalUrl(url);
+    validateAddress(address);
+    validatePostalCode(postal_code);
+    validateCity(city);
+    validateScreenCount(screen_count);
 
     const updates: any = {};
     if (name) updates.name = name;
