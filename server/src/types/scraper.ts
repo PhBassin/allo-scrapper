@@ -61,33 +61,10 @@ export interface TheaterConfig {
   url: string;
 }
 
-// Data parsed from theater page
-export interface TheaterPageData {
-  theater: Theater;
-  movies: MovieShowtimeData[];
-  dates: string[]; // Available dates
-  selected_date: string;
-}
-
-// Movie data with its showtimes on theater page
-export interface MovieShowtimeData {
-  movie: Movie;
-  showtimes: Showtime[];
-  is_new_this_week: boolean;
-}
-
 export interface TheaterWithShowtimes extends Theater {
   showtimes: Showtime[];
 }
 
 export interface MovieWithShowtimes extends Movie {
   theaters: TheaterWithShowtimes[];
-}
-
-// Data parsed from movie details page
-export interface MoviePageData {
-  duration_minutes?: number;
-  trailer_url?: string;
-  director?: string;
-  screenwriters?: string[];
 }

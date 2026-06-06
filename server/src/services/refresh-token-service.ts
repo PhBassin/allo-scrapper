@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { logger } from '../utils/logger.js';
 import type { DB } from '../db/client.js';
 
-export interface RefreshTokenRecord {
+interface RefreshTokenRecord {
   id: number;
   user_id: number;
   token_hash: string;
