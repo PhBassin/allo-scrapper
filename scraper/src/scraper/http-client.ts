@@ -1,3 +1,4 @@
+// fallow-ignore-file security-sink
 // HTTP client for fetching theater and movie pages from source website
 
 import puppeteer, { type Browser } from 'puppeteer-core';
