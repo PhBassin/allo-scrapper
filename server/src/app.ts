@@ -48,8 +48,10 @@ export function createApp() {
   // Security: Helmet with strict CSP (no unsafe-inline/unsafe-eval in script-src)
   // Note: style-src keeps unsafe-inline for React inline styles in 3 components
   // (ScrapeProgress, ColorPicker, FontSelector use dynamic inline styles)
-  // upgradeInsecureRequests is enabled to force HTTPS; HSTS is handled by helmet defaults.
+  // HSTS + upgradeInsecureRequests are production-only (behind an HTTPS reverse proxy).
+  const isProduction = process.env.NODE_ENV === 'production';
   app.use(helmet({
+      strictTransportSecurity: isProduction,
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
@@ -63,7 +65,7 @@ export function createApp() {
           baseUri: ["'self'"], // Prevent <base> tag injection
           formAction: ["'self'"], // Restrict form submissions
           frameAncestors: ["'none'"], // Prevent clickjacking (like X-Frame-Options)
-          upgradeInsecureRequests: [],
+          ...(isProduction ? { upgradeInsecureRequests: [] } : {}),
         },
       },
     })
