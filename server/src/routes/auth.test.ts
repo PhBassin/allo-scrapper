@@ -516,4 +516,29 @@ describe('Auth Routes', () => {
             expect(response.body.success).toBe(true);
         });
     });
+
+    describe('COOKIE_SECURE environment variable', () => {
+        it('should set csrf_token with Secure flag by default (when COOKIE_SECURE not false)', async () => {
+            // This test verifies the default behavior when COOKIE_SECURE is not explicitly set to 'false'
+            const mockUser = await createMockUser('admin', 1, 'admin', true, 'password123');
+
+            const response = await request(app)
+                .post('/api/auth/login')
+                .send({ username: 'admin', password: 'password123' });
+
+            expect(response.status).toBe(200);
+            const setCookieHeaders = response.headers['set-cookie'];
+            const cookies = Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders];
+
+            const csrfCookie = cookies.find((c: string) => c.startsWith('csrf_token='));
+            expect(csrfCookie).toBeDefined();
+            
+            // If COOKIE_SECURE is not explicitly 'false', Secure flag should be present
+            if (process.env.COOKIE_SECURE !== 'false') {
+                expect(csrfCookie).toContain('Secure');
+            } else {
+                expect(csrfCookie).not.toContain('Secure');
+            }
+        });
+    });
 });
