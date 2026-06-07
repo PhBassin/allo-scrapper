@@ -9,6 +9,17 @@ vi.mock('../hooks/useScrapeProgress', () => ({
   useScrapeProgress: vi.fn(),
 }));
 
+const completedSummary = {
+  total_theaters: 1,
+  successful_theaters: 1,
+  failed_theaters: 0,
+  total_movies: 5,
+  total_showtimes: 10,
+  total_dates: 7,
+  duration_ms: 5000,
+  errors: [] as any[],
+};
+
 function renderWithState(mockUseScrapeProgress: ReturnType<typeof vi.fn>, state: ProgressState) {
   mockUseScrapeProgress.mockReturnValue({ ...state, reset: vi.fn() });
   return render(<ScrapeProgress />);
@@ -212,34 +223,8 @@ describe('ScrapeProgress', () => {
   it('should display reload message when scrape completes successfully', () => {
     const { getByText } = renderWithState(mockUseScrapeProgress, {
       isConnected: true,
-      events: [
-        {
-          type: 'completed',
-          summary: {
-            total_theaters: 1,
-            successful_theaters: 1,
-            failed_theaters: 0,
-            total_movies: 5,
-            total_showtimes: 10,
-            total_dates: 7,
-            duration_ms: 5000,
-            errors: [],
-          },
-        },
-      ],
-      latestEvent: {
-        type: 'completed',
-        summary: {
-          total_theaters: 1,
-          successful_theaters: 1,
-          failed_theaters: 0,
-          total_movies: 5,
-          total_showtimes: 10,
-          total_dates: 7,
-          duration_ms: 5000,
-          errors: [],
-        },
-      },
+      events: [{ type: 'completed', summary: completedSummary }],
+      latestEvent: { type: 'completed', summary: completedSummary },
     });
 
     // Verify completion message is displayed
@@ -254,34 +239,8 @@ describe('ScrapeProgress', () => {
     // but with completed event still in events array
     const { getByText, queryByText } = renderWithState(mockUseScrapeProgress, {
       isConnected: false, // SSE disconnected
-      events: [
-        {
-          type: 'completed',
-          summary: {
-            total_theaters: 1,
-            successful_theaters: 1,
-            failed_theaters: 0,
-            total_movies: 5,
-            total_showtimes: 10,
-            total_dates: 7,
-            duration_ms: 5000,
-            errors: [],
-          },
-        },
-      ],
-      latestEvent: {
-        type: 'completed',
-        summary: {
-          total_theaters: 1,
-          successful_theaters: 1,
-          failed_theaters: 0,
-          total_movies: 5,
-          total_showtimes: 10,
-          total_dates: 7,
-          duration_ms: 5000,
-          errors: [],
-        },
-      },
+      events: [{ type: 'completed', summary: completedSummary }],
+      latestEvent: { type: 'completed', summary: completedSummary },
     });
 
     // Should NOT show "Connexion en cours..." (loading state)

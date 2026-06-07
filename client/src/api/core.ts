@@ -153,7 +153,7 @@ async function fetchClient<T>(endpoint: string, options: RequestInit = {}): Prom
   }
 }
 
-export const apiClient = {
+const apiClient = {
   get: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined | null | string[] | number[]>) => {
     let url = endpoint;
     if (params) {
