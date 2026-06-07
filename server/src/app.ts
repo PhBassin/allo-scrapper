@@ -231,7 +231,14 @@ export function createApp() {
   // Serve React static files in production
   if (process.env.NODE_ENV === 'production') {
     const publicPath = path.join(__dirname, '../public');
-    app.use(express.static(publicPath));
+    // Vite 8.x adds crossorigin on <script type=module> tags, which triggers
+    // CORS even on same-origin requests when accessed via a real hostname
+    // (browsers treat localhost specially). Add the required CORS header.
+    app.use(express.static(publicPath, {
+      setHeaders: (res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+      }
+    }));
 
     // Serve index.html for all non-API routes (SPA support)
     app.get('{*splat}', generalLimiter, (_req, res) => {
