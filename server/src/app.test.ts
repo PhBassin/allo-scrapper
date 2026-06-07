@@ -283,18 +283,30 @@ describe('App - Theme Endpoint', () => {
       expect(cspHeader).toMatch(/font-src[^;]*https:\/\/fonts\.gstatic\.com/);
     });
 
-    it('should include upgrade-insecure-requests directive', async () => {
-      mockHealthyDb(app);
+    it('should include upgrade-insecure-requests directive in production', async () => {
+      // upgrade-insecure-requests is gated on NODE_ENV=production so HTTP-only
+      // dev deploys do not trigger browser-side HTTPS upgrade against a server
+      // that doesn't listen on TLS. See csp-validation.test.ts for the dev-side
+      // assertion and server/src/app.ts for the env-gating implementation.
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      try {
+        const prodApp = createApp();
+        prodApp.set('db', mockDb);
+        mockHealthyDb(prodApp);
 
-      const res = await request(app)
-        .get('/api/health')
-        .expect(200);
+        const res = await request(prodApp)
+          .get('/api/health')
+          .expect(200);
 
-      const cspHeader = res.headers['content-security-policy'];
-      expect(cspHeader).toBeDefined();
-      
-      // CSP should include upgrade-insecure-requests to force HTTPS
-      expect(cspHeader).toContain('upgrade-insecure-requests');
+        const cspHeader = res.headers['content-security-policy'];
+        expect(cspHeader).toBeDefined();
+
+        // CSP should include upgrade-insecure-requests to force HTTPS in production
+        expect(cspHeader).toContain('upgrade-insecure-requests');
+      } finally {
+        process.env.NODE_ENV = originalNodeEnv;
+      }
     });
 
     it('should maintain existing CSP directives', async () => {

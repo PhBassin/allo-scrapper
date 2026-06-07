@@ -66,7 +66,7 @@ export function createApp() {
           baseUri: ["'self'"], // Prevent <base> tag injection
           formAction: ["'self'"], // Restrict form submissions
           frameAncestors: ["'none'"], // Prevent clickjacking (like X-Frame-Options)
-          ...(isProduction ? { upgradeInsecureRequests: [] } : {}),
+          upgradeInsecureRequests: isProduction ? [] : null,
         },
       },
     })
