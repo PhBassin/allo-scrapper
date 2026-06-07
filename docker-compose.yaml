@@ -36,6 +36,7 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
       POSTGRES_HOST: ics-db
       POSTGRES_PORT: 5432
       POSTGRES_DB: ics
