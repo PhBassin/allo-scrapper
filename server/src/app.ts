@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { Registry, collectDefaultMetrics } from 'prom-client';
 import { createHash } from 'crypto';
 import cookieParser from 'cookie-parser';
+import fs from 'fs';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
@@ -228,9 +229,12 @@ export function createApp() {
     });
   });
 
-  // Serve React static files in production
-  if (process.env.NODE_ENV === 'production') {
-    const publicPath = path.join(__dirname, '../public');
+  // Serve React static files when the built client is present (public/index.html)
+  // This is independent of NODE_ENV — the built assets exist in Docker images
+  // and after local production builds regardless of runtime mode.
+  const publicPath = path.join(__dirname, '../public');
+  const indexPath = path.join(publicPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
     // Vite 8.x adds crossorigin on <script type=module> tags, which triggers
     // CORS even on same-origin requests when accessed via a real hostname
     // (browsers treat localhost specially). Add the required CORS header.
@@ -242,7 +246,7 @@ export function createApp() {
 
     // Serve index.html for all non-API routes (SPA support)
     app.get('{*splat}', generalLimiter, (_req, res) => {
-      res.sendFile(path.join(publicPath, 'index.html'));
+      res.sendFile(indexPath);
     });
   }
 
