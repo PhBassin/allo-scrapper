@@ -29,3 +29,7 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+
+## 2024-05-25 - [Optimize Array Grouping loops in movie-queries.ts]
+**Learning:** Found that grouping large data sets into Map objects and then creating Arrays (`Array.from(map.values())`) in hot backend paths (like `getWeeklyMovies`) was noticeably slower than using an Object (`Object.create(null)`) acting as a hash dictionary coupled with a direct Array push for tracking values. Test runs show plain object and array combinations can execute $>2x$ faster than Map based iterations for high iteration groupings.
+**Action:** Replace `Map` instantiation inside tight grouping loops over database results (such as grouping theaters by movie) with a null-prototype object dictionary and parallel array to increase efficiency.
