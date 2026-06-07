@@ -8,12 +8,6 @@ export default defineConfig({
     sourcemap: false, // Disable source maps in production
     minify: 'esbuild', // Ensure minification is enabled
   },
-  // Disable crossorigin on <script> tags — the Express static server doesn't
-  // return CORS headers, and browsers block crossorigin module scripts when
-  // loading from a real hostname (vps.opelkad.com vs localhost).
-  html: {
-    crossorigin: false,
-  },
   server: {
     proxy: {
       '/api': {
