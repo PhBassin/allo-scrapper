@@ -68,6 +68,14 @@ These are the **only 5 variables** you need for production:
 - **Format**: Standard cron expression (minute hour dayOfMonth month dayOfWeek)
 - **Tool**: Use [crontab.guru](https://crontab.guru/) to build expressions
 
+### `COOKIE_SECURE`
+- **Default**: `true`
+- **Valid values**: `true`, `false`
+- **Notes**: 
+  - Set to `true` for **production** (HTTPS) — prevents CSRF tokens and session cookies from being sent over unencrypted HTTP.
+  - Set to `false` for **development** (HTTP-only, no TLS) — allows cookies to work over HTTP. The browser will otherwise silently reject cookies with the `Secure` flag and all non-login API calls return 403 "CSRF token missing or invalid".
+  - **Development shortcut**: `cat .env.example .env.dev.example > .env` automatically sets this to `false`.
+
 ---
 
 ## Development Overrides (.env.dev.example)
@@ -114,7 +122,7 @@ This adds variables needed for development mode (`docker-compose.dev.yml`):
 | `SCRAPE_DELAY_MS` | `1000` |
 
 ### Advanced (commented out by default)
-- `AUTO_MIGRATE`, `COOKIE_SECURE`, `REFRESH_TOKEN_EXPIRY`, `REDIS_URL`, `APP_NAME`
+- `AUTO_MIGRATE`, `REFRESH_TOKEN_EXPIRY`, `REDIS_URL`, `APP_NAME`
 
 ---
 

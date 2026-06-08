@@ -1,6 +1,6 @@
-import apiClient from './client';
+import apiClient from './core';
 import type { ApiResponse } from '../types';
-import type { Theater } from '../types';
+import type { Theater, ShowtimeWithMovie } from '../types';
 
 // ============================================================================
 // THEATER ADMIN TYPES
@@ -73,4 +73,26 @@ export async function updateTheater(id: string, data: TheaterUpdate): Promise<Th
  */
 export async function deleteTheater(id: string): Promise<void> {
   await apiClient.delete(`/theaters/${id}`);
+}
+
+/**
+ * Get showtimes for a specific theater by week
+ */
+export async function getTheaterSchedule(
+  theaterId: string
+): Promise<{ showtimes: ShowtimeWithMovie[]; weekStart: string }> {
+  const response = await apiClient.get<ApiResponse<{ showtimes: ShowtimeWithMovie[]; weekStart: string }>>(
+    `/theaters/${theaterId}`
+  );
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Failed to fetch theater schedule');
+  }
+  return response.data;
+}
+
+/**
+ * Convenience: add theater via URL (smart add with auto-scrape)
+ */
+export async function addTheater(url: string): Promise<Theater> {
+  return createTheater({ url });
 }

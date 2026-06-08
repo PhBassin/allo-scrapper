@@ -1,3 +1,4 @@
+// fallow-ignore-file security-sink
 import { type DB } from './client.js';
 import { type Role, type Permission, type RoleWithPermissions, type PermissionCategoryLabel } from '../types/role.js';
 

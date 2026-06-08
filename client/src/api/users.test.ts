@@ -9,9 +9,9 @@ import {
   type UserPublic,
   type UserCreate,
 } from './users';
-import apiClient from './client';
+import apiClient from './core';
 
-vi.mock('./client');
+vi.mock('./core');
 
 describe('Users API Client', () => {
   beforeEach(() => {

@@ -1,11 +1,12 @@
 import React, { useState, useContext } from 'react';
 import { SettingsContext } from '../../contexts/SettingsContext';
 import { AuthContext } from '../../contexts/AuthContext';
-import { downloadSettingsExport, uploadSettingsImport, resetSettings, type AppSettings, type AppSettingsUpdate, type FooterLink } from '../../api/settings';
-import ColorPicker from '../../components/admin/ColorPicker';
-import FontSelector from '../../components/admin/FontSelector';
-import ImageUpload from '../../components/admin/ImageUpload';
-import FooterLinksEditor from '../../components/admin/FooterLinksEditor';
+import { downloadSettingsExport, uploadSettingsImport, resetSettings, type AppSettings, type AppSettingsUpdate } from '../../api/settings';
+import GeneralTab from '../../components/admin/GeneralTab';
+import ColorsTab from '../../components/admin/ColorsTab';
+import TypographyTab from '../../components/admin/TypographyTab';
+import FooterTab from '../../components/admin/FooterTab';
+import EmailTab from '../../components/admin/EmailTab';
 import Button from '../../components/ui/Button';
 
 type Tab = 'general' | 'colors' | 'typography' | 'footer' | 'email';
@@ -188,179 +189,43 @@ const SettingsPage: React.FC = () => {
                     {/* Tab content */}
                     <div className="p-6">
                         {activeTab === 'general' && (
-                            <div className="space-y-6 max-w-2xl">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Site Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.site_name || ''}
-                                        onChange={(e) => handleFieldChange('site_name', e.target.value)}
-                                        disabled={!canUpdate}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="My Theater Site"
-                                    />
-                                </div>
-
-                                <ImageUpload
-                                    label="Logo"
-                                    value={formData.logo_base64 || null}
-                                    onChange={(value) => handleFieldChange('logo_base64', value)}
-                                    disabled={!canUpdate}
-                                    maxSizeKB={200}
-                                />
-
-                                <ImageUpload
-                                    label="Favicon"
-                                    value={formData.favicon_base64 || null}
-                                    onChange={(value) => handleFieldChange('favicon_base64', value)}
-                                    disabled={!canUpdate}
-                                    maxSizeKB={50}
-                                />
-                            </div>
+                            <GeneralTab
+                                value={formData}
+                                onChange={(field, value) => handleFieldChange(field as keyof AppSettingsUpdate, value)}
+                                disabled={!canUpdate}
+                            />
                         )}
 
                         {activeTab === 'colors' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-                                <ColorPicker
-                                    label="Primary Color"
-                                    value={formData.color_primary || '#FECC00'}
-                                    onChange={(value) => handleFieldChange('color_primary', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Secondary Color"
-                                    value={formData.color_secondary || '#1E40AF'}
-                                    onChange={(value) => handleFieldChange('color_secondary', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Accent Color"
-                                    value={formData.color_accent || '#10B981'}
-                                    onChange={(value) => handleFieldChange('color_accent', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Background Color"
-                                    value={formData.color_background || '#FFFFFF'}
-                                    onChange={(value) => handleFieldChange('color_background', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Text Color"
-                                    value={formData.color_text || '#1F2937'}
-                                    onChange={(value) => handleFieldChange('color_text', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Secondary Text Color"
-                                    value={formData.color_text_secondary || '#6B7280'}
-                                    onChange={(value) => handleFieldChange('color_text_secondary', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Border Color"
-                                    value={formData.color_border || '#E5E7EB'}
-                                    onChange={(value) => handleFieldChange('color_border', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Success Color"
-                                    value={formData.color_success || '#10B981'}
-                                    onChange={(value) => handleFieldChange('color_success', value)}
-                                    disabled={!canUpdate}
-                                />
-                                <ColorPicker
-                                    label="Error Color"
-                                    value={formData.color_error || '#EF4444'}
-                                    onChange={(value) => handleFieldChange('color_error', value)}
-                                    disabled={!canUpdate}
-                                />
-                            </div>
+                            <ColorsTab
+                                value={formData}
+                                onChange={(field, value) => handleFieldChange(field as keyof AppSettingsUpdate, value)}
+                                disabled={!canUpdate}
+                            />
                         )}
 
                         {activeTab === 'typography' && (
-                            <div className="space-y-6 max-w-2xl">
-                                <FontSelector
-                                    label="Heading Font"
-                                    value={formData.font_family_heading || 'Playfair Display'}
-                                    onChange={(value) => handleFieldChange('font_family_heading', value)}
-                                    disabled={!canUpdate}
-                                    type="heading"
-                                />
-                                <FontSelector
-                                    label="Body Font"
-                                    value={formData.font_family_body || 'Roboto'}
-                                    onChange={(value) => handleFieldChange('font_family_body', value)}
-                                    disabled={!canUpdate}
-                                    type="body"
-                                />
-                            </div>
+                            <TypographyTab
+                                value={formData}
+                                onChange={(field, value) => handleFieldChange(field as keyof AppSettingsUpdate, value)}
+                                disabled={!canUpdate}
+                            />
                         )}
 
                         {activeTab === 'footer' && (
-                            <div className="space-y-6 max-w-3xl">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Footer Text
-                                    </label>
-                                    <textarea
-                                        value={formData.footer_text || ''}
-                                        onChange={(e) => handleFieldChange('footer_text', e.target.value)}
-                                        disabled={!canUpdate}
-                                        rows={3}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="© 2024 My Theater Site. All rights reserved."
-                                    />
-                                </div>
-
-                                <FooterLinksEditor
-                                    value={formData.footer_links || []}
-                                    onChange={(value) => handleFieldChange('footer_links', value as FooterLink[])}
-                                    disabled={!canUpdate}
-                                />
-                            </div>
+                            <FooterTab
+                                value={formData}
+                                onChange={(field, value) => handleFieldChange(field as keyof AppSettingsUpdate, value)}
+                                disabled={!canUpdate}
+                            />
                         )}
 
                         {activeTab === 'email' && (
-                            <div className="space-y-6 max-w-2xl">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        From Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.email_from_name || ''}
-                                        onChange={(e) => handleFieldChange('email_from_name', e.target.value)}
-                                        disabled={!canUpdate}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="My Theater Site"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        From Email Address
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={formData.email_from_address || ''}
-                                        onChange={(e) => handleFieldChange('email_from_address', e.target.value)}
-                                        disabled={!canUpdate}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="noreply@example.com"
-                                    />
-                                </div>
-
-                                <ImageUpload
-                                    label="Email Logo"
-                                    value={formData.email_logo_base64 || null}
-                                    onChange={(value) => handleFieldChange('email_logo_base64', value)}
-                                    disabled={!canUpdate}
-                                    maxSizeKB={200}
-                                />
-                            </div>
+                            <EmailTab
+                                value={formData}
+                                onChange={(field, value) => handleFieldChange(field as keyof AppSettingsUpdate, value)}
+                                disabled={!canUpdate}
+                            />
                         )}
                     </div>
 
