@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.7.3] - 2026-06-09
+
+### Fixed
+
+- fix(docker): expose COOKIE_SECURE for HTTP-only deploys [@phbassin](https://github.com/phbassin) (e71e7f8)
+- fix(server): explicitly disable CSP upgrade-insecure-requests outside production [@phbassin](https://github.com/phbassin) (ff8d8c2)
+- fix(server): serve static files when index.html exists, not just NODE_ENV=production [@phbassin](https://github.com/phbassin) (609f00b)
+- fix(docker): use NODE_ENV from .env instead of hardcoding production [@phbassin](https://github.com/phbassin) (25992c5)
+- fix(server): add CORS header for static assets to fix blank page [@phbassin](https://github.com/phbassin) (30acba6)
+- fix(client): disable crossorigin on module scripts to fix CORS block [@phbassin](https://github.com/phbassin) (ce0a62c)
+- fix(server): disable HSTS and upgrade-insecure-requests in non-production envs [@phbassin](https://github.com/phbassin) (ef43275)
+- fix(client): remove unused destructured variables in ChangePasswordPage test [@phbassin](https://github.com/phbassin) (1becc62)
+
+### Changed
+
+- refactor: fallow remediation — score 68.3 → 78.2 (Grade B) (#1155) [@PhBassin](https://github.com/PhBassin) (036e9c4)
+- test(server): add COOKIE_SECURE environment variable test [@phbassin](https://github.com/phbassin) (ba8cd11)
+- test(server): add env-gated CSP upgrade-insecure-requests tests [@phbassin](https://github.com/phbassin) (d1664b9)
+- revert: remove invalid vite html.crossorigin config [@phbassin](https://github.com/phbassin) (bd36beb)
+- test(e2e): deduplicate Playwright test setup patterns [@phbassin](https://github.com/phbassin) (743769b)
+- test: deduplicate test setup patterns across server and client [@phbassin](https://github.com/phbassin) (cbf144d)
+- refactor(client): extract useEditTheaterForm hook from EditTheaterModal [@phbassin](https://github.com/phbassin) (0145a31)
+- refactor(scraper): extract refreshMovieDetails and processMovieShowtimes from scrapeTheater [@phbassin](https://github.com/phbassin) (119d5f5)
+- refactor(db): extract row mapping helpers in showtime-queries.ts (#1153) [@PhBassin](https://github.com/PhBassin) (4a00a45)
+- refactor(db): extract row mapping helpers in showtime-queries.ts [@phbassin](https://github.com/phbassin) (89623db)
+- refactor(client): split ApiClient into domain-specific API modules (CRAP 184 -> <40) (#1152) [@PhBassin](https://github.com/PhBassin) (5a0864d)
+- refactor(client): split ApiClient into domain-specific API modules (CRAP 184 -> <40) [@phbassin](https://github.com/phbassin) (b5ce841)
+- refactor(client): split SettingsPage into 5 tab components (CRAP 299 → 71) (#1151) [@PhBassin](https://github.com/PhBassin) (78457a6)
+- refactor(client): split SettingsPage into 5 tab components (CRAP 299 → 71) [@phbassin](https://github.com/phbassin) (ce4865f)
+- fix [#1] theater-service.ts — extraire TheaterValidator (CRAP 442 → <50) (#1150) [@PhBassin](https://github.com/PhBassin) (38adc70)
+- refactor(api): extract theater validation from TheaterService [@phbassin](https://github.com/phbassin) (3e68602)
+- test(service): add theater-validator unit tests [@phbassin](https://github.com/phbassin) (88a18ee)
+
+### Documentation
+
+- docs: document COOKIE_SECURE for HTTP-only deploys [@phbassin](https://github.com/phbassin) (781ad75)
+- docs(agent): add atomic commits rule to AGENTS.md [@phbassin](https://github.com/phbassin) (e9863f2)
+
+### Maintenance
+
+- chore(release): merge develop into main for v4.7.3 (#1159) [@PhBassin](https://github.com/PhBassin) (5cb4ea9)
+- chore: remove dead exports and deduplicate test summary objects [@phbassin](https://github.com/phbassin) (d793f00)
+- chore: add fallow-ignore-file security-sink to 16 false-positive files [@phbassin](https://github.com/phbassin) (394d670)
+- chore: cleanup 47 dead symbols detected by fallow analysis (#1139) [@PhBassin](https://github.com/PhBassin) (eda2b3f)
+- chore(server): remove unused types, middleware and utility exports [@phbassin](https://github.com/phbassin) (0992ac2)
+- chore(db): remove unused server query functions, types and interfaces [@phbassin](https://github.com/phbassin) (f3da643)
+- chore(server): unexport pool and TransactionClient from db/client [@phbassin](https://github.com/phbassin) (1008146)
+- chore(scraper): remove unused exports from core, utils and types [@phbassin](https://github.com/phbassin) (7757fae)
+- chore(scraper): unexport RedisScheduleSubscriber class [@phbassin](https://github.com/phbassin) (70e69ba)
+- chore(scraper): remove unused pool export and DB row types [@phbassin](https://github.com/phbassin) (d3e4610)
+- chore(client): remove unused component prop and context types [@phbassin](https://github.com/phbassin) (97c97d5)
+- chore(client): remove unused API functions, exports and types [@phbassin](https://github.com/phbassin) (635abff)
+- chore(deps): remove unused flatted and fsevents dependencies [@phbassin](https://github.com/phbassin) (8ad446d)
+
 ## [4.7.2] - 2026-06-06
 
 ### Maintenance
@@ -883,6 +937,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.7.3]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.2...v4.7.3
 [4.7.2]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.1...v4.7.2
 [4.7.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.0...v4.7.1
 [4.7.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.6.7...v4.7.0
