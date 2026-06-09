@@ -47,7 +47,7 @@ export const showtimesScrapedTotal = new Counter({
 });
 
 /** Redis queue depth gauge (updated periodically). */
-export const redisQueueDepth = new Counter({
+const redisQueueDepth = new Counter({
   name: 'redis_queue_depth_total',
   help: 'Total jobs popped from the Redis scrape queue',
   labelNames: [] as const,

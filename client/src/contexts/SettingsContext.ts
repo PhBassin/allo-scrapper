@@ -1,7 +1,7 @@
 import { createContext } from 'react';
 import type { AppSettings, AppSettingsPublic, AppSettingsUpdate } from '../api/settings';
 
-export interface SettingsContextType {
+interface SettingsContextType {
     publicSettings: AppSettingsPublic | null;
     adminSettings: AppSettings | null;
     isLoading: boolean;

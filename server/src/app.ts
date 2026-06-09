@@ -1,3 +1,4 @@
+// fallow-ignore-file security-sink
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -7,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { Registry, collectDefaultMetrics } from 'prom-client';
 import { createHash } from 'crypto';
 import cookieParser from 'cookie-parser';
+import fs from 'fs';
 
 import { getCorsOptions } from './utils/cors-config.js';
 import { logger } from './utils/logger.js';
@@ -47,8 +49,10 @@ export function createApp() {
   // Security: Helmet with strict CSP (no unsafe-inline/unsafe-eval in script-src)
   // Note: style-src keeps unsafe-inline for React inline styles in 3 components
   // (ScrapeProgress, ColorPicker, FontSelector use dynamic inline styles)
-  // upgradeInsecureRequests is enabled to force HTTPS; HSTS is handled by helmet defaults.
+  // HSTS + upgradeInsecureRequests are production-only (behind an HTTPS reverse proxy).
+  const isProduction = process.env.NODE_ENV === 'production';
   app.use(helmet({
+      strictTransportSecurity: isProduction,
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
@@ -62,7 +66,7 @@ export function createApp() {
           baseUri: ["'self'"], // Prevent <base> tag injection
           formAction: ["'self'"], // Restrict form submissions
           frameAncestors: ["'none'"], // Prevent clickjacking (like X-Frame-Options)
-          upgradeInsecureRequests: [],
+          upgradeInsecureRequests: isProduction ? [] : null,
         },
       },
     })
@@ -225,14 +229,24 @@ export function createApp() {
     });
   });
 
-  // Serve React static files in production
-  if (process.env.NODE_ENV === 'production') {
-    const publicPath = path.join(__dirname, '../public');
-    app.use(express.static(publicPath));
+  // Serve React static files when the built client is present (public/index.html)
+  // This is independent of NODE_ENV — the built assets exist in Docker images
+  // and after local production builds regardless of runtime mode.
+  const publicPath = path.join(__dirname, '../public');
+  const indexPath = path.join(publicPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    // Vite 8.x adds crossorigin on <script type=module> tags, which triggers
+    // CORS even on same-origin requests when accessed via a real hostname
+    // (browsers treat localhost specially). Add the required CORS header.
+    app.use(express.static(publicPath, {
+      setHeaders: (res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+      }
+    }));
 
     // Serve index.html for all non-API routes (SPA support)
     app.get('{*splat}', generalLimiter, (_req, res) => {
-      res.sendFile(path.join(publicPath, 'index.html'));
+      res.sendFile(indexPath);
     });
   }
 

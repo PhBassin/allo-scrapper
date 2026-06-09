@@ -29,6 +29,8 @@ Commit scopes: `scraper`, `api`, `db`, `parser`, `client`, `docker`, `observabil
 
 **Never push directly to `develop` or `main`.**
 
+**Commits MUST be atomic** — each commit contains exactly one coherent change. Never stage unrelated files (`.fallowrc.json`, lock files, etc.) in the same commit. Use `git status` before committing to verify only intended files are staged.
+
 ## Commands
 
 ```bash

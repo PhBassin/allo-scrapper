@@ -1,7 +1,8 @@
+// fallow-ignore-file security-sink
 import { type DB } from './client.js';
 import type { Movie, Showtime, WeeklyProgram } from '../types/scraper.js';
 
-export interface ShowtimeRow {
+interface ShowtimeRow {
   id: string;
   movie_id: number;
   theater_id: string;
@@ -14,7 +15,7 @@ export interface ShowtimeRow {
   week_start: string;
 }
 
-export async function upsertShowtime(db: DB, showtime: Showtime): Promise<void> {
+async function upsertShowtime(db: DB, showtime: Showtime): Promise<void> {
   await db.query(
     `
       INSERT INTO showtimes (

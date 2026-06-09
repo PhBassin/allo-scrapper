@@ -1,6 +1,6 @@
 import React from 'react';
 
-export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'neutral' | 'danger';
   'aria-label': string; // Required for accessibility
   children: React.ReactNode;

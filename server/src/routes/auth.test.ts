@@ -15,6 +15,27 @@ import * as queries from '../db/user-queries.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import { RefreshTokenService } from '../services/refresh-token-service.js';
 
+async function createMockUser(
+  username: string,
+  role_id: number,
+  role_name: string,
+  is_system_role: boolean,
+  password: string,
+  id = 1
+) {
+  const mockUser = {
+    id,
+    username,
+    password_hash: await passwordUtils.hashPassword(password),
+    role_id,
+    role_name,
+    is_system_role,
+    created_at: new Date().toISOString()
+  };
+  vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+  return mockUser;
+}
+
 const TEST_JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
 
 vi.mock('../db/client.js', () => ({
@@ -100,16 +121,7 @@ describe('Auth Routes', () => {
 
     describe('POST /api/auth/login', () => {
         it('should return a user and token for valid credentials', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'admin',
-                password_hash: await passwordUtils.hashPassword('password123'),
-                role_id: 1,
-                role_name: 'admin',
-                is_system_role: true,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            const mockUser = await createMockUser('admin', 1, 'admin', true, 'password123');
 
             const response = await request(app)
                 .post('/api/auth/login')
@@ -131,16 +143,7 @@ describe('Auth Routes', () => {
         });
 
         it('should return is_system_role in the user object for valid credentials', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'admin',
-                password_hash: await passwordUtils.hashPassword('password123'),
-                role_id: 1,
-                role_name: 'admin',
-                is_system_role: true,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('admin', 1, 'admin', true, 'password123');
 
             const response = await request(app)
                 .post('/api/auth/login')
@@ -152,16 +155,7 @@ describe('Auth Routes', () => {
         });
 
         it('should return is_system_role=false for non-system role in the user object', async () => {
-            const mockUser = {
-                id: 2,
-                username: 'operator',
-                password_hash: await passwordUtils.hashPassword('password123'),
-                role_id: 2,
-                role_name: 'operator',
-                is_system_role: false,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('operator', 2, 'operator', false, 'password123', 2);
 
             const response = await request(app)
                 .post('/api/auth/login')
@@ -173,16 +167,7 @@ describe('Auth Routes', () => {
         });
 
         it('should return permissions in the user object for valid credentials', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'admin',
-                password_hash: await passwordUtils.hashPassword('password123'),
-                role_id: 1,
-                role_name: 'admin',
-                is_system_role: true,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('admin', 1, 'admin', true, 'password123');
 
             const response = await request(app)
                 .post('/api/auth/login')
@@ -197,16 +182,7 @@ describe('Auth Routes', () => {
         });
 
         it('should return 401 for invalid password', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'admin',
-                password_hash: await passwordUtils.hashPassword('password123'),
-                role_id: 1,
-                role_name: 'admin',
-                is_system_role: true,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('admin', 1, 'admin', true, 'password123');
 
             const response = await request(app)
                 .post('/api/auth/login')
@@ -302,16 +278,7 @@ describe('Auth Routes', () => {
         });
 
         it('should return 400 if newPassword is too short', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password_hash: await passwordUtils.hashPassword('OldPass123!'),
-                role_id: 2,
-                role_name: 'user',
-                is_system_role: false,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
 
             const response = await request(app)
                 .post('/api/auth/change-password')
@@ -324,16 +291,7 @@ describe('Auth Routes', () => {
         });
 
         it('should return 400 if newPassword lacks uppercase', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password_hash: await passwordUtils.hashPassword('OldPass123!'),
-                role_id: 2,
-                role_name: 'user',
-                is_system_role: false,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
 
             const response = await request(app)
                 .post('/api/auth/change-password')
@@ -346,16 +304,7 @@ describe('Auth Routes', () => {
         });
 
         it('should return 400 if newPassword lacks lowercase', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password_hash: await passwordUtils.hashPassword('OldPass123!'),
-                role_id: 2,
-                role_name: 'user',
-                is_system_role: false,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
 
             const response = await request(app)
                 .post('/api/auth/change-password')
@@ -368,16 +317,7 @@ describe('Auth Routes', () => {
         });
 
         it('should return 400 if newPassword lacks digit', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password_hash: await passwordUtils.hashPassword('OldPass123!'),
-                role_id: 2,
-                role_name: 'user',
-                is_system_role: false,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
 
             const response = await request(app)
                 .post('/api/auth/change-password')
@@ -390,16 +330,7 @@ describe('Auth Routes', () => {
         });
 
         it('should return 400 if newPassword lacks special character', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password_hash: await passwordUtils.hashPassword('OldPass123!'),
-                role_id: 2,
-                role_name: 'user',
-                is_system_role: false,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
 
             const response = await request(app)
                 .post('/api/auth/change-password')
@@ -412,16 +343,7 @@ describe('Auth Routes', () => {
         });
 
         it('should return 401 if currentPassword is incorrect', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password_hash: await passwordUtils.hashPassword('OldPass123!'),
-                role_id: 2,
-                role_name: 'user',
-                is_system_role: false,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
 
             const response = await request(app)
                 .post('/api/auth/change-password')
@@ -434,16 +356,7 @@ describe('Auth Routes', () => {
         });
 
         it('should change password successfully with valid inputs', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password_hash: await passwordUtils.hashPassword('OldPass123!'),
-                role_id: 2,
-                role_name: 'user',
-                is_system_role: false,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
             vi.mocked(queries.updateUserPassword).mockResolvedValue(undefined);
 
             const response = await request(app)
@@ -462,16 +375,7 @@ describe('Auth Routes', () => {
         });
 
         it('should hash the new password', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password_hash: await passwordUtils.hashPassword('OldPass123!'),
-                role_id: 2,
-                role_name: 'user',
-                is_system_role: false,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
             vi.mocked(queries.updateUserPassword).mockResolvedValue(undefined);
 
             const hashSpy = vi.spyOn(passwordUtils, 'hashPassword');
@@ -485,16 +389,7 @@ describe('Auth Routes', () => {
         });
 
         it('should not expose password hash in response', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password_hash: await passwordUtils.hashPassword('OldPass123!'),
-                role_id: 2,
-                role_name: 'user',
-                is_system_role: false,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
             vi.mocked(queries.updateUserPassword).mockResolvedValue(undefined);
 
             const response = await request(app)
@@ -507,16 +402,7 @@ describe('Auth Routes', () => {
         });
 
         it('should return 500 on database error', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password_hash: await passwordUtils.hashPassword('OldPass123!'),
-                role_id: 2,
-                role_name: 'user',
-                is_system_role: false,
-                created_at: new Date().toISOString()
-            };
-            vi.mocked(queries.getUserByUsername).mockResolvedValue(mockUser);
+            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
             vi.mocked(queries.updateUserPassword).mockRejectedValue(new Error('Database error'));
 
             const response = await request(app)
@@ -628,6 +514,31 @@ describe('Auth Routes', () => {
 
             expect(response.status).toBe(200);
             expect(response.body.success).toBe(true);
+        });
+    });
+
+    describe('COOKIE_SECURE environment variable', () => {
+        it('should set csrf_token with Secure flag by default (when COOKIE_SECURE not false)', async () => {
+            // This test verifies the default behavior when COOKIE_SECURE is not explicitly set to 'false'
+            const mockUser = await createMockUser('admin', 1, 'admin', true, 'password123');
+
+            const response = await request(app)
+                .post('/api/auth/login')
+                .send({ username: 'admin', password: 'password123' });
+
+            expect(response.status).toBe(200);
+            const setCookieHeaders = response.headers['set-cookie'];
+            const cookies = Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders];
+
+            const csrfCookie = cookies.find((c: string) => c.startsWith('csrf_token='));
+            expect(csrfCookie).toBeDefined();
+            
+            // If COOKIE_SECURE is not explicitly 'false', Secure flag should be present
+            if (process.env.COOKIE_SECURE !== 'false') {
+                expect(csrfCookie).toContain('Secure');
+            } else {
+                expect(csrfCookie).not.toContain('Secure');
+            }
         });
     });
 });

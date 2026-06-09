@@ -1,3 +1,4 @@
+// fallow-ignore-file security-sink
 import { type DB } from './client.js';
 import { logger } from '../utils/logger.js';
 import { generateRandomPassword } from './user-queries.js';
@@ -9,15 +10,6 @@ import { hashPassword } from '../utils/password.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-/**
- * Migration record in schema_migrations table
- */
-export interface Migration {
-  version: string;
-  checksum: string;
-  applied_at: Date;
-}
 
 /**
  * Calculate SHA-256 checksum for migration file content

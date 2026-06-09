@@ -36,7 +36,7 @@ export interface ScrapeSummary {
 }
 
 // Progress tracker class
-export class ProgressTracker {
+class ProgressTracker {
   private listeners: Set<Response> = new Set();
   private events: ProgressEvent[] = [];
   private heartbeatInterval?: NodeJS.Timeout;

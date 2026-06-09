@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from './core';
 import type { ApiResponse } from '../types';
 
 // ============================================================================
@@ -17,10 +17,6 @@ export interface UserCreate {
   username: string;
   password: string;
   role_id?: number;
-}
-
-export interface UserRoleUpdate {
-  role_id: number;
 }
 
 export interface PasswordResetResult {

@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from './core';
 import type { ApiResponse } from '../types';
 
 // ============================================================================
@@ -118,7 +118,7 @@ export async function resetSettings(): Promise<AppSettings> {
 /**
  * Export settings as JSON backup (admin only)
  */
-export async function exportSettings(): Promise<AppSettingsExport> {
+async function exportSettings(): Promise<AppSettingsExport> {
   const response = await apiClient.post<ApiResponse<AppSettingsExport>>('/settings/export');
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to export settings');
@@ -129,7 +129,7 @@ export async function exportSettings(): Promise<AppSettingsExport> {
 /**
  * Import settings from JSON backup (admin only)
  */
-export async function importSettings(data: AppSettingsExport): Promise<AppSettings> {
+async function importSettings(data: AppSettingsExport): Promise<AppSettings> {
   const response = await apiClient.post<ApiResponse<AppSettings>>('/settings/import', data);
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to import settings');

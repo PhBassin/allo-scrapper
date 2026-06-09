@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app.js';
 
@@ -39,5 +39,42 @@ describe('Content Security Policy', () => {
     const styleSrcMatch = cspHeader.match(/style-src[^;]+/);
     expect(styleSrcMatch).toBeDefined();
     expect(styleSrcMatch![0]).toContain("'unsafe-inline'");
+  });
+
+  describe('upgrade-insecure-requests directive (env-gated)', () => {
+    // Helmet 8.x enables upgrade-insecure-requests by default in its CSP.
+    // We must explicitly disable it outside production, otherwise browsers
+    // force http:// → https:// on HTTP-only deploys (e.g. local Docker, dev
+    // VPS without TLS), producing TLS handshake errors.
+    // See: https://helmetjs.github.io/ (CSP section).
+    let originalNodeEnv: string | undefined;
+
+    beforeEach(() => {
+      originalNodeEnv = process.env.NODE_ENV;
+    });
+
+    afterEach(() => {
+      process.env.NODE_ENV = originalNodeEnv;
+    });
+
+    it('should NOT include upgrade-insecure-requests when NODE_ENV is development', async () => {
+      process.env.NODE_ENV = 'development';
+      const app = createApp();
+      const response = await request(app).get('/api/health');
+      const cspHeader = response.headers['content-security-policy'];
+
+      expect(cspHeader).toBeDefined();
+      expect(cspHeader).not.toContain('upgrade-insecure-requests');
+    });
+
+    it('should include upgrade-insecure-requests when NODE_ENV is production', async () => {
+      process.env.NODE_ENV = 'production';
+      const app = createApp();
+      const response = await request(app).get('/api/health');
+      const cspHeader = response.headers['content-security-policy'];
+
+      expect(cspHeader).toBeDefined();
+      expect(cspHeader).toContain('upgrade-insecure-requests');
+    });
   });
 });

@@ -17,7 +17,7 @@ import { parseMoviePage } from '../movie-parser.js';
 import { getWeekStartForDate } from '../../utils/date.js';
 import { isValidAllocineUrl, extractTheaterIdFromUrl, cleanTheaterUrl } from '../utils.js';
 import { logger } from '../../utils/logger.js';
-import type { TheaterConfig, WeeklyProgram, Theater } from '../../types/scraper.js';
+import type { Movie, TheaterConfig, WeeklyProgram, Theater, MovieShowtimeData } from '../../types/scraper.js';
 import { type ProgressPublisher } from '../index.js';
 import { type IScraperStrategy } from './IScraperStrategy.js';
 import { RateLimitError } from '../../utils/errors.js';
@@ -38,6 +38,93 @@ export function shouldRefreshMovieDetails(existingMovie?: {
   const needsTrailerUrl = !existingMovie.trailer_url;
 
   return needsDuration || needsDirector || needsScreenwriters || needsTrailerUrl;
+}
+
+async function refreshMovieDetails(
+  movie: Movie,
+  existingMovie: Movie | undefined,
+  movieDelayMs: number
+): Promise<void> {
+  try {
+    const movieHtml = await fetchMoviePage(movie.id);
+    const moviePageData = parseMoviePage(movieHtml);
+
+    if (moviePageData.duration_minutes) {
+      movie.duration_minutes = moviePageData.duration_minutes;
+    }
+    if (moviePageData.director) {
+      movie.director = moviePageData.director;
+    }
+    if (moviePageData.screenwriters && moviePageData.screenwriters.length > 0) {
+      movie.screenwriters = moviePageData.screenwriters;
+    }
+    if (moviePageData.trailer_url) {
+      movie.trailer_url = moviePageData.trailer_url;
+    }
+  } catch (error) {
+    logger.warn('Error fetching movie page', { movieId: movie.id, error });
+  } finally {
+    await delay(movieDelayMs);
+  }
+
+  if (existingMovie) {
+    movie.duration_minutes = movie.duration_minutes ?? existingMovie.duration_minutes;
+    movie.director = movie.director ?? existingMovie.director;
+    movie.trailer_url = movie.trailer_url ?? existingMovie.trailer_url;
+
+    if ((!movie.screenwriters || movie.screenwriters.length === 0) &&
+      existingMovie.screenwriters &&
+      existingMovie.screenwriters.length > 0) {
+      movie.screenwriters = existingMovie.screenwriters;
+    }
+  }
+}
+
+async function processMovieShowtimes(
+  db: DB,
+  movieData: MovieShowtimeData,
+  theater: TheaterConfig,
+  date: string,
+  movieDelayMs: number,
+  progress?: ProgressPublisher
+): Promise<{ weeklyProgram: WeeklyProgram; showtimesCount: number }> {
+  const movie = movieData.movie;
+
+  await progress?.emit({ type: 'movie_started', movie_title: movie.title, movie_id: movie.id });
+
+  const existingMovie = await getMovie(db, movie.id);
+
+  if (shouldRefreshMovieDetails(existingMovie)) {
+    logger.info('Fetching movie details', { title: movie.title, id: movie.id });
+    await refreshMovieDetails(movie, existingMovie, movieDelayMs);
+  } else if (existingMovie) {
+    movie.duration_minutes = existingMovie.duration_minutes;
+    movie.director = existingMovie.director;
+    movie.screenwriters = existingMovie.screenwriters;
+    movie.trailer_url = existingMovie.trailer_url;
+  }
+
+  await upsertMovie(db, movie);
+  logger.info('Movie upserted', { title: movie.title });
+
+  await upsertShowtimes(db, movieData.showtimes);
+  logger.info('Showtimes upserted', { count: movieData.showtimes.length });
+
+  const weeklyProgram: WeeklyProgram = {
+    theater_id: theater.id,
+    movie_id: movie.id,
+    week_start: movieData.showtimes[0]?.week_start ?? getWeekStartForDate(date),
+    is_new_this_week: movieData.is_new_this_week,
+    scraped_at: new Date().toISOString(),
+  };
+
+  await progress?.emit({
+    type: 'movie_completed',
+    movie_title: movie.title,
+    showtimes_count: movieData.showtimes.length,
+  });
+
+  return { weeklyProgram, showtimesCount: movieData.showtimes.length };
 }
 
 export class AllocineScraperStrategy implements IScraperStrategy {
@@ -81,7 +168,6 @@ export class AllocineScraperStrategy implements IScraperStrategy {
     progress?: ProgressPublisher
   ): Promise<{ moviesCount: number; showtimesCount: number }> {
     logger.info('Scraping theater for date', { theater: theater.name, id: theater.id, date });
-
     await progress?.emit({ type: 'date_started', date, theater_name: theater.name });
 
     let moviesCount = 0;
@@ -90,91 +176,22 @@ export class AllocineScraperStrategy implements IScraperStrategy {
     try {
       const json = await fetchShowtimesJson(theater.id, date);
       const movieShowtimesData = parseShowtimesJson(json, theater.id, date);
-
       logger.info('Movies found for date', { count: movieShowtimesData.length, date });
 
       const weeklyPrograms: WeeklyProgram[] = [];
 
       for (const movieData of movieShowtimesData) {
-        const movie = movieData.movie;
-
-        await progress?.emit({ type: 'movie_started', movie_title: movie.title, movie_id: movie.id });
-
         try {
-          const existingMovie = await getMovie(db, movie.id);
-
-          if (shouldRefreshMovieDetails(existingMovie)) {
-            logger.info('Fetching movie details', { title: movie.title, id: movie.id });
-
-            try {
-              const movieHtml = await fetchMoviePage(movie.id);
-              const moviePageData = parseMoviePage(movieHtml);
-
-              if (moviePageData.duration_minutes) {
-                movie.duration_minutes = moviePageData.duration_minutes;
-              }
-
-              if (moviePageData.director) {
-                movie.director = moviePageData.director;
-              }
-
-              if (moviePageData.screenwriters && moviePageData.screenwriters.length > 0) {
-                movie.screenwriters = moviePageData.screenwriters;
-              }
-
-              if (moviePageData.trailer_url) {
-                movie.trailer_url = moviePageData.trailer_url;
-              }
-            } catch (error) {
-              logger.warn('Error fetching movie page', { movieId: movie.id, error });
-            } finally {
-              await delay(movieDelayMs);
-            }
-
-            if (existingMovie) {
-              movie.duration_minutes = movie.duration_minutes ?? existingMovie.duration_minutes;
-              movie.director = movie.director ?? existingMovie.director;
-              movie.trailer_url = movie.trailer_url ?? existingMovie.trailer_url;
-
-              if ((!movie.screenwriters || movie.screenwriters.length === 0) &&
-                existingMovie.screenwriters &&
-                existingMovie.screenwriters.length > 0) {
-                movie.screenwriters = existingMovie.screenwriters;
-              }
-            }
-          } else if (existingMovie) {
-            movie.duration_minutes = existingMovie.duration_minutes;
-            movie.director = existingMovie.director;
-            movie.screenwriters = existingMovie.screenwriters;
-            movie.trailer_url = existingMovie.trailer_url;
-          }
-
-          await upsertMovie(db, movie);
-          logger.info('Movie upserted', { title: movie.title });
-
-          await upsertShowtimes(db, movieData.showtimes);
-          logger.info('Showtimes upserted', { count: movieData.showtimes.length });
-
-          weeklyPrograms.push({
-            theater_id: theater.id,
-            movie_id: movie.id,
-            week_start: movieData.showtimes[0]?.week_start ?? getWeekStartForDate(date),
-            is_new_this_week: movieData.is_new_this_week,
-            scraped_at: new Date().toISOString(),
-          });
-
+          const { weeklyProgram, showtimesCount: count } = await processMovieShowtimes(
+            db, movieData, theater, date, movieDelayMs, progress
+          );
           moviesCount++;
-          showtimesCount += movieData.showtimes.length;
-
-          await progress?.emit({
-            type: 'movie_completed',
-            movie_title: movie.title,
-            showtimes_count: movieData.showtimes.length,
-          });
+          showtimesCount += count;
+          weeklyPrograms.push(weeklyProgram);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          logger.error('Error processing movie', { title: movie.title, error });
-          await progress?.emit({ type: 'movie_failed', movie_title: movie.title, error: errorMessage });
+          logger.error('Error processing movie', { title: movieData.movie.title, error });
+          await progress?.emit({ type: 'movie_failed', movie_title: movieData.movie.title, error: errorMessage });
         }
       }
 
@@ -188,12 +205,10 @@ export class AllocineScraperStrategy implements IScraperStrategy {
 
       return { moviesCount, showtimesCount };
     } catch (error) {
-      // Re-throw RateLimitError immediately for scraper to handle
       if (error instanceof RateLimitError) {
         logger.error('Rate limit detected - stopping scrape', { theater: theater.name, date, error });
         throw error;
       }
-
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error('Error scraping theater for date', { theater: theater.name, date, error });
       throw new Error(errorMessage);

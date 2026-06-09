@@ -3,7 +3,7 @@ import type { Theater, TheaterConfig } from '../types/scraper.js';
 
 // --- Database Row Interfaces ---
 
-export interface TheaterRow {
+interface TheaterRow {
   id: string;
   name: string;
   address: string | null;

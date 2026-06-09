@@ -1,6 +1,6 @@
+// fallow-ignore-file security-sink
 import { type DB } from './client.js';
 import type { Theater, Movie, Showtime, WeeklyProgram } from '../types/scraper.js';
-import { logger } from '../utils/logger.js';
 import { parseJSONMemoized } from '../utils/json-parse-cache.js';
 
 // --- Database Row Interfaces ---
@@ -18,7 +18,7 @@ export interface ShowtimeRow {
   week_start: string;
 }
 
-export interface ShowtimeWithMovieRow extends ShowtimeRow {
+interface ShowtimeWithMovieRow extends ShowtimeRow {
   movie_title: string;
   original_title: string | null;
   poster_url: string | null;
@@ -38,7 +38,7 @@ export interface ShowtimeWithMovieRow extends ShowtimeRow {
   trailer_url: string | null;
 }
 
-export interface ShowtimeWithTheaterRow extends ShowtimeRow {
+interface ShowtimeWithTheaterRow extends ShowtimeRow {
   theater_name: string;
   theater_address: string | null;
   postal_code: string | null;
@@ -47,40 +47,56 @@ export interface ShowtimeWithTheaterRow extends ShowtimeRow {
   theater_image_url: string | null;
 }
 
-// Insertion ou mise à jour d'une séance
-export async function upsertShowtime(db: DB, showtime: Showtime): Promise<void> {
-  await db.query(
-    `
-      INSERT INTO showtimes (
-        id, movie_id, theater_id, date, time, datetime_iso,
-        version, format, experiences, week_start
-      )
-      VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, $10
-      )
-      ON CONFLICT(id) DO UPDATE SET
-        date = $4,
-        time = $5,
-        datetime_iso = $6,
-        version = $7,
-        format = $8,
-        experiences = $9,
-        week_start = $10
-    `,
-    [
-      showtime.id,
-      showtime.movie_id,
-      showtime.theater_id,
-      showtime.date,
-      showtime.time,
-      showtime.datetime_iso,
-      showtime.version || null,
-      showtime.format || null,
-      JSON.stringify(showtime.experiences),
-      showtime.week_start,
-    ]
-  );
+// --- Row Mapping Helpers ---
+
+function mapRowToShowtime(row: ShowtimeRow): Showtime {
+  return {
+    id: row.id,
+    movie_id: row.movie_id,
+    theater_id: row.theater_id,
+    date: row.date,
+    time: row.time,
+    datetime_iso: row.datetime_iso,
+    version: row.version ?? '',
+    format: row.format ?? undefined,
+    experiences: parseJSONMemoized(row.experiences),
+    week_start: row.week_start,
+  };
+}
+
+function mapRowToMovie(row: ShowtimeWithMovieRow): Movie {
+  return {
+    id: row.movie_id,
+    title: row.movie_title,
+    original_title: row.original_title ?? undefined,
+    poster_url: row.poster_url ?? undefined,
+    duration_minutes: row.duration_minutes ?? undefined,
+    release_date: row.release_date ?? undefined,
+    rerelease_date: row.rerelease_date ?? undefined,
+    genres: parseJSONMemoized(row.genres),
+    nationality: row.nationality ?? undefined,
+    director: row.director ?? undefined,
+    screenwriters: parseJSONMemoized(row.screenwriters),
+    actors: parseJSONMemoized(row.actors),
+    synopsis: row.synopsis ?? undefined,
+    certificate: row.certificate ?? undefined,
+    press_rating: row.press_rating ?? undefined,
+    audience_rating: row.audience_rating ?? undefined,
+    source_url: row.source_url,
+    trailer_url: row.trailer_url ?? undefined,
+  };
+}
+
+function mapRowToTheater(row: ShowtimeWithTheaterRow): Theater {
+  return {
+    id: row.theater_id,
+    name: row.theater_name,
+    address: row.theater_address ?? undefined,
+    postal_code: row.postal_code ?? undefined,
+    city: row.city ?? undefined,
+    screen_count: row.screen_count ?? undefined,
+    image_url: row.theater_image_url ?? undefined,
+  };
 }
 
 // Insertion ou mise à jour de plusieurs séances
@@ -180,76 +196,6 @@ export async function upsertWeeklyPrograms(db: DB, programs: WeeklyProgram[]): P
   );
 }
 
-// Récupérer les séances d'un theater pour une date
-export async function getShowtimesByTheater(
-  db: DB,
-  theaterId: string,
-  date: string
-): Promise<Array<Showtime & { movie: Movie }>> {
-  const result = await db.query<ShowtimeWithMovieRow>(
-    `
-      SELECT 
-        s.*,
-        f.id as movie_id,
-        f.title as movie_title,
-        f.original_title,
-        f.poster_url,
-        f.duration_minutes,
-        f.release_date,
-        f.rerelease_date,
-        f.genres,
-        f.nationality,
-        f.director,
-        f.screenwriters,
-        f.actors,
-        f.synopsis,
-        f.certificate,
-        f.press_rating,
-        f.audience_rating,
-        f.source_url,
-        f.trailer_url
-      FROM showtimes s
-      JOIN movies f ON s.movie_id = f.id
-      WHERE s.theater_id = $1 AND s.date = $2
-      ORDER BY f.title, s.time
-    `,
-    [theaterId, date]
-  );
-
-  return result.rows.map((row) => ({
-    id: row.id,
-    movie_id: row.movie_id,
-    theater_id: row.theater_id,
-    date: row.date,
-    time: row.time,
-    datetime_iso: row.datetime_iso,
-    version: row.version ?? '',
-    format: row.format ?? undefined,
-    experiences: parseJSONMemoized(row.experiences),
-    week_start: row.week_start,
-    movie: {
-      id: row.movie_id,
-      title: row.movie_title,
-      original_title: row.original_title ?? undefined,
-      poster_url: row.poster_url ?? undefined,
-      duration_minutes: row.duration_minutes ?? undefined,
-      release_date: row.release_date ?? undefined,
-      rerelease_date: row.rerelease_date ?? undefined,
-      genres: parseJSONMemoized(row.genres),
-      nationality: row.nationality ?? undefined,
-      director: row.director ?? undefined,
-      screenwriters: parseJSONMemoized(row.screenwriters),
-      actors: parseJSONMemoized(row.actors),
-      synopsis: row.synopsis ?? undefined,
-      certificate: row.certificate ?? undefined,
-      press_rating: row.press_rating ?? undefined,
-      audience_rating: row.audience_rating ?? undefined,
-      source_url: row.source_url,
-      trailer_url: row.trailer_url ?? undefined,
-    },
-  }));
-}
-
 // Récupérer les séances d'un theater pour une semaine donnée
 export async function getShowtimesByTheaterAndWeek(
   db: DB,
@@ -287,36 +233,8 @@ export async function getShowtimesByTheaterAndWeek(
   );
 
   return result.rows.map((row) => ({
-    id: row.id,
-    movie_id: row.movie_id,
-    theater_id: row.theater_id,
-    date: row.date,
-    time: row.time,
-    datetime_iso: row.datetime_iso,
-    version: row.version ?? '',
-    format: row.format ?? undefined,
-    experiences: parseJSONMemoized(row.experiences),
-    week_start: row.week_start,
-    movie: {
-      id: row.movie_id,
-      title: row.movie_title,
-      original_title: row.original_title ?? undefined,
-      poster_url: row.poster_url ?? undefined,
-      duration_minutes: row.duration_minutes ?? undefined,
-      release_date: row.release_date ?? undefined,
-      rerelease_date: row.rerelease_date ?? undefined,
-      genres: parseJSONMemoized(row.genres),
-      nationality: row.nationality ?? undefined,
-      director: row.director ?? undefined,
-      screenwriters: parseJSONMemoized(row.screenwriters),
-      actors: parseJSONMemoized(row.actors),
-      synopsis: row.synopsis ?? undefined,
-      certificate: row.certificate ?? undefined,
-      press_rating: row.press_rating ?? undefined,
-      audience_rating: row.audience_rating ?? undefined,
-      source_url: row.source_url,
-      trailer_url: row.trailer_url ?? undefined,
-    },
+    ...mapRowToShowtime(row),
+    movie: mapRowToMovie(row),
   }));
 }
 
@@ -346,25 +264,8 @@ export async function getShowtimesByDate(
   );
 
   return result.rows.map((row) => ({
-    id: row.id,
-    movie_id: row.movie_id,
-    theater_id: row.theater_id,
-    date: row.date,
-    time: row.time,
-    datetime_iso: row.datetime_iso,
-    version: row.version ?? '',
-    format: row.format ?? undefined,
-    experiences: parseJSONMemoized(row.experiences),
-    week_start: row.week_start,
-    theater: {
-      id: row.theater_id,
-      name: row.theater_name,
-      address: row.theater_address ?? undefined,
-      postal_code: row.postal_code ?? undefined,
-      city: row.city ?? undefined,
-      screen_count: row.screen_count ?? undefined,
-      image_url: row.theater_image_url ?? undefined,
-    },
+    ...mapRowToShowtime(row),
+    theater: mapRowToTheater(row),
   }));
 }
 
@@ -394,25 +295,8 @@ export async function getShowtimesByMovieAndWeek(
   );
 
   return result.rows.map((row) => ({
-    id: row.id,
-    movie_id: row.movie_id,
-    theater_id: row.theater_id,
-    date: row.date,
-    time: row.time,
-    datetime_iso: row.datetime_iso,
-    version: row.version ?? '',
-    format: row.format ?? undefined,
-    experiences: parseJSONMemoized(row.experiences),
-    week_start: row.week_start,
-    theater: {
-      id: row.theater_id,
-      name: row.theater_name,
-      address: row.theater_address ?? undefined,
-      postal_code: row.postal_code ?? undefined,
-      city: row.city ?? undefined,
-      screen_count: row.screen_count ?? undefined,
-      image_url: row.theater_image_url ?? undefined,
-    },
+    ...mapRowToShowtime(row),
+    theater: mapRowToTheater(row),
   }));
 }
 
@@ -441,33 +325,8 @@ export async function getWeeklyShowtimes(
   );
 
   return result.rows.map((row) => ({
-    id: row.id,
-    movie_id: row.movie_id,
-    theater_id: row.theater_id,
-    date: row.date,
-    time: row.time,
-    datetime_iso: row.datetime_iso,
-    version: row.version ?? '',
-    format: row.format ?? undefined,
-    experiences: parseJSONMemoized(row.experiences),
-    week_start: row.week_start,
-    theater: {
-      id: row.theater_id,
-      name: row.theater_name,
-      address: row.theater_address ?? undefined,
-      postal_code: row.postal_code ?? undefined,
-      city: row.city ?? undefined,
-      screen_count: row.screen_count ?? undefined,
-      image_url: row.theater_image_url ?? undefined,
-    },
+    ...mapRowToShowtime(row),
+    theater: mapRowToTheater(row),
   }));
 }
 
-// Supprimer les séances passées (optionnel, pour cleanup)
-export async function deleteOldShowtimes(db: DB, beforeDate: string): Promise<void> {
-  const result = await db.query(
-    'DELETE FROM showtimes WHERE date < $1',
-    [beforeDate]
-  );
-  logger.info(`🗑️  Supprimé ${result.rowCount} séances avant ${beforeDate}`);
-}

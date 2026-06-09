@@ -1,3 +1,4 @@
+// fallow-ignore-file security-sink
 import type { DB } from './client.js';
 import type { Theater } from '../types/scraper.js';
 

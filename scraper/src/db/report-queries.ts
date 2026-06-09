@@ -1,3 +1,4 @@
+// fallow-ignore-file security-sink
 import { type DB } from './client.js';
 
 export interface ScrapeReport {

@@ -4,12 +4,12 @@ import rateLimit from 'express-rate-limit';
 import { getSecrets, verifyWithMultipleSecrets } from '../utils/jwt-secrets.js';
 import { logger } from '../utils/logger.js';
 
-export interface MutableConfig {
+interface MutableConfig {
   max: number;
   windowMs: number;
 }
 
-export function ipKeyGenerator(ip: string): string {
+function ipKeyGenerator(ip: string): string {
   return ip;
 }
 

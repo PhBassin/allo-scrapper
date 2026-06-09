@@ -10,7 +10,7 @@ export interface User {
     permissions: PermissionName[];
 }
 
-export interface AuthContextType {
+interface AuthContextType {
     isAuthenticated: boolean;
     user: User | null;
     isAdmin: boolean;

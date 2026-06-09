@@ -15,7 +15,7 @@ const router = express.Router();
 
 const ACCESS_TOKEN_MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes
 
-export interface AuthResponse {
+interface AuthResponse {
     token: string;
     user: {
         id: number;
