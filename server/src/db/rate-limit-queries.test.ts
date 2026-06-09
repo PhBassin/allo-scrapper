@@ -238,9 +238,18 @@ describe('rate-limit-queries', () => {
         'Test'
       );
 
-      // Should create 3 audit log entries
+      // Should create 1 batch audit log insert containing 3 entries
       const auditInserts = queries.filter((q: any) => q.sql.includes('rate_limit_audit_log'));
-      expect(auditInserts).toHaveLength(3);
+      expect(auditInserts).toHaveLength(1);
+
+      const insertQuery = auditInserts[0];
+      // Expect the query to have 3 value sets for batching: ($1...$8), ($9...$16), ($17...$24)
+      expect(insertQuery.sql).toContain('($17');
+      expect(insertQuery.params).toHaveLength(24);
+
+      expect(insertQuery.params).toContain('general_max');
+      expect(insertQuery.params).toContain('auth_max');
+      expect(insertQuery.params).toContain('scraper_max');
     });
   });
 
