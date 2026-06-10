@@ -36,6 +36,17 @@ export interface ScrapeSchedule {
   scrapeDays: number;
 }
 
+/** Per-theater outcome reported back to runScraper. */
+export interface ScrapeTheaterResult {
+  /** True if a 429 was hit: the caller should stop processing further theaters. */
+  rateLimited: boolean;
+  /** The dates effectively attempted for this theater (filtered by availableDates). */
+  datesToScrape: string[];
+  successfulDates: number;
+  moviesCount: number;
+  showtimesCount: number;
+}
+
 // Progress publisher interface – allows injecting Redis publisher or a no-op
 export interface ProgressPublisher {
   emit(event: ProgressEvent): Promise<void>;
@@ -195,6 +206,284 @@ export async function prepareSchedule(
   return { theaters, dates, scrapeMode, scrapeDays };
 }
 
+/**
+ * Mark a theater/date attempt as 'not_attempted'. Errors are logged and
+ * swallowed because failure here must not abort the rest of the run.
+ */
+async function markNotAttempted(
+  ctx: ScrapeContext,
+  reportId: number,
+  theaterId: string,
+  date: string
+): Promise<void> {
+  try {
+    await createScrapeAttempt(ctx.db, {
+      report_id: reportId,
+      theater_id: theaterId,
+      date,
+      status: 'not_attempted',
+    });
+  } catch (error) {
+    logger.error('Failed to mark attempt as not_attempted', { error });
+  }
+}
+
+/**
+ * Orchestrate the scraping of a single theater.
+ *
+ * Responsibilities (kept tightly scoped to one theater):
+ *  - Resolve the right strategy from the theater source.
+ *  - Emit `theater_started`.
+ *  - Load metadata (errors here count the theater as failed and short-circuit).
+ *  - Filter the global `dates` list down to the dates the theater has
+ *    actually published, with optional resume-mode narrowing.
+ *  - For each date, create a 'pending' scrape attempt (if reportId given),
+ *    call strategy.scrapeTheater, and update the attempt to success/failed.
+ *  - On RateLimitError, mark THIS theater's remaining dates as not_attempted
+ *    and signal back to the caller via `rateLimited: true` so the outer
+ *    loop can stop processing further theaters.
+ *  - On any other date error, log + record + continue with the next date.
+ *  - At the end, fold the per-theater counts into the shared summary
+ *    (successful_theaters vs failed_theaters) and emit `theater_completed`.
+ *
+ * Returns a ScrapeTheaterResult that lets runScraper coordinate
+ * inter-theater concerns (theater-to-theater delay, cascading
+ * not_attempted for remaining theaters, the outer `rateLimited` break).
+ */
+export async function scrapeTheaterWithStrategy(
+  theater: TheaterConfig,
+  dates: string[],
+  ctx: ScrapeContext,
+  options?: ScrapeOptions
+): Promise<ScrapeTheaterResult> {
+  const strategy = getStrategyBySource(theater.source || 'allocine');
+  const summary = ctx.summary;
+  const movieDelayMs = ctx.movieDelayMs;
+  const progress = ctx.progress;
+
+  let theaterMoviesCount = 0;
+  let theaterShowtimesCount = 0;
+  let successfulDates = 0;
+  let rateLimited = false;
+
+  // Load the list of dates this theater has actually published.
+  let availableDates: string[] = [];
+  try {
+    const meta = await strategy.loadTheaterMetadata(ctx.db, theater);
+    availableDates = meta.availableDates;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorType = classifyError(error);
+    logger.error('Failed to load theater metadata', {
+      theater: theater.name,
+      error: errorMessage,
+    });
+    summary.errors.push({
+      theater_name: theater.name,
+      theater_id: theater.id,
+      error: errorMessage,
+      error_type: errorType,
+      http_status_code: (error as any).statusCode,
+    });
+    summary.failed_theaters++;
+    return {
+      rateLimited: false,
+      datesToScrape: [],
+      successfulDates: 0,
+      moviesCount: 0,
+      showtimesCount: 0,
+    };
+  }
+
+  // Intersect requested dates with what the theater has published.
+  const datesToScrape = dates.filter(d => availableDates.includes(d));
+  const skippedDates = dates.filter(d => !availableDates.includes(d));
+  if (skippedDates.length > 0) {
+    logger.info('Skipping dates not yet published', {
+      count: skippedDates.length,
+      dates: skippedDates,
+    });
+  }
+
+  // In resume mode, restrict further to pending attempts for this theater.
+  let finalDatesToScrape = datesToScrape;
+  if (options?.resumeMode && options?.pendingAttempts) {
+    const pendingDatesForTheater = options.pendingAttempts
+      .filter(a => a.theater_id === theater.id)
+      .map(a => a.date);
+
+    finalDatesToScrape = datesToScrape.filter(d => pendingDatesForTheater.includes(d));
+
+    logger.info('Resume mode: filtered to pending attempts', {
+      theater: theater.name,
+      allDates: datesToScrape.length,
+      pendingDates: finalDatesToScrape.length,
+    });
+  }
+
+  logger.info('Dates to scrape', { theater: theater.name, count: finalDatesToScrape.length });
+
+  for (const date of finalDatesToScrape) {
+    logger.info('Attempting date', { theater: theater.name, date });
+
+    // Track attempt in database if reportId provided
+    let attemptId: number | undefined;
+    if (options?.reportId) {
+      try {
+        attemptId = await createScrapeAttempt(ctx.db, {
+          report_id: options.reportId,
+          theater_id: theater.id,
+          date,
+          status: 'pending',
+        });
+      } catch (error) {
+        logger.error('Failed to create scrape attempt', { error });
+      }
+    }
+
+    try {
+      const { moviesCount, showtimesCount } = await strategy.scrapeTheater(
+        ctx.db,
+        theater,
+        date,
+        movieDelayMs,
+        progress
+      );
+      theaterMoviesCount += moviesCount;
+      theaterShowtimesCount += showtimesCount;
+      successfulDates++;
+      logger.info('Date scraped successfully', { date, movies: moviesCount, showtimes: showtimesCount });
+
+      if (attemptId) {
+        try {
+          await updateScrapeAttempt(ctx.db, attemptId, {
+            status: 'success',
+            movies_scraped: moviesCount,
+            showtimes_scraped: showtimesCount,
+          });
+        } catch (error) {
+          logger.error('Failed to update scrape attempt', { error });
+        }
+      }
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        logger.error('Rate limit detected - stopping all scraping', {
+          theater: theater.name,
+          date,
+          statusCode: error.statusCode,
+        });
+
+        const errorType = classifyError(error);
+        summary.errors.push({
+          theater_name: theater.name,
+          theater_id: theater.id,
+          date,
+          error: error.message,
+          error_type: errorType,
+          http_status_code: error.statusCode,
+        });
+
+        if (attemptId) {
+          try {
+            await updateScrapeAttempt(ctx.db, attemptId, {
+              status: 'rate_limited',
+              error_type: errorType,
+              error_message: error.message,
+              http_status_code: error.statusCode,
+            });
+          } catch (updateError) {
+            logger.error('Failed to update scrape attempt', { error: updateError });
+          }
+        }
+
+        // Mark THIS theater's remaining dates as not_attempted.
+        if (options?.reportId) {
+          const remainingDates = finalDatesToScrape.slice(finalDatesToScrape.indexOf(date) + 1);
+          for (const remainingDate of remainingDates) {
+            await markNotAttempted(ctx, options.reportId, theater.id, remainingDate);
+          }
+        }
+
+        await progress?.emit({
+          type: 'date_failed',
+          theater_name: theater.name,
+          date,
+          error: error.message,
+        });
+
+        summary.status = 'rate_limited';
+        rateLimited = true;
+        break;
+      }
+
+      // Non-rate-limit error: log, record, continue with the next date.
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorType = classifyError(error);
+      logger.error('Date scrape failed', { theater: theater.name, date, error: errorMessage });
+
+      summary.errors.push({
+        theater_name: theater.name,
+        theater_id: theater.id,
+        date,
+        error: errorMessage,
+        error_type: errorType,
+        http_status_code: (error as any).statusCode,
+      });
+
+      if (attemptId) {
+        try {
+          await updateScrapeAttempt(ctx.db, attemptId, {
+            status: 'failed',
+            error_type: errorType,
+            error_message: errorMessage,
+            http_status_code: (error as any).statusCode,
+          });
+        } catch (updateError) {
+          logger.error('Failed to update scrape attempt', { error: updateError });
+        }
+      }
+
+      await progress?.emit({
+        type: 'date_failed',
+        theater_name: theater.name,
+        date,
+        error: errorMessage,
+      });
+    }
+  }
+
+  const theaterFailed = successfulDates === 0 && finalDatesToScrape.length > 0;
+  logger.info('Theater summary', {
+    theater: theater.name,
+    successfulDates,
+    totalDates: finalDatesToScrape.length,
+    movies: theaterMoviesCount,
+    showtimes: theaterShowtimesCount,
+  });
+
+  if (!theaterFailed) {
+    summary.successful_theaters++;
+    summary.total_movies += theaterMoviesCount;
+    summary.total_showtimes += theaterShowtimesCount;
+    await progress?.emit({
+      type: 'theater_completed',
+      theater_name: theater.name,
+      total_movies: theaterMoviesCount,
+    });
+  } else {
+    summary.failed_theaters++;
+    logger.error('Theater failed completely', { theater: theater.name, dates: datesToScrape.length });
+  }
+
+  return {
+    rateLimited,
+    datesToScrape,
+    successfulDates,
+    moviesCount: theaterMoviesCount,
+    showtimesCount: theaterShowtimesCount,
+  };
+}
+
 export async function runScraper(
   progress?: ProgressPublisher,
   options?: ScrapeOptions
@@ -240,249 +529,33 @@ export async function runScraper(
         index: i + 1,
       });
 
-      let theaterMoviesCount = 0;
-      let theaterShowtimesCount = 0;
-      let successfulDates = 0;
+      logger.info(`Processing theater using ${strategy.sourceName} strategy`, {
+        theater: theater.name,
+        id: theater.id,
+      });
 
-      logger.info(`Processing theater using ${strategy.sourceName} strategy`, { theater: theater.name, id: theater.id });
+      const result = await scrapeTheaterWithStrategy(theater, dates, ctx, options);
 
-      let availableDates: string[] = [];
-      try {
-        const meta = await strategy.loadTheaterMetadata(db, theater);
-        availableDates = meta.availableDates;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorType = classifyError(error);
-        logger.error('Failed to load theater metadata', { theater: theater.name, error: errorMessage });
-        summary.errors.push({ 
-          theater_name: theater.name, 
-          theater_id: theater.id,
-          error: errorMessage,
-          error_type: errorType,
-          http_status_code: (error as any).statusCode,
+      // If a rate limit was hit, stop processing further theaters.
+      if (result.rateLimited) {
+        logger.warn('Stopping scrape due to rate limit', {
+          processedTheaters: i + 1,
+          totalTheaters: theaters.length,
         });
-        summary.failed_theaters++;
-        continue;
-      }
 
-      const datesToScrape = dates.filter(d => availableDates.includes(d));
-      const skippedDates = dates.filter(d => !availableDates.includes(d));
-
-      if (skippedDates.length > 0) {
-        logger.info('Skipping dates not yet published', { count: skippedDates.length, dates: skippedDates });
-      }
-      
-      // In resume mode, only scrape dates from pendingAttempts
-      let finalDatesToScrape = datesToScrape;
-      if (options?.resumeMode && options?.pendingAttempts) {
-        const pendingDatesForTheater = options.pendingAttempts
-          .filter(a => a.theater_id === theater.id)
-          .map(a => a.date);
-        
-        finalDatesToScrape = datesToScrape.filter(d => pendingDatesForTheater.includes(d));
-        
-        logger.info('Resume mode: filtered to pending attempts', { 
-          theater: theater.name, 
-          allDates: datesToScrape.length,
-          pendingDates: finalDatesToScrape.length,
-        });
-      }
-      
-      logger.info('Dates to scrape', { theater: theater.name, count: finalDatesToScrape.length });
-
-      // Track if rate limited to stop scraping entirely
-      let rateLimited = false;
-
-      for (const date of finalDatesToScrape) {
-        logger.info('Attempting date', { theater: theater.name, date });
-        
-        // Track attempt in database if reportId provided
-        let attemptId: number | undefined;
+        // Cascade: mark remaining theaters and ALL their dates as not_attempted.
         if (options?.reportId) {
-          try {
-            attemptId = await createScrapeAttempt(db, {
-              report_id: options.reportId,
-              theater_id: theater.id,
-              date: date,
-              status: 'pending',
-            });
-          } catch (error) {
-            logger.error('Failed to create scrape attempt', { error });
+          const remainingTheaters = theaters.slice(i + 1);
+          for (const remainingTheater of remainingTheaters) {
+            for (const futureDate of result.datesToScrape) {
+              await markNotAttempted(ctx, options.reportId, remainingTheater.id, futureDate);
+            }
           }
         }
-        
-        try {
-          const { moviesCount, showtimesCount } = await strategy.scrapeTheater(db, theater, date, movieDelayMs, progress);
-          theaterMoviesCount += moviesCount;
-          theaterShowtimesCount += showtimesCount;
-          successfulDates++;
-          logger.info('Date scraped successfully', { date, movies: moviesCount, showtimes: showtimesCount });
-          
-          // Update attempt as successful
-          if (attemptId) {
-            try {
-              await updateScrapeAttempt(db, attemptId, {
-                status: 'success',
-                movies_scraped: moviesCount,
-                showtimes_scraped: showtimesCount,
-              });
-            } catch (error) {
-              logger.error('Failed to update scrape attempt', { error });
-            }
-          }
-        } catch (error) {
-          // Detect rate limiting and stop immediately
-          if (error instanceof RateLimitError) {
-            logger.error('Rate limit detected - stopping all scraping', { 
-              theater: theater.name, 
-              date, 
-              statusCode: error.statusCode 
-            });
-            
-            const errorType = classifyError(error);
-            summary.errors.push({
-              theater_name: theater.name,
-              theater_id: theater.id,
-              date: date,
-              error: error.message,
-              error_type: errorType,
-              http_status_code: error.statusCode,
-            });
-
-            // Update attempt as rate_limited
-            if (attemptId) {
-              try {
-                await updateScrapeAttempt(db, attemptId, {
-                  status: 'rate_limited',
-                  error_type: errorType,
-                  error_message: error.message,
-                  http_status_code: error.statusCode,
-                });
-              } catch (updateError) {
-                logger.error('Failed to update scrape attempt', { error: updateError });
-              }
-            }
-
-            // Mark remaining dates as not_attempted
-            if (options?.reportId) {
-              const remainingDates = finalDatesToScrape.slice(finalDatesToScrape.indexOf(date) + 1);
-              for (const remainingDate of remainingDates) {
-                try {
-                  await createScrapeAttempt(db, {
-                    report_id: options.reportId,
-                    theater_id: theater.id,
-                    date: remainingDate,
-                    status: 'not_attempted',
-                  });
-                } catch (error) {
-                  logger.error('Failed to mark attempt as not_attempted', { error });
-                }
-              }
-              
-              // Mark remaining theaters and all their dates as not_attempted
-              const remainingTheaters = theaters.slice(i + 1);
-              for (const remainingTheater of remainingTheaters) {
-                for (const futureDate of datesToScrape) {
-                  try {
-                    await createScrapeAttempt(db, {
-                      report_id: options.reportId,
-                      theater_id: remainingTheater.id,
-                      date: futureDate,
-                      status: 'not_attempted',
-                    });
-                  } catch (error) {
-                    logger.error('Failed to mark attempt as not_attempted', { error });
-                  }
-                }
-              }
-            }
-
-            await progress?.emit({
-              type: 'date_failed',
-              theater_name: theater.name,
-              date: date,
-              error: error.message
-            });
-
-            // Mark status as rate_limited and break out of both loops
-            summary.status = 'rate_limited';
-            rateLimited = true;
-            break;
-          }
-
-          // Handle other errors normally
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          const errorType = classifyError(error);
-          logger.error('Date scrape failed', { theater: theater.name, date, error: errorMessage });
-          
-          summary.errors.push({
-            theater_name: theater.name,
-            theater_id: theater.id,
-            date: date,
-            error: errorMessage,
-            error_type: errorType,
-            http_status_code: (error as any).statusCode,
-          });
-
-          // Update attempt as failed
-          if (attemptId) {
-            try {
-              await updateScrapeAttempt(db, attemptId, {
-                status: 'failed',
-                error_type: errorType,
-                error_message: errorMessage,
-                http_status_code: (error as any).statusCode,
-              });
-            } catch (updateError) {
-              logger.error('Failed to update scrape attempt', { error: updateError });
-            }
-          }
-
-          await progress?.emit({
-            type: 'date_failed',
-            theater_name: theater.name,
-            date: date,
-            error: errorMessage
-          });
-
-          continue;
-        }
-      }
-
-      // If rate limited, stop processing remaining theaters
-      if (rateLimited) {
-        logger.warn('Stopping scrape due to rate limit', { 
-          processedTheaters: i + 1, 
-          totalTheaters: theaters.length 
-        });
         break;
       }
 
-      const theaterFailed = successfulDates === 0 && finalDatesToScrape.length > 0;
-
-      logger.info('Theater summary', {
-        theater: theater.name,
-        successfulDates,
-        totalDates: finalDatesToScrape.length,
-        movies: theaterMoviesCount,
-        showtimes: theaterShowtimesCount,
-      });
-
-      if (!theaterFailed) {
-        summary.successful_theaters++;
-        summary.total_movies += theaterMoviesCount;
-        summary.total_showtimes += theaterShowtimesCount;
-        await progress?.emit({
-          type: 'theater_completed',
-          theater_name: theater.name,
-          total_movies: theaterMoviesCount,
-        });
-      } else {
-        summary.failed_theaters++;
-        logger.error('Theater failed completely', { theater: theater.name, dates: datesToScrape.length });
-      }
-
-      // Apply delay between theaters (except after the last one)
+      // Apply delay between theaters (except after the last one).
       if (i < theaters.length - 1) {
         logger.info('Waiting before next theater', { delayMs: theaterDelayMs });
         await delay(theaterDelayMs);
@@ -501,8 +574,8 @@ export async function runScraper(
     const errorType = classifyError(error);
     logger.error('Fatal error in scraper', { error });
     await closeBrowser();
-    summary.errors.push({ 
-      theater_name: 'System', 
+    summary.errors.push({
+      theater_name: 'System',
       theater_id: 'system',
       error: errorMessage,
       error_type: errorType,
