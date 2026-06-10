@@ -484,6 +484,133 @@ export async function scrapeTheaterWithStrategy(
   };
 }
 
+/**
+ * Build the ScrapeContext used by the helpers, reading delay config
+ * from the environment. Centralized so the runScraper body stays small.
+ */
+function createScrapeContext(
+  summary: ScrapeSummary,
+  progress?: ProgressPublisher
+): ScrapeContext {
+  const theaterDelayMs = parseInt(process.env.SCRAPE_THEATER_DELAY_MS || '3000', 10);
+  const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
+  return {
+    db,
+    summary,
+    progress,
+    movieDelayMs,
+    theaterDelayMs,
+  };
+}
+
+/**
+ * Mark every (theater, date) pair in `remainingTheaters x dates` as
+ * 'not_attempted' for the given report. Used when a rate limit on the
+ * current theater forces us to short-circuit the rest of the run.
+ */
+async function cascadeMarkNotAttempted(
+  ctx: ScrapeContext,
+  reportId: number,
+  remainingTheaters: TheaterConfig[],
+  dates: string[]
+): Promise<void> {
+  for (const remainingTheater of remainingTheaters) {
+    for (const date of dates) {
+      await markNotAttempted(ctx, reportId, remainingTheater.id, date);
+    }
+  }
+}
+
+/**
+ * Run one iteration of the theater loop: emit `theater_started`, run the
+ * strategy, and on rate limit cascade `not_attempted` writes to the
+ * remaining theaters before signaling the caller to break.
+ */
+async function processTheater(
+  theater: TheaterConfig,
+  index: number,
+  theaters: TheaterConfig[],
+  dates: string[],
+  ctx: ScrapeContext,
+  options?: ScrapeOptions
+): Promise<{ rateLimited: boolean }> {
+  const strategy = getStrategyBySource(theater.source || 'allocine');
+
+  await ctx.progress?.emit({
+    type: 'theater_started',
+    theater_name: theater.name,
+    theater_id: theater.id,
+    index: index + 1,
+  });
+
+  logger.info(`Processing theater using ${strategy.sourceName} strategy`, {
+    theater: theater.name,
+    id: theater.id,
+  });
+
+  const result = await scrapeTheaterWithStrategy(theater, dates, ctx, options);
+
+  if (!result.rateLimited) {
+    return { rateLimited: false };
+  }
+
+  logger.warn('Stopping scrape due to rate limit', {
+    processedTheaters: index + 1,
+    totalTheaters: theaters.length,
+  });
+
+  if (options?.reportId) {
+    await cascadeMarkNotAttempted(
+      ctx,
+      options.reportId,
+      theaters.slice(index + 1),
+      result.datesToScrape
+    );
+  }
+
+  return { rateLimited: true };
+}
+
+/**
+ * Successful end-of-run bookkeeping: stamp duration, log, close browser,
+ * emit `completed`. Always run from the happy path of runScraper.
+ */
+async function finalizeScrape(
+  ctx: ScrapeContext,
+  startTime: number
+): Promise<void> {
+  ctx.summary.duration_ms = Date.now() - startTime;
+  logger.info('Scraping completed', { summary: ctx.summary });
+  await closeBrowser();
+  await ctx.progress?.emit({ type: 'completed', summary: ctx.summary });
+}
+
+/**
+ * Fatal-error path: log, record a 'System' error, close browser, emit
+ * `failed`, and rethrow so the caller still sees the exception. Always
+ * run from the catch block of runScraper.
+ */
+async function handleFatalError(
+  ctx: ScrapeContext,
+  startTime: number,
+  error: unknown
+): Promise<never> {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorType = classifyError(error);
+  logger.error('Fatal error in scraper', { error });
+  await closeBrowser();
+  ctx.summary.errors.push({
+    theater_name: 'System',
+    theater_id: 'system',
+    error: errorMessage,
+    error_type: errorType,
+    http_status_code: (error as any).statusCode,
+  });
+  ctx.summary.duration_ms = Date.now() - startTime;
+  await ctx.progress?.emit({ type: 'failed', error: errorMessage });
+  throw error;
+}
+
 export async function runScraper(
   progress?: ProgressPublisher,
   options?: ScrapeOptions
@@ -501,88 +628,28 @@ export async function runScraper(
     errors: [],
   };
 
+  const ctx = createScrapeContext(summary, progress);
   const startTime = Date.now();
-
-  // Read delay configuration from environment
-  const theaterDelayMs = parseInt(process.env.SCRAPE_THEATER_DELAY_MS || '3000', 10);
-  const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
-
-  const ctx: ScrapeContext = {
-    db,
-    summary,
-    progress,
-    movieDelayMs,
-    theaterDelayMs,
-  };
 
   try {
     const { theaters, dates } = await prepareSchedule(ctx, options);
 
     for (let i = 0; i < theaters.length; i++) {
-      const theater = theaters[i];
-      const strategy = getStrategyBySource(theater.source || 'allocine');
-
-      await progress?.emit({
-        type: 'theater_started',
-        theater_name: theater.name,
-        theater_id: theater.id,
-        index: i + 1,
-      });
-
-      logger.info(`Processing theater using ${strategy.sourceName} strategy`, {
-        theater: theater.name,
-        id: theater.id,
-      });
-
-      const result = await scrapeTheaterWithStrategy(theater, dates, ctx, options);
-
-      // If a rate limit was hit, stop processing further theaters.
-      if (result.rateLimited) {
-        logger.warn('Stopping scrape due to rate limit', {
-          processedTheaters: i + 1,
-          totalTheaters: theaters.length,
-        });
-
-        // Cascade: mark remaining theaters and ALL their dates as not_attempted.
-        if (options?.reportId) {
-          const remainingTheaters = theaters.slice(i + 1);
-          for (const remainingTheater of remainingTheaters) {
-            for (const futureDate of result.datesToScrape) {
-              await markNotAttempted(ctx, options.reportId, remainingTheater.id, futureDate);
-            }
-          }
-        }
-        break;
-      }
-
-      // Apply delay between theaters (except after the last one).
+      const { rateLimited } = await processTheater(
+        theaters[i], i, theaters, dates, ctx, options
+      );
+      if (rateLimited) break;
       if (i < theaters.length - 1) {
-        logger.info('Waiting before next theater', { delayMs: theaterDelayMs });
-        await delay(theaterDelayMs);
+        logger.info('Waiting before next theater', { delayMs: ctx.theaterDelayMs });
+        await delay(ctx.theaterDelayMs);
       }
     }
 
-    summary.duration_ms = Date.now() - startTime;
-    logger.info('Scraping completed', { summary });
-    await closeBrowser();
-
-    await progress?.emit({ type: 'completed', summary });
-
+    await finalizeScrape(ctx, startTime);
     return summary;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorType = classifyError(error);
-    logger.error('Fatal error in scraper', { error });
-    await closeBrowser();
-    summary.errors.push({
-      theater_name: 'System',
-      theater_id: 'system',
-      error: errorMessage,
-      error_type: errorType,
-      http_status_code: (error as any).statusCode,
-    });
-    summary.duration_ms = Date.now() - startTime;
-    await progress?.emit({ type: 'failed', error: errorMessage });
+    await handleFatalError(ctx, startTime, error);
+    // Unreachable: handleFatalError always rethrows.
     throw error;
   }
 }
