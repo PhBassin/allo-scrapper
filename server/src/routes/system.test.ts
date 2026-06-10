@@ -29,15 +29,6 @@ vi.mock('../middleware/rate-limit.js', () => ({
 vi.mock('../middleware/permission.js', () => ({
   requirePermission: (..._perms: string[]) => (req: any, res: any, next: any) => next(),
 }));
-vi.mock('../middleware/admin.js', () => ({
-  requireAdmin: async (req: any, res: any, next: any) => {
-    if (req.user?.id === 1) {
-      next();
-    } else {
-      res.status(403).json({ success: false, error: 'Admin required' });
-    }
-  },
-}));
 
 // Import mocked modules
 import * as systemQueries from '../db/system-queries.js';
@@ -128,17 +119,12 @@ describe('Routes - System', () => {
     });
 
     it('should return 403 for non-admin users', async () => {
-      vi.mock('../middleware/admin.js', () => ({
-        requireAdmin: async (req: any, res: any, next: any) => {
-          res.status(403).json({ success: false, error: 'Admin required' });
-        },
-      }));
-
       const response = await request(app)
         .get('/api/system/info')
         .set('Authorization', 'Bearer non-admin-token');
 
-      // Note: Since we mocked requireAdmin, this should fail at auth middleware
+      // Note: admin logic now lives in auth.ts::isAdminUser + permission bypass.
+      // Non-admin token must be rejected with 403.
       expect([401, 403]).toContain(response.status);
     });
 

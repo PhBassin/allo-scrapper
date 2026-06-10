@@ -15,11 +15,7 @@ vi.mock('../db/theater-queries.js', () => ({
   deleteTheater: vi.fn(),
 }));
 
-vi.mock('../services/scraper/index.js', () => ({
-  addTheaterAndScrape: vi.fn(),
-}));
-
-vi.mock('../services/scraper/utils.js', () => ({
+vi.mock('../utils/url.js', () => ({
   isValidAllocineUrl: vi.fn().mockImplementation((url) => url.startsWith('https://www.allocine.fr/')),
 }));
 
