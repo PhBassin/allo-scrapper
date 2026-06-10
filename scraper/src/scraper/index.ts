@@ -15,6 +15,27 @@ import {
   updateScrapeAttempt,
 } from '../db/scrape-attempt-queries.js';
 
+/**
+ * Mutable context shared across the runScraper orchestration steps.
+ * Bundles the dependencies the per-step helpers need so the call sites
+ * stay short and the helpers stay individually testable.
+ */
+export interface ScrapeContext {
+  db: DB;
+  summary: ScrapeSummary;
+  progress?: ProgressPublisher;
+  movieDelayMs: number;
+  theaterDelayMs: number;
+}
+
+/** Result of prepareSchedule: which theaters to scrape, on which dates. */
+export interface ScrapeSchedule {
+  theaters: TheaterConfig[];
+  dates: string[];
+  scrapeMode: ScrapeMode;
+  scrapeDays: number;
+}
+
 // Progress publisher interface – allows injecting Redis publisher or a no-op
 export interface ProgressPublisher {
   emit(event: ProgressEvent): Promise<void>;
@@ -106,6 +127,74 @@ export interface ScrapeOptions {
   pendingAttempts?: Array<{ theater_id: string; date: string }>;  // For resume mode
 }
 
+/**
+ * Load the list of theaters and the list of dates the current run will scrape.
+ *
+ * Responsibilities:
+ *  - Read configured theaters from the database.
+ *  - If `options.theaterId` is provided, narrow the list to that single
+ *    theater after verifying it exists in the database AND is configured
+ *    for scraping (two distinct error messages to ease diagnosis).
+ *  - Resolve the scrape mode / day count from options or environment.
+ *  - Materialize the concrete list of dates via getScrapeDates.
+ *  - Emit the `started` progress event and update summary totals.
+ *
+ * The function performs no network I/O beyond the two DB reads. All HTTP
+ * work happens later, inside scrapeTheaterWithStrategy.
+ */
+export async function prepareSchedule(
+  ctx: ScrapeContext,
+  options?: ScrapeOptions
+): Promise<ScrapeSchedule> {
+  let theaters = await getTheaterConfigs(ctx.db);
+
+  // Filter to a single theater if requested
+  if (options?.theaterId) {
+    // The database is the source of truth for "does this theater exist?"
+    const allTheatersFromDb = await getTheaters(ctx.db);
+    const theaterExistsInDb = allTheatersFromDb.some(
+      (c: Theater) => c.id === options.theaterId
+    );
+
+    if (!theaterExistsInDb) {
+      throw new Error(`Theater not found in database: ${options.theaterId}`);
+    }
+
+    // Then check that it is actually configured for scraping
+    const foundTheater = theaters.find(c => c.id === options.theaterId);
+    if (!foundTheater) {
+      throw new Error(`Theater not configured for scraping: ${options.theaterId}`);
+    }
+
+    theaters = [foundTheater];
+    logger.info(`Scraping only theater: ${foundTheater.name} (${foundTheater.id})`);
+  }
+
+  logger.info('Theaters loaded', { count: theaters.length });
+
+  const scrapeMode =
+    options?.mode ?? (process.env.SCRAPE_MODE as ScrapeMode) ?? 'from_today_limited';
+  const scrapeDays = options?.days || parseInt(process.env.SCRAPE_DAYS || '7', 10);
+  const dates = getScrapeDates(scrapeMode, scrapeDays);
+
+  logger.info('Scrape config', { mode: scrapeMode, dates: dates.length, scrapeDays });
+  logger.info('Delay config', {
+    theaterDelayMs: ctx.theaterDelayMs,
+    movieDelayMs: ctx.movieDelayMs,
+  });
+
+  ctx.summary.total_theaters = theaters.length;
+  ctx.summary.total_dates = dates.length;
+
+  await ctx.progress?.emit({
+    type: 'started',
+    total_theaters: theaters.length,
+    total_dates: dates.length,
+  });
+
+  return { theaters, dates, scrapeMode, scrapeDays };
+}
+
 export async function runScraper(
   progress?: ProgressPublisher,
   options?: ScrapeOptions
@@ -129,45 +218,16 @@ export async function runScraper(
   const theaterDelayMs = parseInt(process.env.SCRAPE_THEATER_DELAY_MS || '3000', 10);
   const movieDelayMs = parseInt(process.env.SCRAPE_MOVIE_DELAY_MS || '500', 10);
 
+  const ctx: ScrapeContext = {
+    db,
+    summary,
+    progress,
+    movieDelayMs,
+    theaterDelayMs,
+  };
+
   try {
-    let theaters = await getTheaterConfigs(db);
-    
-    // Filter to specific theater if provided
-    if (options?.theaterId) {
-      // First verify theater exists in database (source of truth)
-      const allTheatersFromDb = await getTheaters(db);
-      const theaterExistsInDb = allTheatersFromDb.some((c: Theater) => c.id === options.theaterId);
-      
-      if (!theaterExistsInDb) {
-        throw new Error(`Theater not found in database: ${options.theaterId}`);
-      }
-      
-      // Then check if theater is configured for scraping
-      const foundTheater = theaters.find(c => c.id === options.theaterId);
-      if (!foundTheater) {
-        throw new Error(`Theater not configured for scraping: ${options.theaterId}`);
-      }
-      
-      theaters = [foundTheater];
-      logger.info(`Scraping only theater: ${foundTheater.name} (${foundTheater.id})`);
-    }
-    
-    logger.info('Theaters loaded', { count: theaters.length });
-
-    const scrapeMode = options?.mode ?? (process.env.SCRAPE_MODE as ScrapeMode) ?? 'from_today_limited';
-    const scrapeDays = options?.days || parseInt(process.env.SCRAPE_DAYS || '7', 10);
-    const dates = getScrapeDates(scrapeMode, scrapeDays);
-    logger.info('Scrape config', { mode: scrapeMode, dates: dates.length, scrapeDays });
-    logger.info('Delay config', { theaterDelayMs, movieDelayMs });
-
-    summary.total_theaters = theaters.length;
-    summary.total_dates = dates.length;
-
-    await progress?.emit({
-      type: 'started',
-      total_theaters: theaters.length,
-      total_dates: dates.length,
-    });
+    const { theaters, dates } = await prepareSchedule(ctx, options);
 
     for (let i = 0; i < theaters.length; i++) {
       const theater = theaters[i];
