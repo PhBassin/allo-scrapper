@@ -5,6 +5,7 @@ import { db } from './client.js';
 import type { TheaterConfig } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 import { runMigrations } from './migrations.js';
+import { seedTheaters } from './theater-queries.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -56,14 +57,7 @@ async function seedTheatersIfEmpty(): Promise<void> {
     const content = await readFile(configPath, 'utf-8');
     const theaters: TheaterConfig[] = JSON.parse(content);
 
-    for (const theater of theaters) {
-      await db.query(
-        `INSERT INTO theaters (id, name, url)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (id) DO NOTHING`,
-        [theater.id, theater.name, theater.url]
-      );
-    }
+    await seedTheaters(db, theaters);
 
     logger.info(`🌱 Seeded ${theaters.length} theater(s) from theaters.json`);
   } catch (error) {

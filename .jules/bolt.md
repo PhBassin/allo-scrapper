@@ -1,4 +1,3 @@
-
 ## 2024-05-17 - [Optimizing Component Renders with useMemo]
 **Learning:** Found that some derived states, particularly arrays/computations on arrays like grouping or filtering (e.g., `getUniqueDates`, `filter`, `groupByFilm` in `CinemaPage.tsx`), were being recalculated on every component render. Since components can re-render frequently due to other unrelated state changes (like showing a scrape progress bar, `showProgress`), memoizing these computations prevents potentially expensive recalculations and optimizes rendering speed.
 **Action:** When working on components rendering lists from derived state arrays, always evaluate if `useMemo` can be used to prevent recalculation when the underlying source data (`showtimes`) or filter criteria (`selectedDate`) haven't changed.
@@ -10,6 +9,7 @@
 ## 2026-03-15 - [Optimize Array Presence Checks in React Renders]
 **Learning:** Found an anti-pattern in `CinemaDateSelector.tsx` where `.filter(s => s.date === date).length > 0` was used inside a render loop. This forces JavaScript to iterate through the entire array and allocate memory for a new intermediate array just to perform a boolean check, resulting in unnecessary $O(N)$ operations during render.
 **Action:** When only checking if an element exists in a collection, always use `Array.prototype.some()`. It early-exits on the first match (making it $O(1)$ in best-case scenarios) and avoids allocating memory for intermediate arrays.
+
 ## 2026-03-16 - [Parallelize DB queries in FilmService]
 **Learning:** Sequential database queries for fetching films and showtimes (e.g., `getWeeklyFilms` then `getWeeklyShowtimes`) create a performance bottleneck in `FilmService` since they are independent operations.
 **Action:** Use `Promise.all` to run independent DB queries concurrently, which reduces the total response time and improves API throughput for related endpoints.
@@ -29,3 +29,7 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+
+## 2026-06-10 - [Batch Insertions for Seeding Theater Data]
+**Learning:** Seeding multiple database records using a `for...of` loop with sequential inserts (`await db.query(...)`) inside schema initialization creates significant overhead and latency (e.g. 110ms for 50 records) due to multiple database roundtrips.
+**Action:** In database seeding functions, such as schema initialization, replace N+1 sequential inserts with a single batched query using constructed placeholders and a flattened value array, bringing latency down significantly (e.g. 2.7ms for 50 records).

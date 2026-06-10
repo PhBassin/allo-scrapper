@@ -145,3 +145,25 @@ export async function deleteTheater(db: DB, id: string): Promise<boolean> {
   const result = await db.query('DELETE FROM theaters WHERE id = $1', [id]);
   return (result.rowCount ?? 0) > 0;
 }
+
+
+// Seed multiple theaters efficiently
+export async function seedTheaters(
+  db: DB,
+  theaters: Array<{ id: string; name: string; url: string }>
+): Promise<void> {
+  if (theaters.length === 0) return;
+
+  const placeholders = theaters
+    .map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`)
+    .join(', ');
+
+  const values = theaters.flatMap(theater => [theater.id, theater.name, theater.url]);
+
+  await db.query(
+    `INSERT INTO theaters (id, name, url)
+     VALUES ${placeholders}
+     ON CONFLICT (id) DO NOTHING`,
+    values
+  );
+}

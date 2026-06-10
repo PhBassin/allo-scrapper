@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getTheaters, getTheaterConfigs, addTheater, updateTheaterConfig, deleteTheater, upsertTheater } from './theater-queries.js';
+import { getTheaters, getTheaterConfigs, addTheater, updateTheaterConfig, deleteTheater, upsertTheater, seedTheaters } from './theater-queries.js';
 import { type DB } from './client.js';
 
 describe('Theater Queries', () => {
@@ -121,6 +121,28 @@ describe('Theater Queries', () => {
 
       const result = await deleteTheater(mockDb, 'UNKNOWN');
       expect(result).toBe(false);
+    });
+  });
+
+
+  describe('seedTheaters', () => {
+    it('should do nothing if array is empty', async () => {
+      const mockDb = { query: vi.fn() } as unknown as DB;
+      await seedTheaters(mockDb, []);
+      expect(mockDb.query).not.toHaveBeenCalled();
+    });
+
+    it('should insert multiple theaters in a single query', async () => {
+      const mockDb = { query: vi.fn().mockResolvedValue({ rowCount: 2 }) } as unknown as DB;
+      await seedTheaters(mockDb, [
+        { id: 'T1', name: 'Theater 1', url: 'http://t1.com' },
+        { id: 'T2', name: 'Theater 2', url: 'http://t2.com' },
+      ]);
+      expect(mockDb.query).toHaveBeenCalledOnce();
+      const sql: string = mockDb.query.mock.calls[0][0];
+      const params: any[] = mockDb.query.mock.calls[0][1];
+      expect(sql).toContain('($1, $2, $3), ($4, $5, $6)');
+      expect(params).toEqual(['T1', 'Theater 1', 'http://t1.com', 'T2', 'Theater 2', 'http://t2.com']);
     });
   });
 
