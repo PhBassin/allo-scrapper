@@ -5,7 +5,7 @@ import { parseJSONMemoized } from '../utils/json-parse-cache.js';
 
 // --- Database Row Interfaces ---
 
-export interface MovieRow {
+interface MovieRow {
   id: number;
   title: string;
   original_title: string | null;
