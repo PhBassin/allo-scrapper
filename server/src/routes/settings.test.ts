@@ -21,15 +21,6 @@ vi.mock('../middleware/auth.js', () => ({
 vi.mock('../middleware/permission.js', () => ({
   requirePermission: (..._perms: string[]) => (req: any, res: any, next: any) => next(),
 }));
-vi.mock('../middleware/admin.js', () => ({
-  requireAdmin: async (req: any, res: any, next: any) => {
-    if (req.user?.id === 1) {
-      next();
-    } else {
-      res.status(403).json({ success: false, error: 'Admin required' });
-    }
-  },
-}));
 
 import * as settingsQueries from '../db/settings-queries.js';
 import * as imageValidator from '../utils/image-validator.js';

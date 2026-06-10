@@ -17,6 +17,14 @@ export interface RateLimitConfigRow {
   environment: string;
 }
 
+// NOTE: This is the DB-backed `RateLimitConfig` shape returned to admin
+// routes. It is structurally different from `config/rate-limits.ts`'s
+// `RateLimitConfig` (which is a flat shape used by the rate-limit
+// middleware). This one wraps the same fields under a `config` key and
+// adds DB metadata (`source`, `updatedAt`, `updatedBy`, `environment`).
+// The duplication is intentional — consumers explicitly import from one
+// module or the other. Keep both.
+// fallow-ignore-next-line duplicate-export
 export interface RateLimitConfig {
   config: {
     windowMs: number;

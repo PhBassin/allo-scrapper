@@ -46,16 +46,6 @@ vi.mock('../middleware/permission.js', () => ({
     }
   },
 }));
-vi.mock('../middleware/admin.js', () => ({
-  requireAdmin: async (req: any, res: any, next: any) => {
-    // Admin check: only user with id=1 is admin
-    if (req.user?.id === 1) {
-      next();
-    } else {
-      res.status(403).json({ success: false, error: 'Admin required' });
-    }
-  },
-}));
 vi.mock('../middleware/rate-limit.js', () => ({
   protectedLimiter: (req: any, res: any, next: any) => next(),
 }));
