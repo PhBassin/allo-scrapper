@@ -61,7 +61,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
-    "fallow": "^2.89.0",
+    "fallow": "^2.91.0",
     "husky": "^9.1.7"
   },
   "overrides": {
