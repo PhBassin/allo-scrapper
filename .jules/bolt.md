@@ -29,3 +29,7 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+
+## 2024-05-30 - [Optimize dynamic rate limit audit log batching]
+**Learning:** Sequential `INSERT INTO` queries using a `for...of` loop creates an N+1 performance bottleneck during dynamic audit logging (e.g., in `updateRateLimits` inside `rate-limit-queries.ts`). Because Postgres supports multi-row `VALUES` inserts, we can dramatically increase DB throughput by aggregating the loop data into a single string of parameterized values (like `($1, $2...), ($9, $10...)`).
+**Action:** When inserting multiple related rows or tracking dynamic audit logs over an object's fields, always aggregate the values into a single parameterized multi-row `INSERT` statement rather than awaiting multiple `db.query` calls sequentially.

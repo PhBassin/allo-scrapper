@@ -180,12 +180,22 @@ export async function updateRateLimits(
     const updateResult = await db.query<RateLimitConfigRow>(updateQuery, values);
     
     // Insert audit log entries
-    for (const entry of auditEntries) {
+    if (auditEntries.length > 0) {
+      const auditValues: any[] = [];
+      const auditPlaceholders: string[] = [];
+
+      let pIdx = 1;
+      for (const entry of auditEntries) {
+        auditPlaceholders.push(`($${pIdx}, $${pIdx+1}, $${pIdx+2}, $${pIdx+3}, $${pIdx+4}, $${pIdx+5}, $${pIdx+6}, $${pIdx+7})`);
+        auditValues.push(userId, username, roleName, entry.field, entry.oldValue, entry.newValue, userIp, userAgent);
+        pIdx += 8;
+      }
+
       await db.query(
         `INSERT INTO rate_limit_audit_log 
          (changed_by, changed_by_username, changed_by_role, field_name, old_value, new_value, user_ip, user_agent)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [userId, username, roleName, entry.field, entry.oldValue, entry.newValue, userIp, userAgent]
+         VALUES ${auditPlaceholders.join(', ')}`,
+        auditValues
       );
     }
     
