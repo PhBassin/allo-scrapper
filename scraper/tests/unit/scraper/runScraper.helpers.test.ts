@@ -591,7 +591,7 @@ describe('summarizeTheater', () => {
     expect(summary.total_showtimes).toBe(12);
     expect(progress.emit).toHaveBeenCalledWith({
       type: 'theater_completed',
-      theater_name: 'Theater Test',
+      theater_name: 'Theater A',
       total_movies: 5,
     });
   });

@@ -286,25 +286,8 @@ export async function scrapeTheaterWithStrategy(
   let rateLimited = false;
 
   // Load the list of dates this theater has actually published.
-  let availableDates: string[] = [];
-  try {
-    const meta = await strategy.loadTheaterMetadata(ctx.db, theater);
-    availableDates = meta.availableDates;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorType = classifyError(error);
-    logger.error('Failed to load theater metadata', {
-      theater: theater.name,
-      error: errorMessage,
-    });
-    summary.errors.push({
-      theater_name: theater.name,
-      theater_id: theater.id,
-      error: errorMessage,
-      error_type: errorType,
-      http_status_code: (error as any).statusCode,
-    });
-    summary.failed_theaters++;
+  const { availableDates, failed } = await loadTheaterAvailability(ctx, theater);
+  if (failed) {
     return {
       rateLimited: false,
       datesToScrape: [],
@@ -314,31 +297,12 @@ export async function scrapeTheaterWithStrategy(
     };
   }
 
-  // Intersect requested dates with what the theater has published.
-  const datesToScrape = dates.filter(d => availableDates.includes(d));
-  const skippedDates = dates.filter(d => !availableDates.includes(d));
-  if (skippedDates.length > 0) {
-    logger.info('Skipping dates not yet published', {
-      count: skippedDates.length,
-      dates: skippedDates,
-    });
-  }
-
-  // In resume mode, restrict further to pending attempts for this theater.
-  let finalDatesToScrape = datesToScrape;
-  if (options?.resumeMode && options?.pendingAttempts) {
-    const pendingDatesForTheater = options.pendingAttempts
-      .filter(a => a.theater_id === theater.id)
-      .map(a => a.date);
-
-    finalDatesToScrape = datesToScrape.filter(d => pendingDatesForTheater.includes(d));
-
-    logger.info('Resume mode: filtered to pending attempts', {
-      theater: theater.name,
-      allDates: datesToScrape.length,
-      pendingDates: finalDatesToScrape.length,
-    });
-  }
+  const { datesToScrape, finalDatesToScrape } = filterDatesForScrape(
+    theater,
+    dates,
+    availableDates,
+    options ?? {}
+  );
 
   logger.info('Dates to scrape', { theater: theater.name, count: finalDatesToScrape.length });
 
@@ -490,28 +454,12 @@ export async function scrapeTheaterWithStrategy(
     }
   }
 
-  const theaterFailed = successfulDates === 0 && finalDatesToScrape.length > 0;
-  logger.info('Theater summary', {
-    theater: theater.name,
+  await summarizeTheater(ctx, theater, {
     successfulDates,
     totalDates: finalDatesToScrape.length,
-    movies: theaterMoviesCount,
-    showtimes: theaterShowtimesCount,
+    moviesCount: theaterMoviesCount,
+    showtimesCount: theaterShowtimesCount,
   });
-
-  if (!theaterFailed) {
-    summary.successful_theaters++;
-    summary.total_movies += theaterMoviesCount;
-    summary.total_showtimes += theaterShowtimesCount;
-    await progress?.emit({
-      type: 'theater_completed',
-      theater_name: theater.name,
-      total_movies: theaterMoviesCount,
-    });
-  } else {
-    summary.failed_theaters++;
-    logger.error('Theater failed completely', { theater: theater.name, dates: datesToScrape.length });
-  }
 
   return {
     rateLimited,
@@ -520,6 +468,122 @@ export async function scrapeTheaterWithStrategy(
     moviesCount: theaterMoviesCount,
     showtimesCount: theaterShowtimesCount,
   };
+}
+
+/**
+ * Load the dates that the theater has actually published, via the
+ * strategy. On success returns { availableDates, failed: false }. On
+ * failure logs, records the error in summary.errors, increments
+ * summary.failed_theaters, and returns { availableDates: [], failed: true }
+ * so the caller can short-circuit the rest of the theater processing.
+ */
+export async function loadTheaterAvailability(
+  ctx: ScrapeContext,
+  theater: TheaterConfig
+): Promise<{ availableDates: string[]; failed: boolean }> {
+  const strategy = getStrategyBySource(theater.source || 'allocine');
+  const summary = ctx.summary;
+  try {
+    const meta = await strategy.loadTheaterMetadata(ctx.db, theater);
+    return { availableDates: meta.availableDates, failed: false };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorType = classifyError(error);
+    logger.error('Failed to load theater metadata', {
+      theater: theater.name,
+      error: errorMessage,
+    });
+    summary.errors.push({
+      theater_name: theater.name,
+      theater_id: theater.id,
+      error: errorMessage,
+      error_type: errorType,
+      http_status_code: (error as any).statusCode,
+    });
+    summary.failed_theaters++;
+    return { availableDates: [], failed: true };
+  }
+}
+
+/**
+ * Intersect the requested `dates` with what the theater has actually
+ * published (`availableDates`). When `options.resumeMode` is set, further
+ * filter to only the dates listed in `options.pendingAttempts` for this
+ * theater. Logs the skipped dates.
+ */
+export function filterDatesForScrape(
+  theater: TheaterConfig,
+  dates: string[],
+  availableDates: string[],
+  options: ScrapeOptions
+): { datesToScrape: string[]; finalDatesToScrape: string[]; skippedDates: string[] } {
+  const datesToScrape = dates.filter(d => availableDates.includes(d));
+  const skippedDates = dates.filter(d => !availableDates.includes(d));
+  if (skippedDates.length > 0) {
+    logger.info('Skipping dates not yet published', {
+      count: skippedDates.length,
+      dates: skippedDates,
+    });
+  }
+
+  let finalDatesToScrape = datesToScrape;
+  if (options.resumeMode && options.pendingAttempts) {
+    const pendingDatesForTheater = options.pendingAttempts
+      .filter(a => a.theater_id === theater.id)
+      .map(a => a.date);
+    finalDatesToScrape = datesToScrape.filter(d => pendingDatesForTheater.includes(d));
+    logger.info('Resume mode: filtered to pending attempts', {
+      theater: theater.name,
+      allDates: datesToScrape.length,
+      pendingDates: finalDatesToScrape.length,
+    });
+  }
+
+  return { datesToScrape, finalDatesToScrape, skippedDates };
+}
+
+/**
+ * Fold the per-theater counters into the shared summary and emit
+ * `theater_completed` if the theater succeeded (at least one date
+ * scraped). Returns `true` for a successful theater, `false` for a
+ * fully-failed one. The actual failed_theaters++ / total_movies += etc.
+ * mutations happen here so the caller stays declarative.
+ */
+export async function summarizeTheater(
+  ctx: ScrapeContext,
+  theater: TheaterConfig,
+  counts: {
+    successfulDates: number;
+    totalDates: number;
+    moviesCount: number;
+    showtimesCount: number;
+  }
+): Promise<boolean> {
+  const { summary, progress } = ctx;
+  const theaterFailed = counts.successfulDates === 0 && counts.totalDates > 0;
+  logger.info('Theater summary', {
+    theater: theater.name,
+    successfulDates: counts.successfulDates,
+    totalDates: counts.totalDates,
+    movies: counts.moviesCount,
+    showtimes: counts.showtimesCount,
+  });
+
+  if (!theaterFailed) {
+    summary.successful_theaters++;
+    summary.total_movies += counts.moviesCount;
+    summary.total_showtimes += counts.showtimesCount;
+    await progress?.emit({
+      type: 'theater_completed',
+      theater_name: theater.name,
+      total_movies: counts.moviesCount,
+    });
+    return true;
+  }
+
+  summary.failed_theaters++;
+  logger.error('Theater failed completely', { theater: theater.name, dates: counts.totalDates });
+  return false;
 }
 
 /**
