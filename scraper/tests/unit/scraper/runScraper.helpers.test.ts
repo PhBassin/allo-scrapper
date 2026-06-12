@@ -617,3 +617,66 @@ describe('summarizeTheater', () => {
     expect(progress.emit).not.toHaveBeenCalled();
   });
 });
+
+// --- Helpers: processOneDate ------------------------------------------------
+// processOneDate is the body of the per-date loop in
+// scrapeTheaterWithStrategy. It creates the pending attempt, runs the
+// strategy, and on error handles both the rate-limit cascade and the
+// non-rate-limit fallback. Returns one of three outcomes so the
+// caller can break on rate_limited.
+describe('processOneDate', () => {
+  it('returns "success" with counts on a clean scrape', async () => {
+    const { processOneDate } = await import('../../../src/scraper/index.js');
+    mockStrategy.scrapeTheater.mockResolvedValueOnce({
+      moviesCount: 3,
+      showtimesCount: 7,
+    });
+    const summary = emptySummary();
+    const ctx: any = {
+      db: {},
+      summary,
+      movieDelayMs: 0,
+      progress: { emit: vi.fn().mockResolvedValue(undefined) },
+    };
+
+    const result = await processOneDate(
+      ctx,
+      THEATER_A,
+      '2026-03-10',
+      ['2026-03-10'],
+      {}
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.moviesCount).toBe(3);
+    expect(result.showtimesCount).toBe(7);
+  });
+
+  it('returns "error" on a non-rate-limit failure and pushes the error to summary', async () => {
+    const { processOneDate } = await import('../../../src/scraper/index.js');
+    mockStrategy.scrapeTheater.mockRejectedValueOnce(new Error('HTTP 500'));
+    const summary = emptySummary();
+    const ctx: any = {
+      db: {},
+      summary,
+      movieDelayMs: 0,
+      progress: { emit: vi.fn().mockResolvedValue(undefined) },
+    };
+
+    const result = await processOneDate(
+      ctx,
+      THEATER_A,
+      '2026-03-10',
+      ['2026-03-10'],
+      {}
+    );
+
+    expect(result.status).toBe('error');
+    expect(summary.errors).toHaveLength(1);
+    expect(summary.errors[0]).toMatchObject({
+      theater_id: 'C0072',
+      date: '2026-03-10',
+      error: 'HTTP 500',
+    });
+  });
+});
