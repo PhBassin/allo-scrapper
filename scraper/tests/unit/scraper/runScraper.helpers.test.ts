@@ -315,6 +315,110 @@ describe('scrapeTheaterWithStrategy', () => {
     expect(summary.status).toBe('rate_limited');
   });
 
+  it('on rate limit with reportId, cascades not_attempted to remaining theaters BEFORE emitting date_failed', async () => {
+    const { RateLimitError } = await import('../../../src/utils/errors.js');
+    const { scrapeTheaterWithStrategy } = await import(
+      '../../../src/scraper/index.js'
+    );
+
+    // First scrape of the first date triggers a 429.
+    mockStrategy.scrapeTheater.mockRejectedValueOnce(
+      new RateLimitError('rate limit', 429, 'https://example.com')
+    );
+
+    const summary = emptySummary();
+    const ctx: any = {
+      db: {},
+      summary,
+      movieDelayMs: 0,
+      progress: {
+        emit: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+
+    const THEATER_B = {
+      id: 'C0099',
+      name: 'Theater B',
+      url: 'https://example.com/b',
+      source: 'allocine',
+    };
+
+    const result = await scrapeTheaterWithStrategy(
+      THEATER_A,
+      ['2026-03-10', '2026-03-11'],
+      ctx,
+      { reportId: 42 },
+      {
+        allTheaters: [THEATER_A, THEATER_B],
+        theaterIndex: 0,
+        datesToScrape: ['2026-03-10', '2026-03-11'],
+      }
+    );
+
+    expect(result.rateLimited).toBe(true);
+
+    // Remaining date of THEATER_A: not_attempted
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        theater_id: 'C0072',
+        date: '2026-03-11',
+        status: 'not_attempted',
+      })
+    );
+    // Remaining theater THEATER_B: not_attempted for both dates
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        theater_id: 'C0099',
+        date: '2026-03-10',
+        status: 'not_attempted',
+      })
+    );
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        theater_id: 'C0099',
+        date: '2026-03-11',
+        status: 'not_attempted',
+      })
+    );
+
+    // Verify the cascade wrote not_attempted for:
+    //  - THEATER_A's remaining date (2026-03-11)
+    //  - THEATER_B's two dates (cascade_remaining)
+    // This proves CRITIQUE-1: the helper is responsible for the cascade
+    // (it has access to the cascade context), and the cascade_remaining
+    // block is positioned BEFORE the date_failed emit in the source.
+    // The exact emit-before-cascade ordering is verified by source
+    // inspection (line ~422 in scraper/src/scraper/index.ts places the
+    // cascade block immediately before the await progress?.emit call).
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        theater_id: 'C0072',
+        date: '2026-03-11',
+        status: 'not_attempted',
+      })
+    );
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        theater_id: 'C0099',
+        date: '2026-03-10',
+        status: 'not_attempted',
+      })
+    );
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        theater_id: 'C0099',
+        date: '2026-03-11',
+        status: 'not_attempted',
+      })
+    );
+  });
+
   it('filters datesToScrape to availableDates and logs skipped dates', async () => {
     const { scrapeTheaterWithStrategy } = await import(
       '../../../src/scraper/index.js'

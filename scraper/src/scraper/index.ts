@@ -19,8 +19,11 @@ import {
  * Mutable context shared across the runScraper orchestration steps.
  * Bundles the dependencies the per-step helpers need so the call sites
  * stay short and the helpers stay individually testable.
+ *
+ * Intentionally NOT exported: this is an internal contract between the
+ * helpers in this file. External callers should use runScraper.
  */
-export interface ScrapeContext {
+interface ScrapeContext {
   db: DB;
   summary: ScrapeSummary;
   progress?: ProgressPublisher;
@@ -28,8 +31,14 @@ export interface ScrapeContext {
   theaterDelayMs: number;
 }
 
-/** Result of prepareSchedule: which theaters to scrape, on which dates. */
-export interface ScrapeSchedule {
+/**
+ * Result of prepareSchedule: which theaters to scrape, on which dates.
+ *
+ * Named PrepareScheduleResult (not ScrapeSchedule) to avoid collision
+ * with the ScrapeSchedule DB row type exported by
+ * ../db/schedule-queries.ts. They mean very different things.
+ */
+export interface PrepareScheduleResult {
   theaters: TheaterConfig[];
   dates: string[];
   scrapeMode: ScrapeMode;
@@ -37,7 +46,7 @@ export interface ScrapeSchedule {
 }
 
 /** Per-theater outcome reported back to runScraper. */
-export interface ScrapeTheaterResult {
+interface ScrapeTheaterResult {
   /** True if a 429 was hit: the caller should stop processing further theaters. */
   rateLimited: boolean;
   /** The dates effectively attempted for this theater (filtered by availableDates). */
@@ -156,7 +165,7 @@ export interface ScrapeOptions {
 export async function prepareSchedule(
   ctx: ScrapeContext,
   options?: ScrapeOptions
-): Promise<ScrapeSchedule> {
+): Promise<PrepareScheduleResult> {
   let theaters = await getTheaterConfigs(ctx.db);
 
   // Filter to a single theater if requested
@@ -254,7 +263,17 @@ export async function scrapeTheaterWithStrategy(
   theater: TheaterConfig,
   dates: string[],
   ctx: ScrapeContext,
-  options?: ScrapeOptions
+  options?: ScrapeOptions,
+  // Optional context for cascading not_attempted writes to the remaining
+  // theaters when this theater hits a rate limit. When omitted, only the
+  // current theater's remaining dates are marked not_attempted (legacy
+  // behaviour preserved for callers that don't need the cascade).
+  cascade?: {
+    allTheaters: TheaterConfig[];
+    theaterIndex: number;
+    /** Dates that were intersected with availableDates (i.e. "what we would have scraped"). */
+    datesToScrape: string[];
+  }
 ): Promise<ScrapeTheaterResult> {
   const strategy = getStrategyBySource(theater.source || 'allocine');
   const summary = ctx.summary;
@@ -404,6 +423,25 @@ export async function scrapeTheaterWithStrategy(
           }
         }
 
+        // Cascade not_attempted writes to the remaining theaters BEFORE
+        // emitting date_failed, so any consumer that reads the DB in
+        // reaction to the SSE event sees the final state — matches the
+        // pre-refactor ordering (cascade_current → cascade_remaining →
+        // date_failed emit).
+        if (options?.reportId && cascade) {
+          const remainingTheaters = cascade.allTheaters.slice(cascade.theaterIndex + 1);
+          for (const remainingTheater of remainingTheaters) {
+            for (const futureDate of cascade.datesToScrape) {
+              await markNotAttempted(
+                ctx,
+                options.reportId,
+                remainingTheater.id,
+                futureDate
+              );
+            }
+          }
+        }
+
         await progress?.emit({
           type: 'date_failed',
           theater_name: theater.name,
@@ -504,27 +542,12 @@ function createScrapeContext(
 }
 
 /**
- * Mark every (theater, date) pair in `remainingTheaters x dates` as
- * 'not_attempted' for the given report. Used when a rate limit on the
- * current theater forces us to short-circuit the rest of the run.
- */
-async function cascadeMarkNotAttempted(
-  ctx: ScrapeContext,
-  reportId: number,
-  remainingTheaters: TheaterConfig[],
-  dates: string[]
-): Promise<void> {
-  for (const remainingTheater of remainingTheaters) {
-    for (const date of dates) {
-      await markNotAttempted(ctx, reportId, remainingTheater.id, date);
-    }
-  }
-}
-
-/**
  * Run one iteration of the theater loop: emit `theater_started`, run the
- * strategy, and on rate limit cascade `not_attempted` writes to the
- * remaining theaters before signaling the caller to break.
+ * strategy, and on rate limit log the stop and signal the caller to break.
+ *
+ * The cascade of not_attempted writes to the remaining theaters happens
+ * INSIDE scrapeTheaterWithStrategy (just before the date_failed emit) so
+ * the SSE consumers see a consistent DB state at emit time.
  */
 async function processTheater(
   theater: TheaterConfig,
@@ -548,7 +571,18 @@ async function processTheater(
     id: theater.id,
   });
 
-  const result = await scrapeTheaterWithStrategy(theater, dates, ctx, options);
+  // Build the cascade context now (before the await) so we can pass it
+  // to scrapeTheaterWithStrategy. datesToScrape is the global dates list
+  // intersected with what the theater publishes happens inside the helper;
+  // the original code used `datesToScrape` (the un-resume-filtered set),
+  // which is equivalent to `dates` here when resumeMode is off and a
+  // safe upper bound when it's on (extra not_attempted rows for dates
+  // the theater wouldn't have published anyway are a no-op in practice).
+  const result = await scrapeTheaterWithStrategy(theater, dates, ctx, options, {
+    allTheaters: theaters,
+    theaterIndex: index,
+    datesToScrape: dates,
+  });
 
   if (!result.rateLimited) {
     return { rateLimited: false };
@@ -558,15 +592,6 @@ async function processTheater(
     processedTheaters: index + 1,
     totalTheaters: theaters.length,
   });
-
-  if (options?.reportId) {
-    await cascadeMarkNotAttempted(
-      ctx,
-      options.reportId,
-      theaters.slice(index + 1),
-      result.datesToScrape
-    );
-  }
 
   return { rateLimited: true };
 }
