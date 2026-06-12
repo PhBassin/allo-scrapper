@@ -29,7 +29,3 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
-
-## $(date +%Y-%m-%d) - Batched Role Permissions Optimization
-**Learning:** In the `server` workspace, `Promise.all()` with a `.map()` to fetch child records (permissions for roles) caused an N+1 query problem due to DB round-trip overhead.
-**Action:** When fetching nested relations for multiple records, prefer a single batched DB query using `ANY($1::int[])` for the foreign keys and group the results in memory using a dictionary. Also, ensure corresponding Vitest mocks reflect the flattened batched query structure.
