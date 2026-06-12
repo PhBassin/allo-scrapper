@@ -34,9 +34,12 @@ export function mockHttpOk(body: unknown = {}, status: number = 200) {
 // Stub global fetch with a default OK response
 // ---------------------------------------------------------------------------
 
-/** Convenience: stubs `global.fetch` with a 200 OK empty response. */
+/** Convenience: stubs `global.fetch` with a 200 OK empty response.
+ *  Returns the mock so tests can inspect calls. */
 export function mockFetchStub(body: unknown = {}, status: number = 200) {
-  vi.stubGlobal('fetch', mockHttpOk(body, status));
+  const fn = mockHttpOk(body, status);
+  vi.stubGlobal('fetch', fn);
+  return fn;
 }
 
 // ---------------------------------------------------------------------------
