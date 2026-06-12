@@ -717,6 +717,10 @@ describe('processOneDate', () => {
 // fallow's static coverage estimator cannot see transitive coverage
 // from processOneDate. Direct tests push the estimated CRAP under 30.
 describe('handleRateLimit (direct)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('marks THIS theater remaining dates as not_attempted, cascades to remaining theaters, then emits date_failed', async () => {
     const { RateLimitError } = await import('../../../src/utils/errors.js');
     const { handleRateLimit } = await import('../../../src/scraper/index.js');
@@ -751,7 +755,7 @@ describe('handleRateLimit (direct)', () => {
       99,
       expect.objectContaining({ status: 'rate_limited' })
     );
-    // cascade_current: THEATER_A's remaining date
+    // cascade_current: THEATER_A's remaining date (2026-03-11)
     expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -760,12 +764,20 @@ describe('handleRateLimit (direct)', () => {
         status: 'not_attempted',
       })
     );
-    // cascade_remaining: THEATER_B for both dates
+    // cascade_remaining: THEATER_B (id=W7504) for both dates
     expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        theater_id: 'C0099',
+        theater_id: 'W7504',
         date: '2026-03-10',
+        status: 'not_attempted',
+      })
+    );
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        theater_id: 'W7504',
+        date: '2026-03-11',
         status: 'not_attempted',
       })
     );
@@ -803,6 +815,10 @@ describe('handleRateLimit (direct)', () => {
 });
 
 describe('handleDateFailure (direct)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('records a non-rate-limit error in summary.errors and updates the attempt as failed', async () => {
     const { handleDateFailure } = await import('../../../src/scraper/index.js');
     const summary = emptySummary();

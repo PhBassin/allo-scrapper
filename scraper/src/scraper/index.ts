@@ -435,7 +435,11 @@ export async function processOneDate(
   }
 }
 
-interface HandleRateLimitArgs {
+/**
+ * Public, for testing only. The argument shape of handleRateLimit;
+ * the helper itself is consumed exclusively by processOneDate.
+ */
+export interface HandleRateLimitArgs {
   ctx: ScrapeContext;
   theater: TheaterConfig;
   date: string;
@@ -450,7 +454,12 @@ interface HandleRateLimitArgs {
   attemptId: number | undefined;
 }
 
-async function handleRateLimit(args: HandleRateLimitArgs): Promise<{ status: 'rate_limited' }> {
+/**
+ * Public, for testing only. Handles the rate-limit path of a single
+ * date: cascade_current → cascade_remaining → date_failed emit,
+ * preserving the pre-refactor ordering invariant.
+ */
+export async function handleRateLimit(args: HandleRateLimitArgs): Promise<{ status: 'rate_limited' }> {
   const { ctx, theater, date, finalDatesToScrape, options, cascade, error, attemptId } = args;
   const summary = ctx.summary;
   const progress = ctx.progress;
@@ -522,7 +531,10 @@ async function handleRateLimit(args: HandleRateLimitArgs): Promise<{ status: 'ra
   return { status: 'rate_limited' };
 }
 
-interface HandleDateFailureArgs {
+/**
+ * Public, for testing only. The argument shape of handleDateFailure.
+ */
+export interface HandleDateFailureArgs {
   ctx: ScrapeContext;
   theater: TheaterConfig;
   date: string;
@@ -530,7 +542,12 @@ interface HandleDateFailureArgs {
   attemptId: number | undefined;
 }
 
-async function handleDateFailure(args: HandleDateFailureArgs): Promise<{ status: 'error' }> {
+/**
+ * Public, for testing only. Handles the non-rate-limit failure path
+ * of a single date: log + record + emit, then continue with the
+ * next date.
+ */
+export async function handleDateFailure(args: HandleDateFailureArgs): Promise<{ status: 'error' }> {
   const { ctx, theater, date, error, attemptId } = args;
   const summary = ctx.summary;
   const progress = ctx.progress;
