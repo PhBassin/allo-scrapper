@@ -10,7 +10,7 @@ import {
 } from '../db/settings-queries.js';
 import { validateImage } from '../utils/image-validator.js';
 import type { ApiResponse } from '../types/api.js';
-import type { AppSettingsUpdate, AppSettingsExport } from '../types/settings.js';
+import type { AppSettings, AppSettingsUpdate, AppSettingsExport } from '../types/settings.js';
 import { logger } from '../utils/logger.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
@@ -80,6 +80,77 @@ router.get('/admin', protectedLimiter, requireAuth, requirePermission('settings:
 });
 
 /**
+ * Validate settings update payload for security and correctness.
+ * Mutates `updates` in-place (compresses logo/favicon).
+ * Throws ValidationError on any invalid field.
+ */
+async function validateSettingsUpdate(updates: AppSettingsUpdate): Promise<void> {
+  // Validate and compress logo if provided
+  if (updates.logo_base64) {
+    const logoValidation = await validateImage(updates.logo_base64, 'logo', LOGO_MAX_SIZE);
+    if (!logoValidation.valid) {
+      throw new ValidationError(`Invalid logo: ${logoValidation.error}`);
+    }
+    updates.logo_base64 = logoValidation.compressedBase64!;
+  }
+
+  // Validate and compress favicon if provided
+  if (updates.favicon_base64) {
+    const faviconValidation = await validateImage(updates.favicon_base64, 'favicon', FAVICON_MAX_SIZE);
+    if (!faviconValidation.valid) {
+      throw new ValidationError(`Invalid favicon: ${faviconValidation.error}`);
+    }
+    updates.favicon_base64 = faviconValidation.compressedBase64!;
+  }
+
+  // Validate input lengths to prevent DoS via large payloads
+  for (const [field, limit] of Object.entries(INPUT_LIMITS)) {
+    const value = updates[field as keyof AppSettingsUpdate];
+    if (typeof value === 'string' && value.length > limit) {
+      throw new ValidationError(`${field} exceeds maximum length of ${limit} characters`);
+    }
+  }
+
+  // Validate footer links to prevent stored XSS via javascript: or data: URIs
+  if (updates.footer_links && Array.isArray(updates.footer_links)) {
+    for (const link of updates.footer_links) {
+      if (link.url) {
+        let parsedUrl: URL;
+        try {
+          parsedUrl = new URL(link.url, 'http://dummy.com');
+        } catch {
+          throw new ValidationError(`Invalid URL format in footer link: ${link.url}`);
+        }
+        if (
+          parsedUrl.protocol !== 'http:' &&
+          parsedUrl.protocol !== 'https:' &&
+          parsedUrl.protocol !== 'mailto:' &&
+          parsedUrl.protocol !== 'tel:'
+        ) {
+          throw new ValidationError(`Invalid URL protocol in footer link: ${link.url}`);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Persist settings update and return the updated document.
+ * Throws Error if the update fails.
+ */
+async function applySettingsUpdate(
+  db: DB,
+  updates: AppSettingsUpdate,
+  userId: number,
+): Promise<AppSettings> {
+  const updatedSettings = await updateSettings(db, updates, userId);
+  if (!updatedSettings) {
+    throw new Error('Failed to update settings');
+  }
+  return updatedSettings;
+}
+
+/**
  * PUT /api/settings (admin only)
  * Update settings
  */
@@ -88,64 +159,9 @@ router.put('/', protectedLimiter, requireAuth, requirePermission('settings:updat
     const db: DB = req.app.get('db');
     const updates: AppSettingsUpdate = req.body;
 
-    // Validate and compress logo if provided
-    if (updates.logo_base64) {
-      const logoValidation = await validateImage(updates.logo_base64, 'logo', LOGO_MAX_SIZE);
-      if (!logoValidation.valid) {
-        return next(new ValidationError(`Invalid logo: ${logoValidation.error}`));
-      }
-      // Use compressed version
-      updates.logo_base64 = logoValidation.compressedBase64!;
-    }
+    await validateSettingsUpdate(updates);
 
-    // Validate and compress favicon if provided
-    if (updates.favicon_base64) {
-      const faviconValidation = await validateImage(
-        updates.favicon_base64,
-        'favicon',
-        FAVICON_MAX_SIZE
-      );
-      if (!faviconValidation.valid) {
-        return next(new ValidationError(`Invalid favicon: ${faviconValidation.error}`));
-      }
-      // Use compressed version
-      updates.favicon_base64 = faviconValidation.compressedBase64!;
-    }
-
-    // Validate input lengths to prevent DoS via large payloads
-    for (const [field, limit] of Object.entries(INPUT_LIMITS)) {
-      const value = updates[field as keyof AppSettingsUpdate];
-      if (typeof value === 'string' && value.length > limit) {
-        return next(new ValidationError(`${field} exceeds maximum length of ${limit} characters`));
-      }
-    }
-
-    // Validate footer links to prevent stored XSS via javascript: or data: URIs
-    if (updates.footer_links && Array.isArray(updates.footer_links)) {
-      for (const link of updates.footer_links) {
-        if (link.url) {
-          try {
-            const parsedUrl = new URL(link.url, 'http://dummy.com');
-            if (
-              parsedUrl.protocol !== 'http:' &&
-              parsedUrl.protocol !== 'https:' &&
-              parsedUrl.protocol !== 'mailto:' &&
-              parsedUrl.protocol !== 'tel:'
-            ) {
-              return next(new ValidationError(`Invalid URL protocol in footer link: ${link.url}`));
-            }
-          } catch (e) {
-            return next(new ValidationError(`Invalid URL format in footer link: ${link.url}`));
-          }
-        }
-      }
-    }
-
-    const updatedSettings = await updateSettings(db, updates, req.user!.id);
-
-    if (!updatedSettings) {
-      return next(new Error('Failed to update settings'));
-    }
+    const updatedSettings = await applySettingsUpdate(db, updates, req.user!.id);
 
     logger.info(`Settings updated by user ${req.user!.username}`, {
       userId: req.user!.id,
