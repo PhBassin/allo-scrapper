@@ -710,3 +710,151 @@ describe('processOneDate', () => {
     });
   });
 });
+
+// --- Helpers: handleRateLimit / handleDateFailure ---------------------------
+// These two helpers are private (not exported). We re-import them via
+// the public name. The reason we exercise them directly is that
+// fallow's static coverage estimator cannot see transitive coverage
+// from processOneDate. Direct tests push the estimated CRAP under 30.
+describe('handleRateLimit (direct)', () => {
+  it('marks THIS theater remaining dates as not_attempted, cascades to remaining theaters, then emits date_failed', async () => {
+    const { RateLimitError } = await import('../../../src/utils/errors.js');
+    const { handleRateLimit } = await import('../../../src/scraper/index.js');
+    const summary = emptySummary();
+    const ctx: any = {
+      db: {},
+      summary,
+      progress: { emit: vi.fn().mockResolvedValue(undefined) },
+    };
+    const err = new RateLimitError('429', 429, 'https://example.com');
+
+    const result = await handleRateLimit({
+      ctx,
+      theater: THEATER_A,
+      date: '2026-03-10',
+      finalDatesToScrape: ['2026-03-10', '2026-03-11'],
+      options: { reportId: 42 },
+      cascade: {
+        allTheaters: [THEATER_A, THEATER_B],
+        theaterIndex: 0,
+        datesToScrape: ['2026-03-10', '2026-03-11'],
+      },
+      error: err,
+      attemptId: 99,
+    });
+
+    expect(result.status).toBe('rate_limited');
+    expect(summary.status).toBe('rate_limited');
+    // attemptId provided → rate_limited update attempted
+    expect(mockUpdateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      99,
+      expect.objectContaining({ status: 'rate_limited' })
+    );
+    // cascade_current: THEATER_A's remaining date
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        theater_id: 'C0072',
+        date: '2026-03-11',
+        status: 'not_attempted',
+      })
+    );
+    // cascade_remaining: THEATER_B for both dates
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        theater_id: 'C0099',
+        date: '2026-03-10',
+        status: 'not_attempted',
+      })
+    );
+    // date_failed emit
+    expect(ctx.progress.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'date_failed' })
+    );
+  });
+
+  it('no-ops cascade writes when reportId is missing', async () => {
+    const { RateLimitError } = await import('../../../src/utils/errors.js');
+    const { handleRateLimit } = await import('../../../src/scraper/index.js');
+    const summary = emptySummary();
+    const ctx: any = {
+      db: {},
+      summary,
+      progress: { emit: vi.fn().mockResolvedValue(undefined) },
+    };
+    const err = new RateLimitError('429', 429, 'https://example.com');
+
+    const result = await handleRateLimit({
+      ctx,
+      theater: THEATER_A,
+      date: '2026-03-10',
+      finalDatesToScrape: ['2026-03-10', '2026-03-11'],
+      options: {}, // no reportId
+      error: err,
+      attemptId: undefined,
+    });
+
+    expect(result.status).toBe('rate_limited');
+    // No cascade writes attempted
+    expect(mockCreateScrapeAttempt).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleDateFailure (direct)', () => {
+  it('records a non-rate-limit error in summary.errors and updates the attempt as failed', async () => {
+    const { handleDateFailure } = await import('../../../src/scraper/index.js');
+    const summary = emptySummary();
+    const ctx: any = {
+      db: {},
+      summary,
+      progress: { emit: vi.fn().mockResolvedValue(undefined) },
+    };
+
+    const result = await handleDateFailure({
+      ctx,
+      theater: THEATER_A,
+      date: '2026-03-10',
+      error: new Error('HTTP 500'),
+      attemptId: 7,
+    });
+
+    expect(result.status).toBe('error');
+    expect(summary.errors).toHaveLength(1);
+    expect(summary.errors[0]).toMatchObject({
+      theater_id: 'C0072',
+      date: '2026-03-10',
+      error: 'HTTP 500',
+    });
+    expect(mockUpdateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      7,
+      expect.objectContaining({ status: 'failed' })
+    );
+    expect(ctx.progress.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'date_failed' })
+    );
+  });
+
+  it('still works when attemptId is undefined (no update, no throw)', async () => {
+    const { handleDateFailure } = await import('../../../src/scraper/index.js');
+    const summary = emptySummary();
+    const ctx: any = {
+      db: {},
+      summary,
+      progress: { emit: vi.fn().mockResolvedValue(undefined) },
+    };
+
+    const result = await handleDateFailure({
+      ctx,
+      theater: THEATER_A,
+      date: '2026-03-10',
+      error: new Error('boom'),
+      attemptId: undefined,
+    });
+
+    expect(result.status).toBe('error');
+    expect(summary.errors[0].error).toBe('boom');
+  });
+});
