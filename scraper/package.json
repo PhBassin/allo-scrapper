@@ -21,15 +21,15 @@
   "license": "MIT",
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/exporter-trace-otlp-grpc": "^0.218.0",
-    "@opentelemetry/instrumentation-http": "^0.218.0",
-    "@opentelemetry/instrumentation-pg": "^0.70.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.219.0",
+    "@opentelemetry/instrumentation-http": "^0.219.0",
+    "@opentelemetry/instrumentation-pg": "^0.71.0",
     "@opentelemetry/resources": "^2.6.0",
-    "@opentelemetry/sdk-node": "^0.218.0",
+    "@opentelemetry/sdk-node": "^0.219.0",
     "@opentelemetry/semantic-conventions": "^1.41.1",
     "cheerio": "^1.0.0",
     "express": "^5.2.1",
-    "ioredis": "^5.11.0",
+    "ioredis": "^5.11.1",
     "node-cron": "^4.2.1",
     "pg": "^8.21.0",
     "prom-client": "^15.1.0",
@@ -38,12 +38,12 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.3",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.18.0",
-    "@vitest/coverage-v8": "^4.0.18",
-    "tsx": "^4.22.3",
+    "@vitest/coverage-v8": "^4.1.8",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.8"
   }
 }
