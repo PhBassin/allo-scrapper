@@ -34,6 +34,22 @@ const INPUT_LIMITS = {
 } as const;
 
 /**
+ * Send a JSON success response, or pass NotFoundError to next() if data is falsy.
+ */
+function sendJsonOrNotFound<T>(
+  res: Response,
+  data: T | undefined,
+  next: NextFunction,
+  notFoundMessage = 'Resource not found',
+): void {
+  if (!data) {
+    next(new NotFoundError(notFoundMessage));
+    return;
+  }
+  res.json({ success: true, data } satisfies ApiResponse);
+}
+
+/**
  * GET /api/settings (public)
  * Returns public settings for theming (no authentication required)
  */
@@ -41,16 +57,7 @@ router.get('/', async (req, res, next) => {
   try {
     const db: DB = req.app.get('db');
     const settings = await getPublicSettings(db);
-
-    if (!settings) {
-      return next(new NotFoundError('Settings not found'));
-    }
-
-    const response: ApiResponse = {
-      success: true,
-      data: settings,
-    };
-    res.json(response);
+    sendJsonOrNotFound(res, settings, next, 'Settings not found');
   } catch (error) {
     next(error);
   }
@@ -64,74 +71,90 @@ router.get('/admin', protectedLimiter, requireAuth, requirePermission('settings:
   try {
     const db: DB = req.app.get('db');
     const settings = await getSettings(db);
-
-    if (!settings) {
-      return next(new NotFoundError('Settings not found'));
-    }
-
-    const response: ApiResponse = {
-      success: true,
-      data: settings,
-    };
-    res.json(response);
+    sendJsonOrNotFound(res, settings, next, 'Settings not found');
   } catch (error) {
     next(error);
   }
 });
 
 /**
- * Validate settings update payload for security and correctness.
- * Mutates `updates` in-place (compresses logo/favicon).
- * Throws ValidationError on any invalid field.
+ * Validate and compress logo if provided.
+ * Throws ValidationError on invalid image data.
  */
-async function validateSettingsUpdate(updates: AppSettingsUpdate): Promise<void> {
-  // Validate and compress logo if provided
-  if (updates.logo_base64) {
-    const logoValidation = await validateImage(updates.logo_base64, 'logo', LOGO_MAX_SIZE);
-    if (!logoValidation.valid) {
-      throw new ValidationError(`Invalid logo: ${logoValidation.error}`);
-    }
-    updates.logo_base64 = logoValidation.compressedBase64!;
-  }
+async function validateLogo(updates: AppSettingsUpdate): Promise<void> {
+  if (!updates.logo_base64) return;
 
-  // Validate and compress favicon if provided
-  if (updates.favicon_base64) {
-    const faviconValidation = await validateImage(updates.favicon_base64, 'favicon', FAVICON_MAX_SIZE);
-    if (!faviconValidation.valid) {
-      throw new ValidationError(`Invalid favicon: ${faviconValidation.error}`);
-    }
-    updates.favicon_base64 = faviconValidation.compressedBase64!;
+  const result = await validateImage(updates.logo_base64, 'logo', LOGO_MAX_SIZE);
+  if (!result.valid) {
+    throw new ValidationError(`Invalid logo: ${result.error}`);
   }
+  updates.logo_base64 = result.compressedBase64!;
+}
 
-  // Validate input lengths to prevent DoS via large payloads
+/**
+ * Validate and compress favicon if provided.
+ * Throws ValidationError on invalid image data.
+ */
+async function validateFavicon(updates: AppSettingsUpdate): Promise<void> {
+  if (!updates.favicon_base64) return;
+
+  const result = await validateImage(updates.favicon_base64, 'favicon', FAVICON_MAX_SIZE);
+  if (!result.valid) {
+    throw new ValidationError(`Invalid favicon: ${result.error}`);
+  }
+  updates.favicon_base64 = result.compressedBase64!;
+}
+
+/**
+ * Validate input field lengths to prevent DoS via large payloads.
+ * Throws ValidationError if any field exceeds its limit.
+ */
+function validateInputLengths(updates: AppSettingsUpdate): void {
   for (const [field, limit] of Object.entries(INPUT_LIMITS)) {
     const value = updates[field as keyof AppSettingsUpdate];
     if (typeof value === 'string' && value.length > limit) {
       throw new ValidationError(`${field} exceeds maximum length of ${limit} characters`);
     }
   }
+}
 
-  // Validate footer links to prevent stored XSS via javascript: or data: URIs
-  if (updates.footer_links && Array.isArray(updates.footer_links)) {
-    for (const link of updates.footer_links) {
-      if (link.url) {
-        let parsedUrl: URL;
-        try {
-          parsedUrl = new URL(link.url, 'http://dummy.com');
-        } catch {
-          throw new ValidationError(`Invalid URL format in footer link: ${link.url}`);
-        }
-        if (
-          parsedUrl.protocol !== 'http:' &&
-          parsedUrl.protocol !== 'https:' &&
-          parsedUrl.protocol !== 'mailto:' &&
-          parsedUrl.protocol !== 'tel:'
-        ) {
-          throw new ValidationError(`Invalid URL protocol in footer link: ${link.url}`);
-        }
-      }
+/**
+ * Validate footer link URLs to prevent stored XSS via javascript: or data: URIs.
+ * Throws ValidationError on unsafe or malformed URLs.
+ */
+function validateFooterLinks(updates: AppSettingsUpdate): void {
+  if (!updates.footer_links || !Array.isArray(updates.footer_links)) return;
+
+  for (const link of updates.footer_links) {
+    if (!link.url) continue;
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(link.url, 'http://dummy.com');
+    } catch {
+      throw new ValidationError(`Invalid URL format in footer link: ${link.url}`);
+    }
+
+    if (
+      parsedUrl.protocol !== 'http:' &&
+      parsedUrl.protocol !== 'https:' &&
+      parsedUrl.protocol !== 'mailto:' &&
+      parsedUrl.protocol !== 'tel:'
+    ) {
+      throw new ValidationError(`Invalid URL protocol in footer link: ${link.url}`);
     }
   }
+}
+
+/**
+ * Validate settings update payload for security and correctness.
+ * Delegates to specialised helpers: logo, favicon, input lengths, footer links.
+ */
+async function validateSettingsUpdate(updates: AppSettingsUpdate): Promise<void> {
+  await validateLogo(updates);
+  await validateFavicon(updates);
+  validateInputLengths(updates);
+  validateFooterLinks(updates);
 }
 
 /**
