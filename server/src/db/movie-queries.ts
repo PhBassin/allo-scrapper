@@ -129,16 +129,14 @@ export async function upsertMovie(db: DB, movie: Movie): Promise<void> {
   );
 }
 
-// Récupérer un movie par son ID
-export async function getMovie(db: DB, movieId: number): Promise<Movie | undefined> {
-  const result = await db.query<MovieRow>(
-    'SELECT * FROM movies WHERE id = $1',
-    [movieId]
-  );
-
-  const row = result.rows[0];
-  if (!row) return undefined;
-
+/**
+ * Transform a raw MovieRow (from database) into a Movie domain object.
+ *
+ * Handles all nullish-coalescing (null → undefined) and JSON parsing
+ * (genres, screenwriters, actors) in one place. Used by getMovie,
+ * getMoviesByDate, getWeeklyMovies, and searchMovies.
+ */
+export function formatMovieRow(row: MovieRow): Movie {
   return {
     id: row.id,
     title: row.title,
@@ -159,6 +157,19 @@ export async function getMovie(db: DB, movieId: number): Promise<Movie | undefin
     source_url: row.source_url,
     trailer_url: row.trailer_url ?? undefined,
   };
+}
+
+// Récupérer un movie par son ID
+export async function getMovie(db: DB, movieId: number): Promise<Movie | undefined> {
+  const result = await db.query<MovieRow>(
+    'SELECT * FROM movies WHERE id = $1',
+    [movieId]
+  );
+
+  const row = result.rows[0];
+  if (!row) return undefined;
+
+  return formatMovieRow(row);
 }
 
 // Récupérer les movies programmés pour une date spécifique
@@ -193,24 +204,7 @@ export async function getMoviesByDate(
   for (const row of result.rows) {
     if (!moviesMap.has(row.id)) {
       moviesMap.set(row.id, {
-        id: row.id,
-        title: row.title,
-        original_title: row.original_title ?? undefined,
-        poster_url: row.poster_url ?? undefined,
-        duration_minutes: row.duration_minutes ?? undefined,
-        release_date: row.release_date ?? undefined,
-        rerelease_date: row.rerelease_date ?? undefined,
-        genres: parseJSONMemoized(row.genres),
-        nationality: row.nationality ?? undefined,
-        director: row.director ?? undefined,
-        screenwriters: parseJSONMemoized(row.screenwriters),
-        actors: parseJSONMemoized(row.actors),
-        synopsis: row.synopsis ?? undefined,
-        certificate: row.certificate ?? undefined,
-        press_rating: row.press_rating ?? undefined,
-        audience_rating: row.audience_rating ?? undefined,
-        source_url: row.source_url,
-        trailer_url: row.trailer_url ?? undefined,
+        ...formatMovieRow(row),
         theaters: [],
       });
     }
@@ -261,24 +255,7 @@ export async function getWeeklyMovies(
   for (const row of result.rows) {
     if (!moviesMap.has(row.id)) {
       moviesMap.set(row.id, {
-        id: row.id,
-        title: row.title,
-        original_title: row.original_title ?? undefined,
-        poster_url: row.poster_url ?? undefined,
-        duration_minutes: row.duration_minutes ?? undefined,
-        release_date: row.release_date ?? undefined,
-        rerelease_date: row.rerelease_date ?? undefined,
-        genres: parseJSONMemoized(row.genres),
-        nationality: row.nationality ?? undefined,
-        director: row.director ?? undefined,
-        screenwriters: parseJSONMemoized(row.screenwriters),
-        actors: parseJSONMemoized(row.actors),
-        synopsis: row.synopsis ?? undefined,
-        certificate: row.certificate ?? undefined,
-        press_rating: row.press_rating ?? undefined,
-        audience_rating: row.audience_rating ?? undefined,
-        source_url: row.source_url,
-        trailer_url: row.trailer_url ?? undefined,
+        ...formatMovieRow(row),
         theaters: [],
       });
     }

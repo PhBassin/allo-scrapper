@@ -42,7 +42,7 @@ export async function initializeDatabase() {
   await seedTheatersIfEmpty();
 }
 
-async function seedTheatersIfEmpty(): Promise<void> {
+export async function seedTheatersIfEmpty(): Promise<void> {
   try {
     const countResult = await db.query('SELECT COUNT(*) as count FROM theaters WHERE url IS NOT NULL');
     const count = parseInt(countResult.rows[0].count, 10);
