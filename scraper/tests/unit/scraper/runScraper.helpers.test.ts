@@ -472,3 +472,148 @@ describe('scrapeTheaterWithStrategy', () => {
     expect(mockStrategy.scrapeTheater).toHaveBeenCalledTimes(1);
   });
 });
+
+// --- Helpers: loadTheaterAvailability ---------------------------------------
+// loadTheaterAvailability asks the strategy for the theater's published
+// dates. On success, returns { availableDates, failed: false }. On
+// failure, logs, pushes to summary.errors, increments failed_theaters,
+// and returns { availableDates: [], failed: true } so the caller knows
+// to short-circuit.
+describe('loadTheaterAvailability', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns the available dates from the strategy on success', async () => {
+    const { loadTheaterAvailability } = await import(
+      '../../../src/scraper/index.js'
+    );
+    mockStrategy.loadTheaterMetadata.mockResolvedValue({
+      theater: THEATER_A,
+      availableDates: ['2026-03-10', '2026-03-12'],
+    });
+    const summary = emptySummary();
+    const ctx: any = { db: {}, summary, progress: undefined };
+
+    const result = await loadTheaterAvailability(ctx, THEATER_A);
+
+    expect(result.failed).toBe(false);
+    expect(result.availableDates).toEqual(['2026-03-10', '2026-03-12']);
+    expect(summary.failed_theaters).toBe(0);
+  });
+
+  it('records the error, increments failed_theaters, and signals failure on metadata load error', async () => {
+    const { loadTheaterAvailability } = await import(
+      '../../../src/scraper/index.js'
+    );
+    mockStrategy.loadTheaterMetadata.mockRejectedValueOnce(
+      new Error('network down')
+    );
+    const summary = emptySummary();
+    const ctx: any = { db: {}, summary, progress: undefined };
+
+    const result = await loadTheaterAvailability(ctx, THEATER_A);
+
+    expect(result.failed).toBe(true);
+    expect(result.availableDates).toEqual([]);
+    expect(summary.failed_theaters).toBe(1);
+    expect(summary.errors).toHaveLength(1);
+    expect(summary.errors[0]).toMatchObject({
+      theater_id: 'C0072',
+      error: 'network down',
+    });
+  });
+});
+
+// --- Helpers: filterDatesForScrape ------------------------------------------
+// filterDatesForScrape intersects the requested dates with what the
+// theater actually published, applies the resumeMode filter, and logs
+// skipped dates. Pure function on the already-loaded availableDates
+// (no I/O after the call), so easy to test.
+describe('filterDatesForScrape', () => {
+  it('returns the intersection of requested and available dates', async () => {
+    const { filterDatesForScrape } = await import(
+      '../../../src/scraper/index.js'
+    );
+
+    const result = filterDatesForScrape(THEATER_A, ['2026-03-10', '2026-03-11', '2026-03-12'], ['2026-03-10', '2026-03-12'], {});
+
+    expect(result.datesToScrape).toEqual(['2026-03-10', '2026-03-12']);
+    expect(result.finalDatesToScrape).toEqual(['2026-03-10', '2026-03-12']);
+    expect(result.skippedDates).toEqual(['2026-03-11']);
+  });
+
+  it('further filters to pendingAttempts in resumeMode', async () => {
+    const { filterDatesForScrape } = await import(
+      '../../../src/scraper/index.js'
+    );
+
+    const result = filterDatesForScrape(
+      THEATER_A,
+      ['2026-03-10', '2026-03-11'],
+      ['2026-03-10', '2026-03-11'],
+      {
+        resumeMode: true,
+        pendingAttempts: [{ theater_id: 'C0072', date: '2026-03-10' }],
+      }
+    );
+
+    expect(result.datesToScrape).toEqual(['2026-03-10', '2026-03-11']);
+    expect(result.finalDatesToScrape).toEqual(['2026-03-10']);
+  });
+});
+
+// --- Helpers: summarizeTheater ----------------------------------------------
+// summarizeTheater folds the per-date counters into the shared summary:
+// increments successful_theaters or failed_theaters, adds to total_movies/
+// total_showtimes, and emits theater_completed. Returns true if the
+// theater is considered successful (for the caller's branching).
+describe('summarizeTheater', () => {
+  it('marks theater successful, updates totals, and emits theater_completed when at least one date succeeded', async () => {
+    const { summarizeTheater } = await import(
+      '../../../src/scraper/index.js'
+    );
+    const summary = emptySummary();
+    const progress = { emit: vi.fn().mockResolvedValue(undefined) };
+    const ctx: any = { summary, progress };
+
+    const ok = await summarizeTheater(ctx, THEATER_A, {
+      successfulDates: 1,
+      totalDates: 2,
+      moviesCount: 5,
+      showtimesCount: 12,
+    });
+
+    expect(ok).toBe(true);
+    expect(summary.successful_theaters).toBe(1);
+    expect(summary.failed_theaters).toBe(0);
+    expect(summary.total_movies).toBe(5);
+    expect(summary.total_showtimes).toBe(12);
+    expect(progress.emit).toHaveBeenCalledWith({
+      type: 'theater_completed',
+      theater_name: 'Theater Test',
+      total_movies: 5,
+    });
+  });
+
+  it('marks theater failed and does not emit theater_completed when zero dates succeeded', async () => {
+    const { summarizeTheater } = await import(
+      '../../../src/scraper/index.js'
+    );
+    const summary = emptySummary();
+    const progress = { emit: vi.fn().mockResolvedValue(undefined) };
+    const ctx: any = { summary, progress };
+
+    const ok = await summarizeTheater(ctx, THEATER_A, {
+      successfulDates: 0,
+      totalDates: 2,
+      moviesCount: 0,
+      showtimesCount: 0,
+    });
+
+    expect(ok).toBe(false);
+    expect(summary.successful_theaters).toBe(0);
+    expect(summary.failed_theaters).toBe(1);
+    expect(progress.emit).not.toHaveBeenCalled();
+  });
+});
