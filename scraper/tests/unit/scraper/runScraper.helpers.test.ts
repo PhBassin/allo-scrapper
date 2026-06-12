@@ -679,4 +679,34 @@ describe('processOneDate', () => {
       error: 'HTTP 500',
     });
   });
+
+  it('returns "rate_limited" on a RateLimitError and sets summary.status', async () => {
+    const { RateLimitError } = await import('../../../src/utils/errors.js');
+    const { processOneDate } = await import('../../../src/scraper/index.js');
+    mockStrategy.scrapeTheater.mockRejectedValueOnce(
+      new RateLimitError('429', 429, 'https://example.com')
+    );
+    const summary = emptySummary();
+    const ctx: any = {
+      db: {},
+      summary,
+      movieDelayMs: 0,
+      progress: { emit: vi.fn().mockResolvedValue(undefined) },
+    };
+
+    const result = await processOneDate(
+      ctx,
+      THEATER_A,
+      '2026-03-10',
+      ['2026-03-10'],
+      { reportId: 7 }
+    );
+
+    expect(result.status).toBe('rate_limited');
+    expect(summary.status).toBe('rate_limited');
+    expect(summary.errors[0]).toMatchObject({
+      theater_id: 'C0072',
+      error_type: 'http_429',
+    });
+  });
 });
