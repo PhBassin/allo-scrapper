@@ -3,5 +3,15 @@
   "ignorePatterns": [
     "**/test-utils/**",
     "**/tests/_helpers/**"
+  ],
+  "ignoreExports": [
+    {
+      "file": "server/src/config/rate-limits.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "server/src/db/rate-limit-queries.ts",
+      "exports": ["*"]
+    }
   ]
 }

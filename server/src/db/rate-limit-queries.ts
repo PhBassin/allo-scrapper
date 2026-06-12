@@ -24,7 +24,7 @@ export interface RateLimitConfigRow {
 // adds DB metadata (`source`, `updatedAt`, `updatedBy`, `environment`).
 // The duplication is intentional — consumers explicitly import from one
 // module or the other. Keep both.
-// fallow-ignore-next-line duplicate-export
+// Listed in .fallowrc.json ignoreExports.
 export interface RateLimitConfig {
   config: {
     windowMs: number;

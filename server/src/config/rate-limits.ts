@@ -6,7 +6,7 @@ import type { DB } from '../db/client.js';
 // `updatedAt`, `updatedBy`, `environment`). The duplication is intentional:
 // this one is consumed by the rate-limit middleware as a flat shape, the
 // other is the DB-backed shape returned to admin routes. Keep both.
-// fallow-ignore-next-line duplicate-export
+// Listed in .fallowrc.json ignoreExports.
 export interface RateLimitConfig {
   windowMs: number;
   generalMax: number;
