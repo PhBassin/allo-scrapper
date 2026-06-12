@@ -31,7 +31,7 @@ export const mockRateLimits = () => ({
  * @param status - HTTP status code returned (default: 429).
  * @param message - Error message returned (default: 'Too Many Requests').
  */
-export const mockRateLimitTrigger = (
+const mockRateLimitTrigger = (
   status: number = 429,
   message: string = 'Too Many Requests',
 ) => ({

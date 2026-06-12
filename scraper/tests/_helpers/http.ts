@@ -19,7 +19,7 @@ import { vi } from 'vitest';
  * @param status - HTTP status code (default: 200).
  * @returns A Vitest mock function suitable for `vi.stubGlobal('fetch', ...)`.
  */
-export function mockHttpOk(body: unknown = {}, status: number = 200) {
+function mockHttpOk(body: unknown = {}, status: number = 200) {
   return vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
     status,
@@ -50,7 +50,7 @@ export function mockFetchStub(body: unknown = {}, status: number = 200) {
  * Creates a lightweight Puppeteer Page mock.
  * Provides `goto`, `content`, `evaluate`, `close`, `setUserAgent`.
  */
-export function mockPuppeteerPage(overrides: Partial<Record<string, unknown>> = {}) {
+function mockPuppeteerPage(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     goto: vi.fn().mockResolvedValue(null),
     content: vi.fn().mockResolvedValue('<html></html>'),
@@ -64,7 +64,7 @@ export function mockPuppeteerPage(overrides: Partial<Record<string, unknown>> = 
 /**
  * Creates a Puppeteer BrowserContext mock with a pre-built page.
  */
-export function mockBrowserContext(pageOverrides?: Partial<Record<string, unknown>>) {
+function mockBrowserContext(pageOverrides?: Partial<Record<string, unknown>>) {
   const page = mockPuppeteerPage(pageOverrides);
   return {
     newPage: vi.fn().mockResolvedValue(page),

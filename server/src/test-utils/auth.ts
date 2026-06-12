@@ -44,7 +44,7 @@ export const mockAuthPassthrough = () => ({
  *
  * Unauthenticated requests get a 401 JSON response.
  */
-export const mockAuthJwt = (testSecret: string) => ({
+const mockAuthJwt = (testSecret: string) => ({
   requireAuth: vi.fn((req: any, res: any, next: any) => {
     const authHeader = req.headers?.authorization as string | undefined;
     const cookieToken = req.cookies?.access_token as string | undefined;
@@ -128,7 +128,7 @@ export const mockAuthTokenMap = (
  *     { token: 'Bearer valid-user-token',  user: { id: 2, username: 'user1' } },
  *   ])
  */
-export const mockAuthConditional = (
+const mockAuthConditional = (
   entries: { token: string; user: MockUser }[],
 ) => ({
   requireAuth: (req: any, res: any, next: any) => {
@@ -148,7 +148,7 @@ export const mockAuthConditional = (
 // ---------------------------------------------------------------------------
 
 /** Mock that rejects every request with a configurable status + message. */
-export const mockRejectAuth = (
+const mockRejectAuth = (
   status = 401,
   error = 'Authentication required.',
 ) => ({
