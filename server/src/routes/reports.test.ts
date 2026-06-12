@@ -4,9 +4,10 @@ import * as reportQueries from '../db/report-queries.js';
 import { db } from '../db/client.js';
 
 // Mock dependencies
-vi.mock('../middleware/auth.js', () => ({
-  requireAuth: vi.fn((req, res, next) => next())
-}));
+vi.mock('../middleware/auth.js', async () => {
+  const { mockAuthPassthrough } = await import('../test-utils/auth.js');
+  return mockAuthPassthrough();
+});
 vi.mock('../db/client.js', () => ({
   db: {
     query: vi.fn()

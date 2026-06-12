@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mockFetchStub } from '../../_helpers/http.js';
 
 // We test the validation functions and URL construction logic.
 // Network calls are mocked to avoid real HTTP requests.
@@ -66,21 +67,13 @@ describe('http-client', () => {
   // -------------------------------------------------------------------------
   describe('validateTheaterId (via fetchShowtimesJson)', () => {
     it('should accept valid theater IDs like C0072', async () => {
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue({}),
-      });
-      vi.stubGlobal('fetch', mockFetch);
+      mockFetchStub();
 
       await expect(fetchShowtimesJson('C0072', '2024-01-15')).resolves.toBeDefined();
     });
 
     it('should accept valid theater IDs like W7517', async () => {
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue({}),
-      });
-      vi.stubGlobal('fetch', mockFetch);
+      mockFetchStub();
 
       await expect(fetchShowtimesJson('W7517', '2024-01-15')).resolves.toBeDefined();
     });
@@ -121,11 +114,7 @@ describe('http-client', () => {
   // -------------------------------------------------------------------------
   describe('validateDate (via fetchShowtimesJson)', () => {
     it('should accept valid dates like 2024-01-15', async () => {
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue({}),
-      });
-      vi.stubGlobal('fetch', mockFetch);
+      mockFetchStub();
 
       await expect(fetchShowtimesJson('C0072', '2024-01-15')).resolves.toBeDefined();
     });
@@ -191,11 +180,7 @@ describe('http-client', () => {
   // -------------------------------------------------------------------------
   describe('SSRF hostname guard in fetchShowtimesJson', () => {
     it('should use new URL() construction and call the correct allocine.fr host', async () => {
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue({}),
-      });
-      vi.stubGlobal('fetch', mockFetch);
+      const mockFetch = mockFetchStub();
 
       await fetchShowtimesJson('C0072', '2024-01-15');
 

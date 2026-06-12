@@ -27,14 +27,12 @@ vi.mock('../utils/date.js', () => ({
 }));
 
 vi.mock('../middleware/auth.js', () => ({
-  requireAuth: function requireAuth(req: any, res: any, next: any) { next(); },
+  requireAuth: function requireAuth(_req: any, _res: any, next: any) { next(); },
 }));
 
 vi.mock('../middleware/permission.js', () => ({
-  requirePermission: (..._perms: string[]) => {
-    function requirePermission(req: any, res: any, next: any) { next(); }
-    return requirePermission;
-  },
+  requirePermission: (..._perms: string[]) =>
+    function requirePermission(_req: any, _res: any, next: any) { next(); },
 }));
 
 // Helper to get the actual route handler (skips middleware like rate limiters)

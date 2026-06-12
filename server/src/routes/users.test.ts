@@ -23,32 +23,21 @@ vi.mock('../utils/logger.js', () => ({
     warn: vi.fn(),
   },
 }));
-vi.mock('../middleware/auth.js', () => ({
-  requireAuth: (req: any, res: any, next: any) => {
-    if (req.headers.authorization === 'Bearer valid-admin-token') {
-      req.user = { id: 1, username: 'admin' };
-      next();
-    } else if (req.headers.authorization === 'Bearer valid-user-token') {
-      req.user = { id: 2, username: 'user1' };
-      next();
-    } else {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
-    }
-  },
-}));
-vi.mock('../middleware/permission.js', () => ({
-  requirePermission: (..._perms: string[]) => async (req: any, res: any, next: any) => {
-    // In tests, only user with id=1 (admin) passes permission checks
-    if (req.user?.id === 1) {
-      next();
-    } else {
-      res.status(403).json({ success: false, error: 'Permission denied' });
-    }
-  },
-}));
-vi.mock('../middleware/rate-limit.js', () => ({
-  protectedLimiter: (req: any, res: any, next: any) => next(),
-}));
+vi.mock('../middleware/auth.js', async () => {
+  const { mockAuthTokenMap } = await import('../test-utils/auth.js');
+  return mockAuthTokenMap({
+    'valid-admin-token': { id: 1, username: 'admin' },
+    'valid-user-token':  { id: 2, username: 'user1' },
+  });
+});
+vi.mock('../middleware/permission.js', async () => {
+  const { mockPermissionContext } = await import('../test-utils/permission.js');
+  return mockPermissionContext([1]);
+});
+vi.mock('../middleware/rate-limit.js', async () => {
+  const { mockRateLimits } = await import('../test-utils/rate-limit.js');
+  return mockRateLimits();
+});
 
 import * as userQueries from '../db/user-queries.js';
 import { db } from '../db/client.js';
