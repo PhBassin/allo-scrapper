@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { getMovie, searchMovies, upsertMovie } from './movie-queries.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { getMovie, searchMovies, upsertMovie, formatMovieRow } from './movie-queries.js';
 import { type DB } from './client.js';
+import { resetJSONParseCache } from '../utils/json-parse-cache.js';
 
 describe('Movie Queries - Movie Search', () => {
   describe('searchMovies', () => {
@@ -430,5 +431,158 @@ describe('Movie Queries - Trailer URL', () => {
 
     const sql = queryMock.mock.calls[0][0] as string;
     expect(sql).toContain('trailer_url = COALESCE($18, movies.trailer_url)');
+  });
+});
+
+describe('Movie Queries - formatMovieRow', () => {
+  beforeEach(() => {
+    resetJSONParseCache();
+  });
+
+  it('should map a complete MovieRow to Movie', () => {
+    const row = {
+      id: 42,
+      title: 'Inception',
+      original_title: 'Inception',
+      poster_url: 'https://img.example.com/inception.jpg',
+      duration_minutes: 148,
+      release_date: '2010-07-21',
+      rerelease_date: '2020-07-15',
+      genres: '["Science Fiction","Thriller"]',
+      nationality: 'U.S.A.',
+      director: 'Christopher Nolan',
+      screenwriters: '["Christopher Nolan"]',
+      actors: '["Leonardo DiCaprio","Joseph Gordon-Levitt"]',
+      synopsis: 'A thief enters dreams',
+      certificate: 'Tous publics',
+      press_rating: 4.5,
+      audience_rating: 4.8,
+      source_url: 'https://www.allocine.fr/film/fichefilm_gen_cfilm=143692.html',
+      trailer_url: 'https://www.allocine.fr/video/player_gen_cmedia=19555755&cfilm=143692.html',
+    };
+
+    const movie = formatMovieRow(row);
+
+    expect(movie.id).toBe(42);
+    expect(movie.title).toBe('Inception');
+    expect(movie.original_title).toBe('Inception');
+    expect(movie.poster_url).toBe('https://img.example.com/inception.jpg');
+    expect(movie.duration_minutes).toBe(148);
+    expect(movie.release_date).toBe('2010-07-21');
+    expect(movie.rerelease_date).toBe('2020-07-15');
+    expect(movie.genres).toEqual(['Science Fiction', 'Thriller']);
+    expect(movie.nationality).toBe('U.S.A.');
+    expect(movie.director).toBe('Christopher Nolan');
+    expect(movie.screenwriters).toEqual(['Christopher Nolan']);
+    expect(movie.actors).toEqual(['Leonardo DiCaprio', 'Joseph Gordon-Levitt']);
+    expect(movie.synopsis).toBe('A thief enters dreams');
+    expect(movie.certificate).toBe('Tous publics');
+    expect(movie.press_rating).toBe(4.5);
+    expect(movie.audience_rating).toBe(4.8);
+    expect(movie.source_url).toBe('https://www.allocine.fr/film/fichefilm_gen_cfilm=143692.html');
+    expect(movie.trailer_url).toBe('https://www.allocine.fr/video/player_gen_cmedia=19555755&cfilm=143692.html');
+  });
+
+  it('should convert null fields to undefined', () => {
+    const row = {
+      id: 1,
+      title: 'Minimal Movie',
+      original_title: null,
+      poster_url: null,
+      duration_minutes: null,
+      release_date: null,
+      rerelease_date: null,
+      genres: '[]',
+      nationality: null,
+      director: null,
+      screenwriters: null,
+      actors: '[]',
+      synopsis: null,
+      certificate: null,
+      press_rating: null,
+      audience_rating: null,
+      source_url: 'https://example.com',
+      trailer_url: null,
+    };
+
+    const movie = formatMovieRow(row);
+
+    expect(movie.original_title).toBeUndefined();
+    expect(movie.poster_url).toBeUndefined();
+    expect(movie.duration_minutes).toBeUndefined();
+    expect(movie.release_date).toBeUndefined();
+    expect(movie.rerelease_date).toBeUndefined();
+    expect(movie.nationality).toBeUndefined();
+    expect(movie.director).toBeUndefined();
+    expect(movie.synopsis).toBeUndefined();
+    expect(movie.certificate).toBeUndefined();
+    expect(movie.press_rating).toBeUndefined();
+    expect(movie.audience_rating).toBeUndefined();
+    expect(movie.trailer_url).toBeUndefined();
+  });
+
+  it('should parse JSON fields (genres, screenwriters, actors) via parseJSONMemoized', () => {
+    const row = {
+      id: 1,
+      title: 'Ensemble',
+      genres: '["Comedy","Drama"]',
+      screenwriters: '["Alice","Bob"]',
+      actors: '["Charlie","Dana"]',
+      source_url: 'https://example.com',
+    } as Parameters<typeof formatMovieRow>[0];
+
+    const movie = formatMovieRow(row);
+
+    expect(movie.genres).toEqual(['Comedy', 'Drama']);
+    expect(movie.screenwriters).toEqual(['Alice', 'Bob']);
+    expect(movie.actors).toEqual(['Charlie', 'Dana']);
+  });
+
+  it('should return empty arrays for null/empty JSON fields', () => {
+    const row = {
+      id: 1,
+      title: 'No Data',
+      genres: null,
+      screenwriters: '',
+      actors: null,
+      source_url: 'https://example.com',
+    } as Parameters<typeof formatMovieRow>[0];
+
+    const movie = formatMovieRow(row);
+
+    expect(movie.genres).toEqual([]);
+    expect(movie.screenwriters).toEqual([]);
+    expect(movie.actors).toEqual([]);
+  });
+
+  it('should keep source_url as-is (never null-coalesced)', () => {
+    const row = {
+      id: 1,
+      title: 'Source URL Test',
+      source_url: 'https://example.com/movie/1',
+      genres: '[]',
+      actors: '[]',
+    } as Parameters<typeof formatMovieRow>[0];
+
+    const movie = formatMovieRow(row);
+    expect(movie.source_url).toBe('https://example.com/movie/1');
+  });
+
+  it('should deep-clone array fields so callers cannot mutate shared state', () => {
+    const row = {
+      id: 1,
+      title: 'Shared State',
+      genres: '["Action"]',
+      actors: '["Foo"]',
+      screenwriters: null,
+      source_url: 'https://example.com',
+    } as Parameters<typeof formatMovieRow>[0];
+
+    const movie1 = formatMovieRow(row);
+    const movie2 = formatMovieRow(row);
+
+    movie1.genres.push('Thriller');
+    expect(movie2.genres).toEqual(['Action']);
+    expect(movie1.genres).toEqual(['Action', 'Thriller']);
   });
 });
