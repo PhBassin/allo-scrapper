@@ -8,19 +8,14 @@ import type { DB } from '../db/client.js';
 // Mock dependencies
 vi.mock('../db/settings-queries.js');
 vi.mock('../utils/image-validator.js');
-vi.mock('../middleware/auth.js', () => ({
-  requireAuth: (req: any, res: any, next: any) => {
-    if (req.headers.authorization === 'Bearer valid-token') {
-      req.user = { id: 1, username: 'admin' };
-      next();
-    } else {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
-    }
-  },
-}));
-vi.mock('../middleware/permission.js', () => ({
-  requirePermission: (..._perms: string[]) => (req: any, res: any, next: any) => next(),
-}));
+vi.mock('../middleware/auth.js', async () => {
+  const { mockAuthTokenMap } = await import('../test-utils/auth.js');
+  return mockAuthTokenMap({ 'valid-token': { id: 1, username: 'admin' } });
+});
+vi.mock('../middleware/permission.js', async () => {
+  const { mockPermissionFlat } = await import('../test-utils/permission.js');
+  return mockPermissionFlat();
+});
 
 import * as settingsQueries from '../db/settings-queries.js';
 import * as imageValidator from '../utils/image-validator.js';

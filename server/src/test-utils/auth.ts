@@ -31,7 +31,7 @@ export interface MockUser {
 
 /** Mock that lets every request through — `requireAuth` calls `next()` unconditionally. */
 export const mockAuthPassthrough = () => ({
-  requireAuth: vi.fn((_req: any, _res: any, next: any) => next()),
+  requireAuth: vi.fn(function requireAuth(_req: any, _res: any, next: any) { next(); }),
 });
 
 // ---------------------------------------------------------------------------

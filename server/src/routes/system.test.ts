@@ -13,22 +13,18 @@ vi.mock('../utils/logger.js', () => ({
     warn: vi.fn(),
   },
 }));
-vi.mock('../middleware/auth.js', () => ({
-  requireAuth: (req: any, res: any, next: any) => {
-    if (req.headers.authorization === 'Bearer valid-token') {
-      req.user = { id: 1, username: 'admin' };
-      next();
-    } else {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
-    }
-  },
-}));
-vi.mock('../middleware/rate-limit.js', () => ({
-  protectedLimiter: (req: any, res: any, next: any) => next(),
-}));
-vi.mock('../middleware/permission.js', () => ({
-  requirePermission: (..._perms: string[]) => (req: any, res: any, next: any) => next(),
-}));
+vi.mock('../middleware/auth.js', async () => {
+  const { mockAuthTokenMap } = await import('../test-utils/auth.js');
+  return mockAuthTokenMap({ 'valid-token': { id: 1, username: 'admin' } });
+});
+vi.mock('../middleware/rate-limit.js', async () => {
+  const { mockRateLimits } = await import('../test-utils/rate-limit.js');
+  return mockRateLimits();
+});
+vi.mock('../middleware/permission.js', async () => {
+  const { mockPermissionFlat } = await import('../test-utils/permission.js');
+  return mockPermissionFlat();
+});
 
 // Import mocked modules
 import * as systemQueries from '../db/system-queries.js';

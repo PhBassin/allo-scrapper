@@ -15,7 +15,7 @@ import { vi } from 'vitest';
 /** Mock that lets every request through permission checks unconditionally. */
 export const mockPermissionPassthrough = () => ({
   requirePermission: (..._perms: string[]) =>
-    vi.fn((_req: any, _res: any, next: any) => next()),
+    vi.fn(function requirePermission(_req: any, _res: any, next: any) { next(); }),
 });
 
 // ---------------------------------------------------------------------------
@@ -46,5 +46,5 @@ export const mockPermissionContext = (allowedIds: number[] = [1]) => ({
 /** Simpler variant — returns a direct middleware, not wrapped in vi.fn. */
 export const mockPermissionFlat = () => ({
   requirePermission: (..._perms: string[]) =>
-    (_req: any, _res: any, next: any) => next(),
+    function requirePermission(_req: any, _res: any, next: any) { next(); },
 });
