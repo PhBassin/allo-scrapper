@@ -35,51 +35,6 @@ export const mockAuthPassthrough = () => ({
 });
 
 // ---------------------------------------------------------------------------
-// Auth mock — token-based (for JWT flows)
-// ---------------------------------------------------------------------------
-
-/**
- * Mock that verifies a Bearer token or access_token cookie against
- * `TEST_JWT_SECRET` and sets `req.user` from the decoded payload.
- *
- * Unauthenticated requests get a 401 JSON response.
- */
-const mockAuthJwt = (testSecret: string) => ({
-  requireAuth: vi.fn((req: any, res: any, next: any) => {
-    const authHeader = req.headers?.authorization as string | undefined;
-    const cookieToken = req.cookies?.access_token as string | undefined;
-    const bearerToken = authHeader?.startsWith('Bearer ')
-      ? authHeader.split(' ')[1]
-      : null;
-    const token = cookieToken || bearerToken;
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        error: 'Authentication required. No token provided.',
-      });
-    }
-
-    try {
-      // Dynamic import avoids hoisting issues — the test file passes
-      // its own jwt instance (or we use the same one).
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.verify(token, testSecret, {
-        algorithms: ['HS256'],
-      }) as MockUser;
-      req.user = decoded;
-      next();
-    } catch {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid or expired token.',
-      });
-    }
-  }),
-  AuthRequest: {} as any,
-});
-
-// ---------------------------------------------------------------------------
 // Auth mock — simple token-based (fixed users, no JWT)
 // ---------------------------------------------------------------------------
 
@@ -115,44 +70,4 @@ export const mockAuthTokenMap = (
   },
 });
 
-// ---------------------------------------------------------------------------
-// Auth mock — conditional (like users.test.ts)
-// ---------------------------------------------------------------------------
 
-/**
- * Mock that maps specific `Authorization: Bearer <token>` values to users.
- *
- * Usage:
- *   mockAuthConditional([
- *     { token: 'Bearer valid-admin-token', user: { id: 1, username: 'admin' } },
- *     { token: 'Bearer valid-user-token',  user: { id: 2, username: 'user1' } },
- *   ])
- */
-const mockAuthConditional = (
-  entries: { token: string; user: MockUser }[],
-) => ({
-  requireAuth: (req: any, res: any, next: any) => {
-    const authHeader = req.headers?.authorization as string | undefined;
-    const match = entries.find((e) => authHeader === e.token);
-    if (match) {
-      req.user = { ...match.user };
-      next();
-    } else {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
-    }
-  },
-});
-
-// ---------------------------------------------------------------------------
-// Auth mock — reject all
-// ---------------------------------------------------------------------------
-
-/** Mock that rejects every request with a configurable status + message. */
-const mockRejectAuth = (
-  status = 401,
-  error = 'Authentication required.',
-) => ({
-  requireAuth: vi.fn((_req: any, res: any, _next: any) => {
-    return res.status(status).json({ success: false, error });
-  }),
-});

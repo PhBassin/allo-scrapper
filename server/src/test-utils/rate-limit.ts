@@ -20,31 +20,3 @@ export const mockRateLimits = () => ({
   protectedLimiter: vi.fn((_req: any, _res: any, next: any) => next()),
   scraperLimiter: vi.fn((_req: any, _res: any, next: any) => next()),
 });
-
-// ---------------------------------------------------------------------------
-// Simulate rate limit triggered
-// ---------------------------------------------------------------------------
-
-/**
- * Mock that simulates a rate limit being hit.
- *
- * @param status - HTTP status code returned (default: 429).
- * @param message - Error message returned (default: 'Too Many Requests').
- */
-const mockRateLimitTrigger = (
-  status: number = 429,
-  message: string = 'Too Many Requests',
-) => ({
-  protectedLimiter: vi.fn((_req: any, res: any, _next: any) =>
-    res.status(status).json({
-      success: false,
-      error: message,
-    }),
-  ),
-  scraperLimiter: vi.fn((_req: any, res: any, _next: any) =>
-    res.status(status).json({
-      success: false,
-      error: message,
-    }),
-  ),
-});
