@@ -199,17 +199,24 @@ export async function getMoviesByDate(
   );
 
   // Regrouper par movie
-  const moviesMap = new Map<number, Movie & { theaters: Theater[] }>();
+  // ⚡ PERFORMANCE: Use plain object map instead of Map for O(1) lookups without prototype overhead
+  // Track result array concurrently to avoid slow Object.values() or Array.from() at the end
+  const resultList: Array<Movie & { theaters: Theater[] }> = [];
+  const moviesMap: Record<number, Movie & { theaters: Theater[] }> = Object.create(null);
 
-  for (const row of result.rows) {
-    if (!moviesMap.has(row.id)) {
-      moviesMap.set(row.id, {
+  for (let i = 0; i < result.rows.length; i++) {
+    const row = result.rows[i];
+    let movie = moviesMap[row.id];
+
+    if (!movie) {
+      movie = {
         ...formatMovieRow(row),
         theaters: [],
-      });
+      };
+      moviesMap[row.id] = movie;
+      resultList.push(movie);
     }
 
-    const movie = moviesMap.get(row.id)!;
     movie.theaters.push({
       id: row.theater_id,
       name: row.theater_name,
@@ -221,7 +228,7 @@ export async function getMoviesByDate(
     });
   }
 
-  return Array.from(moviesMap.values());
+  return resultList;
 }
 
 // Récupérer les movies programmés dans la semaine en cours
@@ -250,17 +257,24 @@ export async function getWeeklyMovies(
   );
 
   // Regrouper par movie
-  const moviesMap = new Map<number, Movie & { theaters: Theater[] }>();
+  // ⚡ PERFORMANCE: Use plain object map instead of Map for O(1) lookups without prototype overhead
+  // Track result array concurrently to avoid slow Object.values() or Array.from() at the end
+  const resultList: Array<Movie & { theaters: Theater[] }> = [];
+  const moviesMap: Record<number, Movie & { theaters: Theater[] }> = Object.create(null);
 
-  for (const row of result.rows) {
-    if (!moviesMap.has(row.id)) {
-      moviesMap.set(row.id, {
+  for (let i = 0; i < result.rows.length; i++) {
+    const row = result.rows[i];
+    let movie = moviesMap[row.id];
+
+    if (!movie) {
+      movie = {
         ...formatMovieRow(row),
         theaters: [],
-      });
+      };
+      moviesMap[row.id] = movie;
+      resultList.push(movie);
     }
 
-    const movie = moviesMap.get(row.id)!;
     movie.theaters.push({
       id: row.theater_id,
       name: row.theater_name,
@@ -272,7 +286,7 @@ export async function getWeeklyMovies(
     });
   }
 
-  return Array.from(moviesMap.values());
+  return resultList;
 }
 
 // --- Movie Search ---

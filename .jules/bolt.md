@@ -29,3 +29,7 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+## 2026-06-13 - [Optimize getWeeklyMovies loops]\n**Learning:** In highly performance-critical loops (e.g., grouping thousands of movies in  and ), using  adds significant prototype overhead. Destructuring and iterating via  creates unnecessary iterator allocations.\n**Action:** Use plain object dictionaries () for (1)$ lookups without prototype overhead, standard  loops, and track result arrays concurrently to avoid  at the end.
+## $(date +%Y-%m-%d) - [Optimize getWeeklyMovies loops]
+**Learning:** In highly performance-critical loops (e.g., grouping thousands of movies in `getWeeklyMovies` and `getMoviesByDate`), using `Map` adds significant prototype overhead. Destructuring and iterating via `Array.from(map.values())` creates unnecessary iterator allocations.
+**Action:** Use plain object dictionaries (`Object.create(null)`) for $O(1)$ lookups without prototype overhead, standard `for` loops, and track result arrays concurrently to avoid `Object.values()` at the end.
