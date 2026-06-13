@@ -219,7 +219,25 @@ describe('Routes - Roles', () => {
       );
     });
 
+    it('should return 403 when trying to update a system role', async () => {
+      const { getRoleById } = await import('../db/role-queries.js');
+      (getRoleById as any).mockResolvedValue(mockAdminRole); // is_system: true
+
+      const { default: router } = await import('./roles.js');
+      const handler = getRouteHandler(router, 'put', '/:id');
+
+      const req = { params: { id: '1' }, body: { name: 'new name' }, app: buildMockApp(mockDb) } as any;
+      const res = buildMockRes();
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      expect(next.mock.calls[0][0].message).toBe('Cannot modify a system role');
+    });
+
     it('should return 404 when role does not exist', async () => {
+      const { getRoleById } = await import('../db/role-queries.js');
+      (getRoleById as any).mockResolvedValue(undefined);
       const { updateRole } = await import('../db/role-queries.js');
       (updateRole as any).mockResolvedValue(undefined);
 
@@ -338,6 +356,22 @@ describe('Routes - Roles', () => {
         success: true,
         data: expect.objectContaining({ id: 2, permissions: mockPermissions }),
       });
+    });
+
+    it('should return 403 when trying to replace permissions of a system role', async () => {
+      const { getRoleById } = await import('../db/role-queries.js');
+      (getRoleById as any).mockResolvedValue(mockAdminRole); // is_system: true
+
+      const { default: router } = await import('./roles.js');
+      const handler = getRouteHandler(router, 'put', '/:id/permissions');
+
+      const req = { params: { id: '1' }, body: { permission_ids: [1] }, app: buildMockApp(mockDb) } as any;
+      const res = buildMockRes();
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      expect(next.mock.calls[0][0].message).toBe('Cannot modify a system role');
     });
 
     it('should return 400 when permission_ids is not an array', async () => {

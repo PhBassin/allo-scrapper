@@ -166,6 +166,11 @@ router.put(
         return next(new ValidationError('Invalid role ID'));
       }
 
+      const currentRole = await getRoleById(db, roleId);
+      if (currentRole && currentRole.is_system) {
+        return next(new AuthError('Cannot modify a system role', 403));
+      }
+
       const { name, description } = req.body;
       const updated = await updateRole(db, roleId, { name, description });
 
@@ -257,6 +262,10 @@ router.put(
       const role = await getRoleById(db, roleId);
       if (!role) {
         return next(new NotFoundError('Role not found'));
+      }
+
+      if (role.is_system) {
+        return next(new AuthError('Cannot modify a system role', 403));
       }
 
       await setRolePermissions(db, roleId, permission_ids);
