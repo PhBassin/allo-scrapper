@@ -166,15 +166,20 @@ router.put(
         return next(new ValidationError('Invalid role ID'));
       }
 
-      const { name, description } = req.body;
-      const updated = await updateRole(db, roleId, { name, description });
-
-      if (!updated) {
+      const role = await getRoleById(db, roleId);
+      if (!role) {
         return next(new NotFoundError('Role not found'));
       }
 
-      const role = await getRoleById(db, roleId);
-      const response: ApiResponse = { success: true, data: role };
+      if (role.is_system) {
+        return next(new AuthError('Cannot update a system role', 403));
+      }
+
+      const { name, description } = req.body;
+      await updateRole(db, roleId, { name, description });
+
+      const updatedRole = await getRoleById(db, roleId);
+      const response: ApiResponse = { success: true, data: updatedRole };
       res.json(response);
     } catch (error) {
       next(error);
@@ -257,6 +262,10 @@ router.put(
       const role = await getRoleById(db, roleId);
       if (!role) {
         return next(new NotFoundError('Role not found'));
+      }
+
+      if (role.is_system) {
+        return next(new AuthError('Cannot update permissions of a system role', 403));
       }
 
       await setRolePermissions(db, roleId, permission_ids);
