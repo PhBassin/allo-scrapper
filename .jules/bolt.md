@@ -29,3 +29,6 @@
 ## 2024-05-24 - [Optimize groupShowtimesByCinema iteration]
 **Learning:** Destructuring with rest operator (`...`) is surprisingly slow compared to `Object.assign` combined with `delete` in V8 when cloning large arrays of objects, and using plain Objects instead of `Map` can be >2x faster in tight loops grouping thousands of objects.
 **Action:** In performance-critical loops processing arrays, prefer `Record<string, any>` maps, standard `for` loops, and `Object.assign` + `delete` over modern ES6 destructuring and `Map` collections.
+## 2024-05-30 - Plain Object Dict for Query Grouping
+**Learning:** Using `new Map` and `Array.from` inside database query loops for grouping data (e.g. mapping `movie_id` to movie with theaters) is slower due to prototype lookup overhead, function call overhead, and the final array conversion iteration.
+**Action:** For performance-critical backend loops dealing with thousands of objects, replace `Map` with plain objects via `Object.create(null)` and use standard parallel `Array.push()` to track results concurrently, eliminating the need for `Object.values()` or `Array.from()` entirely.

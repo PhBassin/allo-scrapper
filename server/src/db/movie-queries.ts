@@ -198,18 +198,25 @@ export async function getMoviesByDate(
     [date, weekStart]
   );
 
-  // Regrouper par movie
-  const moviesMap = new Map<number, Movie & { theaters: Theater[] }>();
+  // ⚡ Bolt Performance Optimization:
+  // Use a plain object (prototype-free) and a concurrent result array
+  // instead of a Map and Array.from(). This is faster for hot loops grouping large query result sets.
+  const moviesDict: Record<number, Movie & { theaters: Theater[] }> = Object.create(null);
+  const moviesList: Array<Movie & { theaters: Theater[] }> = [];
 
-  for (const row of result.rows) {
-    if (!moviesMap.has(row.id)) {
-      moviesMap.set(row.id, {
+  for (let i = 0; i < result.rows.length; i++) {
+    const row = result.rows[i];
+    let movie = moviesDict[row.id];
+
+    if (!movie) {
+      movie = {
         ...formatMovieRow(row),
         theaters: [],
-      });
+      };
+      moviesDict[row.id] = movie;
+      moviesList.push(movie);
     }
 
-    const movie = moviesMap.get(row.id)!;
     movie.theaters.push({
       id: row.theater_id,
       name: row.theater_name,
@@ -221,7 +228,7 @@ export async function getMoviesByDate(
     });
   }
 
-  return Array.from(moviesMap.values());
+  return moviesList;
 }
 
 // Récupérer les movies programmés dans la semaine en cours
@@ -249,18 +256,25 @@ export async function getWeeklyMovies(
     [weekStart]
   );
 
-  // Regrouper par movie
-  const moviesMap = new Map<number, Movie & { theaters: Theater[] }>();
+  // ⚡ Bolt Performance Optimization:
+  // Use a plain object (prototype-free) and a concurrent result array
+  // instead of a Map and Array.from(). This is faster for hot loops grouping large query result sets.
+  const moviesDict: Record<number, Movie & { theaters: Theater[] }> = Object.create(null);
+  const moviesList: Array<Movie & { theaters: Theater[] }> = [];
 
-  for (const row of result.rows) {
-    if (!moviesMap.has(row.id)) {
-      moviesMap.set(row.id, {
+  for (let i = 0; i < result.rows.length; i++) {
+    const row = result.rows[i];
+    let movie = moviesDict[row.id];
+
+    if (!movie) {
+      movie = {
         ...formatMovieRow(row),
         theaters: [],
-      });
+      };
+      moviesDict[row.id] = movie;
+      moviesList.push(movie);
     }
 
-    const movie = moviesMap.get(row.id)!;
     movie.theaters.push({
       id: row.theater_id,
       name: row.theater_name,
@@ -272,7 +286,7 @@ export async function getWeeklyMovies(
     });
   }
 
-  return Array.from(moviesMap.values());
+  return moviesList;
 }
 
 // --- Movie Search ---
