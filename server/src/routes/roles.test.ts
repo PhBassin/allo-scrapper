@@ -192,6 +192,26 @@ describe('Routes - Roles', () => {
 
       expect(next).toHaveBeenCalledWith(expect.any(ValidationError));
     });
+
+    it('should return 403 when trying to update permissions of a system role', async () => {
+      const { getRoleById } = await import('../db/role-queries.js');
+      (getRoleById as any).mockResolvedValue(mockAdminRole); // is_system: true
+
+      const { default: router } = await import('./roles.js');
+      const handler = getRouteHandler(router, 'put', '/:id/permissions');
+
+      const req = {
+        params: { id: '1' },
+        body: { permission_ids: [] },
+        app: buildMockApp(mockDb),
+      } as any;
+      const res = buildMockRes();
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(AuthError));
+    });
   });
 
   // PUT /api/roles/:id
@@ -220,8 +240,8 @@ describe('Routes - Roles', () => {
     });
 
     it('should return 404 when role does not exist', async () => {
-      const { updateRole } = await import('../db/role-queries.js');
-      (updateRole as any).mockResolvedValue(undefined);
+      const { getRoleById } = await import('../db/role-queries.js');
+      (getRoleById as any).mockResolvedValue(undefined);
 
       const { default: router } = await import('./roles.js');
       const handler = getRouteHandler(router, 'put', '/:id');
@@ -237,6 +257,26 @@ describe('Routes - Roles', () => {
       await handler(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+    });
+
+    it('should return 403 when trying to update a system role', async () => {
+      const { getRoleById } = await import('../db/role-queries.js');
+      (getRoleById as any).mockResolvedValue(mockAdminRole); // is_system: true
+
+      const { default: router } = await import('./roles.js');
+      const handler = getRouteHandler(router, 'put', '/:id');
+
+      const req = {
+        params: { id: '1' },
+        body: { description: 'Malicious update' },
+        app: buildMockApp(mockDb),
+      } as any;
+      const res = buildMockRes();
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(AuthError));
     });
   });
 
