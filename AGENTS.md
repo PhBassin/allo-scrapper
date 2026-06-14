@@ -1,118 +1,58 @@
-# AI Agent Instructions
+# AGENTS.md
 
-## Project
+Theater showtimes aggregator. npm-workspaces monorepo: **Express API (`server`) + React SPA (`client`) + standalone scraper microservice (`scraper`)**, PostgreSQL + Redis, fully Dockerized.
 
-**Allo-Scrapper** — theater showtimes aggregator. 3 npm workspaces:
+## Critical conventions
 
-| Workspace | Dir | Purpose |
-|---|---|---|
-| `allo-scrapper-server` | `server/` | Express.js API (TS), serves React frontend |
-| `client` | `client/` | React SPA (Vite + TS) |
-| `allo-scrapper-scraper` | `scraper/` | Standalone scraper microservice |
+- **Node 24 only** (`engines: >=24 <25`, see `.nvmrc`). CI/hooks run on Node 24.
+- **ESM everywhere** (`"type": "module"`). Relative TS imports MUST use `.js` extensions, e.g. `import { logger } from './utils/logger.js'`. Omitting the extension breaks runtime.
+- Each workspace has its OWN `utils/logger.js`. `packages/logger` is not a real workspace — ignore it.
+- Dependency installs use `npm install --legacy-peer-deps` (peer-dep conflicts exist; plain `npm install` may fail). CI deletes `package-lock.json` before installing.
+- **Never add a dependency without explicit user consent.** Prefer existing libraries already in the relevant workspace.
 
-PostgreSQL (`ics-db`) + Redis (`ics-redis`) + web (`ics-web`) + scraper (`ics-scraper`) + cron (`ics-scraper-cron`).
+## Commands (run inside the workspace dir or via `--workspace`)
 
-## Mandatory Workflow
+- Type-check (no root command — per workspace):
+  - server: `cd server && npx tsc --noEmit`
+  - scraper: `cd scraper && npx tsc --noEmit`
+  - client: `cd client && npx tsc -b`
+- Tests (vitest): `npm run test:run --workspace=allo-scrapper-server` (or `-scraper`, or `client`). Root `npm test` runs all.
+  - Single test: `cd server && npx vitest run src/path/file.test.ts -t "name"`
+- Server coverage gate (enforced): `cd server && npm run test:coverage` — pre-push and CI fail if thresholds unmet.
+- E2E (Playwright, from root): `npm run e2e` / `npm run e2e:ui`.
+- DB migrate (usually automatic, see below): `npm run server:db:migrate`.
 
-```
-1. ISSUE   → gh issue create --label bug|enhancement|documentation
-2. BRANCH  → git checkout develop && git pull && git checkout -b <type>/<issue>-<desc>
-3. RED     → Write failing test, commit: test(scope): add test for <feature>
-4. GREEN   → Minimal implementation to pass tests
-5. COMMIT  → Conventional Commits: <type>(<scope>): <description>
-6. PR      → gh pr create --base develop, reference issue with Closes #<num>
-```
+## Local verification order (mirrors pre-push hook + CI)
 
-Branch types: `feat/`, `fix/`, `docs/`, `chore/`, `ci/`, `refactor/`, `test/`, `perf/`
+1. `tsc --noEmit` for server AND scraper, `tsc -b` for client
+2. server tests (`test:run`) + server coverage
+3. scraper tests (`test:run`)
 
-Commit scopes: `scraper`, `api`, `db`, `parser`, `client`, `docker`, `observability`
+The `.husky/pre-push` hook runs exactly this and **blocks push on failure**. Emergency bypass: `git push --no-verify`.
 
-**Never push directly to `develop` or `main`.**
+## Dev environment
 
-**Commits MUST be atomic** — each commit contains exactly one coherent change. Never stage unrelated files (`.fallowrc.json`, lock files, etc.) in the same commit. Use `git status` before committing to verify only intended files are staged.
+- Full stack with hot reload: `npm run dev` (Docker compose: db + server + client). `npm run dev:down` / `dev:logs`.
+- Server alone (no Docker): `npm run server:dev` (tsx watch). Needs a reachable Postgres + the env vars below.
+- **Required env** (server refuses to start without): `JWT_SECRET` (min 32 chars, `openssl rand -base64 64`) and `POSTGRES_PASSWORD`. DB name is `ics`, user `postgres`. See `.env.example`.
 
-## Commands
+## Architecture (non-obvious)
 
-```bash
-# Install (MUST be from server/, not root — root install breaks native deps)
-cd server && npm install && cd ../client && npm install
+- **The API does NOT scrape.** API publishes jobs to Redis queue `scrape:jobs`; the scraper microservice consumes them, fetches the source site, and writes results **directly to PostgreSQL**. Progress flows back API-side via Redis pub/sub → SSE → client. **Redis is mandatory.**
+- Migrations: sequential numbered SQL in `migrations/`, idempotent, tracked in `schema_migrations` with SHA-256 checksums. Applied automatically at server startup when `AUTO_MIGRATE=true` (default). On fresh DB a random admin password is logged once. When adding one, use the next number and keep it idempotent (note: some numbers like 017/018 were duplicated historically — verify the real next free number).
 
-# Dev (full Docker stack)
-docker compose -f docker-compose.dev.yml up --build
+## Security/code patterns to honor (from `.jules/sentinel.md`)
 
-# Build Docker image locally (for testing before pushing)
-docker compose -f docker-compose.build.yml build
+- Never embed `error.message` in HTTP 500 JSON. Use `next(error)` for unexpected errors; log context with `logger.error` and return a static sanitized message.
+- Validate new passwords via `validatePasswordStrength` (`server/src/utils/security.ts`) on ALL password entry points.
+- Parse IDs/pagination with `parseStrictInt` (`server/src/utils/number.ts`), never native `parseInt`. Always clamp pagination limits.
 
-# Server tests
-cd server
-npm test                  # watch mode
-npm run test:run          # single run
-npm run test:coverage     # with coverage
-npx vitest run src/path/to/file.test.ts   # single file
-npx tsc -b                # type-check only
+## Git / PR workflow
 
-# Scraper tests
-cd scraper && npm run test:run
+- Branch from `develop` (never `main`). Naming: `<type>/<issue#>-<desc>` (e.g. `feat/259-add-theater-modal`). Every PR links an issue.
+- Conventional Commits. Version bump is automated on merge to main via PR labels (`major`/`minor`/`patch`) or PR title (`feat:`→minor, `fix:`→patch, `BREAKING CHANGE:`/`[major]`→major). `main` auto-syncs back into `develop`.
 
-# E2E tests — DO NOT run in CI or pre-push (hits upstream rate limits)
-npm run e2e
-```
+## Tooling notes
 
-**Pre-push hook** (`.husky/pre-push`): runs `tsc` (server + scraper), then `test:run` + `test:coverage` (server), then `test:run` (scraper). All must pass.
-
-**Coverage thresholds** (per-file): 80% lines/functions/statements, 65% branches.
-
-## Database Migrations
-
-**CRITICAL: All migrations must be idempotent.** Fresh installs run `docker/init.sql` first (via PostgreSQL entrypoint mount), then the auto-migration runner applies every `.sql` file from `migrations/` in order. If a migration assumes a table/column exists but `init.sql` didn't create it, the server crashes on fresh deploy.
-
-**Every migration must:**
-- Check `IF EXISTS` / `IF NOT EXISTS` before any `ALTER`, `DROP`, or `CREATE`
-- Have a verify `DO $$` block at the end that `RAISE EXCEPTION` on failure
-- Use `BEGIN;` / `COMMIT;` for atomicity
-
-**Test a migration against fresh + existing install:**
-```bash
-# Fresh: wipe everything, redeploy
-docker compose down -v && docker compose up -d
-
-# Existing: apply directly
-docker compose exec -T ics-db psql -U postgres -d ics < migrations/XXX_your.sql
-```
-
-**Full fresh-install smoke test** (reproduces what Dockge/Coolify does):
-```bash
-docker compose exec -T ics-db psql -U postgres -c "CREATE DATABASE test_mig;"
-docker compose exec -T ics-db psql -U postgres -d test_mig < docker/init.sql
-for f in migrations/*.sql; do
-  docker compose exec -T ics-db psql -U postgres -d test_mig < "$f" || break
-done
-```
-
-## Gotchas
-
-### Winston JSON drops error messages
-`logger.error('msg:', errorMessage)` — Winston's `json()` formatter only captures the first argument in the `message` field. The actual error text is silently dropped. **Always use template literals:**
-```typescript
-logger.error(`❌ Database migration failed: ${errorMessage}`);  // correct
-```
-
-### npm install from root breaks native deps
-Always `cd server && npm install`. Root `npm install` resolves workspace deps differently and breaks `sharp` / `pg` native bindings on Alpine.
-
-### init.sql creates tables with CURRENT names
-`docker/init.sql` uses `movies` (not `films`), `theaters` (not `cinemas`), `source_url` (not `allocine_url`). All migrations must handle both old and new names. Migration 023 handles renaming.
-
-### JWT secret is validated at startup
-Server refuses to start if `JWT_SECRET` is missing, < 32 chars, or matches a known default. Generate with: `openssl rand -base64 64`
-
-### New permissions appear in UI automatically
-No frontend code needed. Just add to `permissions` table via migration with `ON CONFLICT (name) DO NOTHING`. The Role Management UI loads permissions dynamically from `GET /api/roles/permissions`.
-
-### Admin seed happens in JavaScript, not SQL
-Migration 007's SQL is just a marker. The actual admin creation is in `server/src/db/migrations.ts` `handleAdminSeed()` — it calls `hashPassword()` (scrypt) and inserts the user. If this fails, the crash message was historically invisible (see Winston gotcha above).
-
-### Docker images
-- Production deploy: `ghcr.io/phbassin/allo-scrapper:stable` (pre-built)
-- Local build: `docker compose -f docker-compose.build.yml build` (builds from source)
-- Images auto-built on PR merge to `main`; `develop` merges do NOT trigger builds
+- `fallow` (dead-code/health) is wired via MCP and `.fallowrc.json` — prefer it for unused-export/dependency checks.
+- Past performance learnings live in `.jules/bolt.md`; deeper architecture docs in `docs/`.
