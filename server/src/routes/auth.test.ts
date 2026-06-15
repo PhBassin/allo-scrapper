@@ -13,6 +13,7 @@ import authRouter from './auth.js';
 import { db } from '../db/client.js';
 import * as queries from '../db/user-queries.js';
 import type { AuthRequest } from '../middleware/auth.js';
+import { assertChangePasswordRejected } from '../test-utils/auth.js';
 import { RefreshTokenService } from '../services/refresh-token-service.js';
 
 async function createMockUser(
@@ -279,67 +280,27 @@ describe('Auth Routes', () => {
 
         it('should return 400 if newPassword is too short', async () => {
             await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
-
-            const response = await request(app)
-                .post('/api/auth/change-password')
-                .set('Authorization', `Bearer ${validToken}`)
-                .send({ currentPassword: 'OldPass123!', newPassword: 'Short1!' });
-
-            expect(response.status).toBe(400);
-            expect(response.body.success).toBe(false);
-            expect(response.body.error).toContain('Password must be at least 8 characters');
+            await assertChangePasswordRejected(app, validToken, 'Short1!', 'Password must be at least 8 characters');
         });
 
         it('should return 400 if newPassword lacks uppercase', async () => {
             await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
-
-            const response = await request(app)
-                .post('/api/auth/change-password')
-                .set('Authorization', `Bearer ${validToken}`)
-                .send({ currentPassword: 'OldPass123!', newPassword: 'newpass123!' });
-
-            expect(response.status).toBe(400);
-            expect(response.body.success).toBe(false);
-            expect(response.body.error).toContain('Password must contain at least one uppercase letter');
+            await assertChangePasswordRejected(app, validToken, 'newpass123!', 'Password must contain at least one uppercase letter');
         });
 
         it('should return 400 if newPassword lacks lowercase', async () => {
             await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
-
-            const response = await request(app)
-                .post('/api/auth/change-password')
-                .set('Authorization', `Bearer ${validToken}`)
-                .send({ currentPassword: 'OldPass123!', newPassword: 'NEWPASS123!' });
-
-            expect(response.status).toBe(400);
-            expect(response.body.success).toBe(false);
-            expect(response.body.error).toContain('Password must contain at least one lowercase letter');
+            await assertChangePasswordRejected(app, validToken, 'NEWPASS123!', 'Password must contain at least one lowercase letter');
         });
 
         it('should return 400 if newPassword lacks digit', async () => {
             await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
-
-            const response = await request(app)
-                .post('/api/auth/change-password')
-                .set('Authorization', `Bearer ${validToken}`)
-                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPassword!' });
-
-            expect(response.status).toBe(400);
-            expect(response.body.success).toBe(false);
-            expect(response.body.error).toContain('Password must contain at least one digit');
+            await assertChangePasswordRejected(app, validToken, 'NewPassword!', 'Password must contain at least one digit');
         });
 
         it('should return 400 if newPassword lacks special character', async () => {
             await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
-
-            const response = await request(app)
-                .post('/api/auth/change-password')
-                .set('Authorization', `Bearer ${validToken}`)
-                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123' });
-
-            expect(response.status).toBe(400);
-            expect(response.body.success).toBe(false);
-            expect(response.body.error).toContain('Password must contain at least one special character');
+            await assertChangePasswordRejected(app, validToken, 'NewPass123', 'Password must contain at least one special character');
         });
 
         it('should return 401 if currentPassword is incorrect', async () => {
