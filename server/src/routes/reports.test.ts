@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import router from './reports.js';
+import { getRouteHandler } from '../test-utils/route-handler.js';
 import * as reportQueries from '../db/report-queries.js';
 import { db } from '../db/client.js';
 
@@ -27,11 +28,6 @@ vi.mock('../utils/logger.js', () => ({
   }
 }));
 
-// Helper to get the actual route handler (skips middleware like rate limiters)
-function getRouteHandler(path: string, method: 'get' | 'post' | 'put' | 'delete') {
-  const route = router.stack.find(s => s.route?.path === path && s.route?.methods[method])?.route;
-  return route?.stack[route.stack.length - 1]?.handle;
-}
 
 describe('Routes - Reports', () => {
   let mockRes: any;
@@ -66,7 +62,7 @@ describe('Routes - Reports', () => {
 
       (reportQueries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
 
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(router, '/', 'get');
       expect(handler).toBeDefined();
       await handler(mockReq, mockRes, mockNext);
 
@@ -84,7 +80,7 @@ describe('Routes - Reports', () => {
 
       (reportQueries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
 
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(router, '/', 'get');
       await handler(mockReq, mockRes, mockNext);
 
       expect(reportQueries.getScrapeReports).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
@@ -102,7 +98,7 @@ describe('Routes - Reports', () => {
 
       (reportQueries.getScrapeReports as any).mockResolvedValue({ reports: [], total: 0 });
 
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(router, '/', 'get');
       await handler(mockReq, mockRes, mockNext);
 
       expect(reportQueries.getScrapeReports).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
@@ -135,7 +131,7 @@ describe('Routes - Reports', () => {
       }));
       vi.mocked(getScrapeAttemptsByReport).mockResolvedValue(mockAttempts as any);
 
-      const handler = getRouteHandler('/:id/details', 'get');
+      const handler = getRouteHandler(router, '/:id/details', 'get');
       expect(handler).toBeDefined();
       await handler(mockReq, mockRes, mockNext);
 

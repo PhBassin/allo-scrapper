@@ -10,11 +10,13 @@
  *
  * Or for JWT-aware tests:
  *   import { mockAuthJwt } from '../test-utils/auth.js';
- *   const TEST_SECRET = 'test-jwt-secret-...';
+ *   const TEST_SECRET='test-j...-...';
  *   vi.mock('../middleware/auth.js', () => mockAuthJwt(TEST_SECRET));
  */
 
-import { vi } from 'vitest';
+import { vi, expect } from 'vitest';
+import type { Express } from 'express';
+import request from 'supertest';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,7 +41,7 @@ export const mockAuthPassthrough = () => ({
 // ---------------------------------------------------------------------------
 
 /**
- * Mock that maps `Authorization: Bearer <token>` to a user.
+ * Mock that maps `Authorization: Bearer ***` to a user.
  * Accepts a map of `{ token: user }`. Unknown tokens get 401.
  */
 export const mockAuthTokenMap = (
@@ -70,4 +72,28 @@ export const mockAuthTokenMap = (
   },
 });
 
+// ---------------------------------------------------------------------------
+// Change-password validation helper
+// ---------------------------------------------------------------------------
 
+/**
+ * Helper for change-password validation tests.
+ * Asserts that changing password to `newPassword` is rejected
+ * with a 400 and the expected error substring.
+ * The caller is responsible for setting up the mock user via createMockUser.
+ */
+export async function assertChangePasswordRejected(
+  app: Express,
+  token: string,
+  newPassword: string,
+  expectedError: string,
+) {
+  const response = await request(app)
+    .post('/api/auth/change-password')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ currentPassword: 'OldPass123!', newPassword });
+
+  expect(response.status).toBe(400);
+  expect(response.body.success).toBe(false);
+  expect(response.body.error).toContain(expectedError);
+}

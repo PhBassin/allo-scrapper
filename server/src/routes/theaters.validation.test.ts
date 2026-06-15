@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as queries from '../db/showtime-queries.js';
 import * as theaterQueries from '../db/theater-queries.js';
 import router from './theaters.js';
+import { getRouteHandler } from '../test-utils/route-handler.js';
 import { db } from '../db/client.js';
 
 // Mock dependencies
@@ -19,11 +20,6 @@ vi.mock('../utils/url.js', () => ({
   isValidAllocineUrl: vi.fn().mockImplementation((url) => url.startsWith('https://www.allocine.fr/')),
 }));
 
-// Helper to get the actual route handler (skips middleware like rate limiters)
-function getRouteHandler(path: string, method: 'get' | 'post' | 'put' | 'delete') {
-  const route = router.stack.find(s => s.route?.path === path && s.route?.methods[method])?.route;
-  return route?.stack[route.stack.length - 1]?.handle;
-}
 
 describe('Routes - Theaters - Validation', () => {
   let mockRes: any;
@@ -60,7 +56,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/', 'post');
+    const handler = getRouteHandler(router, '/', 'post');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -81,7 +77,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/', 'post');
+    const handler = getRouteHandler(router, '/', 'post');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -101,7 +97,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/', 'post');
+    const handler = getRouteHandler(router, '/', 'post');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -120,7 +116,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -141,7 +137,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -160,7 +156,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -179,7 +175,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -198,7 +194,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -217,7 +213,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -236,7 +232,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -255,7 +251,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -274,7 +270,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -299,7 +295,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(theaterQueries.updateTheaterConfig).toHaveBeenCalledWith(db, 'C001', {
@@ -325,7 +321,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(theaterQueries.updateTheaterConfig).toHaveBeenCalledWith(db, 'C001', {
@@ -351,7 +347,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(theaterQueries.updateTheaterConfig).toHaveBeenCalledWith(db, 'C001', {
@@ -377,7 +373,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(theaterQueries.updateTheaterConfig).toHaveBeenCalledWith(db, 'C001', {
@@ -406,7 +402,7 @@ describe('Routes - Theaters - Validation', () => {
       app: mockApp
     };
 
-    const handler = getRouteHandler('/:id', 'put');
+    const handler = getRouteHandler(router, '/:id', 'put');
     await handler(mockReq, mockRes, mockNext);
 
     expect(theaterQueries.updateTheaterConfig).toHaveBeenCalledWith(db, 'C001', {

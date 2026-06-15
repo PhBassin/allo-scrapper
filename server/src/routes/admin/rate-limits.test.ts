@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import type { DB } from '../../db/client.js';
+import { assertRateLimitPutRejected } from '../../test-utils/rate-limit.js';
 
 // Mock dependencies BEFORE importing the router
 vi.mock('../../db/rate-limit-queries.js');
@@ -169,14 +170,9 @@ describe('Routes - Admin - Rate Limits', () => {
         generalMax: { min: 10, max: 1000, unit: 'requests' },
       } as any);
 
-      const response = await request(app)
-        .put('/api/admin/rate-limits')
-        .set('Authorization', 'Bearer valid-token')
-        .send({ generalMax: 'invalid' })
-        .expect(400);
-
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('must be a number');
+      await assertRateLimitPutRejected(app,
+        { generalMax: 'invalid' },
+        'must be a number');
     });
 
     it('should reject unknown fields', async () => {
@@ -184,14 +180,9 @@ describe('Routes - Admin - Rate Limits', () => {
         generalMax: { min: 10, max: 1000, unit: 'requests' },
       } as any);
 
-      const response = await request(app)
-        .put('/api/admin/rate-limits')
-        .set('Authorization', 'Bearer valid-token')
-        .send({ unknownField: 100 })
-        .expect(400);
-
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('Unknown field');
+      await assertRateLimitPutRejected(app,
+        { unknownField: 100 },
+        'Unknown field');
     });
 
     it('should reject values below minimum', async () => {
@@ -199,14 +190,9 @@ describe('Routes - Admin - Rate Limits', () => {
         generalMax: { min: 10, max: 1000, unit: 'requests' },
       } as any);
 
-      const response = await request(app)
-        .put('/api/admin/rate-limits')
-        .set('Authorization', 'Bearer valid-token')
-        .send({ generalMax: 5 })
-        .expect(400);
-
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('must be between 10 and 1000');
+      await assertRateLimitPutRejected(app,
+        { generalMax: 5 },
+        'must be between 10 and 1000');
     });
 
     it('should reject values above maximum', async () => {
@@ -214,14 +200,9 @@ describe('Routes - Admin - Rate Limits', () => {
         generalMax: { min: 10, max: 1000, unit: 'requests' },
       } as any);
 
-      const response = await request(app)
-        .put('/api/admin/rate-limits')
-        .set('Authorization', 'Bearer valid-token')
-        .send({ generalMax: 2000 })
-        .expect(400);
-
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('must be between 10 and 1000');
+      await assertRateLimitPutRejected(app,
+        { generalMax: 2000 },
+        'must be between 10 and 1000');
     });
 
     it('should require authentication', async () => {
