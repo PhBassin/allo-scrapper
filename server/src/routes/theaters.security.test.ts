@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as theaterQueries from '../db/theater-queries.js';
 import * as showtimeQueries from '../db/showtime-queries.js';
 import router from './theaters.js';
+import { getRouteHandler } from '../test-utils/route-handler.js';
 import { db } from '../db/client.js';
 
 // Mock the dependencies
@@ -35,11 +36,6 @@ vi.mock('../middleware/permission.js', () => ({
     function requirePermission(_req: any, _res: any, next: any) { next(); },
 }));
 
-// Helper to get the actual route handler (skips middleware like rate limiters)
-function getRouteHandler(path: string, method: 'get' | 'post' | 'put' | 'delete') {
-  const route = router.stack.find(s => s.route?.path === path && s.route?.methods[method])?.route;
-  return route?.stack[route.stack.length - 1]?.handle;
-}
 
 // Helper to get middleware names for a route
 function getMiddlewareNames(path: string, method: 'get' | 'post' | 'put' | 'delete'): string[] {
@@ -76,7 +72,7 @@ describe('Routes - Theaters - Security', () => {
     (theaterQueries.getTheaters as any).mockRejectedValue(sensitiveError);
 
     // Get the handler for GET /
-    const handler = getRouteHandler('/', 'get');
+    const handler = getRouteHandler(router, '/', 'get');
 
     // Call the handler with mockNext
     await handler(mockReq, mockRes, mockNext);
