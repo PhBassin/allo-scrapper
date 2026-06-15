@@ -222,6 +222,101 @@ function mapShowtimes(
 
 // ── Main parser ───────────────────────────────────────────────────────────────
 
+// ── parseShowtimesJson helpers ────────────────────────────────────────────────
+
+interface ParsedMovieCredits {
+  director?: string;
+  screenwriters: string[];
+  actors: string[];
+}
+
+function parseMovieCredits(credits: AllocineCredit[] | undefined): ParsedMovieCredits {
+  let director: string | undefined;
+  const screenwriters: string[] = [];
+  const actors: string[] = [];
+
+  for (const credit of credits ?? []) {
+    const name = credit.person?.fullName;
+    if (!name) continue;
+    const decodedName = decodeHtmlEntities(name) ?? name;
+    const pos = credit.position?.name?.toLowerCase() ?? '';
+    if (pos === 'director' || pos === 'réalisateur') {
+      director = decodedName;
+    } else if (
+      pos === 'writer' ||
+      pos === 'screenwriter' ||
+      pos === 'screenplay' ||
+      pos === 'scénariste' ||
+      pos === 'scenariste'
+    ) {
+      screenwriters.push(decodedName);
+    } else if (pos === 'actor' || pos === 'acteur') {
+      actors.push(decodedName);
+    }
+  }
+
+  return { director, screenwriters, actors };
+}
+
+function buildMovie(rawMovie: AllocineMovie, credits: ParsedMovieCredits, movieId: number): Movie {
+  const genres = decodeHtmlEntitiesArray(
+    (rawMovie.genres ?? []).map(g => g.translate ?? '').filter(Boolean),
+  );
+  const nationalityRaw = (rawMovie.countries ?? [])
+    .map(c => c.localizedName ?? '')
+    .filter(Boolean)
+    .join(', ') || undefined;
+  const nationality = decodeHtmlEntities(nationalityRaw);
+
+  const press_rating = sanitizeRating(rawMovie.stats?.pressReview?.score);
+  const audience_rating = sanitizeRating(rawMovie.stats?.userRating?.score);
+  const { release_date, rerelease_date } = parseReleaseDate(rawMovie.releases);
+
+  return {
+    id: movieId,
+    title: decodeHtmlEntities(rawMovie.title) ?? '',
+    original_title: decodeHtmlEntities(rawMovie.originalTitle),
+    poster_url: rawMovie.poster?.url,
+    duration_minutes: runtimeToMinutes(rawMovie.runtime),
+    genres,
+    nationality,
+    director: credits.director,
+    screenwriters: uniqueNonEmptyStrings(credits.screenwriters),
+    actors: credits.actors,
+    synopsis: decodeHtmlEntities(rawMovie.synopsis),
+    press_rating,
+    audience_rating,
+    release_date,
+    rerelease_date,
+    source_url: `https://www.allocine.fr/film/fichefilm_gen_cfilm=${movieId}.html`,
+  };
+}
+
+function parseShowtimeEntry(
+  result: AllocineResult,
+  theaterId: string,
+  date: string,
+): MovieShowtimeData | null {
+  const rawMovie = result.movie;
+  if (!rawMovie) return null;
+
+  const movieId = extractMovieId(rawMovie);
+  if (!movieId) {
+    logger.warn('Could not extract movie ID', {
+      preview: JSON.stringify(rawMovie).substring(0, 100),
+    });
+    return null;
+  }
+
+  const credits = parseMovieCredits(rawMovie.credits);
+  const movie = buildMovie(rawMovie, credits, movieId);
+  const showtimes = mapShowtimes(result.showtimes ?? {}, movieId, theaterId, date);
+  const isNewThisWeek = rawMovie.flags?.isNewRelease ?? false;
+
+  if (showtimes.length === 0) return null;
+  return { movie, showtimes, is_new_this_week: isNewThisWeek };
+}
+
 /**
  * Parse the Allociné internal showtimes API JSON response into MovieShowtimeData[].
  */
@@ -241,73 +336,8 @@ export function parseShowtimesJson(
   const movieShowtimes: MovieShowtimeData[] = [];
 
   for (const result of results) {
-    const rawMovie = result.movie;
-    if (!rawMovie) continue;
-
-    const movieId = extractMovieId(rawMovie);
-    if (!movieId) {
-      logger.warn('Could not extract movie ID from movie', { preview: JSON.stringify(rawMovie).substring(0, 100) });
-      continue;
-    }
-
-    let director: string | undefined;
-    const screenwriters: string[] = [];
-    const actors: string[] = [];
-    for (const credit of rawMovie.credits ?? []) {
-      const name = credit.person?.fullName;
-      if (!name) continue;
-      const decodedName = decodeHtmlEntities(name) ?? name;
-      const pos = credit.position?.name?.toLowerCase() ?? '';
-      if (pos === 'director' || pos === 'réalisateur') {
-        director = decodedName;
-      } else if (
-        pos === 'writer' ||
-        pos === 'screenwriter' ||
-        pos === 'screenplay' ||
-        pos === 'scénariste' ||
-        pos === 'scenariste'
-      ) {
-        screenwriters.push(decodedName);
-      } else if (pos === 'actor' || pos === 'acteur') {
-        actors.push(decodedName);
-      }
-    }
-
-    const genres = decodeHtmlEntitiesArray((rawMovie.genres ?? []).map(g => g.translate ?? '').filter(Boolean));
-    const nationalityRaw = (rawMovie.countries ?? []).map(c => c.localizedName ?? '').filter(Boolean).join(', ') || undefined;
-    const nationality = decodeHtmlEntities(nationalityRaw);
-    
-    // Ratings (out of 5) - sanitize to filter NaN/Infinity
-    const press_rating = sanitizeRating(rawMovie.stats?.pressReview?.score);
-    const audience_rating = sanitizeRating(rawMovie.stats?.userRating?.score);
-    
-    const { release_date, rerelease_date } = parseReleaseDate(rawMovie.releases);
-
-    const movie: Movie = {
-      id: movieId,
-      title: decodeHtmlEntities(rawMovie.title) ?? '',
-      original_title: decodeHtmlEntities(rawMovie.originalTitle),
-      poster_url: rawMovie.poster?.url,
-      duration_minutes: runtimeToMinutes(rawMovie.runtime),
-      genres,
-      nationality,
-      director,
-      screenwriters: uniqueNonEmptyStrings(screenwriters),
-      actors,
-      synopsis: decodeHtmlEntities(rawMovie.synopsis),
-      press_rating,
-      audience_rating,
-      release_date,
-      rerelease_date,
-      source_url: `https://www.allocine.fr/film/fichefilm_gen_cfilm=${movieId}.html`,
-    };
-
-    const showtimes = mapShowtimes(result.showtimes ?? {}, movieId, theaterId, date);
-    const isNewThisWeek = rawMovie.flags?.isNewRelease ?? false;
-
-    if (showtimes.length > 0) {
-      movieShowtimes.push({ movie, showtimes, is_new_this_week: isNewThisWeek });
-    }
+    const entry = parseShowtimeEntry(result, theaterId, date);
+    if (entry) movieShowtimes.push(entry);
   }
 
   return movieShowtimes;
