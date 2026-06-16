@@ -26,7 +26,7 @@ vi.mock('ioredis', () => ({
   default: MockRedis,
 }));
 
-import { RedisProgressPublisher, RedisJobConsumer } from '../../../src/redis/client.js';
+import { RedisProgressPublisher, RedisJobConsumer } from '../../src/redis/client.js';
 
 describe('RedisProgressPublisher', () => {
   let publisher: RedisProgressPublisher;
