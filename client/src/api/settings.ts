@@ -60,6 +60,7 @@ export interface AppSettingsUpdate {
   email_logo_base64?: string | null;
 }
 
+// fallow-ignore-next-line unused-type
 export interface AppSettingsExport {
   version: string;
   exported_at: string;
