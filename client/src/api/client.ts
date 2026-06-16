@@ -10,14 +10,9 @@ export {
 
 export {
   getTheaters,
-  createTheater,
-  updateTheater,
-  deleteTheater,
   getTheaterSchedule,
   addTheater,
 } from './theaters';
-
-export type { TheaterCreate, TheaterUpdate } from './theaters';
 
 export {
   triggerScrape,
@@ -41,5 +36,3 @@ export {
   getReportDetails,
   resumeScrape,
 } from './reports';
-
-export type { ScrapeAttempt, ReportDetails } from './reports';
