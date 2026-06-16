@@ -111,6 +111,7 @@ export class RedisClient {
   // --------------------------------------------------------------------------
 
   /** Publish a schedule change event to notify the scraper of CRUD operations. */
+  // fallow-ignore-next-line unused-class-member
   async publishScheduleChange(event: ScheduleChangeEvent): Promise<void> {
     await this.publisher.publish('scraper:schedule:changed', JSON.stringify(event));
   }
