@@ -16,6 +16,44 @@ function uniqueNonEmpty(values: Array<string | undefined | null>): string[] {
   return result;
 }
 
+function extractPersonName(node: unknown): string | undefined {
+  if (!node || typeof node !== 'object') return undefined;
+  const obj = node as { name?: unknown };
+  if (typeof obj.name !== 'string') return undefined;
+  const trimmed = obj.name.trim();
+  return trimmed || undefined;
+}
+
+function extractDirectorFromJsonLd(node: Record<string, unknown>): string | undefined {
+  const directorNode = node.director;
+  if (Array.isArray(directorNode)) {
+    const first = directorNode.map(extractPersonName).find((n): n is string => Boolean(n));
+    return first?.trim();
+  }
+  return extractPersonName(directorNode)?.trim();
+}
+
+function extractScreenwritersFromJsonLd(node: Record<string, unknown>): string[] {
+  const creatorNode = node.creator;
+  if (Array.isArray(creatorNode)) {
+    return creatorNode
+      .map(extractPersonName)
+      .filter((n): n is string => typeof n === 'string');
+  }
+  const single = extractPersonName(creatorNode);
+  return single ? [single] : [];
+}
+
+function parseJsonLdMovieNode(node: unknown): { director?: string; screenwriters: string[] } | null {
+  if (!node || typeof node !== 'object') return null;
+  const movieNode = node as Record<string, unknown>;
+  if (movieNode['@type'] !== 'Movie') return null;
+  return {
+    director: extractDirectorFromJsonLd(movieNode),
+    screenwriters: extractScreenwritersFromJsonLd(movieNode),
+  };
+}
+
 function parseJsonLdCredits($: cheerio.CheerioAPI): {
   director?: string;
   screenwriters: string[];
@@ -34,43 +72,12 @@ function parseJsonLdCredits($: cheerio.CheerioAPI): {
       return;
     }
 
-    const nodes = Array.isArray(parsed)
-      ? parsed
-      : [parsed];
-
+    const nodes = Array.isArray(parsed) ? parsed : [parsed];
     for (const node of nodes) {
-      if (!node || typeof node !== 'object') continue;
-      const movieNode = node as Record<string, unknown>;
-      if (movieNode['@type'] !== 'Movie') continue;
-
-      const directorNode = movieNode.director;
-      if (typeof directorNode === 'object' && directorNode && 'name' in directorNode) {
-        const name = (directorNode as { name?: unknown }).name;
-        if (typeof name === 'string' && name.trim()) {
-          director = director ?? name.trim();
-        }
-      } else if (Array.isArray(directorNode)) {
-        const firstDirector = directorNode
-          .map(item => (item && typeof item === 'object' && 'name' in item ? (item as { name?: unknown }).name : undefined))
-          .find(name => typeof name === 'string' && name.trim());
-
-        if (typeof firstDirector === 'string') {
-          director = director ?? firstDirector.trim();
-        }
-      }
-
-      const creatorNode = movieNode.creator;
-      if (Array.isArray(creatorNode)) {
-        const names = creatorNode
-          .map(item => (item && typeof item === 'object' && 'name' in item ? (item as { name?: unknown }).name : undefined))
-          .filter((name): name is string => typeof name === 'string');
-        screenwriters = uniqueNonEmpty([...screenwriters, ...names]);
-      } else if (creatorNode && typeof creatorNode === 'object' && 'name' in creatorNode) {
-        const name = (creatorNode as { name?: unknown }).name;
-        if (typeof name === 'string') {
-          screenwriters = uniqueNonEmpty([...screenwriters, name]);
-        }
-      }
+      const credits = parseJsonLdMovieNode(node);
+      if (!credits) continue;
+      director = director ?? credits.director;
+      screenwriters = uniqueNonEmpty([...screenwriters, ...credits.screenwriters]);
     }
   });
 
@@ -91,7 +98,6 @@ function parseVisualCredits($: cheerio.CheerioAPI): {
       .find('.dark-grey-link')
       .map((__, link) => $(link).text().trim())
       .get();
-
     const cleanedNames = uniqueNonEmpty(names);
     if (!cleanedNames.length) return;
 
@@ -108,37 +114,38 @@ function parseVisualCredits($: cheerio.CheerioAPI): {
   return { director, screenwriters };
 }
 
+export function parseDurationFromText(metaText: string): number | undefined {
+  const hoursMinutes = metaText.match(/(\d+)h\s*(\d+)min/);
+  if (hoursMinutes) {
+    const hours = parseInt(hoursMinutes[1], 10);
+    const minutes = parseInt(hoursMinutes[2], 10);
+    return hours * 60 + minutes;
+  }
+  const hoursOnly = metaText.match(/(\d+)h/);
+  if (hoursOnly) {
+    return parseInt(hoursOnly[1], 10) * 60;
+  }
+  return undefined;
+}
+
+export function extractTrailerUrl($: cheerio.CheerioAPI): string | undefined {
+  const modernHref = $('a[href*="video/player_gen"]').first().attr('href');
+  const legacyHref = $('.thumbnail-link[href*="video/player_gen"]').first().attr('href');
+  const trailerHref = modernHref ?? legacyHref;
+  if (!trailerHref) return undefined;
+
+  const normalized = trailerHref.replace(/&amp;/g, '&');
+  return normalized.startsWith('http')
+    ? normalized
+    : `https://www.allocine.fr${normalized}`;
+}
+
 // Parse the movie details page from the source website to extract duration and other supplementary info
 export function parseMoviePage(html: string): MoviePageData {
   const $ = cheerio.load(html);
 
-  let durationMinutes: number | undefined;
-
-  const metaText = $('.meta-body-info').first().text();
-  const durationMatch = metaText.match(/(\d+)h\s*(\d+)min/);
-
-  if (durationMatch) {
-    const hours = parseInt(durationMatch[1], 10);
-    const minutes = parseInt(durationMatch[2], 10);
-    durationMinutes = hours * 60 + minutes;
-  } else {
-    const hoursOnlyMatch = metaText.match(/(\d+)h/);
-    if (hoursOnlyMatch) {
-      durationMinutes = parseInt(hoursOnlyMatch[1], 10) * 60;
-    }
-  }
-
-  let trailerUrl: string | undefined;
-  const modernTrailerHref = $('a[href*="video/player_gen"]').first().attr('href');
-  const legacyTrailerHref = $('.thumbnail-link[href*="video/player_gen"]').first().attr('href');
-  const trailerHref = modernTrailerHref ?? legacyTrailerHref;
-
-  if (trailerHref) {
-    const normalizedHref = trailerHref.replace(/&amp;/g, '&');
-    trailerUrl = normalizedHref.startsWith('http')
-      ? normalizedHref
-      : `https://www.allocine.fr${normalizedHref}`;
-  }
+  const durationMinutes = parseDurationFromText($('.meta-body-info').first().text());
+  const trailerUrl = extractTrailerUrl($);
 
   const jsonLdCredits = parseJsonLdCredits($);
   const visualCredits = parseVisualCredits($);
