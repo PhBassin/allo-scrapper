@@ -40,43 +40,46 @@ export function shouldRefreshMovieDetails(existingMovie?: {
   return needsDuration || needsDirector || needsScreenwriters || needsTrailerUrl;
 }
 
+type MoviePageFields = Partial<Pick<Movie, 'duration_minutes' | 'director' | 'screenwriters' | 'trailer_url'>>;
+
+function applyMovieDetails(target: Movie, source: MoviePageFields): void {
+  if (source.duration_minutes) target.duration_minutes = source.duration_minutes;
+  if (source.director) target.director = source.director;
+  if (source.screenwriters && source.screenwriters.length > 0) {
+    target.screenwriters = source.screenwriters;
+  }
+  if (source.trailer_url) target.trailer_url = source.trailer_url;
+}
+
+function applyExistingFallback(target: Movie, existing: Movie): void {
+  target.duration_minutes = target.duration_minutes ?? existing.duration_minutes;
+  target.director = target.director ?? existing.director;
+  target.trailer_url = target.trailer_url ?? existing.trailer_url;
+  if (!target.screenwriters || target.screenwriters.length === 0) {
+    if (existing.screenwriters && existing.screenwriters.length > 0) {
+      target.screenwriters = existing.screenwriters;
+    }
+  }
+}
+
+async function fetchAndApplyMovieDetails(movie: Movie): Promise<void> {
+  try {
+    const movieHtml = await fetchMoviePage(movie.id);
+    applyMovieDetails(movie, parseMoviePage(movieHtml));
+  } catch (error) {
+    logger.warn('Error fetching movie page', { movieId: movie.id, error });
+  }
+}
+
 async function refreshMovieDetails(
   movie: Movie,
   existingMovie: Movie | undefined,
   movieDelayMs: number
 ): Promise<void> {
-  try {
-    const movieHtml = await fetchMoviePage(movie.id);
-    const moviePageData = parseMoviePage(movieHtml);
-
-    if (moviePageData.duration_minutes) {
-      movie.duration_minutes = moviePageData.duration_minutes;
-    }
-    if (moviePageData.director) {
-      movie.director = moviePageData.director;
-    }
-    if (moviePageData.screenwriters && moviePageData.screenwriters.length > 0) {
-      movie.screenwriters = moviePageData.screenwriters;
-    }
-    if (moviePageData.trailer_url) {
-      movie.trailer_url = moviePageData.trailer_url;
-    }
-  } catch (error) {
-    logger.warn('Error fetching movie page', { movieId: movie.id, error });
-  } finally {
-    await delay(movieDelayMs);
-  }
-
+  await fetchAndApplyMovieDetails(movie);
+  await delay(movieDelayMs);
   if (existingMovie) {
-    movie.duration_minutes = movie.duration_minutes ?? existingMovie.duration_minutes;
-    movie.director = movie.director ?? existingMovie.director;
-    movie.trailer_url = movie.trailer_url ?? existingMovie.trailer_url;
-
-    if ((!movie.screenwriters || movie.screenwriters.length === 0) &&
-      existingMovie.screenwriters &&
-      existingMovie.screenwriters.length > 0) {
-      movie.screenwriters = existingMovie.screenwriters;
-    }
+    applyExistingFallback(movie, existingMovie);
   }
 }
 

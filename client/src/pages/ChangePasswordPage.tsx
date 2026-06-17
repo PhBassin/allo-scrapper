@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../api/client';
-import PasswordRequirements from '../components/PasswordRequirements';
+import apiClient from '../api/client.js';
+import type { ApiError } from '../api/client.js';
+import PasswordRequirements from '../components/PasswordRequirements.js';
+import { validateChangePasswordForm } from '../utils/userValidators.js';
 
 const ChangePasswordPage: React.FC = () => {
     const [currentPassword, setCurrentPassword] = useState('');
@@ -10,73 +12,49 @@ const ChangePasswordPage: React.FC = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-
     const navigate = useNavigate();
-
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-={}[\]|;:,.<>?]).{8,}$/;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setSuccess('');
 
-        // Client-side validation
-        if (!currentPassword || !newPassword || !confirmPassword) {
-            setError('All fields are required');
-            return;
-        }
-
-        if (newPassword !== confirmPassword) {
-            setError('Passwords do not match');
-            return;
-        }
-
-        if (!passwordRegex.test(newPassword)) {
-            setError('Password must be at least 8 characters with uppercase, lowercase, number, and special character');
+        const validationError = validateChangePasswordForm(currentPassword, newPassword, confirmPassword);
+        if (validationError) {
+            setError(validationError);
             return;
         }
 
         setIsLoading(true);
 
         try {
-            const response = await apiClient.post<any>('/auth/change-password', {
+            const response = await apiClient.post<{
+                success: boolean;
+                data?: { message: string };
+                error?: string;
+            }>('/auth/change-password', {
                 currentPassword,
                 newPassword,
             });
 
-             if (response.success) {
-                 setSuccess(response.data.message);
-                 // Clear form
-                 setCurrentPassword('');
-                 setNewPassword('');
-                 setConfirmPassword('');
-                 // Navigate to homepage after 2 seconds
-                 setTimeout(() => {
-                     navigate('/');
-                 }, 2000);
-             } else {
-                 setError(response.error || 'Failed to change password');
-             }
-        } catch (err: unknown) {
-            if (err instanceof Error && ('status' in err || 'data' in err)) {
-                const apiError = err as import('../api/client').ApiError;
-                if (apiError.data?.error) {
-                    setError(apiError.data.error);
-                } else {
-                    setError('An unexpected error occurred. Please try again later.');
-                }
+            if (response.success && response.data) {
+                setSuccess(response.data.message);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+                setTimeout(() => navigate('/'), 2000);
             } else {
-                setError('An unexpected error occurred. Please try again later.');
+                setError(response.error || 'Failed to change password');
             }
+        } catch (err: unknown) {
+            setError(extractApiError(err));
             console.error('Change password error:', err);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleCancel = () => {
-        navigate('/');
-    };
+    const handleCancel = () => navigate('/');
 
     return (
         <div className="max-w-md mx-auto mt-10 px-4 sm:px-6">
@@ -96,54 +74,28 @@ const ChangePasswordPage: React.FC = () => {
                 )}
 
                 <form onSubmit={handleSubmit}>
-                    <div className="mb-4">
-                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="currentPassword">
-                            Current Password
-                        </label>
-                        <input
-                            className="appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            id="currentPassword"
-                            type="password"
-                            placeholder="********"
-                            value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
-                            required
-                            disabled={isLoading}
-                        />
-                    </div>
-
-                    <div className="mb-4">
-                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="newPassword">
-                            New Password
-                        </label>
-                        <input
-                            className="appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            id="newPassword"
-                            type="password"
-                            placeholder="********"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            required
-                            disabled={isLoading}
-                        />
-                        <PasswordRequirements password={newPassword} />
-                    </div>
-
-                    <div className="mb-6">
-                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="confirmPassword">
-                            Confirm New Password
-                        </label>
-                        <input
-                            className="appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            id="confirmPassword"
-                            type="password"
-                            placeholder="********"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                            disabled={isLoading}
-                        />
-                    </div>
+                    <PasswordField
+                        id="currentPassword"
+                        label="Current Password"
+                        value={currentPassword}
+                        onChange={setCurrentPassword}
+                        disabled={isLoading}
+                    />
+                    <PasswordField
+                        id="newPassword"
+                        label="New Password"
+                        value={newPassword}
+                        onChange={setNewPassword}
+                        disabled={isLoading}
+                        showRequirements
+                    />
+                    <PasswordField
+                        id="confirmPassword"
+                        label="Confirm New Password"
+                        value={confirmPassword}
+                        onChange={setConfirmPassword}
+                        disabled={isLoading}
+                    />
 
                     <div className="flex gap-3">
                         <button
@@ -167,5 +119,43 @@ const ChangePasswordPage: React.FC = () => {
         </div>
     );
 };
+
+interface PasswordFieldProps {
+    id: string;
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    disabled: boolean;
+    showRequirements?: boolean;
+}
+
+function PasswordField({ id, label, value, onChange, disabled, showRequirements }: PasswordFieldProps) {
+    return (
+        <div className={`mb-${showRequirements ? '4' : '6'}`}>
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor={id}>
+                {label}
+            </label>
+            <input
+                className="appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                id={id}
+                type="password"
+                placeholder="********"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                required
+                disabled={disabled}
+            />
+            {showRequirements && <PasswordRequirements password={value} />}
+        </div>
+    );
+}
+
+function extractApiError(err: unknown): string {
+    if (err instanceof Error && ('status' in err || 'data' in err)) {
+        const apiError = err as ApiError;
+        if (apiError.data?.error) return apiError.data.error;
+    }
+    return 'An unexpected error occurred. Please try again later.';
+}
 
 export default ChangePasswordPage;

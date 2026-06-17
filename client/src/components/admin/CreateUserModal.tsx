@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import type { UserCreate } from '../../api/users';
-import type { RoleWithPermissions } from '../../types/role';
-import PasswordRequirements from '../PasswordRequirements';
+import type { UserCreate } from '../../api/users.js';
+import type { RoleWithPermissions } from '../../types/role.js';
+import PasswordRequirements from '../PasswordRequirements.js';
+import { validateUserForm, validateUsername, validatePassword } from '../../utils/userValidators.js';
 
-const DEFAULT_ROLES: Pick<RoleWithPermissions, 'id' | 'name'>[] = [
-  { id: 1, name: 'admin' },
-  { id: 2, name: 'user' },
+const DEFAULT_ROLES: RoleWithPermissions[] = [
+  { id: 1, name: 'admin', description: null, is_system: true, created_at: '', permissions: [] },
+  { id: 2, name: 'user', description: null, is_system: true, created_at: '', permissions: [] },
 ];
 
 interface CreateUserModalProps {
@@ -20,43 +21,6 @@ interface FormErrors {
   password?: string;
 }
 
-const USERNAME_REGEX = /^[a-zA-Z0-9]{3,15}$/;
-
-function validateUsername(username: string): string | null {
-  if (!username) {
-    return 'Username is required';
-  }
-  if (!USERNAME_REGEX.test(username)) {
-    if (username.length < 3 || username.length > 15) {
-      return 'Username must be 3-15 characters';
-    }
-    return 'Username must be alphanumeric';
-  }
-  return null;
-}
-
-function validatePassword(password: string): string | null {
-  if (!password) {
-    return 'Password is required';
-  }
-  if (password.length < 8) {
-    return 'Password must be at least 8 characters';
-  }
-  if (!/[A-Z]/.test(password)) {
-    return 'Password must contain at least one uppercase letter';
-  }
-  if (!/[a-z]/.test(password)) {
-    return 'Password must contain at least one lowercase letter';
-  }
-  if (!/[0-9]/.test(password)) {
-    return 'Password must contain at least one digit';
-  }
-  if (!/[^A-Za-z0-9]/.test(password)) {
-    return 'Password must contain at least one special character';
-  }
-  return null;
-}
-
 const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCreate, roles: rolesProp }) => {
   const roles = rolesProp ?? DEFAULT_ROLES;
   const [username, setUsername] = useState('');
@@ -67,32 +31,22 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
-  const handleUsernameBlur = () => {
-    const error = validateUsername(username);
-    setErrors(prev => ({ ...prev, username: error || undefined }));
-  };
-
-  const handlePasswordBlur = () => {
-    const error = validatePassword(password);
-    setErrors(prev => ({ ...prev, password: error || undefined }));
+  const reset = () => {
+    setUsername('');
+    setPassword('');
+    setRoleId(roles[0]?.id ?? 0);
+    setErrors({});
+    setSubmitError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate all fields
-    const usernameError = validateUsername(username);
-    const passwordError = validatePassword(password);
-
-    if (usernameError || passwordError) {
-      setErrors({
-        username: usernameError || undefined,
-        password: passwordError || undefined,
-      });
+    const validation = validateUserForm(username, password);
+    if (validation.username || validation.password) {
+      setErrors(validation);
       return;
     }
 
@@ -101,15 +55,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
 
     try {
       await onCreate({ username, password, role_id: roleId });
-
-      // Reset form
-      setUsername('');
-      setPassword('');
-      setRoleId(roles[0]?.id ?? 0);
-      setErrors({});
-      setSubmitError(null);
-
-      // Close modal
+      reset();
       onClose();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Failed to create user');
@@ -136,90 +82,37 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-4">
-          {/* Username Field */}
-          <div className="mb-4">
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-              Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onBlur={handleUsernameBlur}
-              disabled={isSubmitting}
-              className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                errors.username ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="Enter username (3-15 alphanumeric chars)"
-            />
-            {errors.username && (
-              <p className="mt-1 text-sm text-red-600">{errors.username}</p>
-            )}
-          </div>
+          <UsernameField
+            value={username}
+            error={errors.username}
+            disabled={isSubmitting}
+            onChange={setUsername}
+            onBlur={() => setErrors((prev) => ({ ...prev, username: validateUsername(username) || undefined }))}
+          />
 
-          {/* Password Field */}
-          <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onBlur={handlePasswordBlur}
-                disabled={isSubmitting}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                  errors.password && password.length === 0 ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Min 8 chars, uppercase, lowercase, digit, special"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-600 hover:text-gray-800"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
-            </div>
-            {errors.password && password.length === 0 && (
-              <p className="mt-1 text-sm text-red-600">Password is required</p>
-            )}
+          <PasswordField
+            value={password}
+            error={errors.password}
+            disabled={isSubmitting}
+            showPassword={showPassword}
+            onChange={setPassword}
+            onBlur={() => setErrors((prev) => ({ ...prev, password: validatePassword(password) || undefined }))}
+            onToggleVisibility={() => setShowPassword(!showPassword)}
+          />
 
-            <PasswordRequirements password={password} />
-          </div>
+          <RoleField
+            value={roleId}
+            roles={roles}
+            disabled={isSubmitting}
+            onChange={setRoleId}
+          />
 
-          {/* Role Field — dynamic dropdown */}
-          <div className="mb-4">
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-              Role
-            </label>
-            <select
-              id="role"
-              value={roleId}
-              onChange={(e) => setRoleId(Number(e.target.value))}
-              disabled={isSubmitting}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-            >
-              {roles.map(role => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Submit Error */}
           {submitError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm text-red-600">{submitError}</p>
             </div>
           )}
 
-          {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
@@ -242,5 +135,111 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
     </div>
   );
 };
+
+interface UsernameFieldProps {
+  value: string;
+  error?: string;
+  disabled: boolean;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+}
+
+function UsernameField({ value, error, disabled, onChange, onBlur }: UsernameFieldProps) {
+  return (
+    <div className="mb-4">
+      <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+        Username
+      </label>
+      <input
+        id="username"
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        disabled={disabled}
+        className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
+          error ? 'border-red-500' : 'border-gray-300'
+        }`}
+        placeholder="Enter username (3-15 alphanumeric chars)"
+      />
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+interface PasswordFieldProps {
+  value: string;
+  error?: string;
+  disabled: boolean;
+  showPassword: boolean;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+  onToggleVisibility: () => void;
+}
+
+function PasswordField({ value, error, disabled, showPassword, onChange, onBlur, onToggleVisibility }: PasswordFieldProps) {
+  const showEmptyError = error && value.length === 0;
+  return (
+    <div className="mb-4">
+      <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+        Password
+      </label>
+      <div className="relative">
+        <input
+          id="password"
+          type={showPassword ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          disabled={disabled}
+          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
+            showEmptyError ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Min 8 chars, uppercase, lowercase, digit, special"
+        />
+        <button
+          type="button"
+          onClick={onToggleVisibility}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-600 hover:text-gray-800"
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+        >
+          {showPassword ? 'Hide' : 'Show'}
+        </button>
+      </div>
+      {showEmptyError && <p className="mt-1 text-sm text-red-600">Password is required</p>}
+      <PasswordRequirements password={value} />
+    </div>
+  );
+}
+
+interface RoleFieldProps {
+  value: number;
+  roles: RoleWithPermissions[];
+  disabled: boolean;
+  onChange: (id: number) => void;
+}
+
+function RoleField({ value, roles, disabled, onChange }: RoleFieldProps) {
+  return (
+    <div className="mb-4">
+      <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+        Role
+      </label>
+      <select
+        id="role"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        disabled={disabled}
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+      >
+        {roles.map((role) => (
+          <option key={role.id} value={role.id}>
+            {role.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export default CreateUserModal;

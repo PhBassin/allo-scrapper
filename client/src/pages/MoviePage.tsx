@@ -1,151 +1,26 @@
-import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getMovieById } from '../api/client';
-import TheaterShowtimes from '../components/TheaterShowtimes';
+import { useParams } from 'react-router-dom';
+import { useMovieQuery } from '../hooks/useMovieQuery.js';
+import { LoadingSpinner, ErrorMessage } from '../components/ui/PageStates.js';
+import { MovieBreadcrumb } from './MoviePage/MovieBreadcrumb.js';
+import { MovieHero } from './MoviePage/MovieHero.js';
+import { MovieShowtimesSection } from './MoviePage/MovieShowtimesSection.js';
+import { MovieSynopsis } from './MoviePage/MovieSynopsis.js';
 
 export default function MoviePage() {
   const { id } = useParams<{ id: string }>();
-  
-  const movieId = id ? Number(id) : NaN;
-  const isInvalidId = Number.isNaN(movieId);
+  const { movie, isLoading, error } = useMovieQuery(id);
 
-  const { data: movie, isLoading, error: queryError } = useQuery({
-    queryKey: ['movie', movieId],
-    queryFn: () => getMovieById(movieId),
-    enabled: !isInvalidId
-  });
-
-  const error = isInvalidId ? 'Invalid movie ID' : (queryError instanceof Error ? queryError.message : (queryError ? 'Failed to load movie data' : null));
-
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  if (error || !movie) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-red-800 mb-2">Erreur</h2>
-        <p className="text-red-600">{error || 'Movie not found'}</p>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingSpinner />;
+  if (error || !movie) return <ErrorMessage message={error ?? 'Movie not found'} />;
 
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-        <Link to="/" className="hover:text-primary hover:underline">← Accueil</Link>
-        <span>/</span>
-        <span>{movie.title}</span>
-      </div>
-
+      <MovieBreadcrumb title={movie.title} />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Movie Details */}
-        <div className="lg:col-span-1">
-          <div className="sticky top-24">
-            {movie.poster_url && (
-              <img
-                src={movie.poster_url}
-                alt={`Affiche de ${movie.title}`}
-                className="w-full h-auto object-cover rounded-xl shadow-lg mb-6"
-                loading="lazy"
-              />
-            )}
-
-            <div className="card p-6 space-y-4">
-              <h1 className="text-2xl font-bold leading-tight">{movie.title}</h1>
-              
-              <div className="space-y-2 text-sm">
-                {movie.duration_minutes && (
-                  <p>
-                    <span className="text-gray-500">Durée:</span> {Math.floor(movie.duration_minutes / 60)}h
-                    {movie.duration_minutes % 60 > 0 ? String(movie.duration_minutes % 60).padStart(2, '0') : ''}
-                  </p>
-                )}
-                
-                {movie.director && (
-                  <p><span className="text-gray-500">Réalisateur:</span> {movie.director}</p>
-                )}
-
-                {movie.screenwriters && movie.screenwriters.length > 0 && (
-                  <p>
-                    <span className="text-gray-500">Scénario:</span> {movie.screenwriters.join(', ')}
-                  </p>
-                )}
-                
-                {movie.genres && movie.genres.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {movie.genres.map(g => (
-                      <span key={g} className="px-2 py-0.5 bg-gray-100 rounded text-xs">{g}</span>
-                    ))}
-                  </div>
-                )}
-
-                {movie.trailer_url && (
-                  <div className="pt-2">
-                    <a
-                      href={movie.trailer_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium hover:bg-primary/20 transition-colors"
-                    >
-                      <span aria-hidden="true">▶</span>
-                      <span>Voir la bande-annonce</span>
-                    </a>
-                  </div>
-                )}
-              </div>
-
-              {/* Ratings */}
-              {(movie.press_rating != null && movie.press_rating > 0) || (movie.audience_rating != null && movie.audience_rating > 0) ? (
-                <div className="flex gap-4 pt-2 border-t border-gray-100">
-                  {movie.press_rating != null && movie.press_rating > 0 && (
-                    <div className="text-center">
-                      <div className="text-[10px] font-bold text-gray-400 uppercase">Presse</div>
-                      <div className="font-bold text-lg">★ {movie.press_rating.toFixed(1)}</div>
-                    </div>
-                  )}
-                  {movie.audience_rating != null && movie.audience_rating > 0 && (
-                    <div className="text-center">
-                      <div className="text-[10px] font-bold text-gray-400 uppercase">Public</div>
-                      <div className="font-bold text-lg">★ {movie.audience_rating.toFixed(1)}</div>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Showtimes & Synopsis */}
+        <MovieHero movie={movie} />
         <div className="lg:col-span-2 space-y-8">
-          {/* Showtimes Section */}
-          <section>
-            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-              <span>📅 Horaires et Cinémas</span>
-            </h2>
-            <TheaterShowtimes theaters={movie.theaters} movie={movie} />
-          </section>
-
-          {/* Synopsis Section */}
-          {movie.synopsis && (
-            <section className="bg-white rounded-xl border border-gray-100 p-6">
-              <h2 className="text-xl font-bold mb-3">Synopsis</h2>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-line">{movie.synopsis}</p>
-              
-              {movie.actors && movie.actors.length > 0 && (
-                <div className="mt-6 pt-6 border-t border-gray-50">
-                  <h3 className="text-sm font-bold text-gray-500 uppercase mb-2">Avec</h3>
-                  <p className="text-sm text-gray-700">{movie.actors.join(', ')}</p>
-                </div>
-              )}
-            </section>
-          )}
+          <MovieShowtimesSection movie={movie} />
+          <MovieSynopsis synopsis={movie.synopsis} actors={movie.actors} />
         </div>
       </div>
     </div>

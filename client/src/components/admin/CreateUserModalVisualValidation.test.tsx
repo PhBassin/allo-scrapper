@@ -19,11 +19,13 @@ describe('CreateUserModal - Visual Password Validation', () => {
         onCreate={mockOnCreate}
       />
     );
-
+    // fallow-ignore-next-line code-duplication
     expect(screen.getByText(/constraints:/i)).toBeInTheDocument();
     expect(screen.getByText(/at least 8 characters/i)).toBeInTheDocument();
+    // fallow-ignore-next-line code-duplication
     expect(screen.getByText(/one uppercase letter/i)).toBeInTheDocument();
     expect(screen.getByText(/one lowercase letter/i)).toBeInTheDocument();
+    // fallow-ignore-next-line code-duplication
     expect(screen.getByText(/one digit/i)).toBeInTheDocument();
     expect(screen.getByText(/one special character/i)).toBeInTheDocument();
   });

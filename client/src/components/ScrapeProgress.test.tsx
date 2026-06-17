@@ -73,6 +73,7 @@ describe('ScrapeProgress', () => {
     });
 
     // Should show progress UI
+    // fallow-ignore-next-line code-duplication
     expect(screen.getByText(/scraping en cours/i)).toBeInTheDocument();
     expect(screen.getByText(/cinémas traités/i)).toBeInTheDocument();
     expect(screen.getByText(/0 \/ 3/)).toBeInTheDocument();

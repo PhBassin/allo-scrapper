@@ -5,12 +5,21 @@ import { logger } from '../utils/logger.js';
 // Parse the theater page from the source website
 export function parseTheaterPage(html: string, theaterId: string): TheaterPageData {
   const $ = cheerio.load(html);
-
-  // Extraire les données du theater depuis l'attribut data-theater
   const theaterSection = $('#theaterpage-showtimes-index-ui');
   const theaterDataStr = theaterSection.attr('data-theater');
+  const datesDataStr = theaterSection.attr('data-showtimes-dates');
+  const selectedDate = theaterSection.attr('data-selected-date') || '';
 
-  let theater: Theater = {
+  return {
+    theater: parseTheaterSection(theaterDataStr, theaterId),
+    movies: parseMoviesFromSection($, theaterSection, theaterId, selectedDate),
+    dates: parseDatesAttribute(datesDataStr),
+    selected_date: selectedDate,
+  };
+}
+
+function parseTheaterSection(theaterDataStr: string | undefined, theaterId: string): Theater {
+  const fallback: Theater = {
     id: theaterId,
     name: '',
     address: '',
@@ -19,102 +28,105 @@ export function parseTheaterPage(html: string, theaterId: string): TheaterPageDa
     screen_count: 0,
   };
 
-  if (theaterDataStr) {
-    try {
-      const theaterData = JSON.parse(theaterDataStr);
-      theater = {
-        id: theaterId,
-        name: theaterData.name || '',
-        address: theaterData.location?.address || '',
-        postal_code: theaterData.location?.postalCode || '',
-        city: theaterData.location?.city || '',
-        screen_count: theaterData.screenCount || 0,
-        image_url: theaterData.image,
-      };
-    } catch (e) {
-      logger.warn('Could not parse theater data JSON');
-    }
+  if (!theaterDataStr) return fallback;
+
+  try {
+    const data = JSON.parse(theaterDataStr);
+    return {
+      id: theaterId,
+      name: data.name || '',
+      address: data.location?.address || '',
+      postal_code: data.location?.postalCode || '',
+      city: data.location?.city || '',
+      screen_count: data.screenCount || 0,
+      image_url: data.image,
+    };
+  } catch (e) {
+    logger.warn('Could not parse theater data JSON');
+    return fallback;
   }
+}
 
-  // Extraire les dates disponibles
-  const datesDataStr = theaterSection.attr('data-showtimes-dates');
-  let dates: string[] = [];
-  if (datesDataStr) {
-    try {
-      dates = JSON.parse(datesDataStr);
-    } catch (e) {
-      logger.warn('Could not parse showtimes dates');
-    }
+function parseDatesAttribute(datesDataStr: string | undefined): string[] {
+  if (!datesDataStr) return [];
+  try {
+    return JSON.parse(datesDataStr);
+  } catch (e) {
+    logger.warn('Could not parse showtimes dates');
+    return [];
   }
+}
 
-  // Date sélectionnée
-  const selectedDate = theaterSection.attr('data-selected-date') || '';
-
-  // Parser chaque movie
+function parseMoviesFromSection(
+  $: cheerio.CheerioAPI,
+  theaterSection: cheerio.Cheerio<any>,
+  theaterId: string,
+  selectedDate: string
+): MovieShowtimeData[] {
   const movies: MovieShowtimeData[] = [];
-  $('.movie-card-theater').each((_, element) => {
+  theaterSection.find('.movie-card-theater').each((_, element) => {
     try {
       const movieData = parseMovieCard($, element, theaterId, selectedDate);
-      if (movieData) {
-        movies.push(movieData);
-      }
+      if (movieData) movies.push(movieData);
     } catch (error) {
       logger.error('Error parsing movie card', { error });
     }
   });
-
-  return {
-    theater,
-    movies,
-    dates,
-    selected_date: selectedDate,
-  };
+  return movies;
 }
 
-// Parser une carte de movie individuelle
-function parseMovieCard(
-  $: cheerio.CheerioAPI,
-  element: any,
-  theaterId: string,
-  date: string
-): MovieShowtimeData | null {
-  const $card = $(element);
+interface MovieMetadata {
+  href: string;
+  movieId: number | null;
+  title: string;
+  posterUrl: string;
+  genres: string[];
+  nationality: string;
+  director: string;
+  actors: string[];
+  synopsis: string;
+  certificate: string;
+}
 
-  // Extraire l'ID du movie depuis le lien
+function parseMovieMetadata($: cheerio.CheerioAPI, $card: cheerio.Cheerio<any>): MovieMetadata {
   const titleLink = $card.find('.meta-title-link');
   const href = titleLink.attr('href') || '';
   const movieIdMatch = href.match(/cfilm=(\d+)/);
   if (!movieIdMatch) {
-    logger.warn('Could not extract movie ID from href', { href });
-    return null;
+    return {
+      href,
+      movieId: null,
+      title: '',
+      posterUrl: '',
+      genres: [],
+      nationality: '',
+      director: '',
+      actors: [],
+      synopsis: '',
+      certificate: '',
+    };
   }
   const movieId = parseInt(movieIdMatch[1], 10);
 
-  // Titre
   const title = titleLink.text().trim();
 
-  // Affiche
   const posterImg = $card.find('.thumbnail-img');
   const posterUrl = posterImg.attr('data-src') || posterImg.attr('src') || '';
 
-  // Genres
   const genres: string[] = [];
   $card.find('.meta-body-info .dark-grey-link').each((_, el) => {
     const genre = $(el).text().trim();
     if (genre) genres.push(genre);
   });
 
-  // Nationalité
   const nationality = $card.find('.meta-body-info .nationality').text().trim();
 
-  // Réalisateur
   let director = '';
   const directionDiv = $card.find('.meta-body-direction');
   if (directionDiv.length) {
     director = directionDiv.text().trim().replace(/^De\s+/, '');
   }
 
-  // Acteurs
   const actors: string[] = [];
   const actorDiv = $card.find('.meta-body-actor');
   if (actorDiv.length) {
@@ -125,34 +137,36 @@ function parseMovieCard(
     });
   }
 
-  // Synopsis
   const synopsis = $card.find('.synopsis .content-txt').text().trim();
-
-  // Classification
   const certificate = $card.find('.certificate-text').text().trim();
 
-  // Notes
+  return { href, movieId, title, posterUrl, genres, nationality, director, actors, synopsis, certificate };
+}
+
+function parseMovieRatings($: cheerio.CheerioAPI, $card: cheerio.Cheerio<any>): {
+  pressRating: number | undefined;
+  audienceRating: number | undefined;
+} {
+  const ratingItems = $card.find('.rating-item');
   let pressRating: number | undefined;
   let audienceRating: number | undefined;
 
-  const ratingItems = $card.find('.rating-item');
   if (ratingItems.length >= 1) {
     const pressNote = $(ratingItems[0]).find('.stareval-note').text().trim();
-    if (pressNote) {
-      pressRating = parseFloat(pressNote.replace(',', '.'));
-    }
+    if (pressNote) pressRating = parseFloat(pressNote.replace(',', '.'));
   }
   if (ratingItems.length >= 2) {
     const audienceNote = $(ratingItems[1]).find('.stareval-note').text().trim();
-    if (audienceNote) {
-      audienceRating = parseFloat(audienceNote.replace(',', '.'));
-    }
+    if (audienceNote) audienceRating = parseFloat(audienceNote.replace(',', '.'));
   }
 
-  // Label "sorti cette semaine"
-  const isNewThisWeek = $card.find('.label-status').text().toLowerCase().includes('sorti cette semaine');
+  return { pressRating, audienceRating };
+}
 
-  // Date de sortie / reprise
+function parseMovieDates($: cheerio.CheerioAPI, $card: cheerio.Cheerio<any>): {
+  releaseDate: string | undefined;
+  rereleaseDate: string | undefined;
+} {
   let releaseDate: string | undefined;
   let rereleaseDate: string | undefined;
 
@@ -169,25 +183,49 @@ function parseMovieCard(
     }
   });
 
+  return { releaseDate, rereleaseDate };
+}
+
+// Parser une carte de movie individuelle
+function parseMovieCard(
+  $: cheerio.CheerioAPI,
+  element: any,
+  theaterId: string,
+  date: string
+): MovieShowtimeData | null {
+  const $card = $(element);
+  const meta = parseMovieMetadata($, $card);
+  if (meta.movieId === null) {
+    logger.warn('Could not extract movie ID from href', { href: meta.href });
+    return null;
+  }
+
+  const ratings = parseMovieRatings($, $card);
+  const dates = parseMovieDates($, $card);
+  const isNewThisWeek = $card
+    .find('.label-status')
+    .text()
+    .toLowerCase()
+    .includes('sorti cette semaine');
+
   const movie: Movie = {
-    id: movieId,
-    title,
-    poster_url: posterUrl || undefined,
-    genres,
-    nationality: nationality || undefined,
-    director: director || undefined,
-    actors,
-    synopsis: synopsis || undefined,
-    certificate: certificate || undefined,
-    press_rating: pressRating,
-    audience_rating: audienceRating,
-    release_date: releaseDate,
-    rerelease_date: rereleaseDate,
-    source_url: `https://www.allocine.fr${href}`,
+    id: meta.movieId,
+    title: meta.title,
+    poster_url: meta.posterUrl || undefined,
+    genres: meta.genres,
+    nationality: meta.nationality || undefined,
+    director: meta.director || undefined,
+    actors: meta.actors,
+    synopsis: meta.synopsis || undefined,
+    certificate: meta.certificate || undefined,
+    press_rating: ratings.pressRating,
+    audience_rating: ratings.audienceRating,
+    release_date: dates.releaseDate,
+    rerelease_date: dates.rereleaseDate,
+    source_url: `https://www.allocine.fr${meta.href}`,
   };
 
-  // Parser les séances
-  const showtimes = parseShowtimes($, $card, movieId, theaterId, date);
+  const showtimes = parseShowtimes($, $card, meta.movieId, theaterId, date);
 
   return {
     movie,
@@ -208,83 +246,90 @@ function parseShowtimes(
 
   $card.find('.showtimes-version').each((_, versionBlock) => {
     const $version = $(versionBlock);
-
-    // Version (VF/VO)
     const versionText = $version.find('.text').text().trim();
-    let version = 'VF';
-    if (versionText.toLowerCase().includes('vo')) {
-      version = 'VO';
-    } else if (versionText.toLowerCase().includes('vost')) {
-      version = 'VOST';
-    }
+    const version = detectVersion(versionText);
+    const showtimeDate = resolveShowtimeDate(versionText, defaultDate);
 
-    // Extraire la date depuis le texte si disponible
-    const dateMatch = versionText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
-    let showtimeDate = defaultDate;
-    if (dateMatch) {
-      showtimeDate = parseDateFromText(dateMatch[1], dateMatch[2], dateMatch[3]);
-    }
-
-    // Parser chaque horaire
     $version.find('.showtimes-hour-item').each((_, hourItem) => {
-      const $hour = $(hourItem);
-
-      const datetimeIso = $hour.attr('data-showtime-time');
-      const experiencesStr = $hour.attr('data-experiences');
-
-      if (!datetimeIso) return;
-
-      // Extraire l'heure
-      const time = $hour.find('.showtimes-hour-item-value').text().trim();
-
-      // Déduire la date depuis l'ISO si possible (plus fiable que la date sélectionnée)
-      const isoDate = datetimeIso.split('T')[0];
-      if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
-        showtimeDate = isoDate;
-      }
-
-      // Parser les expériences
-      let experiences: string[] = [];
-      if (experiencesStr) {
-        try {
-          experiences = JSON.parse(experiencesStr);
-        } catch (e) {
-          // Ignorer les erreurs de parsing
-        }
-      }
-
-      // Extraire le format depuis les expériences
-      let format: string | undefined;
-      for (const exp of experiences) {
-        if (exp.includes('Format.')) {
-          format = exp.replace('Format.', '').replace('.', ' ');
-          break;
-        }
-      }
-
-      showtimes.push({
-        id: `${theaterId}_${movieId}_${showtimeDate}_${time}_${version}_${format ?? ''}`,
-        movie_id: movieId,
-        theater_id: theaterId,
-        date: showtimeDate,
-        time,
-        datetime_iso: datetimeIso,
-        version,
-        format,
-        experiences,
-        week_start: getWeekStart(showtimeDate),
-      });
+      const showtime = parseShowtimeHour($, $(hourItem), movieId, theaterId, version, showtimeDate);
+      if (showtime) showtimes.push(showtime);
     });
   });
 
   return showtimes;
 }
 
+function detectVersion(versionText: string): string {
+  const lower = versionText.toLowerCase();
+  if (lower.includes('vost')) return 'VOST';
+  if (lower.includes('vo')) return 'VO';
+  return 'VF';
+}
+
+function resolveShowtimeDate(versionText: string, defaultDate: string): string {
+  const dateMatch = versionText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
+  if (!dateMatch) return defaultDate;
+  return parseDateFromText(dateMatch[1], dateMatch[2], dateMatch[3]);
+}
+
+function parseShowtimeHour(
+  $: cheerio.CheerioAPI,
+  $hour: cheerio.Cheerio<any>,
+  movieId: number,
+  theaterId: string,
+  version: string,
+  initialDate: string
+): Showtime | null {
+  const datetimeIso = $hour.attr('data-showtime-time');
+  if (!datetimeIso) return null;
+
+  const time = $hour.find('.showtimes-hour-item-value').text().trim();
+  const date = resolveIsoDate(datetimeIso, initialDate);
+  const experiences = parseExperiences($hour.attr('data-experiences'));
+  const format = extractFormat(experiences);
+
+  return {
+    id: `${theaterId}_${movieId}_${date}_${time}_${version}_${format ?? ''}`,
+    movie_id: movieId,
+    theater_id: theaterId,
+    date,
+    time,
+    datetime_iso: datetimeIso,
+    version,
+    format,
+    experiences,
+    week_start: getWeekStart(date),
+  };
+}
+
+function resolveIsoDate(datetimeIso: string, fallback: string): string {
+  const isoDate = datetimeIso.split('T')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return isoDate;
+  return fallback;
+}
+
+function parseExperiences(experiencesStr: string | undefined): string[] {
+  if (!experiencesStr) return [];
+  try {
+    return JSON.parse(experiencesStr);
+  } catch {
+    return [];
+  }
+}
+
+function extractFormat(experiences: string[]): string | undefined {
+  for (const exp of experiences) {
+    if (exp.includes('Format.')) {
+      return exp.replace('Format.', '').replace('.', ' ');
+    }
+  }
+  return undefined;
+}
+
 // Utilitaire: parser une date textuelle ("31 décembre 2025")
 function parseDateText(dateText: string): string | undefined {
   const match = dateText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
   if (!match) return undefined;
-
   return parseDateFromText(match[1], match[2], match[3]);
 }
 
