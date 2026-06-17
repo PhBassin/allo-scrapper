@@ -1,8 +1,98 @@
-import { useScrapeProgress } from '../hooks/useScrapeProgress';
-import type { ProgressEvent } from '../types';
+import { useScrapeProgress } from '../hooks/useScrapeProgress.js';
+import type { ProgressEvent } from '../types/index.js';
+import {
+  deriveProgressState,
+  selectCurrentTheater,
+  selectCurrentMovie,
+  type ProgressUiState,
+} from '../utils/scrapeProgress.js';
 
 export interface ScrapeProgressProps {
   onComplete?: (success: boolean) => void;
+}
+
+function ConnectingState() {
+  return (
+    <div className="border-2 rounded-lg p-6 shadow-lg bg-white border-primary" data-testid="scrape-progress">
+      <div className="flex items-center gap-3">
+        <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
+        <h3 className="text-lg font-bold text-gray-900">Connexion en cours...</h3>
+      </div>
+    </div>
+  );
+}
+
+const STATE_CONFIG: Record<ProgressUiState, { title: string; bg: string; border: string }> = {
+  running: { title: 'Scraping en cours', bg: 'bg-white', border: 'border-primary' },
+  completed: { title: 'Scraping terminé', bg: 'bg-green-50', border: 'border-green-500' },
+  failed: { title: 'Scraping échoué', bg: 'bg-red-50', border: 'border-red-500' },
+};
+
+function ProgressIcon({ state }: { state: ProgressUiState }) {
+  if (state === 'completed') {
+    return (
+      <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      </svg>
+    );
+  }
+  if (state === 'failed') {
+    return (
+      <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    );
+  }
+  return <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>;
+}
+
+function ProgressHeader({ state }: { state: ProgressUiState }) {
+  const config = STATE_CONFIG[state];
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <ProgressIcon state={state} />
+      <h3 className="text-lg font-bold text-gray-900">{config.title}</h3>
+    </div>
+  );
+}
+
+interface ProgressBarProps {
+  label: string;
+  processed: number;
+  total: number;
+  currentItem?: string;
+  colorClass?: string;
+}
+
+function ProgressBar({ label, processed, total, currentItem, colorClass = 'bg-primary' }: ProgressBarProps) {
+  const percent = total > 0 ? (processed / total) * 100 : 0;
+  return (
+    <div className="mb-4">
+      <div className="flex justify-between items-center mb-1">
+        <p className="text-sm font-medium text-gray-700">{label}</p>
+        <p className="text-sm text-gray-600">{processed} / {total}</p>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-2">
+        <div
+          className={`${colorClass} h-2 rounded-full transition-all duration-300`}
+          style={{ width: `${percent}%` }}
+        ></div>
+      </div>
+      {currentItem && (
+        <p className="text-xs text-gray-500 mt-1">En cours: {currentItem}</p>
+      )}
+    </div>
+  );
+}
+
+function ScrapeProgressError({ message }: { message: string }) {
+  return (
+    <div className="bg-red-50 border border-red-200 rounded p-3 mt-4">
+      <p className="text-sm text-red-700">
+        <span className="font-semibold">Erreur:</span> {message}
+      </p>
+    </div>
+  );
 }
 
 export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {}) {
@@ -11,127 +101,56 @@ export default function ScrapeProgress({ onComplete }: ScrapeProgressProps = {})
   // Only show connecting state if we have no events yet
   // Once we have events, keep showing progress even if disconnected
   if (events.length === 0) {
-    return (
-      <div className="border-2 rounded-lg p-6 shadow-lg bg-white border-primary" data-testid="scrape-progress">
-        <div className="flex items-center gap-3">
-          <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
-          <h3 className="text-lg font-bold text-gray-900">Connexion en cours...</h3>
-        </div>
-      </div>
-    );
+    return <ConnectingState />;
   }
 
-  // Derive state from events
+  const state = deriveProgressState(latestEvent);
   const startedEvent = events.find((e): e is Extract<ProgressEvent, { type: 'started' }> => e.type === 'started');
   const theaterCompletedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'theater_completed' }> => e.type === 'theater_completed');
-  const movieStartedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'movie_started' }> => e.type === 'movie_started');
   const movieCompletedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'movie_completed' }> => e.type === 'movie_completed');
+  const movieStartedEvents = events.filter((e): e is Extract<ProgressEvent, { type: 'movie_started' }> => e.type === 'movie_started');
 
   const totalTheaters = startedEvent?.total_theaters || 0;
   const processedTheaters = theaterCompletedEvents.length;
   const totalMovies = movieStartedEvents.length;
   const processedMovies = movieCompletedEvents.length;
 
-  const currentTheater = latestEvent?.type === 'theater_started' || latestEvent?.type === 'date_started' 
-    ? latestEvent.theater_name 
-    : undefined;
-  const currentMovie = latestEvent?.type === 'movie_started' 
-    ? latestEvent.movie_title 
-    : undefined;
-
-  const theaterProgress = totalTheaters > 0 ? (processedTheaters / totalTheaters) * 100 : 0;
-  const movieProgress = totalMovies > 0 ? (processedMovies / totalMovies) * 100 : 0;
-
-  // Check if completed
-  const isCompleted = latestEvent?.type === 'completed';
-  const hasFailed = latestEvent?.type === 'failed';
+  const config = STATE_CONFIG[state];
 
   return (
-    <div className={`border-2 rounded-lg p-6 shadow-lg ${isCompleted ? 'bg-green-50 border-green-500' : hasFailed ? 'bg-red-50 border-red-500' : 'bg-white border-primary'}`} data-testid="scrape-progress">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        {isCompleted ? (
-          <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        ) : hasFailed ? (
-          <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ) : (
-          <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
-        )}
-        <h3 className="text-lg font-bold text-gray-900">
-          {isCompleted ? 'Scraping terminé' : hasFailed ? 'Scraping échoué' : 'Scraping en cours'}
-        </h3>
-      </div>
+    <div
+      className={`border-2 rounded-lg p-6 shadow-lg ${config.bg} ${config.border}`}
+      data-testid="scrape-progress"
+    >
+      <ProgressHeader state={state} />
 
-      {/* Status */}
       <div className="mb-4">
         <p className="text-sm text-gray-600">
           <span className="font-semibold">Statut:</span> {latestEvent?.type || 'initializing'}
         </p>
-        {isCompleted && (
+        {state === 'completed' && (
           <p className="text-sm text-green-600 mt-2">
             🔄 Rechargement de la page dans quelques instants...
           </p>
         )}
       </div>
 
-      {/* Theater Progress */}
-      <div className="mb-4">
-        <div className="flex justify-between items-center mb-1">
-          <p className="text-sm font-medium text-gray-700">
-            Cinémas traités
-          </p>
-          <p className="text-sm text-gray-600">
-            {processedTheaters} / {totalTheaters}
-          </p>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className="bg-primary h-2 rounded-full transition-all duration-300"
-            style={{ width: `${theaterProgress}%` }}
-          ></div>
-        </div>
-        {currentTheater && (
-          <p className="text-xs text-gray-500 mt-1">
-            En cours: {currentTheater}
-          </p>
-        )}
-      </div>
+      <ProgressBar
+        label="Cinémas traités"
+        processed={processedTheaters}
+        total={totalTheaters}
+        currentItem={selectCurrentTheater(latestEvent)}
+      />
 
-      {/* Film Progress */}
-      <div className="mb-4">
-        <div className="flex justify-between items-center mb-1">
-          <p className="text-sm font-medium text-gray-700">
-            Films traités
-          </p>
-          <p className="text-sm text-gray-600">
-            {processedMovies} / {totalMovies}
-          </p>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className="bg-green-500 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${movieProgress}%` }}
-          ></div>
-        </div>
-        {currentMovie && (
-          <p className="text-xs text-gray-500 mt-1">
-            En cours: {currentMovie}
-          </p>
-        )}
-      </div>
+      <ProgressBar
+        label="Films traités"
+        processed={processedMovies}
+        total={totalMovies}
+        currentItem={selectCurrentMovie(latestEvent)}
+        colorClass="bg-green-500"
+      />
 
-      {/* Error Display */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded p-3 mt-4">
-          <p className="text-sm text-red-700">
-            <span className="font-semibold">Erreur:</span> {error}
-          </p>
-        </div>
-      )}
+      {error && <ScrapeProgressError message={error} />}
     </div>
   );
 }
