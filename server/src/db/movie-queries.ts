@@ -36,45 +36,132 @@ interface WeeklyMovieRow extends MovieRow {
   theater_image_url: string | null;
 }
 
+// --- Sanitization ---
+
 /**
- * Sanitize numeric fields in a Movie object to prevent NaN/Infinity from being inserted.
- * Converts NaN and Infinity to null with warning logs.
+ * Numeric Movie fields that can carry NaN/Infinity from upstream parsers.
+ * Defense-in-depth: the parser should already filter these, but the DB layer
+ * must never accept NaN/Infinity (Postgres rejects with `invalid input syntax`).
  */
-function sanitizeNumericValue(value: number | undefined | null, fieldName: string, movieId: number): number | null {
+const NUMERIC_MOVIE_FIELDS = ['duration_minutes', 'press_rating', 'audience_rating'] as const;
+
+/**
+ * Sanitize a single numeric value: returns null for non-finite numbers (NaN, Infinity).
+ */
+function sanitizeNumericValue(
+  value: number | undefined | null,
+  fieldName: string,
+  movieId: number
+): number | null {
   if (value === undefined || value === null) return null;
-  
+
   if (!Number.isFinite(value)) {
     logger.warn(`⚠️  Invalid ${fieldName} value (${value}) for movie ID ${movieId}, converting to null`);
     return null;
   }
-  
+
   return value;
 }
 
 /**
  * Sanitize a Movie object before database insertion to prevent NaN/Infinity errors.
- * This is a defense-in-depth layer in case the parser doesn't catch all edge cases.
+ * Defense-in-depth layer in case the parser doesn't catch all edge cases.
  */
 function sanitizeMovie(movie: Movie): Movie {
+  const sanitized: Movie = { ...movie };
+
+  for (const field of NUMERIC_MOVIE_FIELDS) {
+    const value = sanitized[field];
+    const sanitizedValue =
+      value !== undefined ? sanitizeNumericValue(value, field, movie.id) ?? undefined : undefined;
+    // Numeric Movie fields are optional `number | undefined`; assign through unknown
+    // to bypass the discriminated-union type check.
+    (sanitized as unknown as Record<string, unknown>)[field] = sanitizedValue;
+  }
+
+  return sanitized;
+}
+
+// --- Row → Domain mapping ---
+
+/**
+ * Transform a raw MovieRow (from database) into a Movie domain object.
+ *
+ * Handles all nullish-coalescing (null → undefined) and JSON parsing
+ * (genres, screenwriters, actors) in one place. Used by getMovie,
+ * getMoviesByDate, getWeeklyMovies, and searchMovies.
+ */
+export function formatMovieRow(row: MovieRow): Movie {
   return {
-    ...movie,
-    duration_minutes: movie.duration_minutes !== undefined
-      ? sanitizeNumericValue(movie.duration_minutes, 'duration_minutes', movie.id) ?? undefined
-      : undefined,
-    press_rating: movie.press_rating !== undefined
-      ? sanitizeNumericValue(movie.press_rating, 'press_rating', movie.id) ?? undefined
-      : undefined,
-    audience_rating: movie.audience_rating !== undefined
-      ? sanitizeNumericValue(movie.audience_rating, 'audience_rating', movie.id) ?? undefined
-      : undefined,
+    id: row.id,
+    title: row.title,
+    original_title: row.original_title ?? undefined,
+    poster_url: row.poster_url ?? undefined,
+    duration_minutes: row.duration_minutes ?? undefined,
+    release_date: row.release_date ?? undefined,
+    rerelease_date: row.rerelease_date ?? undefined,
+    genres: parseJSONMemoized(row.genres),
+    nationality: row.nationality ?? undefined,
+    director: row.director ?? undefined,
+    screenwriters: parseJSONMemoized(row.screenwriters),
+    actors: parseJSONMemoized(row.actors),
+    synopsis: row.synopsis ?? undefined,
+    certificate: row.certificate ?? undefined,
+    press_rating: row.press_rating ?? undefined,
+    audience_rating: row.audience_rating ?? undefined,
+    source_url: row.source_url,
+    trailer_url: row.trailer_url ?? undefined,
   };
 }
 
-// Insertion ou mise à jour d'un movie
+/**
+ * Extract a Theater domain object from a WeeklyMovieRow's joined columns.
+ */
+function theaterFromWeeklyRow(row: WeeklyMovieRow): Theater {
+  return {
+    id: row.theater_id,
+    name: row.theater_name,
+    address: row.theater_address ?? undefined,
+    postal_code: row.postal_code ?? undefined,
+    city: row.city ?? undefined,
+    screen_count: row.screen_count ?? undefined,
+    image_url: row.theater_image_url ?? undefined,
+  };
+}
+
+/**
+ * Group weekly-movie rows into distinct movies, each carrying the list of
+ * theaters that programmed it. Used by both getMoviesByDate and getWeeklyMovies.
+ */
+function groupMoviesWithTheaters(
+  rows: WeeklyMovieRow[]
+): Array<Movie & { theaters: Theater[] }> {
+  const moviesMap = new Map<number, Movie & { theaters: Theater[] }>();
+
+  for (const row of rows) {
+    let entry = moviesMap.get(row.id);
+    if (!entry) {
+      entry = { ...formatMovieRow(row), theaters: [] };
+      moviesMap.set(row.id, entry);
+    }
+    entry.theaters.push(theaterFromWeeklyRow(row));
+  }
+
+  return Array.from(moviesMap.values());
+}
+
+// --- Insertion / Updates ---
+
+/**
+ * Insert or update a Movie record.
+ *
+ * Sanitizes numeric fields first to prevent NaN/Infinity from reaching the database.
+ * COALESCE on duration_minutes / trailer_url preserves existing values when the
+ * incoming payload sets them to null (treats null as "don't touch").
+ */
 export async function upsertMovie(db: DB, movie: Movie): Promise<void> {
-  // Sanitize movie data to prevent NaN/Infinity from reaching the database
   const sanitized = sanitizeMovie(movie);
-  
+
   await db.query(
     `
       INSERT INTO movies (
@@ -129,37 +216,11 @@ export async function upsertMovie(db: DB, movie: Movie): Promise<void> {
   );
 }
 
-/**
- * Transform a raw MovieRow (from database) into a Movie domain object.
- *
- * Handles all nullish-coalescing (null → undefined) and JSON parsing
- * (genres, screenwriters, actors) in one place. Used by getMovie,
- * getMoviesByDate, getWeeklyMovies, and searchMovies.
- */
-export function formatMovieRow(row: MovieRow): Movie {
-  return {
-    id: row.id,
-    title: row.title,
-    original_title: row.original_title ?? undefined,
-    poster_url: row.poster_url ?? undefined,
-    duration_minutes: row.duration_minutes ?? undefined,
-    release_date: row.release_date ?? undefined,
-    rerelease_date: row.rerelease_date ?? undefined,
-    genres: parseJSONMemoized(row.genres),
-    nationality: row.nationality ?? undefined,
-    director: row.director ?? undefined,
-    screenwriters: parseJSONMemoized(row.screenwriters),
-    actors: parseJSONMemoized(row.actors),
-    synopsis: row.synopsis ?? undefined,
-    certificate: row.certificate ?? undefined,
-    press_rating: row.press_rating ?? undefined,
-    audience_rating: row.audience_rating ?? undefined,
-    source_url: row.source_url,
-    trailer_url: row.trailer_url ?? undefined,
-  };
-}
+// --- Lookups by ID / date / week ---
 
-// Récupérer un movie par son ID
+/**
+ * Fetch a single movie by its primary key.
+ */
 export async function getMovie(db: DB, movieId: number): Promise<Movie | undefined> {
   const result = await db.query<MovieRow>(
     'SELECT * FROM movies WHERE id = $1',
@@ -167,12 +228,13 @@ export async function getMovie(db: DB, movieId: number): Promise<Movie | undefin
   );
 
   const row = result.rows[0];
-  if (!row) return undefined;
-
-  return formatMovieRow(row);
+  return row ? formatMovieRow(row) : undefined;
 }
 
-// Récupérer les movies programmés pour une date spécifique
+/**
+ * Movies programmed on a specific date within a given week, each carrying the
+ * list of theaters that screen it on that date.
+ */
 export async function getMoviesByDate(
   db: DB,
   date: string,
@@ -198,33 +260,13 @@ export async function getMoviesByDate(
     [date, weekStart]
   );
 
-  // Regrouper par movie
-  const moviesMap = new Map<number, Movie & { theaters: Theater[] }>();
-
-  for (const row of result.rows) {
-    if (!moviesMap.has(row.id)) {
-      moviesMap.set(row.id, {
-        ...formatMovieRow(row),
-        theaters: [],
-      });
-    }
-
-    const movie = moviesMap.get(row.id)!;
-    movie.theaters.push({
-      id: row.theater_id,
-      name: row.theater_name,
-      address: row.theater_address ?? undefined,
-      postal_code: row.postal_code ?? undefined,
-      city: row.city ?? undefined,
-      screen_count: row.screen_count ?? undefined,
-      image_url: row.theater_image_url ?? undefined,
-    });
-  }
-
-  return Array.from(moviesMap.values());
+  return groupMoviesWithTheaters(result.rows);
 }
 
-// Récupérer les movies programmés dans la semaine en cours
+/**
+ * Movies programmed during a given week, each carrying the list of theaters
+ * that include it in their weekly program.
+ */
 export async function getWeeklyMovies(
   db: DB,
   weekStart: string
@@ -249,49 +291,47 @@ export async function getWeeklyMovies(
     [weekStart]
   );
 
-  // Regrouper par movie
-  const moviesMap = new Map<number, Movie & { theaters: Theater[] }>();
-
-  for (const row of result.rows) {
-    if (!moviesMap.has(row.id)) {
-      moviesMap.set(row.id, {
-        ...formatMovieRow(row),
-        theaters: [],
-      });
-    }
-
-    const movie = moviesMap.get(row.id)!;
-    movie.theaters.push({
-      id: row.theater_id,
-      name: row.theater_name,
-      address: row.theater_address ?? undefined,
-      postal_code: row.postal_code ?? undefined,
-      city: row.city ?? undefined,
-      screen_count: row.screen_count ?? undefined,
-      image_url: row.theater_image_url ?? undefined,
-    });
-  }
-
-  return Array.from(moviesMap.values());
+  return groupMoviesWithTheaters(result.rows);
 }
 
 // --- Movie Search ---
 
 /**
+ * Scoring CASE expression for movie search.
+ *
+ * Strategies (ordered by priority):
+ *  1. Exact match on title or original_title      (score 1.0 / 0.95)
+ *  2. Prefix match                                  (score 0.9 / 0.85)
+ *  3. High trigram similarity (>0.3)                (score 0.6–0.8)
+ *  4. Moderate trigram similarity (>0.1)            (score 0.5–0.6)
+ *  5. Substring match (ILIKE %query%)               (score 0.4 / 0.35)
+ *  6. Fallback                                       (score 0.1)
+ */
+const MOVIE_SEARCH_SCORING_SQL = `
+  CASE
+    WHEN LOWER(title) = LOWER($1) THEN 1.0
+    WHEN original_title IS NOT NULL AND LOWER(original_title) = LOWER($1) THEN 0.95
+    WHEN LOWER(title) LIKE LOWER($1) || '%' THEN 0.9
+    WHEN original_title IS NOT NULL AND LOWER(original_title) LIKE LOWER($1) || '%' THEN 0.85
+    WHEN similarity(title, $1) > 0.3 THEN similarity(title, $1) * 0.8
+    WHEN original_title IS NOT NULL AND similarity(original_title, $1) > 0.3 THEN similarity(original_title, $1) * 0.75
+    WHEN similarity(title, $1) > 0.1 THEN similarity(title, $1) * 0.6
+    WHEN original_title IS NOT NULL AND similarity(original_title, $1) > 0.1 THEN similarity(original_title, $1) * 0.55
+    WHEN title ILIKE '%' || $1 || '%' THEN 0.4
+    WHEN original_title IS NOT NULL AND original_title ILIKE '%' || $1 || '%' THEN 0.35
+    ELSE 0.1
+  END
+`;
+
+/**
  * Search movies using fuzzy matching (trigram similarity + partial match)
  * with multi-strategy scoring for permissive results.
- * 
- * Search strategies (ordered by priority):
- * 1. Exact match on title or original_title (score: 1.0-0.95)
- * 2. Prefix match - title starts with query (score: 0.9-0.85)
- * 3. High trigram similarity > 0.3 (score: 0.6-0.8)
- * 4. Low trigram similarity > 0.1 (score: 0.5-0.6) - very permissive!
- * 5. Contains anywhere (ILIKE %query%) (score: 0.35-0.4)
- * 
- * @param db Database connection
+ *
+ * See {@link MOVIE_SEARCH_SCORING_SQL} for the priority order of match strategies.
+ *
+ * @param db    Database connection
  * @param query Search query string
  * @param limit Maximum number of results (default: 10)
- * @returns Array of movies matching the search query, ordered by relevance
  */
 export async function searchMovies(
   db: DB,
@@ -299,37 +339,15 @@ export async function searchMovies(
   limit: number = 10
 ): Promise<Movie[]> {
   const result = await db.query<MovieRow>(
-    `SELECT 
+    `SELECT
       id, title, original_title, poster_url, duration_minutes,
       release_date, rerelease_date, genres, nationality, director,
       screenwriters, actors, synopsis, certificate, press_rating, audience_rating,
       source_url,
       trailer_url,
-      CASE
-        -- Exact match (highest priority)
-        WHEN LOWER(title) = LOWER($1) THEN 1.0
-        WHEN original_title IS NOT NULL AND LOWER(original_title) = LOWER($1) THEN 0.95
-        
-        -- Starts with query (very high priority)
-        WHEN LOWER(title) LIKE LOWER($1) || '%' THEN 0.9
-        WHEN original_title IS NOT NULL AND LOWER(original_title) LIKE LOWER($1) || '%' THEN 0.85
-        
-        -- Good trigram similarity (high priority)
-        WHEN similarity(title, $1) > 0.3 THEN similarity(title, $1) * 0.8
-        WHEN original_title IS NOT NULL AND similarity(original_title, $1) > 0.3 THEN similarity(original_title, $1) * 0.75
-        
-        -- Moderate trigram similarity (permissive - medium priority)
-        WHEN similarity(title, $1) > 0.1 THEN similarity(title, $1) * 0.6
-        WHEN original_title IS NOT NULL AND similarity(original_title, $1) > 0.1 THEN similarity(original_title, $1) * 0.55
-        
-        -- Contains anywhere in title (lower priority)
-        WHEN title ILIKE '%' || $1 || '%' THEN 0.4
-        WHEN original_title IS NOT NULL AND original_title ILIKE '%' || $1 || '%' THEN 0.35
-        
-        ELSE 0.1
-      END AS score
+      ${MOVIE_SEARCH_SCORING_SQL} AS score
     FROM movies
-    WHERE 
+    WHERE
       similarity(title, $1) > 0.1
       OR (original_title IS NOT NULL AND similarity(original_title, $1) > 0.1)
       OR title ILIKE '%' || $1 || '%'
@@ -339,24 +357,5 @@ export async function searchMovies(
     [query, limit]
   );
 
-  return result.rows.map(row => ({
-    id: row.id,
-    title: row.title,
-    original_title: row.original_title || undefined,
-    poster_url: row.poster_url || undefined,
-    duration_minutes: row.duration_minutes || undefined,
-    release_date: row.release_date || undefined,
-    rerelease_date: row.rerelease_date || undefined,
-    genres: parseJSONMemoized(row.genres),
-    nationality: row.nationality || undefined,
-    director: row.director || undefined,
-    screenwriters: parseJSONMemoized(row.screenwriters),
-    actors: parseJSONMemoized(row.actors),
-    synopsis: row.synopsis || undefined,
-    certificate: row.certificate || undefined,
-    press_rating: row.press_rating || undefined,
-    audience_rating: row.audience_rating || undefined,
-    source_url: row.source_url,
-    trailer_url: row.trailer_url || undefined,
-  }));
+  return result.rows.map(formatMovieRow);
 }

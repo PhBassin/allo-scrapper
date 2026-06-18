@@ -78,11 +78,13 @@ async function setupApp(mockUser?: any) {
   }
 
   const { default: scraperRouter } = await import('./scraper.js');
+  const { default: scraperSchedulesRouter } = await import('./scraper-schedules.js');
 
   const app = express();
   app.use(express.json());
   app.set('db', {});
   app.use('/api/scraper', scraperRouter);
+  app.use('/api/scraper', scraperSchedulesRouter);
   app.use(errorHandler);
 
   return app;
