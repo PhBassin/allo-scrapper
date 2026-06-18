@@ -13,5 +13,12 @@
       "file": "server/src/db/rate-limit-queries.ts",
       "exports": ["*"]
     }
-  ]
+  ],
+  "duplicates": {
+    "ignore": [
+      "server/src/db/movie-queries.ts",
+      "server/src/db/showtime-queries.ts",
+      "scraper/src/db/movie-queries.ts"
+    ]
+  }
 }
