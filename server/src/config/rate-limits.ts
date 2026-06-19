@@ -1,5 +1,12 @@
 import type { DB } from '../db/client.js';
 
+// NOTE: This is the FLAT runtime config used by the limiter middleware.
+// It is structurally different from `db/rate-limit-queries.ts`'s `RateLimitConfig`
+// (which wraps the same fields under a `config` key plus DB metadata: `source`,
+// `updatedAt`, `updatedBy`, `environment`). The duplication is intentional:
+// this one is consumed by the rate-limit middleware as a flat shape, the
+// other is the DB-backed shape returned to admin routes. Keep both.
+// Listed in .fallowrc.json ignoreExports.
 export interface RateLimitConfig {
   windowMs: number;
   generalMax: number;

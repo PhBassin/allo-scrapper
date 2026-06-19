@@ -1,122 +1,146 @@
 import { useState } from 'react';
-import type { Theater } from '../types';
-import type { TheaterUpdate } from '../api/theaters';
+import type { Theater } from '../types/index.js';
+import type { TheaterUpdate } from '../api/theaters.js';
+import {
+  validateName,
+  validateUrl,
+  validateAddress,
+  validatePostalCode,
+  validateCity,
+  validateScreenCount,
+} from '../utils/theaterValidators.js';
 
-const ALLOCINE_URL_PREFIX = 'https://www.allocine.fr/';
+type Validator = (value: string) => string | undefined;
 
-function isAllocineUrl(url: string): boolean {
-  return url.startsWith(ALLOCINE_URL_PREFIX);
+interface FieldDef<T> {
+  key: keyof FormState;
+  validate: Validator;
+  parseForUpdate: (trimmed: string) => T | undefined;
+  isDifferent: (current: string, original: Theater) => boolean;
 }
 
-function validateName(value: string): string | undefined {
-  if (!value.trim()) return 'Name is required';
-  if (value.trim().length > 100) return 'Name must be at most 100 characters';
-  return undefined;
+interface FormState {
+  name: string;
+  url: string;
+  address: string;
+  postalCode: string;
+  city: string;
+  screenCount: string;
 }
 
-function validateUrl(value: string): string | undefined {
-  if (!value.trim()) return undefined;
-  if (!isAllocineUrl(value)) return 'Must be an Allocine URL (https://www.allocine.fr/...)';
-  if (value.length > 2048) return 'URL must be at most 2048 characters';
-  return undefined;
-}
+const trim = (s: string | undefined) => (s ?? '').trim();
 
-function validateAddress(value: string): string | undefined {
-  if (value.trim() && value.length > 200) return 'Address must be at most 200 characters';
-  return undefined;
-}
-
-function validatePostalCode(value: string): string | undefined {
-  if (value.trim()) {
-    if (value.length > 10) return 'Postal code must be at most 10 characters';
-    if (!/^[a-zA-Z0-9]+$/.test(value)) return 'Postal code must be alphanumeric';
-  }
-  return undefined;
-}
-
-function validateCity(value: string): string | undefined {
-  if (value.trim() && value.length > 100) return 'City must be at most 100 characters';
-  return undefined;
-}
-
-function validateScreenCount(value: string): string | undefined {
-  if (value.trim()) {
-    const num = Number(value);
-    if (isNaN(num)) return 'Screen count must be a number';
-    if (!Number.isInteger(num)) return 'Screen count must be an integer';
-    if (num < 1 || num > 50) return 'Screen count must be between 1 and 50';
-  }
-  return undefined;
-}
+const FORM_FIELDS = [
+  {
+    key: 'name',
+    validate: validateName,
+    parseForUpdate: (v: string) => v as string | undefined,
+    isDifferent: (current: string, original: Theater) =>
+      current.trim() !== original.name.trim(),
+  },
+  {
+    key: 'url',
+    validate: validateUrl,
+    parseForUpdate: (v: string) => v || undefined,
+    isDifferent: (current: string, original: Theater) =>
+      current.trim() !== trim(original.url),
+  },
+  {
+    key: 'address',
+    validate: validateAddress,
+    parseForUpdate: (v: string) => v || undefined,
+    isDifferent: (current: string, original: Theater) =>
+      current.trim() !== trim(original.address),
+  },
+  {
+    key: 'postalCode',
+    validate: validatePostalCode,
+    parseForUpdate: (v: string) => v || undefined,
+    isDifferent: (current: string, original: Theater) =>
+      current.trim() !== trim(original.postal_code),
+  },
+  {
+    key: 'city',
+    validate: validateCity,
+    parseForUpdate: (v: string) => v || undefined,
+    isDifferent: (current: string, original: Theater) =>
+      current.trim() !== trim(original.city),
+  },
+  {
+    key: 'screenCount',
+    validate: validateScreenCount,
+    parseForUpdate: (v: string) => (v ? Number(v) : undefined),
+    isDifferent: (current: string, original: Theater) =>
+      current.trim() !==
+      (original.screen_count != null ? String(original.screen_count) : ''),
+  },
+] as const satisfies ReadonlyArray<FieldDef<unknown>>;
 
 export function useEditTheaterForm(
   theater: Theater,
   onSave: (id: string, updates: TheaterUpdate) => Promise<void>,
   onClose: () => void
 ) {
-  const [name, setName] = useState(theater.name);
-  const [url, setUrl] = useState(theater.url ?? '');
-  const [address, setAddress] = useState(theater.address ?? '');
-  const [postalCode, setPostalCode] = useState(theater.postal_code ?? '');
-  const [city, setCity] = useState(theater.city ?? '');
-  const [screenCount, setScreenCount] = useState<string>(
-    theater.screen_count != null ? String(theater.screen_count) : ''
-  );
+  const [state, setState] = useState<FormState>({
+    name: theater.name,
+    url: theater.url ?? '',
+    address: theater.address ?? '',
+    postalCode: theater.postal_code ?? '',
+    city: theater.city ?? '',
+    screenCount:
+      theater.screen_count != null ? String(theater.screen_count) : '',
+  });
 
-  const [nameError, setNameError] = useState<string | undefined>();
-  const [urlError, setUrlError] = useState<string | undefined>();
-  const [addressError, setAddressError] = useState<string | undefined>();
-  const [postalCodeError, setPostalCodeError] = useState<string | undefined>();
-  const [cityError, setCityError] = useState<string | undefined>();
-  const [screenCountError, setScreenCountError] = useState<string | undefined>();
+  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const hasChanges =
-    name.trim() !== theater.name.trim() ||
-    url.trim() !== (theater.url ?? '').trim() ||
-    address.trim() !== (theater.address ?? '').trim() ||
-    postalCode.trim() !== (theater.postal_code ?? '').trim() ||
-    city.trim() !== (theater.city ?? '').trim() ||
-    screenCount.trim() !== (theater.screen_count != null ? String(theater.screen_count) : '');
+  const setField = (key: keyof FormState, value: string) => {
+    setState((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const hasChanges = FORM_FIELDS.some((field) =>
+    field.isDifferent(state[field.key], theater)
+  );
+
+  const validateAll = (): Partial<Record<keyof FormState, string>> => {
+    const next: Partial<Record<keyof FormState, string>> = {};
+    for (const field of FORM_FIELDS) {
+      const err = field.validate(state[field.key]);
+      if (err) next[field.key] = err;
+    }
+    return next;
+  };
+
+  const buildUpdates = (): TheaterUpdate => {
+    const updates: TheaterUpdate = {};
+    for (const field of FORM_FIELDS) {
+      const current = state[field.key];
+      if (field.isDifferent(current, theater)) {
+        const value = field.parseForUpdate(current.trim());
+        if (field.key === 'postalCode') {
+          updates.postal_code = value as string | undefined;
+        } else if (field.key === 'screenCount') {
+          updates.screen_count = value as number | undefined;
+        } else {
+          updates[field.key as 'name' | 'url' | 'address' | 'city'] =
+            value as string | undefined;
+        }
+      }
+    }
+    return updates;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const nErr = validateName(name);
-    const uErr = validateUrl(url);
-    const aErr = validateAddress(address);
-    const pErr = validatePostalCode(postalCode);
-    const cErr = validateCity(city);
-    const scErr = validateScreenCount(screenCount);
-
-    setNameError(nErr);
-    setUrlError(uErr);
-    setAddressError(aErr);
-    setPostalCodeError(pErr);
-    setCityError(cErr);
-    setScreenCountError(scErr);
-
-    if (nErr || uErr || aErr || pErr || cErr || scErr) return;
+    const validationErrors = validateAll();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
 
     setIsSaving(true);
     setSubmitError(null);
     try {
-      const updates: TheaterUpdate = {};
-
-      if (name.trim() !== theater.name.trim()) updates.name = name.trim();
-      if (url.trim() !== (theater.url ?? '').trim()) updates.url = url.trim() || undefined;
-      if (address.trim() !== (theater.address ?? '').trim()) updates.address = address.trim() || undefined;
-      if (postalCode.trim() !== (theater.postal_code ?? '').trim())
-        updates.postal_code = postalCode.trim() || undefined;
-      if (city.trim() !== (theater.city ?? '').trim()) updates.city = city.trim() || undefined;
-
-      const currentScreenCount = theater.screen_count != null ? String(theater.screen_count) : '';
-      if (screenCount.trim() !== currentScreenCount) {
-        updates.screen_count = screenCount.trim() ? Number(screenCount.trim()) : undefined;
-      }
-
-      await onSave(theater.id, updates);
+      await onSave(theater.id, buildUpdates());
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to save theater');
     } finally {
@@ -134,24 +158,24 @@ export function useEditTheaterForm(
     }`;
 
   return {
-    name,
-    setName,
-    url,
-    setUrl,
-    address,
-    setAddress,
-    postalCode,
-    setPostalCode,
-    city,
-    setCity,
-    screenCount,
-    setScreenCount,
-    nameError,
-    urlError,
-    addressError,
-    postalCodeError,
-    cityError,
-    screenCountError,
+    name: state.name,
+    setName: (v: string) => setField('name', v),
+    url: state.url,
+    setUrl: (v: string) => setField('url', v),
+    address: state.address,
+    setAddress: (v: string) => setField('address', v),
+    postalCode: state.postalCode,
+    setPostalCode: (v: string) => setField('postalCode', v),
+    city: state.city,
+    setCity: (v: string) => setField('city', v),
+    screenCount: state.screenCount,
+    setScreenCount: (v: string) => setField('screenCount', v),
+    nameError: errors.name,
+    urlError: errors.url,
+    addressError: errors.address,
+    postalCodeError: errors.postalCode,
+    cityError: errors.city,
+    screenCountError: errors.screenCount,
     submitError,
     isSaving,
     hasChanges,

@@ -166,61 +166,179 @@ function getWeekStart(dateStr: string): string {
   return `${y}-${m}-${d}`;
 }
 
+type AllocineVersionKey = keyof AllocineShowtimesGroup;
+
+const VERSION_GROUPS: ReadonlyArray<[AllocineVersionKey, string]> = [
+  ['original', 'VO'],
+  ['original_st', 'VOST'],
+  ['original_st_sme', 'VOST'],
+  ['multiple', 'VF'],
+  ['multiple_st', 'VOST'],
+  ['multiple_st_sme', 'VOST'],
+];
+
+function flattenShowtimes(group: AllocineShowtimesGroup): Array<{ showtime: AllocineShowtime; version: string }> {
+  const result: Array<{ showtime: AllocineShowtime; version: string }> = [];
+  for (const [key, ver] of VERSION_GROUPS) {
+    for (const st of group[key] ?? []) {
+      result.push({ showtime: st, version: ver });
+    }
+  }
+  return result;
+}
+
+function resolveVersion(showtime: AllocineShowtime, fallback: string): string {
+  return showtime.diffusionVersion ? (VERSION_MAP[showtime.diffusionVersion] ?? fallback) : fallback;
+}
+
+function buildShowtimeEntry(
+  showtime: AllocineShowtime,
+  fallbackVersion: string,
+  context: { movieId: number; theaterId: string; date: string }
+): Showtime | null {
+  if (!showtime.startsAt) return null;
+  const [actualDate, timePart] = showtime.startsAt.split('T');
+  const time = timePart?.substring(0, 5) ?? '';
+  const version = resolveVersion(showtime, fallbackVersion);
+  const format = showtime.projection?.[0];
+  const experiences = showtime.tags ?? [];
+
+  return {
+    id: `${context.theaterId}_${context.movieId}_${actualDate ?? context.date}_${time}_${version}_${format ?? ''}`,
+    movie_id: context.movieId,
+    theater_id: context.theaterId,
+    date: actualDate || context.date,
+    time,
+    datetime_iso: showtime.startsAt,
+    version,
+    format,
+    experiences,
+    week_start: getWeekStart(actualDate || context.date),
+  };
+}
+
 function mapShowtimes(
   group: AllocineShowtimesGroup,
   movieId: number,
   theaterId: string,
   date: string
 ): Showtime[] {
-  const allEntries: { showtime: AllocineShowtime; version: string }[] = [];
-
-  const versionGroups: Array<[keyof AllocineShowtimesGroup, string]> = [
-    ['original', 'VO'],
-    ['original_st', 'VOST'],
-    ['original_st_sme', 'VOST'],
-    ['multiple', 'VF'],
-    ['multiple_st', 'VOST'],
-    ['multiple_st_sme', 'VOST'],
-  ];
-
-  for (const [key, ver] of versionGroups) {
-    for (const st of group[key] ?? []) {
-      allEntries.push({ showtime: st, version: ver });
-    }
-  }
-
+  const context = { movieId, theaterId, date };
   const showtimes: Showtime[] = [];
-  for (const { showtime, version } of allEntries) {
-    if (!showtime.startsAt) continue;
-
-    const actualDate = showtime.startsAt.split('T')[0] || date;
-    const time = showtime.startsAt.split('T')[1]?.substring(0, 5) ?? '';
-
-    const ver2 = showtime.diffusionVersion
-      ? (VERSION_MAP[showtime.diffusionVersion] ?? version)
-      : version;
-
-    const format = showtime.projection?.[0];
-    const experiences: string[] = showtime.tags ?? [];
-
-    showtimes.push({
-      id: `${theaterId}_${movieId}_${actualDate}_${time}_${ver2}_${format ?? ''}`,
-      movie_id: movieId,
-      theater_id: theaterId,
-      date: actualDate,
-      time,
-      datetime_iso: showtime.startsAt,
-      version: ver2,
-      format,
-      experiences,
-      week_start: getWeekStart(actualDate),
-    });
+  for (const { showtime, version } of flattenShowtimes(group)) {
+    const entry = buildShowtimeEntry(showtime, version, context);
+    if (entry) showtimes.push(entry);
   }
-
   return showtimes;
 }
 
 // ── Main parser ───────────────────────────────────────────────────────────────
+
+// ── parseShowtimesJson helpers ────────────────────────────────────────────────
+
+interface ParsedMovieCredits {
+  director?: string;
+  screenwriters: string[];
+  actors: string[];
+}
+
+type CreditBucket = 'director' | 'screenwriter' | 'actor' | null;
+
+const CREDIT_ROLES: Record<string, CreditBucket> = {
+  director: 'director',
+  réalisateur: 'director',
+  writer: 'screenwriter',
+  screenwriter: 'screenwriter',
+  screenplay: 'screenwriter',
+  scénariste: 'screenwriter',
+  scenariste: 'screenwriter',
+  actor: 'actor',
+  acteur: 'actor',
+};
+
+function bucketFor(positionName: string | undefined): CreditBucket {
+  if (!positionName) return null;
+  return CREDIT_ROLES[positionName.toLowerCase()] ?? null;
+}
+
+function parseMovieCredits(credits: AllocineCredit[] | undefined): ParsedMovieCredits {
+  const result: ParsedMovieCredits = { director: undefined, screenwriters: [], actors: [] };
+
+  for (const credit of credits ?? []) {
+    const name = credit.person?.fullName;
+    if (!name) continue;
+    const decodedName = decodeHtmlEntities(name) ?? name;
+    const bucket = bucketFor(credit.position?.name);
+    if (bucket === 'director') {
+      result.director = decodedName;
+    } else if (bucket === 'screenwriter') {
+      result.screenwriters.push(decodedName);
+    } else if (bucket === 'actor') {
+      result.actors.push(decodedName);
+    }
+  }
+
+  return result;
+}
+
+function buildMovie(rawMovie: AllocineMovie, credits: ParsedMovieCredits, movieId: number): Movie {
+  const genres = decodeHtmlEntitiesArray(
+    (rawMovie.genres ?? []).map(g => g.translate ?? '').filter(Boolean),
+  );
+  const nationalityRaw = (rawMovie.countries ?? [])
+    .map(c => c.localizedName ?? '')
+    .filter(Boolean)
+    .join(', ') || undefined;
+  const nationality = decodeHtmlEntities(nationalityRaw);
+
+  const press_rating = sanitizeRating(rawMovie.stats?.pressReview?.score);
+  const audience_rating = sanitizeRating(rawMovie.stats?.userRating?.score);
+  const { release_date, rerelease_date } = parseReleaseDate(rawMovie.releases);
+
+  return {
+    id: movieId,
+    title: decodeHtmlEntities(rawMovie.title) ?? '',
+    original_title: decodeHtmlEntities(rawMovie.originalTitle),
+    poster_url: rawMovie.poster?.url,
+    duration_minutes: runtimeToMinutes(rawMovie.runtime),
+    genres,
+    nationality,
+    director: credits.director,
+    screenwriters: uniqueNonEmptyStrings(credits.screenwriters),
+    actors: credits.actors,
+    synopsis: decodeHtmlEntities(rawMovie.synopsis),
+    press_rating,
+    audience_rating,
+    release_date,
+    rerelease_date,
+    source_url: `https://www.allocine.fr/film/fichefilm_gen_cfilm=${movieId}.html`,
+  };
+}
+
+function parseShowtimeEntry(
+  result: AllocineResult,
+  theaterId: string,
+  date: string,
+): MovieShowtimeData | null {
+  const rawMovie = result.movie;
+  if (!rawMovie) return null;
+
+  const movieId = extractMovieId(rawMovie);
+  if (!movieId) {
+    logger.warn('Could not extract movie ID', {
+      preview: JSON.stringify(rawMovie).substring(0, 100),
+    });
+    return null;
+  }
+
+  const credits = parseMovieCredits(rawMovie.credits);
+  const movie = buildMovie(rawMovie, credits, movieId);
+  const showtimes = mapShowtimes(result.showtimes ?? {}, movieId, theaterId, date);
+  const isNewThisWeek = rawMovie.flags?.isNewRelease ?? false;
+
+  if (showtimes.length === 0) return null;
+  return { movie, showtimes, is_new_this_week: isNewThisWeek };
+}
 
 /**
  * Parse the Allociné internal showtimes API JSON response into MovieShowtimeData[].
@@ -241,73 +359,8 @@ export function parseShowtimesJson(
   const movieShowtimes: MovieShowtimeData[] = [];
 
   for (const result of results) {
-    const rawMovie = result.movie;
-    if (!rawMovie) continue;
-
-    const movieId = extractMovieId(rawMovie);
-    if (!movieId) {
-      logger.warn('Could not extract movie ID from movie', { preview: JSON.stringify(rawMovie).substring(0, 100) });
-      continue;
-    }
-
-    let director: string | undefined;
-    const screenwriters: string[] = [];
-    const actors: string[] = [];
-    for (const credit of rawMovie.credits ?? []) {
-      const name = credit.person?.fullName;
-      if (!name) continue;
-      const decodedName = decodeHtmlEntities(name) ?? name;
-      const pos = credit.position?.name?.toLowerCase() ?? '';
-      if (pos === 'director' || pos === 'réalisateur') {
-        director = decodedName;
-      } else if (
-        pos === 'writer' ||
-        pos === 'screenwriter' ||
-        pos === 'screenplay' ||
-        pos === 'scénariste' ||
-        pos === 'scenariste'
-      ) {
-        screenwriters.push(decodedName);
-      } else if (pos === 'actor' || pos === 'acteur') {
-        actors.push(decodedName);
-      }
-    }
-
-    const genres = decodeHtmlEntitiesArray((rawMovie.genres ?? []).map(g => g.translate ?? '').filter(Boolean));
-    const nationalityRaw = (rawMovie.countries ?? []).map(c => c.localizedName ?? '').filter(Boolean).join(', ') || undefined;
-    const nationality = decodeHtmlEntities(nationalityRaw);
-    
-    // Ratings (out of 5) - sanitize to filter NaN/Infinity
-    const press_rating = sanitizeRating(rawMovie.stats?.pressReview?.score);
-    const audience_rating = sanitizeRating(rawMovie.stats?.userRating?.score);
-    
-    const { release_date, rerelease_date } = parseReleaseDate(rawMovie.releases);
-
-    const movie: Movie = {
-      id: movieId,
-      title: decodeHtmlEntities(rawMovie.title) ?? '',
-      original_title: decodeHtmlEntities(rawMovie.originalTitle),
-      poster_url: rawMovie.poster?.url,
-      duration_minutes: runtimeToMinutes(rawMovie.runtime),
-      genres,
-      nationality,
-      director,
-      screenwriters: uniqueNonEmptyStrings(screenwriters),
-      actors,
-      synopsis: decodeHtmlEntities(rawMovie.synopsis),
-      press_rating,
-      audience_rating,
-      release_date,
-      rerelease_date,
-      source_url: `https://www.allocine.fr/film/fichefilm_gen_cfilm=${movieId}.html`,
-    };
-
-    const showtimes = mapShowtimes(result.showtimes ?? {}, movieId, theaterId, date);
-    const isNewThisWeek = rawMovie.flags?.isNewRelease ?? false;
-
-    if (showtimes.length > 0) {
-      movieShowtimes.push({ movie, showtimes, is_new_this_week: isNewThisWeek });
-    }
+    const entry = parseShowtimeEntry(result, theaterId, date);
+    if (entry) movieShowtimes.push(entry);
   }
 
   return movieShowtimes;

@@ -5,6 +5,7 @@ import { groupPermissionsByCategory } from '../../utils/permission-grouping';
 import { AuthContext } from '../../contexts/AuthContext';
 import Button from '../ui/Button';
 import LinkButton from '../ui/LinkButton';
+import { AdminTable, type AdminTableColumn } from './AdminTable.js';
 
 // ────────────────────────────────────────────────────────────────
 // DeleteRoleDialog
@@ -14,6 +15,14 @@ interface DeleteRoleDialogProps {
   onClose: () => void;
   onConfirm: () => Promise<void>;
 }
+
+const ROLE_COLUMNS: AdminTableColumn[] = [
+  { label: 'Name' },
+  { label: 'Description' },
+  { label: 'System' },
+  { label: 'Permissions' },
+  { label: 'Actions', align: 'right' },
+];
 
 const DeleteRoleDialog: React.FC<DeleteRoleDialogProps> = ({ role, onClose, onConfirm }) => {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -431,86 +440,63 @@ const RoleManagementPage: React.FC = () => {
           <p className="text-gray-600">No roles found</p>
         </div>
       ) : (
-        <div className="bg-white shadow-md rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  System
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Permissions
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {roles.map(role => (
-                <tr key={role.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{role.name}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-500">{role.description ?? '—'}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {role.is_system ? (
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                        System
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
-                        Custom
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{role.permissions.length}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end gap-2">
-                      {canRead && (
-                        <LinkButton
-                          onClick={() => setViewingRole(role)}
-                          data-testid={`view-role-${role.id}`}
-                        >
-                          View Permissions
-                        </LinkButton>
-                      )}
-                      {canUpdate && (
-                        <LinkButton
-                          onClick={() => setEditingRole(role)}
-                          data-testid={`edit-role-${role.id}`}
-                        >
-                          Edit Permissions
-                        </LinkButton>
-                      )}
-                      {canDelete && (
-                        <LinkButton
-                          variant="danger"
-                          onClick={() => setDeletingRole(role)}
-                          disabled={role.is_system}
-                          title={role.is_system ? 'System roles cannot be deleted' : undefined}
-                          data-testid={`delete-role-${role.id}`}
-                        >
-                          Delete
-                        </LinkButton>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AdminTable columns={ROLE_COLUMNS}>
+          {roles.map(role => (
+            <tr key={role.id} className="hover:bg-gray-50">
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-medium text-gray-900">{role.name}</div>
+              </td>
+              <td className="px-6 py-4">
+                <div className="text-sm text-gray-500">{role.description ?? '—'}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {role.is_system ? (
+                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                    System
+                  </span>
+                ) : (
+                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+                    Custom
+                  </span>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-gray-500">{role.permissions.length}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <div className="flex justify-end gap-2">
+                  {canRead && (
+                    <LinkButton
+                      onClick={() => setViewingRole(role)}
+                      data-testid={`view-role-${role.id}`}
+                    >
+                      View Permissions
+                    </LinkButton>
+                  )}
+                  {canUpdate && (
+                    <LinkButton
+                      onClick={() => setEditingRole(role)}
+                      data-testid={`edit-role-${role.id}`}
+                    >
+                      Edit Permissions
+                    </LinkButton>
+                  )}
+                  {canDelete && (
+                    <LinkButton
+                      variant="danger"
+                      onClick={() => setDeletingRole(role)}
+                      disabled={role.is_system}
+                      title={role.is_system ? 'System roles cannot be deleted' : undefined}
+                      data-testid={`delete-role-${role.id}`}
+                    >
+                      Delete
+                    </LinkButton>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </AdminTable>
       )}
 
       {/* Modals */}

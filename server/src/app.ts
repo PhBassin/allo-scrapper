@@ -22,6 +22,7 @@ import type { DB } from './db/client.js';
 import moviesRouter from './routes/movies.js';
 import theatersRouter from './routes/theaters.js';
 import scraperRouter from './routes/scraper.js';
+import scraperSchedulesRouter from './routes/scraper-schedules.js';
 import reportsRouter from './routes/reports.js';
 import authRouter from './routes/auth.js';
 import settingsRouter from './routes/settings.js';
@@ -107,6 +108,7 @@ export function createApp() {
   app.use('/api/movies', moviesRouter);
   app.use('/api/theaters', theatersRouter);
   app.use('/api/scraper', scraperRouter);
+  app.use('/api/scraper', scraperSchedulesRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/users', usersRouter);

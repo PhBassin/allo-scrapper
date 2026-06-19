@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AppError, NotFoundError, ValidationError, AuthError } from '../utils/errors.js';
 
-vi.mock('../middleware/auth.js', () => ({
-  requireAuth: vi.fn((req, _res, next) => next()),
-}));
-
-vi.mock('../middleware/permission.js', () => ({
-  requirePermission: vi.fn((..._perms: string[]) => vi.fn((_req: any, _res: any, next: any) => next())),
-}));
+vi.mock('../middleware/auth.js', async () => {
+  const { mockAuthPassthrough } = await import('../test-utils/auth.js');
+  return mockAuthPassthrough();
+});
+vi.mock('../middleware/permission.js', async () => {
+  const { mockPermissionPassthrough } = await import('../test-utils/permission.js');
+  return mockPermissionPassthrough();
+});
 
 vi.mock('../utils/logger.js', () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },

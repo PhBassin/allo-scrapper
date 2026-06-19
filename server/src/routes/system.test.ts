@@ -13,31 +13,18 @@ vi.mock('../utils/logger.js', () => ({
     warn: vi.fn(),
   },
 }));
-vi.mock('../middleware/auth.js', () => ({
-  requireAuth: (req: any, res: any, next: any) => {
-    if (req.headers.authorization === 'Bearer valid-token') {
-      req.user = { id: 1, username: 'admin' };
-      next();
-    } else {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
-    }
-  },
-}));
-vi.mock('../middleware/rate-limit.js', () => ({
-  protectedLimiter: (req: any, res: any, next: any) => next(),
-}));
-vi.mock('../middleware/permission.js', () => ({
-  requirePermission: (..._perms: string[]) => (req: any, res: any, next: any) => next(),
-}));
-vi.mock('../middleware/admin.js', () => ({
-  requireAdmin: async (req: any, res: any, next: any) => {
-    if (req.user?.id === 1) {
-      next();
-    } else {
-      res.status(403).json({ success: false, error: 'Admin required' });
-    }
-  },
-}));
+vi.mock('../middleware/auth.js', async () => {
+  const { mockAuthTokenMap } = await import('../test-utils/auth.js');
+  return mockAuthTokenMap({ 'valid-token': { id: 1, username: 'admin' } });
+});
+vi.mock('../middleware/rate-limit.js', async () => {
+  const { mockRateLimits } = await import('../test-utils/rate-limit.js');
+  return mockRateLimits();
+});
+vi.mock('../middleware/permission.js', async () => {
+  const { mockPermissionFlat } = await import('../test-utils/permission.js');
+  return mockPermissionFlat();
+});
 
 // Import mocked modules
 import * as systemQueries from '../db/system-queries.js';
@@ -128,17 +115,12 @@ describe('Routes - System', () => {
     });
 
     it('should return 403 for non-admin users', async () => {
-      vi.mock('../middleware/admin.js', () => ({
-        requireAdmin: async (req: any, res: any, next: any) => {
-          res.status(403).json({ success: false, error: 'Admin required' });
-        },
-      }));
-
       const response = await request(app)
         .get('/api/system/info')
         .set('Authorization', 'Bearer non-admin-token');
 
-      // Note: Since we mocked requireAdmin, this should fail at auth middleware
+      // Note: admin logic now lives in auth.ts::isAdminUser + permission bypass.
+      // Non-admin token must be rejected with 403.
       expect([401, 403]).toContain(response.status);
     });
 

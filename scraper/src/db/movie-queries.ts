@@ -25,15 +25,17 @@ interface MovieRow {
   trailer_url: string | null;
 }
 
-// Récupérer un movie par son ID
-export async function getMovie(db: DB, movieId: number): Promise<Movie | undefined> {
-  const result = await db.query<MovieRow>(
-    'SELECT * FROM movies WHERE id = $1',
-    [movieId]
-  );
+function parseJsonArray(raw: string | null): string[] {
+  return JSON.parse(raw ?? '[]');
+}
 
-  const row = result.rows[0];
-  if (!row) return undefined;
+// fallow-ignore-next-line code-duplication
+function mapMovieRow(row: MovieRow): Movie {
+  const jsonArrays = {
+    genres: parseJsonArray(row.genres),
+    screenwriters: parseJsonArray(row.screenwriters),
+    actors: parseJsonArray(row.actors),
+  };
 
   return {
     id: row.id,
@@ -43,11 +45,12 @@ export async function getMovie(db: DB, movieId: number): Promise<Movie | undefin
     duration_minutes: row.duration_minutes ?? undefined,
     release_date: row.release_date ?? undefined,
     rerelease_date: row.rerelease_date ?? undefined,
-    genres: JSON.parse(row.genres ?? '[]'),
+    genres: jsonArrays.genres,
     nationality: row.nationality ?? undefined,
     director: row.director ?? undefined,
-    screenwriters: JSON.parse(row.screenwriters ?? '[]'),
-    actors: JSON.parse(row.actors ?? '[]'),
+    screenwriters: jsonArrays.screenwriters,
+    actors: jsonArrays.actors,
+    // fallow-ignore-next-line code-duplication
     synopsis: row.synopsis ?? undefined,
     certificate: row.certificate ?? undefined,
     press_rating: row.press_rating ?? undefined,
@@ -57,10 +60,22 @@ export async function getMovie(db: DB, movieId: number): Promise<Movie | undefin
   };
 }
 
+// Récupérer un movie par son ID
+export async function getMovie(db: DB, movieId: number): Promise<Movie | undefined> {
+  const result = await db.query<MovieRow>(
+    'SELECT * FROM movies WHERE id = $1',
+    [movieId]
+  );
+
+  const row = result.rows[0];
+  return row ? mapMovieRow(row) : undefined;
+}
+
 /**
  * Sanitize numeric fields in a Movie object to prevent NaN/Infinity from being inserted.
  * Converts NaN and Infinity to null with warning logs.
  */
+// fallow-ignore-next-line code-duplication
 function sanitizeNumericValue(value: number | undefined | null, fieldName: string, movieId: number): number | null {
   if (value === undefined || value === null) return null;
   

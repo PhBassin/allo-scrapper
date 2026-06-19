@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "ignorePatterns": [
+    "**/test-utils/**",
+    "**/tests/_helpers/**"
+  ],
+  "ignoreExports": [
+    {
+      "file": "server/src/config/rate-limits.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "server/src/db/rate-limit-queries.ts",
+      "exports": ["*"]
+    }
+  ],
+  "duplicates": {
+    "ignore": [
+      "server/src/db/movie-queries.ts",
+      "server/src/db/showtime-queries.ts",
+      "scraper/src/db/movie-queries.ts"
+    ]
+  }
+}

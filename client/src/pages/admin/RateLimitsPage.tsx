@@ -1,102 +1,156 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../../contexts/AuthContext';
+import { useState } from 'react';
+import { useRateLimits } from '../../hooks/useRateLimits.js';
 import {
-  getRateLimits,
-  updateRateLimits,
-  resetRateLimits,
-  getRateLimitAuditLog,
-  type RateLimitConfig,
-  type RateLimitConfigResponse,
-  type RateLimitAuditLogEntry,
-} from '../../api/rate-limits';
-import Button from '../../components/ui/Button';
+  RATE_LIMIT_FIELDS,
+  displayValue,
+  toStoredValue,
+  type RateLimitFieldDef,
+} from '../../utils/rateLimitsConfig.js';
+import Button from '../../components/ui/Button.js';
+import type { RateLimitConfig, RateLimitAuditLogEntry } from '../../api/rate-limits.js';
 
-const RateLimitsPage: React.FC = () => {
-  const { hasPermission } = useContext(AuthContext);
-  const [config, setConfig] = useState<RateLimitConfigResponse | null>(null);
-  const [formData, setFormData] = useState<Partial<RateLimitConfig>>({});
-  const [hasChanges, setHasChanges] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showAuditLog, setShowAuditLog] = useState(false);
-  const [auditLog, setAuditLog] = useState<RateLimitAuditLogEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+interface RateLimitInputProps {
+  field: RateLimitFieldDef;
+  formData: Partial<RateLimitConfig>;
+  disabled: boolean;
+  onChange: (field: keyof RateLimitConfig, value: number) => void;
+}
 
-  const canUpdate = hasPermission('ratelimits:update');
-  const canReset = hasPermission('ratelimits:reset');
-  const canViewAudit = hasPermission('ratelimits:audit');
+function RateLimitInput({ field, formData, disabled, onChange }: RateLimitInputProps) {
+  const [local, setLocal] = useState<string>(String(displayValue(field, formData)));
 
-  useEffect(() => {
-    fetchConfig();
-  }, []);
-
-  const fetchConfig = async () => {
-    setIsLoading(true);
-    try {
-      const data = await getRateLimits();
-      setConfig(data);
-      setFormData(data.config);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to load rate limit configuration');
-    } finally {
-      setIsLoading(false);
+  const handleChange = (raw: string) => {
+    setLocal(raw);
+    const num = parseInt(raw, 10);
+    if (!isNaN(num)) {
+      onChange(field.key, toStoredValue(field, num));
     }
   };
 
-  const handleChange = (field: keyof RateLimitConfig, value: number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setHasChanges(true);
-    setSaveStatus('idle');
-    setErrorMessage(null);
-  };
+  return (
+    <div>
+      <label htmlFor={field.key} className="block text-sm font-medium text-gray-700 mb-1">
+        {field.label}
+      </label>
+      <input
+        type="number"
+        id={field.key}
+        value={local}
+        onChange={(e) => handleChange(e.target.value)}
+        min={field.min}
+        max={field.max}
+        disabled={disabled}
+        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
+      />
+      {field.description && (
+        <p className="mt-1 text-xs text-gray-500">{field.description}</p>
+      )}
+      <p className="mt-1 text-xs text-gray-400">
+        Min: {field.min} | Max: {field.max}
+      </p>
+    </div>
+  );
+}
 
-  const handleSave = async () => {
-    setSaveStatus('saving');
-    setErrorMessage(null);
-    try {
-      const updated = await updateRateLimits(formData);
-      setConfig(updated);
-      setFormData(updated.config);
-      setHasChanges(false);
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to update rate limits');
-      setSaveStatus('error');
-    }
-  };
+function ConfigurationInfo({ config }: { config: { source: string; environment: string; updatedAt: string | null; updatedBy: { username: string } | null } }) {
+  const sourceClass =
+    config.source === 'database'
+      ? 'bg-green-100 text-green-800'
+      : config.source === 'env'
+        ? 'bg-yellow-100 text-yellow-800'
+        : 'bg-gray-100 text-gray-800';
 
-  const handleReset = async () => {
-    if (!confirm('Reset all rate limits to default values? This action cannot be undone.')) return;
-    
-    setSaveStatus('saving');
-    setErrorMessage(null);
-    try {
-      const reset = await resetRateLimits();
-      setConfig(reset);
-      setFormData(reset.config);
-      setHasChanges(false);
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to reset rate limits');
-      setSaveStatus('error');
-    }
-  };
+  return (
+    <div className="bg-white shadow rounded-lg p-6">
+      <h3 className="text-lg font-semibold mb-4 text-gray-900">Configuration Info</h3>
+      <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div>
+          <dt className="font-medium text-gray-500">Source</dt>
+          <dd className="mt-1">
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${sourceClass}`}>
+              {config.source}
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt className="font-medium text-gray-500">Environment</dt>
+          <dd className="mt-1 text-gray-900">{config.environment}</dd>
+        </div>
+        {config.updatedAt && (
+          <>
+            <div>
+              <dt className="font-medium text-gray-500">Last Updated</dt>
+              <dd className="mt-1 text-gray-900">{new Date(config.updatedAt).toLocaleString()}</dd>
+            </div>
+            {config.updatedBy && (
+              <div>
+                <dt className="font-medium text-gray-500">Updated By</dt>
+                <dd className="mt-1 text-gray-900">{config.updatedBy.username}</dd>
+              </div>
+            )}
+          </>
+        )}
+      </dl>
+    </div>
+  );
+}
 
-  const handleViewAuditLog = async () => {
-    if (!showAuditLog) {
-      try {
-        const logs = await getRateLimitAuditLog({ limit: 50, offset: 0 });
-        setAuditLog(logs.logs);
-        setShowAuditLog(true);
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'Failed to load audit log');
-      }
-    } else {
-      setShowAuditLog(false);
-    }
-  };
+function AuditLogTable({ logs }: { logs: RateLimitAuditLogEntry[] }) {
+  if (logs.length === 0) {
+    return <p className="text-gray-500 text-sm">No changes recorded yet.</p>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Old Value</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">New Value</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {logs.map((log) => (
+            <tr key={log.id}>
+              <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                {new Date(log.changed_at).toLocaleString()}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-900">
+                {log.changed_by_username}
+                <span className="ml-2 text-xs text-gray-500">({log.changed_by_role})</span>
+              </td>
+              <td className="px-4 py-3 text-sm font-mono text-gray-900">{log.field_name}</td>
+              <td className="px-4 py-3 text-sm text-gray-500">{log.old_value}</td>
+              <td className="px-4 py-3 text-sm text-green-600 font-semibold">{log.new_value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export default function RateLimitsPage() {
+  const {
+    config,
+    isLoading,
+    formData,
+    hasChanges,
+    saveStatus,
+    errorMessage,
+    showAuditLog,
+    auditLog,
+    canUpdate,
+    canReset,
+    canViewAudit,
+    handleChange,
+    handleSave,
+    handleReset,
+    handleViewAuditLog,
+    reload,
+  } = useRateLimits();
 
   if (isLoading) {
     return (
@@ -116,7 +170,6 @@ const RateLimitsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Rate Limit Configuration</h2>
@@ -138,7 +191,6 @@ const RateLimitsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Status Messages */}
       {saveStatus === 'success' && (
         <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded">
           Rate limits updated successfully. Changes will take effect within 30 seconds.
@@ -150,110 +202,22 @@ const RateLimitsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Configuration Form */}
       <div className="bg-white shadow rounded-lg p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Global Window */}
-          <RateLimitInput
-            label="Global Window (minutes)"
-            field="windowMs"
-            value={Math.round((formData.windowMs || 900000) / 60000)}
-            onChange={(v) => handleChange('windowMs', v * 60000)}
-            min={1}
-            max={60}
-            disabled={!canUpdate}
-            description="Default time window for most rate limiters"
-          />
-
-          {/* General API */}
-          <RateLimitInput
-            label="General API Limit"
-            field="generalMax"
-            value={formData.generalMax || 100}
-            onChange={(v) => handleChange('generalMax', v)}
-            min={10}
-            max={1000}
-            disabled={!canUpdate}
-            description="Max requests per window for general API endpoints"
-          />
-
-          {/* Auth */}
-          <RateLimitInput
-            label="Login Limit"
-            field="authMax"
-            value={formData.authMax || 5}
-            onChange={(v) => handleChange('authMax', v)}
-            min={3}
-            max={50}
-            disabled={!canUpdate}
-            description="Max login attempts per window (failed only)"
-          />
-
-          {/* Register */}
-          <RateLimitInput
-            label="Registration Limit"
-            field="registerMax"
-            value={formData.registerMax || 3}
-            onChange={(v) => handleChange('registerMax', v)}
-            min={1}
-            max={20}
-            disabled={!canUpdate}
-            description="Max registration attempts per hour"
-          />
-
-          {/* Protected */}
-          <RateLimitInput
-            label="Protected Endpoints Limit"
-            field="protectedMax"
-            value={formData.protectedMax || 60}
-            onChange={(v) => handleChange('protectedMax', v)}
-            min={10}
-            max={500}
-            disabled={!canUpdate}
-            description="Max requests per window for authenticated endpoints"
-          />
-
-          {/* Scraper */}
-          <RateLimitInput
-            label="Scraper Limit"
-            field="scraperMax"
-            value={formData.scraperMax || 10}
-            onChange={(v) => handleChange('scraperMax', v)}
-            min={5}
-            max={100}
-            disabled={!canUpdate}
-            description="Max scrape requests per window (expensive operations)"
-          />
-
-          {/* Public */}
-          <RateLimitInput
-            label="Public Endpoints Limit"
-            field="publicMax"
-            value={formData.publicMax || 100}
-            onChange={(v) => handleChange('publicMax', v)}
-            min={20}
-            max={1000}
-            disabled={!canUpdate}
-            description="Max requests per window for public read endpoints"
-          />
-
-          {/* Health Check */}
-          <RateLimitInput
-            label="Health Check Limit"
-            field="healthMax"
-            value={formData.healthMax || 10}
-            onChange={(v) => handleChange('healthMax', v)}
-            min={5}
-            max={100}
-            disabled={!canUpdate}
-            description="Max health check requests per minute (localhost exempt)"
-          />
+          {RATE_LIMIT_FIELDS.map((field) => (
+            <RateLimitInput
+              key={field.key}
+              field={field}
+              formData={formData}
+              disabled={!canUpdate}
+              onChange={handleChange}
+            />
+          ))}
         </div>
 
-        {/* Save Button */}
         {canUpdate && hasChanges && (
           <div className="flex justify-end gap-2 pt-6 mt-6 border-t">
-            <Button variant="secondary" onClick={fetchConfig}>
+            <Button variant="secondary" onClick={reload}>
               Cancel
             </Button>
             <Button variant="primary" onClick={handleSave} disabled={saveStatus === 'saving'}>
@@ -263,130 +227,14 @@ const RateLimitsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Configuration Info */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900">Configuration Info</h3>
-        <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <dt className="font-medium text-gray-500">Source</dt>
-            <dd className="mt-1">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                config.source === 'database' ? 'bg-green-100 text-green-800' :
-                config.source === 'env' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {config.source}
-              </span>
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-500">Environment</dt>
-            <dd className="mt-1 text-gray-900">{config.environment}</dd>
-          </div>
-          {config.updatedAt && (
-            <>
-              <div>
-                <dt className="font-medium text-gray-500">Last Updated</dt>
-                <dd className="mt-1 text-gray-900">{new Date(config.updatedAt).toLocaleString()}</dd>
-              </div>
-              {config.updatedBy && (
-                <div>
-                  <dt className="font-medium text-gray-500">Updated By</dt>
-                  <dd className="mt-1 text-gray-900">{config.updatedBy.username}</dd>
-                </div>
-              )}
-            </>
-          )}
-        </dl>
-      </div>
+      <ConfigurationInfo config={config} />
 
-      {/* Audit Log */}
       {showAuditLog && canViewAudit && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-900">Recent Changes</h3>
-          {auditLog.length === 0 ? (
-            <p className="text-gray-500 text-sm">No changes recorded yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Old Value</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">New Value</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {auditLog.map((log) => (
-                    <tr key={log.id}>
-                      <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                        {new Date(log.changed_at).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {log.changed_by_username}
-                        <span className="ml-2 text-xs text-gray-500">({log.changed_by_role})</span>
-                      </td>
-                      <td className="px-4 py-3 text-sm font-mono text-gray-900">{log.field_name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{log.old_value}</td>
-                      <td className="px-4 py-3 text-sm text-green-600 font-semibold">{log.new_value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <AuditLogTable logs={auditLog} />
         </div>
       )}
     </div>
   );
-};
-
-interface RateLimitInputProps {
-  label: string;
-  field: string;
-  value: number;
-  onChange: (value: number) => void;
-  min: number;
-  max: number;
-  disabled: boolean;
-  description?: string;
 }
-
-const RateLimitInput: React.FC<RateLimitInputProps> = ({
-  label,
-  field,
-  value,
-  onChange,
-  min,
-  max,
-  disabled,
-  description,
-}) => {
-  return (
-    <div>
-      <label htmlFor={field} className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
-      </label>
-      <input
-        type="number"
-        id={field}
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value) || min)}
-        min={min}
-        max={max}
-        disabled={disabled}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
-      />
-      {description && (
-        <p className="mt-1 text-xs text-gray-500">{description}</p>
-      )}
-      <p className="mt-1 text-xs text-gray-400">
-        Min: {min} | Max: {max}
-      </p>
-    </div>
-  );
-};
-
-export default RateLimitsPage;

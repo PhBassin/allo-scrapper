@@ -3,13 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import AdminPage from './pages/admin/AdminPage';
-import RequireAdmin from './components/RequireAdmin';
 import { ADMIN_PERMISSIONS } from './utils/adminPermissions';
-
-// Mock RequireAdmin to just pass through children
-vi.mock('./components/RequireAdmin', () => ({
-  default: ({ children }: { children: React.ReactNode }) => <>{children}</>
-}));
 
 // Mock RequirePermission - will be overridden in specific tests
 vi.mock('./components/RequirePermission', () => ({
@@ -72,9 +66,7 @@ describe('App.tsx - Phase 5: Route refactoring', () => {
             <Route
               path="/admin"
               element={
-                <RequireAdmin>
-                  <AdminPage />
-                </RequireAdmin>
+                <AdminPage />
               }
             />
           </Routes>
@@ -91,9 +83,7 @@ describe('App.tsx - Phase 5: Route refactoring', () => {
             <Route
               path="/admin"
               element={
-                <RequireAdmin>
-                  <AdminPage />
-                </RequireAdmin>
+                <AdminPage />
               }
             />
           </Routes>

@@ -1,17 +1,18 @@
-import { useState, useContext, useCallback, useMemo } from 'react';
+import { useContext, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getWeeklyMovies, getMoviesByDate, getTheaters, addTheater } from '../api/client';
-import MovieCard from '../components/MovieCard';
-import DaySelector from '../components/DaySelector';
-import MovieSearchBar from '../components/MovieSearchBar';
-import ScrollToTop from '../components/ScrollToTop';
-import { AuthContext } from '../contexts/AuthContext';
-import TheatersQuickLinks from '../components/TheatersQuickLinks';
+import { getWeeklyMovies, getMoviesByDate, getTheaters, addTheater } from '../api/client.js';
+import MovieCard from '../components/MovieCard.js';
+import DaySelector from '../components/DaySelector.js';
+import MovieSearchBar from '../components/MovieSearchBar.js';
+import ScrollToTop from '../components/ScrollToTop.js';
+import { AuthContext } from '../contexts/AuthContext.js';
+import TheatersQuickLinks from '../components/TheatersQuickLinks.js';
+import { LoadingSpinner, ErrorMessage } from '../components/ui/PageStates.js';
+import { useDateTimeFilter } from '../hooks/useDateTimeFilter.js';
 
 export default function HomePage() {
   const queryClient = useQueryClient();
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [afterTime, setAfterTime] = useState<string | null>(null);
+  const { selectedDate, afterTime, selectDate, selectNow } = useDateTimeFilter();
   const { isAuthenticated, hasPermission } = useContext(AuthContext);
 
   const { data: theaters = [], isLoading: isLoadingTheaters } = useQuery({
@@ -39,14 +40,8 @@ export default function HomePage() {
   const error = moviesError instanceof Error ? moviesError.message : null;
 
   const handleDateSelect = useCallback((date: string | null) => {
-    setSelectedDate(date || '');
-    setAfterTime(null);
-  }, []);
-
-  const handleNow = useCallback((date: string, time: string) => {
-    setSelectedDate(date);
-    setAfterTime(time);
-  }, []);
+    selectDate(date || '');
+  }, [selectDate]);
   const formatterDate = useMemo(() => new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'long',
@@ -86,22 +81,8 @@ export default function HomePage() {
     addTheaterMutation.mutate(url);
   }, [addTheaterMutation]);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-red-800 mb-2">Erreur</h2>
-        <p className="text-red-600">{error}</p>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage message={error} />;
 
 
   return (
@@ -143,7 +124,7 @@ export default function HomePage() {
                 weekStart={weekStart}
                 selectedDate={selectedDate}
                 onSelectDate={handleDateSelect}
-                onNow={handleNow}
+                onNow={selectNow}
                 isNowActive={afterTime !== null}
               />
             </div>
