@@ -5,6 +5,93 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.7.4] - 2026-06-19
+
+### Added
+
+- feat(client): add reusable AdminTable shell for admin data tables [@phbassin](https://github.com/phbassin) (5e29821)
+
+### Fixed
+
+- fix(scraper): correct import path in redis-client test [@phbassin](https://github.com/phbassin) (5927748)
+- fix(scraper): address CR critical findings from runScraper refactor [@hermes](https://github.com/hermes) (d85965a)
+- fix(fallow): quick wins — dead code, unused types, mocks orphelins (#1166) [@PhBassin](https://github.com/PhBassin) (982ee41)
+
+### Changed
+
+- refactor: extract god files into focused hooks/components/routers (#1190) [@PhBassin](https://github.com/PhBassin) (b677a28)
+- refactor(client): split SettingsPage into form hook, tabs, and footer [@phbassin](https://github.com/phbassin) (f4e45e9)
+- refactor(client): split AddTheaterModal into tab forms + validation helpers [@phbassin](https://github.com/phbassin) (17e561b)
+- refactor(client): split TheaterPage into focused sub-components [@phbassin](https://github.com/phbassin) (c6866ff)
+- refactor(client): split TheatersPage into toolbar, table, messages + shared hooks [@phbassin](https://github.com/phbassin) (38a1511)
+- refactor(server/routes): split scraper routes and extract schedule helpers [@phbassin](https://github.com/phbassin) (abc5a67)
+- refactor(server/db): dedupe movie queries [@phbassin](https://github.com/phbassin) (622e334)
+- refactor(client,scraper): extract utilities, hooks and sub-components across 4 phases (#1189) [@PhBassin](https://github.com/PhBassin) (7576542)
+- refactor(client,scraper): decompose TheaterPage, Layout, modals, admin pages and refactor scraper movie-queries [@phbassin](https://github.com/phbassin) (a0e5d74)
+- refactor(client): add Phase 4 utils and hooks (theaterSchedule, cron, userValidators, system, useLayoutChrome, useSystemData) [@phbassin](https://github.com/phbassin) (248c129)
+- refactor(scraper): split movie-parser, theater-parser, theater-json-parser, AllocineScraperStrategy [@phbassin](https://github.com/phbassin) (ba57205)
+- refactor(client): table-driven validators in useEditTheaterForm, RateLimitsPage, ReportsPage [@phbassin](https://github.com/phbassin) (c613c1d)
+- refactor(client): decompose MovieCard, ScrapeProgress, MoviePage [@phbassin](https://github.com/phbassin) (fac8ae0)
+- refactor(client): extract duration/movie/scrapeProgress utils and useMovieQuery hook [@phbassin](https://github.com/phbassin) (5aaeca5)
+- refactor(fallow): grade A quick wins — test dedup + parseShowtimesJson refactor (#1185) [@PhBassin](https://github.com/PhBassin) (6b1e5b8)
+- refactor(scraper): extract parseShowtimesJson into smaller helpers [@phbassin](https://github.com/phbassin) (79db749)
+- test(server): extract test helpers for auth, rate-limits, and route-handler [@phbassin](https://github.com/phbassin) (d425c83)
+- test(server): add test-utils/route-handler.ts and migrate 4 tests [@phbassin](https://github.com/phbassin) (5b2badd)
+- Delete .opencode directory [@PhBassin](https://github.com/PhBassin) (ffe7c40)
+- Delete .jules directory [@PhBassin](https://github.com/PhBassin) (fbd6dce)
+- refactor(client): extract fetchClient helpers and add core tests (#1179) [@PhBassin](https://github.com/PhBassin) (127ff2f)
+- test(client): add core.test.ts covering refactored api client [@phbassin](https://github.com/phbassin) (81af1f7)
+- refactor(client): extract fetchClient helpers in core.ts [@phbassin](https://github.com/phbassin) (fa80233)
+- Revert "⚡ Bolt: Batch fetch role permissions (#1168)" [@phbassin](https://github.com/phbassin) (35e52b5)
+- ⚡ Bolt: Batch fetch role permissions (#1168) [@PhBassin](https://github.com/PhBassin) (9d75b9a)
+- refactor(test): extract test helper factories to reduce duplication (fallow #13) (#1171) [@PhBassin](https://github.com/PhBassin) (d36f72f)
+- refactor(test): use mockFetchStub helper in scraper http-client tests [@phbassin](https://github.com/phbassin) (c1ac51f)
+- refactor(test-utils): add scraper test helpers for http, movie, bootstrap [@phbassin](https://github.com/phbassin) (4e8f6b0)
+- refactor(test): replace inline vi.mock() with test-utils helpers in 5 server test files [@phbassin](https://github.com/phbassin) (c5d1071)
+- refactor(test-utils): add test helper factories for auth, permission, migrations, rate-limit, validation [@phbassin](https://github.com/phbassin) (2847af6)
+- refactor(server): extract helpers, reduce complexity across 4 modules (#1164) (#1170) [@PhBassin](https://github.com/PhBassin) (06fd51a)
+- refactor(api): decompose validateSettingsUpdate + dedup GET handlers (#1164) [@phbassin](https://github.com/phbassin) (ba7a318)
+- test(db): add unit tests for seedTheatersIfEmpty (empty DB + skip when seeded) (#1164) [@phbassin](https://github.com/phbassin) (8e2041c)
+- refactor(api): extract logError + formatErrorResponse from error-handler.ts (#1164) [@phbassin](https://github.com/phbassin) (c3ec979)
+- refactor(api): extract validateSettingsUpdate + applySettingsUpdate helpers from PUT /settings (#1164) [@phbassin](https://github.com/phbassin) (721ba86)
+- refactor(api): extract formatMovieRow helper, refactor getMovie/getMoviesByDate/getWeeklyMovies (#1164) [@phbassin](https://github.com/phbassin) (5eeff00)
+- refactor(scraper): decompose runScraper god-function (Closes #1163, 2.1) (#1169) [@PhBassin](https://github.com/PhBassin) (f5c3d00)
+- refactor(scraper): export handleRateLimit + handleDateFailure for testability [@hermes](https://github.com/hermes) (aeed882)
+- test(scraper): add direct tests for handleRateLimit + handleDateFailure [@hermes](https://github.com/hermes) (948c1c5)
+- test(scraper): add direct test for processOneDate rate-limit path [@hermes](https://github.com/hermes) (6d68664)
+- refactor(scraper): extract processOneDate, handleRateLimit, handleDateFailure [@hermes](https://github.com/hermes) (194d486)
+- test(scraper): add failing tests for processOneDate [@hermes](https://github.com/hermes) (697bc36)
+- refactor(scraper): extract loadTheaterAvailability, filterDatesForScrape, summarizeTheater [@hermes](https://github.com/hermes) (0fe4008)
+- test(scraper): add failing tests for loadTheaterAvailability, filterDatesForScrape, summarizeTheater [@hermes](https://github.com/hermes) (7a72c14)
+- refactor(scraper): simplify runScraper orchestration [@hermes](https://github.com/hermes) (569e8c1)
+- refactor(scraper): extract scrapeTheaterWithStrategy from runScraper [@phbassin](https://github.com/phbassin) (8602e64)
+- refactor(scraper): extract prepareSchedule from runScraper [@phbassin](https://github.com/phbassin) (29c7095)
+- test(scraper): add failing tests for runScraper helpers [@phbassin](https://github.com/phbassin) (6ad6185)
+- test(server): remove dead vi.mock for deleted scraper service + admin middleware [@phbassin](https://github.com/phbassin) (46bee1e)
+- test(server): remove dead vi.mock for deleted admin middleware [@phbassin](https://github.com/phbassin) (b8e324b)
+- refactor(server): privatize ShowtimeRow type [@phbassin](https://github.com/phbassin) (6dfb3ee)
+- refactor(server): privatize MovieRow type [@phbassin](https://github.com/phbassin) (1089d90)
+
+### Maintenance
+
+- chore(release): 4.7.4 — develop ahead of main (#1191) [@PhBassin](https://github.com/PhBassin) (2db3f50)
+- chore: adopt AdminTable in RoleManagementPage and configure fallow [@phbassin](https://github.com/phbassin) (ca62847)
+- chore(client): add shared PageStates + useDateTimeFilter, refactor HomePage [@phbassin](https://github.com/phbassin) (80dd63f)
+- chore(fallow): dead code cleanup — unused re-exports, broken import, false-positive suppressions (#1186) (#1187) [@PhBassin](https://github.com/PhBassin) (fc1e5f2)
+- chore(fallow): suppress 6 false-positive unused class members and types [@phbassin](https://github.com/phbassin) (b9018a8)
+- chore(client): remove 7 unused re-exports from api/client.ts barrel [@phbassin](https://github.com/phbassin) (7fdd793)
+- chore: remove BMAD skill tooling and condense AGENTS.md (#1184) [@PhBassin](https://github.com/PhBassin) (e941d76)
+- chore(repo): remove BMAD tooling + condense AGENTS.md [@phbassin](https://github.com/phbassin) (d658949)
+- chore(fallow): nettoyage dead code — stale suppressions + unused files (#1174) [@PhBassin](https://github.com/PhBassin) (18f9e29)
+- chore(client): remove unused RequireAdmin component [@phbassin](https://github.com/phbassin) (59dd7f1)
+- chore(server): remove unused html-decode utility [@phbassin](https://github.com/phbassin) (fd56cc9)
+- chore(fallow): resolve duplicate RateLimitConfig via ignoreExports [@phbassin](https://github.com/phbassin) (78d436e)
+- chore(deps): align package-lock with develop package.json [@PhBassin](https://github.com/PhBassin) (4892d61)
+- chore: remove dead function bodies after fallow fix [@phbassin](https://github.com/phbassin) (b97627c)
+- chore(fallow): remove unused exports and add .fallowrc.json [@phbassin](https://github.com/phbassin) (9f510a4)
+- chore(coverage): exclude test-utils from coverage thresholds [@phbassin](https://github.com/phbassin) (446be29)
+- chore(server): document RateLimitConfig as intentional duplicate [@phbassin](https://github.com/phbassin) (2d493c5)
+
 ## [4.7.3] - 2026-06-09
 
 ### Fixed
@@ -937,6 +1024,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.7.4]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.3...v4.7.4
 [4.7.3]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.2...v4.7.3
 [4.7.2]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.1...v4.7.2
 [4.7.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.0...v4.7.1
