@@ -1,6 +1,4 @@
-// fallow-ignore-file security-sink
 import { type DB } from '../db/index.js';
-import { parseStrictInt } from '../utils/number.js';
 
 /**
  * Count how many users currently hold the given role.
@@ -11,5 +9,5 @@ export async function getRoleInUseCount(db: DB, roleId: number): Promise<number>
     'SELECT COUNT(*) as count FROM users WHERE role_id = $1',
     [roleId]
   );
-  return parseStrictInt(result.rows[0]?.count ?? '0');
+  return parseInt(result.rows[0]?.count ?? '0', 10);
 }
