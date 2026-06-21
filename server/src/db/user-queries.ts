@@ -15,6 +15,19 @@ export interface UserRow {
 }
 
 /**
+ * User joined with its role — used by the refresh-token route and any other
+ * caller that needs to mint a JWT or otherwise inspect the user's role
+ * without exposing the password hash.
+ */
+export interface UserWithRoleRow {
+  id: number;
+  username: string;
+  role_id: number;
+  role_name: string;
+  is_system_role: boolean;
+}
+
+/**
  * Get all users without passwords (for admin panel)
  * Uses JOIN on roles table to get role_name
  * @param db - Database client
@@ -52,6 +65,36 @@ export async function getUserById(
 ): Promise<UserPublic | undefined> {
   const result = await db.query<UserPublic>(
     `SELECT u.id, u.username, u.role_id, r.name as role_name, u.created_at
+     FROM users u
+     JOIN roles r ON r.id = u.role_id
+     WHERE u.id = $1`,
+    [userId]
+  );
+
+  return result.rows[0];
+}
+
+/**
+ * Get user by ID joined with their role, including the role's
+ * `is_system` flag aliased as `is_system_role`. Intended for the refresh
+ * route and any other caller that needs to mint a JWT without re-deriving
+ * the role's system-status from a separate lookup.
+ *
+ * Does NOT return `created_at` — callers that need the public profile shape
+ * (id, username, role_id, role_name, created_at) should use {@link getUserById}
+ * instead.
+ *
+ * @param db - Database client
+ * @param userId - User ID
+ * @returns User + role row, or undefined if no user with that id exists
+ */
+export async function getUserWithRoleById(
+  db: DB,
+  userId: number
+): Promise<UserWithRoleRow | undefined> {
+  const result = await db.query<UserWithRoleRow>(
+    `SELECT u.id, u.username, r.id AS role_id, r.name AS role_name,
+            r.is_system AS is_system_role
      FROM users u
      JOIN roles r ON r.id = u.role_id
      WHERE u.id = $1`,

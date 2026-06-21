@@ -388,14 +388,12 @@ describe('Auth Routes', () => {
             mockValidate.mockResolvedValue(1);
             mockRotate.mockResolvedValue('new-refresh-token-raw');
 
-            vi.mocked(db.query).mockResolvedValue({
-                rows: [{
-                    id: 1,
-                    username: 'testuser',
-                    role_id: 2,
-                    role_name: 'user',
-                    is_system_role: false,
-                }],
+            vi.mocked(queries.getUserWithRoleById).mockResolvedValue({
+                id: 1,
+                username: 'testuser',
+                role_id: 2,
+                role_name: 'user',
+                is_system_role: false,
             });
 
             const response = await request(app)
@@ -406,6 +404,7 @@ describe('Auth Routes', () => {
             expect(response.body.success).toBe(true);
             expect(response.body.data.token).toBeDefined();
             expect(response.body.data.user.username).toBe('testuser');
+            expect(response.body.data.user.is_system_role).toBe(false);
             // Should set access_token cookie as httpOnly
             const setCookieHeaders = response.headers['set-cookie'];
             const cookies = Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders];
@@ -413,9 +412,54 @@ describe('Auth Routes', () => {
             expect(accessTokenCookie).toBeDefined();
             expect(accessTokenCookie).toContain('HttpOnly');
             expect(accessTokenCookie).toContain('SameSite=Lax');
+            expect(queries.getUserWithRoleById).toHaveBeenCalledWith(db, 1);
             expect(mockRotate).toHaveBeenCalledWith(1, 'valid-old-token');
             expect(mockGenerate).not.toHaveBeenCalled();
             expect(mockRevoke).not.toHaveBeenCalled();
+        });
+
+        it('should propagate is_system_role=true for a system-admin refresh', async () => {
+            const refreshTokenMocks = await import('../services/refresh-token-service.js');
+            const mockValidate = (refreshTokenMocks as any).__mockValidate;
+            const mockRotate = (refreshTokenMocks as any).__mockRotate;
+
+            mockValidate.mockResolvedValue(1);
+            mockRotate.mockResolvedValue('new-refresh-token-raw');
+            vi.mocked(queries.getUserWithRoleById).mockResolvedValue({
+                id: 1,
+                username: 'admin',
+                role_id: 1,
+                role_name: 'admin',
+                is_system_role: true,
+            });
+
+            const response = await request(app)
+                .post('/api/auth/refresh')
+                .set('Cookie', 'refresh_token=valid-old-token');
+
+            expect(response.status).toBe(200);
+            expect(response.body.data.user.is_system_role).toBe(true);
+            expect(response.body.data.user.role_name).toBe('admin');
+        });
+
+        it('should return 401 when getUserWithRoleById yields no user', async () => {
+            const refreshTokenMocks = await import('../services/refresh-token-service.js');
+            const mockValidate = (refreshTokenMocks as any).__mockValidate;
+            const mockRotate = (refreshTokenMocks as any).__mockRotate;
+
+            mockValidate.mockResolvedValue(1);
+            mockRotate.mockResolvedValue('new-refresh-token-raw');
+            vi.mocked(queries.getUserWithRoleById).mockResolvedValue(undefined);
+
+            const response = await request(app)
+                .post('/api/auth/refresh')
+                .set('Cookie', 'refresh_token=valid-old-token');
+
+            expect(response.status).toBe(401);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toBe('User not found.');
+            // No new refresh/access tokens should be issued and the old refresh token should NOT be rotated
+            expect(mockRotate).not.toHaveBeenCalled();
         });
 
         it('should return 401 if no refresh token cookie', async () => {

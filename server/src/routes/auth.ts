@@ -9,6 +9,7 @@ import { RefreshTokenService } from '../services/refresh-token-service.js';
 import type { PermissionName } from '../types/role.js';
 import { ValidationError, AuthError, NotFoundError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
+import { getUserWithRoleById } from '../db/user-queries.js';
 import crypto from 'crypto';
 
 const router = express.Router();
@@ -241,17 +242,9 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
         }
 
         // Get user info for new access token
-        const userResult = await db.query<{
-            id: number; username: string; role_id: number; role_name: string; is_system_role: boolean;
-        }>(
-            `SELECT u.id, u.username, r.id as role_id, r.name as role_name, r.is_system_role
-             FROM users u
-             JOIN roles r ON u.role_id = r.id
-             WHERE u.id = $1`,
-            [userId]
-        );
+        const user = await getUserWithRoleById(db, userId);
 
-        if (userResult.rows.length === 0) {
+        if (!user) {
             clearRefreshTokenCookie(res);
             clearAccessTokenCookie(res);
             res.status(401).json({
@@ -260,8 +253,6 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
             });
             return;
         }
-
-        const user = userResult.rows[0];
 
         // Atomically rotate: generate new token AND revoke old one in one transaction
         const newRefreshToken = await refreshTokenService.rotate(userId, refreshToken);

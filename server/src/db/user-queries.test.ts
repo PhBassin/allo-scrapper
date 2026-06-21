@@ -4,6 +4,7 @@ import type { UserPublic } from '../types/user.js';
 import {
   getAllUsers,
   getUserById,
+  getUserWithRoleById,
   updateUserRole,
   deleteUser,
   getAdminCount,
@@ -161,6 +162,78 @@ describe('User Management Queries', () => {
 
       expect(result?.id).toBe(42);
       expect(mockDb.query).toHaveBeenCalledWith(expect.any(String), [42]);
+    });
+  });
+
+  describe('getUserWithRoleById', () => {
+    it('should return user joined with role including is_system_role for a system admin', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({
+        rows: [{
+          id: 1,
+          username: 'admin',
+          role_id: 1,
+          role_name: 'admin',
+          is_system_role: true,
+        }],
+        rowCount: 1,
+      } as any);
+
+      const result = await getUserWithRoleById(mockDb, 1);
+
+      expect(result).toEqual({
+        id: 1,
+        username: 'admin',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+      });
+    });
+
+    it('should return is_system_role=false for a non-system role', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({
+        rows: [{
+          id: 7,
+          username: 'operator',
+          role_id: 2,
+          role_name: 'operator',
+          is_system_role: false,
+        }],
+        rowCount: 1,
+      } as any);
+
+      const result = await getUserWithRoleById(mockDb, 7);
+
+      expect(result?.is_system_role).toBe(false);
+    });
+
+    it('should issue a single JOIN query parameterized on user id', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
+
+      await getUserWithRoleById(mockDb, 42);
+
+      const [sql, params] = vi.mocked(mockDb.query).mock.calls[0];
+      expect(sql).toContain('JOIN roles');
+      expect(sql).toContain('is_system AS is_system_role');
+      expect(sql).toContain('WHERE u.id = $1');
+      expect(params).toEqual([42]);
+    });
+
+    it('should not select password_hash or created_at', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
+
+      await getUserWithRoleById(mockDb, 1);
+
+      const [sql] = vi.mocked(mockDb.query).mock.calls[0];
+      expect(sql).not.toContain('password_hash');
+      expect(sql).not.toContain('created_at');
+    });
+
+    it('should return undefined when no user matches the id', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
+
+      const result = await getUserWithRoleById(mockDb, 999);
+
+      expect(result).toBeUndefined();
     });
   });
 
