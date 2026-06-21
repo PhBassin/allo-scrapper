@@ -6,7 +6,7 @@ import type { ApiResponse } from '../types/api.js';
 import { publicLimiter, protectedLimiter } from '../middleware/rate-limit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
-import { ValidationError, NotFoundError } from '../utils/errors.js';
+import { ValidationError } from '../utils/errors.js';
 
 const router = express.Router();
 
@@ -44,9 +44,8 @@ router.post('/', protectedLimiter, requireAuth, requirePermission('theaters:crea
           data: theater,
         };
         return res.status(201).json(response);
-      } catch (error: any) {
-        if (error instanceof ValidationError) return next(error);
-        return next(new ValidationError(error.message));
+      } catch (error) {
+        return next(error);
       }
     }
 
@@ -61,11 +60,7 @@ router.post('/', protectedLimiter, requireAuth, requirePermission('theaters:crea
         data: theater,
       };
       return res.status(201).json(response);
-    } catch (error: any) {
-      if (error instanceof ValidationError) return next(error);
-      if (error.message.includes('already exists')) {
-        return next(new ValidationError(error.message));
-      }
+    } catch (error) {
       return next(error);
     }
   } catch (error) {
@@ -87,12 +82,8 @@ router.put('/:id', protectedLimiter, requireAuth, requirePermission('theaters:up
         data: theater,
       };
       return res.json(response);
-    } catch (error: any) {
-      if (error instanceof ValidationError) return next(error);
-      if (error.message.includes('not found')) {
-        return next(new NotFoundError(error.message));
-      }
-      return next(new ValidationError(error.message));
+    } catch (error) {
+      return next(error);
     }
   } catch (error) {
     return next(error);
@@ -109,8 +100,8 @@ router.delete('/:id', protectedLimiter, requireAuth, requirePermission('theaters
     try {
       await theaterService.deleteTheater(theaterId);
       return res.status(204).send();
-    } catch (error: any) {
-      return next(new NotFoundError(error.message));
+    } catch (error) {
+      return next(error);
     }
   } catch (error) {
     return next(error);

@@ -7,7 +7,6 @@ import { requirePermission } from '../middleware/permission.js';
 import { AuthService } from '../services/auth-service.js';
 import { RefreshTokenService } from '../services/refresh-token-service.js';
 import type { PermissionName } from '../types/role.js';
-import { ValidationError, AuthError, NotFoundError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import crypto from 'crypto';
 
@@ -131,13 +130,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
         };
 
         res.json(response);
-    } catch (error: any) {
-        if (error.message === 'Username and password are required') {
-            return next(new ValidationError(error.message));
-        }
-        if (error.message === 'Invalid credentials') {
-            return next(new AuthError(error.message));
-        }
+    } catch (error) {
         next(error);
     }
 });
@@ -160,13 +153,7 @@ router.post('/register', registerLimiter, requireAuth, requirePermission('users:
         };
 
         res.status(201).json(response);
-    } catch (error: any) {
-        if (error.message === 'Username and password are required' || error.message.includes('Password must')) {
-            return next(new ValidationError(error.message));
-        }
-        if (error.message === 'Username already exists') {
-            return next(new ValidationError(error.message)); // Conflict mapped to validation for now
-        }
+    } catch (error) {
         next(error);
     }
 });
@@ -197,17 +184,7 @@ router.post('/change-password', authLimiter, requireAuth, async (req: AuthReques
         };
 
         res.json(response);
-    } catch (error: any) {
-        if (error.message === 'Current password and new password are required' || 
-            error.message.includes('Password must')) {
-            return next(new ValidationError(error.message));
-        }
-        if (error.message === 'User not found') {
-            return next(new NotFoundError(error.message));
-        }
-        if (error.message === 'Current password is incorrect') {
-            return next(new AuthError(error.message));
-        }
+    } catch (error) {
         next(error);
     }
 });

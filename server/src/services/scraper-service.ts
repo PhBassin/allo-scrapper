@@ -4,6 +4,7 @@ import { createScrapeReport, getLatestScrapeReport } from '../db/report-queries.
 import { getTheaters } from '../db/theater-queries.js';
 import type { DB } from '../db/client.js';
 import { logger } from '../utils/logger.js';
+import { TheaterNotFoundError } from '../utils/errors.js';
 import type { ScrapeAttempt } from '../db/scrape-attempt-queries.js';
 
 export class ScraperService {
@@ -22,7 +23,7 @@ export class ScraperService {
       const theaterExists = theaters.some(c => c.id === theaterId);
 
       if (!theaterExists) {
-        throw new Error(`Theater not found: ${theaterId}`);
+        throw new TheaterNotFoundError(theaterId);
       }
     }
 
