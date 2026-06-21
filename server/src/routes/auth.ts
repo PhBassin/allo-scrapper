@@ -5,7 +5,13 @@ import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { AuthService } from '../services/auth-service.js';
-import { RefreshTokenService } from '../services/refresh-token-service.js';
+import {
+  generateRefreshToken,
+  validateRefreshToken,
+  revokeRefreshToken,
+  rotateRefreshToken,
+  revokeAllUserTokens,
+} from '../repositories/refresh-token-repository.js';
 import type { PermissionName } from '../types/role.js';
 import { ValidationError, AuthError, NotFoundError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
@@ -111,13 +117,12 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
     try {
         const db: DB = req.app.get('db');
         const authService = new AuthService(db);
-        const refreshTokenService = new RefreshTokenService(db);
         const { username, password } = req.body;
 
         const authData = await authService.login(username, password);
 
         // Generate and set refresh token cookie
-        const refreshToken = await refreshTokenService.generate(authData.user.id);
+        const refreshToken = await generateRefreshToken(db, authData.user.id);
         setRefreshTokenCookie(res, refreshToken);
 
         // Set access token as httpOnly cookie for protection against XSS
@@ -181,10 +186,8 @@ router.post('/change-password', authLimiter, requireAuth, async (req: AuthReques
 
         await authService.changePassword(req.user!.username, currentPassword, newPassword);
 
-        const refreshTokenService = new RefreshTokenService(db);
-
         // Revoke all refresh tokens for this user — forces re-login on all devices
-        await refreshTokenService.revokeAllForUser(req.user!.id);
+        await revokeAllUserTokens(db, req.user!.id);
 
         // Clear auth cookies to force a fresh login
         clearRefreshTokenCookie(res);
@@ -217,7 +220,6 @@ router.post('/change-password', authLimiter, requireAuth, async (req: AuthReques
 router.post('/refresh', authLimiter, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const db: DB = req.app.get('db');
-        const refreshTokenService = new RefreshTokenService(db);
 
         const refreshToken = req.cookies?.refresh_token;
         if (!refreshToken) {
@@ -230,7 +232,7 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
             return;
         }
 
-        const userId = await refreshTokenService.validate(refreshToken);
+        const userId = await validateRefreshToken(db, refreshToken);
         if (userId === null) {
             clearRefreshTokenCookie(res);
             clearAccessTokenCookie(res);
@@ -255,7 +257,7 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
         }
 
         // Atomically rotate: generate new token AND revoke old one in one transaction
-        const newRefreshToken = await refreshTokenService.rotate(userId, refreshToken);
+        const newRefreshToken = await rotateRefreshToken(db, userId, refreshToken);
 
         // Generate new access token
         const jwt = await import('jsonwebtoken');
@@ -310,12 +312,11 @@ router.post('/refresh', authLimiter, async (req: Request, res: Response, next: N
 // POST /api/auth/logout - Logout and revoke refresh token
 router.post('/logout', async (req: Request, res: Response) => {
     const db: DB = req.app.get('db');
-    const refreshTokenService = new RefreshTokenService(db);
 
     const refreshToken = req.cookies?.refresh_token;
     if (refreshToken) {
         try {
-            await refreshTokenService.revoke(refreshToken);
+            await revokeRefreshToken(db, refreshToken);
         } catch (err) {
             logger.warn('Failed to revoke refresh token during logout:', err);
         }
