@@ -140,6 +140,15 @@ export async function updateTheaterConfig(
   };
 }
 
+// Get total theater count
+export async function getTheaterCount(db: DB): Promise<number> {
+  const result = await db.query<{ count: string }>(
+    'SELECT COUNT(*)::text AS count FROM theaters',
+    []
+  );
+  return parseInt(result.rows[0]?.count ?? '0', 10);
+}
+
 // Supprimer un theater (et ses séances via CASCADE)
 export async function deleteTheater(db: DB, id: string): Promise<boolean> {
   const result = await db.query('DELETE FROM theaters WHERE id = $1', [id]);
