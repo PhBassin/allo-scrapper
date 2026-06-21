@@ -4,7 +4,7 @@ import * as userQueries from '../db/user-queries.js';
 import * as roleQueries from '../db/role-queries.js';
 import jwt from 'jsonwebtoken';
 import * as passwordUtils from '../utils/password.js';
-import { type DB } from '../db/client.js';
+import { type DB } from '../db/index.js';
 import { validatePasswordStrength } from '../utils/security.js';
 
 vi.mock('../db/user-queries.js');

@@ -1,5 +1,5 @@
 // fallow-ignore-file security-sink
-import { type DB } from './client.js';
+import { type DB } from './index.js';
 import type { Theater, Movie, Showtime, WeeklyProgram } from '../types/scraper.js';
 import { parseJSONMemoized } from '../utils/json-parse-cache.js';
 

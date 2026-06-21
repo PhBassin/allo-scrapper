@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import {
   getAppInfo,
   getServerHealth,

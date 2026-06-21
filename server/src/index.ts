@@ -1,5 +1,5 @@
 import { createApp } from './app.js';
-import { db } from './db/client.js';
+import { db } from './db/internal/client.js';
 import { initializeDatabase } from './db/schema.js';
 import { logger } from './utils/logger.js';
 import { validateJWTSecret } from './utils/jwt-secret-validator.js';

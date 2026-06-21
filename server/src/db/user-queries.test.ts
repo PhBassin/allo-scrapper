@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { DB } from './client.js';
+import type { DB } from './index.js';
 import type { UserPublic } from '../types/user.js';
 import {
   getAllUsers,
@@ -8,6 +8,7 @@ import {
   deleteUser,
   getAdminCount,
   generateRandomPassword,
+  createUser,
 } from './user-queries.js';
 
 describe('User Management Queries', () => {
@@ -228,6 +229,49 @@ describe('User Management Queries', () => {
       const result = await deleteUser(mockDb, 1);
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('createUser', () => {
+    it('should insert a user without role_id when roleId is omitted', async () => {
+      const newRow = {
+        id: 3,
+        username: 'newuser',
+        password_hash: 'hash',
+        role_id: null,
+        role_name: null,
+        is_system_role: null,
+        created_at: '2024-01-03T00:00:00Z',
+      };
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [newRow], rowCount: 1 } as any);
+
+      await createUser(mockDb, 'newuser', 'hash');
+
+      const [sql, params] = vi.mocked(mockDb.query).mock.calls[0];
+      expect(sql).toContain('INSERT INTO users');
+      expect(sql).not.toMatch(/INSERT INTO users \([^)]*role_id/);
+      expect(params).toEqual(['newuser', 'hash']);
+    });
+
+    it('should insert role_id when roleId is provided', async () => {
+      const newRow = {
+        id: 4,
+        username: 'admin2',
+        password_hash: 'hash',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+        created_at: '2024-01-04T00:00:00Z',
+      };
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [newRow], rowCount: 1 } as any);
+
+      const result = await createUser(mockDb, 'admin2', 'hash', 1);
+
+      expect(result).toEqual(newRow);
+      const [sql, params] = vi.mocked(mockDb.query).mock.calls[0];
+      expect(sql).toContain('INSERT INTO users');
+      expect(sql).toContain('role_id');
+      expect(params).toEqual(['admin2', 'hash', 1]);
     });
   });
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createScrapeReport, getLatestScrapeReport } from './report-queries.js';
-import { type DB } from './client.js';
+import { type DB } from './index.js';
 
 describe('Report Queries', () => {
   describe('createScrapeReport', () => {

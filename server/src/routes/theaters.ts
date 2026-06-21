@@ -1,5 +1,5 @@
 import express from 'express';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import { TheaterService } from '../services/theater-service.js';
 import { getWeekStart } from '../utils/date.js';
 import type { ApiResponse } from '../types/api.js';

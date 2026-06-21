@@ -1,4 +1,4 @@
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 
 // NOTE: This is the FLAT runtime config used by the limiter middleware.
 // It is structurally different from `db/rate-limit-queries.ts`'s `RateLimitConfig`

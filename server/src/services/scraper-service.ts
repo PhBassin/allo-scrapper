@@ -2,7 +2,7 @@ import { getRedisClient } from './redis-client.js';
 import { progressTracker } from './progress-tracker.js';
 import { createScrapeReport, getLatestScrapeReport } from '../db/report-queries.js';
 import { getTheaters } from '../db/theater-queries.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import { logger } from '../utils/logger.js';
 import type { ScrapeAttempt } from '../db/scrape-attempt-queries.js';
 

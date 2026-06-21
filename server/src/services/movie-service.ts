@@ -1,4 +1,4 @@
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import { getShowtimesByDate, getShowtimesByMovieAndWeek, getWeeklyShowtimes } from '../db/showtime-queries.js';
 import { getWeeklyMovies, getMoviesByDate, getMovie, searchMovies } from '../db/movie-queries.js';
 import { groupShowtimesByTheater } from '../utils/showtimes.js';

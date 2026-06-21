@@ -10,7 +10,7 @@ import request from 'supertest';
 import * as passwordUtils from '../utils/password.js';
 import jwt from 'jsonwebtoken';
 import authRouter from './auth.js';
-import { db } from '../db/client.js';
+import { db } from '../db/internal/client.js';
 import * as queries from '../db/user-queries.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import { assertChangePasswordRejected } from '../test-utils/auth.js';
@@ -39,7 +39,7 @@ async function createMockUser(
 
 const TEST_JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
 
-vi.mock('../db/client.js', () => ({
+vi.mock('../db/internal/client.js', () => ({
     db: {
         query: vi.fn(),
         transaction: vi.fn(),

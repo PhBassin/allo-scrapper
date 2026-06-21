@@ -15,7 +15,7 @@ import {
   validateScreenCount,
   validateAtLeastOneField,
 } from './theater-validator.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 
 export class TheaterService {
   constructor(private db: DB) {}

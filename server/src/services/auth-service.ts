@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { getUserByUsername, createUser, updateUserPassword } from '../db/user-queries.js';
 import { getPermissionNamesByRoleId } from '../db/role-queries.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import { validatePasswordStrength } from '../utils/security.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { logger } from '../utils/logger.js';

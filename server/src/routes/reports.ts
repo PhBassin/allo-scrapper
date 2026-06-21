@@ -1,6 +1,6 @@
 import { parseStrictInt } from '../utils/number.js';
 import express from 'express';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import { getScrapeReports, getScrapeReport } from '../db/report-queries.js';
 import type { ApiResponse, PaginatedResponse, GetReportsQuery } from '../types/api.js';
 import type { ScrapeReport } from '../db/report-queries.js';

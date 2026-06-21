@@ -6,7 +6,7 @@ import {
   generateThemeCSS,
 } from './theme-generator.js';
 import type { AppSettingsPublic } from '../types/settings.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 
 describe('extractGoogleFont', () => {
   describe('should detect Google Fonts', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { getRateLimitConfig, invalidateRateLimitCache, getDefaultConfig } from './rate-limits.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 
 describe('rate-limits config', () => {
   beforeEach(() => {

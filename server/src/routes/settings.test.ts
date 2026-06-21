@@ -3,7 +3,7 @@ import request from 'supertest';
 import express from 'express';
 import settingsRouter from './settings.js';
 import { errorHandler } from '../middleware/error-handler.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 
 // Mock dependencies
 vi.mock('../db/settings-queries.js');

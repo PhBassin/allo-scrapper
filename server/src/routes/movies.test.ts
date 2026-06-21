@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { db } from '../db/client.js';
+import { db } from '../db/internal/client.js';
 import * as queries from '../db/showtime-queries.js';
 import * as movieQueries from '../db/movie-queries.js';
 import * as dateUtils from '../utils/date.js';
@@ -7,7 +7,7 @@ import router from './movies.js';
 import { getRouteHandler } from '../test-utils/route-handler.js';
 
 // Mock the dependencies
-vi.mock('../db/client.js', () => ({
+vi.mock('../db/internal/client.js', () => ({
   db: {
     query: vi.fn()
   }

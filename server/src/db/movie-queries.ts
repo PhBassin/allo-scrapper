@@ -1,4 +1,4 @@
-import { type DB } from './client.js';
+import { type DB } from './index.js';
 import type { Theater, Movie } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 import { parseJSONMemoized } from '../utils/json-parse-cache.js';

@@ -1,6 +1,6 @@
 import { parseStrictInt } from '../utils/number.js';
 import express from 'express';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import {
   getAllRoles,
   getRoleById,

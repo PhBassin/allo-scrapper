@@ -4,7 +4,7 @@ import * as theaterQueries from '../db/theater-queries.js';
 import * as showtimeQueries from '../db/showtime-queries.js';
 import * as reportQueries from '../db/report-queries.js';
 import * as redisClient from './redis-client.js';
-import { type DB } from '../db/client.js';
+import { type DB } from '../db/index.js';
 import { isValidAllocineUrl, extractTheaterIdFromUrl } from '../utils/url.js';
 
 vi.mock('../db/theater-queries.js');

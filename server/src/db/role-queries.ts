@@ -1,5 +1,5 @@
 // fallow-ignore-file security-sink
-import { type DB } from './client.js';
+import { type DB } from './index.js';
 import { type Role, type Permission, type RoleWithPermissions, type PermissionCategoryLabel } from '../types/role.js';
 
 /**
@@ -72,6 +72,19 @@ export async function getRoleByName(db: DB, name: string): Promise<Role | undefi
   );
 
   return result.rows[0];
+}
+
+/**
+ * Check whether a role with the given ID exists.
+ * Cheap existence check that avoids fetching the full role row.
+ */
+export async function roleExists(db: DB, roleId: number): Promise<boolean> {
+  const result = await db.query<{ exists: boolean }>(
+    'SELECT EXISTS(SELECT 1 FROM roles WHERE id = $1) AS exists',
+    [roleId]
+  );
+
+  return result.rows[0]?.exists === true;
 }
 
 /**

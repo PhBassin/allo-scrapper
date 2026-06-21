@@ -8,7 +8,7 @@ import {
   getValidationConstraints,
   type RateLimitConfigRow,
 } from './rate-limit-queries.js';
-import type { DB } from './client.js';
+import type { DB } from './index.js';
 
 // Helper to create mock QueryResult
 function mockQueryResult<T = any>(rows: T[]): QueryResult<T> {

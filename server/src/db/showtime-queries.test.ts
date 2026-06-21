@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { getShowtimesByMovieAndWeek, upsertShowtimes } from './showtime-queries.js';
-import { type DB } from './client.js';
+import { type DB } from './index.js';
 import type { Showtime } from '../types/scraper.js';
 
 describe('Showtime Queries', () => {

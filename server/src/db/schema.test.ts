@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { seedTheatersIfEmpty } from './schema.js';
 
 // Mock db client
-vi.mock('./client.js', () => ({
+vi.mock('./internal/client.js', () => ({
   db: {
     query: vi.fn(),
   },
@@ -22,7 +22,7 @@ vi.mock('../utils/logger.js', () => ({
   },
 }));
 
-import { db } from './client.js';
+import { db } from './internal/client.js';
 import { readFile } from 'fs/promises';
 
 describe('seedTheatersIfEmpty', () => {

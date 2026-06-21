@@ -1,5 +1,5 @@
 import express, { NextFunction, Response } from 'express';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import {
   getAppliedMigrations,
   getPendingMigrations,

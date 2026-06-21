@@ -3,10 +3,10 @@ import * as theaterQueries from '../db/theater-queries.js';
 import * as showtimeQueries from '../db/showtime-queries.js';
 import router from './theaters.js';
 import { getRouteHandler } from '../test-utils/route-handler.js';
-import { db } from '../db/client.js';
+import { db } from '../db/internal/client.js';
 
 // Mock the dependencies
-vi.mock('../db/client.js', () => ({
+vi.mock('../db/internal/client.js', () => ({
   db: {
     query: vi.fn()
   }

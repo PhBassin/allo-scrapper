@@ -1,5 +1,5 @@
 // fallow-ignore-file security-sink
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getMovie, searchMovies, upsertMovie, formatMovieRow } from './movie-queries.js';
-import { type DB } from './client.js';
+import { type DB } from './index.js';
 import { resetJSONParseCache } from '../utils/json-parse-cache.js';
 
 describe('Movie Queries - Movie Search', () => {

@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import type { ApiResponse } from '../types/api.js';
 import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';

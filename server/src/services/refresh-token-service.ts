@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { logger } from '../utils/logger.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 
 interface RefreshTokenRecord {
   id: number;

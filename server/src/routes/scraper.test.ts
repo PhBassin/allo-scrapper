@@ -23,7 +23,7 @@ vi.mock('../services/scraper-service.js', () => {
   };
 });
 
-vi.mock('../db/client.js', () => ({
+vi.mock('../db/internal/client.js', () => ({
   db: { query: vi.fn() }
 }));
 

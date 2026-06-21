@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import router from './reports.js';
 import { getRouteHandler } from '../test-utils/route-handler.js';
 import * as reportQueries from '../db/report-queries.js';
-import { db } from '../db/client.js';
+import { db } from '../db/internal/client.js';
 
 // Mock dependencies
 vi.mock('../middleware/auth.js', async () => {
   const { mockAuthPassthrough } = await import('../test-utils/auth.js');
   return mockAuthPassthrough();
 });
-vi.mock('../db/client.js', () => ({
+vi.mock('../db/internal/client.js', () => ({
   db: {
     query: vi.fn()
   }

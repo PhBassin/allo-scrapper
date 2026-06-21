@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { getTheaters, getTheaterConfigs, addTheater, updateTheaterConfig, deleteTheater, upsertTheater } from './theater-queries.js';
-import { type DB } from './client.js';
+import { type DB } from './index.js';
 
 describe('Theater Queries', () => {
   describe('getTheaters', () => {

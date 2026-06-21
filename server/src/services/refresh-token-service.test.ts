@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import crypto from 'crypto';
 import { RefreshTokenService, parseRefreshTokenExpiry } from './refresh-token-service.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 
 function hashToken(raw: string): string {
   return crypto.createHash('sha256').update(raw, 'utf8').digest('hex');
