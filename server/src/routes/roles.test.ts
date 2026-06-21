@@ -24,6 +24,10 @@ vi.mock('../db/role-queries.js', () => ({
   getAllPermissions: vi.fn(),
 }));
 
+vi.mock('../repositories/role-repository.js', () => ({
+  getRoleInUseCount: vi.fn(),
+}));
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -243,10 +247,11 @@ describe('Routes - Roles', () => {
   // DELETE /api/roles/:id
   describe('DELETE /api/roles/:id', () => {
     it('should delete a non-system role and return 204', async () => {
-      const { getRoleById } = await import('../db/role-queries.js');
+      const { getRoleById, deleteRole } = await import('../db/role-queries.js');
+      const { getRoleInUseCount } = await import('../repositories/role-repository.js');
       (getRoleById as any).mockResolvedValue(mockCustomRole); // is_system: false
-      mockDb.query.mockResolvedValueOnce({ rows: [{ count: '0' }] }); // no users
-      mockDb.query.mockResolvedValueOnce({ rowCount: 1 }); // delete
+      (getRoleInUseCount as any).mockResolvedValue(0); // no users
+      (deleteRole as any).mockResolvedValue(true);
 
       const { default: router } = await import('./roles.js');
       const handler = getRouteHandler(router, 'delete', '/:id');
@@ -280,8 +285,9 @@ describe('Routes - Roles', () => {
 
     it('should return 409 when role is assigned to users', async () => {
       const { getRoleById } = await import('../db/role-queries.js');
+      const { getRoleInUseCount } = await import('../repositories/role-repository.js');
       (getRoleById as any).mockResolvedValue(mockCustomRole); // is_system: false
-      mockDb.query.mockResolvedValueOnce({ rows: [{ count: '3' }] }); // 3 users assigned
+      (getRoleInUseCount as any).mockResolvedValue(3); // 3 users assigned
 
       const { default: router } = await import('./roles.js');
       const handler = getRouteHandler(router, 'delete', '/:id');
@@ -311,6 +317,45 @@ describe('Routes - Roles', () => {
       await handler(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+    });
+
+    it('should return 404 when deleteRole reports the role no longer exists', async () => {
+      const { getRoleById, deleteRole } = await import('../db/role-queries.js');
+      const { getRoleInUseCount } = await import('../repositories/role-repository.js');
+      (getRoleById as any).mockResolvedValue(mockCustomRole);
+      (getRoleInUseCount as any).mockResolvedValue(0);
+      (deleteRole as any).mockResolvedValue(false); // race: deleted between checks
+
+      const { default: router } = await import('./roles.js');
+      const handler = getRouteHandler(router, 'delete', '/:id');
+
+      const req = { params: { id: '3' }, app: buildMockApp(mockDb) } as any;
+      const res = buildMockRes();
+
+      const next = vi.fn();
+      await handler(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+      expect(next.mock.calls[0][0].message).toBe('Role not found');
+    });
+
+    it('should route the delete through deleteRole and getRoleInUseCount', async () => {
+      const { getRoleById, deleteRole } = await import('../db/role-queries.js');
+      const { getRoleInUseCount } = await import('../repositories/role-repository.js');
+      (getRoleById as any).mockResolvedValue(mockCustomRole);
+      (getRoleInUseCount as any).mockResolvedValue(0);
+      (deleteRole as any).mockResolvedValue(true);
+
+      const { default: router } = await import('./roles.js');
+      const handler = getRouteHandler(router, 'delete', '/:id');
+
+      const req = { params: { id: '3' }, app: buildMockApp(mockDb) } as any;
+      const res = buildMockRes();
+
+      await handler(req, res, vi.fn());
+
+      expect(getRoleInUseCount).toHaveBeenCalledWith(mockDb, 3);
+      expect(deleteRole).toHaveBeenCalledWith(mockDb, 3);
     });
   });
 
