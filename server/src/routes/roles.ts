@@ -6,7 +6,7 @@ import {
   getRoleById,
   createRole,
   updateRole,
-  deleteRole,
+  deleteRoleById,
   getAllPermissions,
   getAllPermissionCategoryLabels,
   setRolePermissions,
@@ -219,7 +219,7 @@ router.delete(
         return next(new AppError(`Role is assigned to ${userCount} user(s)`, 409));
       }
 
-      const deleted = await deleteRole(db, roleId);
+      const deleted = await deleteRoleById(db, roleId);
       if (!deleted) {
         return next(new NotFoundError('Role not found'));
       }
