@@ -2,6 +2,7 @@ import { errorHandler } from '../middleware/error-handler.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
+import { TheaterNotFoundError } from '../utils/errors.js';
 
 const mockTriggerScrape = vi.fn();
 const mockGetStatus = vi.fn();
@@ -144,7 +145,7 @@ describe('Routes - Scraper', () => {
     });
 
     it('should handle service errors gracefully (e.g., Theater not found)', async () => {
-      mockTriggerScrape.mockRejectedValue(new Error('Theater not found: X'));
+      mockTriggerScrape.mockRejectedValue(new TheaterNotFoundError('X'));
       const app = await setupApp();
       
       const response = await request(app).post('/api/scraper/trigger').send({ theaterId: 'X' });

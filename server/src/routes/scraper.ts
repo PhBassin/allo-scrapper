@@ -76,10 +76,7 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
       },
     };
     res.json(response);
-  } catch (error: any) {
-    if (error.message.startsWith('Theater not found')) {
-      return next(new NotFoundError(error.message));
-    }
+  } catch (error) {
     next(error);
   }
 });
