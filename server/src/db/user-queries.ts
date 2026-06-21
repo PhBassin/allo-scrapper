@@ -133,41 +133,43 @@ export async function getUserByUsername(db: DB, username: string): Promise<UserR
 
 /**
  * Create a new user
+ * Returns the created user in the public shape (no password_hash, no
+ * is_system_role) so callers can hand it straight to the HTTP layer without
+ * risking accidental exposure of the password hash.
+ *
  * @param db - Database client
  * @param username - Username
  * @param passwordHash - Hashed password
  * @param roleId - Optional role ID. When provided, included in the INSERT so the
  *                 new user starts with the requested role. When omitted, the
  *                 column defaults to NULL/whatever the schema defines.
- * @returns Created UserRow
+ * @returns Created user in UserPublic shape
  */
 export async function createUser(
   db: DB,
   username: string,
   passwordHash: string,
   roleId?: number
-): Promise<UserRow> {
+): Promise<UserPublic> {
   if (roleId === undefined) {
-    const result = await db.query<UserRow>(
+    const result = await db.query<UserPublic>(
       `INSERT INTO users (username, password_hash)
        VALUES ($1, $2)
-       RETURNING id, username, password_hash,
+       RETURNING id, username,
          role_id,
          (SELECT name FROM roles WHERE id = role_id) AS role_name,
-         (SELECT is_system FROM roles WHERE id = role_id) AS is_system_role,
          created_at`,
       [username, passwordHash]
     );
     return result.rows[0];
   }
 
-  const result = await db.query<UserRow>(
+  const result = await db.query<UserPublic>(
     `INSERT INTO users (username, password_hash, role_id)
      VALUES ($1, $2, $3)
-     RETURNING id, username, password_hash,
+     RETURNING id, username,
        role_id,
        (SELECT name FROM roles WHERE id = role_id) AS role_name,
-       (SELECT is_system FROM roles WHERE id = role_id) AS is_system_role,
        created_at`,
     [username, passwordHash, roleId]
   );

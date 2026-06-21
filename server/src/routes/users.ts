@@ -15,7 +15,7 @@ import {
   createUser,
   updateUserPassword,
 } from '../db/user-queries.js';
-import { roleExists, getRoleById } from '../db/role-queries.js';
+import { roleExists, getRoleNameById } from '../db/role-queries.js';
 import { logger } from '../utils/logger.js';
 import { validatePasswordStrength } from '../utils/security.js';
 import { hashPassword } from '../utils/password.js';
@@ -225,20 +225,20 @@ router.put(
         return next(new ValidationError('role_id must be a valid integer'));
       }
 
-      // Verify role exists
-      if (!(await roleExists(db, roleId))) {
-        return next(new ValidationError('Invalid role_id: role does not exist'));
-      }
-
       // Check if user exists
       const targetUser = await getUserById(db, userId);
       if (!targetUser) {
         return next(new NotFoundError('User not found'));
       }
 
+      // Look up the new role's name (also serves as the existence check).
+      const newRoleName = await getRoleNameById(db, roleId);
+      if (!newRoleName) {
+        return next(new ValidationError('Invalid role_id: role does not exist'));
+      }
+
       // Safety guard: Prevent demoting the last admin
-      const newRole = await getRoleById(db, roleId);
-      if (targetUser.role_name === 'admin' && newRole?.name !== 'admin') {
+      if (targetUser.role_name === 'admin' && newRoleName !== 'admin') {
         const adminCount = await getAdminCount(db);
         if (adminCount <= 1) {
           return next(new AuthError('Cannot demote the last admin user', 403));

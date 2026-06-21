@@ -75,6 +75,21 @@ export async function getRoleByName(db: DB, name: string): Promise<Role | undefi
 }
 
 /**
+ * Get just the role name by role ID (no permissions, no other columns).
+ * Returns undefined if not found. Used by routes that only need to compare
+ * the role name (e.g. last-admin demotion guard) and want to avoid the
+ * permissions fetch that getRoleById triggers.
+ */
+export async function getRoleNameById(db: DB, roleId: number): Promise<string | undefined> {
+  const result = await db.query<{ name: string }>(
+    'SELECT name FROM roles WHERE id = $1',
+    [roleId]
+  );
+
+  return result.rows[0]?.name;
+}
+
+/**
  * Check whether a role with the given ID exists.
  * Cheap existence check that avoids fetching the full role row.
  */

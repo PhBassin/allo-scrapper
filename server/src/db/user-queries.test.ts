@@ -234,33 +234,33 @@ describe('User Management Queries', () => {
 
   describe('createUser', () => {
     it('should insert a user without role_id when roleId is omitted', async () => {
-      const newRow = {
+      const newRow: UserPublic = {
         id: 3,
         username: 'newuser',
-        password_hash: 'hash',
-        role_id: null,
-        role_name: null,
-        is_system_role: null,
+        role_id: 0 as any,
+        role_name: null as any,
         created_at: '2024-01-03T00:00:00Z',
       };
       vi.mocked(mockDb.query).mockResolvedValue({ rows: [newRow], rowCount: 1 } as any);
 
-      await createUser(mockDb, 'newuser', 'hash');
+      const result = await createUser(mockDb, 'newuser', 'hash');
 
+      expect(result).toEqual(newRow);
       const [sql, params] = vi.mocked(mockDb.query).mock.calls[0];
       expect(sql).toContain('INSERT INTO users');
       expect(sql).not.toMatch(/INSERT INTO users \([^)]*role_id/);
+      const returningClause = sql.slice(sql.indexOf('RETURNING'));
+      expect(returningClause).not.toContain('password_hash');
+      expect(returningClause).not.toContain('is_system');
       expect(params).toEqual(['newuser', 'hash']);
     });
 
     it('should insert role_id when roleId is provided', async () => {
-      const newRow = {
+      const newRow: UserPublic = {
         id: 4,
         username: 'admin2',
-        password_hash: 'hash',
         role_id: 1,
         role_name: 'admin',
-        is_system_role: true,
         created_at: '2024-01-04T00:00:00Z',
       };
       vi.mocked(mockDb.query).mockResolvedValue({ rows: [newRow], rowCount: 1 } as any);
@@ -271,6 +271,9 @@ describe('User Management Queries', () => {
       const [sql, params] = vi.mocked(mockDb.query).mock.calls[0];
       expect(sql).toContain('INSERT INTO users');
       expect(sql).toContain('role_id');
+      const returningClause = sql.slice(sql.indexOf('RETURNING'));
+      expect(returningClause).not.toContain('password_hash');
+      expect(returningClause).not.toContain('is_system');
       expect(params).toEqual(['admin2', 'hash', 1]);
     });
   });

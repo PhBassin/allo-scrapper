@@ -15,6 +15,7 @@ import {
   setRolePermissions,
   getPermissionNamesByRoleId,
   roleExists,
+  getRoleNameById,
 } from './role-queries.js';
 
 describe('Role & Permission Queries', () => {
@@ -488,6 +489,34 @@ describe('Role & Permission Queries', () => {
       const result = await roleExists(mockDb, 999);
 
       expect(result).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getRoleNameById
+  // -------------------------------------------------------------------------
+  describe('getRoleNameById', () => {
+    it('should return the role name when found', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({
+        rows: [{ name: 'admin' }],
+        rowCount: 1,
+      } as any);
+
+      const result = await getRoleNameById(mockDb, 1);
+
+      expect(result).toBe('admin');
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT name FROM roles'),
+        [1]
+      );
+    });
+
+    it('should return undefined when the role does not exist', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
+
+      const result = await getRoleNameById(mockDb, 999);
+
+      expect(result).toBeUndefined();
     });
   });
 });
