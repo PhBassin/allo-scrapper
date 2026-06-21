@@ -98,6 +98,15 @@ export async function getScrapeReports(
   };
 }
 
+// Get the timestamp of the last completed scrape
+export async function getLastCompletedScrapeAt(db: DB): Promise<Date | null> {
+  const result = await db.query<{ last_scrape: Date | null }>(
+    `SELECT MAX(completed_at) AS last_scrape FROM scrape_reports WHERE status = 'completed'`,
+    []
+  );
+  return result.rows[0]?.last_scrape ?? null;
+}
+
 // Get the most recent scrape report
 export async function getLatestScrapeReport(db: DB): Promise<ScrapeReport | undefined> {
   const result = await db.query<ScrapeReport>(

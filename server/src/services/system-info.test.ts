@@ -8,6 +8,13 @@ import {
   type ServerHealth,
   type ScraperStatus,
 } from './system-info.js';
+import { getActiveScrapeJobsCount } from '../db/system-stat-queries.js';
+import { getLastCompletedScrapeAt } from '../db/report-queries.js';
+import { getTheaterCount } from '../db/theater-queries.js';
+
+vi.mock('../db/system-stat-queries.js');
+vi.mock('../db/report-queries.js');
+vi.mock('../db/theater-queries.js');
 
 describe('System Info Service', () => {
   describe('getAppInfo', () => {
@@ -96,13 +103,11 @@ describe('System Info Service', () => {
 
   describe('getScraperStatus', () => {
     it('should return scraper status from database', async () => {
-      const mockDb: DB = {
-        query: vi.fn()
-          .mockResolvedValueOnce({ rows: [{ count: '0' }] }) // Active jobs
-          .mockResolvedValueOnce({ rows: [{ last_scrape: new Date('2026-03-01T12:00:00Z') }] }) // Last scrape
-          .mockResolvedValueOnce({ rows: [{ count: '10' }] }), // Total theaters
-      } as unknown as DB;
+      vi.mocked(getActiveScrapeJobsCount).mockResolvedValue(0);
+      vi.mocked(getLastCompletedScrapeAt).mockResolvedValue(new Date('2026-03-01T12:00:00Z'));
+      vi.mocked(getTheaterCount).mockResolvedValue(10);
 
+      const mockDb = {} as DB;
       const status = await getScraperStatus(mockDb);
 
       expect(status).toEqual({
@@ -113,39 +118,33 @@ describe('System Info Service', () => {
     });
 
     it('should handle zero active jobs', async () => {
-      const mockDb: DB = {
-        query: vi.fn()
-          .mockResolvedValueOnce({ rows: [{ count: '0' }] })
-          .mockResolvedValueOnce({ rows: [{ last_scrape: new Date() }] })
-          .mockResolvedValueOnce({ rows: [{ count: '5' }] }),
-      } as unknown as DB;
+      vi.mocked(getActiveScrapeJobsCount).mockResolvedValue(0);
+      vi.mocked(getLastCompletedScrapeAt).mockResolvedValue(new Date());
+      vi.mocked(getTheaterCount).mockResolvedValue(5);
 
+      const mockDb = {} as DB;
       const status = await getScraperStatus(mockDb);
 
       expect(status.activeJobs).toBe(0);
     });
 
     it('should handle null last scrape time (never scraped)', async () => {
-      const mockDb: DB = {
-        query: vi.fn()
-          .mockResolvedValueOnce({ rows: [{ count: '0' }] })
-          .mockResolvedValueOnce({ rows: [{ last_scrape: null }] })
-          .mockResolvedValueOnce({ rows: [{ count: '3' }] }),
-      } as unknown as DB;
+      vi.mocked(getActiveScrapeJobsCount).mockResolvedValue(0);
+      vi.mocked(getLastCompletedScrapeAt).mockResolvedValue(null);
+      vi.mocked(getTheaterCount).mockResolvedValue(3);
 
+      const mockDb = {} as DB;
       const status = await getScraperStatus(mockDb);
 
       expect(status.lastScrapeTime).toBeNull();
     });
 
     it('should handle empty database (no theaters)', async () => {
-      const mockDb: DB = {
-        query: vi.fn()
-          .mockResolvedValueOnce({ rows: [{ count: '0' }] })
-          .mockResolvedValueOnce({ rows: [] })
-          .mockResolvedValueOnce({ rows: [{ count: '0' }] }),
-      } as unknown as DB;
+      vi.mocked(getActiveScrapeJobsCount).mockResolvedValue(0);
+      vi.mocked(getLastCompletedScrapeAt).mockResolvedValue(null);
+      vi.mocked(getTheaterCount).mockResolvedValue(0);
 
+      const mockDb = {} as DB;
       const status = await getScraperStatus(mockDb);
 
       expect(status.activeJobs).toBe(0);
@@ -154,10 +153,9 @@ describe('System Info Service', () => {
     });
 
     it('should handle database query errors', async () => {
-      const mockDb: DB = {
-        query: vi.fn().mockRejectedValue(new Error('Connection lost')),
-      } as unknown as DB;
+      vi.mocked(getActiveScrapeJobsCount).mockRejectedValue(new Error('Connection lost'));
 
+      const mockDb = {} as DB;
       await expect(getScraperStatus(mockDb)).rejects.toThrow('Connection lost');
     });
   });

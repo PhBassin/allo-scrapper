@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createScrapeReport, getLatestScrapeReport } from './report-queries.js';
+import { createScrapeReport, getLatestScrapeReport, getLastCompletedScrapeAt } from './report-queries.js';
 import { type DB } from './index.js';
 
 describe('Report Queries', () => {
@@ -46,6 +46,45 @@ describe('Report Queries', () => {
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('ORDER BY started_at DESC LIMIT 1')
       );
+    });
+  });
+
+  describe('getLastCompletedScrapeAt', () => {
+    it('should return the most recent completed scrape timestamp', async () => {
+      const mockDate = new Date('2026-03-15T14:30:00Z');
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({
+          rows: [{ last_scrape: mockDate }],
+        }),
+      } as unknown as DB;
+
+      const result = await getLastCompletedScrapeAt(mockDb);
+
+      expect(result).toEqual(mockDate);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining("status = 'completed'"),
+        []
+      );
+    });
+
+    it('should return null when no completed scrape exists', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({ rows: [{ last_scrape: null }] }),
+      } as unknown as DB;
+
+      const result = await getLastCompletedScrapeAt(mockDb);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when rows are empty', async () => {
+      const mockDb = {
+        query: vi.fn().mockResolvedValue({ rows: [] }),
+      } as unknown as DB;
+
+      const result = await getLastCompletedScrapeAt(mockDb);
+
+      expect(result).toBeNull();
     });
   });
 

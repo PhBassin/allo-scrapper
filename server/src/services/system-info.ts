@@ -3,6 +3,9 @@ import type { DB } from '../db/index.js';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getActiveScrapeJobsCount } from '../db/system-stat-queries.js';
+import { getLastCompletedScrapeAt } from '../db/report-queries.js';
+import { getTheaterCount } from '../db/theater-queries.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -104,28 +107,11 @@ export function getServerHealth(): ServerHealth {
  * @returns Scraper status information
  */
 export async function getScraperStatus(db: DB): Promise<ScraperStatus> {
-  // Get active jobs count (assuming we have a jobs table or similar)
-  // For now, we'll assume 0 active jobs since we don't have a jobs tracking system
-  const activeJobsResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM pg_stat_activity 
-     WHERE state = 'active' AND query LIKE '%scrape%'`,
-    []
-  );
-  const activeJobs = parseInt(activeJobsResult.rows[0]?.count || '0', 10);
-
-  // Get last scrape time from scrape_reports table
-  const lastScrapeResult = await db.query(
-    `SELECT MAX(completed_at) AS last_scrape FROM scrape_reports WHERE status = 'completed'`,
-    []
-  );
-  const lastScrapeTime = lastScrapeResult.rows[0]?.last_scrape || null;
-
-  // Get total theaters count
-  const theatersResult = await db.query(
-    `SELECT COUNT(*)::text AS count FROM theaters`,
-    []
-  );
-  const totalTheaters = parseInt(theatersResult.rows[0]?.count || '0', 10);
+  const [activeJobs, lastScrapeTime, totalTheaters] = await Promise.all([
+    getActiveScrapeJobsCount(db),
+    getLastCompletedScrapeAt(db),
+    getTheaterCount(db),
+  ]);
 
   return {
     activeJobs,
