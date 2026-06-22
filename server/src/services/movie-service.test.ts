@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MovieService } from './movie-service.js';
 import * as movieQueries from '../db/movie-queries.js';
 import * as showtimeQueries from '../db/showtime-queries.js';
-import { type DB } from '../db/client.js';
+import { type DB } from '../db/index.js';
 
 vi.mock('../db/movie-queries.js');
 vi.mock('../db/showtime-queries.js');

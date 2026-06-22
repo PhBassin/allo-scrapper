@@ -1,4 +1,4 @@
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import { getRateLimitConfig } from '../config/rate-limits.js';
 import { refreshRateLimits } from '../middleware/rate-limit.js';
 import { logger } from '../utils/logger.js';

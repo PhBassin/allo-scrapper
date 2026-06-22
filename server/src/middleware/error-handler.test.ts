@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { errorHandler } from './error-handler.js';
-import { AppError, ValidationError } from '../utils/errors.js';
+import { AppError, ValidationError, TheaterNotFoundError } from '../utils/errors.js';
 
 describe('Error Handler Middleware', () => {
   let app: express.Application;
@@ -83,6 +83,20 @@ describe('Error Handler Middleware', () => {
       expect(response.body).toEqual({
         success: false,
         error: 'Internal server error',
+      });
+    });
+
+    it('should return 404 and preserve message for TheaterNotFoundError', async () => {
+      app.get('/error-theater', (_req, _res, next) => {
+        next(new TheaterNotFoundError('C0153'));
+      });
+      app.use(errorHandler);
+
+      const response = await request(app).get('/error-theater');
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({
+        success: false,
+        error: 'Theater not found: C0153',
       });
     });
 

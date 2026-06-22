@@ -1,7 +1,7 @@
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { db } from './client.js';
+import { db } from './internal/client.js';
 import type { TheaterConfig } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
 import { runMigrations } from './migrations.js';

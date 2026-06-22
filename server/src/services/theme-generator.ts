@@ -1,4 +1,4 @@
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import { getPublicSettings } from '../db/settings-queries.js';
 import type { AppSettingsPublic } from '../types/settings.js';
 import { logger } from '../utils/logger.js';

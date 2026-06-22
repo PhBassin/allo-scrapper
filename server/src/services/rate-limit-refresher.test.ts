@@ -10,7 +10,7 @@ import { getRateLimitConfig } from '../config/rate-limits.js';
 import { refreshRateLimits } from '../middleware/rate-limit.js';
 import { logger } from '../utils/logger.js';
 import { startConfigRefresher, stopConfigRefresher } from './rate-limit-refresher.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 
 const mockConfig = {
   windowMs: 60000, generalMax: 100, authMax: 5, registerMax: 3,

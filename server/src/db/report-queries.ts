@@ -1,5 +1,5 @@
 // fallow-ignore-file security-sink
-import { type DB } from './client.js';
+import { type DB } from './index.js';
 
 // ============================================================================
 // SCRAPE REPORTS QUERIES
@@ -96,6 +96,15 @@ export async function getScrapeReports(
     reports: result.rows,
     total
   };
+}
+
+// Get the timestamp of the last completed scrape
+export async function getLastCompletedScrapeAt(db: DB): Promise<Date | null> {
+  const result = await db.query<{ last_scrape: Date | null }>(
+    `SELECT MAX(completed_at) AS last_scrape FROM scrape_reports WHERE status = 'completed'`,
+    []
+  );
+  return result.rows[0]?.last_scrape ?? null;
 }
 
 // Get the most recent scrape report

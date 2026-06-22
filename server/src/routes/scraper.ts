@@ -1,7 +1,7 @@
 import { parseStrictInt } from '../utils/number.js';
 import express, { Response, NextFunction } from 'express';
 import type { ApiResponse } from '../types/api.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import { requireAuth, isAdminUser, type AuthRequest } from '../middleware/auth.js';
 import { scraperLimiter } from '../middleware/rate-limit.js';
 import { ScraperService } from '../services/scraper-service.js';
@@ -76,10 +76,7 @@ router.post('/trigger', scraperLimiter, requireAuth, async (req: AuthRequest, re
       },
     };
     res.json(response);
-  } catch (error: any) {
-    if (error.message.startsWith('Theater not found')) {
-      return next(new NotFoundError(error.message));
-    }
+  } catch (error) {
     next(error);
   }
 });

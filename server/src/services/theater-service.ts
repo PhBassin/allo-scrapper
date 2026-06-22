@@ -4,6 +4,7 @@ import { getTheaters, addTheater, updateTheaterConfig, deleteTheater } from '../
 import { extractTheaterIdFromUrl, cleanTheaterUrl } from '../utils/url.js';
 import { getRedisClient } from './redis-client.js';
 import { logger } from '../utils/logger.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 import {
   validateTheaterId,
   validateTheaterName,
@@ -15,7 +16,7 @@ import {
   validateScreenCount,
   validateAtLeastOneField,
 } from './theater-validator.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 
 export class TheaterService {
   constructor(private db: DB) {}
@@ -33,7 +34,7 @@ export class TheaterService {
 
     const theaterId = extractTheaterIdFromUrl(url);
     if (!theaterId) {
-      throw new Error('Could not extract theater ID from URL. URL format should be like https://www.allocine.fr/seance/salle_gen_csalle=C0013.html');
+      throw new ValidationError('Could not extract theater ID from URL. URL format should be like https://www.allocine.fr/seance/salle_gen_csalle=C0013.html');
     }
 
     const cleanedUrl = cleanTheaterUrl(url);
@@ -58,7 +59,7 @@ export class TheaterService {
       return await addTheater(this.db, { id, name, url });
     } catch (error: any) {
       if (error.message && error.message.includes('duplicate key')) {
-        throw new Error('Theater with this ID already exists');
+        throw new ValidationError('Theater with this ID already exists');
       }
       throw error;
     }
@@ -89,7 +90,7 @@ export class TheaterService {
 
     const theater = await updateTheaterConfig(this.db, theaterId, updates);
     if (!theater) {
-      throw new Error(`Theater ${theaterId} not found`);
+      throw new NotFoundError(`Theater ${theaterId} not found`);
     }
 
     return theater;
@@ -98,7 +99,7 @@ export class TheaterService {
   async deleteTheater(theaterId: string) {
     const deleted = await deleteTheater(this.db, theaterId);
     if (!deleted) {
-      throw new Error(`Theater ${theaterId} not found`);
+      throw new NotFoundError(`Theater ${theaterId} not found`);
     }
     return deleted;
   }

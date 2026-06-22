@@ -2,6 +2,7 @@ import { errorHandler } from '../middleware/error-handler.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 
 const mockGetAllTheaters = vi.fn();
 const mockGetTheaterShowtimes = vi.fn();
@@ -89,7 +90,7 @@ describe('Routes - Theaters', () => {
     });
 
     it('should handle URL validation errors from service', async () => {
-      mockAddTheaterViaUrl.mockRejectedValue(new Error('Invalid Allocine URL.'));
+      mockAddTheaterViaUrl.mockRejectedValue(new ValidationError('Invalid Allocine URL.'));
       const app = await setupApp();
       
       const response = await request(app).post('/api/theaters').send({ url: 'https://badurl.com' });

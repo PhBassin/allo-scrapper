@@ -1,4 +1,4 @@
-import { type DB } from './client.js';
+import { type DB } from './index.js';
 import type {
   AppSettings,
   AppSettingsPublic,

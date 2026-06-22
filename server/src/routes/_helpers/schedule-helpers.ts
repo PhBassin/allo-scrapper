@@ -2,7 +2,7 @@ import type { Request, NextFunction } from 'express';
 import { parseStrictInt } from '../../utils/number.js';
 import { ValidationError, NotFoundError, AuthError } from '../../utils/errors.js';
 import { getScheduleById, type ScrapeSchedule } from '../../db/schedule-queries.js';
-import type { DB } from '../../db/client.js';
+import type { DB } from '../../db/index.js';
 import type { AuthRequest } from '../../middleware/auth.js';
 
 /**

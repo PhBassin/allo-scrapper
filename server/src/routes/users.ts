@@ -1,6 +1,6 @@
 import { parseStrictInt } from '../utils/number.js';
 import express, { NextFunction } from 'express';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
@@ -12,7 +12,10 @@ import {
   updateUserRole,
   deleteUser,
   getAdminCount,
+  createUser,
+  updateUserPassword,
 } from '../db/user-queries.js';
+import { roleExists, getRoleNameById } from '../db/role-queries.js';
 import { logger } from '../utils/logger.js';
 import { validatePasswordStrength } from '../utils/security.js';
 import { hashPassword } from '../utils/password.js';
@@ -155,26 +158,15 @@ router.post(
       const roleId = parseStrictInt(role_id);
 
       // Verify role_id exists
-      const roleCheck = await db.query<{ id: number }>(
-        'SELECT id FROM roles WHERE id = $1',
-        [roleId]
-      );
-      if (roleCheck.rows.length === 0) {
+      if (!(await roleExists(db, roleId))) {
         return next(new ValidationError('Invalid role_id: role does not exist'));
       }
 
       // Hash password
       const passwordHash = await hashPassword(password);
 
-      // Create user with direct DB query
-      const result = await db.query<UserPublic>(
-        `INSERT INTO users (username, password_hash, role_id) VALUES ($1, $2, $3)
-         RETURNING id, username, role_id,
-           (SELECT name FROM roles WHERE id = $3) as role_name,
-           created_at`,
-        [username, passwordHash, roleId]
-      );
-      const newUser = result.rows[0];
+      // Create user
+      const newUser = await createUser(db, username, passwordHash, roleId);
 
       logger.info('Admin created new user', {
         adminId: req.user!.id,
@@ -233,23 +225,20 @@ router.put(
         return next(new ValidationError('role_id must be a valid integer'));
       }
 
-      // Verify role exists and get its name
-      const roleCheck = await db.query<{ id: number; name: string }>(
-        'SELECT id, name FROM roles WHERE id = $1',
-        [roleId]
-      );
-      if (roleCheck.rows.length === 0) {
-        return next(new ValidationError('Invalid role_id: role does not exist'));
-      }
-
       // Check if user exists
       const targetUser = await getUserById(db, userId);
       if (!targetUser) {
         return next(new NotFoundError('User not found'));
       }
 
+      // Look up the new role's name (also serves as the existence check).
+      const newRoleName = await getRoleNameById(db, roleId);
+      if (!newRoleName) {
+        return next(new ValidationError('Invalid role_id: role does not exist'));
+      }
+
       // Safety guard: Prevent demoting the last admin
-      if (targetUser.role_name === 'admin' && roleCheck.rows[0].name !== 'admin') {
+      if (targetUser.role_name === 'admin' && newRoleName !== 'admin') {
         const adminCount = await getAdminCount(db);
         if (adminCount <= 1) {
           return next(new AuthError('Cannot demote the last admin user', 403));
@@ -318,10 +307,7 @@ router.post(
 
       const passwordHash = await hashPassword(newPassword);
 
-      await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
-        passwordHash,
-        userId,
-      ]);
+      await updateUserPassword(db, userId, passwordHash);
 
       logger.info('Admin reset user password', {
         adminId: req.user!.id,

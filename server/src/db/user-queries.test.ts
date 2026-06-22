@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { DB } from './client.js';
+import type { DB } from './index.js';
 import type { UserPublic } from '../types/user.js';
 import {
   getAllUsers,
   getUserById,
+  getUserWithRoleById,
   updateUserRole,
   deleteUser,
   getAdminCount,
   generateRandomPassword,
+  createUser,
 } from './user-queries.js';
 
 describe('User Management Queries', () => {
@@ -163,6 +165,78 @@ describe('User Management Queries', () => {
     });
   });
 
+  describe('getUserWithRoleById', () => {
+    it('should return user joined with role including is_system_role for a system admin', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({
+        rows: [{
+          id: 1,
+          username: 'admin',
+          role_id: 1,
+          role_name: 'admin',
+          is_system_role: true,
+        }],
+        rowCount: 1,
+      } as any);
+
+      const result = await getUserWithRoleById(mockDb, 1);
+
+      expect(result).toEqual({
+        id: 1,
+        username: 'admin',
+        role_id: 1,
+        role_name: 'admin',
+        is_system_role: true,
+      });
+    });
+
+    it('should return is_system_role=false for a non-system role', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({
+        rows: [{
+          id: 7,
+          username: 'operator',
+          role_id: 2,
+          role_name: 'operator',
+          is_system_role: false,
+        }],
+        rowCount: 1,
+      } as any);
+
+      const result = await getUserWithRoleById(mockDb, 7);
+
+      expect(result?.is_system_role).toBe(false);
+    });
+
+    it('should issue a single JOIN query parameterized on user id', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
+
+      await getUserWithRoleById(mockDb, 42);
+
+      const [sql, params] = vi.mocked(mockDb.query).mock.calls[0];
+      expect(sql).toContain('JOIN roles');
+      expect(sql).toContain('is_system AS is_system_role');
+      expect(sql).toContain('WHERE u.id = $1');
+      expect(params).toEqual([42]);
+    });
+
+    it('should not select password_hash or created_at', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
+
+      await getUserWithRoleById(mockDb, 1);
+
+      const [sql] = vi.mocked(mockDb.query).mock.calls[0];
+      expect(sql).not.toContain('password_hash');
+      expect(sql).not.toContain('created_at');
+    });
+
+    it('should return undefined when no user matches the id', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
+
+      const result = await getUserWithRoleById(mockDb, 999);
+
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe('updateUserRole', () => {
     it('should update user role using role_id (number)', async () => {
       vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
@@ -228,6 +302,52 @@ describe('User Management Queries', () => {
       const result = await deleteUser(mockDb, 1);
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('createUser', () => {
+    it('should insert a user without role_id when roleId is omitted', async () => {
+      const newRow: UserPublic = {
+        id: 3,
+        username: 'newuser',
+        role_id: 0 as any,
+        role_name: null as any,
+        created_at: '2024-01-03T00:00:00Z',
+      };
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [newRow], rowCount: 1 } as any);
+
+      const result = await createUser(mockDb, 'newuser', 'hash');
+
+      expect(result).toEqual(newRow);
+      const [sql, params] = vi.mocked(mockDb.query).mock.calls[0];
+      expect(sql).toContain('INSERT INTO users');
+      expect(sql).not.toMatch(/INSERT INTO users \([^)]*role_id/);
+      const returningClause = sql.slice(sql.indexOf('RETURNING'));
+      expect(returningClause).not.toContain('password_hash');
+      expect(returningClause).not.toContain('is_system');
+      expect(params).toEqual(['newuser', 'hash']);
+    });
+
+    it('should insert role_id when roleId is provided', async () => {
+      const newRow: UserPublic = {
+        id: 4,
+        username: 'admin2',
+        role_id: 1,
+        role_name: 'admin',
+        created_at: '2024-01-04T00:00:00Z',
+      };
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [newRow], rowCount: 1 } as any);
+
+      const result = await createUser(mockDb, 'admin2', 'hash', 1);
+
+      expect(result).toEqual(newRow);
+      const [sql, params] = vi.mocked(mockDb.query).mock.calls[0];
+      expect(sql).toContain('INSERT INTO users');
+      expect(sql).toContain('role_id');
+      const returningClause = sql.slice(sql.indexOf('RETURNING'));
+      expect(returningClause).not.toContain('password_hash');
+      expect(returningClause).not.toContain('is_system');
+      expect(params).toEqual(['admin2', 'hash', 1]);
     });
   });
 

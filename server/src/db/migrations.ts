@@ -1,5 +1,5 @@
 // fallow-ignore-file security-sink
-import { type DB } from './client.js';
+import { type DB } from './index.js';
 import { logger } from '../utils/logger.js';
 import { generateRandomPassword } from './user-queries.js';
 import fs from 'fs/promises';

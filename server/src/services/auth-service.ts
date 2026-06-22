@@ -1,13 +1,14 @@
 import jwt from 'jsonwebtoken';
 import { getUserByUsername, createUser, updateUserPassword } from '../db/user-queries.js';
 import { getPermissionNamesByRoleId } from '../db/role-queries.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import { validatePasswordStrength } from '../utils/security.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { logger } from '../utils/logger.js';
 import { parseJwtExpiration } from '../utils/jwt-config.js';
 import type { PermissionName } from '../types/role.js';
 import { getCurrentSecret } from '../utils/jwt-secrets.js';
+import { ValidationError, AuthError, NotFoundError } from '../utils/errors.js';
 
 // Pre-computed hash for 'dummy' (cost 10) to prevent timing attacks
 const DUMMY_HASH = 'scrypt:16384:8:1:00000000000000000000000000000000:00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
@@ -17,7 +18,7 @@ export class AuthService {
 
   async login(username?: string, password?: string) {
     if (!username || !password) {
-      throw new Error('Username and password are required');
+      throw new ValidationError('Username and password are required');
     }
 
     const user = await getUserByUsername(this.db, username);
@@ -25,7 +26,7 @@ export class AuthService {
     const isMatch = await comparePassword(password, hashToCompare);
 
     if (!user || !isMatch) {
-      throw new Error('Invalid credentials');
+      throw new AuthError('Invalid credentials');
     }
 
     const permissions = await getPermissionNamesByRoleId(this.db, user.role_id) as PermissionName[];
@@ -62,17 +63,17 @@ export class AuthService {
 
   async register(username?: string, password?: string) {
     if (!username || !password) {
-      throw new Error('Username and password are required');
+      throw new ValidationError('Username and password are required');
     }
 
     const passwordError = validatePasswordStrength(password);
     if (passwordError) {
-      throw new Error(passwordError); // Let controller decide status code
+      throw new ValidationError(passwordError);
     }
 
     const existingUser = await getUserByUsername(this.db, username);
     if (existingUser) {
-      throw new Error('Username already exists');
+      throw new ValidationError('Username already exists');
     }
 
     const passwordHash = await hashPassword(password);
@@ -89,22 +90,22 @@ export class AuthService {
 
   async changePassword(currentUsername: string, currentPassword?: string, newPassword?: string) {
     if (!currentPassword || !newPassword) {
-      throw new Error('Current password and new password are required');
+      throw new ValidationError('Current password and new password are required');
     }
 
     const passwordError = validatePasswordStrength(newPassword);
     if (passwordError) {
-      throw new Error(passwordError); // Let controller decide status code
+      throw new ValidationError(passwordError);
     }
 
     const user = await getUserByUsername(this.db, currentUsername);
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundError('User not found');
     }
 
     const isMatch = await comparePassword(currentPassword, user.password_hash);
     if (!isMatch) {
-      throw new Error('Current password is incorrect');
+      throw new AuthError('Current password is incorrect');
     }
 
     const newPasswordHash = await hashPassword(newPassword);

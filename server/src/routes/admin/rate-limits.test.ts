@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import express from 'express';
-import type { DB } from '../../db/client.js';
+import type { DB } from '../../db/index.js';
 import { assertRateLimitPutRejected } from '../../test-utils/rate-limit.js';
 
 // Mock dependencies BEFORE importing the router

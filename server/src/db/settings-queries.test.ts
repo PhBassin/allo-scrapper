@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { DB } from './client.js';
+import type { DB } from './index.js';
 import {
   getSettings,
   getPublicSettings,

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import type { DB } from './db/client.js';
+import type { DB } from './db/index.js';
 import { createApp } from './app.js';
 
 // Mock dependencies

@@ -1,15 +1,17 @@
 import { parseStrictInt } from '../utils/number.js';
 import express from 'express';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import {
   getAllRoles,
   getRoleById,
   createRole,
   updateRole,
+  deleteRole,
   getAllPermissions,
   getAllPermissionCategoryLabels,
   setRolePermissions,
 } from '../db/role-queries.js';
+import { getRoleInUseCount } from '../repositories/role-repository.js';
 import type { ApiResponse } from '../types/api.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
@@ -212,16 +214,15 @@ router.delete(
       }
 
       // Check if any users have this role
-      const userCountResult = await db.query<{ count: string }>(
-        'SELECT COUNT(*) as count FROM users WHERE role_id = $1',
-        [roleId]
-      );
-      const userCount = parseStrictInt(userCountResult.rows[0]?.count ?? '0');
+      const userCount = await getRoleInUseCount(db, roleId);
       if (userCount > 0) {
         return next(new AppError(`Role is assigned to ${userCount} user(s)`, 409));
       }
 
-      await db.query('DELETE FROM roles WHERE id = $1', [roleId]);
+      const deleted = await deleteRole(db, roleId);
+      if (!deleted) {
+        return next(new NotFoundError('Role not found'));
+      }
 
       res.status(204).send();
     } catch (error) {

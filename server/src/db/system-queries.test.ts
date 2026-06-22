@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
-import type { DB } from './client.js';
+import type { DB } from './index.js';
 import {
   getAppliedMigrations,
   getPendingMigrations,

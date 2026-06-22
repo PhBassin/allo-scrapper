@@ -28,3 +28,9 @@ export class AuthError extends AppError {
     super(message, statusCode);
   }
 }
+
+export class TheaterNotFoundError extends AppError {
+  constructor(theaterId: string) {
+    super(`Theater not found: ${theaterId}`, 404);
+  }
+}

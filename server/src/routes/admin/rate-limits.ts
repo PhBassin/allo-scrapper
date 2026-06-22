@@ -1,5 +1,5 @@
 import express from 'express';
-import type { DB } from '../../db/client.js';
+import type { DB } from '../../db/index.js';
 import {
   getRateLimits,
   updateRateLimits,

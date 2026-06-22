@@ -16,7 +16,7 @@ import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
 import { requireAuth } from './middleware/auth.js';
 import { generateThemeCSS } from './services/theme-generator.js';
 import { errorHandler } from './middleware/error-handler.js';
-import type { DB } from './db/client.js';
+import type { DB } from './db/index.js';
 
 // Import routes
 import moviesRouter from './routes/movies.js';

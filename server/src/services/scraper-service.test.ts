@@ -4,7 +4,7 @@ import * as reportQueries from '../db/report-queries.js';
 import * as theaterQueries from '../db/theater-queries.js';
 import * as redisClient from './redis-client.js';
 import { progressTracker } from './progress-tracker.js';
-import { type DB } from '../db/client.js';
+import { type DB } from '../db/index.js';
 
 vi.mock('../db/report-queries.js');
 vi.mock('../db/theater-queries.js');

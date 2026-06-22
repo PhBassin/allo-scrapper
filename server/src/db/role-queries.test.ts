@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { DB } from './client.js';
+import type { DB } from './index.js';
 import type { Role, Permission, RoleWithPermissions } from '../types/role.js';
 import {
   getAllRoles,
@@ -14,6 +14,8 @@ import {
   removePermissionsFromRole,
   setRolePermissions,
   getPermissionNamesByRoleId,
+  roleExists,
+  getRoleNameById,
 } from './role-queries.js';
 
 describe('Role & Permission Queries', () => {
@@ -448,6 +450,73 @@ describe('Role & Permission Queries', () => {
       const result = await getPermissionNamesByRoleId(mockDb, 999);
 
       expect(result).toEqual([]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // roleExists
+  // -------------------------------------------------------------------------
+  describe('roleExists', () => {
+    it('should return true when a row matches the role id', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({
+        rows: [{ exists: true }],
+        rowCount: 1,
+      } as any);
+
+      const result = await roleExists(mockDb, 2);
+
+      expect(result).toBe(true);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('FROM roles'),
+        [2]
+      );
+    });
+
+    it('should return false when no row matches the role id', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({
+        rows: [{ exists: false }],
+        rowCount: 1,
+      } as any);
+
+      const result = await roleExists(mockDb, 999);
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when the query returns no rows', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
+
+      const result = await roleExists(mockDb, 999);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getRoleNameById
+  // -------------------------------------------------------------------------
+  describe('getRoleNameById', () => {
+    it('should return the role name when found', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({
+        rows: [{ name: 'admin' }],
+        rowCount: 1,
+      } as any);
+
+      const result = await getRoleNameById(mockDb, 1);
+
+      expect(result).toBe('admin');
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT name FROM roles'),
+        [1]
+      );
+    });
+
+    it('should return undefined when the role does not exist', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
+
+      const result = await getRoleNameById(mockDb, 999);
+
+      expect(result).toBeUndefined();
     });
   });
 });

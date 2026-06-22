@@ -1,6 +1,6 @@
 import express, { Response, NextFunction } from 'express';
 import type { ApiResponse } from '../types/api.js';
-import type { DB } from '../db/client.js';
+import type { DB } from '../db/index.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import { requireAuth } from '../middleware/auth.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';

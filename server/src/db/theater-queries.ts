@@ -1,5 +1,5 @@
 // fallow-ignore-file security-sink
-import type { DB } from './client.js';
+import type { DB } from './index.js';
 import type { Theater } from '../types/scraper.js';
 
 interface TheaterRow {
@@ -138,6 +138,15 @@ export async function updateTheaterConfig(
     image_url: row.image_url ?? undefined,
     url: row.url ?? undefined,
   };
+}
+
+// Get total theater count
+export async function getTheaterCount(db: DB): Promise<number> {
+  const result = await db.query<{ count: string }>(
+    'SELECT COUNT(*)::text AS count FROM theaters',
+    []
+  );
+  return parseInt(result.rows[0]?.count ?? '0', 10);
 }
 
 // Supprimer un theater (et ses séances via CASCADE)
