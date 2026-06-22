@@ -95,8 +95,11 @@ export async function cleanupExpired(
 /**
  * Atomically revoke an old token and insert a new one inside a transaction.
  * Throws if the old token is not found / already revoked (rowCount = 0).
+ *
+ * Internal SQL primitive — consumers should use the `rotateRefreshToken` exported
+ * from `repositories/refresh-token-repository`, which adds hashing/expiry policy.
  */
-export async function rotateRefreshToken(
+export async function rotateRefreshTokenTx(
   db: DB,
   userId: number,
   oldTokenHash: string,

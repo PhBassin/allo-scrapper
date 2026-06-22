@@ -201,13 +201,13 @@ describe('refresh-token-repository', () => {
 
   describe('rotateRefreshToken', () => {
     it('should atomically revoke old and generate new token', async () => {
-      vi.mocked(dbQueries.rotateRefreshToken).mockResolvedValue(undefined);
+      vi.mocked(dbQueries.rotateRefreshTokenTx).mockResolvedValue(undefined);
 
       const newToken = await rotateRefreshToken(mockDb, 1, 'old-token');
 
       expect(newToken).toBeDefined();
       expect(newToken.length).toBeGreaterThan(32);
-      expect(dbQueries.rotateRefreshToken).toHaveBeenCalledWith(
+      expect(dbQueries.rotateRefreshTokenTx).toHaveBeenCalledWith(
         mockDb,
         1,
         expect.any(String), // old hash
@@ -217,12 +217,12 @@ describe('refresh-token-repository', () => {
     });
 
     it('should accept custom expiry', async () => {
-      vi.mocked(dbQueries.rotateRefreshToken).mockResolvedValue(undefined);
+      vi.mocked(dbQueries.rotateRefreshTokenTx).mockResolvedValue(undefined);
 
       const newToken = await rotateRefreshToken(mockDb, 1, 'old-token', 3600_000);
 
       expect(newToken).toBeDefined();
-      expect(dbQueries.rotateRefreshToken).toHaveBeenCalledWith(
+      expect(dbQueries.rotateRefreshTokenTx).toHaveBeenCalledWith(
         mockDb,
         1,
         expect.any(String),
@@ -232,7 +232,7 @@ describe('refresh-token-repository', () => {
     });
 
     it('should propagate errors from db layer', async () => {
-      vi.mocked(dbQueries.rotateRefreshToken).mockRejectedValue(
+      vi.mocked(dbQueries.rotateRefreshTokenTx).mockRejectedValue(
         new Error('Refresh token already consumed or invalid'),
       );
 

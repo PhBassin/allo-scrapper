@@ -7,7 +7,7 @@ import {
   revokeByTokenHash,
   revokeByUserId,
   cleanupExpired,
-  rotateRefreshToken as _rotateRefreshToken,
+  rotateRefreshTokenTx,
 } from '../db/refresh-token-queries.js';
 
 const DEFAULT_EXPIRY_MS = parseRefreshTokenExpiry();
@@ -118,7 +118,7 @@ export async function rotateRefreshToken(
   const newTokenHash = hashToken(rawToken);
   const expiresAt = new Date(Date.now() + expiryMs);
 
-  await _rotateRefreshToken(db, userId, oldTokenHash, newTokenHash, expiresAt);
+  await rotateRefreshTokenTx(db, userId, oldTokenHash, newTokenHash, expiresAt);
 
   logger.debug(`Refresh token rotated for user ${userId}`);
   return rawToken;

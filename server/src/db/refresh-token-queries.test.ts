@@ -5,7 +5,7 @@ import {
   revokeByTokenHash,
   revokeByUserId,
   cleanupExpired,
-  rotateRefreshToken,
+  rotateRefreshTokenTx,
   type RefreshTokenRow,
 } from './refresh-token-queries.js';
 import type { DB } from './index.js';
@@ -117,7 +117,7 @@ describe('refresh-token-queries', () => {
     });
   });
 
-  describe('rotateRefreshToken', () => {
+  describe('rotateRefreshTokenTx', () => {
     it('should atomically revoke old and insert new token', async () => {
       const expiresAt = new Date('2026-07-01T00:00:00Z');
       let committed = false;
@@ -132,7 +132,7 @@ describe('refresh-token-queries', () => {
         return result;
       });
 
-      await rotateRefreshToken(mockDb, 1, 'old-hash', 'new-hash', expiresAt);
+      await rotateRefreshTokenTx(mockDb, 1, 'old-hash', 'new-hash', expiresAt);
 
       expect(mockDb.transaction).toHaveBeenCalledTimes(1);
       expect(committed).toBe(true);
@@ -146,7 +146,7 @@ describe('refresh-token-queries', () => {
       });
 
       await expect(
-        rotateRefreshToken(mockDb, 1, 'old-hash', 'new-hash', new Date())
+        rotateRefreshTokenTx(mockDb, 1, 'old-hash', 'new-hash', new Date())
       ).rejects.toThrow('Refresh token already consumed or invalid');
     });
   });
