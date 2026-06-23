@@ -56,3 +56,19 @@ The `.husky/pre-push` hook runs exactly this and **blocks push on failure**. Eme
 
 - `fallow` (dead-code/health) is wired via MCP and `.fallowrc.json` — prefer it for unused-export/dependency checks.
 - Past performance learnings live in `.jules/bolt.md`; deeper architecture docs in `docs/`.
+
+## Agent skills
+
+Engineering skills (e.g. `triage`, `to-issues`, `diagnosing-bugs`, `improve-codebase-architecture`) read the configuration in `docs/agents/`:
+
+### Issue tracker
+
+GitHub Issues (uses the `gh` CLI). External PRs are **not** a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary — `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
