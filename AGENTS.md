@@ -7,7 +7,7 @@ Theater showtimes aggregator. npm-workspaces monorepo: **Express API (`server`) 
 - **Node 24 only** (`engines: >=24 <25`, see `.nvmrc`). CI/hooks run on Node 24.
 - **ESM everywhere** (`"type": "module"`). Relative TS imports MUST use `.js` extensions, e.g. `import { logger } from './utils/logger.js'`. Omitting the extension breaks runtime.
 - Each workspace has its OWN `utils/logger.js`. `packages/logger` is not a real workspace — ignore it.
-- Dependency installs use `npm install --legacy-peer-deps` (peer-dep conflicts exist; plain `npm install` may fail). CI deletes `package-lock.json` before installing.
+- CI and Docker use `npm ci --legacy-peer-deps` for deterministic, lockfile-pinned installs (peer-dep conflicts exist; plain `npm install` may fail). The root `package-lock.json` is committed and consumed as-is — npm resolves platform-specific optional bindings (sharp musl, etc.) from it at install time, so never delete/regenerate it during CI or Docker builds. For local dev, use `npm install --legacy-peer-deps`.
 - **Never add a dependency without explicit user consent.** Prefer existing libraries already in the relevant workspace.
 
 ## Commands (run inside the workspace dir or via `--workspace`)

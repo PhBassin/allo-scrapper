@@ -53,7 +53,7 @@ export async function validateImage(
     const originalSize = buffer.length;
 
     // Validate with sharp
-    let image: sharp.Sharp;
+    let image: ReturnType<typeof sharp>;
     try {
       image = sharp(buffer);
       const metadata = await image.metadata();
