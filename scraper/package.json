@@ -23,11 +23,11 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
     "allo-scrapper-scraper-protocol": "*",
-    "@opentelemetry/exporter-trace-otlp-grpc": "^0.218.0",
-    "@opentelemetry/instrumentation-http": "^0.218.0",
-    "@opentelemetry/instrumentation-pg": "^0.70.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.220.0",
+    "@opentelemetry/instrumentation-http": "^0.220.0",
+    "@opentelemetry/instrumentation-pg": "^0.72.0",
     "@opentelemetry/resources": "^2.6.0",
-    "@opentelemetry/sdk-node": "^0.218.0",
+    "@opentelemetry/sdk-node": "^0.220.0",
     "@opentelemetry/semantic-conventions": "^1.41.1",
     "cheerio": "^1.0.0",
     "express": "^5.2.1",
@@ -40,12 +40,12 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/node": "^25.9.1",
+    "@types/node": "^26.1.1",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.18.0",
     "@vitest/coverage-v8": "^4.1.7",
     "tsx": "^4.22.3",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.7"
   }
 }
