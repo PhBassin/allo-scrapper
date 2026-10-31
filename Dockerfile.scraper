@@ -33,8 +33,9 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-# Copy node_modules from deps stage (everything is hoisted to the root).
-COPY --from=deps /app/node_modules ./node_modules
+# Copy node_modules from deps stage, including nested workspace node_modules
+# (root holds typescript 6 for typescript-eslint; workspaces keep their own typescript 7).
+COPY --from=deps /app ./
 
 # Copy root files
 COPY package.json package-lock.json ./
