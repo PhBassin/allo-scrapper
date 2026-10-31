@@ -15,19 +15,35 @@ permissions:
   actions: write
 
 jobs:
-  create-version-tag:
-    name: Create Version Tag
+  check-skip:
+    name: Check skip-ci
     runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
 
     steps:
       - name: Skip on version-bump commits (check subject only, not body)
+        id: check
+        # Pass the commit message via env, never interpolate it into the script
+        # (it is attacker-controllable and would allow shell injection).
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          SUBJECT="$(echo '${{ github.event.head_commit.message }}' | head -n 1)"
-          if echo "$SUBJECT" | grep -qE '\[(skip|no) ci\]'; then
+          SUBJECT="$(printf '%s\n' "$COMMIT_MESSAGE" | head -n 1)"
+          if printf '%s\n' "$SUBJECT" | grep -qE '\[(skip|no) ci\]'; then
             echo "Skipping — version-bump commit detected (subject contains [skip ci])"
-            exit 78
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+  create-version-tag:
+    name: Create Version Tag
+    needs: check-skip
+    if: needs.check-skip.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
