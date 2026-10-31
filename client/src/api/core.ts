@@ -1,4 +1,3 @@
-// fallow-ignore-file security-sink
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);

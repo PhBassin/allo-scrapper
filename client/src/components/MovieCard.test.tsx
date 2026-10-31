@@ -45,7 +45,6 @@ describe('MovieCard', () => {
     expect(screen.getByText('Test Film')).toBeInTheDocument();
     expect(screen.getByText('Drame')).toBeInTheDocument();
     expect(screen.getByText('Thriller')).toBeInTheDocument();
-    // fallow-ignore-next-line code-duplication
     expect(screen.getByText(/Durée:/)).toBeInTheDocument();
     expect(screen.getByText(/2h 5min/)).toBeInTheDocument();
     expect(screen.getByText(/Jane Doe/)).toBeInTheDocument();

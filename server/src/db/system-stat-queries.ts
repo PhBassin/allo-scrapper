@@ -1,4 +1,3 @@
-// fallow-ignore-file security-sink
 import type { DB } from './index.js';
 
 export async function getActiveScrapeJobsCount(db: DB): Promise<number> {
