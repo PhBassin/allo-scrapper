@@ -1,4 +1,3 @@
-// fallow-ignore-file security-sink
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Showtime, Movie, Theater } from '../types';

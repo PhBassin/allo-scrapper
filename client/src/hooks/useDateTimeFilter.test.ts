@@ -29,4 +29,15 @@ describe('useDateTimeFilter', () => {
     expect(result.current.selectedDate).toBe('2026-03-15');
     expect(result.current.afterTime).toBe('20:30');
   });
+
+  it('resetAll clears selectedDate and afterTime', () => {
+    const { result } = renderHook(() => useDateTimeFilter());
+    act(() => result.current.selectNow('2026-03-15', '14:00'));
+    expect(result.current.selectedDate).toBe('2026-03-15');
+    expect(result.current.afterTime).toBe('14:00');
+
+    act(() => result.current.resetAll());
+    expect(result.current.selectedDate).toBe('');
+    expect(result.current.afterTime).toBeNull();
+  });
 });

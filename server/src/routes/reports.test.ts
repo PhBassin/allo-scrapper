@@ -20,6 +20,10 @@ vi.mock('../db/report-queries.js', () => ({
   getScrapeReport: vi.fn()
 }));
 
+vi.mock('../db/scrape-attempt-queries.js', () => ({
+  getScrapeAttemptsByReport: vi.fn(),
+}));
+
 vi.mock('../utils/logger.js', () => ({
   logger: {
     info: vi.fn(),
@@ -126,9 +130,6 @@ describe('Routes - Reports', () => {
       vi.mocked(reportQueries.getScrapeReport).mockResolvedValue(mockReport as any);
       
       const { getScrapeAttemptsByReport } = await import('../db/scrape-attempt-queries.js');
-      vi.mock('../db/scrape-attempt-queries.js', () => ({
-        getScrapeAttemptsByReport: vi.fn(),
-      }));
       vi.mocked(getScrapeAttemptsByReport).mockResolvedValue(mockAttempts as any);
 
       const handler = getRouteHandler(router, '/:id/details', 'get');

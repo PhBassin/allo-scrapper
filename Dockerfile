@@ -37,8 +37,8 @@ FROM node:24-alpine AS frontend-builder
 ARG VITE_APP_NAME=Allo-Scrapper
 WORKDIR /app
 
-# Copy node_modules from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+# Copy deps stage, including nested workspace node_modules (workspaces keep their own typescript 7)
+COPY --from=deps /app ./
 # Copy root files needed for workspaces
 COPY package.json package-lock.json ./
 
@@ -58,8 +58,8 @@ FROM node:24-alpine AS backend-builder
 
 WORKDIR /app
 
-# Copy node_modules from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+# Copy deps stage, including nested workspace node_modules (workspaces keep their own typescript 7)
+COPY --from=deps /app ./
 # Copy root files
 COPY package.json package-lock.json ./
 

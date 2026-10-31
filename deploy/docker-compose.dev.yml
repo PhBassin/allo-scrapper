@@ -1,0 +1,79 @@
+# ---------------------------------------------------------------------------
+# Development / pre-prod override for docker-compose.yaml
+#
+# Usage (from /home/deploy/allo-scrapper on the VPS):
+#   docker compose -p allo-scrapper-dev \
+#     -f docker-compose.yaml -f deploy/docker-compose.dev.yml \
+#     --env-file .env.dev up -d
+#
+# Runs alongside the prod stack (project allo-scrapper) on the same VPS:
+#   - Reuses the prod Traefik (no second Traefik instance)
+#   - Has its own DB, Redis, Watchtower
+#   - Routes dev.cinemas.opelkad.com
+#   - Follows the :develop image tag
+# ---------------------------------------------------------------------------
+
+services:
+  # Do NOT publish ics-web on the host — prod Traefik proxies via ics-network
+  ics-web:
+    ports: !reset []
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+
+      # ---- Traefik routing (dev domain) ----
+      traefik.enable: "true"
+      traefik.docker.network: ics-network
+
+      # HTTPS router for dev
+      traefik.http.routers.allo-dev.entrypoints: websecure
+      traefik.http.routers.allo-dev.rule: Host(`${DOMAIN}`)
+      traefik.http.routers.allo-dev.tls: "true"
+      traefik.http.routers.allo-dev.tls.certresolver: letsencrypt
+      traefik.http.routers.allo-dev.service: allo-dev
+      traefik.http.routers.allo-dev.middlewares: allo-dev-secure
+
+      # Backend service (Express listens on 3000)
+      traefik.http.services.allo-dev.loadbalancer.server.port: "3000"
+      traefik.http.services.allo-dev.loadbalancer.healthcheck.path: /api/health
+      traefik.http.services.allo-dev.loadbalancer.healthcheck.interval: 30s
+      traefik.http.services.allo-dev.loadbalancer.healthcheck.timeout: 5s
+
+      # Security headers middleware
+      traefik.http.middlewares.allo-dev-secure.headers.stsSeconds: "31536000"
+      traefik.http.middlewares.allo-dev-secure.headers.stsIncludeSubdomains: "true"
+      traefik.http.middlewares.allo-dev-secure.headers.stsPreload: "true"
+      traefik.http.middlewares.allo-dev-secure.headers.contentTypeNosniff: "true"
+      traefik.http.middlewares.allo-dev-secure.headers.frameDeny: "true"
+      traefik.http.middlewares.allo-dev-secure.headers.referrerPolicy: "strict-origin-when-cross-origin"
+      traefik.http.middlewares.allo-dev-secure.headers.customresponseheaders.Server: ""
+
+  ics-scraper:
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+
+  ics-scraper-cron:
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+
+  # -------------------------------------------------------------------------
+  # Watchtower — polls ghcr.io every 5 min and rolls forward :develop
+  # Only updates containers with the watchtower.enable label.
+  # -------------------------------------------------------------------------
+  watchtower:
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    environment:
+      DOCKER_API_VERSION: "1.44"
+      WATCHTOWER_POLL_INTERVAL: 300
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - ics-network
+
+volumes:
+  # Dev-specific data volumes — isolated from prod
+  postgres-data:
+    name: allo-scrapper-dev_postgres-data

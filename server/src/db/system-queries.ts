@@ -1,4 +1,3 @@
-// fallow-ignore-file security-sink
 import type { DB } from './index.js';
 import fs from 'fs/promises';
 import path from 'path';

@@ -39,6 +39,7 @@ vi.mock('../api/client', () => ({
   getMoviesByDate: vi.fn(),
   getTheaters: vi.fn(),
   addTheater: vi.fn(),
+  searchMovies: vi.fn(),
 }));
 
 describe('HomePage', () => {
@@ -172,6 +173,25 @@ describe('HomePage — bouton Maintenant', () => {
     vi.useRealTimers();
   });
 
+  it('renders the FilterBar inside the sticky container', async () => {
+    renderHomePage();
+    await waitFor(() => expect(screen.queryByTestId('filter-bar')).toBeInTheDocument());
+    expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
+    expect(screen.getByTestId('sticky-search-date-container')).toBeInTheDocument();
+  });
+
+  it('renders the reset button in the FilterBar', async () => {
+    renderHomePage();
+    await waitFor(() => expect(screen.queryByTestId('filter-reset')).toBeInTheDocument());
+    expect(screen.getByTestId('filter-reset')).toBeInTheDocument();
+  });
+
+  it('does not render the old "Tous les jours" button', async () => {
+    renderHomePage();
+    await waitFor(() => expect(screen.queryByTestId('filter-bar')).toBeInTheDocument());
+    expect(screen.queryByTestId('day-selector-all')).not.toBeInTheDocument();
+  });
+
   it('renders the Maintenant button in the DaySelector', async () => {
     renderHomePage();
     await waitFor(() => expect(screen.queryByRole('button', { name: /maintenant/i })).toBeInTheDocument());
@@ -209,5 +229,23 @@ describe('HomePage — bouton Maintenant', () => {
     await waitFor(() => {
       expect(screen.getByText('Film Futur')).toBeInTheDocument();
     });
+  });
+
+  it('reset button clears the search input text (end-to-end)', async () => {
+    (clientApi.searchMovies as any).mockResolvedValue([
+      { id: 101, title: 'Film Passé', genres: [], actors: [], source_url: '' },
+    ]);
+
+    renderHomePage();
+    await waitFor(() => expect(screen.getByTestId('search-input')).toBeInTheDocument());
+
+    const input = screen.getByTestId('search-input') as HTMLInputElement;
+    await fireEvent.change(input, { target: { value: 'Film' } });
+
+    await waitFor(() => expect(input.value).toBe('Film'));
+
+    fireEvent.click(screen.getByTestId('filter-reset'));
+
+    await waitFor(() => expect(input.value).toBe(''));
   });
 });

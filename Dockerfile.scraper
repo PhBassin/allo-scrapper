@@ -21,8 +21,8 @@ COPY scraper/package.json ./scraper/
 COPY packages/scraper-protocol/package.json ./packages/scraper-protocol/
 
 # Install scraper workspace dependencies (including devDependencies for build)
-# Use --omit=optional to skip platform-specific bindings
-RUN npm install --workspace=allo-scrapper-scraper --legacy-peer-deps --include=dev --omit=optional && \
+# Optional deps are kept: TypeScript 7 ships its compiler as a platform-specific optional package
+RUN npm install --workspace=allo-scrapper-scraper --legacy-peer-deps --include=dev && \
     npm cache clean --force && \
     rm -rf ~/.npm /tmp/* /var/tmp/*
 
@@ -33,8 +33,9 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-# Copy node_modules from deps stage (everything is hoisted to the root).
-COPY --from=deps /app/node_modules ./node_modules
+# Copy node_modules from deps stage, including nested workspace node_modules
+# (root holds typescript 6 for typescript-eslint; workspaces keep their own typescript 7).
+COPY --from=deps /app ./
 
 # Copy root files
 COPY package.json package-lock.json ./

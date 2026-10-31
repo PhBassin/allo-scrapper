@@ -101,4 +101,16 @@ describe('DaySelector — bouton Maintenant', () => {
 
     expect(screen.getByRole('button', { name: /maintenant/i })).not.toHaveAttribute('data-now-active', 'true');
   });
+
+  it('does not render the "Tous les jours" button', () => {
+    render(
+      <DaySelector
+        weekStart={WEEK_START}
+        selectedDate={null}
+        onSelectDate={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByTestId('day-selector-all')).not.toBeInTheDocument();
+  });
 });

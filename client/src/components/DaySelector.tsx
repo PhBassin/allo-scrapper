@@ -69,18 +69,6 @@ function DaySelector({ weekStart, selectedDate, onSelectDate, onNow, isNowActive
           <span className="text-[11px] font-bold mt-0.5">Maintenant</span>
         </button>
 
-        <button
-          onClick={() => onSelectDate(null)}
-          className={`px-3 py-2 text-sm rounded-lg transition font-semibold cursor-pointer active:scale-95 flex flex-col items-center justify-center min-w-[68px] ${
-            selectedDate === null && !isNowActive
-              ? 'bg-primary text-black'
-              : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-          }`}
-          data-testid="day-selector-all"
-        >
-          <span className="text-[11px] font-bold leading-tight text-center">Tous les jours</span>
-        </button>
-
         {days.map((day) => (
           <button
             key={day.date}

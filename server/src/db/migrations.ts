@@ -1,4 +1,3 @@
-// fallow-ignore-file security-sink
 import { type DB } from './index.js';
 import { logger } from '../utils/logger.js';
 import { generateRandomPassword } from './user-queries.js';

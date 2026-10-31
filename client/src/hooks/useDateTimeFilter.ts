@@ -7,6 +7,7 @@ export interface DateTimeFilter {
   setAfterTime: (time: string | null) => void;
   selectDate: (date: string) => void;
   selectNow: (date: string, time: string) => void;
+  resetAll: () => void;
 }
 
 export function useDateTimeFilter(initialDate = ''): DateTimeFilter {
@@ -23,5 +24,10 @@ export function useDateTimeFilter(initialDate = ''): DateTimeFilter {
     setAfterTime(time);
   }, []);
 
-  return { selectedDate, setSelectedDate, afterTime, setAfterTime, selectDate, selectNow };
+  const resetAll = useCallback(() => {
+    setSelectedDate('');
+    setAfterTime(null);
+  }, []);
+
+  return { selectedDate, setSelectedDate, afterTime, setAfterTime, selectDate, selectNow, resetAll };
 }
