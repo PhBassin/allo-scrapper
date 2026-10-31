@@ -63,7 +63,8 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "fallow": "^3.30.0",
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "typescript": "~6.0.3"
   },
   "overrides": {
     "qs": "6.16.0",
