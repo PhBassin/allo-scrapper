@@ -144,22 +144,18 @@ export class AllocineScraperStrategy implements IScraperStrategy {
     private readonly delay: (ms: number) => Promise<void>,
   ) {}
 
-  // fallow-ignore-next-line unused-class-member
   canHandleUrl(url: string): boolean {
     return isValidAllocineUrl(url);
   }
 
-  // fallow-ignore-next-line unused-class-member
   extractTheaterId(url: string): string | null {
     return extractTheaterIdFromUrl(url);
   }
 
-  // fallow-ignore-next-line unused-class-member
   cleanTheaterUrl(url: string): string {
     return cleanTheaterUrl(url);
   }
 
-  // fallow-ignore-next-line unused-class-member
   async loadTheaterMetadata(
     db: DB,
     theater: TheaterConfig

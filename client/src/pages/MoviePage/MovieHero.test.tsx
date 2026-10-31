@@ -34,13 +34,9 @@ describe('MovieHero', () => {
       'src',
       'https://example.com/poster.jpg'
     );
-    // fallow-ignore-next-line code-duplication
     expect(screen.getByText(/1h 30min/)).toBeInTheDocument();
-    // fallow-ignore-next-line code-duplication
     expect(screen.getByText(/Jane Doe/)).toBeInTheDocument();
-    // fallow-ignore-next-line code-duplication
     expect(screen.getByText(/4\.5/)).toBeInTheDocument();
-    // fallow-ignore-next-line code-duplication
     expect(screen.getByText(/3\.7/)).toBeInTheDocument();
   });
 

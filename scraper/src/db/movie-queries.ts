@@ -29,7 +29,6 @@ function parseJsonArray(raw: string | null): string[] {
   return JSON.parse(raw ?? '[]');
 }
 
-// fallow-ignore-next-line code-duplication
 function mapMovieRow(row: MovieRow): Movie {
   const jsonArrays = {
     genres: parseJsonArray(row.genres),
@@ -50,7 +49,6 @@ function mapMovieRow(row: MovieRow): Movie {
     director: row.director ?? undefined,
     screenwriters: jsonArrays.screenwriters,
     actors: jsonArrays.actors,
-    // fallow-ignore-next-line code-duplication
     synopsis: row.synopsis ?? undefined,
     certificate: row.certificate ?? undefined,
     press_rating: row.press_rating ?? undefined,
@@ -75,7 +73,6 @@ export async function getMovie(db: DB, movieId: number): Promise<Movie | undefin
  * Sanitize numeric fields in a Movie object to prevent NaN/Infinity from being inserted.
  * Converts NaN and Infinity to null with warning logs.
  */
-// fallow-ignore-next-line code-duplication
 function sanitizeNumericValue(value: number | undefined | null, fieldName: string, movieId: number): number | null {
   if (value === undefined || value === null) return null;
   
