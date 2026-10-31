@@ -1,4 +1,4 @@
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 import { logger } from './logger.js';
 
 export interface ImageValidationResult {
@@ -53,7 +53,7 @@ export async function validateImage(
     const originalSize = buffer.length;
 
     // Validate with sharp
-    let image: sharp.Sharp;
+    let image: Sharp;
     try {
       image = sharp(buffer);
       const metadata = await image.metadata();
