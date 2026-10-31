@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.9.0] - 2026-10-31
+
+### Added
+
+- feat(client): unified filter bar with inline search, day selector, and reset button (#1248) [@PhBassin](https://github.com/PhBassin) (2ffc4cc1)
+- feat(deploy): add dev/pre-prod compose override for develop stack [@phbassin](https://github.com/phbassin) (ad85d53d)
+- feat(client): add FilterBar component with search, day selector, and reset [@phbassin](https://github.com/phbassin) (93d526dd)
+- feat(client): add optional onFilter prop to MovieSearchBar for inline filtering [@phbassin](https://github.com/phbassin) (79809501)
+- feat(client): add resetAll() to useDateTimeFilter hook [@phbassin](https://github.com/phbassin) (5091deb1)
+
+### Fixed
+
+- fix(ci): stop interpolating commit message into version-tag shell step (#1326) [@PhBassin](https://github.com/PhBassin) (0216249c)
+- fix(ci): stop interpolating commit message into version-tag shell step [@phbassin](https://github.com/phbassin) (2648926e)
+- fix(deps): patch react-router and brace-expansion vulnerabilities (#1319) [@PhBassin](https://github.com/PhBassin) (44d86323)
+- fix(deps): add root typescript 6 so eslint works with TypeScript 7 (#1321) [@PhBassin](https://github.com/PhBassin) (7adab002)
+- fix(docker): copy nested workspace node_modules into build stages [@phbassin](https://github.com/phbassin) (94aecbd7)
+- fix(deps): add root typescript 6 so typescript-eslint can load under TS 7 [@phbassin](https://github.com/phbassin) (da73e0f7)
+- fix(deps): bump react-router-dom to 7.18.5 and refresh brace-expansion [@phbassin](https://github.com/phbassin) (29aee2c1)
+- fix(docker): keep optional deps in scraper build stage for TypeScript 7 [@phbassin](https://github.com/phbassin) (4079b0a6)
+- fix(client): address open review gaps on FilterBar PR (#1247) [@phbassin](https://github.com/phbassin) (15308f7b)
+- fix(client): restore sticky filter bar and fix empty-search regression [@phbassin](https://github.com/phbassin) (3726bdcd)
+- fix(client): add missing useEffect dep, fix memo() defeat, remove outdated comment [@phbassin](https://github.com/phbassin) (1ce29e84)
+- fix(server,scraper): use UTC in getCurrentWeekStart to avoid timezone edge case [@phbassin](https://github.com/phbassin) (e5372266)
+- fix(ci): check skip-ci only in commit subject, not body (#1246) [@PhBassin](https://github.com/PhBassin) (404f208b)
+- fix(ci): check skip-ci only in commit subject, not body [@phbassin](https://github.com/phbassin) (db02211a)
+
+### Changed
+
+- refactor(client): replace sticky header with FilterBar in HomePage [@phbassin](https://github.com/phbassin) (c18e9861)
+- refactor(client): remove 'Tous les jours' button from DaySelector [@phbassin](https://github.com/phbassin) (9f4e6e7f)
+
+### Maintenance
+
+- chore(release): 4.8.1 → 4.9.0 — unified filter bar + security fixes (#1324) [@PhBassin](https://github.com/PhBassin) (6c1ff8ca)
+- chore: remove fallow code-analysis tool (#1323) [@PhBassin](https://github.com/PhBassin) (6163d7b0)
+- chore: remove fallow code-analysis tool [@phbassin](https://github.com/phbassin) (04f14ad8)
+- chore(dependabot): group security updates (#1317) [@PhBassin](https://github.com/PhBassin) (281f7359)
+- chore(dependabot): group security updates per ecosystem [@phbassin](https://github.com/phbassin) (ed42d9ae)
+- chore(deps): bump proxy-addr from 2.0.7 to 2.0.8 (#1315) [@PhBassin](https://github.com/PhBassin) (307642e1)
+- chore(deps): bundle all open Dependabot updates (#1302) [@PhBassin](https://github.com/PhBassin) (815b6bd2)
+- chore(deps): bundle all open Dependabot updates [@phbassin](https://github.com/phbassin) (ae6089a7)
+
 ## [4.8.1] - 2026-07-19
 
 ### Fixed
@@ -1149,6 +1192,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.9.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.8.1...v4.9.0
 [4.8.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.8.0...v4.8.1
 [4.8.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.4...v4.8.0
 [4.7.4]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.3...v4.7.4
