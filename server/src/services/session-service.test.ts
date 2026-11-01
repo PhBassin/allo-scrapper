@@ -218,7 +218,7 @@ describe('SessionService', () => {
         role_name: 'operator',
         is_system_role: false,
       });
-      vi.mocked(refreshTokenRepo.rotateRefreshToken).mockResolvedValue(null);
+      vi.mocked(refreshTokenRepo.rotateRefreshToken).mockResolvedValue({ status: 'race' });
 
       const res = buildRes();
       const session = new SessionService(db, res);
@@ -235,6 +235,30 @@ describe('SessionService', () => {
       expect(res.cookie).not.toHaveBeenCalled();
     });
 
+    it('writes a plain 401 that clears the cookies when the token is revoked on purpose during rotation', async () => {
+      vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue({ status: 'valid', userId: 5 });
+      vi.mocked(userQueries.getUserWithRoleById).mockResolvedValue({
+        id: 5,
+        username: 'alice',
+        role_id: 2,
+        role_name: 'operator',
+        is_system_role: false,
+      });
+      vi.mocked(refreshTokenRepo.rotateRefreshToken).mockResolvedValue({ status: 'rejected' });
+
+      const res = buildRes();
+      const session = new SessionService(db, res);
+
+      await session.refresh('revoked-meanwhile');
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      const body = vi.mocked(res.json).mock.calls[0][0];
+      expect(body).toEqual({ success: false, error: 'Invalid or expired refresh token.' });
+      expect(res.clearCookie).toHaveBeenCalledWith('refresh_token', expect.any(Object));
+      expect(res.clearCookie).toHaveBeenCalledWith('access_token', expect.any(Object));
+      expect(authMock.mintAccessToken).not.toHaveBeenCalled();
+    });
+
     it('rotates the token, mints an access token, and writes the session on success', async () => {
       vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue({ status: 'valid', userId: 5 });
       vi.mocked(userQueries.getUserWithRoleById).mockResolvedValue({
@@ -244,7 +268,7 @@ describe('SessionService', () => {
         role_name: 'operator',
         is_system_role: false,
       });
-      vi.mocked(refreshTokenRepo.rotateRefreshToken).mockResolvedValue('new-refresh');
+      vi.mocked(refreshTokenRepo.rotateRefreshToken).mockResolvedValue({ status: 'rotated', token: 'new-refresh' });
       authMock.mintAccessToken.mockResolvedValue('access-jwt');
       vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue(['scraper:trigger']);
 

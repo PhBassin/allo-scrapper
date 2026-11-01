@@ -205,12 +205,18 @@ export class SessionService {
 
     // Atomically rotate the refresh token, then mint a fresh access token via
     // the canonical AuthService seam (same payload shape as login).
-    const newRefreshToken = await rotateRefreshToken(this.db, userId, refreshToken);
-    if (newRefreshToken === null) {
+    const rotation = await rotateRefreshToken(this.db, userId, refreshToken);
+    if (rotation.status === 'race') {
       // Lost the rotation race to a concurrent request presenting the same token.
       this.rejectRefreshRace();
       return;
     }
+    if (rotation.status === 'rejected') {
+      // Revoked on purpose (logout, password change, admin action) meanwhile.
+      this.rejectUnauthorized('Invalid or expired refresh token.');
+      return;
+    }
+    const newRefreshToken = rotation.token;
     const accessToken = await this.auth.mintAccessToken(user, this.db);
     const permissions = (await getPermissionNamesByRoleId(
       this.db,

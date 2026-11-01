@@ -21,6 +21,12 @@ interface RefreshTokenRow {
   revoked_at: Date | null;
   /** Set when the token was revoked by rotation: the token that replaced it. */
   replaced_by_id: number | null;
+  /**
+   * Computed by the database: revoked less than `REUSE_GRACE_MS` ago. Measured
+   * against the same clock that wrote `revoked_at`, so app/DB clock skew
+   * cannot shift the grace window.
+   */
+  in_reuse_grace: boolean;
 }
 
 /** Anything that can run a query — the pool or a transaction client. */
@@ -38,8 +44,20 @@ export type RefreshTokenCheck =
   | { status: 'race' }
   | { status: 'rejected' };
 
-const REJECTED: RefreshTokenCheck = { status: 'rejected' };
-const RACE: RefreshTokenCheck = { status: 'race' };
+/**
+ * Outcome of rotating a validated refresh token:
+ * - `rotated`: `token` is the raw successor.
+ * - `race`: a concurrent refresh rotated it first (same meaning as above).
+ * - `rejected`: it was revoked on purpose (logout, password change, admin
+ *   action) in the meantime.
+ */
+export type RefreshTokenRotation =
+  | { status: 'rotated'; token: string }
+  | { status: 'race' }
+  | { status: 'rejected' };
+
+const REJECTED = { status: 'rejected' } as const;
+const RACE = { status: 'race' } as const;
 
 const DEFAULT_EXPIRY_MS = parseRefreshTokenExpiry();
 
@@ -103,10 +121,11 @@ async function findByTokenHash(
   tokenHash: string
 ): Promise<RefreshTokenRow | undefined> {
   const result = await db.query<RefreshTokenRow>(
-    `SELECT id, user_id, token_hash, expires_at, created_at, revoked_at, replaced_by_id
+    `SELECT id, user_id, token_hash, expires_at, created_at, revoked_at, replaced_by_id,
+            COALESCE(revoked_at > NOW() - INTERVAL '1 millisecond' * $2::integer, false) AS in_reuse_grace
      FROM refresh_tokens
      WHERE token_hash = $1`,
-    [tokenHash]
+    [tokenHash, REUSE_GRACE_MS]
   );
   return result.rows[0];
 }
@@ -122,12 +141,14 @@ async function findSuccessor(
   return result.rows[0];
 }
 
-async function revokeByTokenHash(db: DB, tokenHash: string): Promise<void> {
-  await db.query(
+/** Returns whether a live token was revoked. */
+async function revokeByTokenHash(db: DB, tokenHash: string): Promise<boolean> {
+  const result = await db.query(
     `UPDATE refresh_tokens SET revoked_at = NOW()
      WHERE token_hash = $1 AND revoked_at IS NULL`,
     [tokenHash]
   );
+  return (result.rowCount ?? 0) > 0;
 }
 
 async function revokeById(db: DB, id: number): Promise<void> {
@@ -165,8 +186,8 @@ async function cleanupExpired(db: DB, retentionDays: number): Promise<number> {
  * transaction. Both hashes are computed within this module — callers never
  * supply pre-hashed values. The old token records its successor in
  * `replaced_by_id`, which is what marks it as rotated rather than revoked.
- * Returns false (and inserts nothing) if the old token is not found / already
- * revoked (rowCount = 0).
+ * If the old token is no longer live (rowCount = 0), inserts nothing and tells
+ * a concurrent rotation (`race`) from a deliberate revocation (`rejected`).
  */
 async function rotateRefreshTokenTx(
   db: DB,
@@ -174,7 +195,7 @@ async function rotateRefreshTokenTx(
   oldTokenHash: string,
   newTokenHash: string,
   expiresAt: Date
-): Promise<boolean> {
+): Promise<'rotated' | 'race' | 'rejected'> {
   return db.transaction(async (client) => {
     const updateResult = await client.query(
       `UPDATE refresh_tokens SET revoked_at = NOW()
@@ -184,7 +205,13 @@ async function rotateRefreshTokenTx(
     );
 
     if ((updateResult.rowCount ?? 0) === 0) {
-      return false;
+      const current = await client.query(
+        `SELECT replaced_by_id FROM refresh_tokens WHERE token_hash = $1`,
+        [oldTokenHash]
+      );
+      const rotatedMeanwhile = (current.rows[0] as Pick<RefreshTokenRow, 'replaced_by_id'> | undefined)
+        ?.replaced_by_id != null;
+      return rotatedMeanwhile ? 'race' : 'rejected';
     }
 
     const insertResult = await client.query(
@@ -198,7 +225,7 @@ async function rotateRefreshTokenTx(
       `UPDATE refresh_tokens SET replaced_by_id = $1 WHERE id = $2`,
       [insertResult.rows[0].id, updateResult.rows[0].id]
     );
-    return true;
+    return 'rotated';
   });
 }
 
@@ -258,8 +285,7 @@ export async function validateRefreshToken(
       logger.debug(`Revoked refresh token presented for user ${record.user_id}`);
       return REJECTED;
     }
-    const revokedForMs = Date.now() - new Date(record.revoked_at).getTime();
-    if (revokedForMs <= REUSE_GRACE_MS) {
+    if (record.in_reuse_grace) {
       logger.debug(`Refresh token presented within reuse grace window for user ${record.user_id}`);
       return RACE;
     }
@@ -291,14 +317,26 @@ async function handleRotatedTokenReplay(
 }
 
 /**
- * Revoke a specific refresh token by its raw value.
+ * Revoke a specific refresh token by its raw value (logout).
+ *
+ * Logging out with an already *rotated* token means this browser never
+ * received the successor — it went to a concurrent request that never
+ * delivered it, or to whoever stole the token (typically after a lost
+ * `REFRESH_RACE`). So the successor branch is handled as a replay, whatever
+ * the grace window says: an honest browser always logs out with its latest
+ * token.
  */
 export async function revokeRefreshToken(
   db: DB,
   rawToken: string,
 ): Promise<void> {
   const tokenHash = hashToken(rawToken);
-  await revokeByTokenHash(db, tokenHash);
+  if (await revokeByTokenHash(db, tokenHash)) return;
+
+  const record = await findByTokenHash(db, tokenHash);
+  if (record?.replaced_by_id != null) {
+    await handleRotatedTokenReplay(db, record.user_id, record.replaced_by_id);
+  }
 }
 
 /**
@@ -306,28 +344,32 @@ export async function revokeRefreshToken(
  * inside a single database transaction. If any part fails, the entire operation
  * is rolled back — no two-token state can persist.
  *
- * Returns the raw new token on success, or null when the old token was
- * consumed concurrently (another request rotated it after validation).
+ * See `RefreshTokenRotation`: the old token may have been rotated by a
+ * concurrent request or revoked on purpose after validation.
  */
 export async function rotateRefreshToken(
   db: DB,
   userId: number,
   oldToken: string,
   expiryMs: number = DEFAULT_EXPIRY_MS,
-): Promise<string | null> {
+): Promise<RefreshTokenRotation> {
   const oldTokenHash = hashToken(oldToken);
   const rawToken = crypto.randomBytes(48).toString('base64url');
   const newTokenHash = hashToken(rawToken);
   const expiresAt = new Date(Date.now() + expiryMs);
 
-  const rotated = await rotateRefreshTokenTx(db, userId, oldTokenHash, newTokenHash, expiresAt);
-  if (!rotated) {
-    logger.debug(`Refresh token already consumed during rotation for user ${userId}`);
-    return null;
+  const outcome = await rotateRefreshTokenTx(db, userId, oldTokenHash, newTokenHash, expiresAt);
+  if (outcome === 'race') {
+    logger.debug(`Refresh token already rotated concurrently for user ${userId}`);
+    return RACE;
+  }
+  if (outcome === 'rejected') {
+    logger.debug(`Refresh token revoked before its rotation for user ${userId}`);
+    return REJECTED;
   }
 
   logger.debug(`Refresh token rotated for user ${userId}`);
-  return rawToken;
+  return { status: 'rotated', token: rawToken };
 }
 
 /**

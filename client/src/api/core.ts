@@ -4,6 +4,8 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const REFRESH_TIMEOUT_MS = 10000;
 const REFRESH_LOCK_NAME = 'auth-refresh';
 const REFRESH_RACE_CODE = 'REFRESH_RACE';
+const RACE_SETTLE_TIMEOUT_MS = 3000;
+const RACE_SETTLE_POLL_MS = 50;
 
 let refreshPromise: Promise<boolean> | null = null;
 let unauthorizedDispatched = false;
@@ -16,7 +18,7 @@ function getCsrfToken(): string | null {
 /**
  * A concurrent refresh (another tab, a retry) rotated the token first. The
  * server leaves our cookies alone in that case and the winner's response
- * carries the fresh ones, so retrying the original request is enough.
+ * carries the fresh ones.
  */
 async function isRefreshRace(response: Response): Promise<boolean> {
   if (response.status !== 401) return false;
@@ -26,6 +28,23 @@ async function isRefreshRace(response: Response): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * After a lost race, the winner's response may still be in flight: wait until
+ * its fresh cookies land (every refresh plants a new csrf_token) before the
+ * original request is retried. If they never do, nobody in this browser got
+ * the successor token, so the refresh failed — the ensuing logout presents
+ * our stale token, which lets the server kill the successor branch.
+ */
+async function waitForNewCsrfCookie(previous: string | null): Promise<boolean> {
+  for (let waited = 0; waited < RACE_SETTLE_TIMEOUT_MS; waited += RACE_SETTLE_POLL_MS) {
+    const current = getCsrfToken();
+    if (current && current !== previous) return true;
+    await new Promise((resolve) => setTimeout(resolve, RACE_SETTLE_POLL_MS));
+  }
+  const current = getCsrfToken();
+  return current !== null && current !== previous;
 }
 
 async function refreshAccessToken(): Promise<boolean> {
@@ -48,14 +67,15 @@ async function refreshAccessToken(): Promise<boolean> {
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) return isRefreshRace(response);
+    if (!response.ok) {
+      return (await isRefreshRace(response)) ? waitForNewCsrfCookie(csrfToken) : false;
+    }
 
     const data = await response.json();
     if (data.success) {
       if (data.data?.user) {
         localStorage.setItem('user', JSON.stringify(data.data.user));
       }
-      unauthorizedDispatched = false;
       return true;
     }
     return false;
@@ -160,9 +180,16 @@ async function refreshAcrossTabs(): Promise<boolean> {
 
 async function getRefreshedSession(): Promise<boolean> {
   if (!refreshPromise) {
-    refreshPromise = refreshAcrossTabs().finally(() => {
-      refreshPromise = null;
-    });
+    refreshPromise = refreshAcrossTabs()
+      .then((refreshed) => {
+        // However the session was renewed (own refresh, another tab, a lost
+        // race), a later expiry must be reported again.
+        if (refreshed) unauthorizedDispatched = false;
+        return refreshed;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
   }
   return refreshPromise;
 }
