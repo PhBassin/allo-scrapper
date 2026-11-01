@@ -117,6 +117,8 @@ app.use(errorHandler);
 describe('Auth Routes', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // Run transaction callbacks against the mock db itself
+        vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(db));
     });
 
     describe('POST /api/auth/login', () => {

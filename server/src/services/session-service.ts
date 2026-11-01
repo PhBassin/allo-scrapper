@@ -7,7 +7,6 @@ import {
   validateRefreshToken,
   revokeRefreshToken,
   rotateRefreshToken,
-  revokeAllUserTokens,
   parseRefreshTokenExpiry,
 } from '../repositories/refresh-token-repository.js';
 import { getUserWithRoleById } from '../db/user-queries.js';
@@ -252,21 +251,18 @@ export class SessionService {
   }
 
   /**
-   * Change the user's password, revoke every refresh token (forces re-login
-   * on all devices), clear the local cookie surface, and write the success
-   * response. Throws on auth/db failure so the route forwards to the error
-   * handler — the revocation, cookie clear, and response only run on a
-   * successful password change.
+   * Change the user's password — which revokes every refresh token in the
+   * same transaction (forces re-login on all devices) — clear the local
+   * cookie surface, and write the success response. Throws on auth/db failure
+   * so the route forwards to the error handler — the cookie clear and
+   * response only run on a successful password change.
    */
   async changePassword(
-    userId: number,
     username: string,
     currentPassword: string,
     newPassword: string,
   ): Promise<void> {
     await this.auth.changePassword(username, currentPassword, newPassword);
-
-    await revokeAllUserTokens(this.db, userId);
 
     this.clearRefreshTokenCookie();
     this.clearAccessTokenCookie();
