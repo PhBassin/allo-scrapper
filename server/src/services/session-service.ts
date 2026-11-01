@@ -31,6 +31,8 @@ import { logger } from '../utils/logger.js';
  */
 
 const ACCESS_TOKEN_MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes
+/** Error `code` of a refresh that lost a rotation race (client retries). */
+export const REFRESH_RACE_CODE = 'REFRESH_RACE';
 /** Single source of truth for the refresh-token lifetime (token + cookie). */
 const REFRESH_TOKEN_MAX_AGE_MS = parseRefreshTokenExpiry();
 const isSecureCookies = process.env.COOKIE_SECURE !== 'false';
@@ -125,6 +127,19 @@ export class SessionService {
     this.res.status(401).json({ success: false, error: message });
   }
 
+  /**
+   * A concurrent refresh already rotated this token. Its response carries the
+   * fresh cookies, so this one must NOT clear them (the browser may apply it
+   * last); `code` tells the client to retry with the cookies it now holds.
+   */
+  private rejectRefreshRace(): void {
+    this.res.status(401).json({
+      success: false,
+      error: 'Refresh token already rotated by a concurrent request.',
+      code: REFRESH_RACE_CODE,
+    });
+  }
+
   // -------------------------------------------------------------------------
   // Lifecycle (public)
   // -------------------------------------------------------------------------
@@ -160,9 +175,10 @@ export class SessionService {
    * response to `res` — the success JSON + cookies, or a 401 — so the route
    * is a void shim.
    *
-   * 401 cases (missing / invalid / unknown-user / concurrently-consumed
-   * token) clear the cookie surface rather than throwing, matching the prior
-   * handler's behavior.
+   * 401 cases (missing / invalid / unknown-user token) clear the cookie
+   * surface rather than throwing, matching the prior handler's behavior. A
+   * token already rotated by a concurrent request (grace window or lost
+   * rotation) gets a `REFRESH_RACE` 401 that leaves the cookies alone.
    */
   async refresh(refreshToken?: string): Promise<void> {
     if (!refreshToken) {
@@ -170,11 +186,16 @@ export class SessionService {
       return;
     }
 
-    const userId = await validateRefreshToken(this.db, refreshToken);
-    if (userId === null) {
+    const check = await validateRefreshToken(this.db, refreshToken);
+    if (check.status === 'race') {
+      this.rejectRefreshRace();
+      return;
+    }
+    if (check.status === 'rejected') {
       this.rejectUnauthorized('Invalid or expired refresh token.');
       return;
     }
+    const { userId } = check;
 
     const user = await getUserWithRoleById(this.db, userId);
     if (!user) {
@@ -187,7 +208,7 @@ export class SessionService {
     const newRefreshToken = await rotateRefreshToken(this.db, userId, refreshToken);
     if (newRefreshToken === null) {
       // Lost the rotation race to a concurrent request presenting the same token.
-      this.rejectUnauthorized('Invalid or expired refresh token.');
+      this.rejectRefreshRace();
       return;
     }
     const accessToken = await this.auth.mintAccessToken(user, this.db);

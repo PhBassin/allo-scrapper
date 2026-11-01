@@ -246,6 +246,33 @@ describe('apiClient', () => {
       expect(listener).toHaveBeenCalledTimes(1);
       window.removeEventListener('auth:unauthorized', listener);
     });
+
+    it('refreshes itself when another tab cleared the CSRF cookie (logout) while waiting', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      stubLocks(() => {
+        document.cookie = 'csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      });
+      const { calls } = mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 401, body: { error: 'Invalid or expired refresh token.' } },
+      ]);
+
+      await expect(apiClient.get('/protected')).rejects.toMatchObject({ status: 401 });
+      expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/auth/refresh']);
+    });
+  });
+
+  it('retries the original request when the refresh lost a rotation race (REFRESH_RACE)', async () => {
+    const { calls } = mockFetchSequence([
+      { status: 401, body: { error: 'expired' } },
+      { status: 401, body: { success: false, error: 'already rotated', code: 'REFRESH_RACE' } },
+      { status: 200, body: { ok: 'with-winner-cookies' } },
+    ]);
+
+    const data = await apiClient.get('/protected');
+
+    expect(data).toEqual({ ok: 'with-winner-cookies' });
+    expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/auth/refresh', '/api/protected']);
   });
 
   it('wraps network errors as ApiError with status 0', async () => {

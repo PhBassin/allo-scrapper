@@ -19,7 +19,27 @@ interface RefreshTokenRow {
   expires_at: Date;
   created_at: Date;
   revoked_at: Date | null;
+  /** Set when the token was revoked by rotation: the token that replaced it. */
+  replaced_by_id: number | null;
 }
+
+/** Anything that can run a query — the pool or a transaction client. */
+type Queryable = Pick<DB, 'query'>;
+
+/**
+ * Outcome of presenting a refresh token:
+ * - `valid`: the token is live; `userId` owns it.
+ * - `race`: the token was rotated less than `REUSE_GRACE_MS` ago — a
+ *   concurrent refresh won, and its fresh cookies supersede this one.
+ * - `rejected`: unknown, expired, revoked, or replayed.
+ */
+export type RefreshTokenCheck =
+  | { status: 'valid'; userId: number }
+  | { status: 'race' }
+  | { status: 'rejected' };
+
+const REJECTED: RefreshTokenCheck = { status: 'rejected' };
+const RACE: RefreshTokenCheck = { status: 'race' };
 
 const DEFAULT_EXPIRY_MS = parseRefreshTokenExpiry();
 
@@ -83,10 +103,21 @@ async function findByTokenHash(
   tokenHash: string
 ): Promise<RefreshTokenRow | undefined> {
   const result = await db.query<RefreshTokenRow>(
-    `SELECT id, user_id, token_hash, expires_at, created_at, revoked_at
+    `SELECT id, user_id, token_hash, expires_at, created_at, revoked_at, replaced_by_id
      FROM refresh_tokens
      WHERE token_hash = $1`,
     [tokenHash]
+  );
+  return result.rows[0];
+}
+
+async function findSuccessor(
+  db: DB,
+  id: number
+): Promise<Pick<RefreshTokenRow, 'id' | 'replaced_by_id'> | undefined> {
+  const result = await db.query<Pick<RefreshTokenRow, 'id' | 'replaced_by_id'>>(
+    `SELECT id, replaced_by_id FROM refresh_tokens WHERE id = $1`,
+    [id]
   );
   return result.rows[0];
 }
@@ -99,7 +130,15 @@ async function revokeByTokenHash(db: DB, tokenHash: string): Promise<void> {
   );
 }
 
-async function revokeByUserId(db: DB, userId: number): Promise<void> {
+async function revokeById(db: DB, id: number): Promise<void> {
+  await db.query(
+    `UPDATE refresh_tokens SET revoked_at = NOW()
+     WHERE id = $1 AND revoked_at IS NULL`,
+    [id]
+  );
+}
+
+async function revokeByUserId(db: Queryable, userId: number): Promise<void> {
   await db.query(
     `UPDATE refresh_tokens SET revoked_at = NOW()
      WHERE user_id = $1 AND revoked_at IS NULL`,
@@ -124,8 +163,10 @@ async function cleanupExpired(db: DB, retentionDays: number): Promise<number> {
 /**
  * Internal: atomically revoke an old token and insert a new one inside a
  * transaction. Both hashes are computed within this module — callers never
- * supply pre-hashed values. Returns false (and inserts nothing) if the old
- * token is not found / already revoked (rowCount = 0).
+ * supply pre-hashed values. The old token records its successor in
+ * `replaced_by_id`, which is what marks it as rotated rather than revoked.
+ * Returns false (and inserts nothing) if the old token is not found / already
+ * revoked (rowCount = 0).
  */
 async function rotateRefreshTokenTx(
   db: DB,
@@ -137,7 +178,8 @@ async function rotateRefreshTokenTx(
   return db.transaction(async (client) => {
     const updateResult = await client.query(
       `UPDATE refresh_tokens SET revoked_at = NOW()
-       WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL`,
+       WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL
+       RETURNING id`,
       [oldTokenHash, userId]
     );
 
@@ -145,10 +187,16 @@ async function rotateRefreshTokenTx(
       return false;
     }
 
-    await client.query(
+    const insertResult = await client.query(
       `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-       VALUES ($1, $2, $3)`,
+       VALUES ($1, $2, $3)
+       RETURNING id`,
       [userId, newTokenHash, expiresAt]
+    );
+
+    await client.query(
+      `UPDATE refresh_tokens SET replaced_by_id = $1 WHERE id = $2`,
+      [insertResult.rows[0].id, updateResult.rows[0].id]
     );
     return true;
   });
@@ -178,46 +226,68 @@ export async function generateRefreshToken(
 }
 
 /**
- * Validate a refresh token and return the associated user ID.
- * Returns null if token is invalid, expired, or revoked.
+ * Check a presented refresh token (see `RefreshTokenCheck`).
  *
- * Reuse detection: a token presented more than `REUSE_GRACE_MS` after its
- * revocation is a theft signal (either the attacker or the real user is
- * replaying a rotated copy), so every refresh token of the user is revoked.
- * Inside the grace window it is the legitimate concurrent-refresh race and
- * only this request is rejected.
+ * Reuse detection only concerns tokens revoked by *rotation*
+ * (`replaced_by_id` set): a token revoked on purpose (logout, password change,
+ * admin action) is simply rejected. A rotated token presented more than
+ * `REUSE_GRACE_MS` after its rotation is a replay:
+ * - if its successor was itself rotated, two parties hold diverging copies of
+ *   the session — a theft signal, so every refresh token of the user is
+ *   revoked;
+ * - otherwise the successor was never used (typically a refresh response lost
+ *   on the network, or a thief that has not refreshed yet), so only that
+ *   successor is revoked: the replayed branch dies, the user's other Sessions
+ *   live on.
+ * Inside the grace window it is the legitimate concurrent-refresh race.
  */
 export async function validateRefreshToken(
   db: DB,
   rawToken: string,
-): Promise<number | null> {
+): Promise<RefreshTokenCheck> {
   const tokenHash = hashToken(rawToken);
 
   const record = await findByTokenHash(db, tokenHash);
 
   if (!record) {
-    return null;
+    return REJECTED;
   }
 
   if (record.revoked_at !== null) {
+    if (record.replaced_by_id === null) {
+      logger.debug(`Revoked refresh token presented for user ${record.user_id}`);
+      return REJECTED;
+    }
     const revokedForMs = Date.now() - new Date(record.revoked_at).getTime();
     if (revokedForMs <= REUSE_GRACE_MS) {
       logger.debug(`Refresh token presented within reuse grace window for user ${record.user_id}`);
-      return null;
+      return RACE;
     }
-    await revokeByUserId(db, record.user_id);
-    logger.warn('Security: refresh token reuse detected, all sessions revoked', {
-      userId: record.user_id,
-    });
-    return null;
+    await handleRotatedTokenReplay(db, record.user_id, record.replaced_by_id);
+    return REJECTED;
   }
 
   if (new Date(record.expires_at) < new Date()) {
     logger.debug(`Refresh token expired for user ${record.user_id}`);
-    return null;
+    return REJECTED;
   }
 
-  return record.user_id;
+  return { status: 'valid', userId: record.user_id };
+}
+
+async function handleRotatedTokenReplay(
+  db: DB,
+  userId: number,
+  successorId: number,
+): Promise<void> {
+  const successor = await findSuccessor(db, successorId);
+  if (successor?.replaced_by_id != null) {
+    await revokeByUserId(db, userId);
+    logger.warn('Security: refresh token reuse detected, all sessions revoked', { userId });
+    return;
+  }
+  await revokeById(db, successorId);
+  logger.warn('Security: rotated refresh token replayed, its unused successor revoked', { userId });
 }
 
 /**
@@ -262,9 +332,11 @@ export async function rotateRefreshToken(
 
 /**
  * Revoke all refresh tokens for a user (e.g., on password change or logout-all).
+ * Accepts a transaction client so callers can revoke atomically with the
+ * change that motivates it.
  */
 export async function revokeAllUserTokens(
-  db: DB,
+  db: Queryable,
   userId: number,
 ): Promise<void> {
   await revokeByUserId(db, userId);
