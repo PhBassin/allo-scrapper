@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { parseJwtExpiration } from './jwt-config.js';
+import { describe, it, expect, afterEach } from 'vitest';
+import { parseJwtExpiration, getJwtExpiresIn, getAccessTokenMaxAgeMs } from './jwt-config.js';
 
 describe('parseJwtExpiration', () => {
   describe('human-readable formats', () => {
@@ -63,6 +63,10 @@ describe('parseJwtExpiration', () => {
       expect(() => parseJwtExpiration('0')).toThrow('Invalid JWT_EXPIRES_IN format');
     });
 
+    it('should throw on a zero human-readable duration: 0m', () => {
+      expect(() => parseJwtExpiration('0m')).toThrow('Invalid JWT_EXPIRES_IN format');
+    });
+
     it('should throw on decimal numbers', () => {
       expect(() => parseJwtExpiration('3.14')).toThrow('Invalid JWT_EXPIRES_IN format');
     });
@@ -76,5 +80,46 @@ describe('parseJwtExpiration', () => {
     it('should throw on mixed format: 24hours', () => {
       expect(() => parseJwtExpiration('24hours')).toThrow('Invalid JWT_EXPIRES_IN format');
     });
+  });
+});
+
+describe('access-token lifetime', () => {
+  const originalEnv = process.env.JWT_EXPIRES_IN;
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env.JWT_EXPIRES_IN;
+    } else {
+      process.env.JWT_EXPIRES_IN = originalEnv;
+    }
+  });
+
+  it('defaults to 15 minutes when JWT_EXPIRES_IN is unset', () => {
+    delete process.env.JWT_EXPIRES_IN;
+    expect(getJwtExpiresIn()).toBe('15m');
+    expect(getAccessTokenMaxAgeMs()).toBe(15 * 60 * 1000);
+  });
+
+  it('follows a human-readable JWT_EXPIRES_IN', () => {
+    process.env.JWT_EXPIRES_IN = '2h';
+    expect(getJwtExpiresIn()).toBe('2h');
+    expect(getAccessTokenMaxAgeMs()).toBe(2 * 60 * 60 * 1000);
+  });
+
+  it('treats a numeric JWT_EXPIRES_IN as seconds, like jwt.sign', () => {
+    process.env.JWT_EXPIRES_IN = '600';
+    expect(getAccessTokenMaxAgeMs()).toBe(600 * 1000);
+  });
+
+  it('converts every unit, trimming whitespace', () => {
+    process.env.JWT_EXPIRES_IN = ' 90s ';
+    expect(getAccessTokenMaxAgeMs()).toBe(90 * 1000);
+    process.env.JWT_EXPIRES_IN = '1d';
+    expect(getAccessTokenMaxAgeMs()).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it('throws on an invalid JWT_EXPIRES_IN', () => {
+    process.env.JWT_EXPIRES_IN = 'abc';
+    expect(() => getAccessTokenMaxAgeMs()).toThrow('Invalid JWT_EXPIRES_IN format');
   });
 });

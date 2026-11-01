@@ -108,7 +108,7 @@ This adds variables needed for development mode (`docker-compose.dev.yml`):
 |----------|---------|
 | `TZ` | `Europe/Paris` |
 | `LOG_LEVEL` | `info` |
-| `JWT_EXPIRES_IN` | `24h` |
+| `JWT_EXPIRES_IN` | `15m` |
 | `PORT` | `3000` |
 
 ### Scraper
@@ -177,7 +177,7 @@ The following variables are **hardcoded** inside `docker-compose.yaml` and do **
 | `AUTO_MIGRATE` | `true` | ics-web |
 | `LOG_LEVEL` | `info` | All |
 | `TZ` | `Europe/Paris` | All |
-| `JWT_EXPIRES_IN` | `1h` | ics-web |
+| `JWT_EXPIRES_IN` | `15m` | ics-web |
 | `RUN_MODE` | `consumer` / `cron` | ics-scraper / ics-scraper-cron |
 | `SCRAPE_MODE` | `from_today_limited` / `weekly` | ics-scraper / ics-scraper-cron |
 | `SCRAPE_DAYS` | `7` | ics-scraper, ics-scraper-cron |

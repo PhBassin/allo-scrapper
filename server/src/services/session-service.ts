@@ -14,6 +14,7 @@ import { getUserWithRoleById } from '../db/user-queries.js';
 import { getPermissionNamesByRoleId } from '../db/role-queries.js';
 import type { PermissionName } from '../types/role.js';
 import { logger } from '../utils/logger.js';
+import { getAccessTokenMaxAgeMs } from '../utils/jwt-config.js';
 
 /**
  * Session — the user-auth credential lifecycle for one request.
@@ -26,11 +27,12 @@ import { logger } from '../utils/logger.js';
  * The refresh-token lifetime is declared in exactly one place —
  * `parseRefreshTokenExpiry` (driven by `REFRESH_TOKEN_EXPIRY`) — and both the
  * persisted token expiry and the refresh cookie's `maxAge` read from it.
+ * Likewise the access-token lifetime lives only in `getAccessTokenMaxAgeMs`
+ * (driven by `JWT_EXPIRES_IN`), read by both the JWT `exp` and its cookie.
  *
  * See `CONTEXT.md` → *Session*.
  */
 
-const ACCESS_TOKEN_MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes
 /** Error `code` of a refresh that lost a rotation race (client retries). */
 export const REFRESH_RACE_CODE = 'REFRESH_RACE';
 /** Single source of truth for the refresh-token lifetime (token + cookie). */
@@ -75,7 +77,7 @@ export class SessionService {
       httpOnly: true,
       secure: isSecureCookies,
       sameSite: 'lax',
-      maxAge: ACCESS_TOKEN_MAX_AGE_MS,
+      maxAge: getAccessTokenMaxAgeMs(),
       path: '/',
     });
   }

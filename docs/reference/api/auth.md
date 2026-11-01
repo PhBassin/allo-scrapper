@@ -254,33 +254,28 @@ curl -X POST http://localhost:3000/api/auth/login \
 
 All JWT tokens issued by the `/api/auth/login` endpoint have a configurable expiration time:
 
-- **Default**: 1 hour from issue time
+- **Default**: 15 minutes from issue time
+- **Cookie**: the `access_token` cookie `maxAge` is derived from the same value, so the cookie never outlives the JWT
 - **Configuration**: Set via `JWT_EXPIRES_IN` environment variable
 - **Format**: Any valid `jsonwebtoken` duration string (e.g., `1h`, `7d`, `30m`)
 - **Algorithm**: HS256 (HMAC with SHA-256)
-- **No Refresh Tokens**: Users must re-login after expiry
+- **Silent renewal**: on a 401 the client calls `POST /api/auth/refresh` (refresh-token cookie) and retries, so expiry is invisible to the user
 
 **Example Configuration:**
 ```env
-JWT_EXPIRES_IN=1h  # Default: 1 hour
-JWT_EXPIRES_IN=7d   # Alternative: 7 days
+JWT_EXPIRES_IN=15m  # Default: 15 minutes
 JWT_EXPIRES_IN=30m  # Alternative: 30 minutes
+JWT_EXPIRES_IN=1h   # Alternative: 1 hour
 ```
 
 ### Client-Side Behavior
 
-The React client implements **proactive token expiry handling**:
+The React client renews the access token silently (`client/src/api/core.ts`):
 
-1. **At Login**: Client decodes JWT to extract `exp` (expiry timestamp)
-2. **Timer Set**: `setTimeout` scheduled to fire exactly when token expires
-3. **Auto-Logout**: When timer fires, user is automatically logged out
-4. **User Feedback**: Login page shows "Votre session a expiré. Veuillez vous reconnecter."
-5. **No Surprise Errors**: Users never encounter 401 errors from expired tokens
-
-**Benefits:**
-- Seamless UX with clear session expiry messaging
-- No failed API requests due to expired tokens
-- Consistent behavior across all browser tabs (via localStorage events)
+1. **On a 401**: the client calls `POST /api/auth/refresh` with the refresh-token cookie, then retries the original request once.
+2. **Across tabs**: refreshes are serialized with the Web Locks API (lock `auth-refresh`), so tabs sharing one cookie jar never present the same refresh token twice.
+3. **Lost race**: a `401` with `code: "REFRESH_RACE"` means a concurrent request already rotated the token; the server leaves the cookies alone and the client just retries.
+4. **Session end**: only when the refresh itself fails (refresh token expired or revoked) is the user sent to the login page, which shows "Votre session a expiré. Veuillez vous reconnecter."
 
 ### Server-Side Validation
 
