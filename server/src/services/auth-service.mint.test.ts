@@ -88,6 +88,19 @@ describe('AuthService.mintAccessToken', () => {
     expect(header?.alg).toBe('HS256');
   });
 
+  it('expires after 15 minutes when JWT_EXPIRES_IN is unset', async () => {
+    const auth = new AuthService(mockDb);
+    vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue([] as PermissionName[]);
+
+    const token = await auth.mintAccessToken(
+      { id: 1, username: 'u', role_id: 1, role_name: 'r', is_system_role: false },
+      mockDb
+    );
+
+    const decoded = jwt.verify(token, TEST_JWT_SECRET) as jwt.JwtPayload;
+    expect((decoded.exp as number) - (decoded.iat as number)).toBe(15 * 60);
+  });
+
   it('honors JWT_EXPIRES_IN when set', async () => {
     process.env.JWT_EXPIRES_IN = '2h';
     const auth = new AuthService(mockDb);

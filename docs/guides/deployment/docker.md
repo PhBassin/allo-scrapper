@@ -288,14 +288,13 @@ See [Backup & Restore](./backup-restore.md) for complete backup workflows.
 
 ### Token Expiry
 
-`JWT_EXPIRES_IN` is hardcoded to `1h` in `docker-compose.yaml`. To change it, edit the compose file:
+`JWT_EXPIRES_IN` defaults to `15m` (`${JWT_EXPIRES_IN:-15m}` in `docker-compose.yaml`). To change it, set it in `.env`:
 
-```yaml
-services:
-  ics-web:
-    environment:
-      JWT_EXPIRES_IN: 1h   # Change this value
+```env
+JWT_EXPIRES_IN=15m   # Access-token lifetime; the access_token cookie follows it
 ```
+
+Keep it short: the client refreshes the access token silently with the refresh-token cookie, so a shorter lifetime has no user-facing cost.
 
 ### Client Behavior
 
@@ -317,7 +316,7 @@ docker compose exec ics-web printenv | grep JWT
 
 # Example output:
 # JWT_SECRET=your-secret-here
-# JWT_EXPIRES_IN=24h
+# JWT_EXPIRES_IN=15m
 ```
 
 See [Configuration Reference](../../getting-started/configuration.md#jwt_expires_in) for complete JWT configuration options.

@@ -20,16 +20,23 @@ function parseExpiryToMs(value: string): number {
   return -1;
 }
 
-export function validateJwtExpirationForCookie(jwtExpiresIn: string, cookieMaxAgeMs: number): void {
-  const jwtMs = parseExpiryToMs(jwtExpiresIn);
-  if (jwtMs > 0 && jwtMs < cookieMaxAgeMs) {
-    const cookieMin = Math.round(cookieMaxAgeMs / 60000);
-    logger.warn(
-      `⚠️  JWT_EXPIRES_IN (${jwtExpiresIn}) is shorter than access_token cookie maxAge (${cookieMin}min). ` +
-      `The JWT will expire before the browser sends the cookie, causing 401 → refresh thrashing. ` +
-      `Set JWT_EXPIRES_IN >= ${cookieMin}min.`
-    );
-  }
+/** Access-token lifetime used when `JWT_EXPIRES_IN` is unset. */
+export const DEFAULT_JWT_EXPIRES_IN = '15m';
+
+/** The configured access-token lifetime, as written in `JWT_EXPIRES_IN`. */
+export function getJwtExpiresIn(): string {
+  return process.env.JWT_EXPIRES_IN || DEFAULT_JWT_EXPIRES_IN;
+}
+
+/**
+ * Access-token lifetime in milliseconds. Single source of truth shared by the
+ * JWT `exp` claim and the `access_token` cookie `maxAge`, so a leaked copy of
+ * the token never outlives its cookie. Throws on an invalid `JWT_EXPIRES_IN`.
+ */
+export function getAccessTokenMaxAgeMs(): number {
+  const expiresIn = getJwtExpiresIn();
+  parseJwtExpiration(expiresIn);
+  return parseExpiryToMs(expiresIn);
 }
 
 /**

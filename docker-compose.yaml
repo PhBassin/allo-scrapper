@@ -49,7 +49,7 @@ services:
       AUTO_MIGRATE: "true"
       LOG_LEVEL: info
       TZ: Europe/Paris
-      JWT_EXPIRES_IN: 1h
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
     depends_on:
       ics-db:
         condition: service_healthy
