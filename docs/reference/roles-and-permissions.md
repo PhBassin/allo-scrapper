@@ -347,69 +347,16 @@ interface JWTPayload {
 
 ### Client-Side Token Expiry Handling
 
-The React client (`AuthContext`) implements **proactive token expiry detection** to automatically log users out when their JWT expires, providing a seamless user experience.
+The access token lives in an httpOnly `access_token` cookie that the client never reads. Expiry is handled reactively and silently by `client/src/api/core.ts`:
 
-#### Implementation
-
-**Timer-Based Auto-Logout:**
-```typescript
-// In AuthContext.tsx
-const login = (token: string, user: User) => {
-  setToken(token);
-  setUser(user);
-  localStorage.setItem('token', token);
-  localStorage.setItem('user', JSON.stringify(user));
-
-  // Decode JWT to get expiry time
-  const decoded = jwtDecode<{ exp: number }>(token);
-  const expiresAt = decoded.exp * 1000; // Convert to milliseconds
-  const now = Date.now();
-  const timeUntilExpiry = expiresAt - now;
-
-  // Schedule auto-logout exactly when token expires
-  if (timeUntilExpiry > 0) {
-    const timerId = setTimeout(() => {
-      logout();
-      window.dispatchEvent(new CustomEvent('auth:unauthorized', { 
-        detail: { reason: 'session_expired' } 
-      }));
-    }, timeUntilExpiry);
-
-    // Store timer ID to clear on manual logout
-    setExpiryTimerId(timerId);
-  }
-};
-
-const logout = () => {
-  // Clear the expiry timer
-  if (expiryTimerId) {
-    clearTimeout(expiryTimerId);
-    setExpiryTimerId(null);
-  }
-  
-  setToken(null);
-  setUser(null);
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-};
-```
-
-#### Behavior
-
-1. **At Login**: Timer is set to fire exactly when JWT expires
-2. **On Expiry**: User is automatically logged out and redirected to `/login`
-3. **User Feedback**: Login page displays "Votre session a expiré. Veuillez vous reconnecter." message
-4. **Manual Logout**: Timer is cleared to prevent double-logout
-
-#### Benefits
-
-- **No Surprise 401 Errors**: Users never encounter failed API requests due to expired tokens
-- **Graceful UX**: Users see a clear "session expired" message instead of generic errors
-- **Consistent Behavior**: Expiry happens at the same moment for all tabs (via localStorage events)
+1. **On a 401**, the client calls `POST /api/auth/refresh` (refresh-token cookie), then retries the original request once.
+2. **Across tabs**, refreshes are serialized with the Web Locks API (lock `auth-refresh`): a tab that waited for the lock and sees a new `csrf_token` cookie knows another tab already refreshed, and just retries.
+3. **A lost race** (`401` with `code: "REFRESH_RACE"`: another request rotated the same refresh token first) is treated as a success: the winner's response carries the fresh cookies.
+4. **Only when the refresh itself fails** (refresh token expired or revoked) does the client dispatch `auth:unauthorized`, and the login page shows "Votre session a expiré. Veuillez vous reconnecter."
 
 #### Configuration
 
-Token expiry duration is controlled by the `JWT_EXPIRES_IN` environment variable on the server (default: `15m`); the `access_token` cookie `maxAge` is derived from the same value. The client automatically adapts to whatever expiry time is encoded in the JWT.
+Token expiry duration is controlled by the `JWT_EXPIRES_IN` environment variable on the server (default: `15m`); the `access_token` cookie `maxAge` is derived from the same value. Because renewal is silent, a short lifetime has no user-facing cost.
 
 ---
 
@@ -882,10 +829,10 @@ This ensures that **any** administrative permission grants access to the admin p
 
 ### JWT Token Limitations
 
-#### No Automatic Permission Updates
-**Issue**: Permissions are baked into JWT at login time  
-**Impact**: Role/permission changes don't take effect until re-login  
-**Workaround**: Users must logout and login again after role changes
+#### No Immediate Permission Updates
+**Issue**: Permissions are baked into the JWT when it is minted  
+**Impact**: An already-issued access token keeps its permissions until it expires (`JWT_EXPIRES_IN`, default 15 min). A role change revokes the user's refresh tokens, so the user is sent back to login once that access token expires  
+**Workaround**: Keep `JWT_EXPIRES_IN` short; the user can also logout and login again to pick up the new role at once
 
 **Example**:
 ```
@@ -897,8 +844,7 @@ This ensures that **any** administrative permission grants access to the admin p
 
 #### Token Expiry
 **Default**: Tokens expire after 15 minutes (configurable via `JWT_EXPIRES_IN`); the `access_token` cookie expires at the same time  
-**Client Behavior**: Proactive auto-logout at exact expiry time (see [Client-Side Token Expiry Handling](#client-side-token-expiry-handling))  
-**Impact**: Users see "session expired" message and must re-authenticate  
+**Client Behavior**: silent refresh on 401 (see [Client-Side Token Expiry Handling](#client-side-token-expiry-handling))  
 **Silent renewal**: the client refreshes the access token with the refresh-token cookie; re-login is only needed once the refresh token expires or is revoked
 
 **Configuration**:

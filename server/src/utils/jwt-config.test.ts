@@ -63,6 +63,10 @@ describe('parseJwtExpiration', () => {
       expect(() => parseJwtExpiration('0')).toThrow('Invalid JWT_EXPIRES_IN format');
     });
 
+    it('should throw on a zero human-readable duration: 0m', () => {
+      expect(() => parseJwtExpiration('0m')).toThrow('Invalid JWT_EXPIRES_IN format');
+    });
+
     it('should throw on decimal numbers', () => {
       expect(() => parseJwtExpiration('3.14')).toThrow('Invalid JWT_EXPIRES_IN format');
     });
@@ -105,6 +109,13 @@ describe('access-token lifetime', () => {
   it('treats a numeric JWT_EXPIRES_IN as seconds, like jwt.sign', () => {
     process.env.JWT_EXPIRES_IN = '600';
     expect(getAccessTokenMaxAgeMs()).toBe(600 * 1000);
+  });
+
+  it('converts every unit, trimming whitespace', () => {
+    process.env.JWT_EXPIRES_IN = ' 90s ';
+    expect(getAccessTokenMaxAgeMs()).toBe(90 * 1000);
+    process.env.JWT_EXPIRES_IN = '1d';
+    expect(getAccessTokenMaxAgeMs()).toBe(24 * 60 * 60 * 1000);
   });
 
   it('throws on an invalid JWT_EXPIRES_IN', () => {
