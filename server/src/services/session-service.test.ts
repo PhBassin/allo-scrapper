@@ -161,7 +161,7 @@ describe('SessionService', () => {
     });
 
     it('writes a 401 when the refresh token is invalid/expired', async () => {
-      vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue(null);
+      vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue({ status: 'rejected' });
 
       const res = buildRes();
       const session = new SessionService(db, res);
@@ -173,10 +173,27 @@ describe('SessionService', () => {
         success: false,
         error: 'Invalid or expired refresh token.',
       });
+      expect(res.clearCookie).toHaveBeenCalledWith('refresh_token', expect.any(Object));
+      expect(res.clearCookie).toHaveBeenCalledWith('access_token', expect.any(Object));
+    });
+
+    it('writes a REFRESH_RACE 401 that keeps the cookies inside the grace window', async () => {
+      vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue({ status: 'race' });
+
+      const res = buildRes();
+      await new SessionService(db, res).refresh('just-rotated');
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        code: 'REFRESH_RACE',
+      }));
+      expect(res.clearCookie).not.toHaveBeenCalled();
+      expect(refreshTokenRepo.rotateRefreshToken).not.toHaveBeenCalled();
     });
 
     it('writes a 401 and does NOT rotate when the user no longer exists', async () => {
-      vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue(5);
+      vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue({ status: 'valid', userId: 5 });
       vi.mocked(userQueries.getUserWithRoleById).mockResolvedValue(undefined);
 
       const res = buildRes();
@@ -192,8 +209,34 @@ describe('SessionService', () => {
       expect(refreshTokenRepo.rotateRefreshToken).not.toHaveBeenCalled();
     });
 
+    it('writes a REFRESH_RACE 401 (not a 500) that keeps the cookies when the token is consumed concurrently during rotation', async () => {
+      vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue({ status: 'valid', userId: 5 });
+      vi.mocked(userQueries.getUserWithRoleById).mockResolvedValue({
+        id: 5,
+        username: 'alice',
+        role_id: 2,
+        role_name: 'operator',
+        is_system_role: false,
+      });
+      vi.mocked(refreshTokenRepo.rotateRefreshToken).mockResolvedValue(null);
+
+      const res = buildRes();
+      const session = new SessionService(db, res);
+
+      await session.refresh('raced-token');
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        code: 'REFRESH_RACE',
+      }));
+      expect(res.clearCookie).not.toHaveBeenCalled();
+      expect(authMock.mintAccessToken).not.toHaveBeenCalled();
+      expect(res.cookie).not.toHaveBeenCalled();
+    });
+
     it('rotates the token, mints an access token, and writes the session on success', async () => {
-      vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue(5);
+      vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue({ status: 'valid', userId: 5 });
       vi.mocked(userQueries.getUserWithRoleById).mockResolvedValue({
         id: 5,
         username: 'alice',

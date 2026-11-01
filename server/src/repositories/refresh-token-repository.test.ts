@@ -7,6 +7,7 @@ import {
   rotateRefreshToken,
   revokeAllUserTokens,
   cleanupExpiredTokens,
+  REUSE_GRACE_MS,
 } from './refresh-token-repository.js';
 import type { DB } from '../db/index.js';
 
@@ -120,67 +121,103 @@ describe('refresh-token-repository', () => {
   });
 
   describe('validateRefreshToken', () => {
-    it('should return userId for valid non-expired non-revoked token', async () => {
-      vi.mocked(mockDb.query).mockResolvedValueOnce({
-        rows: [{
-          id: 1,
-          user_id: 42,
-          token_hash: 'hashed',
-          expires_at: new Date('2026-06-22T12:00:00Z'), // 1 day later
-          created_at: now,
-          revoked_at: null,
-        }],
-      } as any);
+    const tokenRow = (overrides: Record<string, unknown> = {}) => ({
+      rows: [{
+        id: 1,
+        user_id: 42,
+        token_hash: 'hashed',
+        expires_at: new Date('2026-06-22T12:00:00Z'), // 1 day later
+        created_at: now,
+        revoked_at: null,
+        replaced_by_id: null,
+        ...overrides,
+      }],
+    } as any);
+
+    /** A token rotated `agoMs` ago, replaced by token #2. */
+    const rotatedRow = (agoMs: number) =>
+      tokenRow({ revoked_at: new Date(now.getTime() - agoMs), replaced_by_id: 2 });
+
+    it('should return the userId for a valid non-expired non-revoked token', async () => {
+      vi.mocked(mockDb.query).mockResolvedValueOnce(tokenRow());
 
       const result = await validateRefreshToken(mockDb, 'valid-raw-token');
 
-      expect(result).toBe(42);
+      expect(result).toEqual({ status: 'valid', userId: 42 });
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('SELECT'),
         [expect.any(String)],
       );
     });
 
-    it('should return null for unknown token', async () => {
+    it('should reject an unknown token', async () => {
       vi.mocked(mockDb.query).mockResolvedValueOnce({ rows: [] } as any);
 
       const result = await validateRefreshToken(mockDb, 'unknown-token');
 
-      expect(result).toBeNull();
+      expect(result).toEqual({ status: 'rejected' });
     });
 
-    it('should return null for revoked token', async () => {
-      vi.mocked(mockDb.query).mockResolvedValueOnce({
-        rows: [{
-          id: 1,
-          user_id: 42,
-          token_hash: 'hashed',
-          expires_at: new Date('2026-06-22T12:00:00Z'),
-          created_at: now,
-          revoked_at: new Date('2026-06-20T12:00:00Z'),
-        }],
-      } as any);
-
-      const result = await validateRefreshToken(mockDb, 'revoked-token');
-
-      expect(result).toBeNull();
-    });
-
-    it('should return null for expired token', async () => {
-      vi.mocked(mockDb.query).mockResolvedValueOnce({
-        rows: [{
-          id: 1,
-          user_id: 42,
-          token_hash: 'hashed',
-          expires_at: new Date('2026-06-20T12:00:00Z'), // 1 day ago
-          created_at: now,
-          revoked_at: null,
-        }],
-      } as any);
+    it('should reject an expired token', async () => {
+      vi.mocked(mockDb.query).mockResolvedValueOnce(
+        tokenRow({ expires_at: new Date('2026-06-20T12:00:00Z') }),
+      );
 
       const result = await validateRefreshToken(mockDb, 'expired-token');
 
-      expect(result).toBeNull();
+      expect(result).toEqual({ status: 'rejected' });
+    });
+
+    it('should reject a deliberately revoked token without any revocation (not a rotation)', async () => {
+      vi.mocked(mockDb.query).mockResolvedValueOnce(
+        tokenRow({ revoked_at: new Date('2026-06-20T12:00:00Z') }),
+      );
+
+      const result = await validateRefreshToken(mockDb, 'logged-out-token');
+
+      expect(result).toEqual({ status: 'rejected' });
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
+    });
+
+    it('should report a race without revoking anything inside the grace window', async () => {
+      vi.mocked(mockDb.query).mockResolvedValueOnce(rotatedRow(REUSE_GRACE_MS));
+
+      const result = await validateRefreshToken(mockDb, 'just-rotated-token');
+
+      expect(result).toEqual({ status: 'race' });
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
+    });
+
+    it('should revoke every user token when a rotated token is replayed and its successor was used', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce(rotatedRow(REUSE_GRACE_MS + 1))
+        .mockResolvedValueOnce({ rows: [{ id: 2, replaced_by_id: 3 }] } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 3 } as any);
+
+      const result = await validateRefreshToken(mockDb, 'replayed-token');
+
+      expect(result).toEqual({ status: 'rejected' });
+      expect(mockDb.query).toHaveBeenNthCalledWith(2, expect.stringContaining('WHERE id = $1'), [2]);
+      expect(mockDb.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('WHERE user_id = $1 AND revoked_at IS NULL'),
+        [42],
+      );
+    });
+
+    it('should revoke only the unused successor when a rotated token is replayed', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce(rotatedRow(15 * 60 * 1000))
+        .mockResolvedValueOnce({ rows: [{ id: 2, replaced_by_id: null }] } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any);
+
+      const result = await validateRefreshToken(mockDb, 'lost-response-token');
+
+      expect(result).toEqual({ status: 'rejected' });
+      expect(mockDb.query).toHaveBeenCalledTimes(3);
+      expect(mockDb.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('WHERE id = $1 AND revoked_at IS NULL'),
+        [2],
+      );
     });
   });
 
@@ -211,15 +248,17 @@ describe('refresh-token-repository', () => {
   });
 
   describe('rotateRefreshToken', () => {
-    it('should atomically revoke old and generate new token in a transaction', async () => {
+    it('should atomically revoke old, generate new and link them in a transaction', async () => {
       let committed = false;
+      let clientQueries: ReturnType<typeof vi.fn> | undefined;
 
       vi.mocked(mockDb.transaction).mockImplementation(async (fn: any) => {
         const clientQuery = vi.fn()
-          .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // UPDATE
-          .mockResolvedValueOnce({ rows: [] });             // INSERT
-        const client = { query: clientQuery };
-        const result = await fn(client);
+          .mockResolvedValueOnce({ rows: [{ id: 7 }], rowCount: 1 }) // revoke old
+          .mockResolvedValueOnce({ rows: [{ id: 8 }], rowCount: 1 }) // insert new
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 });         // link successor
+        clientQueries = clientQuery;
+        const result = await fn({ query: clientQuery });
         committed = true;
         return result;
       });
@@ -227,16 +266,21 @@ describe('refresh-token-repository', () => {
       const newToken = await rotateRefreshToken(mockDb, 1, 'old-token');
 
       expect(newToken).toBeDefined();
-      expect(newToken.length).toBeGreaterThan(32);
+      expect(newToken!.length).toBeGreaterThan(32);
       expect(mockDb.transaction).toHaveBeenCalledTimes(1);
       expect(committed).toBe(true);
+      expect(clientQueries).toHaveBeenLastCalledWith(
+        expect.stringContaining('SET replaced_by_id = $1 WHERE id = $2'),
+        [8, 7],
+      );
     });
 
     it('should accept custom expiry', async () => {
       vi.mocked(mockDb.transaction).mockImplementation(async (fn: any) => {
         const clientQuery = vi.fn()
-          .mockResolvedValueOnce({ rows: [], rowCount: 1 })
-          .mockResolvedValueOnce({ rows: [] });
+          .mockResolvedValueOnce({ rows: [{ id: 7 }], rowCount: 1 })
+          .mockResolvedValueOnce({ rows: [{ id: 8 }], rowCount: 1 })
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 });
         return fn({ query: clientQuery });
       });
 
@@ -245,16 +289,15 @@ describe('refresh-token-repository', () => {
       expect(newToken).toBeDefined();
     });
 
-    it('should propagate the consumed/invalid error when the old token is gone', async () => {
-      vi.mocked(mockDb.transaction).mockImplementation(async (fn: any) => {
-        const clientQuery = vi.fn()
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // UPDATE matched nothing
-        return fn({ query: clientQuery });
-      });
+    it('should return null and insert nothing when the old token was consumed concurrently', async () => {
+      const clientQuery = vi.fn()
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // UPDATE matched nothing
+      vi.mocked(mockDb.transaction).mockImplementation(async (fn: any) => fn({ query: clientQuery }));
 
-      await expect(
-        rotateRefreshToken(mockDb, 1, 'bad-token'),
-      ).rejects.toThrow('Refresh token already consumed or invalid');
+      const result = await rotateRefreshToken(mockDb, 1, 'bad-token');
+
+      expect(result).toBeNull();
+      expect(clientQuery).toHaveBeenCalledTimes(1);
     });
   });
 

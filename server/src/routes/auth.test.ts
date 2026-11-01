@@ -384,7 +384,7 @@ describe('Auth Routes', () => {
             const mockGenerate = (refreshTokenMocks as any).__mockGenerate;
             const mockRevoke = (refreshTokenMocks as any).__mockRevoke;
 
-            mockValidate.mockResolvedValue(1);
+            mockValidate.mockResolvedValue({ status: 'valid', userId: 1 });
             mockRotate.mockResolvedValue('new-refresh-token-raw');
 
             vi.mocked(queries.getUserWithRoleById).mockResolvedValue({
@@ -422,7 +422,7 @@ describe('Auth Routes', () => {
             const mockValidate = (refreshTokenMocks as any).__mockValidate;
             const mockRotate = (refreshTokenMocks as any).__mockRotate;
 
-            mockValidate.mockResolvedValue(1);
+            mockValidate.mockResolvedValue({ status: 'valid', userId: 1 });
             mockRotate.mockResolvedValue('new-refresh-token-raw');
             vi.mocked(queries.getUserWithRoleById).mockResolvedValue({
                 id: 1,
@@ -446,7 +446,7 @@ describe('Auth Routes', () => {
             const mockValidate = (refreshTokenMocks as any).__mockValidate;
             const mockRotate = (refreshTokenMocks as any).__mockRotate;
 
-            mockValidate.mockResolvedValue(1);
+            mockValidate.mockResolvedValue({ status: 'valid', userId: 1 });
             mockRotate.mockResolvedValue('new-refresh-token-raw');
             vi.mocked(queries.getUserWithRoleById).mockResolvedValue(undefined);
 
@@ -474,7 +474,7 @@ describe('Auth Routes', () => {
             const refreshTokenMocks = await import('../repositories/refresh-token-repository.js');
             const mockValidate = (refreshTokenMocks as any).__mockValidate;
 
-            mockValidate.mockResolvedValue(null);
+            mockValidate.mockResolvedValue({ status: 'rejected' });
 
             const response = await request(app)
                 .post('/api/auth/refresh')

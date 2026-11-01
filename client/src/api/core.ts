@@ -2,6 +2,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const REFRESH_TIMEOUT_MS = 10000;
+const REFRESH_LOCK_NAME = 'auth-refresh';
+const REFRESH_RACE_CODE = 'REFRESH_RACE';
 
 let refreshPromise: Promise<boolean> | null = null;
 let unauthorizedDispatched = false;
@@ -9,6 +11,21 @@ let unauthorizedDispatched = false;
 function getCsrfToken(): string | null {
   const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
   return match ? match[1] : null;
+}
+
+/**
+ * A concurrent refresh (another tab, a retry) rotated the token first. The
+ * server leaves our cookies alone in that case and the winner's response
+ * carries the fresh ones, so retrying the original request is enough.
+ */
+async function isRefreshRace(response: Response): Promise<boolean> {
+  if (response.status !== 401) return false;
+  try {
+    const data = await response.json();
+    return data?.code === REFRESH_RACE_CODE;
+  } catch {
+    return false;
+  }
 }
 
 async function refreshAccessToken(): Promise<boolean> {
@@ -31,7 +48,7 @@ async function refreshAccessToken(): Promise<boolean> {
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) return false;
+    if (!response.ok) return isRefreshRace(response);
 
     const data = await response.json();
     if (data.success) {
@@ -119,9 +136,31 @@ function dispatchUnauthorizedEvent(): void {
   window.dispatchEvent(event);
 }
 
+/**
+ * Serialize refreshes across tabs: they share the cookie jar, so two tabs
+ * rotating the same refresh token at once would make the server see a reuse.
+ * Every refresh plants a new csrf_token cookie, so if a new one appeared while
+ * we waited for the lock, another tab already rotated the session and its
+ * fresh cookies are ours too — retrying the original request is enough. A
+ * cleared cookie (another tab logged out) is not a refresh: we refresh
+ * ourselves and let the server decide.
+ * Without the Web Locks API, falls back to a per-tab refresh.
+ */
+async function refreshAcrossTabs(): Promise<boolean> {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  if (!locks) return refreshAccessToken();
+
+  const csrfBeforeLock = getCsrfToken();
+  return locks.request(REFRESH_LOCK_NAME, async () => {
+    const csrfNow = getCsrfToken();
+    if (csrfNow && csrfNow !== csrfBeforeLock) return true;
+    return refreshAccessToken();
+  });
+}
+
 async function getRefreshedSession(): Promise<boolean> {
   if (!refreshPromise) {
-    refreshPromise = refreshAccessToken().finally(() => {
+    refreshPromise = refreshAcrossTabs().finally(() => {
       refreshPromise = null;
     });
   }
