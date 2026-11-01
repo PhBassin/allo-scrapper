@@ -466,6 +466,12 @@ describe('User Management Routes', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.role_name).toBe('admin');
       expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 2, 1);
+      // Target user's refresh tokens are revoked; the acting admin (id 1) keeps theirs.
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE refresh_tokens SET revoked_at'),
+        [2],
+      );
+      expect(db.query).not.toHaveBeenCalledWith(expect.anything(), [1]);
     });
 
     it('should prevent last admin from demoting self (403)', async () => {
@@ -607,6 +613,11 @@ describe('User Management Routes', () => {
         2,
         expect.stringMatching(/^scrypt:/)
       );
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE refresh_tokens SET revoked_at'),
+        [2],
+      );
+      expect(db.query).not.toHaveBeenCalledWith(expect.anything(), [1]);
     });
 
     it('should not return password in response', async () => {
