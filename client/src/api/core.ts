@@ -2,6 +2,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const REFRESH_TIMEOUT_MS = 10000;
+const REFRESH_LOCK_NAME = 'auth-refresh';
 
 let refreshPromise: Promise<boolean> | null = null;
 let unauthorizedDispatched = false;
@@ -119,9 +120,28 @@ function dispatchUnauthorizedEvent(): void {
   window.dispatchEvent(event);
 }
 
+/**
+ * Serialize refreshes across tabs: they share the cookie jar, so two tabs
+ * rotating the same refresh token at once would make the server see a reuse.
+ * Every refresh plants a new csrf_token cookie, so if it changed while we
+ * waited for the lock, another tab already rotated the session and its fresh
+ * cookies are ours too — retrying the original request is enough.
+ * Without the Web Locks API, falls back to a per-tab refresh.
+ */
+async function refreshAcrossTabs(): Promise<boolean> {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  if (!locks) return refreshAccessToken();
+
+  const csrfBeforeLock = getCsrfToken();
+  return locks.request(REFRESH_LOCK_NAME, async () => {
+    if (getCsrfToken() !== csrfBeforeLock) return true;
+    return refreshAccessToken();
+  });
+}
+
 async function getRefreshedSession(): Promise<boolean> {
   if (!refreshPromise) {
-    refreshPromise = refreshAccessToken().finally(() => {
+    refreshPromise = refreshAcrossTabs().finally(() => {
       refreshPromise = null;
     });
   }

@@ -160,8 +160,9 @@ export class SessionService {
    * response to `res` — the success JSON + cookies, or a 401 — so the route
    * is a void shim.
    *
-   * 401 cases (missing / invalid / unknown-user token) clear the cookie
-   * surface rather than throwing, matching the prior handler's behavior.
+   * 401 cases (missing / invalid / unknown-user / concurrently-consumed
+   * token) clear the cookie surface rather than throwing, matching the prior
+   * handler's behavior.
    */
   async refresh(refreshToken?: string): Promise<void> {
     if (!refreshToken) {
@@ -184,6 +185,11 @@ export class SessionService {
     // Atomically rotate the refresh token, then mint a fresh access token via
     // the canonical AuthService seam (same payload shape as login).
     const newRefreshToken = await rotateRefreshToken(this.db, userId, refreshToken);
+    if (newRefreshToken === null) {
+      // Lost the rotation race to a concurrent request presenting the same token.
+      this.rejectUnauthorized('Invalid or expired refresh token.');
+      return;
+    }
     const accessToken = await this.auth.mintAccessToken(user, this.db);
     const permissions = (await getPermissionNamesByRoleId(
       this.db,

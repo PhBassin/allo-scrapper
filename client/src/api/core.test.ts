@@ -190,6 +190,64 @@ describe('apiClient', () => {
     expect(refreshCalls).toBe(1);
   });
 
+  describe('cross-tab refresh (Web Locks)', () => {
+    function stubLocks(beforeCallback: () => void = () => {}) {
+      const request = vi.fn(async (_name: string, cb: () => Promise<boolean>) => {
+        beforeCallback();
+        return cb();
+      });
+      vi.stubGlobal('navigator', { ...navigator, locks: { request } });
+      return request;
+    }
+
+    it('refreshes under the auth-refresh lock', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      const request = stubLocks();
+      const { calls } = mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 200, body: { success: true } },
+        { status: 200, body: { ok: 'after-refresh' } },
+      ]);
+
+      const data = await apiClient.get('/protected');
+
+      expect(data).toEqual({ ok: 'after-refresh' });
+      expect(request).toHaveBeenCalledWith('auth-refresh', expect.any(Function));
+      expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/auth/refresh', '/api/protected']);
+    });
+
+    it('skips its own refresh when another tab rotated the session while waiting for the lock', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      // The other tab's refresh lands (new CSRF cookie) before we get the lock.
+      stubLocks(() => setCookie('csrf_token', 'csrf-2'));
+      const { calls } = mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 200, body: { ok: 'with-other-tab-cookies' } },
+      ]);
+
+      const data = await apiClient.post('/protected', { a: 1 });
+
+      expect(data).toEqual({ ok: 'with-other-tab-cookies' });
+      expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/protected']);
+      expect((calls[1].init.headers as Headers).get('X-CSRF-Token')).toBe('csrf-2');
+    });
+
+    it('still reports unauthorized when the locked refresh fails', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      stubLocks();
+      mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 401, body: { error: 'refresh failed' } },
+      ]);
+      const listener = vi.fn();
+      window.addEventListener('auth:unauthorized', listener);
+
+      await expect(apiClient.get('/protected')).rejects.toMatchObject({ status: 401 });
+      expect(listener).toHaveBeenCalledTimes(1);
+      window.removeEventListener('auth:unauthorized', listener);
+    });
+  });
+
   it('wraps network errors as ApiError with status 0', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => {
       throw new TypeError('Failed to fetch');

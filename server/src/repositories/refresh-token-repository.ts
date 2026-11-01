@@ -23,6 +23,13 @@ interface RefreshTokenRow {
 
 const DEFAULT_EXPIRY_MS = parseRefreshTokenExpiry();
 
+/**
+ * How long after its rotation a refresh token may still be presented without
+ * being treated as stolen. Covers the legitimate race where two requests (tabs,
+ * retries) send the same cookie and one of them rotates it first.
+ */
+export const REUSE_GRACE_MS = 30 * 1000;
+
 export function parseRefreshTokenExpiry(): number {
   const DEFAULT = 7 * 24 * 60 * 60 * 1000; // 7 days
   const envValue = process.env.REFRESH_TOKEN_EXPIRY;
@@ -117,8 +124,8 @@ async function cleanupExpired(db: DB, retentionDays: number): Promise<number> {
 /**
  * Internal: atomically revoke an old token and insert a new one inside a
  * transaction. Both hashes are computed within this module — callers never
- * supply pre-hashed values. Throws if the old token is not found / already
- * revoked (rowCount = 0).
+ * supply pre-hashed values. Returns false (and inserts nothing) if the old
+ * token is not found / already revoked (rowCount = 0).
  */
 async function rotateRefreshTokenTx(
   db: DB,
@@ -126,8 +133,8 @@ async function rotateRefreshTokenTx(
   oldTokenHash: string,
   newTokenHash: string,
   expiresAt: Date
-): Promise<void> {
-  await db.transaction(async (client) => {
+): Promise<boolean> {
+  return db.transaction(async (client) => {
     const updateResult = await client.query(
       `UPDATE refresh_tokens SET revoked_at = NOW()
        WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL`,
@@ -135,7 +142,7 @@ async function rotateRefreshTokenTx(
     );
 
     if ((updateResult.rowCount ?? 0) === 0) {
-      throw new Error('Refresh token already consumed or invalid');
+      return false;
     }
 
     await client.query(
@@ -143,6 +150,7 @@ async function rotateRefreshTokenTx(
        VALUES ($1, $2, $3)`,
       [userId, newTokenHash, expiresAt]
     );
+    return true;
   });
 }
 
@@ -172,6 +180,12 @@ export async function generateRefreshToken(
 /**
  * Validate a refresh token and return the associated user ID.
  * Returns null if token is invalid, expired, or revoked.
+ *
+ * Reuse detection: a token presented more than `REUSE_GRACE_MS` after its
+ * revocation is a theft signal (either the attacker or the real user is
+ * replaying a rotated copy), so every refresh token of the user is revoked.
+ * Inside the grace window it is the legitimate concurrent-refresh race and
+ * only this request is rejected.
  */
 export async function validateRefreshToken(
   db: DB,
@@ -186,7 +200,15 @@ export async function validateRefreshToken(
   }
 
   if (record.revoked_at !== null) {
-    logger.warn(`Refresh token used after revocation for user ${record.user_id}`);
+    const revokedForMs = Date.now() - new Date(record.revoked_at).getTime();
+    if (revokedForMs <= REUSE_GRACE_MS) {
+      logger.debug(`Refresh token presented within reuse grace window for user ${record.user_id}`);
+      return null;
+    }
+    await revokeByUserId(db, record.user_id);
+    logger.warn('Security: refresh token reuse detected, all sessions revoked', {
+      userId: record.user_id,
+    });
     return null;
   }
 
@@ -214,20 +236,25 @@ export async function revokeRefreshToken(
  * inside a single database transaction. If any part fails, the entire operation
  * is rolled back — no two-token state can persist.
  *
- * Returns the raw new token on success.
+ * Returns the raw new token on success, or null when the old token was
+ * consumed concurrently (another request rotated it after validation).
  */
 export async function rotateRefreshToken(
   db: DB,
   userId: number,
   oldToken: string,
   expiryMs: number = DEFAULT_EXPIRY_MS,
-): Promise<string> {
+): Promise<string | null> {
   const oldTokenHash = hashToken(oldToken);
   const rawToken = crypto.randomBytes(48).toString('base64url');
   const newTokenHash = hashToken(rawToken);
   const expiresAt = new Date(Date.now() + expiryMs);
 
-  await rotateRefreshTokenTx(db, userId, oldTokenHash, newTokenHash, expiresAt);
+  const rotated = await rotateRefreshTokenTx(db, userId, oldTokenHash, newTokenHash, expiresAt);
+  if (!rotated) {
+    logger.debug(`Refresh token already consumed during rotation for user ${userId}`);
+    return null;
+  }
 
   logger.debug(`Refresh token rotated for user ${userId}`);
   return rawToken;

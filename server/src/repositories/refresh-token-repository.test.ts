@@ -7,6 +7,7 @@ import {
   rotateRefreshToken,
   revokeAllUserTokens,
   cleanupExpiredTokens,
+  REUSE_GRACE_MS,
 } from './refresh-token-repository.js';
 import type { DB } from '../db/index.js';
 
@@ -149,21 +150,51 @@ describe('refresh-token-repository', () => {
       expect(result).toBeNull();
     });
 
-    it('should return null for revoked token', async () => {
-      vi.mocked(mockDb.query).mockResolvedValueOnce({
-        rows: [{
-          id: 1,
-          user_id: 42,
-          token_hash: 'hashed',
-          expires_at: new Date('2026-06-22T12:00:00Z'),
-          created_at: now,
-          revoked_at: new Date('2026-06-20T12:00:00Z'),
-        }],
-      } as any);
+    const revokedRow = (revokedAt: Date) => ({
+      rows: [{
+        id: 1,
+        user_id: 42,
+        token_hash: 'hashed',
+        expires_at: new Date('2026-06-22T12:00:00Z'),
+        created_at: now,
+        revoked_at: revokedAt,
+      }],
+    } as any);
+
+    it('should return null and revoke every user token when a token is reused after the grace window', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce(revokedRow(new Date('2026-06-20T12:00:00Z')))
+        .mockResolvedValueOnce({ rows: [], rowCount: 3 } as any);
 
       const result = await validateRefreshToken(mockDb, 'revoked-token');
 
       expect(result).toBeNull();
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
+      expect(mockDb.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('WHERE user_id = $1 AND revoked_at IS NULL'),
+        [42],
+      );
+    });
+
+    it('should return null without revoking the family inside the grace window (multi-tab race)', async () => {
+      vi.mocked(mockDb.query).mockResolvedValueOnce(
+        revokedRow(new Date(now.getTime() - REUSE_GRACE_MS)),
+      );
+
+      const result = await validateRefreshToken(mockDb, 'just-rotated-token');
+
+      expect(result).toBeNull();
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
+    });
+
+    it('should revoke the family as soon as the grace window has elapsed', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce(revokedRow(new Date(now.getTime() - REUSE_GRACE_MS - 1)))
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any);
+
+      await validateRefreshToken(mockDb, 'replayed-token');
+
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
     });
 
     it('should return null for expired token', async () => {
@@ -245,16 +276,15 @@ describe('refresh-token-repository', () => {
       expect(newToken).toBeDefined();
     });
 
-    it('should propagate the consumed/invalid error when the old token is gone', async () => {
-      vi.mocked(mockDb.transaction).mockImplementation(async (fn: any) => {
-        const clientQuery = vi.fn()
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // UPDATE matched nothing
-        return fn({ query: clientQuery });
-      });
+    it('should return null and insert nothing when the old token was consumed concurrently', async () => {
+      const clientQuery = vi.fn()
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // UPDATE matched nothing
+      vi.mocked(mockDb.transaction).mockImplementation(async (fn: any) => fn({ query: clientQuery }));
 
-      await expect(
-        rotateRefreshToken(mockDb, 1, 'bad-token'),
-      ).rejects.toThrow('Refresh token already consumed or invalid');
+      const result = await rotateRefreshToken(mockDb, 1, 'bad-token');
+
+      expect(result).toBeNull();
+      expect(clientQuery).toHaveBeenCalledTimes(1);
     });
   });
 
