@@ -181,13 +181,17 @@ async function cleanupExpired(db: DB, retentionDays: number): Promise<number> {
   return parseInt(result.rows[0].count, 10);
 }
 
+/** Thrown inside the rotation transaction to roll back the successor insert. */
+class OldTokenNotLive extends Error {}
+
 /**
- * Internal: atomically revoke an old token and insert a new one inside a
+ * Internal: atomically insert a successor and revoke the old token inside a
  * transaction. Both hashes are computed within this module — callers never
  * supply pre-hashed values. The old token records its successor in
  * `replaced_by_id`, which is what marks it as rotated rather than revoked.
- * If the old token is no longer live (rowCount = 0), inserts nothing and tells
- * a concurrent rotation (`race`) from a deliberate revocation (`rejected`).
+ * If the old token is no longer live (rowCount = 0), the insert is rolled back
+ * and a concurrent rotation (`race`) is told from a deliberate revocation
+ * (`rejected`).
  */
 async function rotateRefreshTokenTx(
   db: DB,
@@ -196,37 +200,32 @@ async function rotateRefreshTokenTx(
   newTokenHash: string,
   expiresAt: Date
 ): Promise<'rotated' | 'race' | 'rejected'> {
-  return db.transaction(async (client) => {
-    const updateResult = await client.query(
-      `UPDATE refresh_tokens SET revoked_at = NOW()
-       WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL
-       RETURNING id`,
-      [oldTokenHash, userId]
-    );
-
-    if ((updateResult.rowCount ?? 0) === 0) {
-      const current = await client.query(
-        `SELECT replaced_by_id FROM refresh_tokens WHERE token_hash = $1`,
-        [oldTokenHash]
+  try {
+    await db.transaction(async (client) => {
+      const insertResult = await client.query(
+        `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+         VALUES ($1, $2, $3)
+         RETURNING id`,
+        [userId, newTokenHash, expiresAt]
       );
-      const rotatedMeanwhile = (current.rows[0] as Pick<RefreshTokenRow, 'replaced_by_id'> | undefined)
-        ?.replaced_by_id != null;
-      return rotatedMeanwhile ? 'race' : 'rejected';
-    }
 
-    const insertResult = await client.query(
-      `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-       VALUES ($1, $2, $3)
-       RETURNING id`,
-      [userId, newTokenHash, expiresAt]
-    );
+      const updateResult = await client.query(
+        `UPDATE refresh_tokens SET revoked_at = NOW(), replaced_by_id = $1
+         WHERE token_hash = $2 AND user_id = $3 AND revoked_at IS NULL`,
+        [insertResult.rows[0].id, oldTokenHash, userId]
+      );
 
-    await client.query(
-      `UPDATE refresh_tokens SET replaced_by_id = $1 WHERE id = $2`,
-      [insertResult.rows[0].id, updateResult.rows[0].id]
-    );
+      if ((updateResult.rowCount ?? 0) === 0) {
+        throw new OldTokenNotLive();
+      }
+    });
     return 'rotated';
-  });
+  } catch (err) {
+    if (!(err instanceof OldTokenNotLive)) throw err;
+  }
+
+  const current = await findByTokenHash(db, oldTokenHash);
+  return current?.replaced_by_id != null ? 'race' : 'rejected';
 }
 
 // ---------------------------------------------------------------------------
