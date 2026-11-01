@@ -39,7 +39,10 @@ const makeUser = (
 
 describe('UserService', () => {
   let service: UserService;
-  const mockDb = {} as DB;
+  const tx = { query: vi.fn() };
+  const mockDb = {
+    transaction: vi.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)),
+  } as unknown as DB;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -206,7 +209,7 @@ describe('UserService', () => {
       const result = await service.updateUserRole(2, 1, ACTING);
 
       expect(result).toEqual(updated);
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith(mockDb, 2, 1);
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(tx, 2, 1);
     });
 
     it('revokes the target user sessions after the role update, not the acting admin ones', async () => {
@@ -219,10 +222,35 @@ describe('UserService', () => {
       await service.updateUserRole(2, 3, ACTING);
 
       expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledTimes(1);
-      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledWith(mockDb, 2);
+      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledWith(tx, 2);
       expect(vi.mocked(userQueries.updateUserRole).mock.invocationCallOrder[0]).toBeLessThan(
         vi.mocked(refreshTokenRepo.revokeAllUserTokens).mock.invocationCallOrder[0],
       );
+    });
+
+    it('runs the role update and the revocation in one transaction', async () => {
+      vi.mocked(userQueries.getUserById)
+        .mockResolvedValueOnce(makeUser(2, 'user1', 2, 'operator'))
+        .mockResolvedValueOnce(makeUser(2, 'user1', 3, 'viewer'));
+      vi.mocked(roleQueries.getRoleNameById).mockResolvedValue('viewer');
+
+      await service.updateUserRole(2, 3, ACTING);
+
+      expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(tx, 2, 3);
+      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledWith(tx, 2);
+    });
+
+    it('is a no-op that revokes nothing when the role is unchanged', async () => {
+      const target = makeUser(2, 'user1', 2, 'operator');
+      vi.mocked(userQueries.getUserById).mockResolvedValue(target);
+      vi.mocked(roleQueries.getRoleNameById).mockResolvedValue('operator');
+
+      const result = await service.updateUserRole(2, 2, ACTING);
+
+      expect(result).toEqual(target);
+      expect(userQueries.updateUserRole).not.toHaveBeenCalled();
+      expect(refreshTokenRepo.revokeAllUserTokens).not.toHaveBeenCalled();
     });
 
     it('does not revoke sessions when the role update is rejected', async () => {
@@ -300,12 +328,8 @@ describe('UserService', () => {
     });
 
     it('skips the admin-count check when re-assigning the same admin role', async () => {
-      const target = makeUser(1, 'admin', 1, 'admin');
-      const updated = makeUser(1, 'admin', 1, 'admin');
-      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(target);
+      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(makeUser(1, 'admin', 1, 'admin'));
       vi.mocked(roleQueries.getRoleNameById).mockResolvedValue('admin');
-      vi.mocked(userQueries.updateUserRole).mockResolvedValue(undefined);
-      vi.mocked(userQueries.getUserById).mockResolvedValueOnce(updated);
 
       await service.updateUserRole(1, 1, ACTING);
 
@@ -323,7 +347,7 @@ describe('UserService', () => {
 
       expect(result).toEqual(target);
       expect(passwordUtils.hashPassword).toHaveBeenCalledWith('BrandNewPass123!');
-      expect(userQueries.updateUserPassword).toHaveBeenCalledWith(mockDb, 2, 'scrypt:hashed');
+      expect(userQueries.updateUserPassword).toHaveBeenCalledWith(tx, 2, 'scrypt:hashed');
     });
 
     it('revokes the target user sessions after storing the new password', async () => {
@@ -333,10 +357,19 @@ describe('UserService', () => {
       await service.resetPassword(2, 'BrandNewPass123!', ACTING);
 
       expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledTimes(1);
-      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledWith(mockDb, 2);
+      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledWith(tx, 2);
       expect(vi.mocked(userQueries.updateUserPassword).mock.invocationCallOrder[0]).toBeLessThan(
         vi.mocked(refreshTokenRepo.revokeAllUserTokens).mock.invocationCallOrder[0],
       );
+    });
+
+    it('rolls back the password change when the revocation fails', async () => {
+      vi.mocked(userQueries.getUserById).mockResolvedValue(makeUser(2, 'user1', 2, 'operator'));
+      vi.mocked(refreshTokenRepo.revokeAllUserTokens).mockRejectedValueOnce(new Error('db down'));
+
+      await expect(service.resetPassword(2, 'BrandNewPass123!', ACTING)).rejects.toThrow('db down');
+      expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+      expect(userQueries.updateUserPassword).toHaveBeenCalledWith(tx, 2, 'scrypt:hashed');
     });
 
     it('does not revoke sessions when the password is rejected', async () => {

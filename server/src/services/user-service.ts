@@ -150,8 +150,9 @@ export class UserService {
    * if the target is currently an admin and the new role is not admin, the
    * remaining admin count must be greater than one.
    *
-   * Revokes the target's refresh tokens afterwards: permissions are baked
-   * into the access token, so a refresh must not resurrect the old role.
+   * Revokes the target's refresh tokens in the same transaction: permissions
+   * are baked into the access token, so a refresh must not resurrect the old
+   * role. Re-assigning the current role is a no-op and revokes nothing.
    */
   async updateUserRole(userId: number, roleId: number, acting: ActingUser): Promise<UserPublic> {
     const targetUser = await getUserById(this.db, userId);
@@ -164,10 +165,16 @@ export class UserService {
       throw new ValidationError('Invalid role_id: role does not exist');
     }
 
+    if (targetUser.role_id === roleId) {
+      return targetUser;
+    }
+
     await this.assertNotLastAdmin(targetUser.role_name, newRoleName);
 
-    await dbUpdateUserRole(this.db, userId, roleId);
-    await revokeAllUserTokens(this.db, userId);
+    await this.db.transaction(async (tx) => {
+      await dbUpdateUserRole(tx, userId, roleId);
+      await revokeAllUserTokens(tx, userId);
+    });
 
     const updatedUser = await getUserById(this.db, userId);
 
@@ -187,8 +194,8 @@ export class UserService {
   /**
    * Reset a user's password. The caller (client) generates the new password
    * and submits it; the service validates strength and stores a fresh hash,
-   * then revokes the target's refresh tokens so a compromised account's
-   * existing sessions die with the old password.
+   * revoking the target's refresh tokens in the same transaction so a
+   * compromised account's existing sessions die with the old password.
    *
    * The user-existence check fires before password validation so the joint
    * case (missing user + invalid password) still surfaces 404 first,
@@ -210,8 +217,10 @@ export class UserService {
     }
 
     const passwordHash = await hashPassword(newPassword);
-    await dbUpdateUserPassword(this.db, userId, passwordHash);
-    await revokeAllUserTokens(this.db, userId);
+    await this.db.transaction(async (tx) => {
+      await dbUpdateUserPassword(tx, userId, passwordHash);
+      await revokeAllUserTokens(tx, userId);
+    });
 
     logger.info('Admin reset user password', {
       adminId: acting.id,
