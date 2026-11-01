@@ -111,7 +111,7 @@ export async function getUserWithRoleById(
  * @param roleId - New role ID (must reference a valid role in the roles table)
  */
 export async function updateUserRole(
-  db: DB,
+  db: Pick<DB, 'query'>,
   userId: number,
   roleId: number
 ): Promise<void> {
@@ -225,7 +225,7 @@ export async function createUser(
  * @param userId - User ID
  * @param newPasswordHash - New hashed password
  */
-export async function updateUserPassword(db: DB, userId: number, newPasswordHash: string): Promise<void> {
+export async function updateUserPassword(db: Pick<DB, 'query'>, userId: number, newPasswordHash: string): Promise<void> {
   await db.query(
     'UPDATE users SET password_hash = $1 WHERE id = $2',
     [newPasswordHash, userId]
