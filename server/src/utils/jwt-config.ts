@@ -14,16 +14,41 @@ export function getJwtExpiresIn(): string {
  * the token never outlives its cookie. Throws on an invalid `JWT_EXPIRES_IN`.
  */
 export function getAccessTokenMaxAgeMs(): number {
-  return parseExpiry(getJwtExpiresIn()).ms;
+  return parseConfiguredExpiry().ms;
+}
+
+/** The configured access-token lifetime, in the form `jwt.sign` expects. */
+export function getJwtSignExpiresIn(): string | number {
+  return parseConfiguredExpiry().jwtValue;
 }
 
 const UNIT_MS = { s: 1000, m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 } as const;
 
 /**
+ * Upper bound on the access-token lifetime. Far above any sane value, it keeps
+ * the cookie `expires` a valid date, so a typo fails at startup rather than
+ * on every login.
+ */
+export const MAX_JWT_EXPIRES_IN_MS = 365 * UNIT_MS.d;
+
+type ParsedExpiry = { jwtValue: string | number; ms: number };
+
+/** Last parse of `JWT_EXPIRES_IN`, re-done only when the variable changes. */
+let parsedConfig: { raw: string; parsed: ParsedExpiry } | undefined;
+
+function parseConfiguredExpiry(): ParsedExpiry {
+  const raw = getJwtExpiresIn();
+  if (parsedConfig?.raw !== raw) {
+    parsedConfig = { raw, parsed: parseExpiry(raw) };
+  }
+  return parsedConfig.parsed;
+}
+
+/**
  * The one grammar for `JWT_EXPIRES_IN`: returns both the value handed to
  * `jwt.sign` and the same duration in milliseconds.
  */
-function parseExpiry(value: string): { jwtValue: string | number; ms: number } {
+function parseExpiry(value: string): ParsedExpiry {
   const trimmed = value.trim();
 
   if (!trimmed) {
@@ -48,7 +73,13 @@ function parseExpiry(value: string): { jwtValue: string | number; ms: number } {
   }
 
   const unit = (match[2] ?? 's') as keyof typeof UNIT_MS;
-  return { jwtValue: match[2] ? trimmed : num, ms: num * UNIT_MS[unit] };
+  const ms = num * UNIT_MS[unit];
+  if (ms > MAX_JWT_EXPIRES_IN_MS) {
+    logger.error(`JWT_EXPIRES_IN exceeds 365 days: ${trimmed}`);
+    throw new Error('Invalid JWT_EXPIRES_IN format: value must not exceed 365 days');
+  }
+
+  return { jwtValue: match[2] ? trimmed : num, ms };
 }
 
 /**

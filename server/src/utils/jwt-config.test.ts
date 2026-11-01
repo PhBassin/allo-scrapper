@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { parseJwtExpiration, getJwtExpiresIn, getAccessTokenMaxAgeMs } from './jwt-config.js';
+import { parseJwtExpiration, getJwtExpiresIn, getAccessTokenMaxAgeMs, getJwtSignExpiresIn } from './jwt-config.js';
 
 describe('parseJwtExpiration', () => {
   describe('human-readable formats', () => {
@@ -121,5 +121,25 @@ describe('access-token lifetime', () => {
   it('throws on an invalid JWT_EXPIRES_IN', () => {
     process.env.JWT_EXPIRES_IN = 'abc';
     expect(() => getAccessTokenMaxAgeMs()).toThrow('Invalid JWT_EXPIRES_IN format');
+  });
+
+  it('accepts up to 365 days', () => {
+    process.env.JWT_EXPIRES_IN = '365d';
+    expect(getAccessTokenMaxAgeMs()).toBe(365 * 24 * 60 * 60 * 1000);
+  });
+
+  it('rejects a lifetime beyond 365 days, so a typo fails at startup rather than on every login', () => {
+    for (const value of ['366d', '8761h', '100000000d', '99999999999999999999']) {
+      process.env.JWT_EXPIRES_IN = value;
+      expect(() => getAccessTokenMaxAgeMs()).toThrow('must not exceed 365 days');
+    }
+  });
+
+  it('hands jwt.sign the same lifetime, following JWT_EXPIRES_IN changes', () => {
+    process.env.JWT_EXPIRES_IN = '2h';
+    expect(getJwtSignExpiresIn()).toBe('2h');
+    process.env.JWT_EXPIRES_IN = '600';
+    expect(getJwtSignExpiresIn()).toBe(600);
+    expect(getAccessTokenMaxAgeMs()).toBe(600 * 1000);
   });
 });

@@ -5,7 +5,7 @@ import type { DB } from '../db/index.js';
 import { validatePasswordStrength } from '../utils/security.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { logger } from '../utils/logger.js';
-import { getJwtExpiresIn, parseJwtExpiration } from '../utils/jwt-config.js';
+import { getJwtSignExpiresIn } from '../utils/jwt-config.js';
 import type { PermissionName } from '../types/role.js';
 import { getCurrentSecret } from '../utils/jwt-secrets.js';
 import { revokeAllUserTokens } from '../repositories/refresh-token-repository.js';
@@ -78,7 +78,7 @@ export class AuthService {
 
     const secret = getCurrentSecret();
 
-    const expiresIn = parseJwtExpiration(getJwtExpiresIn());
+    const expiresIn = getJwtSignExpiresIn();
 
     return jwt.sign(
       {
