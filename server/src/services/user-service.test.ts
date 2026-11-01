@@ -3,6 +3,7 @@ import { UserService, type ActingUser } from './user-service.js';
 import * as userQueries from '../db/user-queries.js';
 import * as roleQueries from '../db/role-queries.js';
 import * as passwordUtils from '../utils/password.js';
+import * as refreshTokenRepo from '../repositories/refresh-token-repository.js';
 import { validatePasswordStrength } from '../utils/security.js';
 import { type DB } from '../db/index.js';
 import type { UserPublic } from '../types/user.js';
@@ -10,6 +11,9 @@ import type { UserPublic } from '../types/user.js';
 vi.mock('../db/user-queries.js');
 vi.mock('../db/role-queries.js');
 vi.mock('../utils/password.js');
+vi.mock('../repositories/refresh-token-repository.js', () => ({
+  revokeAllUserTokens: vi.fn(),
+}));
 vi.mock('../utils/security.js', () => ({
   validatePasswordStrength: vi.fn(() => null),
 }));
@@ -205,6 +209,40 @@ describe('UserService', () => {
       expect(userQueries.updateUserRole).toHaveBeenCalledWith(mockDb, 2, 1);
     });
 
+    it('revokes the target user sessions after the role update, not the acting admin ones', async () => {
+      vi.mocked(userQueries.getUserById)
+        .mockResolvedValueOnce(makeUser(2, 'user1', 2, 'operator'))
+        .mockResolvedValueOnce(makeUser(2, 'user1', 3, 'viewer'));
+      vi.mocked(roleQueries.getRoleNameById).mockResolvedValue('viewer');
+      vi.mocked(userQueries.updateUserRole).mockResolvedValue(undefined);
+
+      await service.updateUserRole(2, 3, ACTING);
+
+      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledTimes(1);
+      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledWith(mockDb, 2);
+      expect(vi.mocked(userQueries.updateUserRole).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(refreshTokenRepo.revokeAllUserTokens).mock.invocationCallOrder[0],
+      );
+    });
+
+    it('does not revoke sessions when the role update is rejected', async () => {
+      vi.mocked(userQueries.getUserById).mockResolvedValue(makeUser(1, 'admin', 1, 'admin'));
+      vi.mocked(roleQueries.getRoleNameById).mockResolvedValue('operator');
+      vi.mocked(userQueries.getAdminCount).mockResolvedValue(1);
+
+      await expect(service.updateUserRole(1, 2, ACTING)).rejects.toThrow();
+      expect(refreshTokenRepo.revokeAllUserTokens).not.toHaveBeenCalled();
+    });
+
+    it('does not revoke sessions when the db update fails', async () => {
+      vi.mocked(userQueries.getUserById).mockResolvedValue(makeUser(2, 'user1', 2, 'operator'));
+      vi.mocked(roleQueries.getRoleNameById).mockResolvedValue('viewer');
+      vi.mocked(userQueries.updateUserRole).mockRejectedValue(new Error('db down'));
+
+      await expect(service.updateUserRole(2, 3, ACTING)).rejects.toThrow('db down');
+      expect(refreshTokenRepo.revokeAllUserTokens).not.toHaveBeenCalled();
+    });
+
     it('throws NotFoundError when the target user does not exist', async () => {
       vi.mocked(userQueries.getUserById).mockResolvedValue(undefined);
       await expect(service.updateUserRole(999, 1, ACTING)).rejects.toMatchObject({
@@ -286,6 +324,27 @@ describe('UserService', () => {
       expect(result).toEqual(target);
       expect(passwordUtils.hashPassword).toHaveBeenCalledWith('BrandNewPass123!');
       expect(userQueries.updateUserPassword).toHaveBeenCalledWith(mockDb, 2, 'scrypt:hashed');
+    });
+
+    it('revokes the target user sessions after storing the new password', async () => {
+      vi.mocked(userQueries.getUserById).mockResolvedValue(makeUser(2, 'user1', 2, 'operator'));
+      vi.mocked(userQueries.updateUserPassword).mockResolvedValue(undefined);
+
+      await service.resetPassword(2, 'BrandNewPass123!', ACTING);
+
+      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledTimes(1);
+      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledWith(mockDb, 2);
+      expect(vi.mocked(userQueries.updateUserPassword).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(refreshTokenRepo.revokeAllUserTokens).mock.invocationCallOrder[0],
+      );
+    });
+
+    it('does not revoke sessions when the password is rejected', async () => {
+      vi.mocked(userQueries.getUserById).mockResolvedValue(makeUser(2, 'user1', 2, 'operator'));
+      vi.mocked(validatePasswordStrength).mockReturnValue('Password must be at least 8 characters');
+
+      await expect(service.resetPassword(2, 'short', ACTING)).rejects.toThrow();
+      expect(refreshTokenRepo.revokeAllUserTokens).not.toHaveBeenCalled();
     });
 
     it('rejects a missing password', async () => {
