@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Response } from 'express';
 import type { DB } from '../db/index.js';
 
@@ -116,6 +116,36 @@ describe('SessionService', () => {
         'csrf_token',
         expect.any(String),
         expect.objectContaining({ httpOnly: false, path: '/' }),
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // access-token cookie lifetime
+  // -------------------------------------------------------------------------
+  describe('access_token cookie maxAge', () => {
+    const originalEnv = process.env.JWT_EXPIRES_IN;
+
+    afterEach(() => {
+      if (originalEnv === undefined) {
+        delete process.env.JWT_EXPIRES_IN;
+      } else {
+        process.env.JWT_EXPIRES_IN = originalEnv;
+      }
+    });
+
+    it('follows JWT_EXPIRES_IN so the cookie never outlives the JWT', async () => {
+      process.env.JWT_EXPIRES_IN = '5m';
+      authMock.login.mockResolvedValue({ token: 'access-jwt', user: { id: 7 } });
+      vi.mocked(refreshTokenRepo.generateRefreshToken).mockResolvedValue('refresh-raw');
+
+      const res = buildRes();
+      await new SessionService(db, res).login('alice', 'pw');
+
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        'access-jwt',
+        expect.objectContaining({ maxAge: 5 * 60 * 1000 }),
       );
     });
   });

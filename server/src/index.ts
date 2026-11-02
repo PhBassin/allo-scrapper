@@ -14,14 +14,10 @@ async function startServer() {
     logger.info('🔐 Validating JWT configuration...');
     validateJWTSecret();
     
-    // Log JWT configuration
-    const jwtExpiration = process.env.JWT_EXPIRES_IN || '1h';
-    logger.info(`🔐 JWT expiration set to: ${jwtExpiration}`);
-
-    // Validate JWT expiry vs access token cookie maxAge
-    const { validateJwtExpirationForCookie } = await import('./utils/jwt-config.js');
-    const ACCESS_TOKEN_COOKIE_MAX_AGE_MS = 15 * 60 * 1000;
-    validateJwtExpirationForCookie(jwtExpiration, ACCESS_TOKEN_COOKIE_MAX_AGE_MS);
+    // Fail fast on an invalid JWT_EXPIRES_IN (the access_token cookie maxAge follows it)
+    const { getJwtExpiresIn, getAccessTokenMaxAgeMs } = await import('./utils/jwt-config.js');
+    getAccessTokenMaxAgeMs();
+    logger.info(`🔐 JWT expiration set to: ${getJwtExpiresIn()}`);
 
     // Initialize database
     logger.info('📦 Initializing database...');
