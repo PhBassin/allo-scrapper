@@ -6,7 +6,7 @@ Comprehensive guide for testing the Allo-Scrapper application.
 
 **Related Documentation:**
 - [Installation Guide](../../getting-started/installation.md) - Development environment setup
-- [Contributing Guide](./contributing.md) - Testing requirements for contributions
+- [Contributing Guide](../../../CONTRIBUTING.md) - Testing requirements for contributions
 - [Troubleshooting Guide](../../troubleshooting/common-issues.md) - Test failures
 
 ---
@@ -19,6 +19,7 @@ Comprehensive guide for testing the Allo-Scrapper application.
 - [Integration Tests (E2E)](#integration-tests-e2e)
 - [Test Coverage](#test-coverage)
 - [Writing Tests](#writing-tests)
+- [Testing a PR's Docker Image](#testing-a-prs-docker-image)
 
 ---
 
@@ -29,7 +30,7 @@ The project uses a comprehensive testing strategy:
 - **Integration Tests** (Playwright) - End-to-end tests for full-stack workflows
 - **Coverage Tracking** - Code coverage targets enforced
 
-**Test-Driven Development (TDD) is mandatory** for all contributions. See [Contributing Guide](./contributing.md) for the required TDD workflow.
+**Test-Driven Development (TDD) is mandatory** for all contributions. See [Contributing Guide](../../../CONTRIBUTING.md) for the required TDD workflow.
 
 ---
 
@@ -552,14 +553,54 @@ Tests run automatically on every push via GitHub Actions:
 
 ---
 
+## Testing a PR's Docker Image
+
+For pull requests opened from a branch of this repository (not from a fork), the **Docker Build & Push** workflow builds and publishes both images, tagged with the PR number:
+
+- `ghcr.io/phbassin/allo-scrapper:pr-<number>` (API + client)
+- `ghcr.io/phbassin/allo-scrapper-scraper:pr-<number>` (scraper)
+
+The workflow's **Summary** page shows the exact `docker pull` command under "Test this PR".
+
+To run the whole stack with the PR images, set `IMAGE_TAG`, which `docker-compose.yaml` uses for both images:
+
+```bash
+IMAGE_TAG=pr-141 docker compose up -d
+curl http://localhost:3000/api/health
+```
+
+### Available Tags
+
+| Tag | Created on | Purpose |
+|-----|------------|---------|
+| `pr-<number>` | Every commit of a PR | Testing before merge |
+| `sha-<commit>` | Every build | A specific commit, for debugging |
+| `develop` | Push to `develop` | Latest development build |
+| `<version>`, `<major>.<minor>`, `<major>` | Version tag `v*` | A specific release |
+| `latest`, `stable` | Version tag `v*` | Latest release |
+
+### Cleaning Up
+
+The weekly **GHCR cleanup** workflow deletes `pr-*` images older than 7 days and keeps those of the 5 most recent PRs, so you don't need to delete your PR images by hand.
+
+### Building Images Locally
+
+The client's application name is baked in at build time through the `VITE_APP_NAME` build argument (default `Allo-Scrapper`):
+
+```bash
+docker compose -f docker-compose.build.yml build --build-arg VITE_APP_NAME="My Custom Name"
+```
+
+---
+
 ## Troubleshooting Tests
 
 ### Common Issues
 
 #### Tests fail with "Cannot find module"
 ```bash
-# Install dependencies
-cd server && npm ci
+# Install dependencies, from the repository root
+npm install --legacy-peer-deps
 ```
 
 #### Tests timeout
@@ -596,7 +637,7 @@ See [Troubleshooting Guide](../../troubleshooting/common-issues.md) for more tes
 ## Related Documentation
 
 - [Installation Guide](../../getting-started/installation.md) - Development environment
-- [Contributing Guide](./contributing.md) - Testing requirements
+- [Contributing Guide](../../../CONTRIBUTING.md) - Testing requirements
 - [CI/CD Guide](./cicd.md) - Continuous integration workflows
 - [Troubleshooting Guide](../../troubleshooting/common-issues.md) - Test failures
 

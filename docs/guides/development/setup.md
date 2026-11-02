@@ -8,7 +8,7 @@ Complete guide for setting up a local development environment for Allo-Scrapper.
 - [Installation Guide](../../getting-started/installation.md) - Docker and production setup
 - [Quick Start](../../getting-started/quick-start.md) - Get running in 5 minutes
 - [Testing Guide](./testing.md) - Running and writing tests
-- [Contributing Guide](./contributing.md) - Contribution workflow
+- [Contributing Guide](../../../CONTRIBUTING.md) - Contribution workflow
 
 ---
 
@@ -70,36 +70,20 @@ git pull origin develop
 
 ## Install Dependencies
 
-**CRITICAL**: Install dependencies from the correct directories.
-
 ```bash
-# Install root dependencies (Playwright E2E tests)
-npm install
-
-# Install server dependencies
-cd server && npm install
-
-# Install client dependencies
-cd ../client && npm install
-
-# Return to root
-cd ..
+# Install all workspace dependencies, from the repository root
+npm install --legacy-peer-deps
 ```
+
+This is an npm workspaces monorepo (`client`, `server`, `scraper`, `packages/scraper-protocol`) with a single `package-lock.json`, so one install from the repository root installs everything, including the native `sharp` binaries. `--legacy-peer-deps` is required because of peer-dependency conflicts.
 
 ### Common Installation Issues
 
-**Problem**: `sharp` package fails to install
+**Problem**: `sharp` fails to install, or native module errors
 ```bash
-# Solution: Always install from server/ directory
-cd server && npm install
-```
-
-**Problem**: Native module errors
-```bash
-# Solution: Rebuild native modules
-cd server
-rm -rf node_modules package-lock.json
-npm install
+# Solution: reinstall from the repository root
+rm -rf node_modules
+npm install --legacy-peer-deps
 ```
 
 ---
@@ -369,10 +353,9 @@ PORT=3001
 
 **Solution**:
 ```bash
-# Reinstall dependencies from correct directory
-cd server
+# Reinstall dependencies from the repository root
 rm -rf node_modules
-npm install
+npm install --legacy-peer-deps
 ```
 
 ---
@@ -415,7 +398,7 @@ Access the admin panel at: http://localhost:5173/admin
 
 Now that your development environment is ready:
 
-1. **Read the contributing guide**: [Contributing](./contributing.md)
+1. **Read the contributing guide**: [Contributing](../../../CONTRIBUTING.md)
 2. **Understand the workflow**: [CI/CD](./cicd.md)
 3. **Learn about testing**: [Testing Guide](./testing.md)
 4. **Explore the architecture**: [Architecture Docs](../../reference/architecture/)

@@ -28,7 +28,7 @@ Step-by-step tutorials and how-to guides for common tasks.
 #### Development
 - [Development Setup](./guides/development/setup.md) - Local development environment
 - [Testing](./guides/development/testing.md) - Unit, integration, and E2E tests
-- [Contributing](./guides/development/contributing.md) - Contributing guidelines
+- [Contributing](../CONTRIBUTING.md) - Contributing guidelines
 - [CI/CD](./guides/development/cicd.md) - Continuous integration and deployment
 
 #### Administration
@@ -57,7 +57,7 @@ Solutions to common issues and debugging guides.
 Project meta-documentation, changelog, and planning documents.
 
 - [Changelog](./project/changelog.md) - Version history and release notes
-- [Security](./project/security.md) - Security policies and reporting
+- [Security](../SECURITY.md) - Security policy and how to report a vulnerability
 - [Contributing](../CONTRIBUTING.md) - Workflow, checks, merge and releases
 - [White-Label Roadmap](./project/white-label-plan.md) - Feature implementation plan
 
@@ -69,7 +69,7 @@ Project meta-documentation, changelog, and planning documents.
 - **Deploying to production?** → [Production Deployment](./guides/deployment/production.md)
 - **Looking for API docs?** → [API Reference](./reference/api/)
 - **Something not working?** → [Troubleshooting](./troubleshooting/)
-- **Want to contribute?** → [Contributing Guide](./guides/development/contributing.md)
+- **Want to contribute?** → [Contributing Guide](../CONTRIBUTING.md)
 
 ---
 
@@ -77,7 +77,7 @@ Project meta-documentation, changelog, and planning documents.
 
 - **Issues & Bug Reports**: [GitHub Issues](https://github.com/yourusername/allo-scrapper/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/yourusername/allo-scrapper/discussions)
-- **Security Issues**: See [Security Policy](./project/security.md)
+- **Security Issues**: See [Security Policy](../SECURITY.md)
 
 ---
 

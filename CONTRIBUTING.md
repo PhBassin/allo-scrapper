@@ -70,6 +70,28 @@ refs #310
 
 The same format applies to your **PR title**: whichever merge method is used, the PR title becomes the commit subject on `develop`.
 
+### Keep commits atomic
+
+Each commit is one logical, self-contained change: it has a single purpose, passes the tests on its own, and can be reviewed in isolation.
+
+Good:
+
+```
+test(parser): add test for theater with no movies
+feat(parser): handle theaters with no movies showing
+docs: document empty theater behavior
+```
+
+Bad:
+
+```
+feat: add new scraper features and fix bugs and update docs   # too broad
+wip: working on parser                                         # work in progress
+fix: fix parser bug and update dependencies                    # unrelated changes mixed
+```
+
+Split into separate commits when you are adding tests vs implementing, fixing unrelated bugs, updating documentation, changing dependencies, or refactoring vs adding functionality.
+
 ## Before you push
 
 A `pre-push` Git hook runs most of the checks for you and **blocks the push if any of them fails**. It is installed automatically by `npm install` (through husky's `prepare` script). The checks, in order:
@@ -103,6 +125,14 @@ Before asking for review, check that:
 - [ ] The PR title follows Conventional Commits (it becomes the commit subject on `develop`)
 - [ ] Documentation is updated
 - [ ] Release PRs (`develop`→`main`) only: a version label is added (`patch`, `minor`, or `major`)
+
+Fill in the PR template: summary, related issue, type of change and checklist.
+
+During review:
+
+1. Make sure the CI checks pass, then request a review.
+2. Address feedback with **new commits** rather than force-pushing, so reviewers can see what changed.
+3. If the branch is meant for a merge commit (see below), fold those fixups into the commits they belong to once the review is done. Otherwise the PR is squashed and they disappear anyway.
 
 ## Merge your PR
 
@@ -152,13 +182,40 @@ Where tests live:
 
 ## Code style
 
-- TypeScript strict mode everywhere.
+- TypeScript strict mode everywhere. Prefer explicit types over `any`, and interfaces for object shapes.
 - Functional components for React.
 - Prefer named exports.
 - The client is linted with ESLint (`npm run lint --workspace=client`).
 
+Naming:
+
+| What | Convention | Example |
+|---|---|---|
+| Server and scraper files | kebab-case | `cors-config.ts` |
+| React component files | PascalCase | `FilterBar.tsx` |
+| Functions and variables | camelCase | `parseTheaterPage()` |
+| Classes, types, interfaces | PascalCase | `HttpClient`, `Theater` |
+| Constants | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT` |
+
+Comments explain **why**, not what: document complex business logic and public functions (JSDoc), and skip the obvious.
+
+## Documentation
+
+Update the docs in the same PR as the change:
+
+| When you… | Update |
+|---|---|
+| add or change an API endpoint | [API reference](./docs/reference/api/README.md) |
+| add or change an environment variable | [Configuration guide](./docs/getting-started/configuration.md) |
+| change the database schema | [Database reference](./docs/reference/database/README.md) |
+| add a user-facing feature | [README](./README.md) |
+| change how the app is deployed | [Deployment guides](./docs/guides/deployment/) |
+
+Test every command before documenting it.
+
 ## Getting help
 
 - Architecture and API docs live in [`docs/`](./docs/README.md).
+- Search closed issues and PRs: the question may already be answered.
 - Use issues for feature requests and bug reports.
 - AI coding agents also read [`AGENTS.md`](./AGENTS.md), which covers agent-specific guidance.

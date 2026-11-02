@@ -57,7 +57,7 @@
 - [Source Tree Analysis](./source-tree-analysis.md)
 - [Development Guide](./development-guide.md)
 - [Deployment Guide](./deployment-guide.md)
-- [Contribution Guide](./contribution-guide.md)
+- [Contribution Guide](../CONTRIBUTING.md)
 
 ---
 
@@ -97,7 +97,7 @@
 - [Development Setup](./guides/development/setup.md)
 - [Testing Guide](./guides/development/testing.md)
 - [CI/CD](./guides/development/cicd.md)
-- [Contributing](./guides/development/contributing.md)
+- [Contributing](../CONTRIBUTING.md)
 - [Docker Deployment](./guides/deployment/docker.md)
 - [Production Deployment](./guides/deployment/production.md)
 - [Networking](./guides/deployment/networking.md)
@@ -131,5 +131,5 @@
 ### Project
 - [Contributing](../CONTRIBUTING.md)
 - [Changelog](./project/changelog.md)
-- [Security](./project/security.md)
+- [Security](../SECURITY.md)
 - [White-Label Plan](./project/white-label-plan.md)

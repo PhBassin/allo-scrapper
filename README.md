@@ -334,16 +334,10 @@ For active development without Docker:
 git clone https://github.com/PhBassin/allo-scrapper.git
 cd allo-scrapper
 
-# Install server dependencies (IMPORTANT: run from server/ directory)
-cd server
-npm install
-
-# Install client dependencies
-cd ../client
-npm install
+# Install all workspace dependencies, from the repository root
+npm install --legacy-peer-deps
 
 # Setup environment and database
-cd ..
 cp .env.example .env && cat .env.dev.example >> .env
 
 # Generate a secure JWT secret and set it in .env
@@ -365,14 +359,13 @@ cd client && npm run dev    # UI on http://localhost:5173
 cd scraper && npm run dev
 ```
 
-**⚠️ Important:** Always run `npm install` from the `server/` directory, not the root. The `sharp` image processing library requires native binaries that may not install correctly if run from the wrong directory.
+**⚠️ Important:** This is an npm workspaces monorepo (`client`, `server`, `scraper`, `packages/scraper-protocol`) with a single `package-lock.json`, so one install from the repository root installs everything, including the native `sharp` binaries. `--legacy-peer-deps` is required because of peer-dependency conflicts.
 
 **Troubleshooting:**
-If you encounter `Cannot find package 'sharp'` errors:
+If you encounter `Cannot find package 'sharp'` errors, reinstall from the repository root:
 ```bash
-cd server
 rm -rf node_modules
-npm install
+npm install --legacy-peer-deps
 ```
 
 For production deployment and advanced configuration, see [DEPLOYMENT.md](./DEPLOYMENT.md) and [DOCKER.md](./DOCKER.md).
@@ -556,7 +549,7 @@ Solutions to common issues.
 ### 📦 [Project](./docs/project/)
 Project meta-documentation.
 - [Changelog](./docs/project/changelog.md) - Version history
-- [Security](./docs/project/security.md) - Security policies
+- [Security](./SECURITY.md) - Security policy and how to report a vulnerability
 - [Contributing](./CONTRIBUTING.md) - Workflow, checks, merge and releases
 
 ---
