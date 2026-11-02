@@ -4,6 +4,7 @@ import * as userQueries from '../db/user-queries.js';
 import * as roleQueries from '../db/role-queries.js';
 import jwt from 'jsonwebtoken';
 import * as passwordUtils from '../utils/password.js';
+import * as refreshTokenRepo from '../repositories/refresh-token-repository.js';
 import { type DB } from '../db/index.js';
 import { validatePasswordStrength } from '../utils/security.js';
 
@@ -11,13 +12,19 @@ vi.mock('../db/user-queries.js');
 vi.mock('../db/role-queries.js');
 vi.mock('../utils/password.js');
 vi.mock('jsonwebtoken');
+vi.mock('../repositories/refresh-token-repository.js', () => ({
+  revokeAllUserTokens: vi.fn(),
+}));
 vi.mock('../utils/security.js', () => ({
   validatePasswordStrength: vi.fn(() => null),
 }));
 
 describe('AuthService', () => {
   let authService: AuthService;
-  const mockDb = {} as DB;
+  const tx = { query: vi.fn() };
+  const mockDb = {
+    transaction: vi.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)),
+  } as unknown as DB;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -115,14 +122,26 @@ describe('AuthService', () => {
       await expect(authService.changePassword('user', 'wrong', 'ValidPass123!')).rejects.toThrow('Current password is incorrect');
     });
 
-    it('should update password on success', async () => {
+    it('should update password and revoke every refresh token in one transaction on success', async () => {
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue({ id: 1, username: 'user', password_hash: 'old-hash' } as any);
       vi.mocked(passwordUtils.comparePassword).mockResolvedValue(true);
       vi.mocked(passwordUtils.hashPassword).mockResolvedValue('new-hash' as any);
 
       await authService.changePassword('user', 'old', 'ValidPass123!');
-      
-      expect(userQueries.updateUserPassword).toHaveBeenCalledWith(mockDb, 1, 'new-hash');
+
+      expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+      expect(userQueries.updateUserPassword).toHaveBeenCalledWith(tx, 1, 'new-hash');
+      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledWith(tx, 1);
+    });
+
+    it('should not revoke anything when the password is wrong', async () => {
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue({ id: 1, username: 'user', password_hash: 'old-hash' } as any);
+      vi.mocked(passwordUtils.comparePassword).mockResolvedValue(false);
+
+      await expect(authService.changePassword('user', 'wrong', 'ValidPass123!')).rejects.toThrow();
+
+      expect(mockDb.transaction).not.toHaveBeenCalled();
+      expect(refreshTokenRepo.revokeAllUserTokens).not.toHaveBeenCalled();
     });
   });
 });

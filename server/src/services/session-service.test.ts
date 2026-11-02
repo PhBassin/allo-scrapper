@@ -358,17 +358,15 @@ describe('SessionService', () => {
   // changePassword
   // -------------------------------------------------------------------------
   describe('changePassword', () => {
-    it('changes the password, revokes all tokens, and clears the auth cookies', async () => {
+    it('changes the password (which revokes all tokens) and clears the auth cookies', async () => {
       authMock.changePassword.mockResolvedValue(undefined);
-      vi.mocked(refreshTokenRepo.revokeAllUserTokens).mockResolvedValue(undefined);
 
       const res = buildRes();
       const session = new SessionService(db, res);
 
-      await session.changePassword(5, 'alice', 'old', 'NewPw1!');
+      await session.changePassword('alice', 'old', 'NewPw1!');
 
       expect(authMock.changePassword).toHaveBeenCalledWith('alice', 'old', 'NewPw1!');
-      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledWith(db, 5);
       expect(res.clearCookie).toHaveBeenCalledWith('refresh_token', expect.any(Object));
       expect(res.clearCookie).toHaveBeenCalledWith('access_token', expect.any(Object));
       // CSRF is not part of the change-password cookie clear
@@ -379,17 +377,16 @@ describe('SessionService', () => {
       });
     });
 
-    it('does not revoke tokens or clear cookies when the password change fails', async () => {
+    it('does not clear cookies when the password change fails', async () => {
       authMock.changePassword.mockRejectedValue(new Error('Current password is incorrect'));
 
       const res = buildRes();
       const session = new SessionService(db, res);
 
       await expect(
-        session.changePassword(5, 'alice', 'wrong', 'NewPw1!'),
+        session.changePassword('alice', 'wrong', 'NewPw1!'),
       ).rejects.toThrow('Current password is incorrect');
 
-      expect(refreshTokenRepo.revokeAllUserTokens).not.toHaveBeenCalled();
       expect(res.clearCookie).not.toHaveBeenCalled();
       expect(res.json).not.toHaveBeenCalled();
     });

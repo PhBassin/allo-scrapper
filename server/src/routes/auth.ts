@@ -37,7 +37,6 @@ router.post('/change-password', authLimiter, requireAuth, async (req: AuthReques
     try {
         const session = new SessionService(req.app.get('db'), res);
         await session.changePassword(
-            req.user!.id,
             req.user!.username,
             req.body.currentPassword,
             req.body.newPassword,

@@ -8,6 +8,7 @@ import { logger } from '../utils/logger.js';
 import { parseJwtExpiration } from '../utils/jwt-config.js';
 import type { PermissionName } from '../types/role.js';
 import { getCurrentSecret } from '../utils/jwt-secrets.js';
+import { revokeAllUserTokens } from '../repositories/refresh-token-repository.js';
 import { ValidationError, AuthError, NotFoundError } from '../utils/errors.js';
 
 // Pre-computed hash for 'dummy' (cost 10) to prevent timing attacks
@@ -163,7 +164,11 @@ export class AuthService {
 
     const newPasswordHash = await hashPassword(newPassword);
 
-    await updateUserPassword(this.db, user.id, newPasswordHash);
+    // Every Session dies with the old password, atomically with the change.
+    await this.db.transaction(async (tx) => {
+      await updateUserPassword(tx, user.id, newPasswordHash);
+      await revokeAllUserTokens(tx, user.id);
+    });
     logger.info(`Password changed for user: ${user.username}`);
   }
 }
