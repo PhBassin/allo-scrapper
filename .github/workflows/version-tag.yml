@@ -352,7 +352,7 @@ jobs:
           - [Installation Guide](https://github.com/PhBassin/allo-scrapper#installation)
           - [Configuration Reference](https://github.com/PhBassin/allo-scrapper/blob/main/README.md#configuration)
           - [API Documentation](https://github.com/PhBassin/allo-scrapper/blob/main/README.md#api-endpoints)
-          - [Troubleshooting](https://github.com/PhBassin/allo-scrapper/blob/main/AGENTS.md)
+          - [Troubleshooting](https://github.com/PhBassin/allo-scrapper/blob/main/docs/troubleshooting/README.md)
           
           ---
           

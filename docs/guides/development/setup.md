@@ -375,8 +375,6 @@ rm -rf node_modules
 npm install
 ```
 
-See [Native Dependencies gotcha](../../project/agents.md#native-dependencies--sharp-package) for details.
-
 ---
 
 ### Hot Reload Not Working

@@ -129,7 +129,7 @@
 - [Networking Issues](./troubleshooting/networking.md)
 
 ### Project
-- [README](./project/agents.md)
+- [Contributing](../CONTRIBUTING.md)
 - [Changelog](./project/changelog.md)
 - [Security](./project/security.md)
 - [White-Label Plan](./project/white-label-plan.md)

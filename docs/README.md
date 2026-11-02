@@ -58,7 +58,7 @@ Project meta-documentation, changelog, and planning documents.
 
 - [Changelog](./project/changelog.md) - Version history and release notes
 - [Security](./project/security.md) - Security policies and reporting
-- [AI Agent Instructions](./project/agents.md) - Guidelines for AI coding agents
+- [Contributing](../CONTRIBUTING.md) - Workflow, checks, merge and releases
 - [White-Label Roadmap](./project/white-label-plan.md) - Feature implementation plan
 
 ---

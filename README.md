@@ -557,48 +557,15 @@ Solutions to common issues.
 Project meta-documentation.
 - [Changelog](./docs/project/changelog.md) - Version history
 - [Security](./docs/project/security.md) - Security policies
-- [AI Agents](./docs/project/agents.md) - Guidelines for AI coding agents
-
-### 🔗 Backward Compatibility
-
-All documentation has been migrated to the `/docs/` directory. Root-level `.md` files are now **symlinks** that redirect to the new locations for backward compatibility with existing external links and bookmarks.
-
-**Original Files** → **New Locations:**
-- `SETUP.md` → [`docs/getting-started/installation.md`](./docs/getting-started/installation.md)
-- `DEPLOYMENT.md` → [`docs/guides/deployment/production.md`](./docs/guides/deployment/production.md)
-- `API.md` → [`docs/reference/api/README.md`](./docs/reference/api/README.md)
-- `AGENTS.md` → [`docs/project/agents.md`](./docs/project/agents.md)
-- And more... (see [full documentation structure](./docs/README.md))
+- [Contributing](./CONTRIBUTING.md) - Workflow, checks, merge and releases
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for:
-- Code of Conduct
-- Development workflow (Issue → Branch → TDD → PR)
-- Coding standards
-- Commit message conventions (Conventional Commits)
-- Testing requirements
+We welcome contributions! [CONTRIBUTING.md](./CONTRIBUTING.md) explains the whole workflow: issues and branches, commit conventions, the checks to run before pushing, how PRs are merged, and how releases and versioning work.
 
-For AI coding agents, see [AGENTS.md](./AGENTS.md) for mandatory workflow and TDD requirements.
-
-**Quick contribution checklist:**
-1. Create an issue first (bug/feature/task)
-2. Create a feature branch from `develop`
-3. Write tests before implementation (TDD)
-4. Follow Conventional Commits format
-5. Ensure all tests pass and Docker builds
-6. Create PR referencing the issue
-7. **Add version label** to PR (`major`, `minor`, or `patch`) when targeting `main`
-8. Wait for review before merging
-
-**Automated versioning** (PRs to `main` only):
-- Add label `major` (breaking changes), `minor` (features), or `patch` (fixes)
-- After merge + successful Docker build, version is auto-bumped and tagged
-- `CHANGELOG.md` auto-generated from conventional commits
-- GitHub release created automatically
-- See [AGENTS.md](./AGENTS.md#automated-versioning--releases) for details
+AI coding agents: see [AGENTS.md](./AGENTS.md).
 
 ---
 
