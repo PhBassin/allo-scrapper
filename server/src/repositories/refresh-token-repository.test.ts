@@ -7,6 +7,7 @@ import {
   rotateRefreshToken,
   revokeAllUserTokens,
   cleanupExpiredTokens,
+  REUSE_GRACE_MS,
 } from './refresh-token-repository.js';
 import type { DB } from '../db/index.js';
 
@@ -120,79 +121,199 @@ describe('refresh-token-repository', () => {
   });
 
   describe('validateRefreshToken', () => {
-    it('should return userId for valid non-expired non-revoked token', async () => {
-      vi.mocked(mockDb.query).mockResolvedValueOnce({
-        rows: [{
-          id: 1,
-          user_id: 42,
-          token_hash: 'hashed',
-          expires_at: new Date('2026-06-22T12:00:00Z'), // 1 day later
-          created_at: now,
-          revoked_at: null,
-        }],
-      } as any);
+    const tokenRow = (overrides: Record<string, unknown> = {}) => ({
+      rows: [{
+        id: 1,
+        user_id: 42,
+        token_hash: 'hashed',
+        expires_at: new Date('2026-06-22T12:00:00Z'), // 1 day later
+        created_at: now,
+        revoked_at: null,
+        replaced_by_id: null,
+        in_reuse_grace: false,
+        ...overrides,
+      }],
+    } as any);
+
+    /** A token rotated `agoMs` ago, replaced by token #2 (the DB computes the grace flag). */
+    const rotatedRow = (agoMs: number) =>
+      tokenRow({
+        revoked_at: new Date(now.getTime() - agoMs),
+        replaced_by_id: 2,
+        in_reuse_grace: agoMs < REUSE_GRACE_MS,
+      });
+
+    it('should return the userId for a valid non-expired non-revoked token', async () => {
+      vi.mocked(mockDb.query).mockResolvedValueOnce(tokenRow());
 
       const result = await validateRefreshToken(mockDb, 'valid-raw-token');
 
-      expect(result).toBe(42);
+      expect(result).toEqual({ status: 'valid', userId: 42 });
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('SELECT'),
-        [expect.any(String)],
+        [expect.any(String), REUSE_GRACE_MS],
       );
     });
 
-    it('should return null for unknown token', async () => {
+    it('should let the database measure the grace window (no app/DB clock skew)', async () => {
+      vi.mocked(mockDb.query).mockResolvedValueOnce(tokenRow());
+
+      await validateRefreshToken(mockDb, 'valid-raw-token');
+
+      expect(vi.mocked(mockDb.query).mock.calls[0][0]).toContain(
+        "revoked_at > NOW() - INTERVAL '1 millisecond' * $2::integer",
+      );
+    });
+
+    it('should trust the database grace flag over the app clock', async () => {
+      // The app clock says "seconds ago", the DB (which wrote revoked_at) says otherwise.
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce(tokenRow({ revoked_at: now, replaced_by_id: 2, in_reuse_grace: false }))
+        .mockResolvedValueOnce({ rows: [{ id: 2, replaced_by_id: null }] } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any);
+
+      const result = await validateRefreshToken(mockDb, 'replayed-token');
+
+      expect(result).toEqual({ status: 'rejected' });
+      expect(mockDb.query).toHaveBeenCalledTimes(3);
+    });
+
+    it('should reject an unknown token', async () => {
       vi.mocked(mockDb.query).mockResolvedValueOnce({ rows: [] } as any);
 
       const result = await validateRefreshToken(mockDb, 'unknown-token');
 
-      expect(result).toBeNull();
+      expect(result).toEqual({ status: 'rejected' });
     });
 
-    it('should return null for revoked token', async () => {
-      vi.mocked(mockDb.query).mockResolvedValueOnce({
-        rows: [{
-          id: 1,
-          user_id: 42,
-          token_hash: 'hashed',
-          expires_at: new Date('2026-06-22T12:00:00Z'),
-          created_at: now,
-          revoked_at: new Date('2026-06-20T12:00:00Z'),
-        }],
-      } as any);
-
-      const result = await validateRefreshToken(mockDb, 'revoked-token');
-
-      expect(result).toBeNull();
-    });
-
-    it('should return null for expired token', async () => {
-      vi.mocked(mockDb.query).mockResolvedValueOnce({
-        rows: [{
-          id: 1,
-          user_id: 42,
-          token_hash: 'hashed',
-          expires_at: new Date('2026-06-20T12:00:00Z'), // 1 day ago
-          created_at: now,
-          revoked_at: null,
-        }],
-      } as any);
+    it('should reject an expired token', async () => {
+      vi.mocked(mockDb.query).mockResolvedValueOnce(
+        tokenRow({ expires_at: new Date('2026-06-20T12:00:00Z') }),
+      );
 
       const result = await validateRefreshToken(mockDb, 'expired-token');
 
-      expect(result).toBeNull();
+      expect(result).toEqual({ status: 'rejected' });
+    });
+
+    it('should reject a deliberately revoked token without any revocation (not a rotation)', async () => {
+      vi.mocked(mockDb.query).mockResolvedValueOnce(
+        tokenRow({ revoked_at: new Date('2026-06-20T12:00:00Z') }),
+      );
+
+      const result = await validateRefreshToken(mockDb, 'logged-out-token');
+
+      expect(result).toEqual({ status: 'rejected' });
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
+    });
+
+    it('should report a race without revoking anything inside the grace window', async () => {
+      vi.mocked(mockDb.query).mockResolvedValueOnce(rotatedRow(REUSE_GRACE_MS - 1));
+
+      const result = await validateRefreshToken(mockDb, 'just-rotated-token');
+
+      expect(result).toEqual({ status: 'race' });
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
+    });
+
+    it('should revoke every user token when a rotated token is replayed and its successor was used', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce(rotatedRow(REUSE_GRACE_MS + 1))
+        .mockResolvedValueOnce({ rows: [{ id: 2, replaced_by_id: 3 }] } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 3 } as any);
+
+      const result = await validateRefreshToken(mockDb, 'replayed-token');
+
+      expect(result).toEqual({ status: 'rejected' });
+      expect(mockDb.query).toHaveBeenNthCalledWith(2, expect.stringContaining('WHERE id = $1'), [2]);
+      expect(mockDb.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('WHERE user_id = $1 AND revoked_at IS NULL'),
+        [42],
+      );
+    });
+
+    it('should revoke only the unused successor when a rotated token is replayed', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce(rotatedRow(15 * 60 * 1000))
+        .mockResolvedValueOnce({ rows: [{ id: 2, replaced_by_id: null }] } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any);
+
+      const result = await validateRefreshToken(mockDb, 'lost-response-token');
+
+      expect(result).toEqual({ status: 'rejected' });
+      expect(mockDb.query).toHaveBeenCalledTimes(3);
+      expect(mockDb.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('WHERE id = $1 AND revoked_at IS NULL'),
+        [2],
+      );
     });
   });
 
   describe('revokeRefreshToken', () => {
+    const storedRow = (overrides: Record<string, unknown>) => ({
+      rows: [{
+        id: 1,
+        user_id: 42,
+        token_hash: 'hashed',
+        expires_at: new Date('2026-06-22T12:00:00Z'),
+        created_at: now,
+        revoked_at: now,
+        replaced_by_id: null,
+        in_reuse_grace: true,
+        ...overrides,
+      }],
+    } as any);
+
     it('should issue an UPDATE revoking the matching active token by hash', async () => {
-      vi.mocked(mockDb.query).mockResolvedValue({ rows: [] } as any);
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
 
       await revokeRefreshToken(mockDb, 'token-to-revoke');
 
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE refresh_tokens SET revoked_at'),
         [expect.any(String)],
+      );
+    });
+
+    it('should do nothing more for an unknown or deliberately revoked token', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any)
+        .mockResolvedValueOnce(storedRow({ replaced_by_id: null }));
+
+      await revokeRefreshToken(mockDb, 'already-revoked');
+
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
+    });
+
+    it('should revoke the unused successor when logging out with a rotated token, even inside the grace window', async () => {
+      // e.g. the thief won the refresh race; the victim's browser still holds the old token
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any)
+        .mockResolvedValueOnce(storedRow({ replaced_by_id: 2, in_reuse_grace: true }))
+        .mockResolvedValueOnce({ rows: [{ id: 2, replaced_by_id: null }] } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any);
+
+      await revokeRefreshToken(mockDb, 'stale-token');
+
+      expect(mockDb.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('WHERE id = $1 AND revoked_at IS NULL'),
+        [2],
+      );
+    });
+
+    it('should revoke every user token when logging out with a rotated token whose successor was used', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any)
+        .mockResolvedValueOnce(storedRow({ replaced_by_id: 2 }))
+        .mockResolvedValueOnce({ rows: [{ id: 2, replaced_by_id: 3 }] } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 2 } as any);
+
+      await revokeRefreshToken(mockDb, 'stale-token');
+
+      expect(mockDb.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('WHERE user_id = $1 AND revoked_at IS NULL'),
+        [42],
       );
     });
   });
@@ -211,50 +332,88 @@ describe('refresh-token-repository', () => {
   });
 
   describe('rotateRefreshToken', () => {
-    it('should atomically revoke old and generate new token in a transaction', async () => {
+    it('should atomically generate new, then revoke old and link it to its successor, in a transaction', async () => {
       let committed = false;
+      let clientQueries: ReturnType<typeof vi.fn> | undefined;
 
       vi.mocked(mockDb.transaction).mockImplementation(async (fn: any) => {
         const clientQuery = vi.fn()
-          .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // UPDATE
-          .mockResolvedValueOnce({ rows: [] });             // INSERT
-        const client = { query: clientQuery };
-        const result = await fn(client);
+          .mockResolvedValueOnce({ rows: [{ id: 8 }], rowCount: 1 }) // insert new
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 });         // revoke old + link successor
+        clientQueries = clientQuery;
+        const result = await fn({ query: clientQuery });
         committed = true;
         return result;
       });
 
-      const newToken = await rotateRefreshToken(mockDb, 1, 'old-token');
+      const rotation = await rotateRefreshToken(mockDb, 1, 'old-token');
 
-      expect(newToken).toBeDefined();
-      expect(newToken.length).toBeGreaterThan(32);
+      expect(rotation.status).toBe('rotated');
+      expect(rotation.status === 'rotated' && rotation.token.length).toBeGreaterThan(32);
       expect(mockDb.transaction).toHaveBeenCalledTimes(1);
       expect(committed).toBe(true);
+      expect(clientQueries).toHaveBeenCalledTimes(2);
+      expect(clientQueries).toHaveBeenLastCalledWith(
+        expect.stringContaining('SET revoked_at = NOW(), replaced_by_id = $1'),
+        [8, expect.any(String), 1],
+      );
     });
 
     it('should accept custom expiry', async () => {
       vi.mocked(mockDb.transaction).mockImplementation(async (fn: any) => {
         const clientQuery = vi.fn()
-          .mockResolvedValueOnce({ rows: [], rowCount: 1 })
-          .mockResolvedValueOnce({ rows: [] });
+          .mockResolvedValueOnce({ rows: [{ id: 8 }], rowCount: 1 })
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 });
         return fn({ query: clientQuery });
       });
 
-      const newToken = await rotateRefreshToken(mockDb, 1, 'old-token', 3600_000);
+      const rotation = await rotateRefreshToken(mockDb, 1, 'old-token', 3600_000);
 
-      expect(newToken).toBeDefined();
+      expect(rotation.status).toBe('rotated');
     });
 
-    it('should propagate the consumed/invalid error when the old token is gone', async () => {
+    /** The transaction rolls back (rejects) when its callback throws, like the real one. */
+    const staleRotation = () => {
+      let rolledBack = false;
       vi.mocked(mockDb.transaction).mockImplementation(async (fn: any) => {
         const clientQuery = vi.fn()
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // UPDATE matched nothing
-        return fn({ query: clientQuery });
+          .mockResolvedValueOnce({ rows: [{ id: 8 }], rowCount: 1 }) // insert new
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 });         // old token no longer live
+        try {
+          return await fn({ query: clientQuery });
+        } catch (err) {
+          rolledBack = true;
+          throw err;
+        }
       });
+      return () => rolledBack;
+    };
 
-      await expect(
-        rotateRefreshToken(mockDb, 1, 'bad-token'),
-      ).rejects.toThrow('Refresh token already consumed or invalid');
+    it('should report a race and roll back the insert when the old token was rotated concurrently', async () => {
+      const rolledBack = staleRotation();
+      vi.mocked(mockDb.query).mockResolvedValueOnce({ rows: [{ replaced_by_id: 9 }] } as any);
+
+      const result = await rotateRefreshToken(mockDb, 1, 'raced-token');
+
+      expect(result).toEqual({ status: 'race' });
+      expect(rolledBack()).toBe(true);
+    });
+
+    it('should reject and roll back the insert when the old token was revoked on purpose meanwhile', async () => {
+      const rolledBack = staleRotation();
+      vi.mocked(mockDb.query).mockResolvedValueOnce({ rows: [{ replaced_by_id: null }] } as any); // e.g. admin reset
+
+      const result = await rotateRefreshToken(mockDb, 1, 'revoked-token');
+
+      expect(result).toEqual({ status: 'rejected' });
+      expect(rolledBack()).toBe(true);
+    });
+
+    it('should propagate unexpected transaction errors', async () => {
+      vi.mocked(mockDb.transaction).mockRejectedValue(new Error('db down'));
+
+      await expect(rotateRefreshToken(mockDb, 1, 'old-token')).rejects.toThrow('db down');
+      expect(mockDb.query).not.toHaveBeenCalled();
     });
   });
 

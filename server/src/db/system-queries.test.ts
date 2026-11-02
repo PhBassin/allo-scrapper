@@ -107,6 +107,7 @@ describe('System Queries', () => {
             { version: '023_rename_cinema_to_theater_and_film_to_movie.sql' },
             { version: '024_add_refresh_tokens.sql' },
             { version: '025_drop_screen_count.sql' },
+            { version: '026_add_refresh_token_successor.sql' },
           ],
         }),
       } as unknown as DB;
