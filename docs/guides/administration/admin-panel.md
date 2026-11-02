@@ -990,4 +990,4 @@ Role assignment is done from the **Users** tab, not the Roles tab:
 
 ---
 
-[← Back to Administration](./README.md) | [Back to Documentation](../../README.md)
+[← Back to Documentation](../../README.md)

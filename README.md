@@ -216,11 +216,11 @@ The system supports two roles:
 
 Settings and user management are available via REST API:
 
-- **Settings API**: `/api/settings/*` - See [API.md](./API.md#settings-management)
-- **Users API**: `/api/users/*` - See [API.md](./API.md#user-management)
+- **Settings API**: `/api/settings/*` - See the [Settings API reference](./docs/reference/api/settings.md)
+- **Users API**: `/api/users/*` - See the [Users API reference](./docs/reference/api/users.md)
 - **Theme CSS**: `/api/theme.css` - Dynamically generated CSS with theme variables
 
-For complete API documentation, see [API.md](./API.md).
+For complete API documentation, see the [API reference](./docs/reference/api/README.md).
 
 ### Best Practices
 
@@ -368,7 +368,7 @@ rm -rf node_modules
 npm install --legacy-peer-deps
 ```
 
-For production deployment and advanced configuration, see [DEPLOYMENT.md](./DEPLOYMENT.md) and [DOCKER.md](./DOCKER.md).
+For production deployment and advanced configuration, see the [production deployment guide](./docs/guides/deployment/production.md) and the [Docker guide](./docs/guides/deployment/docker.md).
 
 ---
 
@@ -404,7 +404,7 @@ docker build --build-arg VITE_APP_NAME="My Theater App" .
 **GitHub Actions:**
 The app name is set in `.github/workflows/docker-build-push.yml` as a build argument. All images built by CI/CD (develop, main, PR) use the configured name.
 
-For complete environment variable documentation, see [SETUP.md](./SETUP.md).
+For complete environment variable documentation, see the [configuration guide](./docs/getting-started/configuration.md).
 
 ### Dynamic White-Label Theme
 
@@ -431,7 +431,7 @@ The application supports **runtime theme customization** via the admin panel, al
 - Logo, favicon, and document title update dynamically
 
 **For Admin Panel Documentation:**
-See [API.md](./API.md) for Settings API reference (`/api/settings/*` endpoints).
+See the [Settings API reference](./docs/reference/api/settings.md) (`/api/settings/*` endpoints).
 
 ---
 
@@ -509,7 +509,7 @@ RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # 1 hour
 - Rate limiting automatically disabled in test environment
 - Successful login attempts don't count toward auth limit
 
-For API documentation, see [API.md](./API.md#rate-limits).
+For API documentation, see the [rate limiting reference](./docs/reference/api/rate-limiting.md).
 
 ---
 

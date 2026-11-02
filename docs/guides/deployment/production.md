@@ -925,4 +925,4 @@ docker pull ghcr.io/phbassin/allo-scrapper:stable && docker compose down && dock
 
 ---
 
-[← Back to Deployment Guides](./README.md)
+[← Back to Documentation](../../README.md)

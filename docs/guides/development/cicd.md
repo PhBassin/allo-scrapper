@@ -517,4 +517,4 @@ See [Troubleshooting Guide](../../troubleshooting/common-issues.md) for more CI/
 
 ---
 
-[← Back to Development Guides](./README.md) | [Back to Documentation](../../README.md)
+[← Back to Documentation](../../README.md)

@@ -314,7 +314,7 @@ All protected endpoints validate JWT tokens:
 4. User must logout and login to receive new JWT with 26 admin permissions
 ```
 
-See [Roles and Permissions Reference](./roles-and-permissions.md) for complete RBAC documentation.
+See [Roles API Reference](./roles.md) for complete RBAC documentation.
 
 ---
 

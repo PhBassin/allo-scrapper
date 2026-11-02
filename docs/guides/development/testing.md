@@ -643,4 +643,4 @@ See [Troubleshooting Guide](../../troubleshooting/common-issues.md) for more tes
 
 ---
 
-[← Back to Development Guides](./README.md) | [Back to Documentation](../../README.md)
+[← Back to Documentation](../../README.md)

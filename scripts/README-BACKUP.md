@@ -451,6 +451,6 @@ tar -xzf allo-scrapper-complete-20260301.tar.gz
 
 ## See Also
 
-- [DEPLOYMENT.md](../DEPLOYMENT.md) - Full deployment guide with backup section
-- [DATABASE.md](../DATABASE.md) - Database schema and operations
+- [Production deployment guide](../docs/guides/deployment/production.md) - Full deployment guide
+- [Database reference](../docs/reference/database/README.md) - Database schema and operations
 - [docker-compose.yaml](../docker-compose.yaml) - Docker configuration
