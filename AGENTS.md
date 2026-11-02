@@ -52,6 +52,8 @@ The `.husky/pre-push` hook runs exactly this and **blocks push on failure**. Eme
 
 - Branch from `develop` (never `main`). Naming: `<type>/<issue#>-<desc>` (e.g. `feat/259-add-theater-modal`). Every PR links an issue.
 - Conventional Commits. Version bump is automated on merge to main via PR labels (`major`/`minor`/`patch`) or PR title (`feat:`→minor, `fix:`→patch, `BREAKING CHANGE:`/`[major]`→major). `main` auto-syncs back into `develop`.
+- Merge method into `develop`: **squash** small PRs and any PR whose commits are noise (wip, fixups); use a **merge commit** for a feature branch whose commits are atomic and meaningful (e.g. one per sub-issue), so `bisect`/`blame`/partial reverts keep that granularity. State the chosen method when proposing a merge.
+- Multi-part work whose sub-issues depend on each other: **no stacked PRs** (each merge needs a manual retarget, each fix a rebase cascade). Use one feature branch `feat/<parent#>-<desc>` with commits per sub-issue (`Refs #<sub#>`) and a single PR to `develop` that closes the parent and every sub-issue. Independent sub-issues get their own branch and PR off `develop`.
 
 ## Tooling notes
 
