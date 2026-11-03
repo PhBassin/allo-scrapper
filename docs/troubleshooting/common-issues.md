@@ -526,13 +526,12 @@ curl -X POST http://localhost:3000/api/auth/login \
 **Solution:**
 
 ```bash
-# Delete package-lock.json and regenerate
-rm server/package-lock.json client/package-lock.json
-cd server && npm install && cd ..
-cd client && npm install && cd ..
+# Delete the root package-lock.json and regenerate it
+rm package-lock.json
+npm install --legacy-peer-deps
 
-# Commit new package-lock.json
-git add server/package-lock.json client/package-lock.json
+# Commit the new package-lock.json
+git add package-lock.json
 git commit -m "chore: regenerate package-lock.json"
 
 # Rebuild Docker image

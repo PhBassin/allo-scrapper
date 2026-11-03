@@ -77,27 +77,6 @@ describe('AuthService', () => {
     });
   });
 
-  describe('register', () => {
-    it('should throw error if username or password missing', async () => {
-      await expect(authService.register('', 'password')).rejects.toThrow('Username and password are required');
-    });
-
-    it('should throw error if username exists', async () => {
-      vi.mocked(userQueries.getUserByUsername).mockResolvedValue({ id: 1 } as any);
-      await expect(authService.register('exists', 'password')).rejects.toThrow('Username already exists');
-    });
-
-    it('should return created user on success', async () => {
-      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(undefined);
-      vi.mocked(passwordUtils.hashPassword).mockResolvedValue('hash' as any);
-      vi.mocked(userQueries.createUser).mockResolvedValue({ id: 2, username: 'new', role_id: 2, role_name: 'user' } as any);
-
-      const result = await authService.register('new', 'password');
-      expect(result.id).toBe(2);
-      expect(result.username).toBe('new');
-    });
-  });
-
   describe('changePassword', () => {
     it('should throw error if currentPassword or newPassword missing', async () => {
       await expect(authService.changePassword('user', '', 'new')).rejects.toThrow('Current password and new password are required');

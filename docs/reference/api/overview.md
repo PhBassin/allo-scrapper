@@ -251,7 +251,6 @@ curl -X POST http://localhost:3000/api/auth/login \
 | [Movies](./movies.md) | `/api/movies/:id` | GET | No |
 | [Movies](./movies.md) | `/api/movies/search` | GET | No |
 | [Auth](./auth.md) | `/api/auth/login` | POST | No |
-| [Auth](./auth.md) | `/api/auth/register` | POST | No |
 | [Auth](./auth.md) | `/api/auth/change-password` | POST | Yes |
 | [Scraper](./scraper.md) | `/api/scraper/trigger` | POST | `scraper:trigger` |
 | [Scraper](./scraper.md) | `/api/scraper/status` | GET | No |

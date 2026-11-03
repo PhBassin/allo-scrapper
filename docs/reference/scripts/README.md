@@ -6,7 +6,7 @@ Complete reference for all utility scripts included in the Allo-Scrapper project
 - [Backup & Restore Guide](../../guides/deployment/backup-restore.md) - Detailed backup procedures
 - [Docker Deployment](../../guides/deployment/docker.md) - Deployment setup
 - [CI/CD Guide](../../guides/development/cicd.md) - Integration testing
-- [Contributing Guide](../../guides/development/contributing.md) - Git hooks
+- [Contributing Guide](../../../CONTRIBUTING.md) - Git hooks
 
 ---
 
@@ -336,7 +336,7 @@ cd server
 npx tsc --noEmit && npm run test:run
 ```
 
-**See also:** [Contributing Guide](../../guides/development/contributing.md)
+**See also:** [Contributing Guide](../../../CONTRIBUTING.md)
 
 ---
 
@@ -369,7 +369,7 @@ npx tsc --noEmit && npm run test:run
 git push --no-verify
 ```
 
-**See also:** [Contributing Guide](../../guides/development/contributing.md)
+**See also:** [Contributing Guide](../../../CONTRIBUTING.md)
 
 ---
 
@@ -490,7 +490,7 @@ docker compose up -d
 - [Docker Deployment](../../guides/deployment/docker.md) - Container deployment
 - [CI/CD Guide](../../guides/development/cicd.md) - Continuous integration
 - [Testing Guide](../../guides/development/testing.md) - Test automation
-- [Contributing Guide](../../guides/development/contributing.md) - Development workflow
+- [Contributing Guide](../../../CONTRIBUTING.md) - Development workflow
 
 ---
 

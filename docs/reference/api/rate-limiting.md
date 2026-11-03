@@ -59,7 +59,7 @@ Different endpoint types have different rate limits to balance security and usab
 |------|-----------------|--------|--------------|--------------|
 | **General** | `/api/*` (all endpoints) | 15 min | 100 | `RATE_LIMIT_GENERAL_MAX` |
 | **Authentication** | `/api/auth/login` | 15 min | 5 failed attempts¹ | `RATE_LIMIT_AUTH_MAX` |
-| **Registration** | `/api/auth/register` | 1 hour | 3 | `RATE_LIMIT_REGISTER_MAX` |
+| **User creation** | `POST /api/users` | 1 hour | 3 | `RATE_LIMIT_REGISTER_MAX` |
 | **Protected** | `/api/reports/*` | 15 min | 60 | `RATE_LIMIT_PROTECTED_MAX` |
 | **Scraper** | `/api/scraper/trigger` | 15 min | 10 | `RATE_LIMIT_SCRAPER_MAX` |
 | **Public** | `/api/movies/*`, `/api/theaters/*` | 15 min | 100 | `RATE_LIMIT_PUBLIC_MAX` |
@@ -119,15 +119,15 @@ export const generalLimiter = rateLimit({
 
 ---
 
-### Registration Limiter
+### User Creation Limiter
 
-**Applies to**: `/api/auth/register`
+**Applies to**: `POST /api/users` (on top of the protected endpoints limiter)
 
-**Default**: 3 registrations per 1 hour
+**Default**: 3 user creations per 1 hour, per IP
 
-**Purpose**: Prevent spam account creation
+**Purpose**: Limit mass account creation, even from a compromised account with `users:create`
 
-**Note**: Registration window is **1 hour** (longer than other limits).
+**Note**: The window is **1 hour** (longer than other limits). The setting keeps its historical name `register` (`RATE_LIMIT_REGISTER_*`, `register_max`).
 
 **Configuration**:
 ```bash
@@ -260,7 +260,7 @@ When you exceed a rate limit, the API returns a **`429 Too Many Requests`** resp
 |----------|---------------|
 | General API | "Too many requests, please try again later." |
 | `/api/auth/login` | "Too many login attempts, please try again after 15 minutes." |
-| `/api/auth/register` | "Too many registration attempts, please try again later." |
+| `POST /api/users` | "Too many requests, please try again later." |
 | `/api/scraper/trigger` | "Too many scrape requests, please try again later." |
 | Protected endpoints | "Too many requests to this resource, please try again later." |
 
@@ -324,7 +324,7 @@ All rate limits are configurable via environment variables.
 
 ### Environment Variables
 
-**Window duration** (applies to all limits except registration):
+**Window duration** (applies to all limits except user creation):
 ```bash
 RATE_LIMIT_WINDOW_MS=900000  # 15 minutes (default)
 ```
@@ -333,8 +333,8 @@ RATE_LIMIT_WINDOW_MS=900000  # 15 minutes (default)
 ```bash
 RATE_LIMIT_GENERAL_MAX=100          # General API
 RATE_LIMIT_AUTH_MAX=5               # Authentication (failed attempts)
-RATE_LIMIT_REGISTER_MAX=3           # Registration
-RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # Registration window (1 hour)
+RATE_LIMIT_REGISTER_MAX=3           # User creation (POST /api/users)
+RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # User creation window (1 hour)
 RATE_LIMIT_PROTECTED_MAX=60         # Protected endpoints
 RATE_LIMIT_SCRAPER_MAX=10           # Scraper trigger
 RATE_LIMIT_PUBLIC_MAX=100           # Public endpoints
@@ -676,7 +676,7 @@ Returns a paginated history of all rate limit changes with user attribution.
 - [API Reference](./README.md) - All API endpoints
 - [Authentication API](./auth.md) - Login and authentication
 - [Configuration Guide](../../getting-started/configuration.md) - Environment setup
-- [Security Best Practices](../../project/security.md) - Security guidelines
+- [Security Policy](../../../SECURITY.md) - How to report a vulnerability
 
 ---
 

@@ -216,11 +216,11 @@ The system supports two roles:
 
 Settings and user management are available via REST API:
 
-- **Settings API**: `/api/settings/*` - See [API.md](./API.md#settings-management)
-- **Users API**: `/api/users/*` - See [API.md](./API.md#user-management)
+- **Settings API**: `/api/settings/*` - See the [Settings API reference](./docs/reference/api/settings.md)
+- **Users API**: `/api/users/*` - See the [Users API reference](./docs/reference/api/users.md)
 - **Theme CSS**: `/api/theme.css` - Dynamically generated CSS with theme variables
 
-For complete API documentation, see [API.md](./API.md).
+For complete API documentation, see the [API reference](./docs/reference/api/README.md).
 
 ### Best Practices
 
@@ -334,16 +334,10 @@ For active development without Docker:
 git clone https://github.com/PhBassin/allo-scrapper.git
 cd allo-scrapper
 
-# Install server dependencies (IMPORTANT: run from server/ directory)
-cd server
-npm install
-
-# Install client dependencies
-cd ../client
-npm install
+# Install all workspace dependencies, from the repository root
+npm install --legacy-peer-deps
 
 # Setup environment and database
-cd ..
 cp .env.example .env && cat .env.dev.example >> .env
 
 # Generate a secure JWT secret and set it in .env
@@ -365,17 +359,16 @@ cd client && npm run dev    # UI on http://localhost:5173
 cd scraper && npm run dev
 ```
 
-**⚠️ Important:** Always run `npm install` from the `server/` directory, not the root. The `sharp` image processing library requires native binaries that may not install correctly if run from the wrong directory.
+**⚠️ Important:** This is an npm workspaces monorepo (`client`, `server`, `scraper`, `packages/scraper-protocol`) with a single `package-lock.json`, so one install from the repository root installs everything, including the native `sharp` binaries. `--legacy-peer-deps` is required because of peer-dependency conflicts.
 
 **Troubleshooting:**
-If you encounter `Cannot find package 'sharp'` errors:
+If you encounter `Cannot find package 'sharp'` errors, reinstall from the repository root:
 ```bash
-cd server
 rm -rf node_modules
-npm install
+npm install --legacy-peer-deps
 ```
 
-For production deployment and advanced configuration, see [DEPLOYMENT.md](./DEPLOYMENT.md) and [DOCKER.md](./DOCKER.md).
+For production deployment and advanced configuration, see the [production deployment guide](./docs/guides/deployment/production.md) and the [Docker guide](./docs/guides/deployment/docker.md).
 
 ---
 
@@ -411,7 +404,7 @@ docker build --build-arg VITE_APP_NAME="My Theater App" .
 **GitHub Actions:**
 The app name is set in `.github/workflows/docker-build-push.yml` as a build argument. All images built by CI/CD (develop, main, PR) use the configured name.
 
-For complete environment variable documentation, see [SETUP.md](./SETUP.md).
+For complete environment variable documentation, see the [configuration guide](./docs/getting-started/configuration.md).
 
 ### Dynamic White-Label Theme
 
@@ -438,7 +431,7 @@ The application supports **runtime theme customization** via the admin panel, al
 - Logo, favicon, and document title update dynamically
 
 **For Admin Panel Documentation:**
-See [API.md](./API.md) for Settings API reference (`/api/settings/*` endpoints).
+See the [Settings API reference](./docs/reference/api/settings.md) (`/api/settings/*` endpoints).
 
 ---
 
@@ -516,7 +509,7 @@ RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # 1 hour
 - Rate limiting automatically disabled in test environment
 - Successful login attempts don't count toward auth limit
 
-For API documentation, see [API.md](./API.md#rate-limits).
+For API documentation, see the [rate limiting reference](./docs/reference/api/rate-limiting.md).
 
 ---
 
@@ -556,49 +549,16 @@ Solutions to common issues.
 ### 📦 [Project](./docs/project/)
 Project meta-documentation.
 - [Changelog](./docs/project/changelog.md) - Version history
-- [Security](./docs/project/security.md) - Security policies
-- [AI Agents](./docs/project/agents.md) - Guidelines for AI coding agents
-
-### 🔗 Backward Compatibility
-
-All documentation has been migrated to the `/docs/` directory. Root-level `.md` files are now **symlinks** that redirect to the new locations for backward compatibility with existing external links and bookmarks.
-
-**Original Files** → **New Locations:**
-- `SETUP.md` → [`docs/getting-started/installation.md`](./docs/getting-started/installation.md)
-- `DEPLOYMENT.md` → [`docs/guides/deployment/production.md`](./docs/guides/deployment/production.md)
-- `API.md` → [`docs/reference/api/README.md`](./docs/reference/api/README.md)
-- `AGENTS.md` → [`docs/project/agents.md`](./docs/project/agents.md)
-- And more... (see [full documentation structure](./docs/README.md))
+- [Security](./SECURITY.md) - Security policy and how to report a vulnerability
+- [Contributing](./CONTRIBUTING.md) - Workflow, checks, merge and releases
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for:
-- Code of Conduct
-- Development workflow (Issue → Branch → TDD → PR)
-- Coding standards
-- Commit message conventions (Conventional Commits)
-- Testing requirements
+We welcome contributions! [CONTRIBUTING.md](./CONTRIBUTING.md) explains the whole workflow: issues and branches, commit conventions, the checks to run before pushing, how PRs are merged, and how releases and versioning work.
 
-For AI coding agents, see [AGENTS.md](./AGENTS.md) for mandatory workflow and TDD requirements.
-
-**Quick contribution checklist:**
-1. Create an issue first (bug/feature/task)
-2. Create a feature branch from `develop`
-3. Write tests before implementation (TDD)
-4. Follow Conventional Commits format
-5. Ensure all tests pass and Docker builds
-6. Create PR referencing the issue
-7. **Add version label** to PR (`major`, `minor`, or `patch`) when targeting `main`
-8. Wait for review before merging
-
-**Automated versioning** (PRs to `main` only):
-- Add label `major` (breaking changes), `minor` (features), or `patch` (fixes)
-- After merge + successful Docker build, version is auto-bumped and tagged
-- `CHANGELOG.md` auto-generated from conventional commits
-- GitHub release created automatically
-- See [AGENTS.md](./AGENTS.md#automated-versioning--releases) for details
+AI coding agents: see [AGENTS.md](./AGENTS.md).
 
 ---
 

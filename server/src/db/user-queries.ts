@@ -202,30 +202,15 @@ export async function getUserByUsername(db: DB, username: string): Promise<UserR
  * @param db - Database client
  * @param username - Username
  * @param passwordHash - Hashed password
- * @param roleId - Optional role ID. When provided, included in the INSERT so the
- *                 new user starts with the requested role. When omitted, the
- *                 column defaults to NULL/whatever the schema defines.
+ * @param roleId - Role ID. Required: `users.role_id` is NOT NULL with no default.
  * @returns Created user in UserPublic shape
  */
 export async function createUser(
   db: DB,
   username: string,
   passwordHash: string,
-  roleId?: number
+  roleId: number
 ): Promise<UserPublic> {
-  if (roleId === undefined) {
-    const result = await db.query<UserPublic>(
-      `INSERT INTO users (username, password_hash)
-       VALUES ($1, $2)
-       RETURNING id, username,
-         role_id,
-         (SELECT name FROM roles WHERE id = role_id) AS role_name,
-         created_at`,
-      [username, passwordHash]
-    );
-    return result.rows[0];
-  }
-
   const result = await db.query<UserPublic>(
     `INSERT INTO users (username, password_hash, role_id)
      VALUES ($1, $2, $3)

@@ -114,8 +114,7 @@ export class SessionService {
   // -------------------------------------------------------------------------
   // Response envelope (private). Every lifecycle method that touches the
   // cookie surface owns its full HTTP response through these two helpers, so
-  // the routes are uniform void shims; `register` (no cookie surface) is the
-  // sole exception and returns the created user.
+  // the routes are uniform void shims.
   // -------------------------------------------------------------------------
 
   private sendSuccess(data: unknown, status: number = 200): void {
@@ -161,14 +160,6 @@ export class SessionService {
     this.setCsrfCookie();
 
     this.sendSuccess(authData);
-  }
-
-  /**
-   * Register a new user. No session is created — registration is an admin
-   * action (`users:create`); the new user obtains a session by logging in.
-   */
-  async register(username: string, password: string) {
-    return this.auth.register(username, password);
   }
 
   /**

@@ -47,6 +47,7 @@ vi.mock('../middleware/rate-limit.js', async () => {
 import * as userQueries from '../db/user-queries.js';
 import * as roleQueries from '../db/role-queries.js';
 import { db } from '../db/internal/client.js';
+import { registerLimiter } from '../middleware/rate-limit.js';
 
 // Helper: mock user in new role_id/role_name format
 const makeUser = (id: number, username: string, roleId: number, roleName: string, createdAt = '2024-01-01T00:00:00Z') => ({
@@ -230,6 +231,17 @@ describe('User Management Routes', () => {
   });
 
   describe('POST /api/users', () => {
+    it('applies the user-creation rate limiter', async () => {
+      vi.mocked(registerLimiter).mockClear();
+
+      await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({});
+
+      expect(registerLimiter).toHaveBeenCalledOnce();
+    });
+
     it('should create user with provided role_id (201)', async () => {
       const newUser = makeUser(3, 'newuser', 2, 'operator', '2024-01-03T00:00:00Z');
 
