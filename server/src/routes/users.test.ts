@@ -469,13 +469,12 @@ describe('User Management Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.role_name).toBe('admin');
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith({ query: db.query }, 2, 1);
-      // Target user's refresh tokens are revoked; the acting admin (id 1) keeps theirs.
-      expect(db.query).toHaveBeenCalledWith(
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 2, 1);
+      // Sessions are kept: the token-version bump makes the client refresh into the new role.
+      expect(db.query).not.toHaveBeenCalledWith(
         expect.stringContaining('UPDATE refresh_tokens SET revoked_at'),
-        [2],
+        expect.anything(),
       );
-      expect(db.query).not.toHaveBeenCalledWith(expect.anything(), [1]);
     });
 
     it('should prevent last admin from demoting self (403)', async () => {
@@ -511,7 +510,7 @@ describe('User Management Routes', () => {
         .send({ role_id: 2 });
 
       expect(response.status).toBe(200);
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith({ query: db.query }, 3, 2);
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 3, 2);
     });
 
     it('should allow admin to promote users to admin', async () => {
@@ -529,7 +528,7 @@ describe('User Management Routes', () => {
         .send({ role_id: 1 });
 
       expect(response.status).toBe(200);
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith({ query: db.query }, 2, 1);
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 2, 1);
     });
 
     it('should return 404 for non-existent user', async () => {

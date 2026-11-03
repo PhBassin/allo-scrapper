@@ -36,6 +36,8 @@ async function isRefreshRace(response: Response): Promise<boolean> {
  * original request is retried. If they never do, nobody in this browser got
  * the successor token, so the refresh failed — the ensuing logout presents
  * our stale token, which lets the server kill the successor branch.
+ * Only meaningful without Web Locks: under the lock no other refresh of this
+ * browser can be in flight, so nothing would ever land.
  */
 async function waitForNewCsrfCookie(previous: string | null): Promise<boolean> {
   for (let waited = 0; waited < RACE_SETTLE_TIMEOUT_MS; waited += RACE_SETTLE_POLL_MS) {
@@ -47,7 +49,7 @@ async function waitForNewCsrfCookie(previous: string | null): Promise<boolean> {
   return current !== null && current !== previous;
 }
 
-async function refreshAccessToken(): Promise<boolean> {
+async function refreshAccessToken(awaitRaceWinner: boolean): Promise<boolean> {
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const csrfToken = getCsrfToken();
@@ -68,7 +70,7 @@ async function refreshAccessToken(): Promise<boolean> {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return (await isRefreshRace(response)) ? waitForNewCsrfCookie(csrfToken) : false;
+      return awaitRaceWinner && (await isRefreshRace(response)) ? waitForNewCsrfCookie(csrfToken) : false;
     }
 
     const data = await response.json();
@@ -159,28 +161,27 @@ function dispatchUnauthorizedEvent(): void {
 /**
  * Serialize refreshes across tabs: they share the cookie jar, so two tabs
  * rotating the same refresh token at once would make the server see a reuse.
- * Every refresh plants a new csrf_token cookie, so if a new one appeared while
- * we waited for the lock, another tab already rotated the session and its
- * fresh cookies are ours too — retrying the original request is enough. A
- * cleared cookie (another tab logged out) is not a refresh: we refresh
- * ourselves and let the server decide.
+ * Every refresh plants a new csrf_token cookie, so if a new one appeared since
+ * the failed request was sent (`csrfAtRequest`), another tab already rotated
+ * the session and its fresh cookies are ours too — retrying the original
+ * request is enough. A cleared cookie (another tab logged out) is not a
+ * refresh: we refresh ourselves and let the server decide.
  * Without the Web Locks API, falls back to a per-tab refresh.
  */
-async function refreshAcrossTabs(): Promise<boolean> {
+async function refreshAcrossTabs(csrfAtRequest: string | null): Promise<boolean> {
   const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
-  if (!locks) return refreshAccessToken();
+  if (!locks) return refreshAccessToken(true);
 
-  const csrfBeforeLock = getCsrfToken();
   return locks.request(REFRESH_LOCK_NAME, async () => {
     const csrfNow = getCsrfToken();
-    if (csrfNow && csrfNow !== csrfBeforeLock) return true;
-    return refreshAccessToken();
+    if (csrfNow && csrfNow !== csrfAtRequest) return true;
+    return refreshAccessToken(false);
   });
 }
 
-async function getRefreshedSession(): Promise<boolean> {
+async function getRefreshedSession(csrfAtRequest: string | null): Promise<boolean> {
   if (!refreshPromise) {
-    refreshPromise = refreshAcrossTabs()
+    refreshPromise = refreshAcrossTabs(csrfAtRequest)
       .then((refreshed) => {
         // However the session was renewed (own refresh, another tab, a lost
         // race), a later expiry must be reported again.
@@ -205,12 +206,13 @@ async function executeWithRefresh(
   method: string,
   headers: Headers,
 ): Promise<FetchResult> {
+  const csrfAtRequest = getCsrfToken();
   const response = await fetch(url, config);
   if (response.status !== 401) {
     return { response, retried: false };
   }
 
-  const refreshed = await getRefreshedSession();
+  const refreshed = await getRefreshedSession(csrfAtRequest);
   if (!refreshed) {
     return { response, retried: false, refreshFailed: true };
   }

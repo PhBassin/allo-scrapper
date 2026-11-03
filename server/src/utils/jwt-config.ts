@@ -83,21 +83,21 @@ function parseExpiry(value: string): ParsedExpiry {
 }
 
 /**
- * Parses and validates JWT expiration time from environment variable.
- * 
- * Supports two formats:
- * 1. Human-readable: '1h', '7d', '30m', '3600s' (passed to jwt.sign as-is)
- * 2. Numeric: '86400' (converted to number for jwt.sign)
- * 
- * @param value - The JWT_EXPIRES_IN value from environment variable
- * @returns The parsed expiration value (string for human-readable, number for seconds)
- * @throws Error if the format is invalid
- * 
- * @example
- * parseJwtExpiration('1h')    // returns '1h'
- * parseJwtExpiration('86400')  // returns 86400
- * parseJwtExpiration('abc')    // throws Error
+ * Above this, a stolen access token stays usable for a long time unless a
+ * credential change bumps the user's token version. Renewal is silent, so
+ * there is rarely a reason to go beyond it.
  */
-export function parseJwtExpiration(value: string): string | number {
-  return parseExpiry(value).jwtValue;
+export const LONG_JWT_EXPIRES_IN_MS = UNIT_MS.h;
+
+/**
+ * Startup check: log a warning when `JWT_EXPIRES_IN` exceeds one hour (e.g. a
+ * `24h` kept from the former compose default). Throws on an invalid value.
+ */
+export function warnIfLongJwtExpiresIn(): void {
+  if (getAccessTokenMaxAgeMs() > LONG_JWT_EXPIRES_IN_MS) {
+    logger.warn(
+      `⚠️  JWT_EXPIRES_IN (${getJwtExpiresIn()}) exceeds 1h: a stolen access token stays usable that long ` +
+      `unless a password or role change revokes it. Renewal is silent; keep it short (default ${DEFAULT_JWT_EXPIRES_IN}).`
+    );
+  }
 }

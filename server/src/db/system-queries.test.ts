@@ -108,6 +108,7 @@ describe('System Queries', () => {
             { version: '024_add_refresh_tokens.sql' },
             { version: '025_drop_screen_count.sql' },
             { version: '026_add_refresh_token_successor.sql' },
+            { version: '027_add_user_token_version.sql' },
           ],
         }),
       } as unknown as DB;

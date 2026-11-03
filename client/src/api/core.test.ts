@@ -234,6 +234,21 @@ describe('apiClient', () => {
       expect((calls[1].init.headers as Headers).get('X-CSRF-Token')).toBe('csrf-2');
     });
 
+    it('skips its own refresh when another tab rotated the session while the failed request was in flight', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      stubLocks();
+      const { calls } = mockFetchSequence([
+        // The other tab's refresh lands while our request is still in flight.
+        { status: 401, body: { error: 'no' }, onFetch: () => setCookie('csrf_token', 'csrf-2') },
+        { status: 200, body: { ok: 'with-other-tab-cookies' } },
+      ]);
+
+      const data = await apiClient.get('/protected');
+
+      expect(data).toEqual({ ok: 'with-other-tab-cookies' });
+      expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/protected']);
+    });
+
     it('still reports unauthorized when the locked refresh fails', async () => {
       setCookie('csrf_token', 'csrf-1');
       stubLocks();
@@ -262,9 +277,30 @@ describe('apiClient', () => {
       await expect(apiClient.get('/protected')).rejects.toMatchObject({ status: 401 });
       expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/auth/refresh']);
     });
+
+    it('does not wait for a race winner under the lock: none can be in flight in this browser', async () => {
+      vi.useFakeTimers();
+      try {
+        setCookie('csrf_token', 'csrf-1');
+        stubLocks();
+        const { calls } = mockFetchSequence([
+          { status: 401, body: { error: 'expired' } },
+          { status: 401, body: { success: false, error: 'already rotated', code: 'REFRESH_RACE' } },
+        ]);
+
+        const pending = apiClient.get('/protected');
+        const assertion = expect(pending).rejects.toMatchObject({ status: 401 });
+        await vi.advanceTimersByTimeAsync(0);
+        await assertion;
+
+        expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/auth/refresh']);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
-  describe('lost rotation race (REFRESH_RACE)', () => {
+  describe('lost rotation race (REFRESH_RACE, no Web Locks)', () => {
     const raceResponse = (onFetch?: () => void): MockResponse => ({
       status: 401,
       body: { success: false, error: 'already rotated', code: 'REFRESH_RACE' },

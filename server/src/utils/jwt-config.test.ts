@@ -1,7 +1,24 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { parseJwtExpiration, getJwtExpiresIn, getAccessTokenMaxAgeMs, getJwtSignExpiresIn } from './jwt-config.js';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { getJwtExpiresIn, getAccessTokenMaxAgeMs, getJwtSignExpiresIn, warnIfLongJwtExpiresIn } from './jwt-config.js';
+import { logger } from './logger.js';
 
-describe('parseJwtExpiration', () => {
+describe('JWT_EXPIRES_IN grammar (jwt.sign value)', () => {
+  const originalEnv = process.env.JWT_EXPIRES_IN;
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env.JWT_EXPIRES_IN;
+    } else {
+      process.env.JWT_EXPIRES_IN = originalEnv;
+    }
+  });
+
+  /** The value handed to `jwt.sign` for a given `JWT_EXPIRES_IN`. */
+  const parseJwtExpiration = (value: string) => {
+    process.env.JWT_EXPIRES_IN = value;
+    return getJwtSignExpiresIn();
+  };
+
   describe('human-readable formats', () => {
     it('should accept hours format: 24h', () => {
       expect(parseJwtExpiration('24h')).toBe('24h');
@@ -52,7 +69,7 @@ describe('parseJwtExpiration', () => {
     });
 
     it('should throw on empty string', () => {
-      expect(() => parseJwtExpiration('')).toThrow('Invalid JWT_EXPIRES_IN format');
+      expect(() => parseJwtExpiration('   ')).toThrow('Invalid JWT_EXPIRES_IN format');
     });
 
     it('should throw on negative numbers', () => {
@@ -141,5 +158,35 @@ describe('access-token lifetime', () => {
     process.env.JWT_EXPIRES_IN = '600';
     expect(getJwtSignExpiresIn()).toBe(600);
     expect(getAccessTokenMaxAgeMs()).toBe(600 * 1000);
+  });
+});
+
+describe('warnIfLongJwtExpiresIn', () => {
+  const originalEnv = process.env.JWT_EXPIRES_IN;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    if (originalEnv === undefined) {
+      delete process.env.JWT_EXPIRES_IN;
+    } else {
+      process.env.JWT_EXPIRES_IN = originalEnv;
+    }
+  });
+
+  it('stays quiet up to one hour', () => {
+    const warn = vi.spyOn(logger, 'warn');
+    for (const value of ['15m', '1h', '3600']) {
+      process.env.JWT_EXPIRES_IN = value;
+      warnIfLongJwtExpiresIn();
+    }
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('warns beyond one hour, naming the configured value', () => {
+    const warn = vi.spyOn(logger, 'warn');
+    process.env.JWT_EXPIRES_IN = '24h';
+    warnIfLongJwtExpiresIn();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('JWT_EXPIRES_IN (24h)');
   });
 });

@@ -142,6 +142,9 @@ export async function createRole(
 /**
  * Update a role's name and/or description
  * Returns the updated role or undefined if not found
+ *
+ * An actual rename bumps the token version of every user holding the role,
+ * in the same statement: `role_name` is baked into their access tokens.
  */
 export async function updateRole(
   db: DB,
@@ -149,11 +152,21 @@ export async function updateRole(
   data: { name?: string; description?: string }
 ): Promise<Role | undefined> {
   const result = await db.query<Role>(
-    `UPDATE roles SET
-       name = COALESCE($1, name),
-       description = COALESCE($2, description)
-     WHERE id = $3
-     RETURNING id, name, description, is_system, created_at`,
+    `WITH updated AS (
+       UPDATE roles SET
+         name = COALESCE($1, name),
+         description = COALESCE($2, description)
+       WHERE id = $3
+       RETURNING id, name, description, is_system, created_at
+     ), bumped AS (
+       -- roles here is the pre-update snapshot: bump only on an actual rename
+       UPDATE users SET token_version = token_version + 1
+       WHERE role_id = $3 AND EXISTS (
+         SELECT 1 FROM updated JOIN roles old ON old.id = updated.id
+         WHERE old.name IS DISTINCT FROM updated.name
+       )
+     )
+     SELECT * FROM updated`,
     [data.name ?? null, data.description ?? null, roleId]
   );
 
@@ -247,22 +260,31 @@ export async function removePermissionsFromRole(
 
 /**
  * Replace all permissions for a role (atomic operation)
- * Deletes all existing permissions and inserts the new set
+ * Deletes all existing permissions and inserts the new set, and bumps the
+ * token version of every user holding the role (their access tokens carry
+ * the old permissions), all in one transaction.
  */
 export async function setRolePermissions(
   db: DB,
   roleId: number,
   permissionIds: number[]
 ): Promise<void> {
-  await db.query('DELETE FROM role_permissions WHERE role_id = $1', [roleId]);
+  await db.transaction(async (tx) => {
+    await tx.query('DELETE FROM role_permissions WHERE role_id = $1', [roleId]);
 
-  if (permissionIds.length > 0) {
-    const values = permissionIds.map((_, i) => `($1, $${i + 2})`).join(', ');
-    await db.query(
-      `INSERT INTO role_permissions (role_id, permission_id) VALUES ${values} ON CONFLICT DO NOTHING`,
-      [roleId, ...permissionIds]
+    if (permissionIds.length > 0) {
+      const values = permissionIds.map((_, i) => `($1, $${i + 2})`).join(', ');
+      await tx.query(
+        `INSERT INTO role_permissions (role_id, permission_id) VALUES ${values} ON CONFLICT DO NOTHING`,
+        [roleId, ...permissionIds]
+      );
+    }
+
+    await tx.query(
+      'UPDATE users SET token_version = token_version + 1 WHERE role_id = $1',
+      [roleId]
     );
-  }
+  });
 }
 
 /**

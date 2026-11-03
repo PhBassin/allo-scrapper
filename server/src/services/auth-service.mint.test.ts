@@ -38,6 +38,7 @@ describe('AuthService.mintAccessToken', () => {
         role_id: 7,
         role_name: 'editor',
         is_system_role: false,
+        token_version: 3,
       },
       mockDb
     );
@@ -50,6 +51,7 @@ describe('AuthService.mintAccessToken', () => {
       role_name: string;
       is_system_role: boolean;
       permissions: PermissionName[];
+      ver: number;
     };
 
     expect(decoded.id).toBe(42);
@@ -57,6 +59,7 @@ describe('AuthService.mintAccessToken', () => {
     expect(decoded.role_name).toBe('editor');
     expect(decoded.is_system_role).toBe(false);
     expect(decoded.permissions).toEqual(['reports:read', 'users:read']);
+    expect(decoded.ver).toBe(3);
     expect(decoded.exp).toBeTypeOf('number');
     expect(decoded.iat).toBeTypeOf('number');
   });

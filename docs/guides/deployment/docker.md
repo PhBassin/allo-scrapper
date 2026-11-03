@@ -294,7 +294,7 @@ See [Backup & Restore](./backup-restore.md) for complete backup workflows.
 JWT_EXPIRES_IN=15m   # Access-token lifetime; the access_token cookie follows it
 ```
 
-Keep it short: the client refreshes the access token silently with the refresh-token cookie, so a shorter lifetime has no user-facing cost.
+Keep it short: the client refreshes the access token silently with the refresh-token cookie, so a shorter lifetime has no user-facing cost. Above `1h` the server logs a warning at startup (e.g. a `24h` kept from the former default).
 
 ### Client Behavior
 

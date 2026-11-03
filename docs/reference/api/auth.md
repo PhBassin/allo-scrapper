@@ -257,7 +257,8 @@ All JWT tokens issued by the `/api/auth/login` endpoint have a configurable expi
 - **Default**: 15 minutes from issue time
 - **Cookie**: the `access_token` cookie `maxAge` is derived from the same value, so the cookie never outlives the JWT
 - **Configuration**: Set via `JWT_EXPIRES_IN` environment variable
-- **Format**: Any valid `jsonwebtoken` duration string (e.g., `1h`, `7d`, `30m`)
+- **Format**: `15m`, `1h`, `3600s` or plain seconds (max `365d`); the server refuses to start on an invalid value and logs a warning above `1h`
+- **Token version**: each access token carries the user's token version (`ver` claim); a password change/reset, a role change, or an edit to the user's role (name or permissions) bumps it, and the token is then rejected at once with a `401`
 - **Algorithm**: HS256 (HMAC with SHA-256)
 - **Silent renewal**: on a 401 the client calls `POST /api/auth/refresh` (refresh-token cookie) and retries, so expiry is invisible to the user
 

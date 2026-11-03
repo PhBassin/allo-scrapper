@@ -131,7 +131,7 @@ async function findByTokenHash(
 }
 
 async function findSuccessor(
-  db: DB,
+  db: Queryable,
   id: number
 ): Promise<Pick<RefreshTokenRow, 'id' | 'replaced_by_id'> | undefined> {
   const result = await db.query<Pick<RefreshTokenRow, 'id' | 'replaced_by_id'>>(
@@ -139,6 +139,14 @@ async function findSuccessor(
     [id]
   );
   return result.rows[0];
+}
+
+async function findReplacedById(db: DB, tokenHash: string): Promise<number | null | undefined> {
+  const result = await db.query<Pick<RefreshTokenRow, 'replaced_by_id'>>(
+    `SELECT replaced_by_id FROM refresh_tokens WHERE token_hash = $1`,
+    [tokenHash]
+  );
+  return result.rows[0]?.replaced_by_id;
 }
 
 /** Returns whether a live token was revoked. */
@@ -151,7 +159,7 @@ async function revokeByTokenHash(db: DB, tokenHash: string): Promise<boolean> {
   return (result.rowCount ?? 0) > 0;
 }
 
-async function revokeById(db: DB, id: number): Promise<void> {
+async function revokeById(db: Queryable, id: number): Promise<void> {
   await db.query(
     `UPDATE refresh_tokens SET revoked_at = NOW()
      WHERE id = $1 AND revoked_at IS NULL`,
@@ -163,6 +171,22 @@ async function revokeByUserId(db: Queryable, userId: number): Promise<void> {
   await db.query(
     `UPDATE refresh_tokens SET revoked_at = NOW()
      WHERE user_id = $1 AND revoked_at IS NULL`,
+    [userId]
+  );
+}
+
+/**
+ * Session lock: every rotation holds the user row `FOR SHARE`, every
+ * user-wide revocation `FOR NO KEY UPDATE`, so the two never interleave. Must
+ * run inside a transaction; the statements after it get a fresh snapshot
+ * (READ COMMITTED), so they see a successor that a concurrent rotation
+ * committed while we waited.
+ */
+async function lockUserSessions(db: Queryable, userId: number, mode: 'share' | 'exclusive'): Promise<void> {
+  await db.query(
+    mode === 'share'
+      ? 'SELECT 1 FROM users WHERE id = $1 FOR SHARE'
+      : 'SELECT 1 FROM users WHERE id = $1 FOR NO KEY UPDATE',
     [userId]
   );
 }
@@ -191,7 +215,8 @@ class OldTokenNotLive extends Error {}
  * `replaced_by_id`, which is what marks it as rotated rather than revoked.
  * If the old token is no longer live (rowCount = 0), the insert is rolled back
  * and a concurrent rotation (`race`) is told from a deliberate revocation
- * (`rejected`).
+ * (`rejected`). Holds the session lock (shared) so a user-wide revocation
+ * cannot miss the successor.
  */
 async function rotateRefreshTokenTx(
   db: DB,
@@ -202,6 +227,8 @@ async function rotateRefreshTokenTx(
 ): Promise<'rotated' | 'race' | 'rejected'> {
   try {
     await db.transaction(async (client) => {
+      await lockUserSessions(client, userId, 'share');
+
       const insertResult = await client.query(
         `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
          VALUES ($1, $2, $3)
@@ -224,8 +251,8 @@ async function rotateRefreshTokenTx(
     if (!(err instanceof OldTokenNotLive)) throw err;
   }
 
-  const current = await findByTokenHash(db, oldTokenHash);
-  return current?.replaced_by_id != null ? 'race' : 'rejected';
+  const replacedById = await findReplacedById(db, oldTokenHash);
+  return replacedById != null ? 'race' : 'rejected';
 }
 
 // ---------------------------------------------------------------------------
@@ -300,19 +327,32 @@ export async function validateRefreshToken(
   return { status: 'valid', userId: record.user_id };
 }
 
+/**
+ * Under the session lock (exclusive), so the successor cannot be rotated
+ * between reading it and revoking: a concurrent rotation either commits first
+ * (its new token is then seen and revoked with the rest) or waits for us.
+ */
 async function handleRotatedTokenReplay(
   db: DB,
   userId: number,
   successorId: number,
 ): Promise<void> {
-  const successor = await findSuccessor(db, successorId);
-  if (successor?.replaced_by_id != null) {
-    await revokeByUserId(db, userId);
+  const revokedAll = await db.transaction(async (tx) => {
+    await lockUserSessions(tx, userId, 'exclusive');
+    const successor = await findSuccessor(tx, successorId);
+    if (successor?.replaced_by_id != null) {
+      await revokeByUserId(tx, userId);
+      return true;
+    }
+    await revokeById(tx, successorId);
+    return false;
+  });
+
+  if (revokedAll) {
     logger.warn('Security: refresh token reuse detected, all sessions revoked', { userId });
-    return;
+  } else {
+    logger.warn('Security: rotated refresh token replayed, its unused successor revoked', { userId });
   }
-  await revokeById(db, successorId);
-  logger.warn('Security: rotated refresh token replayed, its unused successor revoked', { userId });
 }
 
 /**
@@ -373,14 +413,16 @@ export async function rotateRefreshToken(
 
 /**
  * Revoke all refresh tokens for a user (e.g., on password change or logout-all).
- * Accepts a transaction client so callers can revoke atomically with the
- * change that motivates it.
+ * Takes a transaction client, so callers revoke atomically with the change
+ * that motivates it; the session lock it takes lasts until that transaction
+ * ends, so no rotation in flight can leave a live successor behind.
  */
 export async function revokeAllUserTokens(
-  db: Queryable,
+  tx: Queryable,
   userId: number,
 ): Promise<void> {
-  await revokeByUserId(db, userId);
+  await lockUserSessions(tx, userId, 'exclusive');
+  await revokeByUserId(tx, userId);
 }
 
 /**

@@ -94,8 +94,8 @@ User management and role assignment.
 - `GET /api/users` - List users (requires `users:list`)
 - `GET /api/users/:id` - Get user by ID (requires `users:list`)
 - `POST /api/users` - Create user (requires `users:create`)
-- `PUT /api/users/:id/role` - Update user role (requires `users:update`). Revokes the target user's refresh tokens.
-- `POST /api/users/:id/reset-password` - Reset password (requires `users:update`). Revokes the target user's refresh tokens.
+- `PUT /api/users/:id/role` - Update user role (requires `users:update`). The target's current access token is rejected at once; the client refreshes silently into the new role.
+- `POST /api/users/:id/reset-password` - Reset password (requires `users:update`). Rejects the target's current access token at once and revokes their refresh tokens (re-login required).
 - `DELETE /api/users/:id` - Delete user (requires `users:delete`)
 
 ---

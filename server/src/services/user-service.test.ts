@@ -209,10 +209,10 @@ describe('UserService', () => {
       const result = await service.updateUserRole(2, 1, ACTING);
 
       expect(result).toEqual(updated);
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith(tx, 2, 1);
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(mockDb, 2, 1);
     });
 
-    it('revokes the target user sessions after the role update, not the acting admin ones', async () => {
+    it('keeps the target sessions: the version bump makes the client refresh into the new role', async () => {
       vi.mocked(userQueries.getUserById)
         .mockResolvedValueOnce(makeUser(2, 'user1', 2, 'operator'))
         .mockResolvedValueOnce(makeUser(2, 'user1', 3, 'viewer'));
@@ -221,27 +221,11 @@ describe('UserService', () => {
 
       await service.updateUserRole(2, 3, ACTING);
 
-      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledTimes(1);
-      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledWith(tx, 2);
-      expect(vi.mocked(userQueries.updateUserRole).mock.invocationCallOrder[0]).toBeLessThan(
-        vi.mocked(refreshTokenRepo.revokeAllUserTokens).mock.invocationCallOrder[0],
-      );
+      expect(userQueries.updateUserRole).toHaveBeenCalledWith(mockDb, 2, 3);
+      expect(refreshTokenRepo.revokeAllUserTokens).not.toHaveBeenCalled();
     });
 
-    it('runs the role update and the revocation in one transaction', async () => {
-      vi.mocked(userQueries.getUserById)
-        .mockResolvedValueOnce(makeUser(2, 'user1', 2, 'operator'))
-        .mockResolvedValueOnce(makeUser(2, 'user1', 3, 'viewer'));
-      vi.mocked(roleQueries.getRoleNameById).mockResolvedValue('viewer');
-
-      await service.updateUserRole(2, 3, ACTING);
-
-      expect(mockDb.transaction).toHaveBeenCalledTimes(1);
-      expect(userQueries.updateUserRole).toHaveBeenCalledWith(tx, 2, 3);
-      expect(refreshTokenRepo.revokeAllUserTokens).toHaveBeenCalledWith(tx, 2);
-    });
-
-    it('is a no-op that revokes nothing when the role is unchanged', async () => {
+    it('is a no-op when the role is unchanged', async () => {
       const target = makeUser(2, 'user1', 2, 'operator');
       vi.mocked(userQueries.getUserById).mockResolvedValue(target);
       vi.mocked(roleQueries.getRoleNameById).mockResolvedValue('operator');
@@ -253,22 +237,13 @@ describe('UserService', () => {
       expect(refreshTokenRepo.revokeAllUserTokens).not.toHaveBeenCalled();
     });
 
-    it('does not revoke sessions when the role update is rejected', async () => {
+    it('does not touch the role when the last-admin guard rejects', async () => {
       vi.mocked(userQueries.getUserById).mockResolvedValue(makeUser(1, 'admin', 1, 'admin'));
       vi.mocked(roleQueries.getRoleNameById).mockResolvedValue('operator');
       vi.mocked(userQueries.getAdminCount).mockResolvedValue(1);
 
       await expect(service.updateUserRole(1, 2, ACTING)).rejects.toThrow();
-      expect(refreshTokenRepo.revokeAllUserTokens).not.toHaveBeenCalled();
-    });
-
-    it('does not revoke sessions when the db update fails', async () => {
-      vi.mocked(userQueries.getUserById).mockResolvedValue(makeUser(2, 'user1', 2, 'operator'));
-      vi.mocked(roleQueries.getRoleNameById).mockResolvedValue('viewer');
-      vi.mocked(userQueries.updateUserRole).mockRejectedValue(new Error('db down'));
-
-      await expect(service.updateUserRole(2, 3, ACTING)).rejects.toThrow('db down');
-      expect(refreshTokenRepo.revokeAllUserTokens).not.toHaveBeenCalled();
+      expect(userQueries.updateUserRole).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundError when the target user does not exist', async () => {

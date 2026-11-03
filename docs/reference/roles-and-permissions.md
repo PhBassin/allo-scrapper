@@ -829,17 +829,17 @@ This ensures that **any** administrative permission grants access to the admin p
 
 ### JWT Token Limitations
 
-#### No Immediate Permission Updates
+#### Permission Updates Go Through a Silent Refresh
 **Issue**: Permissions are baked into the JWT when it is minted  
-**Impact**: An already-issued access token keeps its permissions until it expires (`JWT_EXPIRES_IN`, default 15 min). A role change revokes the user's refresh tokens, so the user is sent back to login once that access token expires  
-**Workaround**: Keep `JWT_EXPIRES_IN` short; the user can also logout and login again to pick up the new role at once
+**Handling**: Every access token carries the user's token version (`ver` claim), checked on each authenticated request. Changing a user's role, or a role's name or permissions, bumps the version of the users concerned: their current access token is rejected with a `401`, and the client silently refreshes it into the new permissions — no re-login  
+**Cost**: one primary-key lookup (`users.token_version`) per authenticated request
 
 **Example**:
 ```
-1. User logs in as 'operator' → JWT contains operator permissions
-2. Admin promotes user to 'admin' role
-3. User still has operator permissions until they re-login
-4. User must logout and login to get admin permissions
+1. User logs in as 'operator' → JWT contains operator permissions (and its token version)
+2. Admin promotes user to 'admin' role → the user's token version is bumped
+3. The user's next request gets a 401; the client refreshes silently
+4. The new JWT carries admin permissions — no logout needed
 ```
 
 #### Token Expiry

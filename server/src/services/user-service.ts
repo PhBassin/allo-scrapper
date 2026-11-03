@@ -150,9 +150,10 @@ export class UserService {
    * if the target is currently an admin and the new role is not admin, the
    * remaining admin count must be greater than one.
    *
-   * Revokes the target's refresh tokens in the same transaction: permissions
-   * are baked into the access token, so a refresh must not resurrect the old
-   * role. Re-assigning the current role is a no-op and revokes nothing.
+   * The role change bumps the target's token version, so the access token
+   * carrying the old role is rejected at once; the client then refreshes
+   * silently and gets the new role (refresh re-reads it). Sessions are kept.
+   * Re-assigning the current role is a no-op.
    */
   async updateUserRole(userId: number, roleId: number, acting: ActingUser): Promise<UserPublic> {
     const targetUser = await getUserById(this.db, userId);
@@ -171,10 +172,7 @@ export class UserService {
 
     await this.assertNotLastAdmin(targetUser.role_name, newRoleName);
 
-    await this.db.transaction(async (tx) => {
-      await dbUpdateUserRole(tx, userId, roleId);
-      await revokeAllUserTokens(tx, userId);
-    });
+    await dbUpdateUserRole(this.db, userId, roleId);
 
     const updatedUser = await getUserById(this.db, userId);
 
@@ -185,7 +183,6 @@ export class UserService {
       targetUsername: updatedUser!.username,
       oldRoleName: targetUser.role_name,
       newRoleId: roleId,
-      sessionsRevoked: true,
     });
 
     return updatedUser!;
@@ -194,7 +191,8 @@ export class UserService {
   /**
    * Reset a user's password. The caller (client) generates the new password
    * and submits it; the service validates strength and stores a fresh hash,
-   * revoking the target's refresh tokens in the same transaction so a
+   * which bumps the target's token version (live access tokens die at once),
+   * and revokes the target's refresh tokens in the same transaction, so a
    * compromised account's existing sessions die with the old password.
    *
    * The user-existence check fires before password validation so the joint
