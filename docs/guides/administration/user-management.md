@@ -685,7 +685,7 @@ Custom roles provide flexibility to create specific permission sets for differen
 
 - [Admin Panel Guide](./admin-panel.md) - Complete admin panel reference
 - [Users API Reference](../../reference/api/users.md) - API documentation for developers
-- [Security Policy](../../project/security.md) - Security best practices and policies
+- [Security Policy](../../../SECURITY.md) - How to report a vulnerability
 - [Authentication API Reference](../../reference/api/auth.md) - API authentication endpoints
 - [Quick Start](../../getting-started/quick-start.md) - Initial setup and configuration
 
@@ -693,4 +693,4 @@ Custom roles provide flexibility to create specific permission sets for differen
 
 **Last updated:** March 15, 2026
 
-[← Back to Administration Guides](./README.md)
+[← Back to Documentation](../../README.md)
