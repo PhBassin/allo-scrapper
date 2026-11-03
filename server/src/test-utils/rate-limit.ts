@@ -21,6 +21,7 @@ import request from 'supertest';
 export const mockRateLimits = () => ({
   protectedLimiter: vi.fn((_req: any, _res: any, next: any) => next()),
   scraperLimiter: vi.fn((_req: any, _res: any, next: any) => next()),
+  registerLimiter: vi.fn((_req: any, _res: any, next: any) => next()),
 });
 
 // ---------------------------------------------------------------------------
