@@ -97,13 +97,13 @@ Split into separate commits when you are adding tests vs implementing, fixing un
 A `pre-push` Git hook runs most of the checks for you and **blocks the push if any of them fails**. It is installed automatically by `npm install` (through husky's `prepare` script). The checks, in order:
 
 1. Build the shared protocol package: `npm run build --workspace=allo-scrapper-scraper-protocol`. The server and scraper type-checks need its compiled `dist/`, which is not committed.
-2. Type-check the server and the scraper (`cd server && npx tsc --noEmit`, same in `scraper/`), and the client (`cd client && npx tsc -b`).
+2. Type-check the server and the scraper (`cd server && npx tsc --noEmit`, same in `scraper/`).
 3. Run the server tests (`npm run test:run`) and the coverage check (`npm run test:coverage`), both in `server/`.
-4. Run the scraper tests (`npm run test:run` in `scraper/`).
+4. Run the scraper tests with their coverage check (`npm run test:coverage` in `scraper/`).
 
-The hook runs everything **except the client type-check**, which only CI runs. If you changed anything in `client/`, run `cd client && npx tsc -b` yourself before pushing.
+The hook does **not check the client**. CI runs the client type-check, but neither the hook nor CI runs the client tests. If you changed anything in `client/`, run `cd client && npx tsc -b` and `npm run test:run --workspace=client` yourself before pushing.
 
-In a real emergency you can skip the hook with `git push --no-verify`. CI re-runs the type-checks and the server tests and coverage, but **not the scraper tests**, so only skip the hook when you are sure they pass.
+In a real emergency you can skip the hook with `git push --no-verify`. CI re-runs every check of the hook (plus the client type-check and the scraper-protocol coverage), so a skipped check still fails the PR.
 
 ## Open a pull request
 
