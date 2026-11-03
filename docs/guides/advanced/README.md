@@ -158,7 +158,7 @@ Choose a guide based on your current challenge:
 
 ## Related Documentation
 
-- **[Getting Started](../getting-started/)** – Initial setup and deployment
+- **[Getting Started](../../getting-started/)** – Initial setup and deployment
 - **[Deployment Guides](../deployment/)** – Docker, Kubernetes, monitoring
 - **[Reference Docs](../../reference/)** – Complete API reference, schema details
 - **[Troubleshooting](../../troubleshooting/)** – Common issues and solutions

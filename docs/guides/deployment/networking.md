@@ -532,4 +532,4 @@ ALLOWED_ORIGINS=https://theater.example.com,https://www.theater.example.com
 
 ---
 
-[← Back to Deployment Guides](./README.md)
+[← Back to Documentation](../../README.md)

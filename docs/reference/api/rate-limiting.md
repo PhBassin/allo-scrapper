@@ -676,7 +676,7 @@ Returns a paginated history of all rate limit changes with user attribution.
 - [API Reference](./README.md) - All API endpoints
 - [Authentication API](./auth.md) - Login and authentication
 - [Configuration Guide](../../getting-started/configuration.md) - Environment setup
-- [Security Best Practices](../../project/security.md) - Security guidelines
+- [Security Policy](../../../SECURITY.md) - How to report a vulnerability
 
 ---
 

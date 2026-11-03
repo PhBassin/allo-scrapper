@@ -605,4 +605,4 @@ gunzip -c ./backups/manual_20260301_143022.sql.gz | docker compose exec -T ics-d
 
 ---
 
-[← Back to Deployment Guides](./README.md)
+[← Back to Documentation](../../README.md)
