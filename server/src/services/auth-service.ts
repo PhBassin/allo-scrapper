@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { getUserByUsername, createUser, updateUserPassword } from '../db/user-queries.js';
+import { getUserByUsername, updateUserPassword } from '../db/user-queries.js';
 import { getPermissionNamesByRoleId } from '../db/role-queries.js';
 import type { DB } from '../db/index.js';
 import { validatePasswordStrength } from '../utils/security.js';
@@ -112,33 +112,6 @@ export class AuthService {
     )) as PermissionName[];
 
     return { token, user: toSessionUser(user, permissions) };
-  }
-
-  async register(username?: string, password?: string) {
-    if (!username || !password) {
-      throw new ValidationError('Username and password are required');
-    }
-
-    const passwordError = validatePasswordStrength(password);
-    if (passwordError) {
-      throw new ValidationError(passwordError);
-    }
-
-    const existingUser = await getUserByUsername(this.db, username);
-    if (existingUser) {
-      throw new ValidationError('Username already exists');
-    }
-
-    const passwordHash = await hashPassword(password);
-
-    const user = await createUser(this.db, username, passwordHash);
-
-    return {
-      id: user.id,
-      username: user.username,
-      role_id: user.role_id,
-      role_name: user.role_name,
-    };
   }
 
   async changePassword(currentUsername: string, currentPassword?: string, newPassword?: string) {

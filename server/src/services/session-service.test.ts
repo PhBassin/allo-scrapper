@@ -11,7 +11,6 @@ import type { DB } from '../db/index.js';
 
 const authMock = vi.hoisted(() => ({
   login: vi.fn(),
-  register: vi.fn(),
   changePassword: vi.fn(),
   mintAccessToken: vi.fn(),
 }));
@@ -117,26 +116,6 @@ describe('SessionService', () => {
         expect.any(String),
         expect.objectContaining({ httpOnly: false, path: '/' }),
       );
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // register
-  // -------------------------------------------------------------------------
-  describe('register', () => {
-    it('delegates to AuthService.register and creates no session', async () => {
-      const created = { id: 9, username: 'bob', role_id: 3, role_name: 'user' };
-      authMock.register.mockResolvedValue(created);
-
-      const res = buildRes();
-      const session = new SessionService(db, res);
-
-      const result = await session.register('bob', 'StrongPw1!');
-
-      expect(result).toBe(created);
-      expect(authMock.register).toHaveBeenCalledWith('bob', 'StrongPw1!');
-      expect(refreshTokenRepo.generateRefreshToken).not.toHaveBeenCalled();
-      expect(res.cookie).not.toHaveBeenCalled();
     });
   });
 

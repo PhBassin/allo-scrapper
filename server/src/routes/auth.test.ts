@@ -103,10 +103,6 @@ vi.mock('../middleware/auth.js', () => ({
     AuthRequest: {} as any,
 }));
 
-vi.mock('../middleware/permission.js', () => ({
-    requirePermission: (..._perms: string[]) => vi.fn((req: any, res: any, next: any) => next()),
-}));
-
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
@@ -229,6 +225,16 @@ describe('Auth Routes', () => {
             expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
             expect(response.body.error).toBe('Username and password are required');
+        });
+    });
+
+    describe('POST /api/auth/register', () => {
+        it('is not served (users are created via POST /api/users)', async () => {
+            const response = await request(app)
+                .post('/api/auth/register')
+                .send({ username: 'newuser', password: 'SecurePass123!' });
+
+            expect(response.status).toBe(404);
         });
     });
 
