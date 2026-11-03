@@ -435,35 +435,6 @@ paths:
             });
             const { token, user } = await response.json();
 
-  /auth/register:
-    post:
-      summary: Register New User
-      tags: [Authentication]
-      description: Create a new user account (admin only)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateUserRequest'
-      responses:
-        '201':
-          description: User created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
-        '409':
-          description: Username already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
   /theaters:
     get:
       summary: List All Theaters

@@ -1,8 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
-import type { ApiResponse } from '../types/api.js';
-import { authLimiter, registerLimiter } from '../middleware/rate-limit.js';
+import { authLimiter } from '../middleware/rate-limit.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
-import { requirePermission } from '../middleware/permission.js';
 import { SessionService } from '../services/session-service.js';
 
 const router = express.Router();
@@ -12,21 +10,6 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
     try {
         const session = new SessionService(req.app.get('db'), res);
         await session.login(req.body.username, req.body.password);
-    } catch (error) {
-        next(error);
-    }
-});
-
-// POST /api/auth/register - Register a new user (requires users:create permission)
-router.post('/register', registerLimiter, requireAuth, requirePermission('users:create'), async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const session = new SessionService(req.app.get('db'), res);
-        const user = await session.register(req.body.username, req.body.password);
-        const response: ApiResponse = {
-            success: true,
-            data: { message: 'User registered successfully', user },
-        };
-        res.status(201).json(response);
     } catch (error) {
         next(error);
     }

@@ -79,7 +79,6 @@ The API is organized into **8 main resource groups**:
 
 ### 1. **Authentication** (`/auth`)
 - `POST /auth/login` – User login
-- `POST /auth/register` – Create new user
 - `POST /auth/change-password` – Change password
 
 ### 2. **Theaters** (`/theaters`)
