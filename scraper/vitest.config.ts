@@ -12,6 +12,8 @@ export default defineConfig({
       // infrastructure; core run logic is tested via the ScrapeRun class in
       // scrape-run.ts and the helpers test file.
       exclude: [
+        // Test helpers are not production code.
+        'tests/**',
         'src/scraper/index.ts',
         'src/redis/client.ts',
       ],
