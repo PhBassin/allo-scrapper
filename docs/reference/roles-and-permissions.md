@@ -336,14 +336,15 @@ interface JWTPayload {
 
 ### Token Properties
 
-- **Expiry**: 24 hours from issue time
+- **Expiry**: `JWT_EXPIRES_IN` (default `15m`); the `access_token` cookie expires at the same time
 - **Algorithm**: HS256 (HMAC with SHA-256)
 - **Secret**: Configured via `JWT_SECRET` environment variable
-- **Refresh**: No refresh tokens; users must re-login after expiry
+- **Refresh**: renewed silently with the rotating refresh-token cookie (`REFRESH_TOKEN_EXPIRY`, default `7d`)
+- **Token version**: the `ver` claim must match `users.token_version`, checked on every authenticated request
 
-### Re-login Requirement
+### Permission Changes
 
-**Important**: Permissions are baked into the JWT at login time. If a user's role or permissions change, they must log out and log back in to receive an updated token with new permissions.
+Permissions are baked into the JWT when it is minted, but no re-login is needed when they change. Changing a user's role, or a role's name or permissions, bumps the token version of the users concerned: their current access token is rejected with a `401`, and the client refreshes it silently into the new permissions. A password change or an admin password reset bumps it too, and also revokes every refresh token of the user, who must then log in again.
 
 ### Client-Side Token Expiry Handling
 

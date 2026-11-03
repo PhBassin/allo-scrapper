@@ -117,7 +117,7 @@ Choose a guide based on your current challenge:
 - Implement approval workflows for production escalations
 - Enable audit logging from day one
 - Test permission changes in staging before production
-- Users must re-login after permission changes (JWT expires)
+- Permission changes apply at once: the user's access token is rejected and silently refreshed (no re-login)
 - Always backup before importing settings
 
 **Read time**: ~25 minutes

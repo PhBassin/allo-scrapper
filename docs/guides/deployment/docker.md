@@ -298,13 +298,10 @@ Keep it short: the client refreshes the access token silently with the refresh-t
 
 ### Client Behavior
 
-The React client implements **proactive token expiry handling**:
-- When a user logs in, the client decodes the JWT to extract the expiry timestamp
-- A `setTimeout` timer is scheduled to fire exactly when the token expires
-- When the timer fires, the user is automatically logged out with a "session expired" message
-- No failed API requests occur due to expired tokens
-
-This means users see a friendly "Votre session a expiré. Veuillez vous reconnecter." message instead of encountering 401 errors.
+The React client renews the access token silently (`client/src/api/core.ts`):
+- On a `401`, it calls `POST /api/auth/refresh` with the refresh-token cookie, then retries the request once
+- Refreshes are serialized across tabs with the Web Locks API (lock `auth-refresh`)
+- Only when the refresh itself fails (refresh token expired or revoked) is the user sent to the login page, with the message "Votre session a expiré. Veuillez vous reconnecter."
 
 ### Verification
 

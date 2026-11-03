@@ -84,8 +84,8 @@ JWTs contain user information and permissions for role-based access control:
 ```
 
 **Token Properties:**
-- **Expiry**: 24 hours
-- **Permissions**: Baked in at login time (re-login required for permission changes)
+- **Expiry**: `JWT_EXPIRES_IN` (default `15m`), renewed silently via `POST /api/auth/refresh`
+- **Permissions**: Baked in when the token is minted; a role or permission change rejects the token at once (token version) and the web client refreshes it into the new permissions, without a re-login
 - **Admin Bypass**: System admin role has access to all endpoints
 
 ### Permission-Based Access
