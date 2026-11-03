@@ -1,6 +1,6 @@
 # Authentication API
 
-Login, logout, session refresh, registration and password change.
+Login, logout, session refresh and password change. Users are created by an administrator with `POST /api/users` (see [User Management API](./users.md)).
 
 Source: `server/src/routes/auth.ts`, `server/src/services/session-service.ts`, `server/src/services/auth-service.ts`. Domain term: see *Session* in [CONTEXT.md](../../../CONTEXT.md).
 
@@ -13,7 +13,6 @@ Source: `server/src/routes/auth.ts`, `server/src/services/session-service.ts`, `
 - [Refresh Session](#refresh-session)
 - [Logout](#logout)
 - [Current User](#current-user)
-- [Register New User](#register-new-user)
 - [Change Password](#change-password)
 - [Session lifetime](#session-lifetime)
 - [Error Responses](#error-responses)
@@ -142,35 +141,6 @@ curl -b cookies.txt http://localhost:3000/api/auth/me
 
 ---
 
-## Register New User
-
-```http
-POST /api/auth/register
-```
-
-**Authentication:** required, with the `users:create` permission. **Rate limit:** `registerLimiter`.
-
-Creates a user without choosing a role. It does not log the new user in.
-
-> ⚠️ **Known issue:** `users.role_id` is `NOT NULL` and has no default, so this endpoint currently fails with `500` once validation passes. Use `POST /api/users` with an explicit `role_id` instead (see [User Management API](./users.md)).
-
-**Request body:** `{ "username": "newuser", "password": "SecurePass123!" }`
-
-The password must meet the [password requirements](./users.md#password-requirements).
-
-**Success (201 Created):** `{ "success": true, "data": { "message": "User registered successfully", "user": { "id", "username", "role_id", "role_name" } } }`
-
-**Errors:** `400` missing fields, weak password, or `Username already exists` · `401` · `403` missing permission or CSRF token · `429`
-
-```bash
-curl -b cookies.txt -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -H "X-CSRF-Token: $CSRF" \
-  -d '{"username":"newuser","password":"SecurePass123!"}'
-```
-
----
-
 ## Change Password
 
 ```http
@@ -220,10 +190,9 @@ All errors share this format:
 
 | Status | Error message | Cause |
 |--------|---------------|-------|
-| 400 | `Username and password are required` | Missing fields on login or register |
+| 400 | `Username and password are required` | Missing fields on login |
 | 400 | `Current password and new password are required` | Missing fields on change-password |
 | 400 | `Password must …` | Password fails a strength rule |
-| 400 | `Username already exists` | Duplicate username |
 | 401 | `Invalid credentials` | Wrong username or password |
 | 401 | `Current password is incorrect` | Wrong current password |
 | 401 | `Authentication required. No token provided.` | No access token |
