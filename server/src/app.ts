@@ -10,7 +10,7 @@ import cookieParser from 'cookie-parser';
 import fs from 'fs';
 
 import { getCorsOptions } from './utils/cors-config.js';
-import { parseTrustProxy } from './utils/trust-proxy.js';
+import { parseTrustProxy, warnOnceOnUntrustedForwardedFor } from './utils/trust-proxy.js';
 import { logger } from './utils/logger.js';
 import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
 import { requireAuth } from './middleware/auth.js';
@@ -44,7 +44,9 @@ export function createApp() {
   const app = express();
 
   // Which proxies may set X-Forwarded-For: req.ip keys every IP-based rate limiter
-  app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
+  const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+  app.set('trust proxy', trustProxy);
+  if (trustProxy === false) app.use(warnOnceOnUntrustedForwardedFor());
 
   // Middleware
   // Security: Helmet with strict CSP (no unsafe-inline/unsafe-eval in script-src)

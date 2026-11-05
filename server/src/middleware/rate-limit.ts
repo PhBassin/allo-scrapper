@@ -15,7 +15,9 @@ getSecrets();
 const skipTest = (req: any) => !req.ip;
 
 const internalIPs = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
-const skipInternal = (req: any) => internalIPs.includes(req.ip ?? '');
+// The TCP peer must be loopback too: req.ip alone can come from a forwarded header
+const skipInternal = (req: any) =>
+  internalIPs.includes(req.ip ?? '') && internalIPs.includes(req.socket?.remoteAddress ?? '');
 
 interface LimiterOptions {
   skip?: (req: Request) => boolean;

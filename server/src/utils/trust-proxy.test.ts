@@ -1,14 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
-import { DEFAULT_TRUST_PROXY, parseTrustProxy } from './trust-proxy.js';
+import { logger } from './logger.js';
+import { DEFAULT_TRUST_PROXY, parseTrustProxy, warnOnceOnUntrustedForwardedFor } from './trust-proxy.js';
+
+vi.mock('./logger.js');
 
 describe('parseTrustProxy', () => {
-  it('defaults to private networks when unset or blank', () => {
-    expect(parseTrustProxy(undefined)).toEqual(DEFAULT_TRUST_PROXY);
-    expect(parseTrustProxy('')).toEqual(DEFAULT_TRUST_PROXY);
-    expect(parseTrustProxy('   ')).toEqual(DEFAULT_TRUST_PROXY);
-    expect(DEFAULT_TRUST_PROXY).toEqual(['loopback', 'linklocal', 'uniquelocal']);
+  it('defaults to trusting no proxy when unset or blank', () => {
+    expect(DEFAULT_TRUST_PROXY).toBe(false);
+    expect(parseTrustProxy(undefined)).toBe(false);
+    expect(parseTrustProxy('')).toBe(false);
+    expect(parseTrustProxy('   ')).toBe(false);
   });
 
   it('parses booleans case-insensitively', () => {
@@ -32,6 +35,21 @@ describe('parseTrustProxy', () => {
     expect(() => parseTrustProxy('-1')).toThrow(/TRUST_PROXY/);
     expect(() => parseTrustProxy('1.5')).toThrow(/TRUST_PROXY/);
     expect(() => parseTrustProxy('not-an-ip')).toThrow(/TRUST_PROXY/);
+    expect(() => parseTrustProxy('99999999999999999999')).toThrow(/TRUST_PROXY/);
+  });
+
+  it('rejects ranges proxy-addr would refuse with a TRUST_PROXY error', () => {
+    expect(() => parseTrustProxy('10.0.0.0/0')).toThrow(/TRUST_PROXY/);
+    expect(() => parseTrustProxy('::/0')).toThrow(/TRUST_PROXY/);
+    expect(() => parseTrustProxy('10.0.0.0/33')).toThrow(/TRUST_PROXY/);
+    expect(() => parseTrustProxy('10.0.0.0/255.0.255.0')).toThrow(/TRUST_PROXY/);
+    expect(() => parseTrustProxy('10.0.0.0/0.0.0.0')).toThrow(/TRUST_PROXY/);
+  });
+
+  it('accepts every value it validates as a valid Express setting', () => {
+    for (const value of ['10.0.0.0/255.0.0.0', '10.0.0.0/255.255.255.255', '10.0.0.0/1', '::1/128', '1', '0']) {
+      expect(() => express().set('trust proxy', parseTrustProxy(value))).not.toThrow();
+    }
   });
 });
 
@@ -50,19 +68,39 @@ describe('trust proxy resolution of req.ip', () => {
     expect(res.body.ip).toMatch(/127\.0\.0\.1|::1/);
   });
 
-  it('uses the forwarded client IP behind a reverse proxy on a private network (default)', async () => {
+  it('ignores X-Forwarded-For by default', async () => {
     const res = await request(ipApp(undefined)).get('/ip').set('X-Forwarded-For', '198.51.100.9');
-    expect(res.body.ip).toBe('198.51.100.9');
-  });
-
-  it('only trusts the private hops of a spoofed chain by default', async () => {
-    // The client prepends a fake address; the proxy appends the real one it saw.
-    const res = await request(ipApp(undefined)).get('/ip').set('X-Forwarded-For', '1.2.3.4, 198.51.100.9');
-    expect(res.body.ip).toBe('198.51.100.9');
-  });
-
-  it('ignores X-Forwarded-For entirely when set to false', async () => {
-    const res = await request(ipApp('false')).get('/ip').set('X-Forwarded-For', '198.51.100.9');
     expect(res.body.ip).toMatch(/127\.0\.0\.1|::1/);
+  });
+
+  it('uses the forwarded client IP behind one trusted proxy', async () => {
+    const res = await request(ipApp('1')).get('/ip').set('X-Forwarded-For', '198.51.100.9');
+    expect(res.body.ip).toBe('198.51.100.9');
+  });
+
+  it('only trusts the entry the proxy appended in a spoofed chain', async () => {
+    // The client prepends a fake address; the proxy appends the real one it saw.
+    const res = await request(ipApp('1')).get('/ip').set('X-Forwarded-For', '1.2.3.4, 198.51.100.9');
+    expect(res.body.ip).toBe('198.51.100.9');
+  });
+});
+
+describe('warnOnceOnUntrustedForwardedFor', () => {
+  beforeEach(() => {
+    vi.mocked(logger.warn).mockClear();
+  });
+
+  it('warns once when X-Forwarded-For arrives while trust proxy is off', async () => {
+    const app = express();
+    app.use(warnOnceOnUntrustedForwardedFor());
+    app.get('/', (_req, res) => res.end());
+
+    await request(app).get('/');
+    expect(logger.warn).not.toHaveBeenCalled();
+
+    await request(app).get('/').set('X-Forwarded-For', '198.51.100.9');
+    await request(app).get('/').set('X-Forwarded-For', '198.51.100.9');
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(logger.warn).mock.calls[0][0]).toMatch(/TRUST_PROXY/);
   });
 });

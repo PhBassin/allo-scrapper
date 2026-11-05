@@ -337,13 +337,13 @@ describe('App - trust proxy', () => {
     else process.env.TRUST_PROXY = originalTrustProxy;
   });
 
-  it('trusts only private-network proxies by default', () => {
+  it('trusts no proxy by default', () => {
     delete process.env.TRUST_PROXY;
     const trust = createApp().get('trust proxy fn') as (addr: string, i: number) => boolean;
 
     expect(trust('203.0.113.5', 0)).toBe(false); // public client hitting port 3000 directly
-    expect(trust('172.18.0.4', 0)).toBe(true); // reverse proxy on the Docker network
-    expect(trust('127.0.0.1', 0)).toBe(true); // reverse proxy on the host
+    expect(trust('192.168.1.20', 0)).toBe(false); // LAN client hitting port 3000 directly
+    expect(trust('127.0.0.1', 0)).toBe(false);
   });
 
   it('reads TRUST_PROXY from the environment', () => {

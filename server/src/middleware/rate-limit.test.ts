@@ -363,6 +363,25 @@ describe('Rate Limiting Middleware', () => {
       expect(response.headers['ratelimit-reset']).toBeDefined();
     });
 
+    it('skips a request whose peer and client IP are both loopback', async () => {
+      const response = await request(app).get('/health');
+      expect(response.headers['ratelimit-limit']).toBeUndefined();
+    });
+
+    it('limits a forged loopback X-Forwarded-For from a non-loopback peer', async () => {
+      const lanApp = express();
+      lanApp.set('trust proxy', 1);
+      lanApp.use((req, _res, next) => {
+        Object.defineProperty(req.socket, 'remoteAddress', { value: '192.168.1.20', configurable: true });
+        next();
+      });
+      lanApp.get('/health', healthCheckLimiter, (_req, res) => res.json({ status: 'healthy' }));
+
+      const response = await request(lanApp).get('/health').set('X-Forwarded-For', '127.0.0.1');
+      expect(response.status).toBe(200);
+      expect(response.headers['ratelimit-limit']).toBeDefined();
+    });
+
     it('should rate limit after max requests (10 by default)', async () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
