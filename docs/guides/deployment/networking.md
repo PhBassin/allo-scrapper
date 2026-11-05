@@ -17,6 +17,7 @@ Guide for accessing the application from external devices (LAN/network access).
 - [Development Mode](#development-mode)
 - [Port Forwarding (Internet Access)](#port-forwarding-internet-access)
 - [Custom Domain](#custom-domain)
+- [Reverse Proxies and Client IPs](#reverse-proxies-and-client-ips)
 - [Troubleshooting](#troubleshooting)
 - [Testing Network Access](#testing-network-access)
 
@@ -230,6 +231,32 @@ ALLOWED_ORIGINS=http://localhost:3000,https://theater.example.com
 ```
 
 See [Production Deployment](./production.md) for complete custom domain setup.
+
+---
+
+## Reverse Proxies and Client IPs
+
+Rate limits (login included) are keyed on the client IP. When a request goes through a reverse proxy, the server only sees the proxy's address, so it reads the real client IP from the `X-Forwarded-For` header the proxy adds. Any client can send that header too, so the server believes it only when the request comes from a proxy listed in `TRUST_PROXY`.
+
+The default, `loopback, linklocal, uniquelocal`, trusts proxies on the host (`127.0.0.1`, `::1`) and on private networks (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7`, link-local), which covers nginx or Caddy on the same machine or in the same Docker network. A client connecting from a public address cannot forge its IP.
+
+| Setup | `TRUST_PROXY` |
+|---|---|
+| Reverse proxy on the host or in Docker (nginx, Caddy, Traefik) | leave unset |
+| No reverse proxy: clients reach port 3000 directly | `false` |
+| Proxy on a public address (Cloudflare, a load balancer on another host) | its IPs or CIDRs, e.g. `203.0.113.10,198.51.100.0/24` |
+
+```bash
+# .env — no reverse proxy, port 3000 exposed directly
+TRUST_PROXY=false
+```
+
+Notes:
+
+- **No proxy? Prefer `false`.** On some Docker setups (Docker Desktop, rootless Docker, `userland-proxy`), every outside connection reaches the container from the Docker gateway, a private address. The default then trusts it, and clients could forge `X-Forwarded-For` again. `false` avoids this.
+- **Make the proxy append, not replace.** With nginx, use `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`. The server walks the header from right to left and stops at the first address it does not trust, so a fake entry added by the client is ignored.
+- **Other formats.** `true` trusts every hop (only safe if nothing can reach the app except the proxy), and a number trusts that many hops whatever their address.
+- An invalid value stops the server at startup with an explicit error.
 
 ---
 
@@ -519,7 +546,7 @@ ALLOWED_ORIGINS=https://theater.example.com,https://www.theater.example.com
 - Use firewall rules to restrict access
 - Consider VPN for remote access
 - Use reverse proxy with authentication
-- Enable rate limiting
+- Enable rate limiting, and check `TRUST_PROXY` matches your setup (see [Reverse Proxies and Client IPs](#reverse-proxies-and-client-ips))
 
 ---
 

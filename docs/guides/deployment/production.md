@@ -310,6 +310,7 @@ GENERAL_RATE_LIMIT_MAX_REQUESTS=100     # Max 100 requests per window (default)
 - **Reduce limits** if experiencing abuse
 - **Increase protected limits** for high-traffic authenticated applications
 - **Monitor** rate limit hits via logs (structured JSON logging)
+- **Check `TRUST_PROXY`**: limits are keyed on the client IP, which comes from `X-Forwarded-For` only when the request arrives from a trusted proxy. See [Reverse Proxies and Client IPs](./networking.md#reverse-proxies-and-client-ips).
 
 All rate limits use the `express-rate-limit` middleware with in-memory storage. For distributed deployments, consider implementing Redis-based rate limiting.
 
@@ -674,6 +675,7 @@ For critical production environments:
 **Network Security:**
 - [ ] HTTPS enabled (see below)
 - [ ] `ALLOWED_ORIGINS` limited to your domains (no wildcards)
+- [ ] `TRUST_PROXY` matches your setup: unset behind a local reverse proxy, `false` without one (see [Networking](./networking.md#reverse-proxies-and-client-ips))
 - [ ] Firewall configured (see below)
 - [ ] Database port (5432) not exposed externally
 

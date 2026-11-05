@@ -76,6 +76,15 @@ These are the **only 5 variables** you need for production:
   - Set to `false` for **development** (HTTP-only, no TLS) — allows cookies to work over HTTP. The browser will otherwise silently reject cookies with the `Secure` flag and all non-login API calls return 403 "CSRF token missing or invalid".
   - **Development shortcut**: `cat .env.example .env.dev.example > .env` automatically sets this to `false`.
 
+### `TRUST_PROXY`
+- **Default**: `loopback, linklocal, uniquelocal`
+- **Valid values**: `true`, `false`, a hop count (e.g. `1`), or a comma-separated list of IPs, CIDRs and the keywords `loopback`, `linklocal`, `uniquelocal`
+- **Notes**:
+  - Tells the server which proxies it may believe when they send `X-Forwarded-For`. The resulting client IP keys every IP-based rate limit, including login.
+  - The default trusts a reverse proxy on the host or on the Docker network, and nothing else: a client on a public address cannot forge its IP.
+  - Set it to `false` if clients reach port 3000 directly with no reverse proxy, or list your proxy's addresses if it runs on a public IP. See [Reverse Proxies and Client IPs](../guides/deployment/networking.md#reverse-proxies-and-client-ips).
+  - An invalid value stops the server at startup.
+
 ---
 
 ## Development Overrides (.env.dev.example)
