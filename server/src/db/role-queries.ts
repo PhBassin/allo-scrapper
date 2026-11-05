@@ -262,7 +262,8 @@ export async function removePermissionsFromRole(
  * Replace all permissions for a role (atomic operation)
  * Deletes all existing permissions and inserts the new set, and bumps the
  * token version of every user holding the role (their access tokens carry
- * the old permissions), all in one transaction.
+ * the old permissions), all in one transaction. Re-submitting the current
+ * set bumps nothing.
  */
 export async function setRolePermissions(
   db: DB,
@@ -270,7 +271,10 @@ export async function setRolePermissions(
   permissionIds: number[]
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    await tx.query('DELETE FROM role_permissions WHERE role_id = $1', [roleId]);
+    const removed: { rows: Array<{ permission_id: number }> } = await tx.query(
+      'DELETE FROM role_permissions WHERE role_id = $1 RETURNING permission_id',
+      [roleId]
+    );
 
     if (permissionIds.length > 0) {
       const values = permissionIds.map((_, i) => `($1, $${i + 2})`).join(', ');
@@ -279,6 +283,11 @@ export async function setRolePermissions(
         [roleId, ...permissionIds]
       );
     }
+
+    const before = new Set(removed.rows.map((row) => row.permission_id));
+    const after = new Set(permissionIds);
+    const changed = before.size !== after.size || [...after].some((id) => !before.has(id));
+    if (!changed) return;
 
     await tx.query(
       'UPDATE users SET token_version = token_version + 1 WHERE role_id = $1',

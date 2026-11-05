@@ -384,6 +384,30 @@ describe('Role & Permission Queries', () => {
       );
     });
 
+    it('should not bump the token version when the permission set is unchanged', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce({ rows: [{ permission_id: 5 }, { permission_id: 4 }], rowCount: 2 } as any) // delete
+        .mockResolvedValueOnce({ rows: [], rowCount: 2 } as any);                                          // insert
+
+      await setRolePermissions(mockDb, 2, [4, 5, 4]);
+
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
+      expect(mockDb.query).not.toHaveBeenCalledWith(expect.stringContaining('token_version'), expect.anything());
+    });
+
+    it('should bump the token version when a permission is removed', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce({ rows: [{ permission_id: 4 }, { permission_id: 5 }], rowCount: 2 } as any)
+        .mockResolvedValue({ rows: [], rowCount: 1 } as any);
+
+      await setRolePermissions(mockDb, 2, [4]);
+
+      expect(mockDb.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('UPDATE users SET token_version'),
+        [2]
+      );
+    });
+
     it('should delete all permissions when given empty array', async () => {
       vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
 
