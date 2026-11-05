@@ -10,6 +10,7 @@ import cookieParser from 'cookie-parser';
 import fs from 'fs';
 
 import { getCorsOptions } from './utils/cors-config.js';
+import { parseTrustProxy } from './utils/trust-proxy.js';
 import { logger } from './utils/logger.js';
 import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
 import { requireAuth } from './middleware/auth.js';
@@ -42,8 +43,8 @@ collectDefaultMetrics({ register: serverRegistry, prefix: 'ics_web_' });
 export function createApp() {
   const app = express();
 
-  // Trust the first proxy to ensure accurate IP resolution for rate limiting
-  app.set('trust proxy', 1);
+  // Which proxies may set X-Forwarded-For: req.ip keys every IP-based rate limiter
+  app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 
   // Middleware
   // Security: Helmet with strict CSP (no unsafe-inline/unsafe-eval in script-src)

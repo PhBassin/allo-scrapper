@@ -45,6 +45,7 @@ services:
       PORT: 3000
       REDIS_URL: redis://ics-redis:6379
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      TRUST_PROXY: ${TRUST_PROXY:-}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       AUTO_MIGRATE: "true"
       LOG_LEVEL: info
