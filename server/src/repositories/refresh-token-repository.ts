@@ -33,6 +33,12 @@ interface RefreshTokenRow {
 type Queryable = Pick<DB, 'query'>;
 
 /**
+ * A transaction client only: the pool (which has `transaction`) is refused,
+ * since a row lock taken through it is released after its own statement.
+ */
+type TransactionQueryable = Queryable & { transaction?: never };
+
+/**
  * Outcome of presenting a refresh token:
  * - `valid`: the token is live; `userId` owns it.
  * - `race`: the token was rotated less than `REUSE_GRACE_MS` ago — a
@@ -182,7 +188,7 @@ async function revokeByUserId(db: Queryable, userId: number): Promise<void> {
  * (READ COMMITTED), so they see a successor that a concurrent rotation
  * committed while we waited.
  */
-async function lockUserSessions(db: Queryable, userId: number, mode: 'share' | 'exclusive'): Promise<void> {
+async function lockUserSessions(db: TransactionQueryable, userId: number, mode: 'share' | 'exclusive'): Promise<void> {
   await db.query(
     mode === 'share'
       ? 'SELECT 1 FROM users WHERE id = $1 FOR SHARE'
@@ -415,10 +421,11 @@ export async function rotateRefreshToken(
  * Revoke all refresh tokens for a user (e.g., on password change or logout-all).
  * Takes a transaction client, so callers revoke atomically with the change
  * that motivates it; the session lock it takes lasts until that transaction
- * ends, so no rotation in flight can leave a live successor behind.
+ * ends, so no rotation in flight can leave a live successor behind. The type
+ * refuses the pool, through which that lock would not outlive its statement.
  */
 export async function revokeAllUserTokens(
-  tx: Queryable,
+  tx: TransactionQueryable,
   userId: number,
 ): Promise<void> {
   await lockUserSessions(tx, userId, 'exclusive');
