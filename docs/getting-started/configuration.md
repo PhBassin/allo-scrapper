@@ -77,12 +77,12 @@ These are the **only 5 variables** you need for production:
   - **Development shortcut**: `cat .env.example .env.dev.example > .env` automatically sets this to `false`.
 
 ### `TRUST_PROXY`
-- **Default**: `loopback, linklocal, uniquelocal`
+- **Default**: `false` (`X-Forwarded-For` is ignored)
 - **Valid values**: `true`, `false`, a hop count (e.g. `1`), or a comma-separated list of IPs, CIDRs and the keywords `loopback`, `linklocal`, `uniquelocal`
 - **Notes**:
   - Tells the server which proxies it may believe when they send `X-Forwarded-For`. The resulting client IP keys every IP-based rate limit, including login.
-  - The default trusts a reverse proxy on the host or on the Docker network, and nothing else: a client on a public address cannot forge its IP.
-  - Set it to `false` if clients reach port 3000 directly with no reverse proxy, or list your proxy's addresses if it runs on a public IP. See [Reverse Proxies and Client IPs](../guides/deployment/networking.md#reverse-proxies-and-client-ips).
+  - Leave it unset if clients reach port 3000 directly. Behind one reverse proxy, set it to `1` and keep port 3000 reachable only by that proxy. See [Reverse Proxies and Client IPs](../guides/deployment/networking.md#reverse-proxies-and-client-ips).
+  - Behind a proxy with it unset, every client shares the proxy's IP in the rate limits. The server logs a warning the first time it ignores an `X-Forwarded-For` header.
   - An invalid value stops the server at startup.
 
 ---
