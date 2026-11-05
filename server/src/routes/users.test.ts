@@ -7,7 +7,7 @@ import type { DB } from '../db/internal/client.js';
 
 // Mock dependencies
 vi.mock('../db/internal/client.js', () => {
-  const query = vi.fn();
+  const query = vi.fn(async () => ({ rows: [], rowCount: 0 }));
   return {
     db: {
       query,

@@ -426,6 +426,17 @@ describe('refresh-token-repository', () => {
       expect(rolledBack()).toBe(true);
     });
 
+    it('should reject without inserting when the user was deleted meanwhile', async () => {
+      const txQuery = mockTransaction({ rows: [], rowCount: 0 }); // session lock finds no user row
+      vi.mocked(mockDb.query).mockResolvedValueOnce({ rows: [] } as any); // its tokens went with it
+
+      const result = await rotateRefreshToken(mockDb, 1, 'orphaned-token');
+
+      expect(result).toEqual({ status: 'rejected' });
+      expect(txQuery).toHaveBeenCalledTimes(1);
+      expect(txQuery).toHaveBeenCalledWith(expect.stringContaining('FOR SHARE'), [1]);
+    });
+
     it('should propagate unexpected transaction errors', async () => {
       vi.mocked(mockDb.transaction).mockRejectedValue(new Error('db down'));
 

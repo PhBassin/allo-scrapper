@@ -186,15 +186,16 @@ async function revokeByUserId(db: Queryable, userId: number): Promise<void> {
  * user-wide revocation `FOR NO KEY UPDATE`, so the two never interleave. Must
  * run inside a transaction; the statements after it get a fresh snapshot
  * (READ COMMITTED), so they see a successor that a concurrent rotation
- * committed while we waited.
+ * committed while we waited. Returns whether the user still exists.
  */
-async function lockUserSessions(db: TransactionQueryable, userId: number, mode: 'share' | 'exclusive'): Promise<void> {
-  await db.query(
+async function lockUserSessions(db: TransactionQueryable, userId: number, mode: 'share' | 'exclusive'): Promise<boolean> {
+  const result = await db.query(
     mode === 'share'
       ? 'SELECT 1 FROM users WHERE id = $1 FOR SHARE'
       : 'SELECT 1 FROM users WHERE id = $1 FOR NO KEY UPDATE',
     [userId]
   );
+  return (result.rowCount ?? 0) > 0;
 }
 
 async function cleanupExpired(db: DB, retentionDays: number): Promise<number> {
@@ -222,7 +223,8 @@ class OldTokenNotLive extends Error {}
  * If the old token is no longer live (rowCount = 0), the insert is rolled back
  * and a concurrent rotation (`race`) is told from a deliberate revocation
  * (`rejected`). Holds the session lock (shared) so a user-wide revocation
- * cannot miss the successor.
+ * cannot miss the successor. A user deleted meanwhile is `rejected` too
+ * (their tokens went with them), instead of failing the insert's foreign key.
  */
 async function rotateRefreshTokenTx(
   db: DB,
@@ -233,7 +235,9 @@ async function rotateRefreshTokenTx(
 ): Promise<'rotated' | 'race' | 'rejected'> {
   try {
     await db.transaction(async (client) => {
-      await lockUserSessions(client, userId, 'share');
+      if (!(await lockUserSessions(client, userId, 'share'))) {
+        throw new OldTokenNotLive();
+      }
 
       const insertResult = await client.query(
         `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)

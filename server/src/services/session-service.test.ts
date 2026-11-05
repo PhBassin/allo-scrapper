@@ -201,8 +201,9 @@ describe('SessionService', () => {
       expect(refreshTokenRepo.rotateRefreshToken).not.toHaveBeenCalled();
     });
 
-    it('writes a 401 and does NOT rotate when the user no longer exists', async () => {
+    it('writes a 401 and mints nothing when the user no longer exists after rotation', async () => {
       vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue({ status: 'valid', userId: 5 });
+      vi.mocked(refreshTokenRepo.rotateRefreshToken).mockResolvedValue({ status: 'rotated', token: 'new-refresh' });
       vi.mocked(userQueries.getUserWithRoleById).mockResolvedValue(undefined);
 
       const res = buildRes();
@@ -215,7 +216,29 @@ describe('SessionService', () => {
         success: false,
         error: 'User not found.',
       });
-      expect(refreshTokenRepo.rotateRefreshToken).not.toHaveBeenCalled();
+      expect(authMock.mintAccessToken).not.toHaveBeenCalled();
+      expect(res.cookie).not.toHaveBeenCalled();
+    });
+
+    it('reads the user (and its token version) only after the rotation', async () => {
+      vi.mocked(refreshTokenRepo.validateRefreshToken).mockResolvedValue({ status: 'valid', userId: 5 });
+      vi.mocked(refreshTokenRepo.rotateRefreshToken).mockResolvedValue({ status: 'rotated', token: 'new-refresh' });
+      vi.mocked(userQueries.getUserWithRoleById).mockResolvedValue({
+        id: 5,
+        username: 'alice',
+        role_id: 2,
+        role_name: 'operator',
+        is_system_role: false,
+        token_version: 3,
+      });
+      authMock.mintAccessToken.mockResolvedValue('access-jwt');
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue([]);
+
+      await new SessionService(db, buildRes()).refresh('old-refresh');
+
+      expect(vi.mocked(refreshTokenRepo.rotateRefreshToken).mock.invocationCallOrder[0])
+        .toBeLessThan(vi.mocked(userQueries.getUserWithRoleById).mock.invocationCallOrder[0]);
+      expect(authMock.mintAccessToken).toHaveBeenCalledWith(expect.objectContaining({ token_version: 3 }), db);
     });
 
     it('writes a REFRESH_RACE 401 (not a 500) that keeps the cookies when the token is consumed concurrently during rotation', async () => {

@@ -189,12 +189,6 @@ export class SessionService {
     }
     const { userId } = check;
 
-    const user = await getUserWithRoleById(this.db, userId);
-    if (!user) {
-      this.rejectUnauthorized('User not found.');
-      return;
-    }
-
     // Atomically rotate the refresh token, then mint a fresh access token via
     // the canonical AuthService seam (same payload shape as login).
     const rotation = await rotateRefreshToken(this.db, userId, refreshToken);
@@ -204,11 +198,21 @@ export class SessionService {
       return;
     }
     if (rotation.status === 'rejected') {
-      // Revoked on purpose (logout, password change, admin action) meanwhile.
+      // Revoked on purpose (logout, password change, admin action) or user
+      // deleted meanwhile.
       this.rejectUnauthorized('Invalid or expired refresh token.');
       return;
     }
     const newRefreshToken = rotation.token;
+
+    // Read the user only after the rotation: a role or permission change that
+    // committed while it waited on the session lock is then in the new access
+    // token, rather than a token version that is already stale when minted.
+    const user = await getUserWithRoleById(this.db, userId);
+    if (!user) {
+      this.rejectUnauthorized('User not found.');
+      return;
+    }
     const accessToken = await this.auth.mintAccessToken(user, this.db);
     const permissions = (await getPermissionNamesByRoleId(
       this.db,

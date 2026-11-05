@@ -465,8 +465,9 @@ describe('Auth Routes', () => {
             expect(response.status).toBe(401);
             expect(response.body.success).toBe(false);
             expect(response.body.error).toBe('User not found.');
-            // No new refresh/access tokens should be issued and the old refresh token should NOT be rotated
-            expect(mockRotate).not.toHaveBeenCalled();
+            // The user is read after the rotation; no access token is issued for a missing user
+            expect(mockRotate).toHaveBeenCalledWith(db, 1, 'valid-old-token');
+            expect(response.body.data).toBeUndefined();
         });
 
         it('should return 401 if no refresh token cookie', async () => {
