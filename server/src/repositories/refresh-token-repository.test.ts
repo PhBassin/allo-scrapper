@@ -10,6 +10,11 @@ import {
   REUSE_GRACE_MS,
 } from './refresh-token-repository.js';
 import type { DB } from '../db/index.js';
+import { logger } from '../utils/logger.js';
+
+vi.mock('../utils/logger.js', () => ({
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
+}));
 
 /**
  * Refresh-token repository tests.
@@ -252,6 +257,18 @@ describe('refresh-token-repository', () => {
         expect.stringContaining('WHERE id = $1 AND revoked_at IS NULL'),
         [2],
       );
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('its unused successor revoked'), { userId: 42 });
+    });
+
+    it('should not claim a revocation when the successor was already revoked', async () => {
+      vi.mocked(mockDb.query).mockResolvedValueOnce(rotatedRow(15 * 60 * 1000));
+      mockTransaction(LOCKED, { rows: [{ id: 2, replaced_by_id: null }] }, { rows: [], rowCount: 0 });
+
+      const result = await validateRefreshToken(mockDb, 'replayed-after-logout');
+
+      expect(result).toEqual({ status: 'rejected' });
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('successor was already revoked'), { userId: 42 });
+      expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('its unused successor revoked'), expect.anything());
     });
   });
 

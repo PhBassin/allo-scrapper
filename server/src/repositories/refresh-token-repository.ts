@@ -165,12 +165,14 @@ async function revokeByTokenHash(db: DB, tokenHash: string): Promise<boolean> {
   return (result.rowCount ?? 0) > 0;
 }
 
-async function revokeById(db: Queryable, id: number): Promise<void> {
-  await db.query(
+/** Returns whether a live token was revoked. */
+async function revokeById(db: Queryable, id: number): Promise<boolean> {
+  const result = await db.query(
     `UPDATE refresh_tokens SET revoked_at = NOW()
      WHERE id = $1 AND revoked_at IS NULL`,
     [id]
   );
+  return (result.rowCount ?? 0) > 0;
 }
 
 async function revokeByUserId(db: Queryable, userId: number): Promise<void> {
@@ -347,21 +349,23 @@ async function handleRotatedTokenReplay(
   userId: number,
   successorId: number,
 ): Promise<void> {
-  const revokedAll = await db.transaction(async (tx) => {
+  const outcome = await db.transaction(async (tx) => {
     await lockUserSessions(tx, userId, 'exclusive');
     const successor = await findSuccessor(tx, successorId);
     if (successor?.replaced_by_id != null) {
       await revokeByUserId(tx, userId);
-      return true;
+      return 'revoked-all';
     }
-    await revokeById(tx, successorId);
-    return false;
+    return (await revokeById(tx, successorId)) ? 'revoked-successor' : 'successor-gone';
   });
 
-  if (revokedAll) {
+  if (outcome === 'revoked-all') {
     logger.warn('Security: refresh token reuse detected, all sessions revoked', { userId });
-  } else {
+  } else if (outcome === 'revoked-successor') {
     logger.warn('Security: rotated refresh token replayed, its unused successor revoked', { userId });
+  } else {
+    // Successor already revoked (logout, password change): nothing left to revoke.
+    logger.warn('Security: rotated refresh token replayed, its successor was already revoked', { userId });
   }
 }
 
