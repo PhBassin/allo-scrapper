@@ -35,7 +35,7 @@
     "node-cron": "^4.2.1",
     "pg": "^8.21.0",
     "prom-client": "^15.1.0",
-    "puppeteer-core": "^25.1.0",
+    "puppeteer-core": "^25.16.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
