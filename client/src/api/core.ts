@@ -200,30 +200,40 @@ type FetchResult =
   | { response: Response; retried: true; refreshFailed?: false }
   | { response: Response; retried: false; refreshFailed: true };
 
+/**
+ * A retry can still get a 401 after a successful renewal: the token version
+ * was bumped (role or permission change) after the access token we retry with
+ * was minted, e.g. one another tab refreshed just before the change. One more
+ * refresh, keyed to the cookies of that retry, picks up the new version.
+ */
+const MAX_REFRESH_ATTEMPTS = 2;
+
 async function executeWithRefresh(
   url: string,
   config: RequestInit,
   method: string,
   headers: Headers,
 ): Promise<FetchResult> {
-  const csrfAtRequest = getCsrfToken();
-  const response = await fetch(url, config);
-  if (response.status !== 401) {
-    return { response, retried: false };
+  let csrfAtRequest = getCsrfToken();
+  let response = await fetch(url, config);
+  let retried = false;
+
+  for (let attempt = 0; response.status === 401 && attempt < MAX_REFRESH_ATTEMPTS; attempt++) {
+    const refreshed = await getRefreshedSession(csrfAtRequest);
+    if (!refreshed) {
+      return { response, retried: false, refreshFailed: true };
+    }
+
+    csrfAtRequest = getCsrfToken();
+    if (csrfAtRequest && !SAFE_METHODS.has(method)) {
+      headers.set('X-CSRF-Token', csrfAtRequest);
+    }
+
+    response = await fetch(url, { ...config, headers });
+    retried = true;
   }
 
-  const refreshed = await getRefreshedSession(csrfAtRequest);
-  if (!refreshed) {
-    return { response, retried: false, refreshFailed: true };
-  }
-
-  const newCsrfToken = getCsrfToken();
-  if (newCsrfToken && !SAFE_METHODS.has(method)) {
-    headers.set('X-CSRF-Token', newCsrfToken);
-  }
-
-  const retryResponse = await fetch(url, { ...config, headers });
-  return { response: retryResponse, retried: true };
+  return retried ? { response, retried: true } : { response, retried: false };
 }
 
 function wrapNetworkError(error: unknown): never {

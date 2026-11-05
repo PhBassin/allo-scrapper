@@ -249,6 +249,59 @@ describe('apiClient', () => {
       expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/protected']);
     });
 
+    it('refreshes itself when the retry with another tab\'s token still gets a 401 (token version bumped)', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      stubLocks();
+      const { calls } = mockFetchSequence([
+        // Another tab refreshed while our request was in flight...
+        { status: 401, body: { error: 'no' }, onFetch: () => setCookie('csrf_token', 'csrf-2') },
+        // ...but a role change bumped the token version after its refresh.
+        { status: 401, body: { error: 'Invalid or expired token.' } },
+        { status: 200, body: { success: true }, onFetch: () => setCookie('csrf_token', 'csrf-3') },
+        { status: 200, body: { ok: 'new-version' } },
+      ]);
+      const listener = vi.fn();
+      window.addEventListener('auth:unauthorized', listener);
+
+      const data = await apiClient.get('/protected');
+
+      expect(data).toEqual({ ok: 'new-version' });
+      expect(calls.map((c) => c.url)).toEqual([
+        '/api/protected', '/api/protected', '/api/auth/refresh', '/api/protected',
+      ]);
+      expect(listener).not.toHaveBeenCalled();
+      window.removeEventListener('auth:unauthorized', listener);
+    });
+
+    it('reports unauthorized when the retry keeps failing after two refreshes', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      stubLocks();
+      const { calls } = mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 200, body: { success: true }, onFetch: () => setCookie('csrf_token', 'csrf-2') },
+        { status: 401, body: { error: 'no' } },
+        { status: 200, body: { success: true }, onFetch: () => setCookie('csrf_token', 'csrf-3') },
+        { status: 401, body: { error: 'no' } },
+      ]);
+      const listener = vi.fn();
+      window.addEventListener('auth:unauthorized', listener);
+
+      await expect(apiClient.get('/protected')).rejects.toMatchObject({ status: 401 });
+
+      expect(calls).toHaveLength(5);
+      expect(listener).toHaveBeenCalledTimes(1);
+      window.removeEventListener('auth:unauthorized', listener);
+
+      // The module reports an expiry once until a session is renewed: renew it
+      // so later tests see their own report.
+      mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 200, body: { success: true }, onFetch: () => setCookie('csrf_token', 'csrf-4') },
+        { status: 200, body: {} },
+      ]);
+      await apiClient.get('/protected');
+    });
+
     it('still reports unauthorized when the locked refresh fails', async () => {
       setCookie('csrf_token', 'csrf-1');
       stubLocks();
