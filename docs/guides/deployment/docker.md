@@ -288,24 +288,20 @@ See [Backup & Restore](./backup-restore.md) for complete backup workflows.
 
 ### Token Expiry
 
-`JWT_EXPIRES_IN` is hardcoded to `1h` in `docker-compose.yaml`. To change it, edit the compose file:
+`JWT_EXPIRES_IN` defaults to `15m` (`${JWT_EXPIRES_IN:-15m}` in `docker-compose.yaml`). To change it, set it in `.env`:
 
-```yaml
-services:
-  ics-web:
-    environment:
-      JWT_EXPIRES_IN: 1h   # Change this value
+```env
+JWT_EXPIRES_IN=15m   # Access-token lifetime; the access_token cookie follows it
 ```
+
+Keep it short: the client refreshes the access token silently with the refresh-token cookie, so a shorter lifetime has no user-facing cost. Above `1h` the server logs a warning at startup (e.g. a `24h` kept from the former default).
 
 ### Client Behavior
 
-The React client implements **proactive token expiry handling**:
-- When a user logs in, the client decodes the JWT to extract the expiry timestamp
-- A `setTimeout` timer is scheduled to fire exactly when the token expires
-- When the timer fires, the user is automatically logged out with a "session expired" message
-- No failed API requests occur due to expired tokens
-
-This means users see a friendly "Votre session a expiré. Veuillez vous reconnecter." message instead of encountering 401 errors.
+The React client renews the access token silently (`client/src/api/core.ts`):
+- On a `401`, it calls `POST /api/auth/refresh` with the refresh-token cookie, then retries the request once
+- Refreshes are serialized across tabs with the Web Locks API (lock `auth-refresh`)
+- Only when the refresh itself fails (refresh token expired or revoked) is the user sent to the login page, with the message "Votre session a expiré. Veuillez vous reconnecter."
 
 ### Verification
 
@@ -317,7 +313,7 @@ docker compose exec ics-web printenv | grep JWT
 
 # Example output:
 # JWT_SECRET=your-secret-here
-# JWT_EXPIRES_IN=24h
+# JWT_EXPIRES_IN=15m
 ```
 
 See [Configuration Reference](../../getting-started/configuration.md#jwt_expires_in) for complete JWT configuration options.

@@ -5,9 +5,10 @@ import type { DB } from '../db/index.js';
 import { validatePasswordStrength } from '../utils/security.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { logger } from '../utils/logger.js';
-import { parseJwtExpiration } from '../utils/jwt-config.js';
+import { getJwtSignExpiresIn } from '../utils/jwt-config.js';
 import type { PermissionName } from '../types/role.js';
 import { getCurrentSecret } from '../utils/jwt-secrets.js';
+import { revokeAllUserTokens } from '../repositories/refresh-token-repository.js';
 import { ValidationError, AuthError, NotFoundError } from '../utils/errors.js';
 
 // Pre-computed hash for 'dummy' (cost 10) to prevent timing attacks
@@ -23,6 +24,8 @@ export interface AccessTokenSubject {
   role_id: number;
   role_name: string;
   is_system_role: boolean;
+  /** Credential version the token is bound to (`ver` claim, see `requireAuth`). */
+  token_version: number;
 }
 
 /**
@@ -30,7 +33,7 @@ export interface AccessTokenSubject {
  * subject plus its resolved permissions. Built in one place (`toSessionUser`)
  * so every response that shows a user agrees on the shape.
  */
-export interface SessionUser extends AccessTokenSubject {
+export interface SessionUser extends Omit<AccessTokenSubject, 'token_version'> {
   permissions: PermissionName[];
 }
 
@@ -63,7 +66,7 @@ export class AuthService {
 
   /**
    * Mint an HS256 access token for `user`. The canonical payload shape
-   * ({ id, username, role_name, is_system_role, permissions }) lives here
+   * ({ id, username, role_name, is_system_role, permissions, ver }) lives here
    * — every code path that issues an access token MUST go through this
    * method so the claim set stays in lockstep.
    *
@@ -77,7 +80,7 @@ export class AuthService {
 
     const secret = getCurrentSecret();
 
-    const expiresIn = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '1h');
+    const expiresIn = getJwtSignExpiresIn();
 
     return jwt.sign(
       {
@@ -86,6 +89,7 @@ export class AuthService {
         role_name: user.role_name,
         is_system_role: user.is_system_role,
         permissions,
+        ver: user.token_version,
       },
       secret,
       { algorithm: 'HS256', expiresIn: expiresIn as any }
@@ -136,7 +140,11 @@ export class AuthService {
 
     const newPasswordHash = await hashPassword(newPassword);
 
-    await updateUserPassword(this.db, user.id, newPasswordHash);
+    // Every Session dies with the old password, atomically with the change.
+    await this.db.transaction(async (tx) => {
+      await updateUserPassword(tx, user.id, newPasswordHash);
+      await revokeAllUserTokens(tx, user.id);
+    });
     logger.info(`Password changed for user: ${user.username}`);
   }
 }

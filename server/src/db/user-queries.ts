@@ -11,6 +11,7 @@ export interface UserRow {
   role_id: number;
   role_name: string;
   is_system_role: boolean;
+  token_version: number;
   created_at: string;
 }
 
@@ -25,6 +26,7 @@ export interface UserWithRoleRow {
   role_id: number;
   role_name: string;
   is_system_role: boolean;
+  token_version: number;
 }
 
 /**
@@ -94,7 +96,7 @@ export async function getUserWithRoleById(
 ): Promise<UserWithRoleRow | undefined> {
   const result = await db.query<UserWithRoleRow>(
     `SELECT u.id, u.username, r.id AS role_id, r.name AS role_name,
-            r.is_system AS is_system_role
+            r.is_system AS is_system_role, u.token_version
      FROM users u
      JOIN roles r ON r.id = u.role_id
      WHERE u.id = $1`,
@@ -105,20 +107,37 @@ export async function getUserWithRoleById(
 }
 
 /**
- * Update user role by role ID
+ * Update user role by role ID. Bumps the user's token version, so access
+ * tokens minted with the old role stop working at once.
  * @param db - Database client
  * @param userId - User ID
  * @param roleId - New role ID (must reference a valid role in the roles table)
  */
 export async function updateUserRole(
-  db: DB,
+  db: Pick<DB, 'query'>,
   userId: number,
   roleId: number
 ): Promise<void> {
   await db.query(
-    'UPDATE users SET role_id = $1 WHERE id = $2',
+    'UPDATE users SET role_id = $1, token_version = token_version + 1 WHERE id = $2',
     [roleId, userId]
   );
+}
+
+/**
+ * Current credential version of a user (see migration 027), or undefined if
+ * the user no longer exists. Read by `requireAuth` on every authenticated
+ * request.
+ */
+export async function getUserTokenVersion(
+  db: Pick<DB, 'query'>,
+  userId: number
+): Promise<number | undefined> {
+  const result = await db.query<{ token_version: number }>(
+    'SELECT token_version FROM users WHERE id = $1',
+    [userId]
+  );
+  return result.rows[0]?.token_version;
 }
 
 /**
@@ -165,7 +184,7 @@ export async function getAdminCount(db: DB): Promise<number> {
 export async function getUserByUsername(db: DB, username: string): Promise<UserRow | undefined> {
   const result = await db.query<UserRow>(
     `SELECT u.id, u.username, u.password_hash, u.role_id,
-            r.name AS role_name, r.is_system AS is_system_role, u.created_at
+            r.name AS role_name, r.is_system AS is_system_role, u.token_version, u.created_at
      FROM users u
      JOIN roles r ON r.id = u.role_id
      WHERE u.username = $1`,
@@ -205,14 +224,15 @@ export async function createUser(
 }
 
 /**
- * Update user password
+ * Update user password. Bumps the user's token version, so access tokens
+ * minted before the change stop working at once.
  * @param db - Database client
  * @param userId - User ID
  * @param newPasswordHash - New hashed password
  */
-export async function updateUserPassword(db: DB, userId: number, newPasswordHash: string): Promise<void> {
+export async function updateUserPassword(db: Pick<DB, 'query'>, userId: number, newPasswordHash: string): Promise<void> {
   await db.query(
-    'UPDATE users SET password_hash = $1 WHERE id = $2',
+    'UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE id = $2',
     [newPasswordHash, userId]
   );
 }

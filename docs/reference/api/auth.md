@@ -25,7 +25,7 @@ A successful login sets three cookies:
 
 | Cookie | Content | Flags | Lifetime |
 |--------|---------|-------|----------|
-| `access_token` | HS256 JWT carrying the user's id, role and permissions | httpOnly, `SameSite=Lax`, path `/` | 15 minutes |
+| `access_token` | HS256 JWT carrying the user's id, role, permissions and token version | httpOnly, `SameSite=Lax`, path `/` | `JWT_EXPIRES_IN` (default `15m`) |
 | `refresh_token` | Opaque token stored in the `refresh_tokens` table | httpOnly, `SameSite=Strict`, path `/api/auth` | `REFRESH_TOKEN_EXPIRY` (default `7d`) |
 | `csrf_token` | Random value, readable by JavaScript | `SameSite=Strict`, path `/` | Browser session |
 
@@ -101,6 +101,8 @@ The web client calls this automatically when a request returns `401`, then retri
 
 **Errors (401):** `No refresh token provided.` · `Invalid or expired refresh token.` · `User not found.` On these errors the `access_token` and `refresh_token` cookies are cleared.
 
+**Lost race (401, `code: "REFRESH_RACE"`):** a concurrent request rotated the same refresh token less than 30 s ago. The cookies are **not** cleared: the winner's response carries the fresh ones, and the client retries with them. Presenting a rotated token later is treated as a replay: its unused successor is revoked, or every refresh token of the user if that successor was already used. The web client serializes refreshes across tabs with the Web Locks API (lock `auth-refresh`).
+
 ```bash
 curl -b cookies.txt -c cookies.txt -X POST http://localhost:3000/api/auth/refresh
 ```
@@ -170,10 +172,10 @@ curl -b cookies.txt -c cookies.txt -X POST http://localhost:3000/api/auth/change
 
 ## Session lifetime
 
-- **Access token cookie:** 15 minutes. The JWT inside also has its own expiry, `JWT_EXPIRES_IN` (default `1h`); the server warns at startup if it is shorter than the cookie.
+- **Access token:** `JWT_EXPIRES_IN` (default `15m`; `15m`, `1h`, `3600s` or plain seconds, max `365d`). The JWT `exp` and the `access_token` cookie share this value. The server refuses to start on an invalid value and logs a warning above `1h`.
 - **Refresh token:** `REFRESH_TOKEN_EXPIRY` (default `7d`; accepts `<n>d`, `<n>h` or a number of milliseconds). Each refresh replaces it with a new one.
-- **Permissions** are copied into the access token when it is issued. A role change applies at the next refresh, so within about 15 minutes for the web client. A client that only uses a Bearer token keeps the old permissions until that token expires.
-- **Each device** has its own refresh token. Logout revokes only the current one; a password change revokes them all.
+- **Token version.** Each access token carries the user's token version (`ver` claim), checked on every authenticated request. A password change or reset, a role change, or an edit to the user's role (name or permissions) bumps it, and the token is rejected at once with `401 Invalid or expired token.` The web client then refreshes silently, so a role change applies immediately without a new login. A Bearer-only client must log in again.
+- **Each device** has its own refresh token. Logout revokes only the current one; a password change or an admin password reset revokes them all. A role change keeps them.
 
 ---
 

@@ -225,7 +225,7 @@ This guide covers managing user accounts through the admin panel interface. For 
 **Security Considerations:**
 - **Last Admin Protection**: Cannot demote the last admin user to prevent system lockout
 - **Immediate Effect**: Role changes take effect immediately
-- **Session Impact**: User MUST logout/login to receive updated permissions in JWT token
+- **Session Impact**: None for the user: their current access token is rejected and silently refreshed with the new permissions, without a new login
 - **System Role Protection**: Cannot modify or delete system roles (admin, operator)
 
 **Best Practices:**

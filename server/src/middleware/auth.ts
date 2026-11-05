@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import type { ApiResponse } from '../types/api.js';
 import type { PermissionName } from '../types/role.js';
 import { getSecrets, verifyWithMultipleSecrets } from '../utils/jwt-secrets.js';
+import { getUserTokenVersion } from '../db/user-queries.js';
 
 // Fail-fast: validate secrets at module load
 getSecrets();
@@ -46,7 +47,13 @@ export function isAdminUser(
   return user?.role_name === 'admin' && user?.is_system_role === true;
 }
 
-export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void | Response => {
+/**
+ * Verify the access token, then check that its `ver` claim still matches the
+ * user's token version: a password change/reset or a role change bumps it,
+ * so a token minted before is rejected at once (the client refreshes, or
+ * re-logs in if its sessions were revoked). A deleted user is rejected too.
+ */
+export const requireAuth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void | Response> => {
     const token = extractToken(req);
 
     if (!token) {
@@ -57,21 +64,27 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
         return res.status(401).json(response);
     }
 
+    const invalidToken: ApiResponse = {
+        success: false,
+        error: 'Invalid or expired token.',
+    };
+
+    let decoded: NonNullable<AuthRequest['user']> & { ver?: unknown };
     try {
-        const decoded = verifyWithMultipleSecrets(token, getSecrets()) as {
-            id: number;
-            username: string;
-            role_name: string;
-            is_system_role: boolean;
-            permissions: PermissionName[];
-        };
-        req.user = decoded;
-        next();
-    } catch (error) {
-        const response: ApiResponse = {
-            success: false,
-            error: 'Invalid or expired token.',
-        };
-        return res.status(401).json(response);
+        decoded = verifyWithMultipleSecrets(token, getSecrets()) as typeof decoded;
+    } catch {
+        return res.status(401).json(invalidToken);
     }
+
+    try {
+        const currentVersion = await getUserTokenVersion(req.app.get('db'), decoded.id);
+        if (currentVersion === undefined || decoded.ver !== currentVersion) {
+            return res.status(401).json(invalidToken);
+        }
+    } catch (error) {
+        return next(error);
+    }
+
+    req.user = decoded;
+    next();
 };

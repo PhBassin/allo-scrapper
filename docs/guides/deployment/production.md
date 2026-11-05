@@ -374,7 +374,7 @@ curl -X POST http://localhost:3000/api/auth/login \
    - Generate new secret
    - Update `.env`
    - Restart services
-   - All users must re-login
+   - Access tokens signed with the old secret are rejected; the web client refreshes them silently (refresh tokens are not signed with `JWT_SECRET`). Use `JWT_PREVIOUS_SECRETS` to keep accepting old tokens during the rollover
 
 4. **Protect .env file**
    ```bash
@@ -395,7 +395,7 @@ nano .env  # Replace JWT_SECRET value
 # 3. Restart web service
 docker compose restart ics-web
 
-# 4. All users will need to re-login
+# 4. Old access tokens are rejected; the web client refreshes them silently
 ```
 
 ### Troubleshooting JWT
@@ -410,7 +410,7 @@ docker compose restart ics-web
 
 **Issue**: Token expires too quickly
 
-**Solution**: Tokens expire after 24 hours (default). This is configurable in code but not via environment variables. For longer sessions, consider implementing refresh tokens.
+**Solution**: Access tokens expire after `JWT_EXPIRES_IN` (default `15m`) but are renewed silently with the refresh-token cookie, so users are only sent to the login page when the refresh token expires (`REFRESH_TOKEN_EXPIRY`, default `7d`) or is revoked (password change or reset). To keep users logged in longer, raise `REFRESH_TOKEN_EXPIRY`, not `JWT_EXPIRES_IN`.
 
 ---
 

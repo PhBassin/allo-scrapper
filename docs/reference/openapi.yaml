@@ -1077,7 +1077,7 @@ paths:
     put:
       summary: Update User Role
       tags: [Users]
-      description: Change user's role (requires `users:update` permission)
+      description: Change user's role (requires `users:update` permission). The user's current access token is rejected at once (token version bumped); the web client refreshes it silently into the new role, without a re-login.
       parameters:
         - name: id
           in: path

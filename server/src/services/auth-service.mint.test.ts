@@ -38,6 +38,7 @@ describe('AuthService.mintAccessToken', () => {
         role_id: 7,
         role_name: 'editor',
         is_system_role: false,
+        token_version: 3,
       },
       mockDb
     );
@@ -50,6 +51,7 @@ describe('AuthService.mintAccessToken', () => {
       role_name: string;
       is_system_role: boolean;
       permissions: PermissionName[];
+      ver: number;
     };
 
     expect(decoded.id).toBe(42);
@@ -57,6 +59,7 @@ describe('AuthService.mintAccessToken', () => {
     expect(decoded.role_name).toBe('editor');
     expect(decoded.is_system_role).toBe(false);
     expect(decoded.permissions).toEqual(['reports:read', 'users:read']);
+    expect(decoded.ver).toBe(3);
     expect(decoded.exp).toBeTypeOf('number');
     expect(decoded.iat).toBeTypeOf('number');
   });
@@ -86,6 +89,19 @@ describe('AuthService.mintAccessToken', () => {
     expect(decoded).toBeTruthy();
     const header = jwt.decode(token, { complete: true })?.header;
     expect(header?.alg).toBe('HS256');
+  });
+
+  it('expires after 15 minutes when JWT_EXPIRES_IN is unset', async () => {
+    const auth = new AuthService(mockDb);
+    vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue([] as PermissionName[]);
+
+    const token = await auth.mintAccessToken(
+      { id: 1, username: 'u', role_id: 1, role_name: 'r', is_system_role: false },
+      mockDb
+    );
+
+    const decoded = jwt.verify(token, TEST_JWT_SECRET) as jwt.JwtPayload;
+    expect((decoded.exp as number) - (decoded.iat as number)).toBe(15 * 60);
   });
 
   it('honors JWT_EXPIRES_IN when set', async () => {

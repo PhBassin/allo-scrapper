@@ -25,6 +25,8 @@ describe('Role & Permission Queries', () => {
   beforeEach(() => {
     mockDb = {
       query: vi.fn(),
+      // The transaction client shares the mocked query, so assertions see every statement
+      transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(mockDb)),
     } as unknown as DB;
   });
 
@@ -196,6 +198,17 @@ describe('Role & Permission Queries', () => {
       );
     });
 
+    it('should bump the role holders\' token version on an actual rename, in the same statement', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
+
+      await updateRole(mockDb, 3, { name: 'moderator-v2' });
+
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
+      const sql = vi.mocked(mockDb.query).mock.calls[0][0] as string;
+      expect(sql).toContain('UPDATE users SET token_version = token_version + 1');
+      expect(sql).toContain('old.name IS DISTINCT FROM updated.name');
+    });
+
     it('should return undefined for non-existent role', async () => {
       vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
 
@@ -356,6 +369,42 @@ describe('Role & Permission Queries', () => {
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM role_permissions'),
         expect.arrayContaining([2])
+      );
+    });
+
+    it('should bump the token version of the role holders in the same transaction', async () => {
+      vi.mocked(mockDb.query).mockResolvedValue({ rows: [], rowCount: 0 } as any);
+
+      await setRolePermissions(mockDb, 2, [4]);
+
+      expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+      expect(mockDb.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('UPDATE users SET token_version = token_version + 1 WHERE role_id = $1'),
+        [2]
+      );
+    });
+
+    it('should not bump the token version when the permission set is unchanged', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce({ rows: [{ permission_id: 5 }, { permission_id: 4 }], rowCount: 2 } as any) // delete
+        .mockResolvedValueOnce({ rows: [], rowCount: 2 } as any);                                          // insert
+
+      await setRolePermissions(mockDb, 2, [4, 5, 4]);
+
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
+      expect(mockDb.query).not.toHaveBeenCalledWith(expect.stringContaining('token_version'), expect.anything());
+    });
+
+    it('should bump the token version when a permission is removed', async () => {
+      vi.mocked(mockDb.query)
+        .mockResolvedValueOnce({ rows: [{ permission_id: 4 }, { permission_id: 5 }], rowCount: 2 } as any)
+        .mockResolvedValue({ rows: [], rowCount: 1 } as any);
+
+      await setRolePermissions(mockDb, 2, [4]);
+
+      expect(mockDb.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('UPDATE users SET token_version'),
+        [2]
       );
     });
 

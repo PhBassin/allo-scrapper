@@ -151,6 +151,8 @@ PUT /api/users/:id/role
 
 Demoting the **last** user with the `admin` role is refused, so at least one admin always remains.
 
+The change applies at once: the user's current access token is rejected (token version bumped), and the web client refreshes it silently into the new role. Their sessions are kept. Re-assigning the current role is a no-op.
+
 **Success (200 OK):** `{ "success": true, "data": <updated user> }`
 
 **Errors:** `400` invalid user ID or unknown `role_id` · `401` · `403` missing permission, or last admin demotion · `404` · `429`
@@ -172,7 +174,7 @@ POST /api/users/:id/reset-password
 
 **Permission:** `users:update`
 
-The administrator chooses the new password and submits it; the server validates its strength and stores a fresh hash.
+The administrator chooses the new password and submits it; the server validates its strength and stores a fresh hash. All of the user's sessions end at once: their current access token is rejected and every refresh token is revoked, so they must log in again.
 
 **Request body:** `{ "newPassword": "NewSecurePass456!" }`
 

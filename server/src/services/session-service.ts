@@ -7,13 +7,13 @@ import {
   validateRefreshToken,
   revokeRefreshToken,
   rotateRefreshToken,
-  revokeAllUserTokens,
   parseRefreshTokenExpiry,
 } from '../repositories/refresh-token-repository.js';
 import { getUserWithRoleById } from '../db/user-queries.js';
 import { getPermissionNamesByRoleId } from '../db/role-queries.js';
 import type { PermissionName } from '../types/role.js';
 import { logger } from '../utils/logger.js';
+import { getAccessTokenMaxAgeMs } from '../utils/jwt-config.js';
 
 /**
  * Session — the user-auth credential lifecycle for one request.
@@ -26,11 +26,14 @@ import { logger } from '../utils/logger.js';
  * The refresh-token lifetime is declared in exactly one place —
  * `parseRefreshTokenExpiry` (driven by `REFRESH_TOKEN_EXPIRY`) — and both the
  * persisted token expiry and the refresh cookie's `maxAge` read from it.
+ * Likewise the access-token lifetime lives only in `getAccessTokenMaxAgeMs`
+ * (driven by `JWT_EXPIRES_IN`), read by both the JWT `exp` and its cookie.
  *
  * See `CONTEXT.md` → *Session*.
  */
 
-const ACCESS_TOKEN_MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes
+/** Error `code` of a refresh that lost a rotation race (client retries). */
+export const REFRESH_RACE_CODE = 'REFRESH_RACE';
 /** Single source of truth for the refresh-token lifetime (token + cookie). */
 const REFRESH_TOKEN_MAX_AGE_MS = parseRefreshTokenExpiry();
 const isSecureCookies = process.env.COOKIE_SECURE !== 'false';
@@ -73,7 +76,7 @@ export class SessionService {
       httpOnly: true,
       secure: isSecureCookies,
       sameSite: 'lax',
-      maxAge: ACCESS_TOKEN_MAX_AGE_MS,
+      maxAge: getAccessTokenMaxAgeMs(),
       path: '/',
     });
   }
@@ -124,6 +127,19 @@ export class SessionService {
     this.res.status(401).json({ success: false, error: message });
   }
 
+  /**
+   * A concurrent refresh already rotated this token. Its response carries the
+   * fresh cookies, so this one must NOT clear them (the browser may apply it
+   * last); `code` tells the client to retry with the cookies it now holds.
+   */
+  private rejectRefreshRace(): void {
+    this.res.status(401).json({
+      success: false,
+      error: 'Refresh token already rotated by a concurrent request.',
+      code: REFRESH_RACE_CODE,
+    });
+  }
+
   // -------------------------------------------------------------------------
   // Lifecycle (public)
   // -------------------------------------------------------------------------
@@ -152,7 +168,9 @@ export class SessionService {
    * is a void shim.
    *
    * 401 cases (missing / invalid / unknown-user token) clear the cookie
-   * surface rather than throwing, matching the prior handler's behavior.
+   * surface rather than throwing, matching the prior handler's behavior. A
+   * token already rotated by a concurrent request (grace window or lost
+   * rotation) gets a `REFRESH_RACE` 401 that leaves the cookies alone.
    */
   async refresh(refreshToken?: string): Promise<void> {
     if (!refreshToken) {
@@ -160,21 +178,41 @@ export class SessionService {
       return;
     }
 
-    const userId = await validateRefreshToken(this.db, refreshToken);
-    if (userId === null) {
+    const check = await validateRefreshToken(this.db, refreshToken);
+    if (check.status === 'race') {
+      this.rejectRefreshRace();
+      return;
+    }
+    if (check.status === 'rejected') {
       this.rejectUnauthorized('Invalid or expired refresh token.');
       return;
     }
+    const { userId } = check;
 
+    // Atomically rotate the refresh token, then mint a fresh access token via
+    // the canonical AuthService seam (same payload shape as login).
+    const rotation = await rotateRefreshToken(this.db, userId, refreshToken);
+    if (rotation.status === 'race') {
+      // Lost the rotation race to a concurrent request presenting the same token.
+      this.rejectRefreshRace();
+      return;
+    }
+    if (rotation.status === 'rejected') {
+      // Revoked on purpose (logout, password change, admin action) or user
+      // deleted meanwhile.
+      this.rejectUnauthorized('Invalid or expired refresh token.');
+      return;
+    }
+    const newRefreshToken = rotation.token;
+
+    // Read the user only after the rotation: a role or permission change that
+    // committed while it waited on the session lock is then in the new access
+    // token, rather than a token version that is already stale when minted.
     const user = await getUserWithRoleById(this.db, userId);
     if (!user) {
       this.rejectUnauthorized('User not found.');
       return;
     }
-
-    // Atomically rotate the refresh token, then mint a fresh access token via
-    // the canonical AuthService seam (same payload shape as login).
-    const newRefreshToken = await rotateRefreshToken(this.db, userId, refreshToken);
     const accessToken = await this.auth.mintAccessToken(user, this.db);
     const permissions = (await getPermissionNamesByRoleId(
       this.db,
@@ -210,21 +248,18 @@ export class SessionService {
   }
 
   /**
-   * Change the user's password, revoke every refresh token (forces re-login
-   * on all devices), clear the local cookie surface, and write the success
-   * response. Throws on auth/db failure so the route forwards to the error
-   * handler — the revocation, cookie clear, and response only run on a
-   * successful password change.
+   * Change the user's password — which revokes every refresh token in the
+   * same transaction (forces re-login on all devices) — clear the local
+   * cookie surface, and write the success response. Throws on auth/db failure
+   * so the route forwards to the error handler — the cookie clear and
+   * response only run on a successful password change.
    */
   async changePassword(
-    userId: number,
     username: string,
     currentPassword: string,
     newPassword: string,
   ): Promise<void> {
     await this.auth.changePassword(username, currentPassword, newPassword);
-
-    await revokeAllUserTokens(this.db, userId);
 
     this.clearRefreshTokenCookie();
     this.clearAccessTokenCookie();

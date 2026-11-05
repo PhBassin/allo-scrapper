@@ -244,7 +244,7 @@ describe('User Management Queries', () => {
       await updateUserRole(mockDb, 2, 1);
 
       expect(mockDb.query).toHaveBeenCalledWith(
-        'UPDATE users SET role_id = $1 WHERE id = $2',
+        'UPDATE users SET role_id = $1, token_version = token_version + 1 WHERE id = $2',
         [1, 2]
       );
     });
@@ -255,7 +255,7 @@ describe('User Management Queries', () => {
       await updateUserRole(mockDb, 5, 2);
 
       expect(mockDb.query).toHaveBeenCalledWith(
-        'UPDATE users SET role_id = $1 WHERE id = $2',
+        'UPDATE users SET role_id = $1, token_version = token_version + 1 WHERE id = $2',
         [2, 5]
       );
     });

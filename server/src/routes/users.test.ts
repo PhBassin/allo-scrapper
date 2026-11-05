@@ -6,11 +6,15 @@ import { errorHandler } from '../middleware/error-handler.js';
 import type { DB } from '../db/internal/client.js';
 
 // Mock dependencies
-vi.mock('../db/internal/client.js', () => ({
-  db: {
-    query: vi.fn(),
-  },
-}));
+vi.mock('../db/internal/client.js', () => {
+  const query = vi.fn(async () => ({ rows: [], rowCount: 0 }));
+  return {
+    db: {
+      query,
+      transaction: vi.fn(async (fn: (client: { query: typeof query }) => Promise<unknown>) => fn({ query })),
+    },
+  };
+});
 vi.mock('../db/user-queries.js');
 vi.mock('../db/role-queries.js');
 vi.mock('../utils/password.js', () => ({
@@ -478,6 +482,11 @@ describe('User Management Routes', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.role_name).toBe('admin');
       expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 2, 1);
+      // Sessions are kept: the token-version bump makes the client refresh into the new role.
+      expect(db.query).not.toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE refresh_tokens SET revoked_at'),
+        expect.anything(),
+      );
     });
 
     it('should prevent last admin from demoting self (403)', async () => {
@@ -615,10 +624,15 @@ describe('User Management Routes', () => {
       expect(response.body.data.newPassword).toBeUndefined();
       expect(response.body.data.user).toEqual(mockUser);
       expect(userQueries.updateUserPassword).toHaveBeenCalledWith(
-        db,
+        { query: db.query },
         2,
         expect.stringMatching(/^scrypt:/)
       );
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE refresh_tokens SET revoked_at'),
+        [2],
+      );
+      expect(db.query).not.toHaveBeenCalledWith(expect.anything(), [1]);
     });
 
     it('should not return password in response', async () => {
