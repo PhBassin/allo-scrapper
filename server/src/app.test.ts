@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import type { DB } from './db/index.js';
@@ -326,5 +326,36 @@ describe('App - Theme Endpoint', () => {
       expect(cspHeader).toMatch(/font-src[^;]*'self'/);
       expect(cspHeader).toMatch(/font-src[^;]*data:/);
     });
+  });
+});
+
+describe('App - trust proxy', () => {
+  const originalTrustProxy = process.env.TRUST_PROXY;
+
+  afterEach(() => {
+    if (originalTrustProxy === undefined) delete process.env.TRUST_PROXY;
+    else process.env.TRUST_PROXY = originalTrustProxy;
+  });
+
+  it('trusts only private-network proxies by default', () => {
+    delete process.env.TRUST_PROXY;
+    const trust = createApp().get('trust proxy fn') as (addr: string, i: number) => boolean;
+
+    expect(trust('203.0.113.5', 0)).toBe(false); // public client hitting port 3000 directly
+    expect(trust('172.18.0.4', 0)).toBe(true); // reverse proxy on the Docker network
+    expect(trust('127.0.0.1', 0)).toBe(true); // reverse proxy on the host
+  });
+
+  it('reads TRUST_PROXY from the environment', () => {
+    process.env.TRUST_PROXY = '203.0.113.5';
+    const trust = createApp().get('trust proxy fn') as (addr: string, i: number) => boolean;
+
+    expect(trust('203.0.113.5', 0)).toBe(true);
+    expect(trust('172.18.0.4', 0)).toBe(false);
+  });
+
+  it('refuses to start with an invalid TRUST_PROXY', () => {
+    process.env.TRUST_PROXY = 'not-an-ip';
+    expect(() => createApp()).toThrow(/TRUST_PROXY/);
   });
 });
