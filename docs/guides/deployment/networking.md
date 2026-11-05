@@ -17,6 +17,7 @@ Guide for accessing the application from external devices (LAN/network access).
 - [Development Mode](#development-mode)
 - [Port Forwarding (Internet Access)](#port-forwarding-internet-access)
 - [Custom Domain](#custom-domain)
+- [Reverse Proxies and Client IPs](#reverse-proxies-and-client-ips)
 - [Troubleshooting](#troubleshooting)
 - [Testing Network Access](#testing-network-access)
 
@@ -230,6 +231,39 @@ ALLOWED_ORIGINS=http://localhost:3000,https://theater.example.com
 ```
 
 See [Production Deployment](./production.md) for complete custom domain setup.
+
+---
+
+## Reverse Proxies and Client IPs
+
+Rate limits (login included) are keyed on the client IP. When a request goes through a reverse proxy, the server only sees the proxy's address, and the real client IP is in the `X-Forwarded-For` header the proxy adds. Any client can send that header too, so by default the server ignores it and uses the address of the connection itself. `TRUST_PROXY` tells it which proxies to believe.
+
+| Setup | `TRUST_PROXY` |
+|---|---|
+| No reverse proxy: clients reach port 3000 directly | leave unset (`false`) |
+| One reverse proxy (nginx, Caddy, Traefik) on the host or in Docker, and port 3000 reachable only through it | `1` |
+| A chain of proxies, e.g. Cloudflare in front of nginx | the number of proxies (`2`), or the address of every hop |
+
+```bash
+# .env: nginx on the host in front of the app
+TRUST_PROXY=1
+```
+
+```yaml
+# docker-compose.yaml: only the host, so only nginx, can reach port 3000
+    ports:
+      - "127.0.0.1:3000:3000"
+```
+
+Notes:
+
+- **Upgrading?** Earlier versions always trusted one hop. If you run behind a reverse proxy, set `TRUST_PROXY` when you upgrade. Until you do, every client shares the proxy's IP: one rate-limit bucket, so a few failed logins can lock everyone out. The server logs a warning the first time it ignores an `X-Forwarded-For` header.
+- **Keep port 3000 private behind a proxy.** A hop count trusts the nearest hops whatever their address, so a client that reaches port 3000 directly could forge its IP. Publish the port on `127.0.0.1` only, or not at all when the proxy runs in the same Docker network. Docker-published ports bypass UFW.
+- **List every hop.** With a list of addresses, the server reads `X-Forwarded-For` from right to left and stops at the first address not listed. Listing only Cloudflare's ranges stops at your local nginx, and every client gets the nginx IP. Include the local proxy too (its IP, or `loopback` for a proxy on the same host without Docker).
+- **Keywords match LAN clients.** `loopback`, `linklocal` and `uniquelocal` trust whole ranges (`uniquelocal` is `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7`). A client on your LAN has such an address, so it is trusted too and can forge its IP. Prefer a hop count or exact addresses.
+- **Make the proxy append, not replace.** With nginx, use `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, so the entry the proxy adds is the last one and fake entries sent by the client are ignored.
+- **Avoid `true`.** It trusts every hop, so any client can forge its IP.
+- An invalid value stops the server at startup with an explicit error.
 
 ---
 
@@ -519,7 +553,7 @@ ALLOWED_ORIGINS=https://theater.example.com,https://www.theater.example.com
 - Use firewall rules to restrict access
 - Consider VPN for remote access
 - Use reverse proxy with authentication
-- Enable rate limiting
+- Enable rate limiting, and check `TRUST_PROXY` matches your setup (see [Reverse Proxies and Client IPs](#reverse-proxies-and-client-ips))
 
 ---
 

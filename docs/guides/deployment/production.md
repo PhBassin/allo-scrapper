@@ -310,6 +310,7 @@ GENERAL_RATE_LIMIT_MAX_REQUESTS=100     # Max 100 requests per window (default)
 - **Reduce limits** if experiencing abuse
 - **Increase protected limits** for high-traffic authenticated applications
 - **Monitor** rate limit hits via logs (structured JSON logging)
+- **Check `TRUST_PROXY`**: limits are keyed on the client IP, which comes from `X-Forwarded-For` only when the request arrives from a trusted proxy. See [Reverse Proxies and Client IPs](./networking.md#reverse-proxies-and-client-ips).
 
 All rate limits use the `express-rate-limit` middleware with in-memory storage. For distributed deployments, consider implementing Redis-based rate limiting.
 
@@ -674,6 +675,7 @@ For critical production environments:
 **Network Security:**
 - [ ] HTTPS enabled (see below)
 - [ ] `ALLOWED_ORIGINS` limited to your domains (no wildcards)
+- [ ] `TRUST_PROXY` matches your setup: unset without a reverse proxy, the number of proxies (e.g. `1`) behind one (see [Networking](./networking.md#reverse-proxies-and-client-ips))
 - [ ] Firewall configured (see below)
 - [ ] Database port (5432) not exposed externally
 
@@ -697,7 +699,20 @@ sudo certbot --nginx -d theater.example.com
 # Nginx will auto-configure SSL
 ```
 
-See [Networking Guide](./networking.md) for detailed Nginx configuration.
+Then let the server read client IPs from nginx, and keep port 3000 reachable only by nginx:
+
+```bash
+# .env
+TRUST_PROXY=1
+```
+
+```yaml
+# docker-compose.yaml
+    ports:
+      - "127.0.0.1:3000:3000"
+```
+
+See [Networking Guide](./networking.md) for detailed Nginx configuration and [Reverse Proxies and Client IPs](./networking.md#reverse-proxies-and-client-ips) for other setups.
 
 **Option 2: Cloudflare** (easiest)
 
@@ -705,6 +720,7 @@ See [Networking Guide](./networking.md) for detailed Nginx configuration.
 2. Enable "Full (strict)" SSL/TLS mode
 3. Point DNS to your server IP
 4. Cloudflare handles HTTPS automatically
+5. Count Cloudflare as a proxy in `TRUST_PROXY`: `2` with nginx behind it (see [Reverse Proxies and Client IPs](./networking.md#reverse-proxies-and-client-ips))
 
 ### Firewall Configuration
 
