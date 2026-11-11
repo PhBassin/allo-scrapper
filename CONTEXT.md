@@ -161,7 +161,7 @@ The concept is implemented as a single deep module: `server/src/services/session
 
 The **Password policy** is the set of rules a password must meet *when it is set*: `validatePasswordStrength(password, username?)` in `server/src/utils/security.ts` (issue #1333). It follows NIST SP 800-63B — no composition rules (uppercase, digit, special character), instead:
 
-- **Length** of 12 to 128 characters (`PASSWORD_MIN_LENGTH` / `PASSWORD_MAX_LENGTH`), counted in Unicode code points. The maximum also caps the scrypt input size.
+- **Length** of 12 to 128 characters (`PASSWORD_MIN_LENGTH` / `PASSWORD_MAX_LENGTH`), counted in Unicode code points. Surrounding spaces do not count toward the minimum (a run of spaces is not a password); the maximum counts the raw value. The maximum also caps the scrypt input size.
 - **Common-password blocklist**: `server/src/utils/common-passwords.txt` (SecLists, MIT; header documents sources and normalisation), read once into a `Set` when the module loads, resolved through `import.meta.url` and copied into `dist/utils/` by the server `build` script. `isCommonPassword` compares case-insensitively, ignoring surrounding spaces.
 - **Not the username**: same case-insensitive, trimmed comparison; skipped when no username is given.
 

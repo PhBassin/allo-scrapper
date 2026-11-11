@@ -410,6 +410,17 @@ describe('User Management Routes', () => {
       expect(userQueries.createUser).not.toHaveBeenCalled();
     });
 
+    it('should reject a password made only of spaces', async () => {
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({ username: 'newuser', password: ' '.repeat(12), role_id: 2 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Password must be at least 12 characters');
+      expect(userQueries.createUser).not.toHaveBeenCalled();
+    });
+
     it('should validate password meets length requirements', async () => {
       const response = await request(app)
         .post('/api/users')

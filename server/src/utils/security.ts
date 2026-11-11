@@ -50,8 +50,9 @@ function isSameAsUsername(password: string, username: unknown): boolean {
  * Follows NIST SP 800-63B: length, a blocklist of common passwords and a
  * ban on reusing the username (when given), no composition rules. Length
  * counts Unicode code points, so a passphrase in any script gets the same
- * budget; the maximum also caps the scrypt input size. The blocklist and
- * username comparisons ignore case and surrounding spaces.
+ * budget. The minimum ignores surrounding spaces (so a run of spaces is not
+ * a password); the maximum counts the raw value. The blocklist and username
+ * comparisons ignore case and surrounding spaces.
  *
  * Takes `unknown` because callers pass request-body values: anything that is
  * not a string is refused here instead of throwing further down.
@@ -62,11 +63,10 @@ export function validatePasswordStrength(password: unknown, username?: string): 
   if (typeof password !== 'string') {
     return 'Password must be a string';
   }
-  const length = [...password].length;
-  if (length < PASSWORD_MIN_LENGTH) {
+  if ([...password.trim()].length < PASSWORD_MIN_LENGTH) {
     return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
   }
-  if (length > PASSWORD_MAX_LENGTH) {
+  if ([...password].length > PASSWORD_MAX_LENGTH) {
     return `Password must be at most ${PASSWORD_MAX_LENGTH} characters`;
   }
   if (isCommonPassword(password)) {

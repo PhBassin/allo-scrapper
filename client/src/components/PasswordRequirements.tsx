@@ -1,5 +1,11 @@
 import React from 'react';
-import { isSameAsUsername, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordLength } from '../utils/userValidators.js';
+import {
+  isSameAsUsername,
+  meetsMinimumLength,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  passwordLength,
+} from '../utils/userValidators.js';
 
 interface PasswordRequirementsProps {
   password: string;
@@ -13,7 +19,7 @@ interface Requirement {
 }
 
 const REQUIREMENTS: Requirement[] = [
-  { test: (p) => passwordLength(p) >= PASSWORD_MIN_LENGTH, label: `At least ${PASSWORD_MIN_LENGTH} characters` },
+  { test: meetsMinimumLength, label: `At least ${PASSWORD_MIN_LENGTH} characters` },
   { test: (p) => passwordLength(p) <= PASSWORD_MAX_LENGTH, label: `At most ${PASSWORD_MAX_LENGTH} characters` },
 ];
 

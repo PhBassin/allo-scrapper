@@ -56,6 +56,12 @@ describe('validatePassword', () => {
     expect(validatePassword('kq7vmz2x'.repeat(16) + 'a')).toBe('Password must be at most 128 characters');
   });
 
+  it('does not count surrounding spaces toward the minimum, like the server', () => {
+    expect(validatePassword(' '.repeat(12))).toBe('Password must be at least 12 characters');
+    expect(validatePassword(`  ${'a'.repeat(11)}  `)).toBe('Password must be at least 12 characters');
+    expect(validatePassword('a          b')).toBeNull();
+  });
+
   it('counts Unicode code points like the server', () => {
     expect(validatePassword('🎬'.repeat(12))).toBeNull();
     expect(validatePassword('🎬'.repeat(11))).toBe('Password must be at least 12 characters');

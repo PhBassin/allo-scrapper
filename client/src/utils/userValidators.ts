@@ -12,8 +12,9 @@ export function validateUsername(username: string): string | null {
 /**
  * Mirror of the server password policy (`validatePasswordStrength` in
  * `server/src/utils/security.ts`): 12 to 128 characters, counted in Unicode
- * code points, and not the username. The common-password blocklist stays on
- * the server, whose message the forms display.
+ * code points (surrounding spaces do not count toward the minimum), and not
+ * the username. The common-password blocklist stays on the server, whose
+ * message the forms display.
  */
 export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 128;
@@ -21,6 +22,11 @@ export const PASSWORD_MAX_LENGTH = 128;
 /** Length in Unicode code points, as the server counts it. */
 export function passwordLength(password: string): number {
   return [...password].length;
+}
+
+/** True when the password reaches the minimum length, surrounding spaces excluded. */
+export function meetsMinimumLength(password: string): boolean {
+  return passwordLength(password.trim()) >= PASSWORD_MIN_LENGTH;
 }
 
 /** Same comparison as the server: case-insensitive, surrounding spaces ignored. */
@@ -31,9 +37,8 @@ export function isSameAsUsername(password: string, username: string | undefined)
 
 export function validatePassword(password: string, username?: string): string | null {
   if (!password) return 'Password is required';
-  const length = passwordLength(password);
-  if (length < PASSWORD_MIN_LENGTH) return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
-  if (length > PASSWORD_MAX_LENGTH) return `Password must be at most ${PASSWORD_MAX_LENGTH} characters`;
+  if (!meetsMinimumLength(password)) return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
+  if (passwordLength(password) > PASSWORD_MAX_LENGTH) return `Password must be at most ${PASSWORD_MAX_LENGTH} characters`;
   if (isSameAsUsername(password, username)) return 'Password must not be the same as the username';
   return null;
 }

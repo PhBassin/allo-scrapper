@@ -216,7 +216,7 @@ curl -b cookies.txt -X DELETE http://localhost:3000/api/users/3 \
 
 Enforced by `validatePasswordStrength` (`server/src/utils/security.ts`) whenever a password is set (user creation, admin reset, self-service change), following NIST SP 800-63B. There are no composition rules (uppercase, digit, special character):
 
-- **12 to 128 characters**, counted in Unicode code points
+- **12 to 128 characters**, counted in Unicode code points; leading and trailing spaces do not count toward the minimum, so a password made only of spaces is refused
 - not on the embedded list of **common passwords** (`server/src/utils/common-passwords.txt`), compared case-insensitively
 - not **equal to the username**, compared case-insensitively
 

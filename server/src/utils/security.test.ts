@@ -53,6 +53,17 @@ describe('validatePasswordStrength', () => {
       );
     });
 
+    it('does not count surrounding spaces toward the minimum', () => {
+      expect(validatePasswordStrength(' '.repeat(12))).toBe('Password must be at least 12 characters');
+      expect(validatePasswordStrength(`  ${'a'.repeat(11)}  `)).toBe('Password must be at least 12 characters');
+      expect(validatePasswordStrength(`  ${'quiet river'}x  `)).toBeNull();
+    });
+
+    it('counts inner spaces', () => {
+      expect(validatePasswordStrength('correct horse battery')).toBeNull();
+      expect(validatePasswordStrength('a          b')).toBeNull();
+    });
+
     it('counts Unicode code points, not UTF-16 units', () => {
       // 12 emoji are 24 UTF-16 units but 12 characters.
       expect(validatePasswordStrength('🎬'.repeat(12))).toBeNull();

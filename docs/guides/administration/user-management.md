@@ -162,7 +162,7 @@ This guide covers managing user accounts through the admin panel interface. For 
 ### Password Requirements
 
 **Security requirements** (NIST SP 800-63B, no composition rules):
-- **12 to 128 characters** (counted in Unicode characters, spaces allowed)
+- **12 to 128 characters** (counted in Unicode characters, spaces allowed; leading and trailing spaces do not count toward the minimum)
 - **Not a common password**: checked against an embedded list, case-insensitively
 - **Not the username**: case-insensitive
 
