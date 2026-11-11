@@ -56,7 +56,7 @@ const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ password, u
         })}
       </ul>
       <p className="mt-1 text-gray-500">
-        Passphrases are welcome. Common passwords and your username are refused.
+        Passphrases are welcome. Common passwords and the username are refused.
       </p>
     </div>
   );
