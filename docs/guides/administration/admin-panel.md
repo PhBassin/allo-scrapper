@@ -604,7 +604,7 @@ Manage user accounts and roles.
 - Must differ from the username
 - Common passwords (e.g. `Password123!`) are refused by the server, which shows the reason
 - Recommended: a passphrase of several words
-- Hashed with bcrypt (never stored plaintext)
+- Hashed with scrypt (never stored plaintext)
 
 ### Editing a User
 
