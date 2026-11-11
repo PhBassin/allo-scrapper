@@ -64,7 +64,7 @@ export function buildBlocklist(currentContent, sourceContents) {
   const current = currentContent.split('\n');
   const header = [];
   for (const line of current) {
-    if (!line.startsWith('#')) break;
+    if (!line.startsWith('#') || line === SUPPLEMENT_MARKER) break;
     header.push(line);
   }
   const markerIndex = current.indexOf(SUPPLEMENT_MARKER);

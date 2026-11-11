@@ -73,6 +73,13 @@ describe('generate-common-passwords', () => {
       expect(result.malformed).toBe(1);
     });
 
+    it('keeps a single supplement marker when the current list is empty', () => {
+      const result = buildBlocklist(['# header', MARKER, 'mysupplement12', ''].join('\n'), []);
+
+      expect(result.content).toBe(['# header', MARKER, 'mysupplement12', ''].join('\n'));
+      expect(result.listCount).toBe(0);
+    });
+
     it('fails on a supplement entry that would not be kept', () => {
       expect(() => buildBlocklist(current(['admin123']), [])).toThrow(/"admin123"/);
       expect(() => buildBlocklist(current(['#hashtag12345']), [])).toThrow(/"#hashtag12345"/);
