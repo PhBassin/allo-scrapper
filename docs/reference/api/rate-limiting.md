@@ -525,6 +525,12 @@ router.get('/movies', publicLimiter, getMovies);
 
 Rate limits can be managed at runtime via the REST API without restarting the server.
 
+### When changes take effect
+
+The values live in the `rate_limit_configs` table. The server instance that handles an update or a reset applies the new values at once. Every instance also re-reads the table every 60 seconds, so other instances pick up the change within a minute.
+
+When a limit or a window really changes, the server rebuilds all its limiters, and every counter restarts from zero on that instance. This happens only on a real change: re-reading an unchanged row, or saving the same values again, leaves the counters and their windows as they are.
+
 ### Get Current Rate Limit Configuration
 
 ```http
@@ -566,7 +572,7 @@ PUT /api/admin/rate-limits
 
 🔒 **Permission:** `ratelimits:update`
 
-Updates one or more rate limit values. Changes apply within 30 seconds (cache invalidation). All fields are optional.
+Updates one or more rate limit values. All fields are optional. See [When changes take effect](#when-changes-take-effect).
 
 **Request Body:**
 ```json
@@ -618,7 +624,7 @@ POST /api/admin/rate-limits/reset
 
 🔒 **Permission:** `ratelimits:reset`
 
-Removes all database-stored overrides. All limits revert to environment variable values (or hard-coded defaults). Changes apply within 30 seconds.
+Removes all database-stored overrides. All limits revert to environment variable values (or hard-coded defaults). See [When changes take effect](#when-changes-take-effect).
 
 **Response (200 OK):**
 ```json
