@@ -238,8 +238,9 @@ export async function updateUserPassword(db: Pick<DB, 'query'>, userId: number, 
 }
 
 /**
- * Generate random secure password
- * Meets complexity requirements:
+ * Generate random secure password (used for the first-boot admin).
+ * Satisfies the password policy (validatePasswordStrength) through its
+ * 16-character length; it also mixes every character class:
  * - 16 characters total
  * - At least one uppercase letter
  * - At least one lowercase letter

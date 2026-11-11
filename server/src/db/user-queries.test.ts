@@ -11,6 +11,7 @@ import {
   generateRandomPassword,
   createUser,
 } from './user-queries.js';
+import { validatePasswordStrength } from '../utils/security.js';
 
 describe('User Management Queries', () => {
   let mockDb: DB;
@@ -424,18 +425,11 @@ describe('User Management Queries', () => {
       }
     });
 
-    it('should meet password policy requirements (integration)', () => {
-      // This tests the password against the actual validation logic
-      const password = generateRandomPassword();
-
-      // Length check
-      expect(password.length).toBeGreaterThanOrEqual(8);
-
-      // Complexity checks
-      expect(password).toMatch(/[A-Z]/); // uppercase
-      expect(password).toMatch(/[a-z]/); // lowercase
-      expect(password).toMatch(/[0-9]/); // digit
-      expect(password).toMatch(/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/); // special
+    it('should meet the password policy for the first-boot admin (integration)', () => {
+      // The first-boot admin (db/migrations.ts) is created with this generator.
+      for (let i = 0; i < 20; i++) {
+        expect(validatePasswordStrength(generateRandomPassword(), 'admin')).toBeNull();
+      }
     });
 
     it('should only contain valid characters', () => {
