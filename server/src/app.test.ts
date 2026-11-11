@@ -413,3 +413,98 @@ describe('App - rate limiter order', () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 });
+
+describe('App - CSRF double-submit check', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalAllowedOrigins = process.env.ALLOWED_ORIGINS;
+  const allowedOrigin = 'http://spa.test';
+  let app: Express;
+
+  beforeEach(() => {
+    process.env.ALLOWED_ORIGINS = allowedOrigin;
+    app = createApp();
+    mockHealthyDb(app);
+    // The check is skipped under NODE_ENV=test and reads the env per request
+    process.env.NODE_ENV = 'development';
+  });
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+    if (originalAllowedOrigins === undefined) delete process.env.ALLOWED_ORIGINS;
+    else process.env.ALLOWED_ORIGINS = originalAllowedOrigins;
+  });
+
+  const post = (cookie?: string, header?: string) => {
+    const req = request(app).post('/api/csrf-probe-not-a-route');
+    if (cookie !== undefined) req.set('Cookie', `csrf_token=${cookie}`);
+    if (header !== undefined) req.set('X-CSRF-Token', header);
+    return req;
+  };
+
+  it('accepts matching cookie and header tokens', async () => {
+    const res = await post('abc123token', 'abc123token');
+    // Past the check, the probe path falls through to the API 404 handler
+    expect(res.status).toBe(404);
+  });
+
+  it.each(['/API/theaters', '/Api/users/1/reset-password', '/api/AUTH/x'])(
+    'checks %s too: route matching is case-insensitive',
+    async (path) => {
+      const res = await request(app).post(path).send({});
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('CSRF token missing or invalid.');
+    },
+  );
+
+  it.each([
+    ['/API/auth/login', 400, 'Username and password are required'],
+    ['/api/Auth/Refresh', 401, 'No refresh token provided.'],
+    ['/api/auth/LOGOUT', 200, undefined],
+  ])('keeps the %s exemption whatever the case', async (path, status, error) => {
+    // No CSRF cookie or header. The allowed Origin takes the request through
+    // the strict CORS of the auth routes, so the answer is the route's own:
+    // neither the check's 403 nor a 500 raised on the way.
+    const res = await request(app).post(path).set('Origin', allowedOrigin).send({});
+    expect(res.status).toBe(status);
+    expect(res.body.error).toBe(error);
+  });
+
+  it('rejects when the header is missing', async () => {
+    const res = await post('abc123token');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('CSRF token missing or invalid.');
+  });
+
+  it('rejects when the cookie is missing', async () => {
+    const res = await post(undefined, 'abc123token');
+    expect(res.status).toBe(403);
+  });
+
+  it('rejects same-length tokens that differ', async () => {
+    const res = await post('abc123token', 'abc123tokeX');
+    expect(res.status).toBe(403);
+  });
+
+  it('rejects tokens of different lengths without throwing', async () => {
+    const res = await post('abc123token', 'abc123');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('CSRF token missing or invalid.');
+  });
+
+  it('rejects when the header token is a prefix-extended copy of the cookie', async () => {
+    const res = await post('abc123token', 'abc123token-extra');
+    expect(res.status).toBe(403);
+  });
+
+  // cookie-parser turns a `j:` cookie into the JSON value it holds. The byte
+  // array is the case only the string check stops: Buffer.from() would rebuild
+  // the very bytes of the header token from it, and the comparison would pass.
+  it.each([
+    ['an array holding the token', ['abc123token']],
+    ['the bytes of the token', [...Buffer.from('abc123token')]],
+  ])('rejects a cookie parsed as a non-string (JSON cookie): %s', async (_label, value) => {
+    const res = await post(encodeURIComponent(`j:${JSON.stringify(value)}`), 'abc123token');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('CSRF token missing or invalid.');
+  });
+});
