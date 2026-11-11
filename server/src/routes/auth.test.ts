@@ -12,6 +12,7 @@ import jwt from 'jsonwebtoken';
 import authRouter from './auth.js';
 import { db } from '../db/internal/client.js';
 import * as queries from '../db/user-queries.js';
+import { validatePasswordStrength } from '../utils/security.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import { assertChangePasswordRejected } from '../test-utils/auth.js';
 
@@ -118,6 +119,21 @@ describe('Auth Routes', () => {
     });
 
     describe('POST /api/auth/login', () => {
+        it('still accepts an existing password that the current policy would reject', async () => {
+            // Set before the 12-character policy: 8 characters, composition-style.
+            const legacyPassword = 'Old8ch!x';
+            expect(validatePasswordStrength(legacyPassword)).not.toBeNull();
+            await createMockUser('admin', 1, 'admin', true, legacyPassword);
+
+            const response = await request(app)
+                .post('/api/auth/login')
+                .send({ username: 'admin', password: legacyPassword });
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+            expect(response.body.data.user.username).toBe('admin');
+        });
+
         it('should return a user and token for valid credentials', async () => {
             const mockUser = await createMockUser('admin', 1, 'admin', true, 'password123');
 
