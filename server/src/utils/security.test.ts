@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
+  isCommonPassword,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   validatePasswordStrength,
 } from './security.js';
+
+const COMMON_PASSWORD_MESSAGE = 'This password is too common, choose another one';
 
 describe('validatePasswordStrength', () => {
   describe('length', () => {
@@ -59,6 +62,43 @@ describe('validatePasswordStrength', () => {
 
     it('accepts an all-digit password', () => {
       expect(validatePasswordStrength('804271395561')).toBeNull();
+    });
+  });
+
+  describe('common-password blocklist', () => {
+    it('rejects Password123!', () => {
+      expect(validatePasswordStrength('Password123!')).toBe(COMMON_PASSWORD_MESSAGE);
+    });
+
+    it('rejects listed passwords whatever their case', () => {
+      expect(validatePasswordStrength('qwerty123456')).toBe(COMMON_PASSWORD_MESSAGE);
+      expect(validatePasswordStrength('QWERTY123456')).toBe(COMMON_PASSWORD_MESSAGE);
+      expect(validatePasswordStrength('QwErTy123456')).toBe(COMMON_PASSWORD_MESSAGE);
+    });
+
+    it('rejects a listed password padded with spaces', () => {
+      expect(validatePasswordStrength('  administrator  ')).toBe(COMMON_PASSWORD_MESSAGE);
+    });
+
+    it('rejects entries from each source', () => {
+      // 10k-most-common, NCSC top-100k, and the hand-written supplement.
+      expect(isCommonPassword('unbelievable')).toBe(true);
+      expect(isCommonPassword('password1234')).toBe(true);
+      expect(isCommonPassword('motdepasse123')).toBe(true);
+    });
+
+    it('does not reject an uncommon password', () => {
+      expect(isCommonPassword('correct horse battery')).toBe(false);
+      expect(validatePasswordStrength('correct horse battery')).toBeNull();
+    });
+
+    it('does not treat header comments as passwords', () => {
+      expect(isCommonPassword('# --- supplement ---')).toBe(false);
+      expect(isCommonPassword('')).toBe(false);
+    });
+
+    it('checks length before the blocklist', () => {
+      expect(validatePasswordStrength('password')).toBe('Password must be at least 12 characters');
     });
   });
 });

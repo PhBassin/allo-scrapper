@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx --env-file-if-exists=.env watch src/index.ts",
     "prebuild": "npm run build --workspace=allo-scrapper-scraper-protocol",
-    "build": "tsc",
+    "build": "tsc && node -e \"require('node:fs').cpSync('src/utils/common-passwords.txt', 'dist/utils/common-passwords.txt')\"",
     "start": "node --env-file-if-exists=.env dist/index.js",
     "db:migrate": "tsx --env-file-if-exists=.env src/db/schema.ts",
     "test": "vitest",
