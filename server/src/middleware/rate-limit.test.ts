@@ -793,6 +793,71 @@ describe('Rate Limiting Middleware', () => {
     });
   });
 
+  describe('counters across a config reload', () => {
+    beforeEach(() => {
+      vi.resetModules();
+    });
+
+    afterEach(() => {
+      vi.resetModules();
+    });
+
+    function makeDb(generalMax: number): DB {
+      return {
+        query: vi.fn().mockResolvedValue({
+          rows: [{
+            window_ms: 60000,
+            general_max: generalMax,
+            auth_max: 5,
+            register_max: 3,
+            register_window_ms: 3600000,
+            protected_max: 60,
+            scraper_max: 10,
+            public_max: 100,
+            health_max: 10,
+            health_window_ms: 60000,
+            updated_at: '2026-04-01T00:00:00.000Z',
+            updated_by: null,
+            environment: 'test',
+          }],
+        }),
+      } as unknown as DB;
+    }
+
+    async function setup() {
+      const source = await import('../services/rate-limit-source.js');
+      const middleware = await import('./rate-limit.js');
+      const limiterApp = express();
+      limiterApp.set('trust proxy', 1);
+      limiterApp.get('/t', middleware.generalLimiter, (_req, res) => res.json({ ok: true }));
+      const remaining = async () => Number((await request(limiterApp).get('/t')).headers['ratelimit-remaining']);
+      return { source, remaining };
+    }
+
+    it('keeps the hit count when the reloaded config is unchanged', async () => {
+      const { source, remaining } = await setup();
+      await source.loadFromDb(makeDb(3));
+
+      expect(await remaining()).toBe(2);
+
+      // the 60-second poller reads the same row again
+      await source.loadFromDb(makeDb(3));
+
+      expect(await remaining()).toBe(1);
+    });
+
+    it('starts a new count when the reloaded config changed', async () => {
+      const { source, remaining } = await setup();
+      await source.loadFromDb(makeDb(3));
+
+      expect(await remaining()).toBe(2);
+
+      await source.loadFromDb(makeDb(5));
+
+      expect(await remaining()).toBe(4);
+    });
+  });
+
   describe('each limiter reflects its own configured max after refresh', () => {
     beforeEach(() => {
       vi.resetModules();
