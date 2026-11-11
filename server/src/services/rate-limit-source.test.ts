@@ -301,12 +301,12 @@ describe('RateLimitSource — subscriber invalidation hook', () => {
     const sub = vi.fn();
     const unsubscribe = subscribe(sub);
 
-    await loadFromDb(makeDb([makeDbRow()]));
+    await loadFromDb(makeDb([makeDbRow({ general_max: 321 })]));
     expect(sub).toHaveBeenCalledTimes(1);
 
     unsubscribe();
 
-    await loadFromDb(makeDb([makeDbRow()]));
+    await loadFromDb(makeDb([makeDbRow({ general_max: 654 })]));
     expect(sub).toHaveBeenCalledTimes(1);
   });
 
@@ -319,7 +319,7 @@ describe('RateLimitSource — subscriber invalidation hook', () => {
     subscribe(() => calls.push('b'));
     subscribe(() => calls.push('c'));
 
-    await loadFromDb(makeDb([makeDbRow()]));
+    await loadFromDb(makeDb([makeDbRow({ general_max: 321 })]));
 
     expect(calls).toEqual(['a', 'b', 'c']);
   });
@@ -332,8 +332,81 @@ describe('RateLimitSource — subscriber invalidation hook', () => {
     subscribe(() => { throw new Error('subscriber boom'); });
     subscribe(() => calls.push('survivor'));
 
-    await expect(loadFromDb(makeDb([makeDbRow()]))).resolves.toBe(true);
+    await expect(loadFromDb(makeDb([makeDbRow({ general_max: 321 })]))).resolves.toBe(true);
     expect(calls).toEqual(['survivor']);
+  });
+
+  it('does not notify subscribers when the DB row matches the config already loaded', async () => {
+    vi.resetModules();
+    const { loadFromDb, subscribe } = await import('./rate-limit-source.js');
+
+    const sub = vi.fn();
+    subscribe(sub);
+
+    // makeDbRow() holds the built-in defaults, which is what the env-less module starts with
+    await expect(loadFromDb(makeDb([makeDbRow()]))).resolves.toBe(true);
+
+    expect(sub).not.toHaveBeenCalled();
+  });
+
+  it('does not notify subscribers again when the same row is reloaded (poller tick)', async () => {
+    vi.resetModules();
+    const { loadFromDb, subscribe } = await import('./rate-limit-source.js');
+
+    const sub = vi.fn();
+    subscribe(sub);
+
+    await loadFromDb(makeDb([makeDbRow({ general_max: 321 })]));
+    await loadFromDb(makeDb([makeDbRow({ general_max: 321 })]));
+    await loadFromDb(makeDb([makeDbRow({ general_max: 321 })]));
+
+    expect(sub).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not notify subscribers when only the audit metadata of the row changed', async () => {
+    vi.resetModules();
+    const { loadFromDb, subscribe } = await import('./rate-limit-source.js');
+
+    const sub = vi.fn();
+    subscribe(sub);
+
+    await loadFromDb(makeDb([makeDbRow({ general_max: 321 })]));
+    await loadFromDb(makeDb([makeDbRow({
+      general_max: 321,
+      updated_at: '2026-05-01T00:00:00.000Z',
+      updated_by: 7,
+      environment: 'staging',
+    })]));
+
+    expect(sub).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['window_ms', 'windowMs'],
+    ['general_max', 'generalMax'],
+    ['auth_max', 'authMax'],
+    ['register_max', 'registerMax'],
+    ['register_window_ms', 'registerWindowMs'],
+    ['protected_max', 'protectedMax'],
+    ['scraper_max', 'scraperMax'],
+    ['public_max', 'publicMax'],
+    ['health_max', 'healthMax'],
+    ['health_window_ms', 'healthWindowMs'],
+  ] as const)('notifies subscribers again when %s changes after a load', async (column, configKey) => {
+    vi.resetModules();
+    const { loadFromDb, subscribe, getCurrentConfig } = await import('./rate-limit-source.js');
+
+    const sub = vi.fn();
+    subscribe(sub);
+
+    await loadFromDb(makeDb([makeDbRow({ general_max: 321 })]));
+    expect(sub).toHaveBeenCalledTimes(1);
+
+    const changed = makeDbRow({ general_max: 321 })[column] + 1;
+    await loadFromDb(makeDb([makeDbRow({ general_max: 321, [column]: changed })]));
+
+    expect(sub).toHaveBeenCalledTimes(2);
+    expect(getCurrentConfig()[configKey]).toBe(changed);
   });
 });
 
