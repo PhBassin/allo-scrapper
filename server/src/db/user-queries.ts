@@ -126,8 +126,8 @@ export async function updateUserRole(
 
 /**
  * Current credential version of a user (see migration 027), or undefined if
- * the user no longer exists. Read by `requireAuth` on every authenticated
- * request.
+ * the user no longer exists. Read by `resolveAccessToken` once per request
+ * carrying a signed access token.
  */
 export async function getUserTokenVersion(
   db: Pick<DB, 'query'>,

@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Registry, collectDefaultMetrics } from 'prom-client';
-import { createHash } from 'crypto';
+import { createHash, timingSafeEqual } from 'crypto';
 import cookieParser from 'cookie-parser';
 import fs from 'fs';
 
@@ -85,12 +85,23 @@ export function createApp() {
   app.use((req, res, next) => {
     // Skip CSRF for test environment, login, and refresh endpoints
     if (process.env.NODE_ENV === 'test') return next();
-    if (req.path === '/api/auth/login' || req.path === '/api/auth/refresh' || req.path === '/api/auth/logout') return next();
+    // Express matches routes case-insensitively, so the path checks must too
+    const csrfPath = req.path.toLowerCase();
+    if (csrfPath === '/api/auth/login' || csrfPath === '/api/auth/refresh' || csrfPath === '/api/auth/logout') return next();
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-    if (!req.path.startsWith('/api/')) return next();
-    const cookieToken = req.cookies?.csrf_token;
-    const headerToken = req.headers['x-csrf-token'] as string | undefined;
-    if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+    if (!csrfPath.startsWith('/api/')) return next();
+    const cookieToken: unknown = req.cookies?.csrf_token;
+    const headerToken: unknown = req.headers['x-csrf-token'];
+    // Constant-time comparison. timingSafeEqual throws on different lengths,
+    // so non-strings (e.g. a cookie that cookie-parser decoded from JSON) and
+    // length mismatches are rejected first.
+    let csrfValid = false;
+    if (typeof cookieToken === 'string' && typeof headerToken === 'string' && cookieToken && headerToken) {
+      const cookieBuf = Buffer.from(cookieToken);
+      const headerBuf = Buffer.from(headerToken);
+      csrfValid = cookieBuf.length === headerBuf.length && timingSafeEqual(cookieBuf, headerBuf);
+    }
+    if (!csrfValid) {
       return res.status(403).json({
         success: false,
         error: 'CSRF token missing or invalid.',

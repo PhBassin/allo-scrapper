@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import type { Express } from 'express';
 import type { DB } from './db/index.js';
 import { createApp } from './app.js';
+import { getCurrentConfig } from './services/rate-limit-source.js';
 
 // Mock dependencies
 vi.mock('./services/theme-generator.js');
@@ -10,7 +12,9 @@ vi.mock('./utils/logger.js');
 
 let shouldRejectAuth = false;
 
-vi.mock('./middleware/auth.js', () => ({
+// Only requireAuth is replaced: requirePermission still needs the real isAdminUser
+vi.mock('./middleware/auth.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./middleware/auth.js')>()),
   requireAuth: (req: any, res: any, next: any) => {
     if (shouldRejectAuth) {
       return res.status(401).json({ success: false, error: 'Authentication required. No token provided.' });
@@ -357,5 +361,150 @@ describe('App - trust proxy', () => {
   it('refuses to start with an invalid TRUST_PROXY', () => {
     process.env.TRUST_PROXY = 'not-an-ip';
     expect(() => createApp()).toThrow(/TRUST_PROXY/);
+  });
+});
+
+describe('App - rate limiter order', () => {
+  const originalTrustProxy = process.env.TRUST_PROXY;
+
+  afterEach(() => {
+    if (originalTrustProxy === undefined) delete process.env.TRUST_PROXY;
+    else process.env.TRUST_PROXY = originalTrustProxy;
+  });
+
+  // The per-user key generator reads the token version before its limiter
+  // counts the request, 429 included. The per-IP general limiter runs first,
+  // so it caps those lookups: see docs/reference/api/rate-limiting.md.
+  it('rejects a request over the general limit before any token-version lookup', async () => {
+    // Trust the forwarded address so this test exhausts an IP of its own
+    process.env.TRUST_PROXY = 'loopback';
+    const app = createApp();
+    const { mockQuery } = mockHealthyDb(app);
+    // Every token is current, so the protected limiter keys on its user
+    mockQuery.mockImplementation(async (sql: string) => ({
+      rows: sql.includes('token_version') ? [{ token_version: 0 }] : [{ result: 1 }],
+    }));
+    // One user per request, all behind one IP: the requests fill the per-IP
+    // general bucket and nothing else, each of them being the first of its
+    // per-user protected bucket. The test holds whatever the two maxima are.
+    const firstUserId = 7000;
+    const get = (userId: number) => {
+      const token = jwt.sign({ id: userId, username: `looper${userId}`, ver: 0 }, process.env.JWT_SECRET as string, { algorithm: 'HS256' });
+      return request(app).get('/api/reports').set('Authorization', `Bearer ${token}`).set('X-Forwarded-For', '198.51.100.7');
+    };
+    const { generalMax, protectedMax } = getCurrentConfig();
+
+    for (let i = 0; i < generalMax; i++) {
+      mockQuery.mockClear();
+      const underLimit = await get(firstUserId + i);
+      expect(underLimit.status).toBe(200);
+      // The protected limiter answers last: its headers show an untouched per-user bucket
+      expect(underLimit.headers['ratelimit-remaining']).toBe(String(protectedMax - 1));
+    }
+    // The last request under the general limit reached the protected limiter's key generator
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT token_version FROM users'),
+      [firstUserId + generalMax - 1],
+    );
+
+    mockQuery.mockClear();
+    const res = await get(firstUserId + generalMax);
+    expect(res.status).toBe(429);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe('App - CSRF double-submit check', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalAllowedOrigins = process.env.ALLOWED_ORIGINS;
+  const allowedOrigin = 'http://spa.test';
+  let app: Express;
+
+  beforeEach(() => {
+    process.env.ALLOWED_ORIGINS = allowedOrigin;
+    app = createApp();
+    mockHealthyDb(app);
+    // The check is skipped under NODE_ENV=test and reads the env per request
+    process.env.NODE_ENV = 'development';
+  });
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+    if (originalAllowedOrigins === undefined) delete process.env.ALLOWED_ORIGINS;
+    else process.env.ALLOWED_ORIGINS = originalAllowedOrigins;
+  });
+
+  const post = (cookie?: string, header?: string) => {
+    const req = request(app).post('/api/csrf-probe-not-a-route');
+    if (cookie !== undefined) req.set('Cookie', `csrf_token=${cookie}`);
+    if (header !== undefined) req.set('X-CSRF-Token', header);
+    return req;
+  };
+
+  it('accepts matching cookie and header tokens', async () => {
+    const res = await post('abc123token', 'abc123token');
+    // Past the check, the probe path falls through to the API 404 handler
+    expect(res.status).toBe(404);
+  });
+
+  it.each(['/API/theaters', '/Api/users/1/reset-password', '/api/AUTH/x'])(
+    'checks %s too: route matching is case-insensitive',
+    async (path) => {
+      const res = await request(app).post(path).send({});
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('CSRF token missing or invalid.');
+    },
+  );
+
+  it.each([
+    ['/API/auth/login', 400, 'Username and password are required'],
+    ['/api/Auth/Refresh', 401, 'No refresh token provided.'],
+    ['/api/auth/LOGOUT', 200, undefined],
+  ])('keeps the %s exemption whatever the case', async (path, status, error) => {
+    // No CSRF cookie or header. The allowed Origin takes the request through
+    // the strict CORS of the auth routes, so the answer is the route's own:
+    // neither the check's 403 nor a 500 raised on the way.
+    const res = await request(app).post(path).set('Origin', allowedOrigin).send({});
+    expect(res.status).toBe(status);
+    expect(res.body.error).toBe(error);
+  });
+
+  it('rejects when the header is missing', async () => {
+    const res = await post('abc123token');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('CSRF token missing or invalid.');
+  });
+
+  it('rejects when the cookie is missing', async () => {
+    const res = await post(undefined, 'abc123token');
+    expect(res.status).toBe(403);
+  });
+
+  it('rejects same-length tokens that differ', async () => {
+    const res = await post('abc123token', 'abc123tokeX');
+    expect(res.status).toBe(403);
+  });
+
+  it('rejects tokens of different lengths without throwing', async () => {
+    const res = await post('abc123token', 'abc123');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('CSRF token missing or invalid.');
+  });
+
+  it('rejects when the header token is a prefix-extended copy of the cookie', async () => {
+    const res = await post('abc123token', 'abc123token-extra');
+    expect(res.status).toBe(403);
+  });
+
+  // cookie-parser turns a `j:` cookie into the JSON value it holds. The byte
+  // array is the case only the string check stops: Buffer.from() would rebuild
+  // the very bytes of the header token from it, and the comparison would pass.
+  it.each([
+    ['an array holding the token', ['abc123token']],
+    ['the bytes of the token', [...Buffer.from('abc123token')]],
+  ])('rejects a cookie parsed as a non-string (JSON cookie): %s', async (_label, value) => {
+    const res = await post(encodeURIComponent(`j:${JSON.stringify(value)}`), 'abc123token');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('CSRF token missing or invalid.');
   });
 });
