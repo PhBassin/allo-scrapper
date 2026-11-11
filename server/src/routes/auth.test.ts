@@ -256,7 +256,7 @@ describe('Auth Routes', () => {
         it('should require authentication', async () => {
             const response = await request(app)
                 .post('/api/auth/change-password')
-                .send({ currentPassword: 'old', newPassword: 'NewPass123!' });
+                .send({ currentPassword: 'old', newPassword: 'NewPassphrase123!' });
 
             expect(response.status).toBe(401);
             expect(response.body.success).toBe(false);
@@ -267,7 +267,7 @@ describe('Auth Routes', () => {
             const response = await request(app)
                 .post('/api/auth/change-password')
                 .set('Authorization', `Bearer ${validToken}`)
-                .send({ newPassword: 'NewPass123!' });
+                .send({ newPassword: 'NewPassphrase123!' });
 
             expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
@@ -287,27 +287,26 @@ describe('Auth Routes', () => {
 
         it('should return 400 if newPassword is too short', async () => {
             await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
-            await assertChangePasswordRejected(app, validToken, 'Short1!', 'Password must be at least 8 characters');
+            await assertChangePasswordRejected(app, validToken, 'Short pass1', 'Password must be at least 12 characters');
         });
 
-        it('should return 400 if newPassword lacks uppercase', async () => {
+        it('should return 400 if newPassword is too long', async () => {
             await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
-            await assertChangePasswordRejected(app, validToken, 'newpass123!', 'Password must contain at least one uppercase letter');
+            await assertChangePasswordRejected(app, validToken, 'a'.repeat(129), 'Password must be at most 128 characters');
         });
 
-        it('should return 400 if newPassword lacks lowercase', async () => {
+        it('should accept a passphrase without uppercase, digit or special character', async () => {
             await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
-            await assertChangePasswordRejected(app, validToken, 'NEWPASS123!', 'Password must contain at least one lowercase letter');
-        });
+            vi.mocked(queries.updateUserPassword).mockResolvedValue(undefined);
 
-        it('should return 400 if newPassword lacks digit', async () => {
-            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
-            await assertChangePasswordRejected(app, validToken, 'NewPassword!', 'Password must contain at least one digit');
-        });
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!', newPassword: 'correct horse battery' });
 
-        it('should return 400 if newPassword lacks special character', async () => {
-            await createMockUser('testuser', 2, 'user', false, 'OldPass123!');
-            await assertChangePasswordRejected(app, validToken, 'NewPass123', 'Password must contain at least one special character');
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+            expect(queries.updateUserPassword).toHaveBeenCalledWith(db, 1, expect.any(String));
         });
 
         it('should return 401 if currentPassword is incorrect', async () => {
@@ -316,7 +315,7 @@ describe('Auth Routes', () => {
             const response = await request(app)
                 .post('/api/auth/change-password')
                 .set('Authorization', `Bearer ${validToken}`)
-                .send({ currentPassword: 'WrongPass123!', newPassword: 'NewPass123!' });
+                .send({ currentPassword: 'WrongPass123!', newPassword: 'NewPassphrase123!' });
 
             expect(response.status).toBe(401);
             expect(response.body.success).toBe(false);
@@ -330,7 +329,7 @@ describe('Auth Routes', () => {
             const response = await request(app)
                 .post('/api/auth/change-password')
                 .set('Authorization', `Bearer ${validToken}`)
-                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123!' });
+                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPassphrase123!' });
 
             expect(response.status).toBe(200);
             expect(response.body.success).toBe(true);
@@ -351,9 +350,9 @@ describe('Auth Routes', () => {
             await request(app)
                 .post('/api/auth/change-password')
                 .set('Authorization', `Bearer ${validToken}`)
-                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123!' });
+                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPassphrase123!' });
 
-            expect(hashSpy).toHaveBeenCalledWith('NewPass123!');
+            expect(hashSpy).toHaveBeenCalledWith('NewPassphrase123!');
         });
 
         it('should not expose password hash in response', async () => {
@@ -363,7 +362,7 @@ describe('Auth Routes', () => {
             const response = await request(app)
                 .post('/api/auth/change-password')
                 .set('Authorization', `Bearer ${validToken}`)
-                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123!' });
+                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPassphrase123!' });
 
             expect(response.body.data.password_hash).toBeUndefined();
             expect(response.body.data.newPasswordHash).toBeUndefined();
@@ -376,7 +375,7 @@ describe('Auth Routes', () => {
             const response = await request(app)
                 .post('/api/auth/change-password')
                 .set('Authorization', `Bearer ${validToken}`)
-                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass123!' });
+                .send({ currentPassword: 'OldPass123!', newPassword: 'NewPassphrase123!' });
 
             expect(response.status).toBe(500);
             expect(response.body.success).toBe(false);
