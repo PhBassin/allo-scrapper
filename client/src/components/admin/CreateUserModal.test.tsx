@@ -161,8 +161,9 @@ describe('CreateUserModal', () => {
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/at least 12 characters/i)).toHaveClass('text-red-700');
+        expect(screen.getByText('At least 12 characters')).toHaveClass('text-red-700');
       });
+      expect(screen.getByText('Password must be at least 12 characters')).toBeInTheDocument();
     });
 
     it('should not show errors for valid input', async () => {
@@ -374,6 +375,45 @@ describe('CreateUserModal', () => {
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       expect(screen.getByText(/different from the username/i)).toHaveClass('text-red-700');
+      expect(mockOnCreate).not.toHaveBeenCalled();
+    });
+
+    it('should display the error when the password equals the username', async () => {
+      const user = userEvent.setup();
+      render(
+        <CreateUserModal
+          isOpen={true}
+          onClose={mockOnClose}
+          onCreate={mockOnCreate}
+        />
+      );
+
+      await user.type(screen.getByLabelText('Username'), 'cinemalover42');
+      await user.type(screen.getByLabelText('Password'), 'CinemaLover42');
+      await user.click(screen.getByRole('button', { name: /^create$/i }));
+
+      expect(screen.getByText('Password must not be the same as the username')).toBeInTheDocument();
+      expect(screen.getByLabelText('Password')).toHaveClass('border-red-500');
+      expect(mockOnCreate).not.toHaveBeenCalled();
+    });
+
+    it('should display the error when the password is longer than 128 characters', async () => {
+      const user = userEvent.setup();
+      render(
+        <CreateUserModal
+          isOpen={true}
+          onClose={mockOnClose}
+          onCreate={mockOnCreate}
+        />
+      );
+
+      await user.type(screen.getByLabelText('Username'), 'newuser');
+      await user.click(screen.getByLabelText('Password'));
+      await user.paste('a'.repeat(129));
+      await user.click(screen.getByRole('button', { name: /^create$/i }));
+
+      expect(screen.getByText('Password must be at most 128 characters')).toBeInTheDocument();
+      expect(screen.getByLabelText('Password')).toHaveClass('border-red-500');
       expect(mockOnCreate).not.toHaveBeenCalled();
     });
 
