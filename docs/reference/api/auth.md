@@ -194,7 +194,7 @@ All errors share this format:
 |--------|---------------|-------|
 | 400 | `Username and password are required` | Missing fields on login |
 | 400 | `Current password and new password are required` | Missing fields on change-password |
-| 400 | `Password must …` | Password fails a strength rule |
+| 400 | `Password must …` / `This password is too common, choose another one` | Password fails a rule of the [password policy](./users.md#password-requirements) |
 | 401 | `Invalid credentials` | Wrong username or password |
 | 401 | `Current password is incorrect` | Wrong current password |
 | 401 | `Authentication required. No token provided.` | No access token |

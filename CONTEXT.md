@@ -157,3 +157,16 @@ The concept is implemented as a single deep module: `server/src/services/session
 - Not the **access token** itself. The access token is one credential *inside* a Session; `AuthService.mintAccessToken` is the canonical minter, and `SessionService` is its sole caller in the request cycle. Its claim set is `AccessTokenPayload` (`utils/access-token.ts`): the minter builds one, `resolveAccessToken` returns one, and `req.user` (`AuthRequest` in `middleware/auth.ts`) is typed as that payload without `ver`.
 - Not an **SSE subscriber session**. The word "session" is reused loosely for a live SSE subscriber connection (see `attachProgressStream` in `services/sse-bridge.ts`); that is a transport-lifetime concept, unrelated to user-auth Sessions. The two share only the word.
 - Not a **ScrapeRun** (one scrape execution) or a **Showtime** (a movie showing) — see those entries.
+### Password policy
+
+The **Password policy** is the set of rules a password must meet *when it is set*: `validatePasswordStrength(password, username?)` in `server/src/utils/security.ts` (issue #1333). It follows NIST SP 800-63B — no composition rules (uppercase, digit, special character), instead:
+
+- **Length** of 12 to 128 characters (`PASSWORD_MIN_LENGTH` / `PASSWORD_MAX_LENGTH`), counted in Unicode code points. The maximum also caps the scrypt input size.
+- **Common-password blocklist**: `server/src/utils/common-passwords.txt` (SecLists, MIT; header documents sources and normalisation), read once into a `Set` when the module loads, resolved through `import.meta.url` and copied into `dist/utils/` by the server `build` script. `isCommonPassword` compares case-insensitively, ignoring surrounding spaces.
+- **Not the username**: same case-insensitive, trimmed comparison; skipped when no username is given.
+
+Its entry points are exactly the places a password is set: `UserService.createUser`, `UserService.resetPassword` and `AuthService.changePassword` (there is no self-registration endpoint). The client mirrors the length and username rules (`PASSWORD_MIN_LENGTH` / `PASSWORD_MAX_LENGTH`, `isSameAsUsername` in `client/src/utils/userValidators.ts`, shown live by `components/PasswordRequirements.tsx`); the blocklist stays server-side and the forms display the server's message.
+
+**What the Password policy is *not*:**
+- Not applied at login: `AuthService.login` only compares against the stored hash, so passwords set under older rules keep working until they are changed.
+- Not the random-password generators (`generateRandomPassword` in `server/src/db/user-queries.ts` for the first-boot admin, and in `client/src/utils/password.ts` for admin resets): they produce 16-character passwords that satisfy the policy, and are not part of it.
