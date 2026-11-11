@@ -128,4 +128,11 @@ describe('validateChangePasswordForm', () => {
   it('accepts valid submission', () => {
     expect(validateChangePasswordForm('oldPass1!', NEW, NEW)).toBeNull();
   });
+
+  it('rejects a new password equal to the username when given', () => {
+    expect(validateChangePasswordForm('old', 'CinemaLover42', 'CinemaLover42', 'cinemalover42')).toBe(
+      'Password must not be the same as the username',
+    );
+    expect(validateChangePasswordForm('old', 'CinemaLover42', 'CinemaLover42')).toBeNull();
+  });
 });

@@ -60,7 +60,8 @@ export function validateUserForm(username: string, password: string): UserFormEr
 export function validateChangePasswordForm(
   currentPassword: string,
   newPassword: string,
-  confirmPassword: string
+  confirmPassword: string,
+  username?: string
 ): string | null {
   if (!currentPassword || !newPassword || !confirmPassword) {
     return 'All fields are required';
@@ -68,5 +69,5 @@ export function validateChangePasswordForm(
   if (newPassword !== confirmPassword) {
     return 'Passwords do not match';
   }
-  return validatePassword(newPassword);
+  return validatePassword(newPassword, username);
 }

@@ -4,6 +4,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import ChangePasswordPage from './ChangePasswordPage';
 import apiClient from '../api/client';
+import { AuthContext, type User } from '../contexts/AuthContext';
 
 // Mock the API client
 vi.mock('../api/client', () => ({
@@ -22,13 +23,33 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-function renderChangePasswordPage() {
+function renderChangePasswordPage(user: User | null = null) {
   render(
-    <MemoryRouter>
-      <ChangePasswordPage />
-    </MemoryRouter>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated: user !== null,
+        user,
+        isAdmin: false,
+        hasPermission: () => false,
+        login: () => {},
+        logout: () => {},
+      }}
+    >
+      <MemoryRouter>
+        <ChangePasswordPage />
+      </MemoryRouter>
+    </AuthContext.Provider>
   );
 }
+
+const CINEMA_LOVER: User = {
+  id: 7,
+  username: 'cinemalover42',
+  role_id: 2,
+  role_name: 'operator',
+  is_system_role: false,
+  permissions: [],
+};
 
 function getFormElements() {
   return {
@@ -90,6 +111,23 @@ describe('ChangePasswordPage', () => {
     await waitFor(() => {
       expect(lengthItem?.querySelector('.text-green-500')).toBeInTheDocument();
     });
+  });
+
+  it('should flag a new password equal to the signed-in username', async () => {
+    renderChangePasswordPage(CINEMA_LOVER);
+
+    const usernameItem = screen.getByText(/different from the username/i).closest('li');
+    fireEvent.change(screen.getByLabelText(/^new password$/i), { target: { value: 'CinemaLover42' } });
+    await waitFor(() => {
+      expect(usernameItem?.querySelector('.text-red-500')).toBeInTheDocument();
+    });
+
+    fillFormAndSubmit({ newPassword: 'CinemaLover42', confirmPassword: 'CinemaLover42' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Password must not be the same as the username')).toBeInTheDocument();
+    });
+    expect(apiClient.post).not.toHaveBeenCalled();
   });
 
   it('should show error if passwords do not match', async () => {
