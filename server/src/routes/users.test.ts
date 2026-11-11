@@ -395,6 +395,21 @@ describe('User Management Routes', () => {
       expect(userQueries.createUser).not.toHaveBeenCalled();
     });
 
+    it.each([
+      ['a number', 123456789012345],
+      ['an array of strings', Array(12).fill('a')],
+    ])('should return 400 when the password is %s', async (_label, password) => {
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({ username: 'newuser', password, role_id: 2 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Password must be a string');
+      expect(userQueries.createUser).not.toHaveBeenCalled();
+    });
+
     it('should validate password meets length requirements', async () => {
       const response = await request(app)
         .post('/api/users')

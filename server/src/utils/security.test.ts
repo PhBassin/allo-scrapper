@@ -9,6 +9,22 @@ import {
 const COMMON_PASSWORD_MESSAGE = 'This password is too common, choose another one';
 
 describe('validatePasswordStrength', () => {
+  describe('type', () => {
+    it.each([
+      ['a number', 123456789012345],
+      ['an array of strings', Array(12).fill('a')],
+      ['an object', { length: 20 }],
+      ['null', null],
+      ['undefined', undefined],
+    ])('rejects %s without throwing', (_label, value) => {
+      expect(validatePasswordStrength(value)).toBe('Password must be a string');
+    });
+
+    it('ignores a username that is not a string', () => {
+      expect(validatePasswordStrength('quiet river at dawn', 12345 as unknown as string)).toBeNull();
+    });
+  });
+
   describe('length', () => {
     it('allows 12 to 128 characters', () => {
       expect(PASSWORD_MIN_LENGTH).toBe(12);

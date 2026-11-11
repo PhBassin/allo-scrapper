@@ -290,6 +290,17 @@ describe('Auth Routes', () => {
             expect(response.body.error).toBe('Current password and new password are required');
         });
 
+        it('should return 400 if newPassword is not a string', async () => {
+            const response = await request(app)
+                .post('/api/auth/change-password')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({ currentPassword: 'OldPass123!', newPassword: 123456789012345 });
+
+            expect(response.status).toBe(400);
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toBe('Password must be a string');
+        });
+
         it('should return 400 if newPassword is missing', async () => {
             const response = await request(app)
                 .post('/api/auth/change-password')

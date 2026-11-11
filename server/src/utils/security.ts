@@ -35,8 +35,11 @@ export function isCommonPassword(password: string): boolean {
   return COMMON_PASSWORDS.has(normalizeForComparison(password));
 }
 
-function isSameAsUsername(password: string, username: string | undefined): boolean {
-  const normalizedUsername = normalizeForComparison(username ?? '');
+function isSameAsUsername(password: string, username: unknown): boolean {
+  if (typeof username !== 'string') {
+    return false;
+  }
+  const normalizedUsername = normalizeForComparison(username);
   return normalizedUsername !== '' && normalizeForComparison(password) === normalizedUsername;
 }
 
@@ -50,9 +53,15 @@ function isSameAsUsername(password: string, username: string | undefined): boole
  * budget; the maximum also caps the scrypt input size. The blocklist and
  * username comparisons ignore case and surrounding spaces.
  *
+ * Takes `unknown` because callers pass request-body values: anything that is
+ * not a string is refused here instead of throwing further down.
+ *
  * Returns a user-facing message, or null when the password is acceptable.
  */
-export function validatePasswordStrength(password: string, username?: string): string | null {
+export function validatePasswordStrength(password: unknown, username?: string): string | null {
+  if (typeof password !== 'string') {
+    return 'Password must be a string';
+  }
   const length = [...password].length;
   if (length < PASSWORD_MIN_LENGTH) {
     return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
