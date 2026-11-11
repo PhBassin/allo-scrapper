@@ -157,6 +157,7 @@ The concept is implemented as a single deep module: `server/src/services/session
 - Not the **access token** itself. The access token is one credential *inside* a Session; `AuthService.mintAccessToken` is the canonical minter, and `SessionService` is its sole caller in the request cycle. Its claim set is `AccessTokenPayload` (`utils/access-token.ts`): the minter builds one, `resolveAccessToken` returns one, and `req.user` (`AuthRequest` in `middleware/auth.ts`) is typed as that payload without `ver`.
 - Not an **SSE subscriber session**. The word "session" is reused loosely for a live SSE subscriber connection (see `attachProgressStream` in `services/sse-bridge.ts`); that is a transport-lifetime concept, unrelated to user-auth Sessions. The two share only the word.
 - Not a **ScrapeRun** (one scrape execution) or a **Showtime** (a movie showing) — see those entries.
+
 ### Password policy
 
 The **Password policy** is the set of rules a password must meet *when it is set*: `validatePasswordStrength(password, username?)` in `server/src/utils/security.ts` (issue #1333). It follows NIST SP 800-63B — no composition rules (uppercase, digit, special character), instead:
