@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/client.js';
 import type { ApiError } from '../api/client.js';
 import PasswordRequirements from '../components/PasswordRequirements.js';
+import { AuthContext } from '../contexts/AuthContext.js';
 import { validateChangePasswordForm } from '../utils/userValidators.js';
 
 const ChangePasswordPage: React.FC = () => {
@@ -13,13 +14,14 @@ const ChangePasswordPage: React.FC = () => {
     const [success, setSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
+    const username = useContext(AuthContext).user?.username;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setSuccess('');
 
-        const validationError = validateChangePasswordForm(currentPassword, newPassword, confirmPassword);
+        const validationError = validateChangePasswordForm(currentPassword, newPassword, confirmPassword, username);
         if (validationError) {
             setError(validationError);
             return;
@@ -88,6 +90,7 @@ const ChangePasswordPage: React.FC = () => {
                         onChange={setNewPassword}
                         disabled={isLoading}
                         showRequirements
+                        username={username}
                     />
                     <PasswordField
                         id="confirmPassword"
@@ -127,9 +130,11 @@ interface PasswordFieldProps {
     onChange: (v: string) => void;
     disabled: boolean;
     showRequirements?: boolean;
+    /** Signed-in username, for the "different from the username" requirement. */
+    username?: string;
 }
 
-function PasswordField({ id, label, value, onChange, disabled, showRequirements }: PasswordFieldProps) {
+function PasswordField({ id, label, value, onChange, disabled, showRequirements, username }: PasswordFieldProps) {
     return (
         <div className={`mb-${showRequirements ? '4' : '6'}`}>
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor={id}>
@@ -145,7 +150,7 @@ function PasswordField({ id, label, value, onChange, disabled, showRequirements 
                 required
                 disabled={disabled}
             />
-            {showRequirements && <PasswordRequirements password={value} />}
+            {showRequirements && <PasswordRequirements password={value} username={username} />}
         </div>
     );
 }

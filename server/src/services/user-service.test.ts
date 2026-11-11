@@ -137,11 +137,29 @@ describe('UserService', () => {
       ).rejects.toThrow('Username must be alphanumeric and 3-15 characters long');
     });
 
+    it('rejects a username that is not a string', async () => {
+      const username = ['cinemalover42'] as unknown as string;
+      await expect(
+        service.createUser({ username, password: 'cinemalover42', roleId: 2 }, ACTING),
+      ).rejects.toThrow('Username must be alphanumeric and 3-15 characters long');
+      expect(validatePasswordStrength).not.toHaveBeenCalled();
+      expect(userQueries.createUser).not.toHaveBeenCalled();
+    });
+
     it('rejects a weak password', async () => {
-      vi.mocked(validatePasswordStrength).mockReturnValue('Password must contain at least one digit');
+      vi.mocked(validatePasswordStrength).mockReturnValue('Password must be at most 128 characters');
       await expect(
         service.createUser({ username: 'newuser', password: 'NoDigits!', roleId: 2 }, ACTING),
-      ).rejects.toThrow('Password must contain at least one digit');
+      ).rejects.toThrow('Password must be at most 128 characters');
+    });
+
+    it('validates the password against the new username', async () => {
+      vi.mocked(validatePasswordStrength).mockReturnValue('Password must not be the same as the username');
+      await expect(
+        service.createUser({ username: 'newuser', password: 'newuser', roleId: 2 }, ACTING),
+      ).rejects.toThrow('Password must not be the same as the username');
+      expect(validatePasswordStrength).toHaveBeenCalledWith('newuser', 'newuser');
+      expect(userQueries.createUser).not.toHaveBeenCalled();
     });
 
     it('rejects a non-integer roleId', async () => {
@@ -244,6 +262,16 @@ describe('UserService', () => {
 
       await expect(service.updateUserRole(1, 2, ACTING)).rejects.toThrow();
       expect(userQueries.updateUserRole).not.toHaveBeenCalled();
+    });
+
+    it('validates the new password against the target username', async () => {
+      vi.mocked(userQueries.getUserById).mockResolvedValue(makeUser(2, 'user1', 2, 'operator'));
+      vi.mocked(validatePasswordStrength).mockReturnValue('Password must not be the same as the username');
+      await expect(service.resetPassword(2, 'USER1', ACTING)).rejects.toThrow(
+        'Password must not be the same as the username',
+      );
+      expect(validatePasswordStrength).toHaveBeenCalledWith('USER1', 'user1');
+      expect(userQueries.updateUserPassword).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundError when the target user does not exist', async () => {
@@ -349,7 +377,7 @@ describe('UserService', () => {
 
     it('does not revoke sessions when the password is rejected', async () => {
       vi.mocked(userQueries.getUserById).mockResolvedValue(makeUser(2, 'user1', 2, 'operator'));
-      vi.mocked(validatePasswordStrength).mockReturnValue('Password must be at least 8 characters');
+      vi.mocked(validatePasswordStrength).mockReturnValue('Password must be at least 12 characters');
 
       await expect(service.resetPassword(2, 'short', ACTING)).rejects.toThrow();
       expect(refreshTokenRepo.revokeAllUserTokens).not.toHaveBeenCalled();
@@ -368,9 +396,9 @@ describe('UserService', () => {
 
     it('rejects a weak password', async () => {
       vi.mocked(userQueries.getUserById).mockResolvedValue(makeUser(2, 'user1', 2, 'operator'));
-      vi.mocked(validatePasswordStrength).mockReturnValue('Password must be at least 8 characters');
+      vi.mocked(validatePasswordStrength).mockReturnValue('Password must be at least 12 characters');
       await expect(service.resetPassword(2, 'short', ACTING)).rejects.toThrow(
-        'Password must be at least 8 characters',
+        'Password must be at least 12 characters',
       );
     });
 

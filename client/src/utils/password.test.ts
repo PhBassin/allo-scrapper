@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateRandomPassword } from './password';
+import { validatePassword } from './userValidators';
 
 describe('generateRandomPassword', () => {
   it('should generate a 16-character password', () => {
@@ -42,6 +43,12 @@ describe('generateRandomPassword', () => {
     const password = generateRandomPassword();
     for (const char of password) {
       expect(validChars).toContain(char);
+    }
+  });
+
+  it('should satisfy the client-side password policy', () => {
+    for (let i = 0; i < 20; i++) {
+      expect(validatePassword(generateRandomPassword())).toBeNull();
     }
   });
 });

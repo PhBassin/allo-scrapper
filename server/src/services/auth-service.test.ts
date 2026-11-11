@@ -53,6 +53,19 @@ describe('AuthService', () => {
       await expect(authService.login('user', 'wrong')).rejects.toThrow('Invalid credentials');
     });
 
+    it('does not apply the password policy to the password being checked', async () => {
+      vi.mocked(validatePasswordStrength).mockReturnValue('Password must be at least 12 characters');
+      const mockUser = { id: 1, username: 'user', role_id: 1, role_name: 'admin', is_system_role: true, password_hash: 'hash' };
+      vi.mocked(userQueries.getUserByUsername).mockResolvedValue(mockUser as any);
+      vi.mocked(passwordUtils.comparePassword).mockResolvedValue(true);
+      vi.mocked(roleQueries.getPermissionNamesByRoleId).mockResolvedValue([] as any);
+
+      const result = await authService.login('user', 'Old8ch!x');
+
+      expect(result.user.username).toBe('user');
+      expect(validatePasswordStrength).not.toHaveBeenCalled();
+    });
+
     it('should throw error if JWT_SECRET is missing', async () => {
       delete process.env.JWT_SECRET;
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue({ id: 1, password_hash: 'hash', role_id: 1 } as any);
@@ -87,6 +100,17 @@ describe('AuthService', () => {
       vi.mocked(validatePasswordStrength).mockReturnValue('Weak password');
       
       await expect(authService.changePassword('user', 'old', 'weak')).rejects.toThrow('Weak password');
+    });
+
+    it('validates the new password against the username', async () => {
+      const { validatePasswordStrength } = await import('../utils/security.js');
+      vi.mocked(validatePasswordStrength).mockReturnValue('Password must not be the same as the username');
+
+      await expect(authService.changePassword('cinemalover42', 'old', 'cinemalover42')).rejects.toThrow(
+        'Password must not be the same as the username',
+      );
+      expect(validatePasswordStrength).toHaveBeenCalledWith('cinemalover42', 'cinemalover42');
+      expect(passwordUtils.hashPassword).not.toHaveBeenCalled();
     });
 
     it('should throw error if user not found', async () => {

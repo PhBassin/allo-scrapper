@@ -161,24 +161,23 @@ This guide covers managing user accounts through the admin panel interface. For 
 
 ### Password Requirements
 
-**Security requirements:**
-- **Minimum 8 characters**
-- **At least one uppercase letter** (A-Z)
-- **At least one lowercase letter** (a-z)
-- **At least one digit** (0-9)
-- **At least one special character** (!@#$%^&*(),.?":{}|<>)
+**Security requirements** (NIST SP 800-63B, no composition rules):
+- **12 to 128 characters** (counted in Unicode characters, spaces allowed; leading and trailing spaces do not count toward the minimum)
+- **Not a common password**: checked against an embedded list, case-insensitively
+- **Not the username**: case-insensitive
+
+Existing passwords are not re-checked: users keep logging in with their current password until they change it.
 
 **Valid examples:**
-- `SecurePass123!`
-- `MyP@ssw0rd`
-- `Admin2024#`
-- `Theater$123`
+- `correct horse battery`
+- `séance du vendredi soir`
+- `my 3 favourite theaters`
 
 **Invalid examples:**
-- `password` (no uppercase, digit, or special character)
-- `PASSWORD123` (no lowercase or special character)
-- `Pass123` (too short, no special character)
-- `MyPassword` (no digit or special character)
+- `Pass123` (too short)
+- `Password123!` (common password)
+- `qwerty123456` (common password)
+- `cinemalover42` for the user `cinemalover42` (same as the username)
 
 ### Default Role Assignment
 
@@ -256,7 +255,7 @@ This guide covers managing user accounts through the admin panel interface. For 
 **Important Notes:**
 - **One-time Display**: Password shown only once, cannot be retrieved later
 - **Immediate Effect**: Old password becomes invalid immediately
-- **Security**: New password meets all complexity requirements
+- **Security**: New password meets the password policy (16 random characters)
 - **User Action Required**: User should change password on first login
 
 ### Deleting Users
@@ -461,9 +460,9 @@ Custom roles provide flexibility to create specific permission sets for differen
 ### Security
 
 **Strong password enforcement:**
-- Ensure all passwords meet complexity requirements
-- Educate users about password security
-- Consider password managers for complex passwords
+- The password policy (12+ characters, no common passwords) is enforced on every password change
+- Educate users about password security: long passphrases beat short complex passwords
+- Consider password managers
 
 **Limit admin accounts:**
 - Maintain minimum number of admin users
@@ -644,11 +643,9 @@ Custom roles provide flexibility to create specific permission sets for differen
 
 **Solutions:**
 1. **Ensure password meets all requirements**
-   - Minimum 8 characters
-   - At least one uppercase letter (A-Z)
-   - At least one lowercase letter (a-z)
-   - At least one digit (0-9)
-   - At least one special character
+   - 12 to 128 characters
+   - Not a common password (the error message says so)
+   - Not the same as the username
 
 2. **Check for hidden characters**
    - Avoid copying passwords from documents

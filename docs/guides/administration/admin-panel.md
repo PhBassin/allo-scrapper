@@ -594,20 +594,17 @@ Manage user accounts and roles.
 1. Click "+ Create User" button
 2. Fill in form:
    - **Username**: 3-15 characters, alphanumeric only
-   - **Password**: Minimum 8 characters
+   - **Password**: 12 to 128 characters (a passphrase works)
    - **Role**: Select from dropdown (admin, operator, or custom roles)
 3. Click "Create User"
 
 **Password Requirements**:
 - Real-time visual validation with red/green indicators for each constraint
-- Minimum 8 characters
-- Must contain at least:
-  - One uppercase letter
-  - One lowercase letter
-  - One digit
-  - One special character
-- Recommended: Mix of letters, numbers, symbols
-- Hashed with bcrypt (never stored plaintext)
+- 12 to 128 characters; no uppercase/digit/special-character rules
+- Must differ from the username
+- Common passwords (e.g. `Password123!`) are refused by the server, which shows the reason
+- Recommended: a passphrase of several words
+- Hashed with scrypt (never stored plaintext)
 
 ### Editing a User
 
@@ -786,9 +783,9 @@ Role assignment is done from the **Users** tab, not the Roles tab:
    - Prevents lockout if primary admin has issues
 
 3. **Use strong passwords**:
-   - Minimum 12 characters
-   - Mix of uppercase, lowercase, numbers, symbols
-   - Avoid common words or patterns
+   - Minimum 12 characters (enforced)
+   - Prefer a long passphrase over a short complex password
+   - Avoid common words or patterns (the most common ones are refused)
 
 4. **Limit admin access**:
    - Only grant admin role to trusted users

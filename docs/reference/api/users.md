@@ -214,17 +214,17 @@ curl -b cookies.txt -X DELETE http://localhost:3000/api/users/3 \
 
 ## Password Requirements
 
-Enforced by `validatePasswordStrength` (`server/src/utils/security.ts`) on every password entry point:
+Enforced by `validatePasswordStrength` (`server/src/utils/security.ts`) whenever a password is set (user creation, admin reset, self-service change), following NIST SP 800-63B. There are no composition rules (uppercase, digit, special character):
 
-- at least **8 characters**
-- at least one **uppercase** letter
-- at least one **lowercase** letter
-- at least one **digit**
-- at least one **special character** (anything other than a letter or digit)
+- **12 to 128 characters**, counted in Unicode code points; leading and trailing spaces do not count toward the minimum, so a password made only of spaces is refused
+- not on the embedded list of **common passwords** (`server/src/utils/common-passwords.txt`), compared case-insensitively
+- not **equal to the username**, compared case-insensitively
 
-**Valid:** `SecurePass123!`, `MyP@ssw0rd`
+Login is not affected: passwords set under the former rules keep working until they are changed.
 
-**Invalid:** `password` (no uppercase, digit or special character), `PASSWORD123` (no lowercase or special character), `Pass123` (too short, no special character)
+**Valid:** `correct horse battery`, `séance du vendredi soir`
+
+**Invalid:** `Pass123` (too short), `Password123!` (common password), `cinemalover42` for user `cinemalover42` (same as the username)
 
 ---
 
@@ -243,7 +243,7 @@ All errors share this format:
 |--------|---------------|-------|
 | 400 | `Username and password are required` | Missing fields |
 | 400 | `Username must be alphanumeric and 3-15 characters long` | Invalid username |
-| 400 | `Password must …` | Password fails a strength rule |
+| 400 | `Password must …` / `This password is too common, choose another one` | Password fails a rule of the [password policy](#password-requirements) |
 | 400 | `role_id is required and must be a valid integer` | Missing or non-integer `role_id` |
 | 400 | `Invalid role_id: role does not exist` | Unknown role |
 | 400 | `Username already exists` | Duplicate username |
