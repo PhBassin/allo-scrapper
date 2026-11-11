@@ -28,7 +28,7 @@ describe('CreateUserModal - Visual Password Validation', () => {
     expect(screen.queryByText(/special character/i)).not.toBeInTheDocument();
   });
 
-  it('should show a red indicator for the minimum length when password is empty', () => {
+  it('should show no requirement as met while the password is empty', () => {
     render(
       <CreateUserModal
         isOpen={true}
@@ -38,7 +38,7 @@ describe('CreateUserModal - Visual Password Validation', () => {
     );
 
     expect(screen.getByText(/at least 12 characters/i)).toHaveClass('text-red-700');
-    expect(screen.getByText(/at most 128 characters/i)).toHaveClass('text-green-700');
+    expect(screen.getByText(/at most 128 characters/i)).toHaveClass('text-red-700');
   });
 
   it('should update indicators when constraints are met', async () => {

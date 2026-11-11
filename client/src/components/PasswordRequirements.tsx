@@ -44,7 +44,8 @@ const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ password, u
       <p className="text-gray-600 mb-1 font-medium">Constraints:</p>
       <ul className="space-y-1">
         {requirements.map((req, index) => {
-          const isMet = req.test(password);
+          // An empty field meets nothing, so no item turns green before typing.
+          const isMet = password !== '' && req.test(password);
           return (
             <li key={index} className="flex items-center gap-2">
               {isMet ? <CheckIcon /> : <CrossIcon />}
