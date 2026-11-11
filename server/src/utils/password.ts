@@ -42,7 +42,7 @@ export async function hashPassword(password: string): Promise<string> {
 export async function comparePassword(password: string, hash: string): Promise<boolean> {
   if (password.length > MAX_VERIFIABLE_PASSWORD_LENGTH) {
     // Same `false` as a wrong password: callers answer with their generic 401.
-    logger.warn('Refused to verify a password above the verifiable length bound');
+    logger.debug('Refused to verify a password above the verifiable length bound');
     return false;
   }
   try {
