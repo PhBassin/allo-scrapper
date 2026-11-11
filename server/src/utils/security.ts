@@ -51,8 +51,10 @@ function isSameAsUsername(password: string, username: unknown): boolean {
  * ban on reusing the username (when given), no composition rules. Length
  * counts Unicode code points, so a passphrase in any script gets the same
  * budget. The minimum ignores surrounding spaces (so a run of spaces is not
- * a password); the maximum counts the raw value. The blocklist and username
- * comparisons ignore case and surrounding spaces.
+ * a password); the maximum counts the raw value and only bounds what can be
+ * set (verification has its own, wider bound: `MAX_VERIFIABLE_PASSWORD_LENGTH`
+ * in `password.ts`). The blocklist and username comparisons ignore case and
+ * surrounding spaces.
  *
  * Takes `unknown` because callers pass request-body values: anything that is
  * not a string is refused here instead of throwing further down.

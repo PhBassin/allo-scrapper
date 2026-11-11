@@ -161,7 +161,7 @@ The concept is implemented as a single deep module: `server/src/services/session
 
 The **Password policy** is the set of rules a password must meet *when it is set*: `validatePasswordStrength(password, username?)` in `server/src/utils/security.ts` (issue #1333). It follows NIST SP 800-63B — no composition rules (uppercase, digit, special character), instead:
 
-- **Length** of 12 to 128 characters (`PASSWORD_MIN_LENGTH` / `PASSWORD_MAX_LENGTH`), counted in Unicode code points. Surrounding spaces do not count toward the minimum (a run of spaces is not a password); the maximum counts the raw value. The maximum also caps the scrypt input size.
+- **Length** of 12 to 128 characters (`PASSWORD_MIN_LENGTH` / `PASSWORD_MAX_LENGTH`), counted in Unicode code points. Surrounding spaces do not count toward the minimum (a run of spaces is not a password); the maximum counts the raw value. The maximum only bounds what can be set; verification has its own, wider bound (see "verifiable length bound" below).
 - **Common-password blocklist**: `server/src/utils/common-passwords.txt` (SecLists, MIT; header documents sources and normalisation), read once into a `Set` when the module loads, resolved through `import.meta.url` and copied into `dist/utils/` by the server `build` script. `isCommonPassword` compares case-insensitively, ignoring surrounding spaces.
 - **Not the username**: same case-insensitive, trimmed comparison; skipped when no username is given.
 
@@ -169,4 +169,5 @@ Its entry points are exactly the places a password is set: `UserService.createUs
 
 **What the Password policy is *not*:**
 - Not applied at login: `AuthService.login` only compares against the stored hash, so passwords set under older rules keep working until they are changed.
+- Not the **verifiable length bound**: `comparePassword` (`server/src/utils/password.ts`) refuses any input longer than `MAX_VERIFIABLE_PASSWORD_LENGTH` (4096 UTF-16 units) before scrypt, so login and the current-password check cannot feed scrypt arbitrarily long strings. The refusal is a plain mismatch (generic 401, no oracle). The bound is far above 128 because passwords set before the policy had no maximum; only an account whose old password exceeds it would need an admin reset.
 - Not the random-password generators (`generateRandomPassword` in `server/src/db/user-queries.ts` for the first-boot admin, and in `client/src/utils/password.ts` for admin resets): they produce 16-character passwords that satisfy the policy, and are not part of it.

@@ -134,6 +134,17 @@ describe('Auth Routes', () => {
             expect(response.body.data.user.username).toBe('admin');
         });
 
+        it('answers an oversized password with the generic 401', async () => {
+            await createMockUser('admin', 1, 'admin', true, 'correct horse battery');
+
+            const response = await request(app)
+                .post('/api/auth/login')
+                .send({ username: 'admin', password: 'p'.repeat(passwordUtils.MAX_VERIFIABLE_PASSWORD_LENGTH + 1) });
+
+            expect(response.status).toBe(401);
+            expect(response.body).toEqual({ success: false, error: 'Invalid credentials' });
+        });
+
         it('should return a user and token for valid credentials', async () => {
             const mockUser = await createMockUser('admin', 1, 'admin', true, 'password123');
 
