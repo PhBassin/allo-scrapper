@@ -89,6 +89,17 @@ describe('AuthService', () => {
       await expect(authService.changePassword('user', 'old', 'weak')).rejects.toThrow('Weak password');
     });
 
+    it('validates the new password against the username', async () => {
+      const { validatePasswordStrength } = await import('../utils/security.js');
+      vi.mocked(validatePasswordStrength).mockReturnValue('Password must not be the same as the username');
+
+      await expect(authService.changePassword('cinemalover42', 'old', 'cinemalover42')).rejects.toThrow(
+        'Password must not be the same as the username',
+      );
+      expect(validatePasswordStrength).toHaveBeenCalledWith('cinemalover42', 'cinemalover42');
+      expect(passwordUtils.hashPassword).not.toHaveBeenCalled();
+    });
+
     it('should throw error if user not found', async () => {
       vi.mocked(userQueries.getUserByUsername).mockResolvedValue(undefined);
       await expect(authService.changePassword('unknown', 'old', 'ValidPass123!')).rejects.toThrow('User not found');

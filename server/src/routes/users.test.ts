@@ -363,6 +363,38 @@ describe('User Management Routes', () => {
       expect(response.body.error).toBe('Username and password are required');
     });
 
+    it('should reject a password equal to the username', async () => {
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({
+          username: 'cinemalover42',
+          password: 'CinemaLover42',
+          role_id: 2,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Password must not be the same as the username');
+      expect(userQueries.createUser).not.toHaveBeenCalled();
+    });
+
+    it('should reject a common password', async () => {
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({
+          username: 'newuser',
+          password: 'Password123!',
+          role_id: 2,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('This password is too common, choose another one');
+      expect(userQueries.createUser).not.toHaveBeenCalled();
+    });
+
     it('should validate password meets length requirements', async () => {
       const response = await request(app)
         .post('/api/users')

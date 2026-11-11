@@ -35,18 +35,24 @@ export function isCommonPassword(password: string): boolean {
   return COMMON_PASSWORDS.has(normalizeForComparison(password));
 }
 
+function isSameAsUsername(password: string, username: string | undefined): boolean {
+  const normalizedUsername = normalizeForComparison(username ?? '');
+  return normalizedUsername !== '' && normalizeForComparison(password) === normalizedUsername;
+}
+
 /**
  * Check a password that is being set (account creation, self-service change,
  * admin reset). Never called on login: existing hashes are not re-checked.
  *
- * Follows NIST SP 800-63B: length plus a blocklist of common passwords, no
- * composition rules. Length counts Unicode code points, so a passphrase in
- * any script gets the same budget; the maximum also caps the scrypt input
- * size.
+ * Follows NIST SP 800-63B: length, a blocklist of common passwords and a
+ * ban on reusing the username (when given), no composition rules. Length
+ * counts Unicode code points, so a passphrase in any script gets the same
+ * budget; the maximum also caps the scrypt input size. The blocklist and
+ * username comparisons ignore case and surrounding spaces.
  *
  * Returns a user-facing message, or null when the password is acceptable.
  */
-export function validatePasswordStrength(password: string): string | null {
+export function validatePasswordStrength(password: string, username?: string): string | null {
   const length = [...password].length;
   if (length < PASSWORD_MIN_LENGTH) {
     return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
@@ -56,6 +62,9 @@ export function validatePasswordStrength(password: string): string | null {
   }
   if (isCommonPassword(password)) {
     return 'This password is too common, choose another one';
+  }
+  if (isSameAsUsername(password, username)) {
+    return 'Password must not be the same as the username';
   }
   return null;
 }

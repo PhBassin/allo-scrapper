@@ -101,4 +101,32 @@ describe('validatePasswordStrength', () => {
       expect(validatePasswordStrength('password')).toBe('Password must be at least 12 characters');
     });
   });
+
+  describe('username', () => {
+    const SAME_AS_USERNAME = 'Password must not be the same as the username';
+
+    it('rejects a password equal to the username', () => {
+      expect(validatePasswordStrength('cinemalover42', 'cinemalover42')).toBe(SAME_AS_USERNAME);
+    });
+
+    it('compares case-insensitively and ignores surrounding spaces', () => {
+      expect(validatePasswordStrength('CinemaLover42', 'cinemalover42')).toBe(SAME_AS_USERNAME);
+      expect(validatePasswordStrength(' cinemalover42 ', 'CINEMALOVER42')).toBe(SAME_AS_USERNAME);
+    });
+
+    it('accepts a password that merely contains the username', () => {
+      expect(validatePasswordStrength('cinemalover42 at the movies', 'cinemalover42')).toBeNull();
+    });
+
+    it('skips the check when the username is empty or undefined', () => {
+      expect(validatePasswordStrength('cinemalover42', '')).toBeNull();
+      expect(validatePasswordStrength('cinemalover42', '   ')).toBeNull();
+      expect(validatePasswordStrength('cinemalover42', undefined)).toBeNull();
+      expect(validatePasswordStrength('cinemalover42')).toBeNull();
+    });
+
+    it('reports length before the username rule', () => {
+      expect(validatePasswordStrength('alice', 'alice')).toBe('Password must be at least 12 characters');
+    });
+  });
 });
