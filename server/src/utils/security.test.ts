@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import {
   isCommonPassword,
@@ -117,6 +118,22 @@ describe('validatePasswordStrength', () => {
     it('does not reject an uncommon password', () => {
       expect(isCommonPassword('correct horse battery')).toBe(false);
       expect(validatePasswordStrength('correct horse battery')).toBeNull();
+    });
+
+    it('holds only normalised entries that the length rule lets through', () => {
+      const file = readFileSync(new URL('./common-passwords.txt', import.meta.url), 'utf8');
+      const entries = file.split('\n').filter((line) => line !== '' && !line.startsWith('#'));
+      const invalid = entries.filter((entry) => {
+        const length = [...entry].length;
+        return (
+          entry !== entry.trim().toLowerCase() ||
+          length < PASSWORD_MIN_LENGTH ||
+          length > PASSWORD_MAX_LENGTH ||
+          // Undecoded hashcat notation from the source lists.
+          /^\$hex\[[0-9a-f]*\]$/i.test(entry)
+        );
+      });
+      expect(invalid).toEqual([]);
     });
 
     it('does not treat header comments as passwords', () => {
