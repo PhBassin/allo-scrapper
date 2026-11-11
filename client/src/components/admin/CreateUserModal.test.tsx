@@ -146,7 +146,7 @@ describe('CreateUserModal', () => {
       });
     });
 
-    it('should show error for password less than 8 characters', async () => {
+    it('should show error for password less than 12 characters', async () => {
       const user = userEvent.setup();
       render(
         <CreateUserModal
@@ -157,87 +157,11 @@ describe('CreateUserModal', () => {
       );
 
       const passwordInput = screen.getByLabelText('Password');
-      await user.type(passwordInput, 'Abc123!');
+      await user.type(passwordInput, 'correct hor');
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/at least 8 characters/i)).toHaveClass('text-red-700');
-      });
-    });
-
-    it('should show error for password without uppercase letter', async () => {
-      const user = userEvent.setup();
-      render(
-        <CreateUserModal
-          isOpen={true}
-          onClose={mockOnClose}
-          onCreate={mockOnCreate}
-        />
-      );
-
-      const passwordInput = screen.getByLabelText('Password');
-      await user.type(passwordInput, 'abcdef123!');
-      await user.tab();
-
-      await waitFor(() => {
-        expect(screen.getByText(/one uppercase letter/i)).toHaveClass('text-red-700');
-      });
-    });
-
-    it('should show error for password without lowercase letter', async () => {
-      const user = userEvent.setup();
-      render(
-        <CreateUserModal
-          isOpen={true}
-          onClose={mockOnClose}
-          onCreate={mockOnCreate}
-        />
-      );
-
-      const passwordInput = screen.getByLabelText('Password');
-      await user.type(passwordInput, 'ABCDEF123!');
-      await user.tab();
-
-      await waitFor(() => {
-        expect(screen.getByText(/one lowercase letter/i)).toHaveClass('text-red-700');
-      });
-    });
-
-    it('should show error for password without digit', async () => {
-      const user = userEvent.setup();
-      render(
-        <CreateUserModal
-          isOpen={true}
-          onClose={mockOnClose}
-          onCreate={mockOnCreate}
-        />
-      );
-
-      const passwordInput = screen.getByLabelText('Password');
-      await user.type(passwordInput, 'Abcdefgh!');
-      await user.tab();
-
-      await waitFor(() => {
-        expect(screen.getByText(/one digit/i)).toHaveClass('text-red-700');
-      });
-    });
-
-    it('should show error for password without special character', async () => {
-      const user = userEvent.setup();
-      render(
-        <CreateUserModal
-          isOpen={true}
-          onClose={mockOnClose}
-          onCreate={mockOnCreate}
-        />
-      );
-
-      const passwordInput = screen.getByLabelText('Password');
-      await user.type(passwordInput, 'Abcdef123');
-      await user.tab();
-
-      await waitFor(() => {
-        expect(screen.getByText(/one special character/i)).toHaveClass('text-red-700');
+        expect(screen.getByText(/at least 12 characters/i)).toHaveClass('text-red-700');
       });
     });
 
@@ -255,7 +179,7 @@ describe('CreateUserModal', () => {
       const passwordInput = screen.getByLabelText('Password');
 
       await user.type(usernameInput, 'validuser123');
-      await user.type(passwordInput, 'ValidPass123!');
+      await user.type(passwordInput, 'correct horse battery');
       await user.tab();
 
       // Wait a bit for any validation errors
@@ -410,6 +334,47 @@ describe('CreateUserModal', () => {
 
       // Should NOT call onClose on error
       expect(mockOnClose).not.toHaveBeenCalled();
+    });
+
+    it('should submit a passphrase and display the server message when it is rejected', async () => {
+      const user = userEvent.setup();
+      mockOnCreate.mockRejectedValueOnce(new Error('This password is too common, choose another one'));
+
+      render(
+        <CreateUserModal
+          isOpen={true}
+          onClose={mockOnClose}
+          onCreate={mockOnCreate}
+        />
+      );
+
+      await user.type(screen.getByLabelText('Username'), 'newuser');
+      await user.type(screen.getByLabelText('Password'), 'Password123!');
+      await user.click(screen.getByRole('button', { name: /^create$/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('This password is too common, choose another one')).toBeInTheDocument();
+      });
+      expect(mockOnCreate).toHaveBeenCalledWith({ username: 'newuser', password: 'Password123!', role_id: 1 });
+      expect(mockOnClose).not.toHaveBeenCalled();
+    });
+
+    it('should not submit a password equal to the username', async () => {
+      const user = userEvent.setup();
+      render(
+        <CreateUserModal
+          isOpen={true}
+          onClose={mockOnClose}
+          onCreate={mockOnCreate}
+        />
+      );
+
+      await user.type(screen.getByLabelText('Username'), 'cinemalover42');
+      await user.type(screen.getByLabelText('Password'), 'CinemaLover42');
+      await user.click(screen.getByRole('button', { name: /^create$/i }));
+
+      expect(screen.getByText(/different from the username/i)).toHaveClass('text-red-700');
+      expect(mockOnCreate).not.toHaveBeenCalled();
     });
 
     it('should not submit form with validation errors', async () => {

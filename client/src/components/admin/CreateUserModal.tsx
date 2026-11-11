@@ -92,11 +92,12 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
 
           <PasswordField
             value={password}
+            username={username}
             error={errors.password}
             disabled={isSubmitting}
             showPassword={showPassword}
             onChange={setPassword}
-            onBlur={() => setErrors((prev) => ({ ...prev, password: validatePassword(password) || undefined }))}
+            onBlur={() => setErrors((prev) => ({ ...prev, password: validatePassword(password, username) || undefined }))}
             onToggleVisibility={() => setShowPassword(!showPassword)}
           />
 
@@ -169,6 +170,7 @@ function UsernameField({ value, error, disabled, onChange, onBlur }: UsernameFie
 
 interface PasswordFieldProps {
   value: string;
+  username: string;
   error?: string;
   disabled: boolean;
   showPassword: boolean;
@@ -177,7 +179,7 @@ interface PasswordFieldProps {
   onToggleVisibility: () => void;
 }
 
-function PasswordField({ value, error, disabled, showPassword, onChange, onBlur, onToggleVisibility }: PasswordFieldProps) {
+function PasswordField({ value, username, error, disabled, showPassword, onChange, onBlur, onToggleVisibility }: PasswordFieldProps) {
   const showEmptyError = error && value.length === 0;
   return (
     <div className="mb-4">
@@ -195,7 +197,7 @@ function PasswordField({ value, error, disabled, showPassword, onChange, onBlur,
           className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
             showEmptyError ? 'border-red-500' : 'border-gray-300'
           }`}
-          placeholder="Min 8 chars, uppercase, lowercase, digit, special"
+          placeholder="12 to 128 characters, a passphrase works"
         />
         <button
           type="button"
@@ -207,7 +209,7 @@ function PasswordField({ value, error, disabled, showPassword, onChange, onBlur,
         </button>
       </div>
       {showEmptyError && <p className="mt-1 text-sm text-red-600">Password is required</p>}
-      <PasswordRequirements password={value} />
+      <PasswordRequirements password={value} username={username} />
     </div>
   );
 }
