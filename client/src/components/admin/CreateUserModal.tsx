@@ -64,7 +64,16 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
     }
   };
 
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  // A password error already shown is kept in step with both fields, so it
+  // never contradicts the requirements list. It is not raised before the
+  // first blur or submit.
+  const revalidateShownPasswordError = (nextPassword: string, nextUsername: string) => {
+    setErrors((prev) => (prev.password
+      ? { ...prev, password: validatePassword(nextPassword, nextUsername) || undefined }
+      : prev));
+  };
+
+  const handleBackdropClick =(e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -87,7 +96,10 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
             error={errors.username}
             disabled={isSubmitting}
             onChange={setUsername}
-            onBlur={() => setErrors((prev) => ({ ...prev, username: validateUsername(username) || undefined }))}
+            onBlur={() => {
+              setErrors((prev) => ({ ...prev, username: validateUsername(username) || undefined }));
+              revalidateShownPasswordError(password, username);
+            }}
           />
 
           <PasswordField
@@ -96,7 +108,10 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
             error={errors.password}
             disabled={isSubmitting}
             showPassword={showPassword}
-            onChange={setPassword}
+            onChange={(next) => {
+              setPassword(next);
+              revalidateShownPasswordError(next, username);
+            }}
             onBlur={() => setErrors((prev) => ({ ...prev, password: validatePassword(password, username) || undefined }))}
             onToggleVisibility={() => setShowPassword(!showPassword)}
           />

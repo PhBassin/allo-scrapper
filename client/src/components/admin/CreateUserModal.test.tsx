@@ -397,6 +397,75 @@ describe('CreateUserModal', () => {
       expect(mockOnCreate).not.toHaveBeenCalled();
     });
 
+    it('should clear the password error once the password is corrected', async () => {
+      const user = userEvent.setup();
+      render(
+        <CreateUserModal
+          isOpen={true}
+          onClose={mockOnClose}
+          onCreate={mockOnCreate}
+        />
+      );
+
+      await user.type(screen.getByLabelText('Username'), 'cinemalover42');
+      await user.type(screen.getByLabelText('Password'), 'cinemalover42');
+      await user.tab();
+
+      expect(screen.getByText('Password must not be the same as the username')).toBeInTheDocument();
+
+      await user.click(screen.getByLabelText('Password'));
+      await user.type(screen.getByLabelText('Password'), ' at the movies');
+
+      expect(screen.queryByText('Password must not be the same as the username')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Password')).not.toHaveClass('border-red-500');
+    });
+
+    it('should clear the password error once the username no longer matches it', async () => {
+      const user = userEvent.setup();
+      render(
+        <CreateUserModal
+          isOpen={true}
+          onClose={mockOnClose}
+          onCreate={mockOnCreate}
+        />
+      );
+
+      await user.type(screen.getByLabelText('Username'), 'cinemalover42');
+      await user.type(screen.getByLabelText('Password'), 'cinemalover42');
+      await user.tab();
+
+      expect(screen.getByText('Password must not be the same as the username')).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText('Username'), 'x');
+      await user.tab();
+
+      expect(screen.queryByText('Password must not be the same as the username')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Password')).not.toHaveClass('border-red-500');
+    });
+
+    it('should keep showing a password error while the password is still invalid', async () => {
+      const user = userEvent.setup();
+      render(
+        <CreateUserModal
+          isOpen={true}
+          onClose={mockOnClose}
+          onCreate={mockOnCreate}
+        />
+      );
+
+      await user.type(screen.getByLabelText('Username'), 'cinemalover42');
+      await user.type(screen.getByLabelText('Password'), 'short');
+      await user.tab();
+
+      expect(screen.getByText(/password must be at least 12 characters/i)).toBeInTheDocument();
+
+      await user.click(screen.getByLabelText('Password'));
+      await user.type(screen.getByLabelText('Password'), 'er');
+
+      expect(screen.getByText(/password must be at least 12 characters/i)).toBeInTheDocument();
+      expect(screen.getByLabelText('Password')).toHaveClass('border-red-500');
+    });
+
     it('should display the error when the password is longer than 128 characters', async () => {
       const user = userEvent.setup();
       render(
