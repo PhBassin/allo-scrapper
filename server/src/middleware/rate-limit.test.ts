@@ -4,8 +4,10 @@ process.env.JWT_SECRET = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import express, { type Request, type Response } from 'express';
 import request from 'supertest';
+import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import type { DB } from '../db/index.js';
+import { requireAuth, type AuthRequest } from './auth.js';
 import {
   generalLimiter,
   authLimiter,
@@ -17,9 +19,25 @@ import {
 } from './rate-limit.js';
 import rateLimit from 'express-rate-limit';
 
-// Helper: sign a minimal JWT for rate-limit key tests
-const makeToken = (userId: number): string =>
-  jwt.sign({ id: userId, username: `user${userId}` }, process.env.JWT_SECRET as string, { algorithm: 'HS256' });
+/** A secret the server does not know: a token signed with it fails verification. */
+const UNKNOWN_SECRET = 'wrong-secret-minimum-32-chars-long-or-longer';
+
+// Helper: sign a minimal JWT for rate-limit key tests, with the current secret unless another is given
+const makeToken = (
+  userId: number,
+  ver = 0,
+  { secret = process.env.JWT_SECRET as string, ...options }: jwt.SignOptions & { secret?: string } = {},
+): string => jwt.sign({ id: userId, username: `user${userId}`, ver }, secret, { algorithm: 'HS256', ...options });
+
+/** A token that only its expiry makes invalid: right secret, current `ver`. */
+const makeExpiredToken = (userId: number): string => makeToken(userId, 0, { expiresIn: -10 });
+
+/** Give the app a DB whose users table holds `version` for every id (null: no such user). */
+const withDb = (target: express.Application, version: number | null = 0) => {
+  const query = vi.fn().mockResolvedValue({ rows: version === null ? [] : [{ token_version: version }] });
+  target.set('db', { query } as unknown as DB);
+  return query;
+};
 
 describe('Rate Limiting Middleware', () => {
   let app: express.Application;
@@ -152,6 +170,7 @@ describe('Rate Limiting Middleware', () => {
       // Create a tight-limit app to make exhaustion testable without 60 requests
       const tightApp = express();
       tightApp.set('trust proxy', 1);
+      withDb(tightApp);
       const { authenticatedKeyGenerator } = await import('./rate-limit.js');
       const tightLimiter = rateLimit({
         windowMs: 60_000,
@@ -174,6 +193,195 @@ describe('Rate Limiting Middleware', () => {
       // User 2 on same IP should still have full quota
       const user2res = await request(tightApp).get('/p').set('Authorization', `Bearer ${token2}`).set('X-Forwarded-For', sameIp);
       expect(user2res.status).toBe(200);
+    });
+
+    it('should key on the access_token cookie so two browser users on same IP have independent quotas', async () => {
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      withDb(tightApp);
+      tightApp.use(cookieParser());
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      const keys: string[] = [];
+      const tightLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 2,
+        skip: () => false,
+        keyGenerator: async (req) => {
+          const key = await authenticatedKeyGenerator(req);
+          keys.push(key);
+          return key;
+        },
+      });
+      tightApp.get('/p-cookie', tightLimiter, (_req, res) => res.json({ ok: true }));
+
+      const cookie1 = `access_token=${makeToken(21)}`;
+      const cookie2 = `access_token=${makeToken(22)}`;
+      const sameIp = '1.2.3.9';
+
+      await request(tightApp).get('/p-cookie').set('Cookie', cookie1).set('X-Forwarded-For', sameIp);
+      await request(tightApp).get('/p-cookie').set('Cookie', cookie1).set('X-Forwarded-For', sameIp);
+      const exhausted = await request(tightApp).get('/p-cookie').set('Cookie', cookie1).set('X-Forwarded-For', sameIp);
+      expect(exhausted.status).toBe(429);
+      expect(keys.at(-1)).toBe('user:21');
+
+      const user2res = await request(tightApp).get('/p-cookie').set('Cookie', cookie2).set('X-Forwarded-For', sameIp);
+      expect(user2res.status).toBe(200);
+      expect(keys.at(-1)).toBe('user:22');
+    });
+
+    it('should fall back to IP when the access_token cookie is invalid', async () => {
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      withDb(tightApp);
+      tightApp.use(cookieParser());
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      let generatedKey = '';
+      const trackingLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 100,
+        skip: () => false,
+        keyGenerator: async (req) => {
+          generatedKey = await authenticatedKeyGenerator(req);
+          return generatedKey;
+        },
+      });
+      tightApp.get('/p-bad-cookie', trackingLimiter, (_req, res) => res.json({ ok: true }));
+
+      await request(tightApp).get('/p-bad-cookie').set('Cookie', 'access_token=not.a.valid.jwt').set('X-Forwarded-For', '1.2.3.10');
+      expect(generatedKey).toBe('1.2.3.10');
+    });
+
+    it('should prefer the access_token cookie over a Bearer header, like requireAuth', async () => {
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      withDb(tightApp);
+      tightApp.use(cookieParser());
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      let generatedKey = '';
+      const trackingLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 100,
+        skip: () => false,
+        keyGenerator: async (req) => {
+          generatedKey = await authenticatedKeyGenerator(req);
+          return generatedKey;
+        },
+      });
+      tightApp.get('/p-both', trackingLimiter, (_req, res) => res.json({ ok: true }));
+
+      await request(tightApp)
+        .get('/p-both')
+        .set('Cookie', `access_token=${makeToken(31)}`)
+        .set('Authorization', `Bearer ${makeToken(32)}`);
+      expect(generatedKey).toBe('user:31');
+    });
+
+    it.each([
+      ['a revoked token (stale ver)', 1],
+      ['a token of a deleted user', null],
+    ])('should fall back to IP for %s so it cannot spend the user quota', async (_label, dbVersion) => {
+      const tightApp = express();
+      tightApp.set('trust proxy', 1);
+      withDb(tightApp, dbVersion);
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      let generatedKey = '';
+      const trackingLimiter = rateLimit({
+        windowMs: 60_000,
+        max: 100,
+        skip: () => false,
+        keyGenerator: async (req) => {
+          generatedKey = await authenticatedKeyGenerator(req);
+          return generatedKey;
+        },
+      });
+      tightApp.get('/p-revoked', trackingLimiter, (_req, res) => res.json({ ok: true }));
+
+      await request(tightApp).get('/p-revoked').set('Authorization', `Bearer ${makeToken(33, 0)}`).set('X-Forwarded-For', '1.2.3.11');
+      expect(generatedKey).toBe('1.2.3.11');
+    });
+
+    it('should look the token version up once per request', async () => {
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      const query = withDb(app);
+      const req = { headers: { authorization: `Bearer ${makeToken(34)}` }, app, ip: '1.2.3.12' } as unknown as Request;
+
+      expect(await authenticatedKeyGenerator(req)).toBe('user:34');
+      expect(await authenticatedKeyGenerator(req)).toBe('user:34');
+      expect(query).toHaveBeenCalledTimes(1);
+    });
+
+    // requireAuth and protectedLimiter are both static imports: they must come from
+    // the same module graph to share one access-token.ts (other tests reset modules)
+    it('should share that one lookup with requireAuth on a protected route', async () => {
+      const query = withDb(app);
+      app.get('/protected-shared', protectedLimiter, requireAuth, (req, res) => {
+        res.json({ userId: (req as AuthRequest).user?.id });
+      });
+
+      const response = await request(app)
+        .get('/protected-shared')
+        .set('Authorization', `Bearer ${makeToken(36)}`)
+        .set('X-Forwarded-For', '1.2.3.15');
+
+      expect(response.status).toBe(200);
+      expect(response.body.userId).toBe(36);
+      // The limiter did run (it is skipped without req.ip), so both middlewares needed the version
+      expect(response.headers['ratelimit-limit']).toBeDefined();
+      expect(query).toHaveBeenCalledTimes(1);
+    });
+
+    // A token that fails verification never reaches the token-version lookup:
+    // only a correctly signed, unexpired token costs a database read.
+    it.each([
+      ['no token', {}],
+      ['a malformed Bearer token', { headers: { authorization: 'Bearer not.a.valid.jwt' } }],
+      [
+        'a Bearer token signed with an unknown secret',
+        { headers: { authorization: `Bearer ${makeToken(37, 0, { secret: UNKNOWN_SECRET })}` } },
+      ],
+      ['an expired Bearer token', { headers: { authorization: `Bearer ${makeExpiredToken(38)}` } }],
+      ['an expired access_token cookie', { cookies: { access_token: makeExpiredToken(39) } }],
+    ])('should fall back to IP for %s without a token-version lookup', async (_label, carrier) => {
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      const query = withDb(app);
+      const req = { headers: {}, ...carrier, app, ip: '1.2.3.16' } as unknown as Request;
+
+      expect(await authenticatedKeyGenerator(req)).toBe('1.2.3.16');
+      expect(query).not.toHaveBeenCalled();
+    });
+
+    it('should not log a warning for a missing or invalid token', async () => {
+      const { logger } = await import('../utils/logger.js');
+      const warn = vi.spyOn(logger, 'warn').mockImplementation(() => logger);
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      withDb(app);
+
+      const invalid = { headers: { authorization: 'Bearer not.a.valid.jwt' }, app, ip: '1.2.3.13' } as unknown as Request;
+      const anonymous = { headers: {}, app, ip: '1.2.3.13' } as unknown as Request;
+      expect(await authenticatedKeyGenerator(invalid)).toBe('1.2.3.13');
+      expect(await authenticatedKeyGenerator(anonymous)).toBe('1.2.3.13');
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it('should fall back to IP and warn when the token version lookup fails', async () => {
+      const { logger } = await import('../utils/logger.js');
+      const warn = vi.spyOn(logger, 'warn').mockImplementation(() => logger);
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      app.set('db', { query: vi.fn().mockRejectedValue(new Error('db down')) });
+
+      const req = { headers: { authorization: `Bearer ${makeToken(35)}` }, app, ip: '1.2.3.14' } as unknown as Request;
+      expect(await authenticatedKeyGenerator(req)).toBe('1.2.3.14');
+      expect(warn).toHaveBeenCalledTimes(1);
+      warn.mockRestore();
+    });
+
+    it('should key IPv6 clients by subnet so rotating addresses share one bucket', async () => {
+      const { authenticatedKeyGenerator } = await import('./rate-limit.js');
+      const keyFor = (ip: string) => authenticatedKeyGenerator({ headers: {}, app, ip } as unknown as Request);
+
+      expect(await keyFor('2001:db8:1:2:aaaa::1')).toBe(await keyFor('2001:db8:1:2:bbbb::2'));
+      expect(await keyFor('2001:db8:1:2::1')).not.toBe(await keyFor('2001:db8:ffff:2::1'));
     });
 
     it('should fall back to IP when no Authorization header is present', async () => {
@@ -200,6 +408,7 @@ describe('Rate Limiting Middleware', () => {
       // Create a tight-limit app to test fallback
       const tightApp = express();
       tightApp.set('trust proxy', 1);
+      withDb(tightApp);
       const { authenticatedKeyGenerator } = await import('./rate-limit.js');
       const tightLimiter = rateLimit({
         windowMs: 60_000,
@@ -210,7 +419,7 @@ describe('Rate Limiting Middleware', () => {
       tightApp.get('/p-invalid', tightLimiter, (_req, res) => res.json({ ok: true }));
 
       // Token with incorrect secret but same spoofed user ID 1
-      const spoofedToken = jwt.sign({ id: 1, username: 'user1' }, 'wrong-secret-minimum-32-chars-long-or-longer', { algorithm: 'HS256' });
+      const spoofedToken = makeToken(1, 0, { secret: UNKNOWN_SECRET });
       const sameIp = '1.2.3.4';
 
       // If it fails to verify, it falls back to IP fallback.
@@ -226,6 +435,7 @@ describe('Rate Limiting Middleware', () => {
     it('should use user id as rate-limit key so two users on same IP have independent quotas', async () => {
       const tightApp = express();
       tightApp.set('trust proxy', 1);
+      withDb(tightApp);
       const { authenticatedKeyGenerator } = await import('./rate-limit.js');
       const tightLimiter = rateLimit({
         windowMs: 60_000,
@@ -249,6 +459,39 @@ describe('Rate Limiting Middleware', () => {
     });
   });
 
+  // The tests above build their own limiter around authenticatedKeyGenerator.
+  // These ones go through the exported limiters, so that dropping the key
+  // generator from a `limiterSpecs` row is caught here. Only the key generator
+  // reads the token version on such a route: the lookup proves it is wired.
+  // The exported limiters keep their counters for the whole file, hence a user
+  // id and a client IP that no other test uses.
+  describe('exported limiters — per-user key wiring', () => {
+    const cookie = (token: string) => ['Cookie', `access_token=${token}`] as const;
+    const bearer = (token: string) => ['Authorization', `Bearer ${token}`] as const;
+
+    it.each([
+      { name: 'protectedLimiter', limiter: protectedLimiter, carrier: 'the access_token cookie', header: cookie, userId: 50 },
+      { name: 'protectedLimiter', limiter: protectedLimiter, carrier: 'a Bearer header', header: bearer, userId: 51 },
+      { name: 'scraperLimiter', limiter: scraperLimiter, carrier: 'the access_token cookie', header: cookie, userId: 52 },
+      { name: 'scraperLimiter', limiter: scraperLimiter, carrier: 'a Bearer header', header: bearer, userId: 53 },
+    ])('$name should resolve the user of $carrier for its key', async ({ limiter, header, userId }) => {
+      const query = withDb(app);
+      app.use(cookieParser());
+      app.get('/wired', limiter, (_req, res) => {
+        res.json({ success: true });
+      });
+
+      const response = await request(app)
+        .get('/wired')
+        .set(...header(makeToken(userId)))
+        .set('X-Forwarded-For', `1.2.3.${userId}`);
+
+      expect(response.status).toBe(200);
+      expect(query).toHaveBeenCalledTimes(1);
+      expect(query).toHaveBeenCalledWith(expect.stringContaining('token_version'), [userId]);
+    });
+  });
+
     describe('multi-secret JWT verification (rotation)', () => {
     let previousSecrets: string | undefined;
 
@@ -269,10 +512,11 @@ describe('Rate Limiting Middleware', () => {
     it('should verify tokens signed with a previous secret', async () => {
       const oldSecret = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6_old';
       process.env.JWT_PREVIOUS_SECRETS = oldSecret;
-      const oldToken = jwt.sign({ id: 42, username: 'rotated-user' }, oldSecret, { algorithm: 'HS256' });
+      const oldToken = makeToken(42, 0, { secret: oldSecret });
 
       const tightApp = express();
       tightApp.set('trust proxy', 1);
+      withDb(tightApp);
       const { authenticatedKeyGenerator } = await import('./rate-limit.js');
 
       // Track the generated key instead of hitting rate limit
@@ -281,8 +525,8 @@ describe('Rate Limiting Middleware', () => {
         windowMs: 60_000,
         max: 100,
         skip: () => false,
-        keyGenerator: (req) => {
-          generatedKey = authenticatedKeyGenerator(req);
+        keyGenerator: async (req) => {
+          generatedKey = await authenticatedKeyGenerator(req);
           return generatedKey;
         },
       });

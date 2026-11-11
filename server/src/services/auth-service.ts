@@ -8,6 +8,7 @@ import { logger } from '../utils/logger.js';
 import { getJwtSignExpiresIn } from '../utils/jwt-config.js';
 import type { PermissionName } from '../types/role.js';
 import { getCurrentSecret } from '../utils/jwt-secrets.js';
+import type { AccessTokenPayload } from '../utils/access-token.js';
 import { revokeAllUserTokens } from '../repositories/refresh-token-repository.js';
 import { ValidationError, AuthError, NotFoundError } from '../utils/errors.js';
 
@@ -65,10 +66,9 @@ export class AuthService {
   constructor(private db: DB) {}
 
   /**
-   * Mint an HS256 access token for `user`. The canonical payload shape
-   * ({ id, username, role_name, is_system_role, permissions, ver }) lives here
-   * — every code path that issues an access token MUST go through this
-   * method so the claim set stays in lockstep.
+   * Mint an HS256 access token for `user`. Its payload is the canonical
+   * `AccessTokenPayload` — every code path that issues an access token MUST
+   * go through this method so the claim set stays in lockstep.
    *
    * @param user - Subject of the token. `db` is passed explicitly so the
    *               refresh route can mint against the same DB handle it
@@ -82,18 +82,16 @@ export class AuthService {
 
     const expiresIn = getJwtSignExpiresIn();
 
-    return jwt.sign(
-      {
-        id: user.id,
-        username: user.username,
-        role_name: user.role_name,
-        is_system_role: user.is_system_role,
-        permissions,
-        ver: user.token_version,
-      },
-      secret,
-      { algorithm: 'HS256', expiresIn: expiresIn as any }
-    );
+    const payload: AccessTokenPayload = {
+      id: user.id,
+      username: user.username,
+      role_name: user.role_name,
+      is_system_role: user.is_system_role,
+      permissions,
+      ver: user.token_version,
+    };
+
+    return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: expiresIn as any });
   }
 
   async login(username?: string, password?: string): Promise<AuthResponse> {

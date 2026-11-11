@@ -1,13 +1,10 @@
 import type { Request } from 'express';
 import type { RequestHandler } from 'express';
-import rateLimit from 'express-rate-limit';
-import { getSecrets, verifyWithMultipleSecrets } from '../utils/jwt-secrets.js';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import { getSecrets } from '../utils/jwt-secrets.js';
 import { logger } from '../utils/logger.js';
+import { resolveAccessToken } from '../utils/access-token.js';
 import { getCurrentConfig, subscribe, type RateLimitConfig } from '../services/rate-limit-source.js';
-
-function ipKeyGenerator(ip: string): string {
-  return ip;
-}
 
 // Fail-fast: validate secrets at module load
 getSecrets();
@@ -21,7 +18,7 @@ const skipInternal = (req: any) =>
 
 interface LimiterOptions {
   skip?: (req: Request) => boolean;
-  keyGenerator?: (req: Request) => string;
+  keyGenerator?: (req: Request) => string | Promise<string>;
   skipSuccessfulRequests?: boolean;
   standardHeaders?: boolean;
   message?: string | object;
@@ -60,17 +57,18 @@ const createRefreshableLimiter = (
   };
 };
 
-export const authenticatedKeyGenerator = (req: Request): string => {
+/**
+ * `user:<id>` for a request carrying a current access token (cookie or Bearer,
+ * the same check as requireAuth, so a revoked token cannot spend its user's
+ * quota), else the client IP (IPv6 addresses are grouped by subnet).
+ */
+export const authenticatedKeyGenerator = async (req: Request): Promise<string> => {
   try {
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      const verified = verifyWithMultipleSecrets(token, getSecrets()) as { id?: number } | null;
-      if (verified?.id) return `user:${verified.id}`;
-    }
+    const payload = await resolveAccessToken(req);
+    if (payload?.id) return `user:${payload.id}`;
   } catch (err) {
+    // Only the token-version lookup can fail here; a missing or invalid token is not an error
     logger.warn('Authenticated key generator fallback to IP', { error: err instanceof Error ? err.message : String(err) });
-    // fall through to IP fallback
   }
   return ipKeyGenerator(req.ip ?? 'unknown');
 };

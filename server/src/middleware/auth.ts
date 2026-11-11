@@ -1,31 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import type { ApiResponse } from '../types/api.js';
-import type { PermissionName } from '../types/role.js';
-import { getSecrets, verifyWithMultipleSecrets } from '../utils/jwt-secrets.js';
-import { getUserTokenVersion } from '../db/user-queries.js';
+import { getSecrets } from '../utils/jwt-secrets.js';
+import { extractToken, resolveAccessToken, type AccessTokenPayload } from '../utils/access-token.js';
 
 // Fail-fast: validate secrets at module load
 getSecrets();
 
 export interface AuthRequest extends Request {
-    user?: {
-        id: number;
-        username: string;
-        role_name: string;
-        is_system_role: boolean;
-        permissions: PermissionName[];
-    };
-}
-
-function extractToken(req: AuthRequest): string | null {
-    if (req.cookies?.access_token) {
-        return req.cookies.access_token;
-    }
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        return authHeader.substring(7).trim();
-    }
-    return null;
+    /** The claims of the verified access token. Handlers have no use for `ver`: `requireAuth` checked it. */
+    user?: Omit<AccessTokenPayload, 'ver'>;
 }
 
 /**
@@ -69,20 +52,14 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
         error: 'Invalid or expired token.',
     };
 
-    let decoded: NonNullable<AuthRequest['user']> & { ver?: unknown };
+    let decoded: AccessTokenPayload | null;
     try {
-        decoded = verifyWithMultipleSecrets(token, getSecrets()) as typeof decoded;
-    } catch {
-        return res.status(401).json(invalidToken);
-    }
-
-    try {
-        const currentVersion = await getUserTokenVersion(req.app.get('db'), decoded.id);
-        if (currentVersion === undefined || decoded.ver !== currentVersion) {
-            return res.status(401).json(invalidToken);
-        }
+        decoded = await resolveAccessToken(req);
     } catch (error) {
         return next(error);
+    }
+    if (!decoded) {
+        return res.status(401).json(invalidToken);
     }
 
     req.user = decoded;

@@ -29,7 +29,8 @@ Allo-Scrapper uses **`express-rate-limit`** middleware to protect the API from a
 
 ### Key Features
 
-- **Per-IP rate limiting**: Limits are tracked by client IP address
+- **Per-IP rate limiting**: Limits are tracked by client IP address (IPv6 addresses are grouped by subnet)
+- **Per-user rate limiting**: The protected and scraper limiters track authenticated requests by user instead
 - **Sliding window**: Requests counted within a rolling time window
 - **Standard headers**: `X-RateLimit-*` headers included in all responses
 - **Configurable**: All limits adjustable via environment variables
@@ -37,7 +38,7 @@ Allo-Scrapper uses **`express-rate-limit`** middleware to protect the API from a
 
 ### Strategy
 
-Rate limits are applied **per IP address** using a sliding window algorithm:
+Rate limits are applied **per IP address** using a sliding window algorithm. The protected and scraper limiters are the exception: a request carrying a current access token (the `access_token` cookie or a Bearer header) is counted **per user**, so users behind the same IP do not share a quota. Requests with a missing, invalid, expired or revoked token fall back to the IP.
 
 ```
 Window: 15 minutes (default)
@@ -46,6 +47,14 @@ Counter reset: Rolling (not fixed intervals)
 ```
 
 **Example**: If you make 50 requests at 10:00 AM, the counter resets at 10:15 AM (not at the next hour).
+
+### Cost of per-user keys
+
+To tell a current access token from a revoked one, the protected and scraper limiters read the user's token version (one primary-key lookup on `users`) **before** they count the request. A token that is missing, expired or badly signed is discarded without touching the database.
+
+- **Under the quota, the lookup is free**: `requireAuth` needs the same value and reuses it (`resolveAccessToken` in `server/src/utils/access-token.ts` resolves a request's token once).
+- **A request these limiters reject with `429` still pays it**, and so does an authenticated request to `/api/scraper/progress`, which has the scraper limiter but no `requireAuth`. This is a deliberate trade-off: skipping the lookup would let a revoked token spend its user's quota, and caching the version would delay revocations.
+- **The general limiter caps it**: it runs first on every `/api/*` route and is keyed by IP without any database access, so one IP causes at most `RATE_LIMIT_GENERAL_MAX` lookups per window (100 by default), no more than the same requests would cost on a public endpoint. Keep this in mind before raising the general limit far above the protected and scraper ones.
 
 ---
 
@@ -141,7 +150,7 @@ RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # 1 hour in milliseconds
 
 **Applies to**: `/api/reports/*`
 
-**Default**: 60 requests per 15 minutes
+**Default**: 60 requests per 15 minutes, per user
 
 **Purpose**: Allow authenticated users more requests than public users
 
@@ -153,7 +162,7 @@ RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # 1 hour in milliseconds
 
 **Applies to**: `/api/scraper/trigger`
 
-**Default**: 10 scrape requests per 15 minutes
+**Default**: 10 scrape requests per 15 minutes, per user
 
 **Purpose**: Prevent triggering too many concurrent expensive scraping operations
 
@@ -497,7 +506,7 @@ export const generalLimiter = rateLimit({
 
 **Solution**: 
 - Increase limits for that use case
-- Consider per-user rate limiting (requires authentication)
+- Authenticated requests to the protected and scraper endpoints are already counted per user; the other limiters stay per IP
 
 ---
 

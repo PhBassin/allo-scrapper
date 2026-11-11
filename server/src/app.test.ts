@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import type { Express } from 'express';
 import type { DB } from './db/index.js';
 import { createApp } from './app.js';
+import { getCurrentConfig } from './services/rate-limit-source.js';
 
 // Mock dependencies
 vi.mock('./services/theme-generator.js');
@@ -10,7 +12,9 @@ vi.mock('./utils/logger.js');
 
 let shouldRejectAuth = false;
 
-vi.mock('./middleware/auth.js', () => ({
+// Only requireAuth is replaced: requirePermission still needs the real isAdminUser
+vi.mock('./middleware/auth.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./middleware/auth.js')>()),
   requireAuth: (req: any, res: any, next: any) => {
     if (shouldRejectAuth) {
       return res.status(401).json({ success: false, error: 'Authentication required. No token provided.' });
@@ -357,5 +361,55 @@ describe('App - trust proxy', () => {
   it('refuses to start with an invalid TRUST_PROXY', () => {
     process.env.TRUST_PROXY = 'not-an-ip';
     expect(() => createApp()).toThrow(/TRUST_PROXY/);
+  });
+});
+
+describe('App - rate limiter order', () => {
+  const originalTrustProxy = process.env.TRUST_PROXY;
+
+  afterEach(() => {
+    if (originalTrustProxy === undefined) delete process.env.TRUST_PROXY;
+    else process.env.TRUST_PROXY = originalTrustProxy;
+  });
+
+  // The per-user key generator reads the token version before its limiter
+  // counts the request, 429 included. The per-IP general limiter runs first,
+  // so it caps those lookups: see docs/reference/api/rate-limiting.md.
+  it('rejects a request over the general limit before any token-version lookup', async () => {
+    // Trust the forwarded address so this test exhausts an IP of its own
+    process.env.TRUST_PROXY = 'loopback';
+    const app = createApp();
+    const { mockQuery } = mockHealthyDb(app);
+    // Every token is current, so the protected limiter keys on its user
+    mockQuery.mockImplementation(async (sql: string) => ({
+      rows: sql.includes('token_version') ? [{ token_version: 0 }] : [{ result: 1 }],
+    }));
+    // One user per request, all behind one IP: the requests fill the per-IP
+    // general bucket and nothing else, each of them being the first of its
+    // per-user protected bucket. The test holds whatever the two maxima are.
+    const firstUserId = 7000;
+    const get = (userId: number) => {
+      const token = jwt.sign({ id: userId, username: `looper${userId}`, ver: 0 }, process.env.JWT_SECRET as string, { algorithm: 'HS256' });
+      return request(app).get('/api/reports').set('Authorization', `Bearer ${token}`).set('X-Forwarded-For', '198.51.100.7');
+    };
+    const { generalMax, protectedMax } = getCurrentConfig();
+
+    for (let i = 0; i < generalMax; i++) {
+      mockQuery.mockClear();
+      const underLimit = await get(firstUserId + i);
+      expect(underLimit.status).toBe(200);
+      // The protected limiter answers last: its headers show an untouched per-user bucket
+      expect(underLimit.headers['ratelimit-remaining']).toBe(String(protectedMax - 1));
+    }
+    // The last request under the general limit reached the protected limiter's key generator
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT token_version FROM users'),
+      [firstUserId + generalMax - 1],
+    );
+
+    mockQuery.mockClear();
+    const res = await get(firstUserId + generalMax);
+    expect(res.status).toBe(429);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
