@@ -137,6 +137,15 @@ describe('UserService', () => {
       ).rejects.toThrow('Username must be alphanumeric and 3-15 characters long');
     });
 
+    it('rejects a username that is not a string', async () => {
+      const username = ['cinemalover42'] as unknown as string;
+      await expect(
+        service.createUser({ username, password: 'cinemalover42', roleId: 2 }, ACTING),
+      ).rejects.toThrow('Username must be alphanumeric and 3-15 characters long');
+      expect(validatePasswordStrength).not.toHaveBeenCalled();
+      expect(userQueries.createUser).not.toHaveBeenCalled();
+    });
+
     it('rejects a weak password', async () => {
       vi.mocked(validatePasswordStrength).mockReturnValue('Password must be at most 128 characters');
       await expect(
