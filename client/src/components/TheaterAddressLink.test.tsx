@@ -15,12 +15,21 @@ describe('TheaterAddressLink', () => {
   it('renders the full address as a link to the Google Maps place page', () => {
     render(<TheaterAddressLink theater={fullTheater} />);
 
-    const link = screen.getByRole('link', { name: 'Ouvrir Denfert dans Google Maps' });
-    expect(link).toHaveTextContent('24, Place Denfert-Rochereau, 75014 Paris 14e arrondissement');
+    const link = screen.getByRole('link', {
+      name: '24, Place Denfert-Rochereau, 75014 Paris 14e arrondissement (ouvre Google Maps dans un nouvel onglet)',
+    });
     expect(link).toHaveAttribute(
       'href',
       MAPS_SEARCH + encodeURIComponent('Denfert, 24, Place Denfert-Rochereau, 75014 Paris 14e arrondissement')
     );
+  });
+
+  it('keeps the visible address in the accessible name and announces the new tab', () => {
+    render(<TheaterAddressLink theater={fullTheater} />);
+
+    const link = screen.getByRole('link');
+    expect(link).not.toHaveAttribute('aria-label');
+    expect(screen.getByText('(ouvre Google Maps dans un nouvel onglet)')).toHaveClass('sr-only');
   });
 
   it('opens the link in a new tab without leaking the opener', () => {
@@ -47,8 +56,7 @@ describe('TheaterAddressLink', () => {
   it('renders the link when only the city is known', () => {
     render(<TheaterAddressLink theater={{ name: 'Denfert', city: 'Paris' }} />);
 
-    const link = screen.getByRole('link');
-    expect(link).toHaveTextContent(/^Paris$/);
+    const link = screen.getByRole('link', { name: 'Paris (ouvre Google Maps dans un nouvel onglet)' });
     expect(link).toHaveAttribute('href', MAPS_SEARCH + encodeURIComponent('Denfert, Paris'));
   });
 
