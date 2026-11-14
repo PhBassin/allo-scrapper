@@ -20,6 +20,9 @@ client/dist/
 .env-*
 *.bak
 
+# Compose files replaced by scripts/deploy-update.sh
+.compose-backup/
+
 # Database
 data/
 *.db
