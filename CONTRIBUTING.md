@@ -125,6 +125,7 @@ Before asking for review, check that:
 - [ ] The PR title follows Conventional Commits (it becomes the commit subject on `develop`)
 - [ ] Documentation is updated
 - [ ] Release PRs (`develop`→`main`) only: a version label is added (`patch`, `minor`, or `major`)
+- [ ] Release PRs only: the description lists the new or changed env vars and the compose changes since the last release, or says there are none (see [Releases and versioning](#releases-and-versioning))
 
 Fill in the PR template: summary, related issue, type of change and checklist.
 
@@ -162,6 +163,13 @@ The bump type comes from the release PR only:
 3. otherwise patch.
 
 Release PRs are titled `chore(release): …`, which matches no rule, so **always label them**. Labels on PRs into `develop` have no effect on the version.
+
+A release reaches production as a new image, which Watchtower swaps in while keeping each container's config. Compose changes don't follow on their own: the operator installs them with `scripts/deploy-update.sh <tag>` (see [`deploy/README.md`](./deploy/README.md#update-to-a-new-release)). So every release PR description lists, under a **Deployment changes** heading:
+
+- the env vars added, removed or whose default changed, and whether production must set them in `.env`;
+- the other changes to `docker-compose.yaml` and `deploy/docker-compose.prod.yml`.
+
+Find them with `git diff <last-tag>..develop -- docker-compose.yaml deploy/ .env.example`. Write "None" when the list is empty.
 
 ## Testing expectations
 

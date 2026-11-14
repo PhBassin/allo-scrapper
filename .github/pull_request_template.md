@@ -71,6 +71,11 @@ npm run test:coverage
 - [ ] All tests pass locally (`npm run test:run`)
 - [ ] Code coverage is maintained or improved
 
+### Release PRs only (`develop` → `main`)
+
+- [ ] A version label is added (`patch`, `minor` or `major`)
+- [ ] The description has a **Deployment changes** section listing the new or changed env vars and compose changes since the last release, or "None" (see [CONTRIBUTING.md → Releases and versioning](../CONTRIBUTING.md#releases-and-versioning))
+
 ### Code Quality
 
 - [ ] My code follows the existing code style
