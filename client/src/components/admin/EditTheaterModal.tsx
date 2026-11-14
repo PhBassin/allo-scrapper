@@ -45,8 +45,10 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
   } = useEditTheaterForm(theater, onSave, onClose);
 
   // Only a theater with a URL is scraped, so only then can a scrape replace
-  // what is typed here (see "Scraped-field ownership" in CONTEXT.md).
-  const isScraped = url.trim() !== '';
+  // what is typed here (see "Scraped-field ownership" in CONTEXT.md). The
+  // stored URL counts even when the field is cleared: the API keeps a URL
+  // sent empty. A URL typed for a theater that had none counts too.
+  const isScraped = !!theater.url?.trim() || url.trim() !== '';
   const scrapeHintId = isScraped ? 'edit-theater-scrape-hint' : undefined;
 
   return (

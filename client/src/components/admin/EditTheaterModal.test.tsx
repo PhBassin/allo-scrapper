@@ -40,6 +40,15 @@ describe('EditTheaterModal scrape hint', () => {
     expect(screen.getByLabelText(/^Address/)).not.toHaveAttribute('aria-describedby');
   });
 
+  it('keeps the hint when the stored URL is cleared, since the API keeps a URL sent empty', () => {
+    renderModal(theater);
+
+    fireEvent.change(screen.getByLabelText(/^Allocine URL/), { target: { value: '' } });
+
+    expect(screen.getByText(HINT)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Address/)).toHaveAttribute('aria-describedby', 'edit-theater-scrape-hint');
+  });
+
   it('shows the hint as soon as a URL is typed in', () => {
     renderModal({ ...theater, url: undefined });
 
