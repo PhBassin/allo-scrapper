@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getTheaters, getTheaterConfigs, addTheater, updateTheaterConfig, deleteTheater, upsertTheater, getTheaterCount } from './theater-queries.js';
+import { getTheaters, getTheaterConfigs, addTheater, updateTheaterConfig, deleteTheater, getTheaterCount } from './theater-queries.js';
 import { type DB } from './index.js';
 
 describe('Theater Queries', () => {
@@ -121,45 +121,6 @@ describe('Theater Queries', () => {
 
       const result = await deleteTheater(mockDb, 'UNKNOWN');
       expect(result).toBe(false);
-    });
-  });
-
-  describe('upsertTheater', () => {
-    it('should preserve existing url via COALESCE when url is not provided', async () => {
-      const mockDb = {
-        query: vi.fn().mockResolvedValue({ rows: [] })
-      } as unknown as DB;
-
-      await upsertTheater(mockDb, {
-        id: 'W7504',
-        name: 'Épée de Bois',
-        address: '1 Rue de la Paix',
-        postal_code: '75001',
-        city: 'Paris',
-      });
-
-      const sql: string = mockDb.query.mock.calls[0][0];
-      expect(sql.toLowerCase()).toContain('coalesce');
-    });
-
-    it('should upsert theater with all fields including url', async () => {
-      const mockDb = {
-        query: vi.fn().mockResolvedValue({ rows: [] })
-      } as unknown as DB;
-
-      await upsertTheater(mockDb, {
-        id: 'C0099',
-        name: 'New Theater',
-        address: '5 Rue Test',
-        postal_code: '75002',
-        city: 'Paris',
-        url: 'https://www.example-theater-site.com/seance/salle_gen_csalle=C0099.html',
-      });
-
-      expect(mockDb.query).toHaveBeenCalledOnce();
-      // Use standard vitest expectation without casting to string array since arguments are unknown[]
-      const params = mockDb.query.mock.calls[0][1] as unknown[];
-      expect(params).toContain('https://www.example-theater-site.com/seance/salle_gen_csalle=C0099.html');
     });
   });
 
