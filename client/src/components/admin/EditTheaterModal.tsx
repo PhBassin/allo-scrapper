@@ -45,7 +45,7 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
   } = useEditTheaterForm(theater, onSave, onClose);
 
   // Only a theater with a URL is scraped, so only then can a scrape replace
-  // what is typed here (see "Address ownership" in CONTEXT.md).
+  // what is typed here (see "Scraped-field ownership" in CONTEXT.md).
   const isScraped = url.trim() !== '';
   const scrapeHintId = isScraped ? 'edit-theater-scrape-hint' : undefined;
 

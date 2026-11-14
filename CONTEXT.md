@@ -14,9 +14,11 @@ A Theater has:
 - an **image** and a **booking URL**
 - exactly one **Source** it is scraped from (today, `'allocine'` for nearly all rows — see the Source concept below)
 
-**Address ownership:** the address, postal code and city come from the Source on every scrape (for AlloCiné, the schema.org JSON-LD `address` block of the theater page, with `data-theater.location` as a fallback — `scraper/src/scraper/theater-parser.ts`). The upsert in `scraper/src/db/theater-queries.ts` follows two rules per field:
+**Scraped-field ownership:** the name, address, postal code, city and image come from the Source on every scrape. For AlloCiné, the scraper reads the schema.org JSON-LD node whose `@type` is (or includes) `MovieTheater`, never another node such as an `Organization`. The name comes from `data-theater` first. The other fields fall back to `data-theater`, whose `location` only ever held `city` and `zip` (`scraper/src/scraper/theater-parser.ts`). Values are trimmed and HTML-decoded, so a whitespace-only value counts as empty. The upsert in `scraper/src/db/theater-queries.ts` follows two rules for each of these fields:
 - an empty scraped value never erases a stored one;
-- a non-empty scraped value always replaces the stored one, including a value an admin typed in. A manual edit only fills a gap the Source leaves empty.
+- a non-empty scraped value always replaces the stored one, including a value an admin typed in. A manual edit only lasts until the Source provides a value.
+
+A Theater without a URL is never scraped, so its manual values are never replaced. The city is stored as the Source gives it (for example `Paris 14e arrondissement`); it is not normalised.
 
 The number of screens in a venue is **not a domain attribute** of a Theater here. It was historically collected and displayed, but has been removed — see ADR 0002.
 
