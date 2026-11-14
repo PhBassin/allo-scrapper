@@ -216,3 +216,24 @@ describe('TheaterShowtimes — bouton Maintenant', () => {
     expect(screen.queryByText('14:00')).not.toBeInTheDocument(); // no Feb 18 showtimes shown
   });
 });
+
+// Detailed address-link behaviour is covered in TheaterAddressLink.test.tsx.
+describe('TheaterShowtimes — Google Maps address link', () => {
+  const showtimes = [{ id: 's1', date: '2026-02-18', time: '14:00', experiences: [] }];
+
+  it('renders the address of each theater card as a Google Maps link', () => {
+    const theaters = [{ id: 'C1', name: 'Denfert', postal_code: '75014', city: 'Paris', showtimes } as any];
+    renderWithRouter(<TheaterShowtimes theaters={theaters} movie={mockMovie} />);
+
+    const link = screen.getByRole('link', { description: /Google Maps/ });
+    expect(link).toHaveTextContent('75014 Paris');
+    expect(link.getAttribute('href')).toMatch(/^https:\/\/www\.google\.com\/maps\/search\//);
+  });
+
+  it('renders no address line when every address part is empty', () => {
+    const theaters = [{ id: 'C1', name: 'Denfert', address: '', postal_code: '', city: '', showtimes } as any];
+    renderWithRouter(<TheaterShowtimes theaters={theaters} movie={mockMovie} />);
+
+    expect(screen.queryByRole('link', { description: /Google Maps/ })).not.toBeInTheDocument();
+  });
+});

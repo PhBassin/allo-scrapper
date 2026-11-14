@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { TheaterWithShowtimes, Movie } from '../types';
 import ShowtimeList from './ShowtimeList';
+import TheaterAddressLink from './TheaterAddressLink.js';
 import { Link } from 'react-router-dom';
 import { getUniqueDates, formatDateLabel } from '../utils/date';
 
@@ -136,11 +137,7 @@ export default function TheaterShowtimes({ theaters, movie, initialDate, initial
                     {theater.name}
                   </Link>
                 </h3>
-                {theater.address && (
-                  <p className="text-sm text-gray-500">
-                    {theater.address}, {theater.city}
-                  </p>
-                )}
+                <TheaterAddressLink theater={theater} className="text-sm text-gray-500" />
               </div>
               <Link
                 to={`/theater/${theater.id}`}
