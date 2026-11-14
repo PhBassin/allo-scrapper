@@ -232,9 +232,20 @@ describe('parseTheaterPage - Edge Cases', () => {
   });
 });
 
-// Test Suite 4b: Address extraction (issue #1355)
-describe('parseTheaterPage - Address', () => {
-  it('reads the address from the JSON-LD block when data-theater has no location', () => {
+// Test Suite 4b: Theater metadata from JSON-LD and data-theater (issue #1355)
+describe('parseTheaterPage - Theater metadata', () => {
+  // The real former shape of the showtimes section's data-theater attribute
+  // (see the fixtures' git history): location has city/region/zip only.
+  const historicalDataTheater =
+    '{"internalId":"C0089","location":{"city":"Paris","region":"Île-de-France","zip":"75009"},"name":"Max Linder Panorama"}';
+
+  function page({ jsonLd = [] as string[], dataTheater }: { jsonLd?: string[]; dataTheater?: string }): string {
+    const scripts = jsonLd.map((block) => `<script type="application/ld+json">${block}</script>`).join('\n');
+    const attr = dataTheater === undefined ? '' : `data-theater='${dataTheater}'`;
+    return `<html><head>${scripts}</head><body><div id="theaterpage-showtimes-index-ui" ${attr}></div></body></html>`;
+  }
+
+  it('reads address and image from the JSON-LD block when data-theater has only id and name', () => {
     const html = readFileSync(join(__dirname, '../../fixtures/theater-jsonld-address-page.html'), 'utf-8');
     const result = parseTheaterPage(html, 'C0024');
 
@@ -242,71 +253,107 @@ describe('parseTheaterPage - Address', () => {
     expect(result.theater.address).toBe('24, Place Denfert-Rochereau');
     expect(result.theater.postal_code).toBe('75014');
     expect(result.theater.city).toBe('Paris 14e arrondissement');
+    expect(result.theater.image_url).toBe('https://fr.web.img6.acsta.net/r_234_234/theaterlogos/denfert.jpg');
   });
 
-  it('reads the address from the JSON-LD block of a real theater page', () => {
+  it('reads address and image from the JSON-LD block of a real theater page', () => {
     const html = readFileSync(join(__dirname, '../../fixtures/theater-c0089-page.html'), 'utf-8');
     const result = parseTheaterPage(html, 'C0089');
 
     expect(result.theater.address).toBe('24 Bd Poissonnière');
     expect(result.theater.postal_code).toBe('75009');
     expect(result.theater.city).toBe('Paris');
+    expect(result.theater.image_url).toBe('https://fr.web.img6.acsta.net/r_234_234/theaterlogos/2022/05/04/165638369.jpg');
   });
 
-  it('falls back to data-theater.location when the page has no JSON-LD block', () => {
-    const html = `
-      <html><body>
-        <div id="theaterpage-showtimes-index-ui"
-             data-theater='{"name":"Test Theater","location":{"address":"1 rue Test","postalCode":"75001","city":"Paris"}}'>
-        </div>
-      </body></html>
-    `;
-    const result = parseTheaterPage(html, 'FALLBACK');
+  it('falls back to data-theater location.city and location.zip when the page has no JSON-LD block', () => {
+    const result = parseTheaterPage(page({ dataTheater: historicalDataTheater }), 'C0089');
 
-    expect(result.theater.address).toBe('1 rue Test');
-    expect(result.theater.postal_code).toBe('75001');
+    expect(result.theater.name).toBe('Max Linder Panorama');
+    expect(result.theater.address).toBe('');
+    expect(result.theater.postal_code).toBe('75009');
     expect(result.theater.city).toBe('Paris');
   });
 
-  it('falls back to data-theater.location when the JSON-LD block is malformed', () => {
-    const html = `
-      <html><head><script type="application/ld+json">{not json</script></head><body>
-        <div id="theaterpage-showtimes-index-ui"
-             data-theater='{"name":"Test Theater","location":{"address":"1 rue Test","postalCode":"75001","city":"Paris"}}'>
-        </div>
-      </body></html>
-    `;
-    const result = parseTheaterPage(html, 'BADLD');
+  it('falls back to data-theater when the JSON-LD block is malformed', () => {
+    const result = parseTheaterPage(page({ jsonLd: ['{not json'], dataTheater: historicalDataTheater }), 'C0089');
 
-    expect(result.theater.address).toBe('1 rue Test');
-    expect(result.theater.postal_code).toBe('75001');
+    expect(result.theater.postal_code).toBe('75009');
     expect(result.theater.city).toBe('Paris');
   });
 
-  it('decodes HTML entities in JSON-LD address values', () => {
-    const html = `
-      <html><head><script type="application/ld+json">
-        {"@type":"MovieTheater","address":{"streetAddress":"2 rue de l&#039;Église","postalCode":"69001","addressLocality":"Lyon"}}
-      </script></head><body>
-        <div id="theaterpage-showtimes-index-ui" data-theater='{"id":"X","name":"X"}'></div>
-      </body></html>
-    `;
-    const result = parseTheaterPage(html, 'ENT');
+  it('trims and decodes the data-theater fallback values', () => {
+    const dataTheater = '{"name":"  Le Ch&#039;ti  ","location":{"city":"  L&#039;Isle-Adam ","zip":"   "}}';
+    const result = parseTheaterPage(page({ dataTheater }), 'TRIM');
+
+    expect(result.theater.name).toBe("Le Ch'ti");
+    expect(result.theater.city).toBe("L'Isle-Adam");
+    expect(result.theater.postal_code).toBe('');
+  });
+
+  it('decodes HTML entities in JSON-LD values', () => {
+    const jsonLd = '{"@type":"MovieTheater","address":{"streetAddress":"2 rue de l&#039;Église","postalCode":"69001","addressLocality":"Lyon"}}';
+    const result = parseTheaterPage(page({ jsonLd: [jsonLd], dataTheater: '{"id":"X","name":"X"}' }), 'ENT');
 
     expect(result.theater.address).toBe("2 rue de l'Église");
   });
 
-  it('returns empty address fields when neither source has them', () => {
-    const html = `
-      <html><body>
-        <div id="theaterpage-showtimes-index-ui" data-theater='{"id":"X","name":"X"}'></div>
-      </body></html>
-    `;
-    const result = parseTheaterPage(html, 'NONE');
+  it('ignores JSON-LD nodes that are not a MovieTheater, even when they come first', () => {
+    const organization = '{"@type":"Organization","name":"AlloCiné","address":{"streetAddress":"Siège","postalCode":"92100","addressLocality":"Boulogne"}}';
+    const theater = '{"@type":"MovieTheater","image":"https://img/t.jpg","address":{"streetAddress":"1 rue A","postalCode":"75001","addressLocality":"Paris"}}';
+    const result = parseTheaterPage(page({ jsonLd: [organization, theater] }), 'TYPE');
+
+    expect(result.theater.address).toBe('1 rue A');
+    expect(result.theater.postal_code).toBe('75001');
+    expect(result.theater.image_url).toBe('https://img/t.jpg');
+  });
+
+  it('finds the MovieTheater node inside an @graph and with an array @type', () => {
+    const graph = JSON.stringify({
+      '@context': 'http://schema.org',
+      '@graph': [
+        { '@type': 'WebSite', address: { streetAddress: 'wrong' } },
+        { '@type': ['LocalBusiness', 'MovieTheater'], address: { streetAddress: '3 rue C', postalCode: '13001', addressLocality: 'Marseille' } },
+      ],
+    });
+    const result = parseTheaterPage(page({ jsonLd: [graph] }), 'GRAPH');
+
+    expect(result.theater.address).toBe('3 rue C');
+    expect(result.theater.city).toBe('Marseille');
+  });
+
+  it('does not take an address from a page without a MovieTheater node', () => {
+    const organization = '{"@type":"Organization","address":{"streetAddress":"Siège","postalCode":"92100","addressLocality":"Boulogne"}}';
+    const result = parseTheaterPage(page({ jsonLd: [organization], dataTheater: historicalDataTheater }), 'NOTYPE');
+
+    expect(result.theater.address).toBe('');
+    expect(result.theater.postal_code).toBe('75009');
+    expect(result.theater.city).toBe('Paris');
+  });
+
+  it('reads the name from JSON-LD when data-theater is missing or malformed', () => {
+    const jsonLd = '{"@type":"MovieTheater","name":"Le Champo"}';
+
+    expect(parseTheaterPage(page({ jsonLd: [jsonLd] }), 'A').theater.name).toBe('Le Champo');
+    expect(parseTheaterPage(page({ jsonLd: [jsonLd], dataTheater: '{broken' }), 'B').theater.name).toBe('Le Champo');
+  });
+
+  it('reads an ImageObject image from JSON-LD and falls back to data-theater.image', () => {
+    const imageObject = '{"@type":"MovieTheater","image":{"@type":"ImageObject","url":"https://img/obj.jpg"}}';
+    expect(parseTheaterPage(page({ jsonLd: [imageObject] }), 'IMG').theater.image_url).toBe('https://img/obj.jpg');
+
+    const noImage = '{"@type":"MovieTheater","name":"X"}';
+    const result = parseTheaterPage(page({ jsonLd: [noImage], dataTheater: '{"name":"X","image":"https://img/dt.jpg"}' }), 'IMG2');
+    expect(result.theater.image_url).toBe('https://img/dt.jpg');
+  });
+
+  it('returns empty address fields and no image when neither source has them', () => {
+    const result = parseTheaterPage(page({ dataTheater: '{"id":"X","name":"X"}' }), 'NONE');
 
     expect(result.theater.address).toBe('');
     expect(result.theater.postal_code).toBe('');
     expect(result.theater.city).toBe('');
+    expect(result.theater.image_url).toBeUndefined();
   });
 });
 
