@@ -480,6 +480,14 @@ describe('App - CSRF double-submit check', () => {
     expect(res.status).toBe(403);
   });
 
+  // Two empty strings have the same length and compare equal in constant time,
+  // so only the explicit empty check stops this pair.
+  it('rejects an empty cookie token echoed by an empty header', async () => {
+    const res = await post('', '');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('CSRF token missing or invalid.');
+  });
+
   it('rejects same-length tokens that differ', async () => {
     const res = await post('abc123token', 'abc123tokeX');
     expect(res.status).toBe(403);
