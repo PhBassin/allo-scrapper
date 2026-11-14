@@ -216,3 +216,50 @@ describe('TheaterShowtimes — bouton Maintenant', () => {
     expect(screen.queryByText('14:00')).not.toBeInTheDocument(); // no Feb 18 showtimes shown
   });
 });
+
+describe('TheaterShowtimes — Google Maps address link', () => {
+  const MAPS_SEARCH = 'https://www.google.com/maps/search/?api=1&query=';
+  const showtimes = [{ id: 's1', date: '2026-02-18', time: '14:00', experiences: [] }];
+
+  it('renders the full address of each theater as a Google Maps link', () => {
+    const theaters = [
+      {
+        id: 'C1',
+        name: 'Denfert',
+        address: '24, Place Denfert-Rochereau',
+        postal_code: '75014',
+        city: 'Paris 14e arrondissement',
+        showtimes,
+      } as any,
+    ];
+    renderWithRouter(<TheaterShowtimes theaters={theaters} movie={mockMovie} />);
+
+    const link = screen.getByRole('link', { name: 'Ouvrir Denfert dans Google Maps' });
+    expect(link).toHaveTextContent('24, Place Denfert-Rochereau, 75014 Paris 14e arrondissement');
+    expect(link).toHaveAttribute(
+      'href',
+      MAPS_SEARCH + encodeURIComponent('Denfert, 24, Place Denfert-Rochereau, 75014 Paris 14e arrondissement')
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link).toHaveClass('hover:underline');
+    expect(link.closest('p')).toHaveTextContent('📍 24, Place Denfert-Rochereau, 75014 Paris 14e arrondissement');
+  });
+
+  it('renders the link when only the city is known', () => {
+    const theaters = [{ id: 'C1', name: 'Denfert', city: 'Paris', showtimes } as any];
+    renderWithRouter(<TheaterShowtimes theaters={theaters} movie={mockMovie} />);
+
+    const link = screen.getByRole('link', { name: 'Ouvrir Denfert dans Google Maps' });
+    expect(link).toHaveTextContent(/^Paris$/);
+    expect(link).toHaveAttribute('href', MAPS_SEARCH + encodeURIComponent('Denfert, Paris'));
+  });
+
+  it('renders no address line when every address part is empty', () => {
+    const theaters = [{ id: 'C1', name: 'Denfert', address: '', postal_code: '', city: '', showtimes } as any];
+    renderWithRouter(<TheaterShowtimes theaters={theaters} movie={mockMovie} />);
+
+    expect(screen.queryByRole('link', { name: /Google Maps/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/📍/)).not.toBeInTheDocument();
+  });
+});
