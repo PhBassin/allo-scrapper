@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import type { TheaterPageData, Theater, MovieShowtimeData, Movie, Showtime } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
+import { decodeHtmlEntities } from '../utils/html-decode.js';
 
 // Parse the theater page from the source website
 export function parseTheaterPage(html: string, theaterId: string): TheaterPageData {
@@ -11,38 +12,84 @@ export function parseTheaterPage(html: string, theaterId: string): TheaterPageDa
   const selectedDate = theaterSection.attr('data-selected-date') || '';
 
   return {
-    theater: parseTheaterSection(theaterDataStr, theaterId),
+    theater: parseTheaterSection(theaterDataStr, theaterId, parseJsonLdAddress($)),
     movies: parseMoviesFromSection($, theaterSection, theaterId, selectedDate),
     dates: parseDatesAttribute(datesDataStr),
     selected_date: selectedDate,
   };
 }
 
-function parseTheaterSection(theaterDataStr: string | undefined, theaterId: string): Theater {
-  const fallback: Theater = {
+interface TheaterAddress {
+  address: string;
+  postal_code: string;
+  city: string;
+}
+
+function parseTheaterSection(
+  theaterDataStr: string | undefined,
+  theaterId: string,
+  jsonLdAddress: Partial<TheaterAddress>
+): Theater {
+  const data = parseTheaterDataAttribute(theaterDataStr);
+  const location = data?.location;
+
+  // AlloCiné dropped `location` from data-theater; the schema.org JSON-LD
+  // block is now the source of the address. data-theater stays as a fallback.
+  return {
     id: theaterId,
-    name: '',
-    address: '',
-    postal_code: '',
-    city: '',
+    name: data?.name || '',
+    address: jsonLdAddress.address || location?.address || '',
+    postal_code: jsonLdAddress.postal_code || location?.postalCode || '',
+    city: jsonLdAddress.city || location?.city || '',
+    image_url: data?.image,
   };
+}
 
-  if (!theaterDataStr) return fallback;
-
+function parseTheaterDataAttribute(theaterDataStr: string | undefined): any {
+  if (!theaterDataStr) return undefined;
   try {
-    const data = JSON.parse(theaterDataStr);
-    return {
-      id: theaterId,
-      name: data.name || '',
-      address: data.location?.address || '',
-      postal_code: data.location?.postalCode || '',
-      city: data.location?.city || '',
-      image_url: data.image,
-    };
-  } catch (e) {
+    return JSON.parse(theaterDataStr);
+  } catch {
     logger.warn('Could not parse theater data JSON');
-    return fallback;
+    return undefined;
   }
+}
+
+// Read the PostalAddress of the schema.org MovieTheater from the page's
+// <script type="application/ld+json"> blocks.
+function parseJsonLdAddress($: cheerio.CheerioAPI): Partial<TheaterAddress> {
+  for (const script of $('script[type="application/ld+json"]').toArray()) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse($(script).text());
+    } catch {
+      logger.warn('Could not parse JSON-LD block');
+      continue;
+    }
+
+    for (const node of flattenJsonLd(parsed)) {
+      const address = node.address;
+      if (!address || typeof address !== 'object') continue;
+      return {
+        address: jsonLdString(address.streetAddress),
+        postal_code: jsonLdString(address.postalCode),
+        city: jsonLdString(address.addressLocality),
+      };
+    }
+  }
+  return {};
+}
+
+function flattenJsonLd(value: unknown): any[] {
+  if (Array.isArray(value)) return value.flatMap(flattenJsonLd);
+  if (!value || typeof value !== 'object') return [];
+  const node = value as Record<string, unknown>;
+  return [node, ...flattenJsonLd(node['@graph'])];
+}
+
+function jsonLdString(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return (decodeHtmlEntities(value) ?? '').trim();
 }
 
 function parseDatesAttribute(datesDataStr: string | undefined): string[] {

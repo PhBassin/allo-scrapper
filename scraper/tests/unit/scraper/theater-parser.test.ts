@@ -232,6 +232,84 @@ describe('parseTheaterPage - Edge Cases', () => {
   });
 });
 
+// Test Suite 4b: Address extraction (issue #1355)
+describe('parseTheaterPage - Address', () => {
+  it('reads the address from the JSON-LD block when data-theater has no location', () => {
+    const html = readFileSync(join(__dirname, '../../fixtures/theater-jsonld-address-page.html'), 'utf-8');
+    const result = parseTheaterPage(html, 'C0024');
+
+    expect(result.theater.name).toBe('Denfert');
+    expect(result.theater.address).toBe('24, Place Denfert-Rochereau');
+    expect(result.theater.postal_code).toBe('75014');
+    expect(result.theater.city).toBe('Paris 14e arrondissement');
+  });
+
+  it('reads the address from the JSON-LD block of a real theater page', () => {
+    const html = readFileSync(join(__dirname, '../../fixtures/theater-c0089-page.html'), 'utf-8');
+    const result = parseTheaterPage(html, 'C0089');
+
+    expect(result.theater.address).toBe('24 Bd Poissonnière');
+    expect(result.theater.postal_code).toBe('75009');
+    expect(result.theater.city).toBe('Paris');
+  });
+
+  it('falls back to data-theater.location when the page has no JSON-LD block', () => {
+    const html = `
+      <html><body>
+        <div id="theaterpage-showtimes-index-ui"
+             data-theater='{"name":"Test Theater","location":{"address":"1 rue Test","postalCode":"75001","city":"Paris"}}'>
+        </div>
+      </body></html>
+    `;
+    const result = parseTheaterPage(html, 'FALLBACK');
+
+    expect(result.theater.address).toBe('1 rue Test');
+    expect(result.theater.postal_code).toBe('75001');
+    expect(result.theater.city).toBe('Paris');
+  });
+
+  it('falls back to data-theater.location when the JSON-LD block is malformed', () => {
+    const html = `
+      <html><head><script type="application/ld+json">{not json</script></head><body>
+        <div id="theaterpage-showtimes-index-ui"
+             data-theater='{"name":"Test Theater","location":{"address":"1 rue Test","postalCode":"75001","city":"Paris"}}'>
+        </div>
+      </body></html>
+    `;
+    const result = parseTheaterPage(html, 'BADLD');
+
+    expect(result.theater.address).toBe('1 rue Test');
+    expect(result.theater.postal_code).toBe('75001');
+    expect(result.theater.city).toBe('Paris');
+  });
+
+  it('decodes HTML entities in JSON-LD address values', () => {
+    const html = `
+      <html><head><script type="application/ld+json">
+        {"@type":"MovieTheater","address":{"streetAddress":"2 rue de l&#039;Église","postalCode":"69001","addressLocality":"Lyon"}}
+      </script></head><body>
+        <div id="theaterpage-showtimes-index-ui" data-theater='{"id":"X","name":"X"}'></div>
+      </body></html>
+    `;
+    const result = parseTheaterPage(html, 'ENT');
+
+    expect(result.theater.address).toBe("2 rue de l'Église");
+  });
+
+  it('returns empty address fields when neither source has them', () => {
+    const html = `
+      <html><body>
+        <div id="theaterpage-showtimes-index-ui" data-theater='{"id":"X","name":"X"}'></div>
+      </body></html>
+    `;
+    const result = parseTheaterPage(html, 'NONE');
+
+    expect(result.theater.address).toBe('');
+    expect(result.theater.postal_code).toBe('');
+    expect(result.theater.city).toBe('');
+  });
+});
+
 // Test Suite 5: Data Validation
 describe('parseTheaterPage - Data Validation', () => {
   let c0089Html: string;
