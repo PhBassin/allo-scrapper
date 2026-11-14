@@ -14,6 +14,10 @@ A Theater has:
 - an **image** and a **booking URL**
 - exactly one **Source** it is scraped from (today, `'allocine'` for nearly all rows — see the Source concept below)
 
+**Address ownership:** the address, postal code and city come from the Source on every scrape (for AlloCiné, the schema.org JSON-LD `address` block of the theater page, with `data-theater.location` as a fallback — `scraper/src/scraper/theater-parser.ts`). The upsert in `scraper/src/db/theater-queries.ts` follows two rules per field:
+- an empty scraped value never erases a stored one;
+- a non-empty scraped value always replaces the stored one, including a value an admin typed in. A manual edit only fills a gap the Source leaves empty.
+
 The number of screens in a venue is **not a domain attribute** of a Theater here. It was historically collected and displayed, but has been removed — see ADR 0002.
 
 **What a Theater is *not*:**
