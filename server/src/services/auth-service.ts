@@ -121,7 +121,7 @@ export class AuthService {
       throw new ValidationError('Current password and new password are required');
     }
 
-    const passwordError = validatePasswordStrength(newPassword);
+    const passwordError = validatePasswordStrength(newPassword, currentUsername);
     if (passwordError) {
       throw new ValidationError(passwordError);
     }

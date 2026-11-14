@@ -1,20 +1,81 @@
-const PASSWORD_MIN_LENGTH = 8;
+import { readFileSync } from 'node:fs';
 
-export function validatePasswordStrength(password: string): string | null {
-  if (password.length < PASSWORD_MIN_LENGTH) {
+export const PASSWORD_MIN_LENGTH = 12;
+export const PASSWORD_MAX_LENGTH = 128;
+
+/**
+ * The common-password blocklist, read once when this module loads. The file
+ * sits next to this module: `src/utils/` under tsx and vitest, `dist/utils/`
+ * in a build (the server `build` script copies it there). Loading eagerly
+ * makes a build that lost the file fail at startup instead of silently
+ * accepting every password.
+ */
+const COMMON_PASSWORDS_FILE = new URL('./common-passwords.txt', import.meta.url);
+
+function loadCommonPasswords(file: URL): ReadonlySet<string> {
+  const entries = new Set<string>();
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const entry = normalizeForComparison(line);
+    if (entry && !entry.startsWith('#')) {
+      entries.add(entry);
+    }
+  }
+  return entries;
+}
+
+/** Trim and lowercase, so comparisons ignore case and surrounding spaces. */
+function normalizeForComparison(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+const COMMON_PASSWORDS = loadCommonPasswords(COMMON_PASSWORDS_FILE);
+
+/** True when the password is on the embedded common-password blocklist. */
+export function isCommonPassword(password: string): boolean {
+  return COMMON_PASSWORDS.has(normalizeForComparison(password));
+}
+
+function isSameAsUsername(password: string, username: unknown): boolean {
+  if (typeof username !== 'string') {
+    return false;
+  }
+  const normalizedUsername = normalizeForComparison(username);
+  return normalizedUsername !== '' && normalizeForComparison(password) === normalizedUsername;
+}
+
+/**
+ * Check a password that is being set (account creation, self-service change,
+ * admin reset). Never called on login: existing hashes are not re-checked.
+ *
+ * Follows NIST SP 800-63B: length, a blocklist of common passwords and a
+ * ban on reusing the username (when given), no composition rules. Length
+ * counts Unicode code points, so a passphrase in any script gets the same
+ * budget. The minimum ignores surrounding spaces (so a run of spaces is not
+ * a password); the maximum counts the raw value and only bounds what can be
+ * set (verification has its own, wider bound: `MAX_VERIFIABLE_PASSWORD_LENGTH`
+ * in `password.ts`). The blocklist and username comparisons ignore case and
+ * surrounding spaces.
+ *
+ * Takes `unknown` because callers pass request-body values: anything that is
+ * not a string is refused here instead of throwing further down.
+ *
+ * Returns a user-facing message, or null when the password is acceptable.
+ */
+export function validatePasswordStrength(password: unknown, username?: string): string | null {
+  if (typeof password !== 'string') {
+    return 'Password must be a string';
+  }
+  if ([...password.trim()].length < PASSWORD_MIN_LENGTH) {
     return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
   }
-  if (!/[A-Z]/.test(password)) {
-    return 'Password must contain at least one uppercase letter';
+  if ([...password].length > PASSWORD_MAX_LENGTH) {
+    return `Password must be at most ${PASSWORD_MAX_LENGTH} characters`;
   }
-  if (!/[a-z]/.test(password)) {
-    return 'Password must contain at least one lowercase letter';
+  if (isCommonPassword(password)) {
+    return 'This password is too common, choose another one';
   }
-  if (!/[0-9]/.test(password)) {
-    return 'Password must contain at least one digit';
-  }
-  if (!/[^A-Za-z0-9]/.test(password)) {
-    return 'Password must contain at least one special character';
+  if (isSameAsUsername(password, username)) {
+    return 'Password must not be the same as the username';
   }
   return null;
 }

@@ -1,7 +1,16 @@
 import React from 'react';
+import {
+  isSameAsUsername,
+  meetsMinimumLength,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  passwordLength,
+} from '../utils/userValidators.js';
 
 interface PasswordRequirementsProps {
   password: string;
+  /** When given, adds the "different from the username" requirement. */
+  username?: string;
 }
 
 interface Requirement {
@@ -10,11 +19,8 @@ interface Requirement {
 }
 
 const REQUIREMENTS: Requirement[] = [
-  { test: (p) => p.length >= 8, label: 'At least 8 characters' },
-  { test: (p) => /[A-Z]/.test(p), label: 'One uppercase letter' },
-  { test: (p) => /[a-z]/.test(p), label: 'One lowercase letter' },
-  { test: (p) => /[0-9]/.test(p), label: 'One digit' },
-  { test: (p) => /[^A-Za-z0-9]/.test(p), label: 'One special character' },
+  { test: meetsMinimumLength, label: `At least ${PASSWORD_MIN_LENGTH} characters` },
+  { test: (p) => passwordLength(p) <= PASSWORD_MAX_LENGTH, label: `At most ${PASSWORD_MAX_LENGTH} characters` },
 ];
 
 const CheckIcon: React.FC = () => (
@@ -29,13 +35,17 @@ const CrossIcon: React.FC = () => (
   </svg>
 );
 
-const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ password }) => {
+const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ password, username }) => {
+  const requirements = username
+    ? [...REQUIREMENTS, { test: (p: string) => !isSameAsUsername(p, username), label: 'Different from the username' }]
+    : REQUIREMENTS;
   return (
     <div className="mt-2 text-sm">
       <p className="text-gray-600 mb-1 font-medium">Constraints:</p>
       <ul className="space-y-1">
-        {REQUIREMENTS.map((req, index) => {
-          const isMet = req.test(password);
+        {requirements.map((req, index) => {
+          // An empty field meets nothing, so no item turns green before typing.
+          const isMet = password !== '' && req.test(password);
           return (
             <li key={index} className="flex items-center gap-2">
               {isMet ? <CheckIcon /> : <CrossIcon />}
@@ -46,6 +56,9 @@ const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ password })
           );
         })}
       </ul>
+      <p className="mt-1 text-gray-500">
+        Passphrases are welcome. Common passwords and the username are refused.
+      </p>
     </div>
   );
 };

@@ -177,10 +177,10 @@ describe('Users API Client', () => {
 
       vi.mocked(apiClient.post).mockResolvedValueOnce({
         success: false,
-        error: 'Password must be at least 8 characters',
+        error: 'Password must be at least 12 characters',
       });
 
-      await expect(createUser(newUser)).rejects.toThrow('Password must be at least 8 characters');
+      await expect(createUser(newUser)).rejects.toThrow('Password must be at least 12 characters');
     });
   });
 
