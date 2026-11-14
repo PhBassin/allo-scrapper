@@ -15,6 +15,7 @@ Reference documentation for deployment and setup scripts.
 
 - [Overview](#overview)
 - [install-hooks.sh](#install-hookssh)
+- [deploy-update.sh](#deploy-updatesh)
 - [pull-and-deploy.sh](#pull-and-deploysh)
 - [integration-test.sh](#integration-testsh)
 
@@ -27,6 +28,7 @@ Allo-Scrapper provides **deployment and setup scripts** for various tasks:
 | Script | Purpose | Best For |
 |--------|---------|----------|
 | `install-hooks.sh` | Install git pre-push hooks | Initial setup, development |
+| `deploy-update.sh` | Install a release's compose files, recreate changed services | Every production release |
 | `pull-and-deploy.sh` | Pull and restart Docker containers | Production deployments |
 | `integration-test.sh` | Run integration tests | CI/CD, testing |
 
@@ -132,6 +134,21 @@ rm .git/hooks/pre-push
 
 # Verify
 ls -la .git/hooks/
+```
+
+---
+
+## deploy-update.sh
+
+**Location**: `scripts/deploy-update.sh`
+
+**Purpose**: Bring a deployment's `docker-compose.yaml` (and `deploy/docker-compose.prod.yml`, if used) to a release tag, then recreate only the services whose config changed.
+
+Pulling an image, by hand or with Watchtower, keeps each container's existing config. A new env var or any other compose change in a release therefore needs this script. See [Scripts reference → deploy-update.sh](./README.md#deploy-updatesh) for the options and steps, and the script header for details.
+
+```bash
+./scripts/deploy-update.sh --dry-run v4.10.0
+./scripts/deploy-update.sh v4.10.0
 ```
 
 ---
