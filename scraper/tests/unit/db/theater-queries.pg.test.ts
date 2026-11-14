@@ -2,9 +2,10 @@
  * Behaviour tests for upsertTheater against a real PostgreSQL.
  *
  * They run only when SCRAPER_TEST_DATABASE_URL points at a database the test
- * may write to, for example:
+ * may write to. CI sets it and starts a postgres service (.github/workflows/ci.yml).
+ * Locally, for example:
  *
- *   docker run -d --rm --name pg-test -e POSTGRES_PASSWORD=x -p 55432:5432 postgres:16-alpine
+ *   docker run -d --rm --name pg-test -e POSTGRES_PASSWORD=x -p 55432:5432 postgres:15-alpine
  *   SCRAPER_TEST_DATABASE_URL=postgres://postgres:x@localhost:55432/postgres \
  *     npx vitest run tests/unit/db/theater-queries.pg.test.ts
  *
