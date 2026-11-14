@@ -26,32 +26,6 @@ export async function getTheaters(db: DB): Promise<Theater[]> {
   }));
 }
 
-// Insertion ou mise à jour d'un theater
-export async function upsertTheater(db: DB, theater: Theater): Promise<void> {
-  await db.query(
-    `
-      INSERT INTO theaters (id, name, address, postal_code, city, image_url, url)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      ON CONFLICT(id) DO UPDATE SET
-        name = $2,
-        address = $3,
-        postal_code = $4,
-        city = $5,
-        image_url = $6,
-        url = COALESCE($7, theaters.url)
-    `,
-    [
-      theater.id,
-      theater.name,
-      theater.address ?? null,
-      theater.postal_code ?? null,
-      theater.city ?? null,
-      theater.image_url ?? null,
-      theater.url ?? null,
-    ]
-  );
-}
-
 // Récupérer les theaters configurés pour le scraping (ceux avec une URL)
 export async function getTheaterConfigs(db: DB): Promise<Array<{ id: string; name: string; url: string }>> {
   const result = await db.query<{ id: string; name: string; url: string }>(
