@@ -1,4 +1,5 @@
 import type { Showtime, Movie, Theater } from '../types';
+import { formatTheaterAddress, formatTheaterLocation } from './theaterAddress.js';
 
 /**
  * Convert an ISO 8601 datetime string (local, no timezone designator) to
@@ -28,10 +29,7 @@ function addMinutesToIso(isoString: string, minutes: number): string {
 }
 
 function buildLocation(theater: Theater): string {
-  if (theater.address) {
-    return `${theater.name}, ${theater.address}`;
-  }
-  return theater.name;
+  return formatTheaterLocation(theater.name, formatTheaterAddress(theater));
 }
 
 function buildDetails(showtime: Showtime): string {
