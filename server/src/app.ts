@@ -40,6 +40,22 @@ const __dirname = path.dirname(__filename);
 const serverRegistry = new Registry();
 collectDefaultMetrics({ register: serverRegistry, prefix: 'ics_web_' });
 
+/**
+ * Double-submit check: true when the CSRF cookie and header hold the same
+ * non-empty string, compared in constant time.
+ *
+ * timingSafeEqual throws on different lengths, so non-strings (e.g. a cookie
+ * that cookie-parser decoded from JSON) and length mismatches are rejected
+ * first. Empty strings are rejected too: two of them would compare equal.
+ */
+function csrfTokensEqual(cookieToken: unknown, headerToken: unknown): boolean {
+  if (typeof cookieToken !== 'string' || typeof headerToken !== 'string') return false;
+  if (!cookieToken || !headerToken) return false;
+  const cookieBuf = Buffer.from(cookieToken);
+  const headerBuf = Buffer.from(headerToken);
+  return cookieBuf.length === headerBuf.length && timingSafeEqual(cookieBuf, headerBuf);
+}
+
 export function createApp() {
   const app = express();
 
@@ -79,9 +95,12 @@ export function createApp() {
   app.use(express.urlencoded({ extended: false }));
   app.use(cookieParser());
 
-  // CSRF protection: double-submit cookie pattern (inline for CodeQL compliance)
-  // CodeQL requires CSRF middleware to be inline (not in separate module) to
-  // satisfy js/missing-csrf-protection when cookieParser is present.
+  // CSRF protection: double-submit cookie pattern, inline for CodeQL.
+  // CodeQL's js/missing-token-validation flags cookieParser() unless a
+  // middleware passes req.cookies.csrf_token, unchanged, to an equality test
+  // or to a call whose name contains check/verify/valid/equal. So hand the raw
+  // values to csrfTokensEqual: wrapping the cookie first (Buffer.from, a
+  // variable built from it) hides the check and brings the alert back.
   app.use((req, res, next) => {
     // Skip CSRF for test environment, login, and refresh endpoints
     if (process.env.NODE_ENV === 'test') return next();
@@ -90,18 +109,7 @@ export function createApp() {
     if (csrfPath === '/api/auth/login' || csrfPath === '/api/auth/refresh' || csrfPath === '/api/auth/logout') return next();
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
     if (!csrfPath.startsWith('/api/')) return next();
-    const cookieToken: unknown = req.cookies?.csrf_token;
-    const headerToken: unknown = req.headers['x-csrf-token'];
-    // Constant-time comparison. timingSafeEqual throws on different lengths,
-    // so non-strings (e.g. a cookie that cookie-parser decoded from JSON) and
-    // length mismatches are rejected first.
-    let csrfValid = false;
-    if (typeof cookieToken === 'string' && typeof headerToken === 'string' && cookieToken && headerToken) {
-      const cookieBuf = Buffer.from(cookieToken);
-      const headerBuf = Buffer.from(headerToken);
-      csrfValid = cookieBuf.length === headerBuf.length && timingSafeEqual(cookieBuf, headerBuf);
-    }
-    if (!csrfValid) {
+    if (!csrfTokensEqual(req.cookies?.csrf_token, req.headers['x-csrf-token'])) {
       return res.status(403).json({
         success: false,
         error: 'CSRF token missing or invalid.',
