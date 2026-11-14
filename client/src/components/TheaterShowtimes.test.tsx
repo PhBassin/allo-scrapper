@@ -225,7 +225,7 @@ describe('TheaterShowtimes — Google Maps address link', () => {
     const theaters = [{ id: 'C1', name: 'Denfert', postal_code: '75014', city: 'Paris', showtimes } as any];
     renderWithRouter(<TheaterShowtimes theaters={theaters} movie={mockMovie} />);
 
-    const link = screen.getByRole('link', { name: /Google Maps/ });
+    const link = screen.getByRole('link', { description: /Google Maps/ });
     expect(link).toHaveTextContent('75014 Paris');
     expect(link.getAttribute('href')).toMatch(/^https:\/\/www\.google\.com\/maps\/search\//);
   });
@@ -234,6 +234,6 @@ describe('TheaterShowtimes — Google Maps address link', () => {
     const theaters = [{ id: 'C1', name: 'Denfert', address: '', postal_code: '', city: '', showtimes } as any];
     renderWithRouter(<TheaterShowtimes theaters={theaters} movie={mockMovie} />);
 
-    expect(screen.queryByRole('link', { name: /Google Maps/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { description: /Google Maps/ })).not.toBeInTheDocument();
   });
 });

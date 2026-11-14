@@ -16,7 +16,7 @@ describe('TheaterAddressLink', () => {
     render(<TheaterAddressLink theater={fullTheater} />);
 
     const link = screen.getByRole('link', {
-      name: '24, Place Denfert-Rochereau, 75014 Paris 14e arrondissement (ouvre Google Maps dans un nouvel onglet)',
+      name: '24, Place Denfert-Rochereau, 75014 Paris 14e arrondissement',
     });
     expect(link).toHaveAttribute(
       'href',
@@ -24,12 +24,39 @@ describe('TheaterAddressLink', () => {
     );
   });
 
-  it('keeps the visible address in the accessible name and announces the new tab', () => {
+  it('keeps the visible address in the accessible name and announces the new tab as its description', () => {
     render(<TheaterAddressLink theater={fullTheater} />);
 
     const link = screen.getByRole('link');
     expect(link).not.toHaveAttribute('aria-label');
-    expect(screen.getByText('(ouvre Google Maps dans un nouvel onglet)')).toHaveClass('sr-only');
+    expect(link).toHaveAccessibleName('24, Place Denfert-Rochereau, 75014 Paris 14e arrondissement');
+    expect(link).toHaveAccessibleDescription('ouvre Google Maps dans un nouvel onglet');
+  });
+
+  it('keeps the new-tab hint out of the copied text', () => {
+    render(<TheaterAddressLink theater={fullTheater} />);
+
+    const link = screen.getByRole('link');
+    // The link text holds the address only, so selecting it copies nothing else.
+    expect(link.textContent).toBe('24, Place Denfert-Rochereau, 75014 Paris 14e arrondissement');
+    // The hint lives outside the link and is not rendered (display: none is never copied).
+    const hint = document.getElementById(link.getAttribute('aria-describedby') ?? '');
+    expect(hint).toHaveTextContent('ouvre Google Maps dans un nouvel onglet');
+    expect(hint).toHaveAttribute('hidden');
+    expect(link).not.toContainElement(hint);
+  });
+
+  it('gives each rendered link its own hint id', () => {
+    render(
+      <>
+        <TheaterAddressLink theater={fullTheater} />
+        <TheaterAddressLink theater={{ name: 'UGC Bercy', city: 'Paris' }} />
+      </>
+    );
+
+    const [first, second] = screen.getAllByRole('link');
+    expect(first.getAttribute('aria-describedby')).not.toBe(second.getAttribute('aria-describedby'));
+    expect(second).toHaveAccessibleDescription('ouvre Google Maps dans un nouvel onglet');
   });
 
   it('opens the link in a new tab without leaking the opener', () => {
@@ -56,7 +83,7 @@ describe('TheaterAddressLink', () => {
   it('renders the link when only the city is known', () => {
     render(<TheaterAddressLink theater={{ name: 'Denfert', city: 'Paris' }} />);
 
-    const link = screen.getByRole('link', { name: 'Paris (ouvre Google Maps dans un nouvel onglet)' });
+    const link = screen.getByRole('link', { name: 'Paris' });
     expect(link).toHaveAttribute('href', MAPS_SEARCH + encodeURIComponent('Denfert, Paris'));
   });
 

@@ -12,7 +12,7 @@ describe('TheaterHeader', () => {
   it('renders the address as a Google Maps link', () => {
     render(<TheaterHeader theater={{ id: 'C1', name: 'Denfert', postal_code: '75014', city: 'Paris' }} />);
 
-    const link = screen.getByRole('link', { name: /Google Maps/ });
+    const link = screen.getByRole('link', { description: /Google Maps/ });
     expect(link).toHaveTextContent('75014 Paris');
     expect(link.getAttribute('href')).toMatch(/^https:\/\/www\.google\.com\/maps\/search\//);
   });
