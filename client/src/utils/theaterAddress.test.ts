@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatTheaterAddress, formatTheaterLocation, buildGoogleMapsUrl } from './theaterAddress.js';
+import theaterAddressSource from './theaterAddress.ts?raw';
 
 const MAPS_SEARCH = 'https://www.google.com/maps/search/?api=1&query=';
 
@@ -83,6 +84,16 @@ describe('buildGoogleMapsUrl', () => {
     const build = () => buildGoogleMapsUrl('Ciné \ud83c', '\udc00Paris');
     expect(build).not.toThrow();
     expect(new URL(build()).searchParams.get('query')).toBe('Ciné \ufffd, \ufffdParis');
+  });
+
+  it('replaces a lone high and a lone low surrogate in the same string, wherever they sit', () => {
+    // Reversed pair (low then high), lone high at the end, lone low at the start, a valid pair in between.
+    const url = buildGoogleMapsUrl('\udc00A\udc00\ud800B🎬\ud83c', '');
+    expect(new URL(url).searchParams.get('query')).toBe('\ufffdA\ufffd\ufffdB🎬\ufffd');
+  });
+
+  it('does not rely on regex lookbehind (unsupported before Safari 16.4)', () => {
+    expect(theaterAddressSource).not.toMatch(/\(\?<[!=]/);
   });
 
   it('keeps well-formed surrogate pairs (emoji) intact', () => {

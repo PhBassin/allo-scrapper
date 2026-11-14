@@ -4,15 +4,28 @@ type TheaterAddressParts = Pick<Theater, 'address' | 'postal_code' | 'city'>;
 
 const GOOGLE_MAPS_SEARCH_URL = 'https://www.google.com/maps/search/?api=1&query=';
 
-// A high surrogate not followed by a low one, or a low surrogate not preceded by a high one.
-const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+const isHighSurrogate = (code: number) => code >= 0xd800 && code <= 0xdbff;
+const isLowSurrogate = (code: number) => code >= 0xdc00 && code <= 0xdfff;
 
 /**
  * Replaces lone UTF-16 surrogates with U+FFFD, like `String.prototype.toWellFormed`
  * (ES2024, outside this project's `lib`), so `encodeURIComponent` never throws.
+ * A char-code loop rather than a regex: lookbehind breaks Safari before 16.4.
  */
 function toWellFormed(value: string): string {
-  return value.replace(LONE_SURROGATE, '\uFFFD');
+  let result = '';
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    if (isHighSurrogate(code) && i + 1 < value.length && isLowSurrogate(value.charCodeAt(i + 1))) {
+      result += value[i] + value[i + 1];
+      i++;
+    } else if (isHighSurrogate(code) || isLowSurrogate(code)) {
+      result += '\uFFFD';
+    } else {
+      result += value[i];
+    }
+  }
+  return result;
 }
 
 /**
