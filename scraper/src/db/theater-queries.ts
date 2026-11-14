@@ -22,9 +22,11 @@ export async function upsertTheater(db: DB, theater: Theater): Promise<void> {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT(id) DO UPDATE SET
         name = $2,
-        address = $3,
-        postal_code = $4,
-        city = $5,
+        -- An empty scraped value never erases a stored address; a non-empty
+        -- one always wins, including over an admin edit (see CONTEXT.md).
+        address = COALESCE(NULLIF($3, ''), theaters.address),
+        postal_code = COALESCE(NULLIF($4, ''), theaters.postal_code),
+        city = COALESCE(NULLIF($5, ''), theaters.city),
         image_url = $6,
         url = COALESCE($7, theaters.url),
         source = COALESCE($8, theaters.source)

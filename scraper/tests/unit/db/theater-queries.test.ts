@@ -46,6 +46,17 @@ describe('Theater Queries', () => {
       const [, values] = vi.mocked(db.query).mock.calls[0] as unknown as [string, unknown[]];
       expect(values).toEqual(['C0072', 'Le Grand Rex', null, null, null, null, null, null]);
     });
+    it('never replaces a stored address, postal code or city with an empty value', async () => {
+      vi.mocked(db.query).mockResolvedValue({ rows: [], rowCount: 1 } as any);
+
+      await upsertTheater(db, { id: 'C0072', name: 'Le Grand Rex', address: '', postal_code: '', city: '' });
+
+      const [sql, values] = vi.mocked(db.query).mock.calls[0] as unknown as [string, unknown[]];
+      expect(sql).toMatch(/address = COALESCE\(NULLIF\(\$3, ''\), theaters\.address\)/);
+      expect(sql).toMatch(/postal_code = COALESCE\(NULLIF\(\$4, ''\), theaters\.postal_code\)/);
+      expect(sql).toMatch(/city = COALESCE\(NULLIF\(\$5, ''\), theaters\.city\)/);
+      expect(values.slice(2, 5)).toEqual(['', '', '']);
+    });
   });
 
   describe('getTheaters', () => {
