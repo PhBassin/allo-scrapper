@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatTheaterAddress, buildGoogleMapsUrl } from './theaterAddress.js';
+import { formatTheaterAddress, formatTheaterLocation, buildGoogleMapsUrl } from './theaterAddress.js';
 
 const MAPS_SEARCH = 'https://www.google.com/maps/search/?api=1&query=';
 
@@ -40,32 +40,39 @@ describe('formatTheaterAddress', () => {
   });
 });
 
+describe('formatTheaterLocation', () => {
+  it('joins the name and the formatted address', () => {
+    expect(formatTheaterLocation('Denfert', '24, Place Denfert-Rochereau, 75014 Paris')).toBe(
+      'Denfert, 24, Place Denfert-Rochereau, 75014 Paris'
+    );
+  });
+
+  it('returns the name alone when the address is empty', () => {
+    expect(formatTheaterLocation('UGC Bercy', '')).toBe('UGC Bercy');
+  });
+
+  it('trims the name', () => {
+    expect(formatTheaterLocation('  UGC Bercy ', 'Paris')).toBe('UGC Bercy, Paris');
+  });
+});
+
 describe('buildGoogleMapsUrl', () => {
-  it('builds a place search URL from the name and the full address', () => {
-    expect(
-      buildGoogleMapsUrl({
-        name: 'Denfert',
-        address: '24, Place Denfert-Rochereau',
-        postal_code: '75014',
-        city: 'Paris',
-      })
-    ).toBe(MAPS_SEARCH + encodeURIComponent('Denfert, 24, Place Denfert-Rochereau, 75014 Paris'));
+  it('builds a place search URL from the name and the formatted address', () => {
+    expect(buildGoogleMapsUrl('Denfert', '24, Place Denfert-Rochereau, 75014 Paris')).toBe(
+      MAPS_SEARCH + encodeURIComponent('Denfert, 24, Place Denfert-Rochereau, 75014 Paris')
+    );
   });
 
   it('builds the URL from the name and the city only', () => {
-    expect(buildGoogleMapsUrl({ name: 'UGC Bercy', city: 'Paris' })).toBe(
-      MAPS_SEARCH + 'UGC%20Bercy%2C%20Paris'
-    );
+    expect(buildGoogleMapsUrl('UGC Bercy', 'Paris')).toBe(MAPS_SEARCH + 'UGC%20Bercy%2C%20Paris');
   });
 
-  it('builds the URL from the name alone when every address part is empty', () => {
-    expect(buildGoogleMapsUrl({ name: 'UGC Bercy', address: '', postal_code: '', city: '' })).toBe(
-      MAPS_SEARCH + 'UGC%20Bercy'
-    );
+  it('builds the URL from the name alone when the address is empty', () => {
+    expect(buildGoogleMapsUrl('UGC Bercy', '')).toBe(MAPS_SEARCH + 'UGC%20Bercy');
   });
 
   it('URL-encodes special characters', () => {
-    const url = buildGoogleMapsUrl({ name: 'Pathé & Co #1', address: "Quai d'Austerlitz", city: 'Paris/13e?' });
+    const url = buildGoogleMapsUrl('Pathé & Co #1', "Quai d'Austerlitz, Paris/13e?");
     expect(url).toBe(MAPS_SEARCH + 'Path%C3%A9%20%26%20Co%20%231%2C%20Quai%20d\'Austerlitz%2C%20Paris%2F13e%3F');
     const query = new URL(url).searchParams.get('query');
     expect(query).toBe("Pathé & Co #1, Quai d'Austerlitz, Paris/13e?");
@@ -73,13 +80,13 @@ describe('buildGoogleMapsUrl', () => {
   });
 
   it('never throws on lone UTF-16 surrogates and replaces them with U+FFFD', () => {
-    const build = () => buildGoogleMapsUrl({ name: 'Ciné \ud83c', city: '\udc00Paris' });
+    const build = () => buildGoogleMapsUrl('Ciné \ud83c', '\udc00Paris');
     expect(build).not.toThrow();
     expect(new URL(build()).searchParams.get('query')).toBe('Ciné \ufffd, \ufffdParis');
   });
 
   it('keeps well-formed surrogate pairs (emoji) intact', () => {
-    const url = buildGoogleMapsUrl({ name: 'Ciné 🎬', city: 'Paris' });
+    const url = buildGoogleMapsUrl('Ciné 🎬', 'Paris');
     expect(new URL(url).searchParams.get('query')).toBe('Ciné 🎬, Paris');
   });
 });

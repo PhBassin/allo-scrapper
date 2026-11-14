@@ -20,7 +20,7 @@ export default function TheaterAddressLink({ theater, className }: TheaterAddres
     <p className={className}>
       📍{' '}
       <a
-        href={buildGoogleMapsUrl(theater)}
+        href={buildGoogleMapsUrl(theater.name, formatted)}
         target="_blank"
         rel="noopener noreferrer"
         className="hover:underline"

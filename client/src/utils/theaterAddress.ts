@@ -26,10 +26,19 @@ export function formatTheaterAddress({ address, postal_code, city }: TheaterAddr
 }
 
 /**
- * Builds the Google Maps place-search URL for a Theater, querying its name
- * followed by its non-empty address parts.
+ * Joins a Theater's name and its already formatted address (see
+ * `formatTheaterAddress`) into one location line: `name, address`.
+ * Returns the name alone when the address is empty.
  */
-export function buildGoogleMapsUrl(theater: TheaterAddressParts & Pick<Theater, 'name'>): string {
-  const query = [theater.name.trim(), formatTheaterAddress(theater)].filter(Boolean).join(', ');
+export function formatTheaterLocation(name: string, formattedAddress: string): string {
+  return [name.trim(), formattedAddress].filter(Boolean).join(', ');
+}
+
+/**
+ * Builds the Google Maps place-search URL for a Theater, querying its name
+ * followed by its already formatted address (see `formatTheaterAddress`).
+ */
+export function buildGoogleMapsUrl(name: string, formattedAddress: string): string {
+  const query = formatTheaterLocation(name, formattedAddress);
   return GOOGLE_MAPS_SEARCH_URL + encodeURIComponent(toWellFormed(query));
 }
