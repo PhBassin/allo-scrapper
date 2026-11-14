@@ -114,6 +114,7 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
             </label>
             <input
               id="edit-address"
+              aria-describedby="edit-address-scrape-hint"
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
@@ -130,6 +131,7 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
             </label>
             <input
               id="edit-postal-code"
+              aria-describedby="edit-address-scrape-hint"
               type="text"
               value={postalCode}
               onChange={(e) => setPostalCode(e.target.value)}
@@ -146,6 +148,7 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
             </label>
             <input
               id="edit-city"
+              aria-describedby="edit-address-scrape-hint"
               type="text"
               value={city}
               onChange={(e) => setCity(e.target.value)}
@@ -155,6 +158,11 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
             />
             {cityError && <p className="mt-1 text-sm text-red-600">{cityError}</p>}
           </div>
+
+          <p id="edit-address-scrape-hint" className="-mt-2 mb-4 text-xs text-gray-500">
+            Address, postal code and city are replaced on the next scrape when AlloCiné provides them.
+            An empty value from AlloCiné never erases what you enter here.
+          </p>
 
           {submitError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
