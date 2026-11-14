@@ -71,4 +71,15 @@ describe('buildGoogleMapsUrl', () => {
     expect(query).toBe("Pathé & Co #1, Quai d'Austerlitz, Paris/13e?");
     expect(new URL(url).searchParams.get('api')).toBe('1');
   });
+
+  it('never throws on lone UTF-16 surrogates and replaces them with U+FFFD', () => {
+    const build = () => buildGoogleMapsUrl({ name: 'Ciné \ud83c', city: '\udc00Paris' });
+    expect(build).not.toThrow();
+    expect(new URL(build()).searchParams.get('query')).toBe('Ciné \ufffd, \ufffdParis');
+  });
+
+  it('keeps well-formed surrogate pairs (emoji) intact', () => {
+    const url = buildGoogleMapsUrl({ name: 'Ciné 🎬', city: 'Paris' });
+    expect(new URL(url).searchParams.get('query')).toBe('Ciné 🎬, Paris');
+  });
 });

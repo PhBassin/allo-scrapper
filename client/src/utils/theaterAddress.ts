@@ -4,6 +4,17 @@ type TheaterAddressParts = Pick<Theater, 'address' | 'postal_code' | 'city'>;
 
 const GOOGLE_MAPS_SEARCH_URL = 'https://www.google.com/maps/search/?api=1&query=';
 
+// A high surrogate not followed by a low one, or a low surrogate not preceded by a high one.
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+/**
+ * Replaces lone UTF-16 surrogates with U+FFFD, like `String.prototype.toWellFormed`
+ * (ES2024, outside this project's `lib`), so `encodeURIComponent` never throws.
+ */
+function toWellFormed(value: string): string {
+  return value.replace(LONE_SURROGATE, '\uFFFD');
+}
+
 /**
  * Formats a Theater's address from its non-empty parts:
  * `address, postal_code city`, with no stray separators when a part is missing.
@@ -20,5 +31,5 @@ export function formatTheaterAddress({ address, postal_code, city }: TheaterAddr
  */
 export function buildGoogleMapsUrl(theater: TheaterAddressParts & Pick<Theater, 'name'>): string {
   const query = [theater.name.trim(), formatTheaterAddress(theater)].filter(Boolean).join(', ');
-  return GOOGLE_MAPS_SEARCH_URL + encodeURIComponent(query);
+  return GOOGLE_MAPS_SEARCH_URL + encodeURIComponent(toWellFormed(query));
 }
