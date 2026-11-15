@@ -20,7 +20,8 @@ function clearCookies() {
   });
 }
 
-type MockResponse = { status: number; body?: unknown; contentType?: string };
+/** `onFetch` runs as the response is served (e.g. a concurrent response landing cookies). */
+type MockResponse = { status: number; body?: unknown; contentType?: string; onFetch?: () => void };
 
 function mockFetchSequence(responses: Array<MockResponse>) {
   const calls: Array<{ url: string; init: RequestInit }> = [];
@@ -28,6 +29,7 @@ function mockFetchSequence(responses: Array<MockResponse>) {
   const fn = vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     calls.push({ url: String(input), init });
     const r = responses[i++] ?? responses[responses.length - 1];
+    r.onFetch?.();
     const headers = new Headers();
     const isJson = r.contentType ? r.contentType.includes('json') : r.body !== undefined;
     const contentType = r.contentType ?? (isJson ? 'application/json' : null);
@@ -188,6 +190,238 @@ describe('apiClient', () => {
     const [a, b] = await Promise.all([apiClient.get('/a'), apiClient.get('/b')]);
     expect([a, b].sort()).toEqual([{ ok: 'a' }, { ok: 'b' }].sort());
     expect(refreshCalls).toBe(1);
+  });
+
+  describe('cross-tab refresh (Web Locks)', () => {
+    function stubLocks(beforeCallback: () => void = () => {}) {
+      const request = vi.fn(async (_name: string, cb: () => Promise<boolean>) => {
+        beforeCallback();
+        return cb();
+      });
+      vi.stubGlobal('navigator', { ...navigator, locks: { request } });
+      return request;
+    }
+
+    it('refreshes under the auth-refresh lock', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      const request = stubLocks();
+      const { calls } = mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 200, body: { success: true } },
+        { status: 200, body: { ok: 'after-refresh' } },
+      ]);
+
+      const data = await apiClient.get('/protected');
+
+      expect(data).toEqual({ ok: 'after-refresh' });
+      expect(request).toHaveBeenCalledWith('auth-refresh', expect.any(Function));
+      expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/auth/refresh', '/api/protected']);
+    });
+
+    it('skips its own refresh when another tab rotated the session while waiting for the lock', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      // The other tab's refresh lands (new CSRF cookie) before we get the lock.
+      stubLocks(() => setCookie('csrf_token', 'csrf-2'));
+      const { calls } = mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 200, body: { ok: 'with-other-tab-cookies' } },
+      ]);
+
+      const data = await apiClient.post('/protected', { a: 1 });
+
+      expect(data).toEqual({ ok: 'with-other-tab-cookies' });
+      expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/protected']);
+      expect((calls[1].init.headers as Headers).get('X-CSRF-Token')).toBe('csrf-2');
+    });
+
+    it('skips its own refresh when another tab rotated the session while the failed request was in flight', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      stubLocks();
+      const { calls } = mockFetchSequence([
+        // The other tab's refresh lands while our request is still in flight.
+        { status: 401, body: { error: 'no' }, onFetch: () => setCookie('csrf_token', 'csrf-2') },
+        { status: 200, body: { ok: 'with-other-tab-cookies' } },
+      ]);
+
+      const data = await apiClient.get('/protected');
+
+      expect(data).toEqual({ ok: 'with-other-tab-cookies' });
+      expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/protected']);
+    });
+
+    it('refreshes itself when the retry with another tab\'s token still gets a 401 (token version bumped)', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      stubLocks();
+      const { calls } = mockFetchSequence([
+        // Another tab refreshed while our request was in flight...
+        { status: 401, body: { error: 'no' }, onFetch: () => setCookie('csrf_token', 'csrf-2') },
+        // ...but a role change bumped the token version after its refresh.
+        { status: 401, body: { error: 'Invalid or expired token.' } },
+        { status: 200, body: { success: true }, onFetch: () => setCookie('csrf_token', 'csrf-3') },
+        { status: 200, body: { ok: 'new-version' } },
+      ]);
+      const listener = vi.fn();
+      window.addEventListener('auth:unauthorized', listener);
+
+      const data = await apiClient.get('/protected');
+
+      expect(data).toEqual({ ok: 'new-version' });
+      expect(calls.map((c) => c.url)).toEqual([
+        '/api/protected', '/api/protected', '/api/auth/refresh', '/api/protected',
+      ]);
+      expect(listener).not.toHaveBeenCalled();
+      window.removeEventListener('auth:unauthorized', listener);
+    });
+
+    it('reports unauthorized when the retry keeps failing after two refreshes', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      stubLocks();
+      const { calls } = mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 200, body: { success: true }, onFetch: () => setCookie('csrf_token', 'csrf-2') },
+        { status: 401, body: { error: 'no' } },
+        { status: 200, body: { success: true }, onFetch: () => setCookie('csrf_token', 'csrf-3') },
+        { status: 401, body: { error: 'no' } },
+      ]);
+      const listener = vi.fn();
+      window.addEventListener('auth:unauthorized', listener);
+
+      await expect(apiClient.get('/protected')).rejects.toMatchObject({ status: 401 });
+
+      expect(calls).toHaveLength(5);
+      expect(listener).toHaveBeenCalledTimes(1);
+      window.removeEventListener('auth:unauthorized', listener);
+
+      // The module reports an expiry once until a session is renewed: renew it
+      // so later tests see their own report.
+      mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 200, body: { success: true }, onFetch: () => setCookie('csrf_token', 'csrf-4') },
+        { status: 200, body: {} },
+      ]);
+      await apiClient.get('/protected');
+    });
+
+    it('still reports unauthorized when the locked refresh fails', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      stubLocks();
+      mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 401, body: { error: 'refresh failed' } },
+      ]);
+      const listener = vi.fn();
+      window.addEventListener('auth:unauthorized', listener);
+
+      await expect(apiClient.get('/protected')).rejects.toMatchObject({ status: 401 });
+      expect(listener).toHaveBeenCalledTimes(1);
+      window.removeEventListener('auth:unauthorized', listener);
+    });
+
+    it('refreshes itself when another tab cleared the CSRF cookie (logout) while waiting', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      stubLocks(() => {
+        document.cookie = 'csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      });
+      const { calls } = mockFetchSequence([
+        { status: 401, body: { error: 'no' } },
+        { status: 401, body: { error: 'Invalid or expired refresh token.' } },
+      ]);
+
+      await expect(apiClient.get('/protected')).rejects.toMatchObject({ status: 401 });
+      expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/auth/refresh']);
+    });
+
+    it('does not wait for a race winner under the lock: none can be in flight in this browser', async () => {
+      vi.useFakeTimers();
+      try {
+        setCookie('csrf_token', 'csrf-1');
+        stubLocks();
+        const { calls } = mockFetchSequence([
+          { status: 401, body: { error: 'expired' } },
+          { status: 401, body: { success: false, error: 'already rotated', code: 'REFRESH_RACE' } },
+        ]);
+
+        const pending = apiClient.get('/protected');
+        const assertion = expect(pending).rejects.toMatchObject({ status: 401 });
+        await vi.advanceTimersByTimeAsync(0);
+        await assertion;
+
+        expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/auth/refresh']);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe('lost rotation race (REFRESH_RACE, no Web Locks)', () => {
+    const raceResponse = (onFetch?: () => void): MockResponse => ({
+      status: 401,
+      body: { success: false, error: 'already rotated', code: 'REFRESH_RACE' },
+      onFetch,
+    });
+
+    it('retries at once when the winner already planted its cookies', async () => {
+      setCookie('csrf_token', 'csrf-1');
+      const { calls } = mockFetchSequence([
+        { status: 401, body: { error: 'expired' } },
+        raceResponse(() => setCookie('csrf_token', 'csrf-2')),
+        { status: 200, body: { ok: 'with-winner-cookies' } },
+      ]);
+
+      const data = await apiClient.post('/protected', { a: 1 });
+
+      expect(data).toEqual({ ok: 'with-winner-cookies' });
+      expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/auth/refresh', '/api/protected']);
+      expect((calls[2].init.headers as Headers).get('X-CSRF-Token')).toBe('csrf-2');
+    });
+
+    it('waits for the winner response still in flight before retrying', async () => {
+      vi.useFakeTimers();
+      try {
+        setCookie('csrf_token', 'csrf-1');
+        const { calls } = mockFetchSequence([
+          { status: 401, body: { error: 'expired' } },
+          raceResponse(),
+          { status: 200, body: { ok: 'with-winner-cookies' } },
+        ]);
+
+        const pending = apiClient.get('/protected');
+        await vi.advanceTimersByTimeAsync(200);
+        expect(calls).toHaveLength(2);
+
+        setCookie('csrf_token', 'csrf-2'); // the winner's response lands
+        await vi.advanceTimersByTimeAsync(100);
+
+        await expect(pending).resolves.toEqual({ ok: 'with-winner-cookies' });
+        expect(calls).toHaveLength(3);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('reports unauthorized without retrying when the winner cookies never land', async () => {
+      vi.useFakeTimers();
+      const listener = vi.fn();
+      window.addEventListener('auth:unauthorized', listener);
+      try {
+        setCookie('csrf_token', 'csrf-1');
+        const { calls } = mockFetchSequence([
+          { status: 401, body: { error: 'expired' } },
+          raceResponse(),
+        ]);
+
+        const pending = apiClient.get('/protected');
+        const assertion = expect(pending).rejects.toMatchObject({ status: 401 });
+        await vi.advanceTimersByTimeAsync(5000);
+        await assertion;
+
+        expect(calls.map((c) => c.url)).toEqual(['/api/protected', '/api/auth/refresh']);
+        expect(listener).toHaveBeenCalledTimes(1);
+      } finally {
+        window.removeEventListener('auth:unauthorized', listener);
+        vi.useRealTimers();
+      }
+    });
   });
 
   it('wraps network errors as ApiError with status 0', async () => {

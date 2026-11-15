@@ -86,6 +86,11 @@ cd allo-scrapper
 # Download docker-compose.yaml
 curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/docker-compose.yaml
 
+# Download the update script (installs the compose file of each new release)
+mkdir -p scripts
+curl -o scripts/deploy-update.sh https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/scripts/deploy-update.sh
+chmod +x scripts/deploy-update.sh
+
 # Download .env.example
 curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/.env.example
 
@@ -310,6 +315,7 @@ GENERAL_RATE_LIMIT_MAX_REQUESTS=100     # Max 100 requests per window (default)
 - **Reduce limits** if experiencing abuse
 - **Increase protected limits** for high-traffic authenticated applications
 - **Monitor** rate limit hits via logs (structured JSON logging)
+- **Check `TRUST_PROXY`**: limits are keyed on the client IP, which comes from `X-Forwarded-For` only when the request arrives from a trusted proxy. See [Reverse Proxies and Client IPs](./networking.md#reverse-proxies-and-client-ips).
 
 All rate limits use the `express-rate-limit` middleware with in-memory storage. For distributed deployments, consider implementing Redis-based rate limiting.
 
@@ -374,7 +380,7 @@ curl -X POST http://localhost:3000/api/auth/login \
    - Generate new secret
    - Update `.env`
    - Restart services
-   - All users must re-login
+   - Access tokens signed with the old secret are rejected; the web client refreshes them silently (refresh tokens are not signed with `JWT_SECRET`). Use `JWT_PREVIOUS_SECRETS` to keep accepting old tokens during the rollover
 
 4. **Protect .env file**
    ```bash
@@ -395,7 +401,7 @@ nano .env  # Replace JWT_SECRET value
 # 3. Restart web service
 docker compose restart ics-web
 
-# 4. All users will need to re-login
+# 4. Old access tokens are rejected; the web client refreshes them silently
 ```
 
 ### Troubleshooting JWT
@@ -410,7 +416,7 @@ docker compose restart ics-web
 
 **Issue**: Token expires too quickly
 
-**Solution**: Tokens expire after 24 hours (default). This is configurable in code but not via environment variables. For longer sessions, consider implementing refresh tokens.
+**Solution**: Access tokens expire after `JWT_EXPIRES_IN` (default `15m`) but are renewed silently with the refresh-token cookie, so users are only sent to the login page when the refresh token expires (`REFRESH_TOKEN_EXPIRY`, default `7d`) or is revoked (password change or reset). To keep users logged in longer, raise `REFRESH_TOKEN_EXPIRY`, not `JWT_EXPIRES_IN`.
 
 ---
 
@@ -605,22 +611,37 @@ See [Monitoring Guide](./monitoring.md) for complete setup.
 
 ### Update Procedure
 
+A release can change `docker-compose.yaml` as well as the image: a new
+environment variable, a changed default, a new service. Pulling the image
+(by hand or with Watchtower) does **not** bring those changes, because a
+container keeps the config it was created with. So an update has two steps:
+install the release's compose file, then the release's image.
+
 ```bash
-# 1. Pull latest image
-docker pull ghcr.io/phbassin/allo-scrapper:stable
+# 1. Install the compose file of the release (replace v4.10.0 by the release tag).
+#    --dry-run shows the diff, the variables it references for the first time
+#    and the services it would recreate, without changing anything.
+./scripts/deploy-update.sh --dry-run v4.10.0
+./scripts/deploy-update.sh v4.10.0
 
-# 2. Stop services
-docker compose down
-
-# 3. Restart with new image
+# 2. Pull the new images and recreate the containers that use them
+docker compose pull
 docker compose up -d
 
-# 4. Check logs for errors
+# 3. Check logs for errors
 docker compose logs -f ics-web
 
-# 5. Verify health
+# 4. Verify health
 curl http://localhost:3000/api/health
 ```
+
+If the script lists a variable as required and not set in `.env`, add it to
+`.env` first and run it again: it refuses to install a config that does not
+validate. The previous compose file is kept in `.compose-backup/<timestamp>/`.
+The release PR lists the new or changed env vars and compose changes.
+
+With the Traefik + Watchtower overlay, step 2 is done by Watchtower; run
+step 1 on each release (see [`deploy/README.md`](../../../deploy/README.md#update-to-a-new-release)).
 
 ### Database Migrations
 
@@ -643,6 +664,8 @@ docker compose down
 docker pull ghcr.io/phbassin/allo-scrapper:<previous-tag>
 
 # 4. Update docker-compose.yaml to pin version
+#    (if the update installed a new compose file, start from the previous one,
+#    saved by deploy-update.sh in .compose-backup/<timestamp>/)
 # image: ghcr.io/phbassin/allo-scrapper:<previous-tag>
 
 # 5. Restart
@@ -674,6 +697,7 @@ For critical production environments:
 **Network Security:**
 - [ ] HTTPS enabled (see below)
 - [ ] `ALLOWED_ORIGINS` limited to your domains (no wildcards)
+- [ ] `TRUST_PROXY` matches your setup: unset without a reverse proxy, the number of proxies (e.g. `1`) behind one (see [Networking](./networking.md#reverse-proxies-and-client-ips))
 - [ ] Firewall configured (see below)
 - [ ] Database port (5432) not exposed externally
 
@@ -697,7 +721,20 @@ sudo certbot --nginx -d theater.example.com
 # Nginx will auto-configure SSL
 ```
 
-See [Networking Guide](./networking.md) for detailed Nginx configuration.
+Then let the server read client IPs from nginx, and keep port 3000 reachable only by nginx:
+
+```bash
+# .env
+TRUST_PROXY=1
+```
+
+```yaml
+# docker-compose.yaml
+    ports:
+      - "127.0.0.1:3000:3000"
+```
+
+See [Networking Guide](./networking.md) for detailed Nginx configuration and [Reverse Proxies and Client IPs](./networking.md#reverse-proxies-and-client-ips) for other setups.
 
 **Option 2: Cloudflare** (easiest)
 
@@ -705,6 +742,7 @@ See [Networking Guide](./networking.md) for detailed Nginx configuration.
 2. Enable "Full (strict)" SSL/TLS mode
 3. Point DNS to your server IP
 4. Cloudflare handles HTTPS automatically
+5. Count Cloudflare as a proxy in `TRUST_PROXY`: `2` with nginx behind it (see [Reverse Proxies and Client IPs](./networking.md#reverse-proxies-and-client-ips))
 
 ### Firewall Configuration
 
@@ -901,8 +939,8 @@ docker compose exec ics-db psql -U postgres -d ics
 # Backup database
 ./scripts/backup-production.sh --host localhost --user postgres
 
-# Update application
-docker pull ghcr.io/phbassin/allo-scrapper:stable && docker compose down && docker compose up -d
+# Update application (compose file, then images)
+./scripts/deploy-update.sh <vX.Y.Z> && docker compose pull && docker compose up -d
 ```
 
 ### Important Files
@@ -925,4 +963,4 @@ docker pull ghcr.io/phbassin/allo-scrapper:stable && docker compose down && dock
 
 ---
 
-[← Back to Deployment Guides](./README.md)
+[← Back to Documentation](../../README.md)

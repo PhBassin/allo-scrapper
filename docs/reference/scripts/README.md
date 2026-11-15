@@ -6,7 +6,7 @@ Complete reference for all utility scripts included in the Allo-Scrapper project
 - [Backup & Restore Guide](../../guides/deployment/backup-restore.md) - Detailed backup procedures
 - [Docker Deployment](../../guides/deployment/docker.md) - Deployment setup
 - [CI/CD Guide](../../guides/development/cicd.md) - Integration testing
-- [Contributing Guide](../../guides/development/contributing.md) - Git hooks
+- [Contributing Guide](../../../CONTRIBUTING.md) - Git hooks
 
 ---
 
@@ -215,9 +215,38 @@ Type 'RESTORE PRODUCTION' to confirm:
 
 ## Deployment Scripts
 
+### deploy-update.sh
+
+**Purpose:** Install the compose files of a release on a deployment and recreate only the services whose config changed. Images update on their own (Watchtower, `docker compose pull`), compose files don't: run this on every release.
+
+**Usage:**
+```bash
+./scripts/deploy-update.sh [--dry-run] [--yes] [--dir <path>] <tag>
+```
+
+**Examples:**
+```bash
+# Show the diff, the newly referenced variables and the services to recreate
+./scripts/deploy-update.sh --dry-run v4.10.0
+
+# Apply (asks for confirmation; --yes skips it)
+./scripts/deploy-update.sh v4.10.0
+```
+
+**What it does:**
+1. Downloads `docker-compose.yaml` from the tag, and `deploy/docker-compose.prod.yml` if the deployment uses that overlay
+2. Prints the diff and the `${VARS}` referenced for the first time, saying whether `.env` sets them
+3. Validates the merged config against `.env` and stops if it fails (e.g. a required variable is missing)
+4. Compares each service's config hash with its running container and lists the ones that differ
+5. Saves the installed files in `.compose-backup/<timestamp>/`, installs the new ones and runs `docker compose up -d --no-deps` on the changed services only
+
+**Requires:** bash, curl, diff, Docker Compose v2.17+. `REPO_RAW_BASE` overrides the download location (a `file://` URL works for testing).
+
+**See also:** [VPS deployment → Update to a new release](../../../deploy/README.md#update-to-a-new-release)
+
 ### pull-and-deploy.sh
 
-**Purpose:** Pull latest Docker image and restart services.
+**Purpose:** Pull latest Docker image and restart services. It does not update the compose file: run [`deploy-update.sh`](#deploy-updatesh) first when the tag is a new release.
 
 **Usage:**
 ```bash
@@ -336,7 +365,7 @@ cd server
 npx tsc --noEmit && npm run test:run
 ```
 
-**See also:** [Contributing Guide](../../guides/development/contributing.md)
+**See also:** [Contributing Guide](../../../CONTRIBUTING.md)
 
 ---
 
@@ -369,7 +398,7 @@ npx tsc --noEmit && npm run test:run
 git push --no-verify
 ```
 
-**See also:** [Contributing Guide](../../guides/development/contributing.md)
+**See also:** [Contributing Guide](../../../CONTRIBUTING.md)
 
 ---
 
@@ -490,7 +519,7 @@ docker compose up -d
 - [Docker Deployment](../../guides/deployment/docker.md) - Container deployment
 - [CI/CD Guide](../../guides/development/cicd.md) - Continuous integration
 - [Testing Guide](../../guides/development/testing.md) - Test automation
-- [Contributing Guide](../../guides/development/contributing.md) - Development workflow
+- [Contributing Guide](../../../CONTRIBUTING.md) - Development workflow
 
 ---
 

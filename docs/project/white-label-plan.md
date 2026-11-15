@@ -864,4 +864,4 @@ gh pr create --title "feat(admin): add system information and diagnostics dashbo
 
 ---
 
-[← Back to Project](./README.md) | [Back to Documentation](../README.md)
+[← Back to Documentation](../README.md)

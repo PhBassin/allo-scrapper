@@ -185,19 +185,11 @@ cd allo-scrapper
 #### 4. Install Dependencies
 
 ```bash
-# Root dependencies (convenience scripts)
-npm ci
-
-# Server dependencies
-cd server
-npm ci
-cd ..
-
-# Client dependencies
-cd client
-npm ci
-cd ..
+# All workspace dependencies, from the repository root
+npm install --legacy-peer-deps
 ```
+
+This is an npm workspaces monorepo (`client`, `server`, `scraper`, `packages/scraper-protocol`) with a single `package-lock.json`, so one install from the repository root installs everything, including the native `sharp` binaries. `--legacy-peer-deps` is required because of peer-dependency conflicts.
 
 #### 5. Configure Environment
 
@@ -434,9 +426,8 @@ docker compose up -d
 # Pull latest code
 git pull origin main
 
-# Update dependencies
-cd server && npm ci && cd ..
-cd client && npm ci && cd ..
+# Update dependencies (from the repository root)
+npm install --legacy-peer-deps
 
 # Run database migrations
 cd server && npm run db:migrate && cd ..

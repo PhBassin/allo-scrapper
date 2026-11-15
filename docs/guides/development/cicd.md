@@ -5,7 +5,7 @@ Complete guide for Continuous Integration and Continuous Deployment (CI/CD).
 **Related Documentation:**
 - [Docker Deployment](../deployment/docker.md) - Container builds
 - [Testing Guide](./testing.md) - Automated tests
-- [Contributing Guide](./contributing.md) - Development workflow
+- [Contributing Guide](../../../CONTRIBUTING.md) - Development workflow
 
 ---
 
@@ -512,9 +512,9 @@ See [Troubleshooting Guide](../../troubleshooting/common-issues.md) for more CI/
 
 - [Docker Deployment](../deployment/docker.md) - Container builds and deployment
 - [Testing Guide](./testing.md) - Automated tests in CI
-- [Contributing Guide](./contributing.md) - Development workflow
+- [Contributing Guide](../../../CONTRIBUTING.md) - Development workflow
 - [Troubleshooting Guide](../../troubleshooting/common-issues.md) - CI/CD issues
 
 ---
 
-[← Back to Development Guides](./README.md) | [Back to Documentation](../../README.md)
+[← Back to Documentation](../../README.md)

@@ -24,6 +24,21 @@ jobs:
     permissions:
       contents: read
 
+    # Real PostgreSQL for the scraper's DB behaviour tests
+    # (scraper/tests/unit/db/*.pg.test.ts). Same version as docker-compose.
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -60,6 +75,12 @@ jobs:
       - name: Check test coverage
         run: npm run test:coverage
         working-directory: server
+
+      - name: Scraper tests & coverage
+        run: npm run test:coverage
+        working-directory: scraper
+        env:
+          SCRAPER_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
 
       - name: Scraper-protocol tests & coverage
         run: npm run test:coverage --workspace=allo-scrapper-scraper-protocol

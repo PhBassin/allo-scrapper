@@ -45,11 +45,12 @@ services:
       PORT: 3000
       REDIS_URL: redis://ics-redis:6379
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      TRUST_PROXY: ${TRUST_PROXY:-}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       AUTO_MIGRATE: "true"
       LOG_LEVEL: info
       TZ: Europe/Paris
-      JWT_EXPIRES_IN: 1h
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
     depends_on:
       ics-db:
         condition: service_healthy

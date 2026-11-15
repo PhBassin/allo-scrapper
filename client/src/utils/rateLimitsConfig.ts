@@ -53,8 +53,8 @@ export const RATE_LIMIT_FIELDS: ReadonlyArray<RateLimitFieldDef> = [
   },
   {
     key: 'registerMax',
-    label: 'Registration Limit',
-    description: 'Max registration attempts per hour',
+    label: 'User Creation Limit',
+    description: 'Max user creations per window (POST /api/users)',
     min: 1,
     max: 20,
     defaultValue: 3,

@@ -29,7 +29,8 @@ Allo-Scrapper uses **`express-rate-limit`** middleware to protect the API from a
 
 ### Key Features
 
-- **Per-IP rate limiting**: Limits are tracked by client IP address
+- **Per-IP rate limiting**: Limits are tracked by client IP address (IPv6 addresses are grouped by subnet)
+- **Per-user rate limiting**: The protected and scraper limiters track authenticated requests by user instead
 - **Sliding window**: Requests counted within a rolling time window
 - **Standard headers**: `X-RateLimit-*` headers included in all responses
 - **Configurable**: All limits adjustable via environment variables
@@ -37,7 +38,7 @@ Allo-Scrapper uses **`express-rate-limit`** middleware to protect the API from a
 
 ### Strategy
 
-Rate limits are applied **per IP address** using a sliding window algorithm:
+Rate limits are applied **per IP address** using a sliding window algorithm. The protected and scraper limiters are the exception: a request carrying a current access token (the `access_token` cookie or a Bearer header) is counted **per user**, so users behind the same IP do not share a quota. Requests with a missing, invalid, expired or revoked token fall back to the IP.
 
 ```
 Window: 15 minutes (default)
@@ -46,6 +47,14 @@ Counter reset: Rolling (not fixed intervals)
 ```
 
 **Example**: If you make 50 requests at 10:00 AM, the counter resets at 10:15 AM (not at the next hour).
+
+### Cost of per-user keys
+
+To tell a current access token from a revoked one, the protected and scraper limiters read the user's token version (one primary-key lookup on `users`) **before** they count the request. A token that is missing, expired or badly signed is discarded without touching the database.
+
+- **Under the quota, the lookup is free**: `requireAuth` needs the same value and reuses it (`resolveAccessToken` in `server/src/utils/access-token.ts` resolves a request's token once).
+- **A request these limiters reject with `429` still pays it**, and so does an authenticated request to `/api/scraper/progress`, which has the scraper limiter but no `requireAuth`. This is a deliberate trade-off: skipping the lookup would let a revoked token spend its user's quota, and caching the version would delay revocations.
+- **The general limiter caps it**: it runs first on every `/api/*` route and is keyed by IP without any database access, so one IP causes at most `RATE_LIMIT_GENERAL_MAX` lookups per window (100 by default), no more than the same requests would cost on a public endpoint. Keep this in mind before raising the general limit far above the protected and scraper ones.
 
 ---
 
@@ -59,7 +68,7 @@ Different endpoint types have different rate limits to balance security and usab
 |------|-----------------|--------|--------------|--------------|
 | **General** | `/api/*` (all endpoints) | 15 min | 100 | `RATE_LIMIT_GENERAL_MAX` |
 | **Authentication** | `/api/auth/login` | 15 min | 5 failed attempts¹ | `RATE_LIMIT_AUTH_MAX` |
-| **Registration** | `/api/auth/register` | 1 hour | 3 | `RATE_LIMIT_REGISTER_MAX` |
+| **User creation** | `POST /api/users` | 1 hour | 3 | `RATE_LIMIT_REGISTER_MAX` |
 | **Protected** | `/api/reports/*` | 15 min | 60 | `RATE_LIMIT_PROTECTED_MAX` |
 | **Scraper** | `/api/scraper/trigger` | 15 min | 10 | `RATE_LIMIT_SCRAPER_MAX` |
 | **Public** | `/api/movies/*`, `/api/theaters/*` | 15 min | 100 | `RATE_LIMIT_PUBLIC_MAX` |
@@ -119,15 +128,15 @@ export const generalLimiter = rateLimit({
 
 ---
 
-### Registration Limiter
+### User Creation Limiter
 
-**Applies to**: `/api/auth/register`
+**Applies to**: `POST /api/users` (on top of the protected endpoints limiter)
 
-**Default**: 3 registrations per 1 hour
+**Default**: 3 user creations per 1 hour, per IP
 
-**Purpose**: Prevent spam account creation
+**Purpose**: Limit mass account creation, even from a compromised account with `users:create`
 
-**Note**: Registration window is **1 hour** (longer than other limits).
+**Note**: The window is **1 hour** (longer than other limits). The setting keeps its historical name `register` (`RATE_LIMIT_REGISTER_*`, `register_max`).
 
 **Configuration**:
 ```bash
@@ -141,7 +150,7 @@ RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # 1 hour in milliseconds
 
 **Applies to**: `/api/reports/*`
 
-**Default**: 60 requests per 15 minutes
+**Default**: 60 requests per 15 minutes, per user
 
 **Purpose**: Allow authenticated users more requests than public users
 
@@ -153,7 +162,7 @@ RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # 1 hour in milliseconds
 
 **Applies to**: `/api/scraper/trigger`
 
-**Default**: 10 scrape requests per 15 minutes
+**Default**: 10 scrape requests per 15 minutes, per user
 
 **Purpose**: Prevent triggering too many concurrent expensive scraping operations
 
@@ -260,7 +269,7 @@ When you exceed a rate limit, the API returns a **`429 Too Many Requests`** resp
 |----------|---------------|
 | General API | "Too many requests, please try again later." |
 | `/api/auth/login` | "Too many login attempts, please try again after 15 minutes." |
-| `/api/auth/register` | "Too many registration attempts, please try again later." |
+| `POST /api/users` | "Too many requests, please try again later." |
 | `/api/scraper/trigger` | "Too many scrape requests, please try again later." |
 | Protected endpoints | "Too many requests to this resource, please try again later." |
 
@@ -324,7 +333,7 @@ All rate limits are configurable via environment variables.
 
 ### Environment Variables
 
-**Window duration** (applies to all limits except registration):
+**Window duration** (applies to all limits except user creation):
 ```bash
 RATE_LIMIT_WINDOW_MS=900000  # 15 minutes (default)
 ```
@@ -333,8 +342,8 @@ RATE_LIMIT_WINDOW_MS=900000  # 15 minutes (default)
 ```bash
 RATE_LIMIT_GENERAL_MAX=100          # General API
 RATE_LIMIT_AUTH_MAX=5               # Authentication (failed attempts)
-RATE_LIMIT_REGISTER_MAX=3           # Registration
-RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # Registration window (1 hour)
+RATE_LIMIT_REGISTER_MAX=3           # User creation (POST /api/users)
+RATE_LIMIT_REGISTER_WINDOW_MS=3600000  # User creation window (1 hour)
 RATE_LIMIT_PROTECTED_MAX=60         # Protected endpoints
 RATE_LIMIT_SCRAPER_MAX=10           # Scraper trigger
 RATE_LIMIT_PUBLIC_MAX=100           # Public endpoints
@@ -497,7 +506,7 @@ export const generalLimiter = rateLimit({
 
 **Solution**: 
 - Increase limits for that use case
-- Consider per-user rate limiting (requires authentication)
+- Authenticated requests to the protected and scraper endpoints are already counted per user; the other limiters stay per IP
 
 ---
 
@@ -524,6 +533,12 @@ router.get('/movies', publicLimiter, getMovies);
 ## Admin Rate Limit API
 
 Rate limits can be managed at runtime via the REST API without restarting the server.
+
+### When changes take effect
+
+The values live in the `rate_limit_configs` table. The server instance that handles an update or a reset applies the new values at once. Every instance also re-reads the table every 60 seconds, so other instances pick up the change within a minute.
+
+When a limit or a window really changes, the server rebuilds all its limiters, and every counter restarts from zero on that instance. This happens only on a real change: re-reading an unchanged row, or saving the same values again, leaves the counters and their windows as they are.
 
 ### Get Current Rate Limit Configuration
 
@@ -566,7 +581,7 @@ PUT /api/admin/rate-limits
 
 🔒 **Permission:** `ratelimits:update`
 
-Updates one or more rate limit values. Changes apply within 30 seconds (cache invalidation). All fields are optional.
+Updates one or more rate limit values. All fields are optional. See [When changes take effect](#when-changes-take-effect).
 
 **Request Body:**
 ```json
@@ -618,7 +633,7 @@ POST /api/admin/rate-limits/reset
 
 🔒 **Permission:** `ratelimits:reset`
 
-Removes all database-stored overrides. All limits revert to environment variable values (or hard-coded defaults). Changes apply within 30 seconds.
+Removes all database-stored overrides. All limits revert to environment variable values (or hard-coded defaults). See [When changes take effect](#when-changes-take-effect).
 
 **Response (200 OK):**
 ```json
@@ -676,7 +691,7 @@ Returns a paginated history of all rate limit changes with user attribution.
 - [API Reference](./README.md) - All API endpoints
 - [Authentication API](./auth.md) - Login and authentication
 - [Configuration Guide](../../getting-started/configuration.md) - Environment setup
-- [Security Best Practices](../../project/security.md) - Security guidelines
+- [Security Policy](../../../SECURITY.md) - How to report a vulnerability
 
 ---
 

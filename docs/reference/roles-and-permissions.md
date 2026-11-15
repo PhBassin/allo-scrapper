@@ -336,80 +336,28 @@ interface JWTPayload {
 
 ### Token Properties
 
-- **Expiry**: 24 hours from issue time
+- **Expiry**: `JWT_EXPIRES_IN` (default `15m`); the `access_token` cookie expires at the same time
 - **Algorithm**: HS256 (HMAC with SHA-256)
 - **Secret**: Configured via `JWT_SECRET` environment variable
-- **Refresh**: No refresh tokens; users must re-login after expiry
+- **Refresh**: renewed silently with the rotating refresh-token cookie (`REFRESH_TOKEN_EXPIRY`, default `7d`)
+- **Token version**: the `ver` claim must match `users.token_version`, checked on every authenticated request
 
-### Re-login Requirement
+### Permission Changes
 
-**Important**: Permissions are baked into the JWT at login time. If a user's role or permissions change, they must log out and log back in to receive an updated token with new permissions.
+Permissions are baked into the JWT when it is minted, but no re-login is needed when they change. Changing a user's role, or a role's name or permissions, bumps the token version of the users concerned: their current access token is rejected with a `401`, and the client refreshes it silently into the new permissions. A password change or an admin password reset bumps it too, and also revokes every refresh token of the user, who must then log in again.
 
 ### Client-Side Token Expiry Handling
 
-The React client (`AuthContext`) implements **proactive token expiry detection** to automatically log users out when their JWT expires, providing a seamless user experience.
+The access token lives in an httpOnly `access_token` cookie that the client never reads. Expiry is handled reactively and silently by `client/src/api/core.ts`:
 
-#### Implementation
-
-**Timer-Based Auto-Logout:**
-```typescript
-// In AuthContext.tsx
-const login = (token: string, user: User) => {
-  setToken(token);
-  setUser(user);
-  localStorage.setItem('token', token);
-  localStorage.setItem('user', JSON.stringify(user));
-
-  // Decode JWT to get expiry time
-  const decoded = jwtDecode<{ exp: number }>(token);
-  const expiresAt = decoded.exp * 1000; // Convert to milliseconds
-  const now = Date.now();
-  const timeUntilExpiry = expiresAt - now;
-
-  // Schedule auto-logout exactly when token expires
-  if (timeUntilExpiry > 0) {
-    const timerId = setTimeout(() => {
-      logout();
-      window.dispatchEvent(new CustomEvent('auth:unauthorized', { 
-        detail: { reason: 'session_expired' } 
-      }));
-    }, timeUntilExpiry);
-
-    // Store timer ID to clear on manual logout
-    setExpiryTimerId(timerId);
-  }
-};
-
-const logout = () => {
-  // Clear the expiry timer
-  if (expiryTimerId) {
-    clearTimeout(expiryTimerId);
-    setExpiryTimerId(null);
-  }
-  
-  setToken(null);
-  setUser(null);
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-};
-```
-
-#### Behavior
-
-1. **At Login**: Timer is set to fire exactly when JWT expires
-2. **On Expiry**: User is automatically logged out and redirected to `/login`
-3. **User Feedback**: Login page displays "Votre session a expiré. Veuillez vous reconnecter." message
-4. **Manual Logout**: Timer is cleared to prevent double-logout
-
-#### Benefits
-
-- **No Surprise 401 Errors**: Users never encounter failed API requests due to expired tokens
-- **Graceful UX**: Users see a clear "session expired" message instead of generic errors
-- **Consistent Behavior**: Expiry happens at the same moment for all tabs (via localStorage events)
+1. **On a 401**, the client calls `POST /api/auth/refresh` (refresh-token cookie), then retries the original request once.
+2. **Across tabs**, refreshes are serialized with the Web Locks API (lock `auth-refresh`): a tab that waited for the lock and sees a new `csrf_token` cookie knows another tab already refreshed, and just retries.
+3. **A lost race** (`401` with `code: "REFRESH_RACE"`: another request rotated the same refresh token first) is treated as a success: the winner's response carries the fresh cookies.
+4. **Only when the refresh itself fails** (refresh token expired or revoked) does the client dispatch `auth:unauthorized`, and the login page shows "Votre session a expiré. Veuillez vous reconnecter."
 
 #### Configuration
 
-Token expiry duration is controlled by the `JWT_EXPIRES_IN` environment variable on the server (default: `1h`). The client automatically adapts to whatever expiry time is encoded in the JWT.
+Token expiry duration is controlled by the `JWT_EXPIRES_IN` environment variable on the server (default: `15m`); the `access_token` cookie `maxAge` is derived from the same value. Because renewal is silent, a short lifetime has no user-facing cost.
 
 ---
 
@@ -882,30 +830,29 @@ This ensures that **any** administrative permission grants access to the admin p
 
 ### JWT Token Limitations
 
-#### No Automatic Permission Updates
-**Issue**: Permissions are baked into JWT at login time  
-**Impact**: Role/permission changes don't take effect until re-login  
-**Workaround**: Users must logout and login again after role changes
+#### Permission Updates Go Through a Silent Refresh
+**Issue**: Permissions are baked into the JWT when it is minted  
+**Handling**: Every access token carries the user's token version (`ver` claim), checked on each authenticated request. Changing a user's role, or a role's name or permissions, bumps the version of the users concerned: their current access token is rejected with a `401`, and the client silently refreshes it into the new permissions — no re-login  
+**Cost**: one primary-key lookup (`users.token_version`) per authenticated request
 
 **Example**:
 ```
-1. User logs in as 'operator' → JWT contains operator permissions
-2. Admin promotes user to 'admin' role
-3. User still has operator permissions until they re-login
-4. User must logout and login to get admin permissions
+1. User logs in as 'operator' → JWT contains operator permissions (and its token version)
+2. Admin promotes user to 'admin' role → the user's token version is bumped
+3. The user's next request gets a 401; the client refreshes silently
+4. The new JWT carries admin permissions — no logout needed
 ```
 
 #### Token Expiry
-**Default**: Tokens expire after 1 hour (configurable via `JWT_EXPIRES_IN`)  
-**Client Behavior**: Proactive auto-logout at exact expiry time (see [Client-Side Token Expiry Handling](#client-side-token-expiry-handling))  
-**Impact**: Users see "session expired" message and must re-authenticate  
-**No refresh tokens**: Must enter credentials again
+**Default**: Tokens expire after 15 minutes (configurable via `JWT_EXPIRES_IN`); the `access_token` cookie expires at the same time  
+**Client Behavior**: silent refresh on 401 (see [Client-Side Token Expiry Handling](#client-side-token-expiry-handling))  
+**Silent renewal**: the client refreshes the access token with the refresh-token cookie; re-login is only needed once the refresh token expires or is revoked
 
 **Configuration**:
 ```env
-JWT_EXPIRES_IN=1h  # Default: 1 hour
-JWT_EXPIRES_IN=7d   # Alternative: 7 days
+JWT_EXPIRES_IN=15m  # Default: 15 minutes
 JWT_EXPIRES_IN=30m  # Alternative: 30 minutes
+JWT_EXPIRES_IN=1h   # Alternative: 1 hour
 ```
 
 ### Client-Side Permission Checking

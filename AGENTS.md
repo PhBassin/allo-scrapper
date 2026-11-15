@@ -2,6 +2,8 @@
 
 Theater showtimes aggregator. npm-workspaces monorepo: **Express API (`server`) + React SPA (`client`) + standalone scraper microservice (`scraper`)**, PostgreSQL + Redis, fully Dockerized.
 
+**Read first:** [README.md](./README.md) (what the project is, setup, configuration) and [CONTRIBUTING.md](./CONTRIBUTING.md) (workflow, checks, merge, releases). This file only adds what agents need on top; if it contradicts them, they win and this file must be fixed.
+
 ## Critical conventions
 
 - **Node 24 only** (`engines: >=24 <25`, see `.nvmrc`). CI/hooks run on Node 24.
@@ -23,13 +25,9 @@ Theater showtimes aggregator. npm-workspaces monorepo: **Express API (`server`) 
 - E2E (Playwright, from root): `npm run e2e` / `npm run e2e:ui`.
 - DB migrate (usually automatic, see below): `npm run server:db:migrate`.
 
-## Local verification order (mirrors pre-push hook + CI)
+## Local verification order
 
-1. `tsc --noEmit` for server AND scraper, `tsc -b` for client
-2. server tests (`test:run`) + server coverage
-3. scraper tests (`test:run`)
-
-The `.husky/pre-push` hook runs exactly this and **blocks push on failure**. Emergency bypass: `git push --no-verify`.
+Before pushing, run the checks in [CONTRIBUTING.md → Before you push](./CONTRIBUTING.md#before-you-push).
 
 ## Dev environment
 
@@ -50,8 +48,7 @@ The `.husky/pre-push` hook runs exactly this and **blocks push on failure**. Eme
 
 ## Git / PR workflow
 
-- Branch from `develop` (never `main`). Naming: `<type>/<issue#>-<desc>` (e.g. `feat/259-add-theater-modal`). Every PR links an issue.
-- Conventional Commits. Version bump is automated on merge to main via PR labels (`major`/`minor`/`patch`) or PR title (`feat:`→minor, `fix:`→patch, `BREAKING CHANGE:`/`[major]`→major). `main` auto-syncs back into `develop`.
+Follow [CONTRIBUTING.md](./CONTRIBUTING.md) for branching, commits, merge method and releases. Agent-specific: state the chosen merge method when proposing a merge.
 
 ## Tooling notes
 

@@ -1,91 +1,103 @@
 import { logger } from './logger.js';
 
-function parseExpiryToMs(value: string): number {
-  const trimmed = value.trim();
-  const humanReadablePattern = /^(\d+)([hdms])$/;
-  const match = trimmed.match(humanReadablePattern);
-  if (match) {
-    const num = parseInt(match[1], 10);
-    switch (match[2]) {
-      case 's': return num * 1000;
-      case 'm': return num * 60 * 1000;
-      case 'h': return num * 60 * 60 * 1000;
-      case 'd': return num * 24 * 60 * 60 * 1000;
-    }
-  }
-  const numericPattern = /^(\d+)$/;
-  if (numericPattern.test(trimmed)) {
-    return parseInt(trimmed, 10) * 1000;
-  }
-  return -1;
-}
+/** Access-token lifetime used when `JWT_EXPIRES_IN` is unset. */
+export const DEFAULT_JWT_EXPIRES_IN = '15m';
 
-export function validateJwtExpirationForCookie(jwtExpiresIn: string, cookieMaxAgeMs: number): void {
-  const jwtMs = parseExpiryToMs(jwtExpiresIn);
-  if (jwtMs > 0 && jwtMs < cookieMaxAgeMs) {
-    const cookieMin = Math.round(cookieMaxAgeMs / 60000);
-    logger.warn(
-      `⚠️  JWT_EXPIRES_IN (${jwtExpiresIn}) is shorter than access_token cookie maxAge (${cookieMin}min). ` +
-      `The JWT will expire before the browser sends the cookie, causing 401 → refresh thrashing. ` +
-      `Set JWT_EXPIRES_IN >= ${cookieMin}min.`
-    );
-  }
+/** The configured access-token lifetime, as written in `JWT_EXPIRES_IN`. */
+export function getJwtExpiresIn(): string {
+  return process.env.JWT_EXPIRES_IN || DEFAULT_JWT_EXPIRES_IN;
 }
 
 /**
- * Parses and validates JWT expiration time from environment variable.
- * 
- * Supports two formats:
- * 1. Human-readable: '1h', '7d', '30m', '3600s' (passed to jwt.sign as-is)
- * 2. Numeric: '86400' (converted to number for jwt.sign)
- * 
- * @param value - The JWT_EXPIRES_IN value from environment variable
- * @returns The parsed expiration value (string for human-readable, number for seconds)
- * @throws Error if the format is invalid
- * 
- * @example
- * parseJwtExpiration('1h')    // returns '1h'
- * parseJwtExpiration('86400')  // returns 86400
- * parseJwtExpiration('abc')    // throws Error
+ * Access-token lifetime in milliseconds. Single source of truth shared by the
+ * JWT `exp` claim and the `access_token` cookie `maxAge`, so a leaked copy of
+ * the token never outlives its cookie. Throws on an invalid `JWT_EXPIRES_IN`.
  */
-export function parseJwtExpiration(value: string): string | number {
-  // Trim whitespace
+export function getAccessTokenMaxAgeMs(): number {
+  return parseConfiguredExpiry().ms;
+}
+
+/** The configured access-token lifetime, in the form `jwt.sign` expects. */
+export function getJwtSignExpiresIn(): string | number {
+  return parseConfiguredExpiry().jwtValue;
+}
+
+const UNIT_MS = { s: 1000, m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 } as const;
+
+/**
+ * Upper bound on the access-token lifetime. Far above any sane value, it keeps
+ * the cookie `expires` a valid date, so a typo fails at startup rather than
+ * on every login.
+ */
+export const MAX_JWT_EXPIRES_IN_MS = 365 * UNIT_MS.d;
+
+type ParsedExpiry = { jwtValue: string | number; ms: number };
+
+/** Last parse of `JWT_EXPIRES_IN`, re-done only when the variable changes. */
+let parsedConfig: { raw: string; parsed: ParsedExpiry } | undefined;
+
+function parseConfiguredExpiry(): ParsedExpiry {
+  const raw = getJwtExpiresIn();
+  if (parsedConfig?.raw !== raw) {
+    parsedConfig = { raw, parsed: parseExpiry(raw) };
+  }
+  return parsedConfig.parsed;
+}
+
+/**
+ * The one grammar for `JWT_EXPIRES_IN`: returns both the value handed to
+ * `jwt.sign` and the same duration in milliseconds.
+ */
+function parseExpiry(value: string): ParsedExpiry {
   const trimmed = value.trim();
 
-  // Check for empty string
   if (!trimmed) {
     logger.error('JWT_EXPIRES_IN cannot be empty');
     throw new Error('Invalid JWT_EXPIRES_IN format: value cannot be empty');
   }
 
-  // Check for human-readable format: ends with h, d, m, or s
-  const humanReadablePattern = /^(\d+)([hdms])$/;
-  const match = trimmed.match(humanReadablePattern);
-
-  if (match) {
-    // Valid human-readable format
-    return trimmed;
+  // Human-readable (passed to jwt.sign as-is) or plain seconds (as a number)
+  const match = trimmed.match(/^(\d+)([hdms])?$/);
+  if (!match) {
+    logger.error(`Invalid JWT_EXPIRES_IN format: ${trimmed}`);
+    throw new Error(
+      `Invalid JWT_EXPIRES_IN format: "${trimmed}". ` +
+      `Expected human-readable (e.g., '24h', '7d') or seconds as number (e.g., '86400')`
+    );
   }
 
-  // Check for numeric format (pure digits)
-  const numericPattern = /^(\d+)$/;
-  if (numericPattern.test(trimmed)) {
-    const numValue = parseInt(trimmed, 10);
-
-    // Validate positive non-zero integer
-    if (numValue <= 0) {
-      logger.error(`JWT_EXPIRES_IN must be positive: ${trimmed}`);
-      throw new Error('Invalid JWT_EXPIRES_IN format: value must be positive');
-    }
-
-    // Return as number for jwt.sign
-    return numValue;
+  const num = parseInt(match[1], 10);
+  if (num <= 0) {
+    logger.error(`JWT_EXPIRES_IN must be positive: ${trimmed}`);
+    throw new Error('Invalid JWT_EXPIRES_IN format: value must be positive');
   }
 
-  // Invalid format
-  logger.error(`Invalid JWT_EXPIRES_IN format: ${trimmed}`);
-  throw new Error(
-    `Invalid JWT_EXPIRES_IN format: "${trimmed}". ` +
-    `Expected human-readable (e.g., '24h', '7d') or seconds as number (e.g., '86400')`
-  );
+  const unit = (match[2] ?? 's') as keyof typeof UNIT_MS;
+  const ms = num * UNIT_MS[unit];
+  if (ms > MAX_JWT_EXPIRES_IN_MS) {
+    logger.error(`JWT_EXPIRES_IN exceeds 365 days: ${trimmed}`);
+    throw new Error('Invalid JWT_EXPIRES_IN format: value must not exceed 365 days');
+  }
+
+  return { jwtValue: match[2] ? trimmed : num, ms };
+}
+
+/**
+ * Above this, a stolen access token stays usable for a long time unless a
+ * credential change bumps the user's token version. Renewal is silent, so
+ * there is rarely a reason to go beyond it.
+ */
+export const LONG_JWT_EXPIRES_IN_MS = UNIT_MS.h;
+
+/**
+ * Startup check: log a warning when `JWT_EXPIRES_IN` exceeds one hour (e.g. a
+ * `24h` kept from the former compose default). Throws on an invalid value.
+ */
+export function warnIfLongJwtExpiresIn(): void {
+  if (getAccessTokenMaxAgeMs() > LONG_JWT_EXPIRES_IN_MS) {
+    logger.warn(
+      `⚠️  JWT_EXPIRES_IN (${getJwtExpiresIn()}) exceeds 1h: a stolen access token stays usable that long ` +
+      `unless a password or role change revokes it. Renewal is silent; keep it short (default ${DEFAULT_JWT_EXPIRES_IN}).`
+    );
+  }
 }

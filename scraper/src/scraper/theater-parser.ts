@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import type { TheaterPageData, Theater, MovieShowtimeData, Movie, Showtime } from '../types/scraper.js';
 import { logger } from '../utils/logger.js';
+import { decodeHtmlEntities } from '../utils/html-decode.js';
 
 // Parse the theater page from the source website
 export function parseTheaterPage(html: string, theaterId: string): TheaterPageData {
@@ -11,38 +12,106 @@ export function parseTheaterPage(html: string, theaterId: string): TheaterPageDa
   const selectedDate = theaterSection.attr('data-selected-date') || '';
 
   return {
-    theater: parseTheaterSection(theaterDataStr, theaterId),
+    theater: parseTheaterSection(theaterDataStr, theaterId, parseJsonLdTheater($)),
     movies: parseMoviesFromSection($, theaterSection, theaterId, selectedDate),
     dates: parseDatesAttribute(datesDataStr),
     selected_date: selectedDate,
   };
 }
 
-function parseTheaterSection(theaterDataStr: string | undefined, theaterId: string): Theater {
-  const fallback: Theater = {
+// Theater fields read from the schema.org MovieTheater JSON-LD node.
+interface JsonLdTheater {
+  name: string;
+  image: string;
+  address: string;
+  postal_code: string;
+  city: string;
+}
+
+function parseTheaterSection(
+  theaterDataStr: string | undefined,
+  theaterId: string,
+  jsonLd: JsonLdTheater | undefined
+): Theater {
+  const data = parseTheaterDataAttribute(theaterDataStr);
+  const location = data?.location;
+
+  // AlloCiné no longer puts the address or the image in data-theater; the
+  // schema.org JSON-LD MovieTheater node is now their source. data-theater
+  // stays the source of the name and the fallback for the rest. Its former
+  // location shape is {city, region, zip}: it never had a street address.
+  return {
     id: theaterId,
-    name: '',
-    address: '',
-    postal_code: '',
-    city: '',
+    name: cleanString(data?.name) || jsonLd?.name || '',
+    address: jsonLd?.address || '',
+    postal_code: jsonLd?.postal_code || cleanString(location?.zip),
+    city: jsonLd?.city || cleanString(location?.city),
+    image_url: jsonLd?.image || cleanString(data?.image) || undefined,
   };
+}
 
-  if (!theaterDataStr) return fallback;
-
+function parseTheaterDataAttribute(theaterDataStr: string | undefined): any {
+  if (!theaterDataStr) return undefined;
   try {
-    const data = JSON.parse(theaterDataStr);
-    return {
-      id: theaterId,
-      name: data.name || '',
-      address: data.location?.address || '',
-      postal_code: data.location?.postalCode || '',
-      city: data.location?.city || '',
-      image_url: data.image,
-    };
-  } catch (e) {
+    return JSON.parse(theaterDataStr);
+  } catch {
     logger.warn('Could not parse theater data JSON');
-    return fallback;
+    return undefined;
   }
+}
+
+// Read the schema.org MovieTheater node from the page's
+// <script type="application/ld+json"> blocks. Nodes of any other @type
+// (Organization, WebSite, ItemList...) are ignored, so that another entity's
+// address can never be stored as the theater's.
+function parseJsonLdTheater($: cheerio.CheerioAPI): JsonLdTheater | undefined {
+  for (const script of $('script[type="application/ld+json"]').toArray()) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse($(script).text());
+    } catch {
+      logger.warn('Could not parse JSON-LD block');
+      continue;
+    }
+
+    const node = flattenJsonLd(parsed).find(isMovieTheater);
+    if (!node) continue;
+
+    const address = node.address && typeof node.address === 'object' ? node.address : {};
+    return {
+      name: cleanString(node.name),
+      image: jsonLdImageUrl(node.image),
+      address: cleanString(address.streetAddress),
+      postal_code: cleanString(address.postalCode),
+      city: cleanString(address.addressLocality),
+    };
+  }
+  return undefined;
+}
+
+function flattenJsonLd(value: unknown): any[] {
+  if (Array.isArray(value)) return value.flatMap(flattenJsonLd);
+  if (!value || typeof value !== 'object') return [];
+  const node = value as Record<string, unknown>;
+  return [node, ...flattenJsonLd(node['@graph'])];
+}
+
+function isMovieTheater(node: any): boolean {
+  const type = node['@type'];
+  return Array.isArray(type) ? type.includes('MovieTheater') : type === 'MovieTheater';
+}
+
+// schema.org `image` is a URL, an ImageObject, or a list of either.
+function jsonLdImageUrl(image: unknown): string {
+  if (Array.isArray(image)) return jsonLdImageUrl(image[0]);
+  if (image && typeof image === 'object') return cleanString((image as { url?: unknown }).url);
+  return cleanString(image);
+}
+
+// Decode HTML entities and trim, so a whitespace-only value counts as empty.
+function cleanString(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return (decodeHtmlEntities(value) ?? '').trim();
 }
 
 function parseDatesAttribute(datesDataStr: string | undefined): string[] {

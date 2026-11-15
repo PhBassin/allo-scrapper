@@ -76,6 +76,15 @@ These are the **only 5 variables** you need for production:
   - Set to `false` for **development** (HTTP-only, no TLS) — allows cookies to work over HTTP. The browser will otherwise silently reject cookies with the `Secure` flag and all non-login API calls return 403 "CSRF token missing or invalid".
   - **Development shortcut**: `cat .env.example .env.dev.example > .env` automatically sets this to `false`.
 
+### `TRUST_PROXY`
+- **Default**: `false` (`X-Forwarded-For` is ignored)
+- **Valid values**: `true`, `false`, a hop count (e.g. `1`), or a comma-separated list of IPs, CIDRs and the keywords `loopback`, `linklocal`, `uniquelocal`
+- **Notes**:
+  - Tells the server which proxies it may believe when they send `X-Forwarded-For`. The resulting client IP keys every IP-based rate limit, including login.
+  - Leave it unset if clients reach port 3000 directly. Behind one reverse proxy, set it to `1` and keep port 3000 reachable only by that proxy. See [Reverse Proxies and Client IPs](../guides/deployment/networking.md#reverse-proxies-and-client-ips).
+  - Behind a proxy with it unset, every client shares the proxy's IP in the rate limits. The server logs a warning the first time it ignores an `X-Forwarded-For` header.
+  - An invalid value stops the server at startup.
+
 ---
 
 ## Development Overrides (.env.dev.example)
@@ -108,7 +117,7 @@ This adds variables needed for development mode (`docker-compose.dev.yml`):
 |----------|---------|
 | `TZ` | `Europe/Paris` |
 | `LOG_LEVEL` | `info` |
-| `JWT_EXPIRES_IN` | `24h` |
+| `JWT_EXPIRES_IN` | `15m` |
 | `PORT` | `3000` |
 
 ### Scraper
@@ -177,7 +186,7 @@ The following variables are **hardcoded** inside `docker-compose.yaml` and do **
 | `AUTO_MIGRATE` | `true` | ics-web |
 | `LOG_LEVEL` | `info` | All |
 | `TZ` | `Europe/Paris` | All |
-| `JWT_EXPIRES_IN` | `1h` | ics-web |
+| `JWT_EXPIRES_IN` | `15m` | ics-web |
 | `RUN_MODE` | `consumer` / `cron` | ics-scraper / ics-scraper-cron |
 | `SCRAPE_MODE` | `from_today_limited` / `weekly` | ics-scraper / ics-scraper-cron |
 | `SCRAPE_DAYS` | `7` | ics-scraper, ics-scraper-cron |

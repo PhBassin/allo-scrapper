@@ -842,70 +842,13 @@ WHERE role_id = (SELECT id FROM roles WHERE name = 'operator');
 -- Should return 9
 ```
 
-### Scenario 4: Permission Changes Not Taking Effect
+### Scenario 4: Permission Changes Taking Effect
 
-**Problem**: User's permissions changed in database but old permissions still in use (JWT expires in 24 hours).
+Permissions are baked into the access token, but changes still apply at once. Changing a user's role, or a role's name or permissions, bumps `users.token_version` for the users concerned. Every authenticated request compares it with the token's `ver` claim, so the old token is rejected with a `401`. The web client then calls `POST /api/auth/refresh`, which re-reads the role from the database. The user keeps working with the new permissions, without logging in again.
 
-**Solution**: Users must log out and log back in to get new JWT with updated permissions.
+A password change or an admin password reset bumps the version too, and also revokes every refresh token of the user, so all of their sessions end.
 
-**Proactive approach**: Force re-login when permissions change:
-
-```typescript
-// server/src/services/permission-change-notifier.ts
-
-async function notifyPermissionChange(
-  userId: number,
-  changes: string[]
-): Promise<void> {
-  // Send notification to client via WebSocket
-  io.to(`user-${userId}`).emit('permission_changed', {
-    message: 'Your permissions have changed. Please log in again.',
-    changes,
-  });
-}
-
-// When admin updates user role
-async function updateUserRole(
-  db: Database,
-  userId: number,
-  roleId: number
-): Promise<void> {
-  await db.query(
-    'UPDATE users SET role_id = $1 WHERE id = $2',
-    [roleId, userId]
-  );
-  
-  // Get new role name for notification
-  const newRole = await db.query(
-    'SELECT name FROM roles WHERE id = $1',
-    [roleId]
-  );
-  
-  // Notify user
-  await notifyPermissionChange(userId, [
-    `Role changed to: ${newRole.name}`
-  ]);
-}
-```
-
-**Client-side handling:**
-
-```typescript
-// client/src/contexts/AuthContext.tsx
-
-useEffect(() => {
-  const handlePermissionChange = (event: { changes: string[] }) => {
-    logger.warn('Permissions changed. Please log in again.', event.changes);
-    logout(); // Clear token and redirect to login
-  };
-  
-  socket.on('permission_changed', handlePermissionChange);
-  
-  return () => {
-    socket.off('permission_changed', handlePermissionChange);
-  };
-}, [socket]);
-```
+No notification mechanism is needed. A client that only uses a Bearer token (no refresh cookie) gets a `401` and must log in again.
 
 ---
 
@@ -1086,22 +1029,20 @@ async function debugUserPermissions(db: Database, userId: number) {
 **Common Causes:**
 1. User role_id is NULL → Assign role
 2. Role has no permissions → Add permissions to role
-3. JWT expired → User must re-login
+3. Refresh token expired or revoked (password change/reset) → User must log in again
 4. Custom "admin" role without bypass → Only system admin role bypasses checks
 
 ### Symptom: Permission Changes Not Applied
 
-**JWT caching issue**: Permissions are baked into JWT at login time.
+Changes apply at once through the token version (see [Scenario 4](#scenario-4-permission-changes-taking-effect)). If a user still sees old permissions:
 
-**Solution**: User must logout and login again to get updated JWT.
-
-**Verify in JWT:**
-```bash
-# Decode JWT (https://jwt.io)
-# Check "permissions" array in payload
-
-# If permissions list is missing or old, user needs to re-login
+```sql
+-- The version must have increased after the change
+SELECT id, username, role_id, token_version FROM users WHERE username = 'jdoe';
 ```
+
+- The change was made directly in the database (outside the API)? Bump the version yourself: `UPDATE users SET token_version = token_version + 1 WHERE id = <id>;`
+- The UI still shows old menus? The API already enforces the new permissions; the UI reads the user it stored at load time, so a page reload updates the menus.
 
 ### Symptom: Accidental Permission Revocation
 
@@ -1145,5 +1086,5 @@ psql $DATABASE_URL < backup-1710768000.sql
 6. **Backup before settings imports** (auto-backup in code)
 7. **Document role purposes** in role descriptions
 8. **Monitor permission changes** via audit logs
-9. **Require re-login after permission changes** (JWT expiry enforces this)
+9. **Change permissions through the API** so token versions are bumped (direct SQL edits are not picked up)
 10. **Create emergency access plan** (e.g., temporary super-user restoration)

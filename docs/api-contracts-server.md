@@ -39,7 +39,6 @@ The server exposes a REST API built with **Express 5.2**. Routes are organized b
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/api/auth/login` | mixed (public + authenticated) | POST /api/auth/login - Login user |
-| POST | `/api/auth/register` | mixed (public + authenticated) | POST /api/auth/login - Login user |
 | POST | `/api/auth/change-password` | mixed (public + authenticated) | POST /api/auth/login - Login user |
 
 ### Movies
@@ -141,11 +140,10 @@ The server exposes a REST API built with **Express 5.2**. Routes are organized b
 ### Auth (`/api/auth`)
 **File:** `server/src/routes/auth.ts`
 
-The auth module handles user registration, login, token refresh, and logout.
+The auth module handles login, token refresh, logout and password change. Users are created via `POST /api/users`.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/auth/register` | public | Create new user account |
 | POST | `/api/auth/login` | public | Login, returns JWT tokens |
 | POST | `/api/auth/refresh` | public (with refresh token) | Refresh access token |
 | POST | `/api/auth/logout` | authenticated | Invalidate tokens |

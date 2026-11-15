@@ -45,33 +45,7 @@ cd client && npm run dev
 
 ## Development Workflow
 
-### Branch Strategy
-```
-main         ← Production releases
-  └─ develop ← Integration branch
-       └─ feat/*  ← Feature branches
-       └─ fix/*   ← Bug fix branches
-       └─ docs/*  ← Documentation
-```
-
-### Commit Convention (Conventional Commits)
-```
-<type>(<scope>): <description>
-
-feat(scraper): add new parser strategy
-fix(api): correct auth middleware
-docs: update AGENTS.md
-```
-
-### Pull Request Process
-1. Create issue with appropriate label
-2. Create branch: `<type>/<issue-number>-<description>`
-3. Write failing tests first (RED)
-4. Implement (GREEN)
-5. Update documentation
-6. Open PR referencing issue
-7. Wait for CI + review
-8. Merge to develop
+Branching, commit conventions, pre-push checks, merging and releases are described in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Running Tests
 

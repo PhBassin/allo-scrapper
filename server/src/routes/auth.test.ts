@@ -103,10 +103,6 @@ vi.mock('../middleware/auth.js', () => ({
     AuthRequest: {} as any,
 }));
 
-vi.mock('../middleware/permission.js', () => ({
-    requirePermission: (..._perms: string[]) => vi.fn((req: any, res: any, next: any) => next()),
-}));
-
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
@@ -117,6 +113,8 @@ app.use(errorHandler);
 describe('Auth Routes', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // Run transaction callbacks against the mock db itself
+        vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(db));
     });
 
     describe('POST /api/auth/login', () => {
@@ -229,6 +227,16 @@ describe('Auth Routes', () => {
             expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
             expect(response.body.error).toBe('Username and password are required');
+        });
+    });
+
+    describe('POST /api/auth/register', () => {
+        it('is not served (users are created via POST /api/users)', async () => {
+            const response = await request(app)
+                .post('/api/auth/register')
+                .send({ username: 'newuser', password: 'SecurePass123!' });
+
+            expect(response.status).toBe(404);
         });
     });
 
@@ -384,8 +392,8 @@ describe('Auth Routes', () => {
             const mockGenerate = (refreshTokenMocks as any).__mockGenerate;
             const mockRevoke = (refreshTokenMocks as any).__mockRevoke;
 
-            mockValidate.mockResolvedValue(1);
-            mockRotate.mockResolvedValue('new-refresh-token-raw');
+            mockValidate.mockResolvedValue({ status: 'valid', userId: 1 });
+            mockRotate.mockResolvedValue({ status: 'rotated', token: 'new-refresh-token-raw' });
 
             vi.mocked(queries.getUserWithRoleById).mockResolvedValue({
                 id: 1,
@@ -422,8 +430,8 @@ describe('Auth Routes', () => {
             const mockValidate = (refreshTokenMocks as any).__mockValidate;
             const mockRotate = (refreshTokenMocks as any).__mockRotate;
 
-            mockValidate.mockResolvedValue(1);
-            mockRotate.mockResolvedValue('new-refresh-token-raw');
+            mockValidate.mockResolvedValue({ status: 'valid', userId: 1 });
+            mockRotate.mockResolvedValue({ status: 'rotated', token: 'new-refresh-token-raw' });
             vi.mocked(queries.getUserWithRoleById).mockResolvedValue({
                 id: 1,
                 username: 'admin',
@@ -446,8 +454,8 @@ describe('Auth Routes', () => {
             const mockValidate = (refreshTokenMocks as any).__mockValidate;
             const mockRotate = (refreshTokenMocks as any).__mockRotate;
 
-            mockValidate.mockResolvedValue(1);
-            mockRotate.mockResolvedValue('new-refresh-token-raw');
+            mockValidate.mockResolvedValue({ status: 'valid', userId: 1 });
+            mockRotate.mockResolvedValue({ status: 'rotated', token: 'new-refresh-token-raw' });
             vi.mocked(queries.getUserWithRoleById).mockResolvedValue(undefined);
 
             const response = await request(app)
@@ -457,8 +465,9 @@ describe('Auth Routes', () => {
             expect(response.status).toBe(401);
             expect(response.body.success).toBe(false);
             expect(response.body.error).toBe('User not found.');
-            // No new refresh/access tokens should be issued and the old refresh token should NOT be rotated
-            expect(mockRotate).not.toHaveBeenCalled();
+            // The user is read after the rotation; no access token is issued for a missing user
+            expect(mockRotate).toHaveBeenCalledWith(db, 1, 'valid-old-token');
+            expect(response.body.data).toBeUndefined();
         });
 
         it('should return 401 if no refresh token cookie', async () => {
@@ -474,7 +483,7 @@ describe('Auth Routes', () => {
             const refreshTokenMocks = await import('../repositories/refresh-token-repository.js');
             const mockValidate = (refreshTokenMocks as any).__mockValidate;
 
-            mockValidate.mockResolvedValue(null);
+            mockValidate.mockResolvedValue({ status: 'rejected' });
 
             const response = await request(app)
                 .post('/api/auth/refresh')

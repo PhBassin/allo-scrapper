@@ -63,20 +63,27 @@ describe('buildGoogleCalendarUrl', () => {
     expect(url).toContain('20260520T223000');
   });
 
-  it('includes theater name and address as location', () => {
+  it('includes theater name and the formatted address as location', () => {
     const url = buildGoogleCalendarUrl(baseShowtime, baseMovie, baseTheater);
-    // URLSearchParams uses + for spaces; decode the URL to check values
-    const decoded = decodeURIComponent(url.replace(/\+/g, ' '));
-    expect(decoded).toContain('Cinéma Test');
-    expect(decoded).toContain('10 rue du Cinéma');
+    expect(new URL(url).searchParams.get('location')).toBe('Cinéma Test, 10 rue du Cinéma, Paris');
   });
 
-  it('uses theater name only when address is missing', () => {
+  it('includes the postal code in the location when known', () => {
+    const theater = { ...baseTheater, postal_code: '75001' };
+    const url = buildGoogleCalendarUrl(baseShowtime, baseMovie, theater);
+    expect(new URL(url).searchParams.get('location')).toBe('Cinéma Test, 10 rue du Cinéma, 75001 Paris');
+  });
+
+  it('uses theater name and city when address is missing', () => {
     const theater = { ...baseTheater, address: undefined };
     const url = buildGoogleCalendarUrl(baseShowtime, baseMovie, theater);
-    const decoded = decodeURIComponent(url.replace(/\+/g, ' '));
-    expect(decoded).toContain('Cinéma Test');
-    expect(decoded).not.toContain('10 rue du Cinéma');
+    expect(new URL(url).searchParams.get('location')).toBe('Cinéma Test, Paris');
+  });
+
+  it('uses theater name only when every address part is missing', () => {
+    const theater = { ...baseTheater, address: undefined, city: undefined };
+    const url = buildGoogleCalendarUrl(baseShowtime, baseMovie, theater);
+    expect(new URL(url).searchParams.get('location')).toBe('Cinéma Test');
   });
 });
 
@@ -115,17 +122,22 @@ describe('buildIcsContent', () => {
     expect(ics).toContain('SUMMARY:Mon Film Test');
   });
 
-  it('contains theater name and address as LOCATION (RFC 5545 escaped)', () => {
-    const ics = buildIcsContent(baseShowtime, baseMovie, baseTheater);
+  it('contains theater name and the formatted address as LOCATION (RFC 5545 escaped)', () => {
+    const ics = buildIcsContent(baseShowtime, baseMovie, { ...baseTheater, postal_code: '75001' });
     // RFC 5545 requires commas to be escaped as \,
-    expect(ics).toContain('LOCATION:Cinéma Test\\, 10 rue du Cinéma');
+    expect(ics).toContain('LOCATION:Cinéma Test\\, 10 rue du Cinéma\\, 75001 Paris');
   });
 
-  it('uses theater name only as LOCATION when address is missing', () => {
+  it('uses theater name and city as LOCATION when address is missing', () => {
     const theater = { ...baseTheater, address: undefined };
     const ics = buildIcsContent(baseShowtime, baseMovie, theater);
-    expect(ics).toContain('LOCATION:Cinéma Test');
-    expect(ics).not.toContain('LOCATION:Cinéma Test,');
+    expect(ics).toContain('LOCATION:Cinéma Test\\, Paris\r\n');
+  });
+
+  it('uses theater name only as LOCATION when every address part is missing', () => {
+    const theater = { ...baseTheater, address: undefined, city: undefined };
+    const ics = buildIcsContent(baseShowtime, baseMovie, theater);
+    expect(ics).toContain('LOCATION:Cinéma Test\r\n');
   });
 
   it('ends with END:VCALENDAR', () => {

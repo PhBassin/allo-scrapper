@@ -106,6 +106,10 @@ function rowToConfig(row: RateLimitConfigRow): RateLimitConfig {
   };
 }
 
+function sameConfig(a: RateLimitConfig, b: RateLimitConfig): boolean {
+  return (Object.keys(a) as (keyof RateLimitConfig)[]).every((key) => a[key] === b[key]);
+}
+
 export async function loadFromDb(db: DB): Promise<boolean> {
   try {
     const result = await db.query<RateLimitConfigRow>(
@@ -114,8 +118,13 @@ export async function loadFromDb(db: DB): Promise<boolean> {
     if (result.rows.length === 0) {
       return false;
     }
-    current = rowToConfig(result.rows[0]);
-    notify();
+    const loaded = rowToConfig(result.rows[0]);
+    // Subscribers rebuild the limiters, which empties their counters, so the
+    // periodic reload of an unchanged row must not notify them.
+    if (!sameConfig(current, loaded)) {
+      current = loaded;
+      notify();
+    }
     return true;
   } catch {
     return false;

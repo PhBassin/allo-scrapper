@@ -2,7 +2,7 @@ import express from 'express';
 import { parseStrictInt } from '../utils/number.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
-import { protectedLimiter } from '../middleware/rate-limit.js';
+import { protectedLimiter, registerLimiter } from '../middleware/rate-limit.js';
 import type { ApiResponse } from '../types/api.js';
 import type { UserPublic } from '../types/user.js';
 import { ValidationError } from '../utils/errors.js';
@@ -43,7 +43,7 @@ router.get('/:id', protectedLimiter, requireAuth, requirePermission('users:list'
   }
 });
 
-router.post('/', protectedLimiter, requireAuth, requirePermission('users:create'), async (req: AuthRequest, res, next) => {
+router.post('/', protectedLimiter, registerLimiter, requireAuth, requirePermission('users:create'), async (req: AuthRequest, res, next) => {
   try {
     const userService = new UserService(req.app.get('db'));
     const { username, password, role_id } = req.body;

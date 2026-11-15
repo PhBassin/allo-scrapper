@@ -6,11 +6,15 @@ import { errorHandler } from '../middleware/error-handler.js';
 import type { DB } from '../db/internal/client.js';
 
 // Mock dependencies
-vi.mock('../db/internal/client.js', () => ({
-  db: {
-    query: vi.fn(),
-  },
-}));
+vi.mock('../db/internal/client.js', () => {
+  const query = vi.fn(async () => ({ rows: [], rowCount: 0 }));
+  return {
+    db: {
+      query,
+      transaction: vi.fn(async (fn: (client: { query: typeof query }) => Promise<unknown>) => fn({ query })),
+    },
+  };
+});
 vi.mock('../db/user-queries.js');
 vi.mock('../db/role-queries.js');
 vi.mock('../utils/password.js', () => ({
@@ -43,6 +47,7 @@ vi.mock('../middleware/rate-limit.js', async () => {
 import * as userQueries from '../db/user-queries.js';
 import * as roleQueries from '../db/role-queries.js';
 import { db } from '../db/internal/client.js';
+import { registerLimiter } from '../middleware/rate-limit.js';
 
 // Helper: mock user in new role_id/role_name format
 const makeUser = (id: number, username: string, roleId: number, roleName: string, createdAt = '2024-01-01T00:00:00Z') => ({
@@ -226,6 +231,17 @@ describe('User Management Routes', () => {
   });
 
   describe('POST /api/users', () => {
+    it('applies the user-creation rate limiter', async () => {
+      vi.mocked(registerLimiter).mockClear();
+
+      await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({});
+
+      expect(registerLimiter).toHaveBeenCalledOnce();
+    });
+
     it('should create user with provided role_id (201)', async () => {
       const newUser = makeUser(3, 'newuser', 2, 'operator', '2024-01-03T00:00:00Z');
 
@@ -466,6 +482,11 @@ describe('User Management Routes', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.role_name).toBe('admin');
       expect(userQueries.updateUserRole).toHaveBeenCalledWith(db, 2, 1);
+      // Sessions are kept: the token-version bump makes the client refresh into the new role.
+      expect(db.query).not.toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE refresh_tokens SET revoked_at'),
+        expect.anything(),
+      );
     });
 
     it('should prevent last admin from demoting self (403)', async () => {
@@ -603,10 +624,15 @@ describe('User Management Routes', () => {
       expect(response.body.data.newPassword).toBeUndefined();
       expect(response.body.data.user).toEqual(mockUser);
       expect(userQueries.updateUserPassword).toHaveBeenCalledWith(
-        db,
+        { query: db.query },
         2,
         expect.stringMatching(/^scrypt:/)
       );
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE refresh_tokens SET revoked_at'),
+        [2],
+      );
+      expect(db.query).not.toHaveBeenCalledWith(expect.anything(), [1]);
     });
 
     it('should not return password in response', async () => {

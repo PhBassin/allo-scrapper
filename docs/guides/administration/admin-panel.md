@@ -985,9 +985,9 @@ Role assignment is done from the **Users** tab, not the Roles tab:
 - [Quick Start](../../getting-started/quick-start.md) - Get started quickly
 - [Settings API](../../reference/api/settings.md) - Settings API reference
 - [Users API](../../reference/api/users.md) - Users API reference
-- [Contributing](../development/contributing.md) - Development guidelines
+- [Contributing](../../../CONTRIBUTING.md) - Development guidelines
 - [Production Deployment](../deployment/production.md) - Production deployment guide
 
 ---
 
-[← Back to Administration](./README.md) | [Back to Documentation](../../README.md)
+[← Back to Documentation](../../README.md)

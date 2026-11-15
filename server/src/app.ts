@@ -5,11 +5,12 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Registry, collectDefaultMetrics } from 'prom-client';
-import { createHash } from 'crypto';
+import { createHash, timingSafeEqual } from 'crypto';
 import cookieParser from 'cookie-parser';
 import fs from 'fs';
 
 import { getCorsOptions } from './utils/cors-config.js';
+import { parseTrustProxy, warnOnceOnUntrustedForwardedFor } from './utils/trust-proxy.js';
 import { logger } from './utils/logger.js';
 import { generalLimiter, healthCheckLimiter } from './middleware/rate-limit.js';
 import { requireAuth } from './middleware/auth.js';
@@ -39,11 +40,29 @@ const __dirname = path.dirname(__filename);
 const serverRegistry = new Registry();
 collectDefaultMetrics({ register: serverRegistry, prefix: 'ics_web_' });
 
+/**
+ * Double-submit check: true when the CSRF cookie and header hold the same
+ * non-empty string, compared in constant time.
+ *
+ * timingSafeEqual throws on different lengths, so non-strings (e.g. a cookie
+ * that cookie-parser decoded from JSON) and length mismatches are rejected
+ * first. Empty strings are rejected too: two of them would compare equal.
+ */
+function csrfTokensEqual(cookieToken: unknown, headerToken: unknown): boolean {
+  if (typeof cookieToken !== 'string' || typeof headerToken !== 'string') return false;
+  if (!cookieToken || !headerToken) return false;
+  const cookieBuf = Buffer.from(cookieToken);
+  const headerBuf = Buffer.from(headerToken);
+  return cookieBuf.length === headerBuf.length && timingSafeEqual(cookieBuf, headerBuf);
+}
+
 export function createApp() {
   const app = express();
 
-  // Trust the first proxy to ensure accurate IP resolution for rate limiting
-  app.set('trust proxy', 1);
+  // Which proxies may set X-Forwarded-For: req.ip keys every IP-based rate limiter
+  const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+  app.set('trust proxy', trustProxy);
+  if (trustProxy === false) app.use(warnOnceOnUntrustedForwardedFor());
 
   // Middleware
   // Security: Helmet with strict CSP (no unsafe-inline/unsafe-eval in script-src)
@@ -76,18 +95,21 @@ export function createApp() {
   app.use(express.urlencoded({ extended: false }));
   app.use(cookieParser());
 
-  // CSRF protection: double-submit cookie pattern (inline for CodeQL compliance)
-  // CodeQL requires CSRF middleware to be inline (not in separate module) to
-  // satisfy js/missing-csrf-protection when cookieParser is present.
+  // CSRF protection: double-submit cookie pattern, inline for CodeQL.
+  // CodeQL's js/missing-token-validation flags cookieParser() unless a
+  // middleware passes req.cookies.csrf_token, unchanged, to an equality test
+  // or to a call whose name contains check/verify/valid/equal. So hand the raw
+  // values to csrfTokensEqual: wrapping the cookie first (Buffer.from, a
+  // variable built from it) hides the check and brings the alert back.
   app.use((req, res, next) => {
     // Skip CSRF for test environment, login, and refresh endpoints
     if (process.env.NODE_ENV === 'test') return next();
-    if (req.path === '/api/auth/login' || req.path === '/api/auth/refresh' || req.path === '/api/auth/logout') return next();
+    // Express matches routes case-insensitively, so the path checks must too
+    const csrfPath = req.path.toLowerCase();
+    if (csrfPath === '/api/auth/login' || csrfPath === '/api/auth/refresh' || csrfPath === '/api/auth/logout') return next();
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-    if (!req.path.startsWith('/api/')) return next();
-    const cookieToken = req.cookies?.csrf_token;
-    const headerToken = req.headers['x-csrf-token'] as string | undefined;
-    if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+    if (!csrfPath.startsWith('/api/')) return next();
+    if (!csrfTokensEqual(req.cookies?.csrf_token, req.headers['x-csrf-token'])) {
       return res.status(403).json({
         success: false,
         error: 'CSRF token missing or invalid.',

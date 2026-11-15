@@ -44,6 +44,13 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
     inputClass,
   } = useEditTheaterForm(theater, onSave, onClose);
 
+  // Only a theater with a URL is scraped, so only then can a scrape replace
+  // what is typed here (see "Scraped-field ownership" in CONTEXT.md). The
+  // stored URL counts even when the field is cleared: the API keeps a URL
+  // sent empty. A URL typed for a theater that had none counts too.
+  const isScraped = !!theater.url?.trim() || url.trim() !== '';
+  const scrapeHintId = isScraped ? 'edit-theater-scrape-hint' : undefined;
+
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -83,6 +90,7 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
             </label>
             <input
               id="edit-name"
+              aria-describedby={scrapeHintId}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -114,6 +122,7 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
             </label>
             <input
               id="edit-address"
+              aria-describedby={scrapeHintId}
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
@@ -130,6 +139,7 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
             </label>
             <input
               id="edit-postal-code"
+              aria-describedby={scrapeHintId}
               type="text"
               value={postalCode}
               onChange={(e) => setPostalCode(e.target.value)}
@@ -146,6 +156,7 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
             </label>
             <input
               id="edit-city"
+              aria-describedby={scrapeHintId}
               type="text"
               value={city}
               onChange={(e) => setCity(e.target.value)}
@@ -155,6 +166,13 @@ const EditTheaterModal: React.FC<EditTheaterModalProps> = ({ isOpen, theater, on
             />
             {cityError && <p className="mt-1 text-sm text-red-600">{cityError}</p>}
           </div>
+
+          {isScraped && (
+            <p id="edit-theater-scrape-hint" className="-mt-2 mb-4 text-xs text-gray-500">
+              Name, address, postal code and city are replaced on the next scrape when the source site provides them.
+              An empty value from the source never erases what you enter here.
+            </p>
+          )}
 
           {submitError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">

@@ -2,6 +2,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const REFRESH_TIMEOUT_MS = 10000;
+const REFRESH_LOCK_NAME = 'auth-refresh';
+const REFRESH_RACE_CODE = 'REFRESH_RACE';
+const RACE_SETTLE_TIMEOUT_MS = 3000;
+const RACE_SETTLE_POLL_MS = 50;
 
 let refreshPromise: Promise<boolean> | null = null;
 let unauthorizedDispatched = false;
@@ -11,7 +15,41 @@ function getCsrfToken(): string | null {
   return match ? match[1] : null;
 }
 
-async function refreshAccessToken(): Promise<boolean> {
+/**
+ * A concurrent refresh (another tab, a retry) rotated the token first. The
+ * server leaves our cookies alone in that case and the winner's response
+ * carries the fresh ones.
+ */
+async function isRefreshRace(response: Response): Promise<boolean> {
+  if (response.status !== 401) return false;
+  try {
+    const data = await response.json();
+    return data?.code === REFRESH_RACE_CODE;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * After a lost race, the winner's response may still be in flight: wait until
+ * its fresh cookies land (every refresh plants a new csrf_token) before the
+ * original request is retried. If they never do, nobody in this browser got
+ * the successor token, so the refresh failed — the ensuing logout presents
+ * our stale token, which lets the server kill the successor branch.
+ * Only meaningful without Web Locks: under the lock no other refresh of this
+ * browser can be in flight, so nothing would ever land.
+ */
+async function waitForNewCsrfCookie(previous: string | null): Promise<boolean> {
+  for (let waited = 0; waited < RACE_SETTLE_TIMEOUT_MS; waited += RACE_SETTLE_POLL_MS) {
+    const current = getCsrfToken();
+    if (current && current !== previous) return true;
+    await new Promise((resolve) => setTimeout(resolve, RACE_SETTLE_POLL_MS));
+  }
+  const current = getCsrfToken();
+  return current !== null && current !== previous;
+}
+
+async function refreshAccessToken(awaitRaceWinner: boolean): Promise<boolean> {
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const csrfToken = getCsrfToken();
@@ -31,14 +69,15 @@ async function refreshAccessToken(): Promise<boolean> {
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) return false;
+    if (!response.ok) {
+      return awaitRaceWinner && (await isRefreshRace(response)) ? waitForNewCsrfCookie(csrfToken) : false;
+    }
 
     const data = await response.json();
     if (data.success) {
       if (data.data?.user) {
         localStorage.setItem('user', JSON.stringify(data.data.user));
       }
-      unauthorizedDispatched = false;
       return true;
     }
     return false;
@@ -119,11 +158,39 @@ function dispatchUnauthorizedEvent(): void {
   window.dispatchEvent(event);
 }
 
-async function getRefreshedSession(): Promise<boolean> {
+/**
+ * Serialize refreshes across tabs: they share the cookie jar, so two tabs
+ * rotating the same refresh token at once would make the server see a reuse.
+ * Every refresh plants a new csrf_token cookie, so if a new one appeared since
+ * the failed request was sent (`csrfAtRequest`), another tab already rotated
+ * the session and its fresh cookies are ours too — retrying the original
+ * request is enough. A cleared cookie (another tab logged out) is not a
+ * refresh: we refresh ourselves and let the server decide.
+ * Without the Web Locks API, falls back to a per-tab refresh.
+ */
+async function refreshAcrossTabs(csrfAtRequest: string | null): Promise<boolean> {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  if (!locks) return refreshAccessToken(true);
+
+  return locks.request(REFRESH_LOCK_NAME, async () => {
+    const csrfNow = getCsrfToken();
+    if (csrfNow && csrfNow !== csrfAtRequest) return true;
+    return refreshAccessToken(false);
+  });
+}
+
+async function getRefreshedSession(csrfAtRequest: string | null): Promise<boolean> {
   if (!refreshPromise) {
-    refreshPromise = refreshAccessToken().finally(() => {
-      refreshPromise = null;
-    });
+    refreshPromise = refreshAcrossTabs(csrfAtRequest)
+      .then((refreshed) => {
+        // However the session was renewed (own refresh, another tab, a lost
+        // race), a later expiry must be reported again.
+        if (refreshed) unauthorizedDispatched = false;
+        return refreshed;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
   }
   return refreshPromise;
 }
@@ -133,29 +200,40 @@ type FetchResult =
   | { response: Response; retried: true; refreshFailed?: false }
   | { response: Response; retried: false; refreshFailed: true };
 
+/**
+ * A retry can still get a 401 after a successful renewal: the token version
+ * was bumped (role or permission change) after the access token we retry with
+ * was minted, e.g. one another tab refreshed just before the change. One more
+ * refresh, keyed to the cookies of that retry, picks up the new version.
+ */
+const MAX_REFRESH_ATTEMPTS = 2;
+
 async function executeWithRefresh(
   url: string,
   config: RequestInit,
   method: string,
   headers: Headers,
 ): Promise<FetchResult> {
-  const response = await fetch(url, config);
-  if (response.status !== 401) {
-    return { response, retried: false };
+  let csrfAtRequest = getCsrfToken();
+  let response = await fetch(url, config);
+  let retried = false;
+
+  for (let attempt = 0; response.status === 401 && attempt < MAX_REFRESH_ATTEMPTS; attempt++) {
+    const refreshed = await getRefreshedSession(csrfAtRequest);
+    if (!refreshed) {
+      return { response, retried: false, refreshFailed: true };
+    }
+
+    csrfAtRequest = getCsrfToken();
+    if (csrfAtRequest && !SAFE_METHODS.has(method)) {
+      headers.set('X-CSRF-Token', csrfAtRequest);
+    }
+
+    response = await fetch(url, { ...config, headers });
+    retried = true;
   }
 
-  const refreshed = await getRefreshedSession();
-  if (!refreshed) {
-    return { response, retried: false, refreshFailed: true };
-  }
-
-  const newCsrfToken = getCsrfToken();
-  if (newCsrfToken && !SAFE_METHODS.has(method)) {
-    headers.set('X-CSRF-Token', newCsrfToken);
-  }
-
-  const retryResponse = await fetch(url, { ...config, headers });
-  return { response: retryResponse, retried: true };
+  return retried ? { response, retried: true } : { response, retried: false };
 }
 
 function wrapNetworkError(error: unknown): never {

@@ -84,8 +84,8 @@ JWTs contain user information and permissions for role-based access control:
 ```
 
 **Token Properties:**
-- **Expiry**: 24 hours
-- **Permissions**: Baked in at login time (re-login required for permission changes)
+- **Expiry**: `JWT_EXPIRES_IN` (default `15m`), renewed silently via `POST /api/auth/refresh`
+- **Permissions**: Baked in when the token is minted; a role or permission change rejects the token at once (token version) and the web client refreshes it into the new permissions, without a re-login
 - **Admin Bypass**: System admin role has access to all endpoints
 
 ### Permission-Based Access
@@ -251,7 +251,6 @@ curl -X POST http://localhost:3000/api/auth/login \
 | [Movies](./movies.md) | `/api/movies/:id` | GET | No |
 | [Movies](./movies.md) | `/api/movies/search` | GET | No |
 | [Auth](./auth.md) | `/api/auth/login` | POST | No |
-| [Auth](./auth.md) | `/api/auth/register` | POST | No |
 | [Auth](./auth.md) | `/api/auth/change-password` | POST | Yes |
 | [Scraper](./scraper.md) | `/api/scraper/trigger` | POST | `scraper:trigger` |
 | [Scraper](./scraper.md) | `/api/scraper/status` | GET | No |
