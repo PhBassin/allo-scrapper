@@ -1,9 +1,10 @@
 import { useContext } from 'react';
-import { AuthContext } from '../../contexts/AuthContext';
+import { AuthContext } from '../../contexts/AuthContext.js';
+import type { ScrapeReport } from '../../types/index.js';
 
 interface Props {
   reportId: number;
-  reportStatus: string;
+  reportStatus: ScrapeReport['status'];
   /** Attempts a Resume would re-scrape (`resumable_count` of the report details). */
   resumableCount: number;
   isResuming: boolean;

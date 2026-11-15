@@ -52,7 +52,7 @@ describe('ReportResumeAction', () => {
     expect(screen.getByRole('button', { name: 'Reprendre (1 date)' })).toBeInTheDocument();
   });
 
-  it.each(['success', 'failed', 'rate_limited'])('is offered whatever the final status (%s)', (reportStatus) => {
+  it.each(['success', 'failed', 'rate_limited'] as const)('is offered whatever the final status (%s)', (reportStatus) => {
     renderAction({ reportStatus });
 
     expect(screen.getByRole('button', { name: 'Reprendre (4 dates)' })).toBeInTheDocument();
