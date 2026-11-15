@@ -8,7 +8,11 @@ import { requireAuth } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permission.js';
 import { protectedLimiter } from '../middleware/rate-limit.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
-import { getScrapeAttemptsByReport } from '../db/scrape-attempt-queries.js';
+import {
+  getScrapeAttemptsByReport,
+  isResumableAttempt,
+  type ScrapeAttemptWithTheater,
+} from '../db/scrape-attempt-queries.js';
 
 const router = express.Router();
 
@@ -106,7 +110,8 @@ router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('rep
     }
 
     // Group attempts by theater and calculate summary statistics in a single pass
-    const attemptsByTheater: Record<string, any[]> = {};
+    const attemptsByTheater: Record<string, ScrapeAttemptWithTheater[]> = {};
+    let resumable_count = 0;
     let successful = 0;
     let failed = 0;
     let rate_limited = 0;
@@ -121,6 +126,9 @@ router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('rep
       attemptsByTheater[theaterId].push(attempt);
 
       const status = attempt.status;
+      if (isResumableAttempt(status)) {
+        resumable_count++;
+      }
       if (status === 'success') {
         successful++;
       } else if (status === 'failed') {
@@ -149,6 +157,8 @@ router.get('/:id/details', protectedLimiter, requireAuth, requirePermission('rep
         report,
         attempts: attemptsByTheater,
         summary,
+        // Pairs a Resume would re-scrape — the same set as getPendingScrapeAttempts.
+        resumable_count,
       },
     };
 

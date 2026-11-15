@@ -14,6 +14,29 @@ export interface ScrapeAttempt {
   attempted_at: string;
 }
 
+/** A ScrapeAttempt as listed in a report's details, with its theater's name. */
+export interface ScrapeAttemptWithTheater extends ScrapeAttempt {
+  /** `null` when the theater row no longer resolves. */
+  theater_name: string | null;
+}
+
+/**
+ * Attempt statuses a Resume re-scrapes: the single definition of
+ * "resumable", shared by `getPendingScrapeAttempts` (what a Resume sends)
+ * and the report details' `resumable_count` (what the UI offers).
+ */
+export const RESUMABLE_ATTEMPT_STATUSES = [
+  'failed',
+  'rate_limited',
+  'not_attempted',
+] as const satisfies readonly ScrapeAttempt['status'][];
+
+const RESUMABLE_STATUS_SET: ReadonlySet<ScrapeAttempt['status']> = new Set(RESUMABLE_ATTEMPT_STATUSES);
+
+export function isResumableAttempt(status: ScrapeAttempt['status']): boolean {
+  return RESUMABLE_STATUS_SET.has(status);
+}
+
 export interface CreateScrapeAttemptInput {
   report_id: number;
   theater_id: string;
@@ -92,7 +115,7 @@ export async function updateScrapeAttempt(
   );
 }
 
-// Get pending scrape attempts (failed, rate_limited, or not_attempted)
+// Get pending scrape attempts: the resumable ones (RESUMABLE_ATTEMPT_STATUSES)
 export async function getPendingScrapeAttempts(
   db: DB,
   reportId: number
@@ -100,22 +123,24 @@ export async function getPendingScrapeAttempts(
   const result = await db.query<ScrapeAttempt>(
     `SELECT * FROM scrape_attempts
      WHERE report_id = $1
-     AND status IN ('failed', 'rate_limited', 'not_attempted')
+     AND status = ANY($2)
      ORDER BY theater_id, date`,
-    [reportId]
+    [reportId, [...RESUMABLE_ATTEMPT_STATUSES]]
   );
   return result.rows;
 }
 
-// Get all scrape attempts for a report
+// Get all scrape attempts for a report, with their theater's name
 export async function getScrapeAttemptsByReport(
   db: DB,
   reportId: number
-): Promise<ScrapeAttempt[]> {
-  const result = await db.query<ScrapeAttempt>(
-    `SELECT * FROM scrape_attempts
-     WHERE report_id = $1
-     ORDER BY theater_id, date`,
+): Promise<ScrapeAttemptWithTheater[]> {
+  const result = await db.query<ScrapeAttemptWithTheater>(
+    `SELECT sa.*, t.name AS theater_name
+     FROM scrape_attempts sa
+     LEFT JOIN theaters t ON t.id = sa.theater_id
+     WHERE sa.report_id = $1
+     ORDER BY sa.theater_id, sa.date`,
     [reportId]
   );
   return result.rows;
@@ -151,3 +176,4 @@ export async function hasSuccessfulAttempt(
   );
   return result.rows[0].exists;
 }
+
