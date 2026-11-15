@@ -123,8 +123,6 @@ describe('a scheduled run rate-limited mid-way', () => {
     vi.clearAllMocks();
     store.length = 0;
     nextId = 1;
-    process.env.THEATER_DELAY_MS = '0';
-    process.env.MOVIE_DELAY_MS = '0';
   });
 
   it('cascades not_attempted, ends with a rate_limited report and a partial_success schedule', async () => {
@@ -189,8 +187,6 @@ describe('a resume run that scrapes none of its pending pairs', () => {
     vi.clearAllMocks();
     store.length = 0;
     nextId = 1;
-    process.env.THEATER_DELAY_MS = '0';
-    process.env.MOVIE_DELAY_MS = '0';
   });
 
   it('fails without loading any theater when the pairs fall outside the scrape window', async () => {
