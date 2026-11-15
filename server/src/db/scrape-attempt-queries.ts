@@ -176,4 +176,3 @@ export async function hasSuccessfulAttempt(
   );
   return result.rows[0].exists;
 }
-

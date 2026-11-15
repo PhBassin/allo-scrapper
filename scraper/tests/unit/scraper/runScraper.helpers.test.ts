@@ -43,7 +43,6 @@ vi.mock('../../../src/db/theater-queries.js', () => ({
 vi.mock('../../../src/db/scrape-attempt-queries.js', () => ({
   createScrapeAttempt: (...args: any[]) => mockCreateScrapeAttempt(...args),
   updateScrapeAttempt: (...args: any[]) => mockUpdateScrapeAttempt(...args),
-  getPendingScrapeAttempts: vi.fn(),
   getScrapeAttemptsByReport: vi.fn(),
   getScrapeAttempt: vi.fn(),
   hasSuccessfulAttempt: vi.fn(),
