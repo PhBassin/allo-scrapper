@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import type { ReportDetails, ScrapeAttempt } from '../../api/reports';
-import { ReportDetailsSection } from './ReportDetailsSection';
+import type { ReportDetails, ScrapeAttempt } from '../../api/reports.js';
+import { ReportDetailsSection } from './ReportDetailsSection.js';
 
 let nextId = 1;
 function attempt(

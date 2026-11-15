@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { AuthContext } from '../../contexts/AuthContext';
-import type { PermissionName } from '../../types/role';
-import { ReportResumeAction } from './ReportResumeAction';
+import { AuthContext } from '../../contexts/AuthContext.js';
+import type { PermissionName } from '../../types/role.js';
+import { ReportResumeAction } from './ReportResumeAction.js';
 
 function authWith(permissions: PermissionName[], isAuthenticated = true) {
   return {
