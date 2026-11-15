@@ -95,6 +95,7 @@ vi.mock('../../../src/utils/date.js', () => ({
 import { runScraper } from '../../../src/scraper/index.js';
 import { completeScrapeReport } from '../../../src/scraper/report-status.js';
 import { RateLimitError } from '../../../src/utils/errors.js';
+import { delay } from '../../../src/scraper/http-client.js';
 
 const PARENT_REPORT_ID = 20;
 const RESUME_REPORT_ID = 21;
@@ -230,5 +231,36 @@ describe('a resume run that scrapes none of its pending pairs', () => {
     expect(mockScrapeTheater).not.toHaveBeenCalled();
     expect(pairsOf(RESUME_REPORT_ID)).toEqual([]);
     expect(status).toBe('failed');
+  });
+});
+
+describe('a resume run where a theater has no pending pair in the scrape window', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    store.length = 0;
+    nextId = 1;
+  });
+
+  it('leaves that theater out of the run totals, progress and delays', async () => {
+    mockScrapeTheater.mockResolvedValue({ moviesCount: 3, showtimesCount: 9 });
+    const events: Array<{ type: string; total_theaters?: number; theater_id?: string }> = [];
+    const progress = { emit: vi.fn(async (event: { type: string }) => { events.push(event); }) };
+    const pendingAttempts = [
+      { theater_id: 'C0074', date: DATES[0] },
+      { theater_id: 'C0099', date: '2026-03-01' },
+    ];
+
+    const summary = await runScraper(progress as never, {
+      reportId: RESUME_REPORT_ID,
+      resumeMode: true,
+      pendingAttempts,
+    });
+
+    expect(pairsOf(RESUME_REPORT_ID)).toEqual(['C0074@2026-03-10:success']);
+    expect(summary.total_theaters).toBe(1);
+    expect(summary.successful_theaters).toBe(1);
+    expect(events.find(e => e.type === 'started')?.total_theaters).toBe(1);
+    expect(events.filter(e => e.type === 'theater_started').map(e => e.theater_id)).toEqual(['C0074']);
+    expect(delay).not.toHaveBeenCalled();
   });
 });

@@ -161,19 +161,20 @@ export class ScrapeRun implements ProgressPublisher {
       logger.info(`Scraping only theater: ${foundTheater.name} (${foundTheater.id})`);
     }
 
+    const scrapeMode = options?.mode ?? this.config.scrapeMode;
+    const scrapeDays = options?.days || this.config.scrapeDays;
+    const dates = getScrapeDates(scrapeMode, scrapeDays);
+
     if (options?.resumeMode && options.pendingAttempts) {
-      const pendingTheaterIds = new Set(options.pendingAttempts.map(a => a.theater_id));
-      theaters = theaters.filter(t => pendingTheaterIds.has(t.id));
-      logger.info('Resume mode: restricted to theaters with pending attempts', {
+      // Keep only the theaters with a pending pair in this run's dates, so the
+      // totals, the progress events and the delays leave the others out.
+      theaters = theaters.filter(t => this.plannedDates(t, dates, options).length > 0);
+      logger.info('Resume mode: restricted to theaters with pending dates in the scrape window', {
         count: theaters.length,
       });
     }
 
     logger.info('Theaters loaded', { count: theaters.length });
-
-    const scrapeMode = options?.mode ?? this.config.scrapeMode;
-    const scrapeDays = options?.days || this.config.scrapeDays;
-    const dates = getScrapeDates(scrapeMode, scrapeDays);
 
     logger.info('Scrape config', { mode: scrapeMode, dates: dates.length, scrapeDays });
     logger.info('Delay config', {
@@ -218,19 +219,10 @@ export class ScrapeRun implements ProgressPublisher {
       id: theater.id,
     });
 
-    const plannedDates = this.plannedDates(theater, dates, options ?? {});
-    if (options?.resumeMode && plannedDates.length === 0) {
-      // None of its pending pairs is in this run's dates: nothing to load.
-      logger.info('Resume mode: no pending date in the scrape window, skipping theater', {
-        theater: theater.name,
-      });
-      return { rateLimited: false };
-    }
-
     const { availableDates, failed, failure } = await this.loadAvailability(theater);
     if (failed) {
       if (options?.reportId && failure) {
-        for (const date of plannedDates) {
+        for (const date of this.plannedDates(theater, dates, options)) {
           await this.markFailed(options.reportId, theater.id, date, failure);
         }
       }
