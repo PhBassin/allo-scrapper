@@ -90,6 +90,38 @@ describe('executeJob dispatcher', () => {
     expect(mockAddTheaterAndScrape).not.toHaveBeenCalled();
   });
 
+  it('runs the scrape under the job report so its attempts are recorded', async () => {
+    mockRunScraper.mockResolvedValue({
+      failed_theaters: 0,
+      successful_theaters: 1,
+      total_theaters: 1,
+      total_movies: 5,
+      total_showtimes: 20,
+      errors: [],
+    });
+
+    const { executeJob } = await import('../../src/index.js');
+
+    await executeJob({
+      type: 'scrape',
+      triggerType: 'manual',
+      reportId: 42,
+      options: {
+        resumeMode: true,
+        pendingAttempts: [{ theater_id: 'C0072', date: '2026-03-10' }],
+      },
+    });
+
+    expect(mockRunScraper).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        reportId: 42,
+        resumeMode: true,
+        pendingAttempts: [{ theater_id: 'C0072', date: '2026-03-10' }],
+      })
+    );
+  });
+
   it('should dispatch add_theater jobs to addTheaterAndScrape', async () => {
     mockAddTheaterAndScrape.mockResolvedValue({
       id: 'C0072',

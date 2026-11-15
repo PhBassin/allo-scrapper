@@ -91,7 +91,9 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
 
   try {
     const scrapeJob = job as ScrapeJobScrape;
-    const summary = await runScraper(publisher, scrapeJob.options);
+    // The report id rides along so every (theater, date) pair is recorded as a
+    // ScrapeAttempt of this report — the basis of its status and of Resume.
+    const summary = await runScraper(publisher, { ...scrapeJob.options, reportId: job.reportId });
 
     const status = summary.failed_theaters === 0
       ? 'success'
@@ -219,7 +221,7 @@ async function runCron(): Promise<void> {
     const publisher = getRedisPublisher();
 
     try {
-      const summary = await runScraper(publisher);
+      const summary = await runScraper(publisher, { reportId });
 
       const status = summary.failed_theaters === 0
         ? 'success'
@@ -366,7 +368,7 @@ async function runDirect(): Promise<void> {
 
   try {
     const publisher = getRedisPublisher();
-    const summary = await runScraper(publisher);
+    const summary = await runScraper(publisher, reportId !== -1 ? { reportId } : undefined);
 
     if (reportId !== -1) {
       const status = summary.failed_theaters === 0
