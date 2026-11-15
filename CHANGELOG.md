@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.10.0] - 2026-11-15
+
+### Added
+
+- feat(client): link the theater address to its Google Maps page (#1357) [@PhBassin](https://github.com/PhBassin) (0ea1405)
+- feat(security): harden session lifecycle without UX impact (#1343) [@PhBassin](https://github.com/PhBassin) (7c5c75d)
+
+### Fixed
+
+- fix(docker): install each release's compose files on the server (#1362) [@PhBassin](https://github.com/PhBassin) (5f2525d)
+- fix(api): let CodeQL recognize the inline CSRF check again (#1363) [@PhBassin](https://github.com/PhBassin) (b472000)
+- fix(scraper): read the theater address from the page's JSON-LD block (#1358) [@PhBassin](https://github.com/PhBassin) (b744361)
+- fix(api): stop resetting rate-limit counters on every config poll (#1353) [@PhBassin](https://github.com/PhBassin) (8905676)
+- fix(api): harden rate-limit keys and CSRF comparison (#1351) [@PhBassin](https://github.com/PhBassin) (28ee461)
+- fix(api): compare CSRF tokens in constant time [@phbassin](https://github.com/phbassin) (1c2d750)
+- fix(api): key per-user rate limits on the access_token cookie [@phbassin](https://github.com/phbassin) (1b2cd81)
+- fix(api): stop resetting rate-limit counters on every config poll [@phbassin](https://github.com/phbassin) (2cae5ad)
+- fix(api): make trust proxy configurable to stop X-Forwarded-For spoofing (#1350) [@PhBassin](https://github.com/PhBassin) (2acd455)
+- fix(api): trust no proxy by default and harden TRUST_PROXY parsing [@phbassin](https://github.com/phbassin) (84385ae)
+- fix(api): make trust proxy configurable to stop X-Forwarded-For spoofing [@phbassin](https://github.com/phbassin) (b1685a0)
+- fix(client): refresh once more when the retried request is still rejected [@phbassin](https://github.com/phbassin) (de50bad)
+- fix(roles): bump token versions only when a role's permissions change [@phbassin](https://github.com/phbassin) (64c3750)
+- fix(auth): log accurately when a replayed token's successor was already revoked [@phbassin](https://github.com/phbassin) (ed47527)
+- fix(auth): mint refreshed access tokens from the user read after rotation [@phbassin](https://github.com/phbassin) (bb9e87a)
+- fix(auth): bind access tokens to a per-user token version and close session races [@phbassin](https://github.com/phbassin) (df1a5e0)
+- fix(auth): remove POST /api/auth/register (#1349) [@PhBassin](https://github.com/PhBassin) (e1979df)
+- fix(auth): align access-token lifetime with its 15-min cookie (#1342) [@PhBassin](https://github.com/PhBassin) (6a3e488)
+- fix(auth): revoke sessions on admin password reset or role change (#1341) [@PhBassin](https://github.com/PhBassin) (18f940e)
+- fix(auth): revoke all sessions on refresh-token reuse (#1340) [@PhBassin](https://github.com/PhBassin) (4dd302f)
+- fix(auth): bound JWT_EXPIRES_IN and parse it once per value [@phbassin](https://github.com/phbassin) (1224460)
+- fix(auth): revoke sessions atomically on self-service password change [@phbassin](https://github.com/phbassin) (74a0670)
+- fix(auth): single JWT_EXPIRES_IN grammar, validated at startup [@phbassin](https://github.com/phbassin) (bbc533e)
+- fix(auth): align access-token lifetime with its cookie [@phbassin](https://github.com/phbassin) (e182919)
+- fix(auth): revoke admin-changed sessions atomically, skip no-op role changes [@phbassin](https://github.com/phbassin) (340a193)
+- fix(auth): revoke sessions on admin password reset or role change [@phbassin](https://github.com/phbassin) (d9f5793)
+- fix(auth): close refresh-race gaps found in review [@phbassin](https://github.com/phbassin) (7ac61b6)
+- fix(auth): only treat replayed rotations as refresh-token reuse [@phbassin](https://github.com/phbassin) (cec250a)
+- fix(auth): revoke all sessions on refresh-token reuse [@phbassin](https://github.com/phbassin) (68a73d2)
+
+### Changed
+
+- test(api): keep limiter counters when an unchanged rate-limit config is reloaded [@phbassin](https://github.com/phbassin) (7e1e818)
+- test(api): cover configurable trust proxy and X-Forwarded-For spoofing [@phbassin](https://github.com/phbassin) (bac20b6)
+- refactor(auth): accept only a transaction client in revokeAllUserTokens [@phbassin](https://github.com/phbassin) (ffcf315)
+- test(scraper): cover PuppeteerTransport page loading and browser lifecycle [@phbassin](https://github.com/phbassin) (6c7985e)
+- Merge remote-tracking branch 'origin/develop' into feat/1336-session-lifecycle-hardening [@phbassin](https://github.com/phbassin) (629b667)
+- refactor(auth): rotate a refresh token in two queries [@phbassin](https://github.com/phbassin) (c635b35)
+
+### Documentation
+
+- docs: say rate-limit counters restart only when the config really changes [@phbassin](https://github.com/phbassin) (e67825f)
+- docs: explain TRUST_PROXY setups for the false default [@phbassin](https://github.com/phbassin) (fa88a6d)
+- docs: document TRUST_PROXY and client IP resolution behind proxies [@phbassin](https://github.com/phbassin) (56f4dfa)
+- docs: align session and permission docs with token versions and silent refresh [@phbassin](https://github.com/phbassin) (629c3d8)
+- docs: make CONTRIBUTING.md the single source of contribution rules (#1345) [@PhBassin](https://github.com/PhBassin) (2a18d04)
+
+### Maintenance
+
+- chore(release): 4.9.0 → 4.10.0 — theater address & Maps link + session hardening (#1359) [@PhBassin](https://github.com/PhBassin) (b44ea74)
+- ci: run scraper tests and coverage in CI and pre-push (#1347) [@PhBassin](https://github.com/PhBassin) (96dd37b)
+
 ## [4.9.0] - 2026-10-31
 
 ### Added
@@ -1192,6 +1253,7 @@ This is a DevOps-only release with no code changes, database migrations, or API 
 - REST API
 - React frontend
 
+[4.10.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.9.0...v4.10.0
 [4.9.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.8.1...v4.9.0
 [4.8.1]: https://github.com/PhBassin/allo-scrapper/compare/v4.8.0...v4.8.1
 [4.8.0]: https://github.com/PhBassin/allo-scrapper/compare/v4.7.4...v4.8.0
