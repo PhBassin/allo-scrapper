@@ -134,6 +134,17 @@ describe('ReportDetailsSection', () => {
     expect(screen.getByText('Aucune tentative enregistrée pour ce rapport.')).toBeInTheDocument();
   });
 
+  it('keeps the native disclosure marker on each theater line', () => {
+    render(<ReportDetailsSection details={report20()} isLoading={false} />);
+
+    // A `summary` whose display is not `list-item` loses its triangle.
+    const DISPLAY_UTILITIES = /(^|\s)(flex|inline-flex|grid|inline-grid|block|inline-block|inline|contents|hidden)(\s|$)/;
+    for (const section of theaterSections()) {
+      const summary = section.querySelector('summary')!;
+      expect(summary.className).not.toMatch(DISPLAY_UTILITIES);
+    }
+  });
+
   it('shows a loading state before the details arrive', () => {
     render(<ReportDetailsSection details={undefined} isLoading={true} />);
 

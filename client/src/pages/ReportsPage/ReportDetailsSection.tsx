@@ -74,10 +74,13 @@ function TheaterAttempts({ group }: { group: TheaterGroup }) {
       open={group.hasProblems}
       className={`border rounded-lg p-4 ${group.hasProblems ? 'border-orange-300' : 'border-gray-200'}`}
     >
-      <summary className="cursor-pointer flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span data-testid="theater-name" className="font-semibold">{group.name}</span>
-        <span data-testid="theater-summary" className="text-sm text-gray-600">
-          {group.successes}/{group.attempts.length} dates · {group.movies} films · {group.showtimes} séances
+      {/* The summary stays `list-item` to keep its disclosure marker. */}
+      <summary className="cursor-pointer">
+        <span className="inline-flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span data-testid="theater-name" className="font-semibold">{group.name}</span>
+          <span data-testid="theater-summary" className="text-sm text-gray-600">
+            {group.successes}/{group.attempts.length} dates · {group.movies} films · {group.showtimes} séances
+          </span>
         </span>
       </summary>
       <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mt-3">
