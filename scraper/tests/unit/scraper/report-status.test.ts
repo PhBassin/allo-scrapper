@@ -185,6 +185,17 @@ describe('completeScrapeReport', () => {
     }));
   });
 
+  it('names every reason a resume can record no attempt, the removed theater included', async () => {
+    mockGetScrapeAttemptsByReport.mockResolvedValue([]);
+
+    await completeScrapeReport(MOCK_DB, 21, summary(), { resumeMode: true });
+
+    const [{ error }] = mockUpdateScrapeReport.mock.calls[0][2].errors;
+    expect(error).toContain('outside the scrape window');
+    expect(error).toContain('not published by the source');
+    expect(error).toContain('theater no longer configured');
+  });
+
   it('keeps the counter fallback for a resume run whose attempts cannot be read', async () => {
     mockGetScrapeAttemptsByReport.mockRejectedValue(new Error('db down'));
 

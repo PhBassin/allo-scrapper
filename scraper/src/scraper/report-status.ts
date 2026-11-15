@@ -54,7 +54,7 @@ function deriveFromCounters(
 
 /** Report error of a Resume that recorded no attempt. */
 export const RESUME_SCRAPED_NOTHING_ERROR =
-  'Resume scraped no pending pair: none of them is in the scrape window or published by the source yet';
+  'Resume recorded no attempt: no pending pair could be scraped (outside the scrape window, not published by the source, or theater no longer configured)';
 
 /** A schedule records a rate-limited run as a partial success. */
 export function toScheduleRunStatus(status: FinalReportStatus): ScheduleRunStatus {

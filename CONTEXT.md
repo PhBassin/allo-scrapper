@@ -77,7 +77,7 @@ Its **status** is one of `running | success | partial_success | failed | rate_li
 3. `failed` if no attempt is `success`;
 4. `partial_success` otherwise.
 
-A run that recorded no attempt keeps the counter rule: no failed theater → `success`, some successful theaters → `partial_success`, otherwise `failed`. A Resume is the exception: it only plans the parent's pending pairs, so a Resume that recorded no attempt scraped nothing and is `failed`, with a `System` entry in its `errors` explaining it (`RESUME_SCRAPED_NOTHING_ERROR`). A run that throws is `failed`. A Schedule's `last_run_status` has no `rate_limited`: a rate-limited scheduled run is recorded there as `partial_success`.
+A run that recorded no attempt keeps the counter rule: no failed theater → `success`, some successful theaters → `partial_success`, otherwise `failed`. A Resume is the exception: it only plans the parent's pending pairs, so a Resume that recorded no attempt scraped nothing and is `failed`, with a `System` entry in its `errors` explaining it (`RESUME_SCRAPED_NOTHING_ERROR`: each pending pair was outside the scrape window, not published by the Source, or for a theater no longer configured). A run that throws is `failed`. A Schedule's `last_run_status` has no `rate_limited`: a rate-limited scheduled run is recorded there as `partial_success`.
 
 A report is **resumable** when it has at least one attempt in `failed | rate_limited | not_attempted` (`RESUMABLE_ATTEMPT_STATUSES`, `server/src/db/scrape-attempt-queries.ts`). `GET /api/reports/:id/details` returns that number as `resumable_count`; see Resume.
 

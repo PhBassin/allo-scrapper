@@ -28,7 +28,7 @@ A report's ScrapeAttempts are the source of truth for both its **status** and it
 3. `failed` if no attempt delivered data (today: no `success`);
 4. `partial_success` otherwise.
 
-A run that recorded **no attempt** keeps the counter rule. The counters stay on the report as run statistics; they no longer decide its status. A **Resume** that recorded no attempt is the exception: it only plans the parent's pending pairs, so it scraped nothing (none of them is in its scrape window or published by the source any more). Its report is `failed`, with a `System` entry in `errors` saying why, instead of a counter-based `success` with zero showtimes.
+A run that recorded **no attempt** keeps the counter rule. The counters stay on the report as run statistics; they no longer decide its status. A **Resume** that recorded no attempt is the exception: it only plans the parent's pending pairs, so it scraped nothing: each pending pair was outside its scrape window, not published by the source, or for a theater no longer configured. Its report is `failed`, with a `System` entry in `errors` saying why, instead of a counter-based `success` with zero showtimes.
 
 `scrape_schedules.last_run_status` keeps its domain (`success | failed | partial_success`) and records a `rate_limited` run as `partial_success`.
 
