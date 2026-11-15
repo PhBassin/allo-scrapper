@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { getScrapeReports, getScrapeReportById, getReportDetails, resumeScrape } from '../api/client.js';
@@ -65,6 +65,13 @@ export function useReportsData(): UseReportsDataResult {
       });
     },
   });
+
+  // A resume error belongs to the report it was raised on: drop it when the
+  // same mounted page switches to another report (e.g. the browser's Back).
+  const { reset: resetResume } = resumeMutation;
+  useEffect(() => {
+    resetResume();
+  }, [reportId, resetResume]);
 
   const activeQuery = reportId ? reportQuery : reportsQuery;
   const isLoading = activeQuery.isLoading;

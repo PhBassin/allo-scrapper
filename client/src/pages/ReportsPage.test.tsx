@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import ReportsPage from './ReportsPage';
 import * as client from '../api/client';
@@ -267,6 +267,29 @@ describe('ReportsPage - resuming a report shaped like #20', () => {
       'Impossible de charger les détails des tentatives : Request failed with status code 500'
     );
     expect(screen.getByRole('heading', { name: /Rapport #20/ })).toBeInTheDocument();
+  });
+
+  it("does not carry a failed resume's error over to another report", async () => {
+    vi.mocked(client.resumeScrape).mockRejectedValue(new Error('Network error'));
+    vi.mocked(client.getScrapeReportById).mockImplementation(async (id: number) => ({ ...report20, id }));
+    vi.mocked(client.getReportDetails).mockImplementation(async (id: number) => ({
+      ...details20,
+      report: { ...report20, id },
+    }));
+    renderAs(['scraper:trigger', 'reports:view']);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Reprendre (4 dates)' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Network error');
+
+    // The browser's Back button: same mounted page, another report id.
+    act(() => {
+      window.history.pushState({}, 'Test', '/admin?tab=rapports&reportId=19');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+
+    expect(await screen.findByRole('heading', { name: /Rapport #19/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Reprendre (4 dates)' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('does not offer the resume without scraper:trigger', async () => {
