@@ -136,6 +136,18 @@ describe('ScrapeRun.prepare', () => {
     );
   });
 
+  it('in resume mode, keeps only the theaters that have pending attempts', async () => {
+    const run = createRun();
+
+    const result = await run.prepare({
+      resumeMode: true,
+      pendingAttempts: [{ theater_id: 'W7504', date: '2026-03-10' }],
+    });
+
+    expect(result.theaters.map(t => t.id)).toEqual(['W7504']);
+    expect(run.summary.total_theaters).toBe(1);
+  });
+
   it('populates summary.total_theaters and total_dates', async () => {
     const run = createRun();
 
@@ -197,6 +209,89 @@ describe('ScrapeRun.runTheater', () => {
     expect(run.summary.failed_theaters).toBe(1);
     expect(run.summary.errors).toHaveLength(1);
     expect(run.summary.errors[0].error).toBe('boom');
+  });
+
+  it('records a failed attempt for every planned date when metadata loading fails', async () => {
+    const { HttpError } = await import('../../../src/utils/errors.js');
+    mockStrategy.loadTheaterMetadata.mockRejectedValueOnce(
+      new HttpError('HTTP 503', 503, 'https://example.com/a')
+    );
+    const run = createRun();
+
+    await run.runTheater(THEATER_A, 0, [THEATER_A], ['2026-03-10', '2026-03-11'], { reportId: 42 });
+
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledTimes(2);
+    for (const date of ['2026-03-10', '2026-03-11']) {
+      expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
+        expect.anything(),
+        { report_id: 42, theater_id: 'C0072', date, status: 'failed' }
+      );
+    }
+    expect(mockUpdateScrapeAttempt).toHaveBeenCalledTimes(2);
+    expect(mockUpdateScrapeAttempt).toHaveBeenCalledWith(expect.anything(), 99, {
+      status: 'failed',
+      error_type: 'http_5xx',
+      error_message: 'HTTP 503',
+      http_status_code: 503,
+    });
+  });
+
+  it('records no attempt on metadata failure when the run has no report', async () => {
+    mockStrategy.loadTheaterMetadata.mockRejectedValueOnce(new Error('boom'));
+    const run = createRun();
+
+    await run.runTheater(THEATER_A, 0, [THEATER_A], ['2026-03-10']);
+
+    expect(mockCreateScrapeAttempt).not.toHaveBeenCalled();
+  });
+
+  it('in resume mode, a metadata failure only records the pending dates of the theater', async () => {
+    mockStrategy.loadTheaterMetadata.mockRejectedValueOnce(new Error('network down'));
+    const run = createRun();
+
+    await run.runTheater(THEATER_A, 0, [THEATER_A], ['2026-03-10', '2026-03-11'], {
+      reportId: 42,
+      resumeMode: true,
+      pendingAttempts: [
+        { theater_id: 'C0072', date: '2026-03-11' },
+        { theater_id: 'W7504', date: '2026-03-10' },
+      ],
+    });
+
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledTimes(1);
+    expect(mockCreateScrapeAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      { report_id: 42, theater_id: 'C0072', date: '2026-03-11', status: 'failed' }
+    );
+  });
+
+  it('in resume mode, the rate-limit cascade only marks pending pairs as not_attempted', async () => {
+    const { RateLimitError } = await import('../../../src/utils/errors.js');
+    mockStrategy.scrapeTheater.mockRejectedValueOnce(
+      new RateLimitError('rate limit', 429, 'https://example.com')
+    );
+    const run = createRun();
+
+    await run.runTheater(
+      THEATER_A,
+      0,
+      [THEATER_A, THEATER_B],
+      ['2026-03-10', '2026-03-11'],
+      {
+        reportId: 42,
+        resumeMode: true,
+        pendingAttempts: [
+          { theater_id: 'C0072', date: '2026-03-10' },
+          { theater_id: 'W7504', date: '2026-03-11' },
+        ],
+      }
+    );
+
+    const created = mockCreateScrapeAttempt.mock.calls.map(([, input]) => input);
+    expect(created).toEqual([
+      { report_id: 42, theater_id: 'C0072', date: '2026-03-10', status: 'pending' },
+      { report_id: 42, theater_id: 'W7504', date: '2026-03-11', status: 'not_attempted' },
+    ]);
   });
 
   it('marks the theater as failed when every date fails non-rate-limit', async () => {
