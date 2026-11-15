@@ -134,6 +134,14 @@ describe('ReportDetailsSection', () => {
     expect(screen.getByText('Aucune tentative enregistrée pour ce rapport.')).toBeInTheDocument();
   });
 
+  it('says the details could not be loaded instead of rendering nothing', () => {
+    render(<ReportDetailsSection details={undefined} isLoading={false} error="Request failed with status code 500" />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Impossible de charger les détails des tentatives : Request failed with status code 500'
+    );
+  });
+
   it('keeps the native disclosure marker on each theater line', () => {
     render(<ReportDetailsSection details={report20()} isLoading={false} />);
 

@@ -16,6 +16,8 @@ export interface UseReportsDataResult {
   reportDetails: ReportDetails | undefined;
   isLoading: boolean;
   isLoadingDetails: boolean;
+  /** Why the report details (attempts, `resumable_count`) could not be loaded. */
+  detailsError: string | null;
   error: string | null;
   isResuming: boolean;
   resumeError: Error | null;
@@ -67,6 +69,9 @@ export function useReportsData(): UseReportsDataResult {
   const activeQuery = reportId ? reportQuery : reportsQuery;
   const isLoading = activeQuery.isLoading;
   const errorMessage = activeQuery.error instanceof Error ? activeQuery.error.message : null;
+  const detailsErrorMessage = detailsQuery.error
+    ? detailsQuery.error.message || 'Erreur inconnue'
+    : null;
 
   return useMemo(
     () => ({
@@ -78,6 +83,7 @@ export function useReportsData(): UseReportsDataResult {
       reportDetails: detailsQuery.data,
       isLoading,
       isLoadingDetails: detailsQuery.isLoading,
+      detailsError: detailsErrorMessage,
       error: errorMessage,
       isResuming: resumeMutation.isPending,
       resumeError: resumeMutation.error,
@@ -92,6 +98,7 @@ export function useReportsData(): UseReportsDataResult {
       reportQuery.data,
       detailsQuery.data,
       detailsQuery.isLoading,
+      detailsErrorMessage,
       isLoading,
       errorMessage,
       resumeMutation.isPending,

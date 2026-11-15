@@ -259,6 +259,16 @@ describe('ReportsPage - resuming a report shaped like #20', () => {
     expect(screen.getByRole('heading', { name: /Rapport #20/ })).toBeInTheDocument();
   });
 
+  it('says the details could not be loaded when their request fails', async () => {
+    vi.mocked(client.getReportDetails).mockRejectedValue(new Error('Request failed with status code 500'));
+    renderAs(['scraper:trigger', 'reports:view']);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Impossible de charger les détails des tentatives : Request failed with status code 500'
+    );
+    expect(screen.getByRole('heading', { name: /Rapport #20/ })).toBeInTheDocument();
+  });
+
   it('does not offer the resume without scraper:trigger', async () => {
     renderAs(['reports:view']);
 

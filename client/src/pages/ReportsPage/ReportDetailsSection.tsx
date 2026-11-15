@@ -31,8 +31,22 @@ function toTheaterGroups(attemptsByTheater: Record<string, ScrapeAttempt[]>): Th
   );
 }
 
-export function ReportDetailsSection({ details, isLoading }: { details?: ReportDetails; isLoading: boolean }) {
+interface ReportDetailsSectionProps {
+  details?: ReportDetails;
+  isLoading: boolean;
+  /** Why the details could not be loaded, if they could not. */
+  error?: string | null;
+}
+
+export function ReportDetailsSection({ details, isLoading, error }: ReportDetailsSectionProps) {
   if (!details) {
+    if (error) {
+      return (
+        <div role="alert" className="card p-6 mb-6 bg-red-50 border border-red-200">
+          <p className="text-red-600">Impossible de charger les détails des tentatives : {error}</p>
+        </div>
+      );
+    }
     return isLoading ? (
       <div className="card p-6 mb-6 text-center">
         <p className="text-gray-600">Chargement des détails...</p>

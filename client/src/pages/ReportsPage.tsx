@@ -84,6 +84,7 @@ function ReportsDetailView() {
     reportDetails,
     isLoading,
     isLoadingDetails,
+    detailsError,
     isResuming,
     resumeError,
     resume,
@@ -123,7 +124,7 @@ function ReportsDetailView() {
 
       <ReportRateLimitedNotice report={selectedReport} />
 
-      <ReportDetailsSection details={reportDetails} isLoading={isLoadingDetails} />
+      <ReportDetailsSection details={reportDetails} isLoading={isLoadingDetails} error={detailsError} />
 
       <ReportErrorsSection report={selectedReport} />
       <ReportProgressLog report={selectedReport} />
