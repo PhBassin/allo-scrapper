@@ -21,6 +21,11 @@ vi.mock('../../src/db/report-queries.js', () => ({
   updateScrapeReport: (...args: any[]) => mockUpdateScrapeReport(...args),
 }));
 
+const mockGetScrapeAttemptsByReport = vi.fn().mockResolvedValue([]);
+vi.mock('../../src/db/scrape-attempt-queries.js', () => ({
+  getScrapeAttemptsByReport: (...args: any[]) => mockGetScrapeAttemptsByReport(...args),
+}));
+
 vi.mock('../../src/redis/client.js', () => ({
   getRedisPublisher: mockGetRedisPublisher,
   getRedisConsumer: vi.fn().mockReturnValue({ start: vi.fn(), stop: vi.fn(), disconnect: vi.fn() }),
@@ -120,6 +125,34 @@ describe('executeJob dispatcher', () => {
         pendingAttempts: [{ theater_id: 'C0072', date: '2026-03-10' }],
       })
     );
+  });
+
+  it('stamps the report with the status derived from its attempts', async () => {
+    mockRunScraper.mockResolvedValue({
+      failed_theaters: 0,
+      successful_theaters: 2,
+      total_theaters: 3,
+      total_movies: 5,
+      total_showtimes: 20,
+      errors: [],
+    });
+    mockGetScrapeAttemptsByReport.mockResolvedValueOnce([
+      { status: 'success' },
+      { status: 'rate_limited' },
+      { status: 'not_attempted' },
+    ]);
+
+    const { executeJob } = await import('../../src/index.js');
+
+    await executeJob({ type: 'scrape', triggerType: 'manual', reportId: 20 });
+
+    expect(mockGetScrapeAttemptsByReport).toHaveBeenCalledWith(expect.anything(), 20);
+    expect(mockUpdateScrapeReport).toHaveBeenCalledWith(
+      expect.anything(),
+      20,
+      expect.objectContaining({ status: 'rate_limited', successful_theaters: 2 })
+    );
+    expect(mockScrapeJobsTotal.inc).toHaveBeenCalledWith({ status: 'rate_limited', trigger: 'manual' });
   });
 
   it('should dispatch add_theater jobs to addTheaterAndScrape', async () => {

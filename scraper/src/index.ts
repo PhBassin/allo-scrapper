@@ -7,6 +7,7 @@ import { getRedisPublisher, getRedisConsumer, getRedisSubscriber, disconnectRedi
 import { db } from './db/client.js';
 import { createScrapeReport, updateScrapeReport } from './db/report-queries.js';
 import { getEnabledSchedules, updateScheduleRunStatus } from './db/schedule-queries.js';
+import { completeScrapeReport } from './scraper/report-status.js';
 
 // ---------------------------------------------------------------------------
 // Metrics HTTP server (always-on, port 9091)
@@ -95,27 +96,12 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
     // ScrapeAttempt of this report — the basis of its status and of Resume.
     const summary = await runScraper(publisher, { ...scrapeJob.options, reportId: job.reportId });
 
-    const status = summary.failed_theaters === 0
-      ? 'success'
-      : summary.successful_theaters > 0
-        ? 'partial_success'
-        : 'failed';
-
     durationTimer();
-    scrapeJobsTotal.inc({ status, trigger: job.triggerType });
     moviesScrapedTotal.inc({ theater: 'all' }, summary.total_movies);
     showtimesScrapedTotal.inc({ theater: 'all' }, summary.total_showtimes);
 
-    await updateScrapeReport(db, job.reportId, {
-      status,
-      completed_at: new Date().toISOString(),
-      total_theaters: summary.total_theaters,
-      successful_theaters: summary.successful_theaters,
-      failed_theaters: summary.failed_theaters,
-      total_movies_scraped: summary.total_movies,
-      total_showtimes_scraped: summary.total_showtimes,
-      errors: summary.errors,
-    });
+    const status = await completeScrapeReport(db, job.reportId, summary);
+    scrapeJobsTotal.inc({ status, trigger: job.triggerType });
 
     logger.info(`[scraper] Job ${job.reportId} completed with status: ${status}`);
   } catch (err) {
@@ -222,27 +208,7 @@ async function runCron(): Promise<void> {
 
     try {
       const summary = await runScraper(publisher, { reportId });
-
-      const status = summary.failed_theaters === 0
-        ? 'success'
-        : summary.successful_theaters > 0
-          ? 'partial_success'
-          : 'failed';
-
-      await updateScrapeReport(db, reportId, {
-        status,
-        completed_at: new Date().toISOString(),
-        total_theaters: summary.total_theaters,
-        successful_theaters: summary.successful_theaters,
-        failed_theaters: summary.failed_theaters,
-        total_movies_scraped: summary.total_movies,
-        total_showtimes_scraped: summary.total_showtimes,
-        errors: summary.errors,
-      });
-
-      if (schedule.id) {
-        await updateScheduleRunStatus(db, schedule.id, status);
-      }
+      const status = await completeScrapeReport(db, reportId, summary, { scheduleId: schedule.id });
 
       logger.info(`[scraper] Cron scrape for "${schedule.name}" completed: ${status}`);
     } catch (err) {
@@ -371,22 +337,7 @@ async function runDirect(): Promise<void> {
     const summary = await runScraper(publisher, reportId !== -1 ? { reportId } : undefined);
 
     if (reportId !== -1) {
-      const status = summary.failed_theaters === 0
-        ? 'success'
-        : summary.successful_theaters > 0
-          ? 'partial_success'
-          : 'failed';
-
-      await updateScrapeReport(db, reportId, {
-        status,
-        completed_at: new Date().toISOString(),
-        total_theaters: summary.total_theaters,
-        successful_theaters: summary.successful_theaters,
-        failed_theaters: summary.failed_theaters,
-        total_movies_scraped: summary.total_movies,
-        total_showtimes_scraped: summary.total_showtimes,
-        errors: summary.errors,
-      });
+      await completeScrapeReport(db, reportId, summary);
     }
 
     logger.info('[scraper] Direct run completed.');
