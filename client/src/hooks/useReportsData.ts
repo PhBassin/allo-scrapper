@@ -1,26 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { getScrapeReports, getScrapeReportById, getReportDetails, resumeScrape } from '../api/client.js';
+import type { ReportDetails } from '../api/reports.js';
 import type { ScrapeReport, PaginatedResponse } from '../types/index.js';
 
-export interface ReportDetails {
-  summary: {
-    total_attempts: number;
-    successful: number;
-    failed: number;
-    rate_limited: number;
-    not_attempted: number;
-  };
-  attempts: Record<string, Array<{
-    id: string | number;
-    theater_id?: string;
-    date: string;
-    status: 'success' | 'failed' | 'rate_limited' | 'not_attempted' | 'pending';
-    movies_scraped?: number;
-    showtimes_scraped?: number;
-  }>>;
-}
+export type { ReportDetails } from '../api/reports.js';
 
 export interface UseReportsDataResult {
   reportId: string | null;
@@ -36,14 +21,11 @@ export interface UseReportsDataResult {
   resumeError: Error | null;
   setPage: (page: number) => void;
   resume: (id: number) => void;
-  showDetails: boolean;
-  toggleShowDetails: () => void;
 }
 
 export function useReportsData(): UseReportsDataResult {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const [showDetails, setShowDetails] = useState(false);
 
   const reportId = searchParams.get('reportId');
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -63,8 +45,8 @@ export function useReportsData(): UseReportsDataResult {
 
   const detailsQuery = useQuery({
     queryKey: ['reportDetails', reportId],
-    queryFn: () => getReportDetails(Number(reportId)) as Promise<ReportDetails>,
-    enabled: !!reportId && showDetails,
+    queryFn: () => getReportDetails(Number(reportId)),
+    enabled: !!reportId,
   });
 
   const resumeMutation = useMutation({
@@ -72,7 +54,13 @@ export function useReportsData(): UseReportsDataResult {
     onSuccess: (data: { reportId: number }) => {
       void queryClient.invalidateQueries({ queryKey: ['reports'] });
       void queryClient.invalidateQueries({ queryKey: ['report'] });
-      setSearchParams({ reportId: data.reportId.toString() });
+      void queryClient.invalidateQueries({ queryKey: ['reportDetails'] });
+      // Open the new report, keeping the other params (the admin `tab`).
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('reportId', data.reportId.toString());
+        return next;
+      });
     },
   });
 
@@ -95,8 +83,6 @@ export function useReportsData(): UseReportsDataResult {
       resumeError: resumeMutation.error,
       setPage: (next: number) => setSearchParams({ page: next.toString() }),
       resume: (id: number) => resumeMutation.mutate(id),
-      showDetails,
-      toggleShowDetails: () => setShowDetails((prev) => !prev),
     }),
     [
       reportId,
@@ -112,7 +98,6 @@ export function useReportsData(): UseReportsDataResult {
       resumeMutation.error,
       resumeMutation,
       setSearchParams,
-      showDetails,
     ]
   );
 }

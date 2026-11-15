@@ -44,6 +44,17 @@ const mockReportDetail = {
 };
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent } from '@testing-library/react';
+import { AuthContext } from '../contexts/AuthContext';
+import type { PermissionName } from '../types/role';
+import type { ReportDetails } from '../api/reports';
+
+const emptyDetails = (reportId: number): ReportDetails => ({
+  report: { ...mockReportDetail, id: reportId },
+  attempts: {},
+  summary: { total_attempts: 0, successful: 0, failed: 0, rate_limited: 0, not_attempted: 0, pending: 0 },
+  resumable_count: 0,
+});
 
 const renderWithRouter = (initialRoute = '/admin?tab=rapports') => {
   const queryClient = new QueryClient({
@@ -66,6 +77,7 @@ const renderWithRouter = (initialRoute = '/admin?tab=rapports') => {
 describe('ReportsPage - URL params adaptation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(client.getReportDetails).mockImplementation(async (id: number) => emptyDetails(id));
   });
 
   describe('List view', () => {
@@ -144,5 +156,123 @@ describe('ReportsPage - URL params adaptation', () => {
       // When clicking on a report, it should preserve the tab param
       // This will be tested in integration tests
     });
+  });
+});
+
+describe('ReportsPage - resuming a report shaped like #20', () => {
+  const report20 = {
+    ...mockReportDetail,
+    id: 20,
+    status: 'partial_success' as const,
+    trigger_type: 'cron' as const,
+    total_theaters: 3,
+    successful_theaters: 2,
+    failed_theaters: 1,
+  };
+
+  const attempt = (id: number, theater_id: string, theater_name: string, date: string, status: 'success' | 'rate_limited' | 'not_attempted') => ({
+    id,
+    report_id: 20,
+    theater_id,
+    theater_name,
+    date,
+    status,
+    error_type: status === 'rate_limited' ? 'http_429' : null,
+    error_message: status === 'rate_limited' ? 'HTTP 429 Too Many Requests' : null,
+    http_status_code: status === 'rate_limited' ? 429 : null,
+    movies_scraped: status === 'success' ? 5 : 0,
+    showtimes_scraped: status === 'success' ? 15 : 0,
+    attempted_at: '2026-03-10T03:00:00Z',
+  });
+
+  const details20: ReportDetails = {
+    report: report20,
+    attempts: {
+      C0001: [attempt(1, 'C0001', 'Le Champo', '2026-03-10', 'success'), attempt(2, 'C0001', 'Le Champo', '2026-03-11', 'success')],
+      C0074: [attempt(3, 'C0074', 'Reflet Médicis', '2026-03-10', 'rate_limited'), attempt(4, 'C0074', 'Reflet Médicis', '2026-03-11', 'not_attempted')],
+      C0099: [attempt(5, 'C0099', 'Écoles Cinéma Club', '2026-03-10', 'not_attempted'), attempt(6, 'C0099', 'Écoles Cinéma Club', '2026-03-11', 'not_attempted')],
+    },
+    summary: { total_attempts: 6, successful: 2, failed: 0, rate_limited: 1, not_attempted: 3, pending: 0 },
+    resumable_count: 4,
+  };
+
+  const renderAs = (permissions: PermissionName[]) => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    window.history.pushState({}, 'Test', '/admin?tab=rapports&reportId=20');
+    return render(
+      <AuthContext.Provider
+        value={{
+          isAuthenticated: true,
+          user: { id: 1, username: 'op', role_id: 2, role_name: 'operator', is_system_role: true, permissions },
+          isAdmin: false,
+          hasPermission: (p: PermissionName) => permissions.includes(p),
+          login: vi.fn(),
+          logout: vi.fn(),
+        }}
+      >
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <ReportsPage />
+          </BrowserRouter>
+        </QueryClientProvider>
+      </AuthContext.Provider>
+    );
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(client.getScrapeReportById).mockImplementation(async (id: number) =>
+      id === 20 ? report20 : { ...report20, id, status: 'running' as const }
+    );
+    vi.mocked(client.getReportDetails).mockImplementation(async (id: number) =>
+      id === 20 ? details20 : emptyDetails(id)
+    );
+  });
+
+  it('offers the resume of the 4 pending dates and shows the details without a toggle', async () => {
+    renderAs(['scraper:trigger', 'reports:view']);
+
+    expect(await screen.findByRole('button', { name: 'Reprendre (4 dates)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Détails des tentatives' })).toBeInTheDocument();
+    expect(screen.getByText(/Limite de débit \(429\)/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Voir les détails/ })).not.toBeInTheDocument();
+  });
+
+  it('resumes the report on click and opens the new report', async () => {
+    vi.mocked(client.resumeScrape).mockResolvedValue({ reportId: 21, parentReportId: 20, pendingAttempts: 4, message: 'queued' });
+    renderAs(['scraper:trigger', 'reports:view']);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Reprendre (4 dates)' }));
+
+    await waitFor(() => expect(client.resumeScrape).toHaveBeenCalledWith(20));
+    await waitFor(() => expect(screen.getByRole('heading', { name: /Rapport #21/ })).toBeInTheDocument());
+    expect(new URLSearchParams(window.location.search).get('tab')).toBe('rapports');
+  });
+
+  it('shows the error when the resume request fails', async () => {
+    vi.mocked(client.resumeScrape).mockRejectedValue(new Error('Network error'));
+    renderAs(['scraper:trigger', 'reports:view']);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Reprendre (4 dates)' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Network error');
+    expect(screen.getByRole('heading', { name: /Rapport #20/ })).toBeInTheDocument();
+  });
+
+  it('does not offer the resume without scraper:trigger', async () => {
+    renderAs(['reports:view']);
+
+    expect(await screen.findByRole('heading', { name: 'Détails des tentatives' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Reprendre/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps the 429 notice of a rate_limited report as an explanation only', async () => {
+    vi.mocked(client.getScrapeReportById).mockResolvedValue({ ...report20, status: 'rate_limited' });
+    renderAs(['scraper:trigger', 'reports:view']);
+
+    const notice = await screen.findByText(/Limitation de débit détectée/);
+    const card = notice.closest('div')!;
+    expect(card.querySelector('button')).toBeNull();
+    expect(await screen.findByRole('button', { name: 'Reprendre (4 dates)' })).toBeInTheDocument();
   });
 });
