@@ -28,7 +28,7 @@ A report's ScrapeAttempts are the source of truth for both its **status** and it
 3. `failed` if no attempt delivered data (today: no `success`);
 4. `partial_success` otherwise.
 
-A run that recorded **no attempt** keeps the counter rule. The counters stay on the report as run statistics; they no longer decide its status.
+A run that recorded **no attempt** keeps the counter rule. The counters stay on the report as run statistics; they no longer decide its status. A **Resume** that recorded no attempt is the exception: it only plans the parent's pending pairs, so it scraped nothing (none of them is in its scrape window or published by the source any more). Its report is `failed`, with a `System` entry in `errors` saying why, instead of a counter-based `success` with zero showtimes.
 
 `scrape_schedules.last_run_status` keeps its domain (`success | failed | partial_success`) and records a `rate_limited` run as `partial_success`.
 
@@ -56,6 +56,6 @@ For the attempts to stand as the truth, a run accounts for every pair it plans:
 - New attempt statuses (e.g. a future `partial`) only need to join the "delivered data" set or the resumable set.
 
 **Harder:**
-- The status depends on the attempts being written. A run that writes none (no report id, or the attempts query fails at the end) falls back to the counters, so the two rules must both be kept.
+- The status depends on the attempts being written. A run that writes none (no report id, or the attempts query fails at the end) falls back to the counters, so the two rules must both be kept. A Resume that writes none is `failed` instead (unless the attempts query failed).
 - Reports finished before this change keep their counter-based status; only new runs are derived from attempts.
 - A run that dies before finishing leaves its report `running` with `pending` attempts. This decision does not cover that case.

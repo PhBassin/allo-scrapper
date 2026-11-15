@@ -218,10 +218,19 @@ export class ScrapeRun implements ProgressPublisher {
       id: theater.id,
     });
 
+    const plannedDates = this.plannedDates(theater, dates, options ?? {});
+    if (options?.resumeMode && plannedDates.length === 0) {
+      // None of its pending pairs is in this run's dates: nothing to load.
+      logger.info('Resume mode: no pending date in the scrape window, skipping theater', {
+        theater: theater.name,
+      });
+      return { rateLimited: false };
+    }
+
     const { availableDates, failed, failure } = await this.loadAvailability(theater);
     if (failed) {
       if (options?.reportId && failure) {
-        for (const date of this.plannedDates(theater, dates, options)) {
+        for (const date of plannedDates) {
           await this.markFailed(options.reportId, theater.id, date, failure);
         }
       }

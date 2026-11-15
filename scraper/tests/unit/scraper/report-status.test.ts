@@ -102,6 +102,16 @@ describe('deriveReportStatus', () => {
       expect(deriveReportStatus([], counters(2, 0))).toBe('failed');
     });
   });
+
+  describe('with zero attempts in a resume run', () => {
+    it('is failed: the resume scraped none of the pending pairs', () => {
+      expect(deriveReportStatus([], counters(0, 3), { resumeMode: true })).toBe('failed');
+    });
+
+    it('still derives from the attempts when the resume recorded some', () => {
+      expect(deriveReportStatus(attempts('success'), counters(0, 1), { resumeMode: true })).toBe('success');
+    });
+  });
 });
 
 describe('toScheduleRunStatus', () => {
@@ -155,6 +165,37 @@ describe('completeScrapeReport', () => {
     await completeScrapeReport(MOCK_DB, 20, summary());
 
     expect(mockUpdateScheduleRunStatus).not.toHaveBeenCalled();
+  });
+
+  it('fails a resume run that recorded no attempt and says why on the report', async () => {
+    mockGetScrapeAttemptsByReport.mockResolvedValue([]);
+
+    const status = await completeScrapeReport(
+      MOCK_DB, 21, summary({ failed_theaters: 0, successful_theaters: 2 }), { resumeMode: true }
+    );
+
+    expect(status).toBe('failed');
+    expect(mockUpdateScrapeReport).toHaveBeenCalledWith(MOCK_DB, 21, expect.objectContaining({
+      status: 'failed',
+      errors: [expect.objectContaining({
+        theater_name: 'System',
+        theater_id: 'system',
+        error: expect.stringContaining('no pending pair'),
+      })],
+    }));
+  });
+
+  it('keeps the counter fallback for a resume run whose attempts cannot be read', async () => {
+    mockGetScrapeAttemptsByReport.mockRejectedValue(new Error('db down'));
+
+    const status = await completeScrapeReport(
+      MOCK_DB, 21, summary({ failed_theaters: 0 }), { resumeMode: true }
+    );
+
+    expect(status).toBe('success');
+    expect(mockUpdateScrapeReport).toHaveBeenCalledWith(
+      MOCK_DB, 21, expect.objectContaining({ status: 'success', errors: [] })
+    );
   });
 
   it('falls back to the counters when the attempts cannot be read', async () => {

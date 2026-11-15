@@ -155,6 +155,37 @@ describe('executeJob dispatcher', () => {
     expect(mockScrapeJobsTotal.inc).toHaveBeenCalledWith({ status: 'rate_limited', trigger: 'manual' });
   });
 
+  it('fails a resume job that recorded no attempt', async () => {
+    mockRunScraper.mockResolvedValue({
+      failed_theaters: 0,
+      successful_theaters: 1,
+      total_theaters: 1,
+      total_movies: 0,
+      total_showtimes: 0,
+      errors: [],
+    });
+    mockGetScrapeAttemptsByReport.mockResolvedValueOnce([]);
+
+    const { executeJob } = await import('../../src/index.js');
+
+    await executeJob({
+      type: 'scrape',
+      triggerType: 'manual',
+      reportId: 21,
+      options: {
+        resumeMode: true,
+        pendingAttempts: [{ theater_id: 'C0072', date: '2026-03-01' }],
+      },
+    });
+
+    expect(mockUpdateScrapeReport).toHaveBeenCalledWith(
+      expect.anything(),
+      21,
+      expect.objectContaining({ status: 'failed' })
+    );
+    expect(mockScrapeJobsTotal.inc).toHaveBeenCalledWith({ status: 'failed', trigger: 'manual' });
+  });
+
   it('should dispatch add_theater jobs to addTheaterAndScrape', async () => {
     mockAddTheaterAndScrape.mockResolvedValue({
       id: 'C0072',

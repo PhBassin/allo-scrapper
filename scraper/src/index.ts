@@ -100,7 +100,9 @@ export async function executeJob(job: ScrapeJob): Promise<void> {
     moviesScrapedTotal.inc({ theater: 'all' }, summary.total_movies);
     showtimesScrapedTotal.inc({ theater: 'all' }, summary.total_showtimes);
 
-    const status = await completeScrapeReport(db, job.reportId, summary);
+    const status = await completeScrapeReport(db, job.reportId, summary, {
+      resumeMode: scrapeJob.options?.resumeMode,
+    });
     scrapeJobsTotal.inc({ status, trigger: job.triggerType });
 
     logger.info(`[scraper] Job ${job.reportId} completed with status: ${status}`);

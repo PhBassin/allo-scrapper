@@ -182,3 +182,53 @@ describe('a scheduled run rate-limited mid-way', () => {
     expect(status).toBe('success');
   });
 });
+
+describe('a resume run that scrapes none of its pending pairs', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    store.length = 0;
+    nextId = 1;
+    process.env.THEATER_DELAY_MS = '0';
+    process.env.MOVIE_DELAY_MS = '0';
+  });
+
+  it('fails without loading any theater when the pairs fall outside the scrape window', async () => {
+    const pendingAttempts = [
+      { theater_id: 'C0074', date: '2026-03-01' },
+      { theater_id: 'C0099', date: '2026-03-02' },
+    ];
+
+    const summary = await runScraper(undefined, {
+      reportId: RESUME_REPORT_ID,
+      resumeMode: true,
+      pendingAttempts,
+    });
+    const status = await completeScrapeReport({} as never, RESUME_REPORT_ID, summary, {
+      resumeMode: true,
+    });
+
+    expect(mockStrategy.loadTheaterMetadata).not.toHaveBeenCalled();
+    expect(mockScrapeTheater).not.toHaveBeenCalled();
+    expect(pairsOf(RESUME_REPORT_ID)).toEqual([]);
+    expect(summary.successful_theaters).toBe(0);
+    expect(status).toBe('failed');
+  });
+
+  it('fails when the source does not publish the pending dates', async () => {
+    mockStrategy.loadTheaterMetadata.mockResolvedValueOnce({ availableDates: [DATES[1]], theater: THEATERS[1] });
+    const pendingAttempts = [{ theater_id: 'C0074', date: DATES[0] }];
+
+    const summary = await runScraper(undefined, {
+      reportId: RESUME_REPORT_ID,
+      resumeMode: true,
+      pendingAttempts,
+    });
+    const status = await completeScrapeReport({} as never, RESUME_REPORT_ID, summary, {
+      resumeMode: true,
+    });
+
+    expect(mockScrapeTheater).not.toHaveBeenCalled();
+    expect(pairsOf(RESUME_REPORT_ID)).toEqual([]);
+    expect(status).toBe('failed');
+  });
+});
