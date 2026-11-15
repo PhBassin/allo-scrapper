@@ -11,8 +11,14 @@
 #   - Adds Watchtower for automatic image updates on the :stable tag
 #   - Tags app containers so Watchtower only touches them (not Traefik/itself)
 #
-# Never edit docker-compose.yaml here — extend it. If docker-compose.yaml gains
-# a new env var, it is automatically picked up; you only need to update .env.
+# Never edit docker-compose.yaml here — extend it.
+#
+# Watchtower only swaps images: each container keeps the config it was created
+# with. A change to docker-compose.yaml or to this file (a new env var, a new
+# label…) reaches the VPS only when you install the release's compose files and
+# recreate the affected services. On every release, run:
+#   ./scripts/deploy-update.sh <vX.Y.Z>
+# See deploy/README.md → "Update to a new release".
 # ---------------------------------------------------------------------------
 
 services:

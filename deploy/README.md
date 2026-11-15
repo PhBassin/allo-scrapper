@@ -33,8 +33,13 @@ at `../scripts/deploy-rollback.sh`.
 ## Architecture decisions
 
 - **Override, not duplicate.** This file is applied on top of
-  `docker-compose.yaml` (the source of truth). New env vars or services added
-  there are picked up automatically.
+  `docker-compose.yaml` (the source of truth), so it never repeats what is
+  defined there.
+- **Images update themselves, compose files don't.** Watchtower swaps images
+  but keeps each container's config. Changes to `docker-compose.yaml` or
+  `docker-compose.prod.yml` (a new env var, label or service) are installed by
+  `scripts/deploy-update.sh` on each release — see
+  [Update to a new release](#update-to-a-new-release).
 - **Traefik v3 with Docker provider.** Service discovery via Docker labels,
   no static config file. ACME certs via TLS-ALPN-01 (works on port 443 only,
   no special port-80 setup needed).
@@ -105,6 +110,7 @@ cd /opt/allo-scrapper
 #   deploy/docker-compose.prod.yml
 #   deploy/.env.example
 #   scripts/deploy-rollback.sh
+#   scripts/deploy-update.sh
 ```
 
 ### 4. Configure secrets
@@ -173,6 +179,39 @@ docker compose -f docker-compose.yaml -f deploy/docker-compose.prod.yml logs -f 
 You should see `Found new image...restarting`. Then `/api/health` will report
 the new version.
 
+## Update to a new release
+
+Watchtower brings the new **images**, not the new **compose files**: each
+container is recreated with the config it already had. So on every release,
+also install that release's `docker-compose.yaml` and
+`deploy/docker-compose.prod.yml`:
+
+```bash
+cd /opt/allo-scrapper
+./scripts/deploy-update.sh --dry-run v4.10.0   # see what would change
+./scripts/deploy-update.sh v4.10.0             # apply it (asks for confirmation)
+```
+
+The script downloads both files from the release tag, shows the diff, lists
+the `${VARS}` they reference for the first time (and whether `.env` sets
+them), checks the merged config against `.env`, then installs the files
+(previous ones saved in `.compose-backup/<timestamp>/`) and recreates **only**
+the services whose config changed. DB and Redis are not touched unless their
+own definition changed. Running it when nothing changed is a no-op.
+
+Do it as soon as the release is tagged. Its release PR lists the new or
+changed env vars and compose changes: if one needs a value in `.env` (the
+script flags it), add it **before** applying. It makes no difference whether
+Watchtower has already swapped the image: both orders end in the same state.
+
+The script is not updated by the release either. When a release changes it,
+refresh it from the tag first:
+
+```bash
+curl -fsSLo scripts/deploy-update.sh https://raw.githubusercontent.com/PhBassin/allo-scrapper/v4.10.0/scripts/deploy-update.sh
+chmod +x scripts/deploy-update.sh
+```
+
 ## Daily operations
 
 All commands assume you're in `/opt/allo-scrapper`.
@@ -188,7 +227,8 @@ dc logs -f watchtower # tail auto-update log
 dc restart ics-web    # restart one service
 dc down               # stop everything (DB data + ACME certs persist in volumes)
 dc up -d              # start everything
-dc pull && dc up -d   # manual update (bypass Watchtower)
+dc pull && dc up -d   # manual image update (bypass Watchtower)
+./scripts/deploy-update.sh <tag>  # install a release's compose files (see above)
 ```
 
 ## Rollback
@@ -199,6 +239,11 @@ dc pull && dc up -d   # manual update (bypass Watchtower)
 
 Rolls back the three app containers to the requested tag. DB, Redis, Traefik,
 and Watchtower are untouched. See the script header for details.
+
+It does not touch the compose files. If the release you are leaving also
+changed them, put back the previous ones first: `deploy-update.sh` saved them
+in `.compose-backup/<timestamp>/`, or run `./scripts/deploy-update.sh
+<previous-tag>`.
 
 ## Backups
 

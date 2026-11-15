@@ -86,6 +86,11 @@ cd allo-scrapper
 # Download docker-compose.yaml
 curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/docker-compose.yaml
 
+# Download the update script (installs the compose file of each new release)
+mkdir -p scripts
+curl -o scripts/deploy-update.sh https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/scripts/deploy-update.sh
+chmod +x scripts/deploy-update.sh
+
 # Download .env.example
 curl -O https://raw.githubusercontent.com/PhBassin/allo-scrapper/main/.env.example
 
@@ -606,22 +611,37 @@ See [Monitoring Guide](./monitoring.md) for complete setup.
 
 ### Update Procedure
 
+A release can change `docker-compose.yaml` as well as the image: a new
+environment variable, a changed default, a new service. Pulling the image
+(by hand or with Watchtower) does **not** bring those changes, because a
+container keeps the config it was created with. So an update has two steps:
+install the release's compose file, then the release's image.
+
 ```bash
-# 1. Pull latest image
-docker pull ghcr.io/phbassin/allo-scrapper:stable
+# 1. Install the compose file of the release (replace v4.10.0 by the release tag).
+#    --dry-run shows the diff, the variables it references for the first time
+#    and the services it would recreate, without changing anything.
+./scripts/deploy-update.sh --dry-run v4.10.0
+./scripts/deploy-update.sh v4.10.0
 
-# 2. Stop services
-docker compose down
-
-# 3. Restart with new image
+# 2. Pull the new images and recreate the containers that use them
+docker compose pull
 docker compose up -d
 
-# 4. Check logs for errors
+# 3. Check logs for errors
 docker compose logs -f ics-web
 
-# 5. Verify health
+# 4. Verify health
 curl http://localhost:3000/api/health
 ```
+
+If the script lists a variable as required and not set in `.env`, add it to
+`.env` first and run it again: it refuses to install a config that does not
+validate. The previous compose file is kept in `.compose-backup/<timestamp>/`.
+The release PR lists the new or changed env vars and compose changes.
+
+With the Traefik + Watchtower overlay, step 2 is done by Watchtower; run
+step 1 on each release (see [`deploy/README.md`](../../../deploy/README.md#update-to-a-new-release)).
 
 ### Database Migrations
 
@@ -644,6 +664,8 @@ docker compose down
 docker pull ghcr.io/phbassin/allo-scrapper:<previous-tag>
 
 # 4. Update docker-compose.yaml to pin version
+#    (if the update installed a new compose file, start from the previous one,
+#    saved by deploy-update.sh in .compose-backup/<timestamp>/)
 # image: ghcr.io/phbassin/allo-scrapper:<previous-tag>
 
 # 5. Restart
@@ -917,8 +939,8 @@ docker compose exec ics-db psql -U postgres -d ics
 # Backup database
 ./scripts/backup-production.sh --host localhost --user postgres
 
-# Update application
-docker pull ghcr.io/phbassin/allo-scrapper:stable && docker compose down && docker compose up -d
+# Update application (compose file, then images)
+./scripts/deploy-update.sh <vX.Y.Z> && docker compose pull && docker compose up -d
 ```
 
 ### Important Files
