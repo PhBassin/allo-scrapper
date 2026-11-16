@@ -35,6 +35,13 @@ export interface ScrapeErrorEntry {
   http_status_code?: number;
 }
 
+/** Error details stamped on a `failed` ScrapeAttempt. */
+export interface AttemptFailure {
+  error_type: ErrorType;
+  error_message: string;
+  http_status_code?: number;
+}
+
 export interface CascadeContext {
   allTheaters: TheaterConfig[];
   theaterIndex: number;
@@ -154,11 +161,20 @@ export class ScrapeRun implements ProgressPublisher {
       logger.info(`Scraping only theater: ${foundTheater.name} (${foundTheater.id})`);
     }
 
-    logger.info('Theaters loaded', { count: theaters.length });
-
     const scrapeMode = options?.mode ?? this.config.scrapeMode;
     const scrapeDays = options?.days || this.config.scrapeDays;
     const dates = getScrapeDates(scrapeMode, scrapeDays);
+
+    if (options?.resumeMode && options.pendingAttempts) {
+      // Keep only the theaters with a pending pair in this run's dates, so the
+      // totals, the progress events and the delays leave the others out.
+      theaters = theaters.filter(t => this.plannedDates(t, dates, options).length > 0);
+      logger.info('Resume mode: restricted to theaters with pending dates in the scrape window', {
+        count: theaters.length,
+      });
+    }
+
+    logger.info('Theaters loaded', { count: theaters.length });
 
     logger.info('Scrape config', { mode: scrapeMode, dates: dates.length, scrapeDays });
     logger.info('Delay config', {
@@ -203,8 +219,13 @@ export class ScrapeRun implements ProgressPublisher {
       id: theater.id,
     });
 
-    const { availableDates, failed } = await this.loadAvailability(theater);
+    const { availableDates, failed, failure } = await this.loadAvailability(theater);
     if (failed) {
+      if (options?.reportId && failure) {
+        for (const date of this.plannedDates(theater, dates, options)) {
+          await this.markFailed(options.reportId, theater.id, date, failure);
+        }
+      }
       return { rateLimited: false };
     }
 
@@ -316,7 +337,7 @@ export class ScrapeRun implements ProgressPublisher {
 
   async loadAvailability(
     theater: TheaterConfig
-  ): Promise<{ availableDates: string[]; failed: boolean }> {
+  ): Promise<{ availableDates: string[]; failed: boolean; failure?: AttemptFailure }> {
     const strategy = getStrategyBySource(theater.source || 'allocine');
     try {
       const meta = await strategy.loadTheaterMetadata(this.db, theater);
@@ -336,7 +357,15 @@ export class ScrapeRun implements ProgressPublisher {
         http_status_code: (error as any).statusCode,
       });
       this.incrementFailedTheater();
-      return { availableDates: [], failed: true };
+      return {
+        availableDates: [],
+        failed: true,
+        failure: {
+          error_type: errorType,
+          error_message: errorMessage,
+          http_status_code: (error as any).statusCode,
+        },
+      };
     }
   }
 
@@ -355,12 +384,8 @@ export class ScrapeRun implements ProgressPublisher {
       });
     }
 
-    let finalDatesToScrape = datesToScrape;
+    const finalDatesToScrape = this.plannedDates(theater, datesToScrape, options);
     if (options.resumeMode && options.pendingAttempts) {
-      const pendingDatesForTheater = options.pendingAttempts
-        .filter(a => a.theater_id === theater.id)
-        .map(a => a.date);
-      finalDatesToScrape = datesToScrape.filter(d => pendingDatesForTheater.includes(d));
       logger.info('Resume mode: filtered to pending attempts', {
         theater: theater.name,
         allDates: datesToScrape.length,
@@ -439,7 +464,7 @@ export class ScrapeRun implements ProgressPublisher {
     if (options?.reportId && cascade) {
       const remainingTheaters = cascade.allTheaters.slice(cascade.theaterIndex + 1);
       for (const remainingTheater of remainingTheaters) {
-        for (const futureDate of cascade.datesToScrape) {
+        for (const futureDate of this.plannedDates(remainingTheater, cascade.datesToScrape, options)) {
           await this.markNotAttempted(options.reportId, remainingTheater.id, futureDate);
         }
       }
@@ -530,6 +555,41 @@ export class ScrapeRun implements ProgressPublisher {
 
     this.incrementFailedTheater();
     logger.error('Theater failed completely', { theater: theater.name, dates: counts.totalDates });
+  }
+
+  /**
+   * The dates this run plans for a theater: every requested date, or — in
+   * resume mode — only the requested dates still pending in the parent report.
+   */
+  private plannedDates(
+    theater: TheaterConfig,
+    dates: string[],
+    options: ScrapeOptions
+  ): string[] {
+    if (!options.resumeMode || !options.pendingAttempts) return dates;
+    const pending = new Set(
+      options.pendingAttempts.filter(a => a.theater_id === theater.id).map(a => a.date)
+    );
+    return dates.filter(d => pending.has(d));
+  }
+
+  private async markFailed(
+    reportId: number,
+    theaterId: string,
+    date: string,
+    failure: AttemptFailure
+  ): Promise<void> {
+    try {
+      const attemptId = await createScrapeAttempt(this.db, {
+        report_id: reportId,
+        theater_id: theaterId,
+        date,
+        status: 'failed',
+      });
+      await updateScrapeAttempt(this.db, attemptId, { status: 'failed', ...failure });
+    } catch (error) {
+      logger.error('Failed to mark attempt as failed', { error });
+    }
   }
 
   private async markNotAttempted(

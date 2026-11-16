@@ -5,6 +5,8 @@ export interface ScrapeAttempt {
   id: number;
   report_id: number;
   theater_id: string;
+  /** `null` when the theater no longer resolves; display the id instead. */
+  theater_name?: string | null;
   date: string;
   status: 'pending' | 'success' | 'failed' | 'rate_limited' | 'not_attempted';
   error_type?: string | null;
@@ -26,12 +28,14 @@ export interface ReportDetails {
     not_attempted: number;
     pending: number;
   };
+  /** Attempts a Resume would re-scrape (failed | rate_limited | not_attempted). */
+  resumable_count: number;
 }
 
 export async function getScrapeReports(params?: {
   page?: number;
   pageSize?: number;
-  status?: 'running' | 'success' | 'partial_success' | 'failed';
+  status?: ScrapeReport['status'];
   triggerType?: 'manual' | 'cron';
 }): Promise<PaginatedResponse<ScrapeReport>> {
   const response = await apiClient.get<ApiResponse<PaginatedResponse<ScrapeReport>>>('/reports', params as Record<string, string | number>);
