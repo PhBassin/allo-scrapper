@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import ReportsPage from './ReportsPage';
-import * as client from '../api/client';
+import ReportsPage from './ReportsPage.js';
+import * as client from '../api/client.js';
 
 // Mock API calls
-vi.mock('../api/client');
+vi.mock('../api/client.js');
 
 const mockReportsList = {
   items: [
@@ -45,9 +45,9 @@ const mockReportDetail = {
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent } from '@testing-library/react';
-import { AuthContext } from '../contexts/AuthContext';
-import type { PermissionName } from '../types/role';
-import type { ReportDetails } from '../api/reports';
+import { AuthContext } from '../contexts/AuthContext.js';
+import type { PermissionName } from '../types/role.js';
+import type { ReportDetails } from '../api/reports.js';
 
 const emptyDetails = (reportId: number): ReportDetails => ({
   report: { ...mockReportDetail, id: reportId },
