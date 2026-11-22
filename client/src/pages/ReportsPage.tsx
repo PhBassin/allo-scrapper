@@ -6,6 +6,7 @@ import { LoadingSpinner, ErrorMessage } from '../components/ui/PageStates.js';
 import { ReportListItem } from './ReportsPage/ReportListItem.js';
 import { ReportSummary } from './ReportsPage/ReportSummary.js';
 import { ReportRateLimitedNotice } from './ReportsPage/ReportRateLimitedNotice.js';
+import { ReportResumeAction } from './ReportsPage/ReportResumeAction.js';
 import { ReportDetailsSection } from './ReportsPage/ReportDetailsSection.js';
 import { ReportErrorsSection, ReportProgressLog } from './ReportsPage/ReportExtras.js';
 
@@ -83,10 +84,9 @@ function ReportsDetailView() {
     reportDetails,
     isLoading,
     isLoadingDetails,
+    detailsError,
     isResuming,
     resumeError,
-    showDetails,
-    toggleShowDetails,
     resume,
   } = useReportsData();
   const formatter = useDateFormatter();
@@ -105,25 +105,26 @@ function ReportsDetailView() {
     <div>
       <ReportsBreadcrumb reportId={selectedReport.id} />
 
-      <div className="mb-6">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">Rapport #{selectedReport.id}</h1>
-        <p className="text-gray-600">{formatDate(selectedReport.started_at, formatter)}</p>
+      <div className="mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">Rapport #{selectedReport.id}</h1>
+          <p className="text-gray-600">{formatDate(selectedReport.started_at, formatter)}</p>
+        </div>
+        <ReportResumeAction
+          reportId={selectedReport.id}
+          reportStatus={selectedReport.status}
+          resumableCount={reportDetails?.resumable_count ?? 0}
+          isResuming={isResuming}
+          resumeError={resumeError}
+          onResume={resume}
+        />
       </div>
 
       <ReportSummary report={selectedReport} />
 
-      <ReportRateLimitedNotice
-        report={selectedReport}
-        isResuming={isResuming}
-        resumeError={resumeError}
-        showDetails={showDetails}
-        onResume={resume}
-        onToggleDetails={toggleShowDetails}
-      />
+      <ReportRateLimitedNotice report={selectedReport} />
 
-      {showDetails && (
-        <ReportDetailsSection details={reportDetails} isLoading={isLoadingDetails} />
-      )}
+      <ReportDetailsSection details={reportDetails} isLoading={isLoadingDetails} error={detailsError} />
 
       <ReportErrorsSection report={selectedReport} />
       <ReportProgressLog report={selectedReport} />

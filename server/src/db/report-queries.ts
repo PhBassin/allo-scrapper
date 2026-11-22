@@ -8,7 +8,7 @@ export interface ScrapeReport {
   id: number;
   started_at: string;
   completed_at?: string;
-  status: 'running' | 'success' | 'partial_success' | 'failed';
+  status: 'running' | 'success' | 'partial_success' | 'failed' | 'rate_limited';
   trigger_type: 'manual' | 'cron';
   total_theaters?: number;
   successful_theaters?: number;
@@ -50,7 +50,7 @@ export async function getScrapeReports(
   options: {
     limit?: number;
     offset?: number;
-    status?: 'running' | 'success' | 'partial_success' | 'failed';
+    status?: ScrapeReport['status'];
     triggerType?: 'manual' | 'cron';
   } = {}
 ): Promise<{ reports: ScrapeReport[]; total: number }> {

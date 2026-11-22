@@ -6,6 +6,9 @@ import { TheaterNotFoundError } from '../utils/errors.js';
 import { progressTracker } from '../services/progress-tracker.js';
 
 const mockTriggerScrape = vi.fn();
+const mockTriggerResume = vi.fn();
+const mockGetScrapeReport = vi.fn();
+const mockGetPendingScrapeAttempts = vi.fn();
 const mockGetStatus = vi.fn();
 const mockAttachProgressStream = vi.fn();
 const mockPublishScheduleChange = vi.fn();
@@ -18,11 +21,22 @@ vi.mock('../services/scraper-service.js', () => {
     ScraperService: vi.fn().mockImplementation(function() {
       return {
         triggerScrape: mockTriggerScrape,
+        triggerResume: mockTriggerResume,
         getStatus: mockGetStatus,
       };
     }),
   };
 });
+
+vi.mock('../db/report-queries.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../db/report-queries.js')>()),
+  getScrapeReport: (...args: unknown[]) => mockGetScrapeReport(...args),
+}));
+
+vi.mock('../db/scrape-attempt-queries.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../db/scrape-attempt-queries.js')>()),
+  getPendingScrapeAttempts: (...args: unknown[]) => mockGetPendingScrapeAttempts(...args),
+}));
 
 vi.mock('../services/sse-bridge.js', () => ({
   attachProgressStream: mockAttachProgressStream,
@@ -166,6 +180,53 @@ describe('Routes - Scraper', () => {
       
       expect(response.status).toBe(500);
       expect(response.body.error).toBe('Redis connection failed');
+    });
+  });
+
+  describe('POST /api/scraper/resume/:reportId', () => {
+    // A report shaped like #20: some successes, a 429 on one theater, then
+    // the cascade of not_attempted pairs. getPendingScrapeAttempts returns
+    // only its resumable pairs.
+    const pending = [
+      { id: 4, report_id: 20, theater_id: 'C0074', date: '2026-03-10', status: 'rate_limited' },
+      { id: 5, report_id: 20, theater_id: 'C0074', date: '2026-03-11', status: 'not_attempted' },
+      { id: 6, report_id: 20, theater_id: 'C0099', date: '2026-03-10', status: 'not_attempted' },
+    ];
+
+    beforeEach(() => {
+      mockGetScrapeReport.mockResolvedValue({ id: 20, status: 'partial_success', trigger_type: 'cron' });
+      mockGetPendingScrapeAttempts.mockResolvedValue(pending);
+      mockTriggerResume.mockResolvedValue({ reportId: 21, queueDepth: 1 });
+    });
+
+    it('resumes a partial_success report with only its pending pairs', async () => {
+      const app = await setupApp();
+
+      const response = await request(app).post('/api/scraper/resume/20');
+
+      expect(response.status).toBe(200);
+      expect(mockGetPendingScrapeAttempts).toHaveBeenCalledWith(expect.anything(), 20);
+      expect(mockTriggerResume).toHaveBeenCalledWith(20, pending);
+      expect(response.body.data).toMatchObject({ reportId: 21, parentReportId: 20, pendingAttempts: 3 });
+    });
+
+    it('refuses a report without pending pairs', async () => {
+      mockGetPendingScrapeAttempts.mockResolvedValue([]);
+      const app = await setupApp();
+
+      const response = await request(app).post('/api/scraper/resume/20');
+
+      expect(response.status).toBe(400);
+      expect(mockTriggerResume).not.toHaveBeenCalled();
+    });
+
+    it('returns 403 without scraper:trigger', async () => {
+      const app = await setupApp({ role_name: 'user', is_system_role: false, permissions: [] });
+
+      const response = await request(app).post('/api/scraper/resume/20');
+
+      expect(response.status).toBe(403);
+      expect(mockTriggerResume).not.toHaveBeenCalled();
     });
   });
 

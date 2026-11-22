@@ -7,6 +7,8 @@ import {
   getScrapeAttemptsByReport,
   getScrapeAttempt,
   hasSuccessfulAttempt,
+  isResumableAttempt,
+  RESUMABLE_ATTEMPT_STATUSES,
   type ScrapeAttempt,
 } from './scrape-attempt-queries.js';
 
@@ -178,8 +180,8 @@ describe('Scrape Attempt Queries', () => {
 
       expect(result).toEqual(mockAttempts);
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining("status IN ('failed', 'rate_limited', 'not_attempted')"),
-        [1]
+        expect.stringContaining('status = ANY($2)'),
+        [1, ['failed', 'rate_limited', 'not_attempted']]
       );
     });
 
@@ -233,9 +235,36 @@ describe('Scrape Attempt Queries', () => {
 
       expect(result).toEqual(mockAttempts);
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT * FROM scrape_attempts'),
+        expect.stringContaining('FROM scrape_attempts'),
         [1]
       );
+    });
+
+    it('returns each attempt with the name of its theater', async () => {
+      (mockDb.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
+
+      await getScrapeAttemptsByReport(mockDb, 1);
+
+      const [sql] = (mockDb.query as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(sql).toMatch(/LEFT JOIN theaters t ON t\.id = sa\.theater_id/);
+      expect(sql).toMatch(/t\.name AS theater_name/);
+      expect(sql).toMatch(/WHERE sa\.report_id = \$1/);
+    });
+  });
+
+  describe('RESUMABLE_ATTEMPT_STATUSES', () => {
+    it('is exactly failed, rate_limited and not_attempted', () => {
+      expect([...RESUMABLE_ATTEMPT_STATUSES]).toEqual(['failed', 'rate_limited', 'not_attempted']);
+    });
+
+    it.each([
+      ['failed', true],
+      ['rate_limited', true],
+      ['not_attempted', true],
+      ['success', false],
+      ['pending', false],
+    ] as const)('isResumableAttempt(%s) is %s', (status, expected) => {
+      expect(isResumableAttempt(status)).toBe(expected);
     });
   });
 

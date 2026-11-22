@@ -3,7 +3,6 @@ import type { DB } from './client.js';
 import {
   createScrapeAttempt,
   updateScrapeAttempt,
-  getPendingScrapeAttempts,
   getScrapeAttemptsByReport,
   getScrapeAttempt,
   hasSuccessfulAttempt,
@@ -123,74 +122,6 @@ describe('Scrape Attempt Queries', () => {
       await updateScrapeAttempt(mockDb, 42, {});
 
       expect(mockDb.query).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('getPendingScrapeAttempts', () => {
-    it('should return failed, rate_limited, and not_attempted attempts', async () => {
-      const mockAttempts: ScrapeAttempt[] = [
-        {
-          id: 1,
-          report_id: 1,
-          theater_id: 'C0001',
-          date: '2026-03-25',
-          status: 'failed',
-          error_type: 'network',
-          error_message: 'Timeout',
-          http_status_code: null,
-          movies_scraped: 0,
-          showtimes_scraped: 0,
-          attempted_at: '2026-03-24T10:00:00Z',
-        },
-        {
-          id: 2,
-          report_id: 1,
-          theater_id: 'C0002',
-          date: '2026-03-25',
-          status: 'rate_limited',
-          error_type: 'http_429',
-          error_message: 'Too many requests',
-          http_status_code: 429,
-          movies_scraped: 0,
-          showtimes_scraped: 0,
-          attempted_at: '2026-03-24T10:05:00Z',
-        },
-        {
-          id: 3,
-          report_id: 1,
-          theater_id: 'C0003',
-          date: '2026-03-25',
-          status: 'not_attempted',
-          error_type: null,
-          error_message: null,
-          http_status_code: null,
-          movies_scraped: 0,
-          showtimes_scraped: 0,
-          attempted_at: '2026-03-24T10:05:00Z',
-        },
-      ];
-
-      (mockDb.query as ReturnType<typeof vi.fn>).mockResolvedValue({
-        rows: mockAttempts,
-      });
-
-      const result = await getPendingScrapeAttempts(mockDb, 1);
-
-      expect(result).toEqual(mockAttempts);
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining("status IN ('failed', 'rate_limited', 'not_attempted')"),
-        [1]
-      );
-    });
-
-    it('should return empty array if no pending attempts', async () => {
-      (mockDb.query as ReturnType<typeof vi.fn>).mockResolvedValue({
-        rows: [],
-      });
-
-      const result = await getPendingScrapeAttempts(mockDb, 1);
-
-      expect(result).toEqual([]);
     });
   });
 

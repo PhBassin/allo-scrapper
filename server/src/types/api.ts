@@ -17,6 +17,6 @@ export interface PaginatedResponse<T> {
 export interface GetReportsQuery {
   page?: string;
   pageSize?: string;
-  status?: 'running' | 'success' | 'partial_success' | 'failed';
+  status?: 'running' | 'success' | 'partial_success' | 'failed' | 'rate_limited';
   triggerType?: 'manual' | 'cron';
 }

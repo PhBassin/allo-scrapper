@@ -1,8 +1,61 @@
-import type { ReportDetails } from '../../hooks/useReportsData.js';
-import { getAttemptStatusColor } from '../../utils/reports.js';
+import type { ReportDetails, ScrapeAttempt } from '../../api/reports.js';
+import { getAttemptStatusColor, getAttemptStatusLabel, getErrorTypeLabel } from '../../utils/reports.js';
 
-export function ReportDetailsSection({ details, isLoading }: { details?: ReportDetails; isLoading: boolean }) {
-  if (!details) return null;
+interface TheaterGroup {
+  theaterId: string;
+  name: string;
+  attempts: ScrapeAttempt[];
+  successes: number;
+  movies: number;
+  showtimes: number;
+  hasProblems: boolean;
+}
+
+function toTheaterGroups(attemptsByTheater: Record<string, ScrapeAttempt[]>): TheaterGroup[] {
+  const groups = Object.entries(attemptsByTheater).map(([theaterId, attempts]) => {
+    const successful = attempts.filter((a) => a.status === 'success');
+    return {
+      theaterId,
+      name: attempts.find((a) => a.theater_name)?.theater_name ?? theaterId,
+      attempts,
+      successes: successful.length,
+      movies: successful.reduce((sum, a) => sum + (a.movies_scraped ?? 0), 0),
+      showtimes: successful.reduce((sum, a) => sum + (a.showtimes_scraped ?? 0), 0),
+      hasProblems: successful.length < attempts.length,
+    };
+  });
+
+  // Theaters with at least one non-success attempt first, then by name.
+  return groups.sort(
+    (a, b) => Number(b.hasProblems) - Number(a.hasProblems) || a.name.localeCompare(b.name, 'fr')
+  );
+}
+
+interface ReportDetailsSectionProps {
+  details?: ReportDetails;
+  isLoading: boolean;
+  /** Why the details could not be loaded, if they could not. */
+  error?: string | null;
+}
+
+export function ReportDetailsSection({ details, isLoading, error }: ReportDetailsSectionProps) {
+  if (!details) {
+    if (error) {
+      return (
+        <div role="alert" className="card p-6 mb-6 bg-red-50 border border-red-200">
+          <p className="text-red-600">Impossible de charger les détails des tentatives : {error}</p>
+        </div>
+      );
+    }
+    return isLoading ? (
+      <div className="card p-6 mb-6 text-center">
+        <p className="text-gray-600">Chargement des détails...</p>
+      </div>
+    ) : null;
+  }
+
+  const groups = toTheaterGroups(details.attempts);
+
   return (
     <div className="card p-6 mb-6">
       <h2 className="text-xl font-bold mb-4">Détails des tentatives</h2>
@@ -15,36 +68,70 @@ export function ReportDetailsSection({ details, isLoading }: { details?: ReportD
         <SummaryStat label="Non tentés" value={details.summary.not_attempted} colorClass="text-gray-600" />
       </div>
 
-      <div className="space-y-4">
-        {Object.entries(details.attempts).map(([theaterId, attempts]) => (
-          <div key={theaterId} className="border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold mb-3">Cinéma {theaterId}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              {attempts.map((attempt) => (
-                <div
-                  key={attempt.id}
-                  className={`p-2 rounded border text-xs ${getAttemptStatusColor(attempt.status)}`}
-                >
-                  <p className="font-semibold">{attempt.date}</p>
-                  <p className="mt-1">{attempt.status}</p>
-                  {attempt.status === 'success' && (
-                    <p className="mt-1">
-                      {attempt.movies_scraped} films, {attempt.showtimes_scraped} séances
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {isLoading && (
-        <div className="text-center py-4">
-          <p className="text-gray-600">Chargement des détails...</p>
+      {groups.length === 0 ? (
+        <p className="text-gray-600">Aucune tentative enregistrée pour ce rapport.</p>
+      ) : (
+        <div className="space-y-3">
+          {groups.map((group) => (
+            <TheaterAttempts key={group.theaterId} group={group} />
+          ))}
         </div>
       )}
     </div>
+  );
+}
+
+function TheaterAttempts({ group }: { group: TheaterGroup }) {
+  return (
+    <details
+      data-testid="theater-attempts"
+      open={group.hasProblems}
+      className={`border rounded-lg p-4 ${group.hasProblems ? 'border-orange-300' : 'border-gray-200'}`}
+    >
+      {/* The summary stays `list-item` to keep its disclosure marker. */}
+      <summary className="cursor-pointer">
+        <span className="inline-flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span data-testid="theater-name" className="font-semibold">{group.name}</span>
+          <span data-testid="theater-summary" className="text-sm text-gray-600">
+            {group.successes}/{group.attempts.length} dates · {group.movies} films · {group.showtimes} séances
+          </span>
+        </span>
+      </summary>
+      <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mt-3">
+        {group.attempts.map((attempt) => (
+          <AttemptItem key={attempt.id} attempt={attempt} />
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function AttemptItem({ attempt }: { attempt: ScrapeAttempt }) {
+  return (
+    <li
+      data-testid={`attempt-${attempt.date}`}
+      className={`p-2 rounded border text-xs ${getAttemptStatusColor(attempt.status)}`}
+    >
+      <p className="font-semibold">
+        {attempt.date} · {getAttemptStatusLabel(attempt.status)}
+      </p>
+      {attempt.status === 'success' ? (
+        <p className="mt-1">
+          {attempt.movies_scraped} films · {attempt.showtimes_scraped} séances
+        </p>
+      ) : (
+        <>
+          {(attempt.error_type || attempt.http_status_code) && (
+            <p className="mt-1">
+              {attempt.error_type && getErrorTypeLabel(attempt.error_type)}
+              {attempt.error_type && attempt.http_status_code ? ' · ' : ''}
+              {attempt.http_status_code ? `HTTP ${attempt.http_status_code}` : ''}
+            </p>
+          )}
+          {attempt.error_message && <p className="mt-1 break-words">{attempt.error_message}</p>}
+        </>
+      )}
+    </li>
   );
 }
 

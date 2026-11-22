@@ -92,21 +92,6 @@ export async function updateScrapeAttempt(
   );
 }
 
-// Get pending scrape attempts (failed, rate_limited, or not_attempted)
-export async function getPendingScrapeAttempts(
-  db: DB,
-  reportId: number
-): Promise<ScrapeAttempt[]> {
-  const result = await db.query<ScrapeAttempt>(
-    `SELECT * FROM scrape_attempts
-     WHERE report_id = $1
-     AND status IN ('failed', 'rate_limited', 'not_attempted')
-     ORDER BY theater_id, date`,
-    [reportId]
-  );
-  return result.rows;
-}
-
 // Get all scrape attempts for a report
 export async function getScrapeAttemptsByReport(
   db: DB,
