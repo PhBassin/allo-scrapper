@@ -64,7 +64,16 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
     }
   };
 
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  // A password error already shown is kept in step with both fields, so it
+  // never contradicts the requirements list. It is not raised before the
+  // first blur or submit.
+  const revalidateShownPasswordError = (nextPassword: string, nextUsername: string) => {
+    setErrors((prev) => (prev.password
+      ? { ...prev, password: validatePassword(nextPassword, nextUsername) || undefined }
+      : prev));
+  };
+
+  const handleBackdropClick =(e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -87,16 +96,23 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
             error={errors.username}
             disabled={isSubmitting}
             onChange={setUsername}
-            onBlur={() => setErrors((prev) => ({ ...prev, username: validateUsername(username) || undefined }))}
+            onBlur={() => {
+              setErrors((prev) => ({ ...prev, username: validateUsername(username) || undefined }));
+              revalidateShownPasswordError(password, username);
+            }}
           />
 
           <PasswordField
             value={password}
+            username={username}
             error={errors.password}
             disabled={isSubmitting}
             showPassword={showPassword}
-            onChange={setPassword}
-            onBlur={() => setErrors((prev) => ({ ...prev, password: validatePassword(password) || undefined }))}
+            onChange={(next) => {
+              setPassword(next);
+              revalidateShownPasswordError(next, username);
+            }}
+            onBlur={() => setErrors((prev) => ({ ...prev, password: validatePassword(password, username) || undefined }))}
             onToggleVisibility={() => setShowPassword(!showPassword)}
           />
 
@@ -169,6 +185,7 @@ function UsernameField({ value, error, disabled, onChange, onBlur }: UsernameFie
 
 interface PasswordFieldProps {
   value: string;
+  username: string;
   error?: string;
   disabled: boolean;
   showPassword: boolean;
@@ -177,8 +194,7 @@ interface PasswordFieldProps {
   onToggleVisibility: () => void;
 }
 
-function PasswordField({ value, error, disabled, showPassword, onChange, onBlur, onToggleVisibility }: PasswordFieldProps) {
-  const showEmptyError = error && value.length === 0;
+function PasswordField({ value, username, error, disabled, showPassword, onChange, onBlur, onToggleVisibility }: PasswordFieldProps) {
   return (
     <div className="mb-4">
       <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
@@ -193,9 +209,9 @@ function PasswordField({ value, error, disabled, showPassword, onChange, onBlur,
           onBlur={onBlur}
           disabled={disabled}
           className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
-            showEmptyError ? 'border-red-500' : 'border-gray-300'
+            error ? 'border-red-500' : 'border-gray-300'
           }`}
-          placeholder="Min 8 chars, uppercase, lowercase, digit, special"
+          placeholder="12 to 128 characters, a passphrase works"
         />
         <button
           type="button"
@@ -206,8 +222,8 @@ function PasswordField({ value, error, disabled, showPassword, onChange, onBlur,
           {showPassword ? 'Hide' : 'Show'}
         </button>
       </div>
-      {showEmptyError && <p className="mt-1 text-sm text-red-600">Password is required</p>}
-      <PasswordRequirements password={value} />
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      <PasswordRequirements password={value} username={username} />
     </div>
   );
 }

@@ -253,7 +253,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token')
         .send({
           username: 'newuser',
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
           role_id: '2',
         });
 
@@ -270,7 +270,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token')
         .send({
           username: 'newuser',
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
         });
 
       expect(response.status).toBe(400);
@@ -282,7 +282,7 @@ describe('User Management Routes', () => {
         .post('/api/users')
         .set('Authorization', 'Bearer valid-admin-token')
         .send({
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
         });
 
       expect(response.status).toBe(400);
@@ -296,7 +296,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token')
         .send({
           username: 'user@name',
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
         });
 
       expect(response.status).toBe(400);
@@ -309,7 +309,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token')
         .send({
           username: 'ab',
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
         });
 
       expect(response.status).toBe(400);
@@ -322,7 +322,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token')
         .send({
           username: 'abcdefghijklmnopqrstuv',
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
         });
 
       expect(response.status).toBe(400);
@@ -342,7 +342,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token')
         .send({
           username: 'existinguser',
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
           role_id: '1',
         });
 
@@ -363,7 +363,65 @@ describe('User Management Routes', () => {
       expect(response.body.error).toBe('Username and password are required');
     });
 
-    it('should validate password meets complexity requirements', async () => {
+    it('should reject a password equal to the username', async () => {
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({
+          username: 'cinemalover42',
+          password: 'CinemaLover42',
+          role_id: 2,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Password must not be the same as the username');
+      expect(userQueries.createUser).not.toHaveBeenCalled();
+    });
+
+    it('should reject a common password', async () => {
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({
+          username: 'newuser',
+          password: 'Password123!',
+          role_id: 2,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('This password is too common, choose another one');
+      expect(userQueries.createUser).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['a number', 123456789012345],
+      ['an array of strings', Array(12).fill('a')],
+    ])('should return 400 when the password is %s', async (_label, password) => {
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({ username: 'newuser', password, role_id: 2 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Password must be a string');
+      expect(userQueries.createUser).not.toHaveBeenCalled();
+    });
+
+    it('should reject a password made only of spaces', async () => {
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer valid-admin-token')
+        .send({ username: 'newuser', password: ' '.repeat(12), role_id: 2 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Password must be at least 12 characters');
+      expect(userQueries.createUser).not.toHaveBeenCalled();
+    });
+
+    it('should validate password meets length requirements', async () => {
       const response = await request(app)
         .post('/api/users')
         .set('Authorization', 'Bearer valid-admin-token')
@@ -374,7 +432,7 @@ describe('User Management Routes', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('Password');
+      expect(response.body.error).toBe('Password must be at least 12 characters');
     });
 
     it('should return 400 when role_id does not exist in DB', async () => {
@@ -385,7 +443,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token')
         .send({
           username: 'newuser',
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
           role_id: '999',
         });
 
@@ -398,7 +456,7 @@ describe('User Management Routes', () => {
         .post('/api/users')
         .send({
           username: 'newuser',
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
         });
 
       expect(response.status).toBe(401);
@@ -410,7 +468,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-user-token')
         .send({
           username: 'newuser',
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
         });
 
       expect(response.status).toBe(403);
@@ -425,7 +483,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token')
         .send({
           username: 'newuser',
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
           role_id: '1',
         });
 
@@ -451,7 +509,7 @@ describe('User Management Routes', () => {
         .set('Authorization', 'Bearer valid-admin-token')
         .send({
           username: 'newuser',
-          password: 'Test1234!',
+          password: 'Test1234!passphrase',
           role_id: '2',
         });
 

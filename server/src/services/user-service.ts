@@ -104,11 +104,13 @@ export class UserService {
       throw new ValidationError('Username and password are required');
     }
 
-    if (!USERNAME_REGEX.test(username)) {
+    // The body is untyped at runtime: a non-string (e.g. an array) would pass
+    // the regex once coerced and then skip the not-the-username rule.
+    if (typeof username !== 'string' || !USERNAME_REGEX.test(username)) {
       throw new ValidationError('Username must be alphanumeric and 3-15 characters long');
     }
 
-    const passwordError = validatePasswordStrength(password);
+    const passwordError = validatePasswordStrength(password, username);
     if (passwordError) {
       throw new ValidationError(passwordError);
     }
@@ -209,7 +211,7 @@ export class UserService {
       throw new ValidationError('New password is required');
     }
 
-    const passwordError = validatePasswordStrength(newPassword);
+    const passwordError = validatePasswordStrength(newPassword, targetUser.username);
     if (passwordError) {
       throw new ValidationError(passwordError);
     }

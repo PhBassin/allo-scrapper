@@ -12,6 +12,22 @@ const SCRYPT_PARAMS = {
   saltLen: 16
 };
 
+/**
+ * Longest password `comparePassword` will run through scrypt. The password
+ * policy (`validatePasswordStrength`) caps what can be *set* at 128
+ * characters, but login and the current-password check in changePassword
+ * verify whatever the request carries, without applying the policy. This
+ * bound stops those unauthenticated inputs (up to the body-parser limit)
+ * from reaching scrypt.
+ *
+ * It sits far above the policy maximum because passwords set before the
+ * policy had no maximum: any of those up to this length keeps working.
+ * Trade-off: an account whose password is longer than this (only possible
+ * under the old rules) can no longer log in and needs an admin reset.
+ * Measured in UTF-16 code units (cheap, and at least the code point count).
+ */
+export const MAX_VERIFIABLE_PASSWORD_LENGTH = 4096;
+
 export async function hashPassword(password: string): Promise<string> {
   const salt = await randomBytes(SCRYPT_PARAMS.saltLen);
   const derivedKey = await new Promise<Buffer>((resolve, reject) => {
@@ -24,6 +40,11 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 export async function comparePassword(password: string, hash: string): Promise<boolean> {
+  if (password.length > MAX_VERIFIABLE_PASSWORD_LENGTH) {
+    // Same `false` as a wrong password: callers answer with their generic 401.
+    logger.debug('Refused to verify a password above the verifiable length bound');
+    return false;
+  }
   try {
     // If it's a bcrypt hash (e.g. from existing DB), it fails to compare since we removed bcrypt.
     // In a real migration, we would keep bcrypt to verify old hashes, but per requirements we remove it entirely.

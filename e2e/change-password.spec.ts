@@ -49,11 +49,9 @@ test.describe('Change Password Flow', () => {
         await expect(page.locator('button').filter({ hasText: /Cancel/i })).toBeVisible();
 
         // Check password requirements are shown
-        await expect(page.locator('text=At least 8 characters')).toBeVisible();
-        await expect(page.locator('text=One uppercase letter')).toBeVisible();
-        await expect(page.locator('text=One lowercase letter')).toBeVisible();
-        await expect(page.locator('text=One number')).toBeVisible();
-        await expect(page.locator('text=One special character')).toBeVisible();
+        await expect(page.locator('text=At least 12 characters')).toBeVisible();
+        await expect(page.locator('text=At most 128 characters')).toBeVisible();
+        await expect(page.locator('text=One uppercase letter')).toHaveCount(0);
     });
 
     test('shows error when passwords do not match', async ({ page }) => {
@@ -62,8 +60,8 @@ test.describe('Change Password Flow', () => {
         await page.waitForLoadState('networkidle');
 
         await page.fill('#currentPassword', 'admin');
-        await page.fill('#newPassword', 'NewPass123!');
-        await page.fill('#confirmPassword', 'DifferentPass123!');
+        await page.fill('#newPassword', 'new cinema passphrase');
+        await page.fill('#confirmPassword', 'other cinema passphrase');
         await page.click('button[type="submit"]');
 
         // Should show error message
@@ -81,7 +79,7 @@ test.describe('Change Password Flow', () => {
         await page.click('button[type="submit"]');
 
         // Should show password strength error
-        await expect(page.locator('text=/Password must be at least 8 characters/i')).toBeVisible({ timeout: 5000 });
+        await expect(page.locator('text=/Password must be at least 12 characters/i')).toBeVisible({ timeout: 5000 });
     });
 
     test('shows error when current password is incorrect', async ({ page }) => {
@@ -90,8 +88,8 @@ test.describe('Change Password Flow', () => {
         await page.waitForLoadState('networkidle');
 
         await page.fill('#currentPassword', 'WrongPassword123!');
-        await page.fill('#newPassword', 'NewPass123!');
-        await page.fill('#confirmPassword', 'NewPass123!');
+        await page.fill('#newPassword', 'new cinema passphrase');
+        await page.fill('#confirmPassword', 'new cinema passphrase');
         await page.click('button[type="submit"]');
 
         // Should show error from API
