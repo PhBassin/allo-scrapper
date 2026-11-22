@@ -1,22 +1,10 @@
 import type { ScrapeReport } from '../../types/index.js';
 
-interface Props {
-  report: ScrapeReport;
-  isResuming: boolean;
-  resumeError: Error | null;
-  showDetails: boolean;
-  onResume: (id: number) => void;
-  onToggleDetails: () => void;
-}
-
-export function ReportRateLimitedNotice({
-  report,
-  isResuming,
-  resumeError,
-  showDetails,
-  onResume,
-  onToggleDetails,
-}: Props) {
+/**
+ * Explains why a `rate_limited` report stopped. The Resume action lives at
+ * report level (`ReportResumeAction`), not in this notice.
+ */
+export function ReportRateLimitedNotice({ report }: { report: ScrapeReport }) {
   if (report.status !== 'rate_limited') return null;
 
   return (
@@ -25,30 +13,10 @@ export function ReportRateLimitedNotice({
       <p className="text-orange-900 mb-3">
         Le scraping a été arrêté automatiquement car le serveur source a renvoyé une erreur HTTP 429 (Too Many Requests).
       </p>
-      <p className="text-sm text-orange-800 mb-4">
-        <strong>Que faire ?</strong> Attendez quelques minutes avant de relancer un nouveau scraping.
-        Les cinémas non traités seront automatiquement inclus lors de la prochaine exécution.
+      <p className="text-sm text-orange-800">
+        <strong>Que faire ?</strong> Attendez quelques minutes avant de reprendre le rapport :
+        la reprise ne relance que les dates qui n'ont pas abouti.
       </p>
-      <div className="flex gap-3">
-        <button
-          onClick={() => onResume(report.id)}
-          disabled={isResuming}
-          className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-        >
-          {isResuming ? 'Reprise en cours...' : '🔄 Reprendre le scraping'}
-        </button>
-        <button
-          onClick={onToggleDetails}
-          className="px-4 py-2 bg-white text-orange-800 border border-orange-300 rounded-lg hover:bg-orange-100 font-semibold"
-        >
-          {showDetails ? 'Masquer les détails' : 'Voir les détails'}
-        </button>
-      </div>
-      {resumeError && (
-        <p className="mt-3 text-sm text-red-600">
-          ❌ Erreur lors de la reprise: {resumeError instanceof Error ? resumeError.message : 'Erreur inconnue'}
-        </p>
-      )}
     </div>
   );
 }

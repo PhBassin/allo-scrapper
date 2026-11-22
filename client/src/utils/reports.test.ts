@@ -9,6 +9,8 @@ import {
   getTriggerTypeLabel,
   getFullTriggerTypeLabel,
   getAttemptStatusColor,
+  getAttemptStatusLabel,
+  getErrorTypeLabel,
 } from './reports.js';
 
 describe('useDateFormatter', () => {
@@ -106,5 +108,34 @@ describe('getAttemptStatusColor', () => {
 
   it('returns gray for unknown', () => {
     expect(getAttemptStatusColor('whatever')).toContain('gray');
+  });
+});
+
+describe('getAttemptStatusLabel', () => {
+  it('translates every attempt status to French', () => {
+    expect(getAttemptStatusLabel('success')).toBe('Réussi');
+    expect(getAttemptStatusLabel('failed')).toBe('Échec');
+    expect(getAttemptStatusLabel('rate_limited')).toBe('Limite de débit');
+    expect(getAttemptStatusLabel('not_attempted')).toBe('Non tenté');
+    expect(getAttemptStatusLabel('pending')).toBe('En attente');
+  });
+
+  it('falls back to the raw status for unknown', () => {
+    expect(getAttemptStatusLabel('mystery')).toBe('mystery');
+  });
+});
+
+describe('getErrorTypeLabel', () => {
+  it('gives a readable label for every error type the scraper writes', () => {
+    expect(getErrorTypeLabel('http_429')).toBe('Limite de débit (429)');
+    expect(getErrorTypeLabel('http_5xx')).toBe('Erreur serveur');
+    expect(getErrorTypeLabel('http_4xx')).toBe('Requête refusée (4xx)');
+    expect(getErrorTypeLabel('network')).toBe('Erreur réseau');
+    expect(getErrorTypeLabel('parse')).toBe("Erreur d'analyse");
+    expect(getErrorTypeLabel('timeout')).toBe('Délai dépassé');
+  });
+
+  it('falls back to the raw value for an unknown type', () => {
+    expect(getErrorTypeLabel('http_418')).toBe('http_418');
   });
 });

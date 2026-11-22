@@ -72,3 +72,29 @@ const ATTEMPT_STATUS_COLOR_MAP: Record<string, string> = {
 export function getAttemptStatusColor(status: string): string {
   return ATTEMPT_STATUS_COLOR_MAP[status] ?? 'bg-gray-100 text-gray-800 border-gray-300';
 }
+
+const ATTEMPT_STATUS_LABEL_MAP: Record<string, string> = {
+  success: 'Réussi',
+  failed: 'Échec',
+  rate_limited: 'Limite de débit',
+  not_attempted: 'Non tenté',
+  pending: 'En attente',
+};
+
+export function getAttemptStatusLabel(status: string): string {
+  return ATTEMPT_STATUS_LABEL_MAP[status] ?? status;
+}
+
+/** Labels for the `error_type` values the scraper writes (`classifyError`). */
+const ERROR_TYPE_LABEL_MAP: Record<string, string> = {
+  http_429: 'Limite de débit (429)',
+  http_5xx: 'Erreur serveur',
+  http_4xx: 'Requête refusée (4xx)',
+  network: 'Erreur réseau',
+  parse: "Erreur d'analyse",
+  timeout: 'Délai dépassé',
+};
+
+export function getErrorTypeLabel(errorType: string): string {
+  return ERROR_TYPE_LABEL_MAP[errorType] ?? errorType;
+}

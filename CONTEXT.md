@@ -66,11 +66,29 @@ An external website that publishes showtime data and from which one or more Thea
 
 The terms in this section name the recurring concepts of one end-to-end scrape run. A run is initiated by a ScrapeJob on the Redis queue, executed by the scraper microservice which emits ProgressEvents during the run, and tracked in the database via a ScrapeReport (the run-level record) holding many ScrapeAttempts (one per `(theater, date)` pair). One concept — Resume — lets a stopped/incomplete run be re-issued scoped to only its unfinished attempts. RateLimitConfig governs the API-side request throttling that protects AlloCiné responses from being overwhelmed.
 
+### ScrapeReport
+
+The persisted, run-level record of one scrape run (`scrape_reports` row; types in `server/src/db/report-queries.ts` and `scraper/src/db/report-queries.ts`). It is created as `running` when the run is queued (API side) or started (cron and direct runs, scraper side), and holds the run counters (theaters, movies, showtimes, the `errors` list), the run's ScrapeAttempts and, for a Resume, a `parent_report_id`.
+
+Its **status** is one of `running | success | partial_success | failed | rate_limited`. When the run ends, `completeScrapeReport` (`scraper/src/scraper/report-status.ts`) derives it from the report's ScrapeAttempts — the attempts are the source of truth (ADR 0003) — in this priority:
+
+1. `rate_limited` if any attempt is `rate_limited`;
+2. `success` if every attempt is `success`;
+3. `failed` if no attempt is `success`;
+4. `partial_success` otherwise.
+
+A run that recorded no attempt keeps the counter rule: no failed theater → `success`, some successful theaters → `partial_success`, otherwise `failed`. A Resume is the exception: it only plans the parent's pending pairs, so a Resume that recorded no attempt scraped nothing and is `failed`, with a `System` entry in its `errors` explaining it (`RESUME_SCRAPED_NOTHING_ERROR`: each pending pair was outside the scrape window, not published by the Source, or for a theater no longer configured). A run that throws is `failed`. A Schedule's `last_run_status` has no `rate_limited`: a rate-limited scheduled run is recorded there as `partial_success`.
+
+A report is **resumable** when it has at least one attempt in `failed | rate_limited | not_attempted` (`RESUMABLE_ATTEMPT_STATUSES`, `server/src/db/scrape-attempt-queries.ts`). `GET /api/reports/:id/details` returns that number as `resumable_count`; see Resume.
+
+**What a ScrapeReport is *not*:**
+- Not a **ScrapeRun** (the transient in-process object that drives the run) nor a **ScrapeSummary** (the run's in-memory result). The ScrapeSummary feeds the report's counters; it no longer decides its status.
+
 ### ScrapeAttempt
 
 One per-`(theater, date)` outcome inside a ScrapeReport. A ScrapeAttempt is the unit of "did we get data for this theater on this date for this run?". Lives at `server/src/db/scrape-attempt-queries.ts:4` and is also persisted under that name in the scraper's local DB copy.
 
-A ScrapeAttempt has a **status** drawn from a small finite state machine. Two creation paths exist; once created, the row is terminal (a Resume creates a NEW ScrapeAttempt on a fresh `report_id`, it does not re-open an old one):
+A ScrapeAttempt has a **status** drawn from a small finite state machine. Three creation paths exist; once created, the row is terminal (a Resume creates a NEW ScrapeAttempt on a fresh `report_id`, it does not re-open an old one). A run only writes attempts when it carries its report id (`options.reportId`); every run started by a ScrapeJob, the cron or a direct run does:
 
 - **Created as `pending`** at the moment a date is about to be scraped. Transitions:
   - `pending → success` — the date's scrape returned data; counts `movies_scraped` and `showtimes_scraped` are stamped.
@@ -79,11 +97,16 @@ A ScrapeAttempt has a **status** drawn from a small finite state machine. Two cr
 - **Created as `not_attempted` directly**, without going through `pending`. The triggers are inside `handleRateLimit` (`scraper/src/scraper/index.ts:462`):
   - For the current theater, the remaining dates *after* the rate-limited one.
   - For every theater processed *after* the rate-limited one (the "cascade"), every planned date.
+- **Created as `failed` directly** when a theater's metadata (its page and available dates) cannot be loaded: one attempt per planned date, stamped with the error (`ScrapeRun.runTheater`, `scraper/src/scraper/scrape-run.ts`).
+
+The planned dates of a theater are the run's dates or, in a Resume, only those still pending for that theater in the parent report.
+
+`error_type` takes the values of `classifyError` (`scraper/src/utils/error-classifier.ts`): `http_429`, `http_5xx`, `http_4xx`, `network`, `parse`, `timeout`.
 
 Terminal states: `success`, `failed`, `rate_limited`, `not_attempted`. There is no `pending → not_attempted` and no transitions out of any terminal state.
 
 **What a ScrapeAttempt is *not*:**
-- Not the **run-level** record of a scrape. One ScrapeReport holds many ScrapeAttempts; see `getScrapeAttemptsByReport` at `server/src/db/scrape-attempt-queries.ts:112`.
+- Not the **run-level** record of a scrape. One ScrapeReport holds many ScrapeAttempts; see `getScrapeAttemptsByReport` in `server/src/db/scrape-attempt-queries.ts`, which also returns each attempt's `theater_name`.
 - Not the **rate-limit configuration**. A `rate_limited` attempt is one *instance* of being throttled; see `RateLimitConfig` below for the configuration.
 - Not the **dataset of what was scraped**. A `success` attempt does not hold the movies and showtimes themselves — those are written straight to the main tables; the attempt holds only counts and timestamps.
 
@@ -102,9 +125,9 @@ The scraper-internal runtime object that drives one end-to-end scrape run. A `Sc
 
 ### Resume
 
-Re-issuing a stopped or incomplete scrape scoped to only the (theater, date) pairs that did not reach `success`. The UI exposes it as the "Reprendre le scraping" button (`client/src/pages/ReportsPage/ReportRateLimitedNotice.tsx:38`) wired through the `resume` function (`client/src/pages/ReportsPage.tsx:90`); the API path is `POST /api/scraper/resume/:reportId` (`server/src/routes/scraper.ts:85`); the scraper-runtime flag is `options.resumeMode: true` and the payload list is `options.pendingAttempts: Array<{ theater_id; date }>` (`scraper/src/scraper/index.ts:146-147`).
+Re-issuing a stopped or incomplete scrape scoped to only the (theater, date) pairs that did not reach `success`. The UI exposes it as the report-level « Reprendre (N dates) » action at the top of a report's page (`client/src/pages/ReportsPage/ReportResumeAction.tsx`), where N is the report's `resumable_count` (« 1 date » in the singular). It is shown whenever `resumable_count > 0` and the user holds `scraper:trigger`, whatever the report status, except while the report is still `running`. The orange notice of a `rate_limited` report only explains the 429. The action goes through the `resume` function of `useReportsData` (`client/src/hooks/useReportsData.ts`), which then opens the new report; the API path is `POST /api/scraper/resume/:reportId` (`server/src/routes/scraper.ts:85`); the scraper-runtime flag is `options.resumeMode: true` and the payload list is `options.pendingAttempts: Array<{ theater_id; date }>` (`scraper/src/scraper/index.ts:146-147`).
 
-A Resume always produces a **new** ScrapeReport with `parent_report_id` set to the original. The server reads `getPendingScrapeAttempts(parentReportId)` (any attempt in `failed | rate_limited | not_attempted`), translates them into the `pendingAttempts` payload, and publishes a new ScrapeJob in resume mode. `filterDatesForScrape` then narrows each theater's plan to only its pending dates.
+A Resume always produces a **new** ScrapeReport with `parent_report_id` set to the original. The server reads `getPendingScrapeAttempts(parentReportId)` (any attempt in `RESUMABLE_ATTEMPT_STATUSES`: `failed | rate_limited | not_attempted`), translates them into the `pendingAttempts` payload, and publishes a new ScrapeJob in resume mode. The scraper then only visits the theaters that have pending pairs, and `ScrapeRun.filterDates` narrows each theater's plan to its pending dates; a rate-limit cascade during the Resume also only marks pending pairs. The new report therefore holds nothing but the resumed pairs. Past dates are not filtered out by the server; the scraper only scrapes the pending dates that are in its scrape window (`getScrapeDates`) and still published by the Source. `ScrapeRun.prepare` leaves out a theater with no pending date in the window: its page is not loaded, and it counts in neither the run totals nor the progress events. A Resume that ends up scraping no pair at all records no attempt and its report is `failed` (see ScrapeReport).
 
 **Resume is not free retry.** It does not re-scrape dates that already reached `success` in the parent report. It is also not idempotent on the receiving theater: a date that was `not_attempted` in the parent becomes a brand new `pending` → `success/failed/...` sequence under the new report id.
 

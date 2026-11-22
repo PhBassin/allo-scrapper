@@ -20,7 +20,8 @@ vi.mock('../db/report-queries.js', () => ({
   getScrapeReport: vi.fn()
 }));
 
-vi.mock('../db/scrape-attempt-queries.js', () => ({
+vi.mock('../db/scrape-attempt-queries.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../db/scrape-attempt-queries.js')>()),
   getScrapeAttemptsByReport: vi.fn(),
 }));
 
@@ -156,8 +157,52 @@ describe('Routes - Reports', () => {
             not_attempted: 0,
             pending: 1,
           },
+          resumable_count: 2,
         },
       });
+    });
+
+    it('counts as resumable exactly the failed, rate_limited and not_attempted attempts', async () => {
+      mockReq = { params: { id: '20' }, app: mockApp };
+      const statuses = [
+        'success', 'success', 'success',
+        'failed',
+        'rate_limited',
+        'not_attempted', 'not_attempted', 'not_attempted',
+        'pending', 'pending',
+      ];
+      const mockAttempts = statuses.map((status, i) => ({
+        id: i + 1,
+        report_id: 20,
+        theater_id: `C00${i}`,
+        theater_name: `Cinéma ${i}`,
+        date: '2026-03-10',
+        status,
+      }));
+      vi.mocked(reportQueries.getScrapeReport).mockResolvedValue({ id: 20, status: 'partial_success' } as any);
+      const { getScrapeAttemptsByReport } = await import('../db/scrape-attempt-queries.js');
+      vi.mocked(getScrapeAttemptsByReport).mockResolvedValue(mockAttempts as any);
+
+      const handler = getRouteHandler(router, '/:id/details', 'get');
+      await handler(mockReq, mockRes, mockNext);
+
+      const { data } = mockRes.json.mock.calls[0][0];
+      expect(data.resumable_count).toBe(5);
+      expect(data.attempts['C000'][0].theater_name).toBe('Cinéma 0');
+    });
+
+    it('reports zero resumable attempts for a report without attempts', async () => {
+      mockReq = { params: { id: '21' }, app: mockApp };
+      vi.mocked(reportQueries.getScrapeReport).mockResolvedValue({ id: 21, status: 'success' } as any);
+      const { getScrapeAttemptsByReport } = await import('../db/scrape-attempt-queries.js');
+      vi.mocked(getScrapeAttemptsByReport).mockResolvedValue([]);
+
+      const handler = getRouteHandler(router, '/:id/details', 'get');
+      await handler(mockReq, mockRes, mockNext);
+
+      const { data } = mockRes.json.mock.calls[0][0];
+      expect(data.resumable_count).toBe(0);
+      expect(data.attempts).toEqual({});
     });
   });
 });
